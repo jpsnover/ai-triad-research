@@ -285,7 +285,7 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
     >
       <div>
         {node.label || '(untitled)'}
-        {isMisfit && <span className="misfit-badge" title="This node contradicts most of its cluster — it may belong in a different POV">misfit?</span>}
+        {isMisfit && <span className="misfit-badge" title="This node contradicts most of its cluster — it may belong in a different Perspective">misfit?</span>}
       </div>
       <div className="node-item-id">
         {node.id}

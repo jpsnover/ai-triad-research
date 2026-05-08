@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useChatStore } from '../hooks/useChatStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId } from '../types/debate';
+import type { SpeakerId } from '../types/debate';
 import type { ChatMode } from '../types/chat';
 import { CHAT_MODE_INFO } from '../types/chat';
 import { AI_POVERS } from '@lib/debate/types';
@@ -24,7 +24,7 @@ const MODE_ICONS: Record<ChatMode, string> = {
 export function NewChatDialog({ onClose }: NewChatDialogProps) {
   const { createChat, loadChat } = useChatStore();
   const [mode, setMode] = useState<ChatMode>('brainstorm');
-  const [pover, setPover] = useState<Exclude<PoverId, 'user'>>('prometheus');
+  const [pover, setPover] = useState<Exclude<SpeakerId, 'user'>>('prometheus');
   const [topic, setTopic] = useState('');
   const [creating, setCreating] = useState(false);
   const { aiBackend, geminiModel } = useTaxonomyStore();

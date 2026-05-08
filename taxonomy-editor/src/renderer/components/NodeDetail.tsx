@@ -667,7 +667,7 @@ function EvidenceGraphSection({ nodeId }: { nodeId: string }) {
               <span style={{
                 fontSize: '0.7rem', fontWeight: 700, color: barColor, minWidth: 40,
               }}>
-                {eg.computed_strength.toFixed(2)}
+                {(eg.computed_strength ?? 0).toFixed(2)}
               </span>
               <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
                 {eg.qbaf_iterations} iter

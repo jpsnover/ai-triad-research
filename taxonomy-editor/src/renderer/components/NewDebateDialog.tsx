@@ -6,7 +6,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
-import type { PoverId, DebateSourceType, DebateAudience } from '../types/debate';
+import type { SpeakerId, DebateSourceType, DebateAudience } from '../types/debate';
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
 import { AI_POVERS } from '@lib/debate/types';
 import { api } from '@bridge';
@@ -59,7 +59,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [sourceRef, setSourceRef] = useState('');
   const [sourceContent, setSourceContent] = useState('');
   const [fileName, setFileName] = useState('');
-  const [selected, setSelected] = useState<Set<PoverId>>(new Set(AI_POVERS));
+  const [selected, setSelected] = useState<Set<SpeakerId>>(new Set(AI_POVERS));
   const [userIsPover, setUserIsPover] = useState(false);
   const [creating, setCreating] = useState(false);
   const { aiBackend, geminiModel, situations } = useTaxonomyStore();
@@ -90,7 +90,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     return situations.nodes;
   }, [situations]);
 
-  const toggle = (id: PoverId) => {
+  const toggle = (id: SpeakerId) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);

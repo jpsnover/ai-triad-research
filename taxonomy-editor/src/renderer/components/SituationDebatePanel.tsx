@@ -7,7 +7,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
 import { useShallow } from 'zustand/react/shallow';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
-import type { PoverId, DebateAudience } from '../types/debate';
+import type { SpeakerId, DebateAudience } from '../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
 
@@ -37,7 +37,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
     ), []);
 
   // Configuration state
-  const [selected, setSelected] = useState<Set<PoverId>>(new Set(AI_POVERS));
+  const [selected, setSelected] = useState<Set<SpeakerId>>(new Set(AI_POVERS));
   const [userIsPover, setUserIsPover] = useState(false);
   const [useCustomModel, setUseCustomModel] = useState(false);
   const [customModel, setCustomModel] = useState(geminiModel);
@@ -49,7 +49,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
   const [launching, setLaunching] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const toggle = (id: PoverId) => {
+  const toggle = (id: SpeakerId) => {
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -114,7 +114,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
       <div className="sit-debate-config">
         <h4 className="sit-debate-section-title">New Situation Debate</h4>
         <p className="sit-debate-desc">
-          Each debater will defend their POV's interpretation of this situation.
+          Each debater will defend their Perspective's interpretation of this situation.
           The moderator steers toward unaddressed BDI dimensions.
         </p>
 

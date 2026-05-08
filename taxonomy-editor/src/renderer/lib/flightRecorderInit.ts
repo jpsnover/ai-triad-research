@@ -333,10 +333,9 @@ export function dumpOnReactError(
     data: componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined,
   });
 
-  if (canAutoDump()) {
-    recordDump();
-    void persistDump(recorder, 'error_boundary', {
-      name: error.name, message: error.message, stack: error.stack?.slice(0, 500),
-    }, componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined);
-  }
+  // Error boundary dumps bypass cooldown — highest-priority trigger
+  recordDump();
+  void persistDump(recorder, 'error_boundary', {
+    name: error.name, message: error.message, stack: error.stack?.slice(0, 500),
+  }, componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined);
 }

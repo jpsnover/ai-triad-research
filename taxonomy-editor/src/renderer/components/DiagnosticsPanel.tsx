@@ -7,7 +7,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion } from '../types/debate';
+import type { SpeakerId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion } from '../types/debate';
 import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
@@ -23,12 +23,12 @@ const AIF_TOOLTIPS = {
   'PA': 'PA-node (Preference Application) — resolves conflicts by determining which argument prevails and why, based on criteria like evidence strength or logical validity.',
 };
 
-function speakerLabel(speaker: PoverId | 'system' | 'document' | 'moderator'): string {
+function speakerLabel(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string {
   if (speaker === 'system') return 'System';
   if (speaker === 'moderator') return 'Moderator';
   if (speaker === 'user') return 'You';
   if (speaker === 'document') return 'Document';
-  return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+  return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
 function CopyButton({ targetRef }: { targetRef: React.RefObject<HTMLDivElement | null> }) {
@@ -99,7 +99,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
         const bdiLayer = node.taxonomy_refs.some(r => r.includes('-beliefs-')) ? 'Beliefs'
           : node.taxonomy_refs.some(r => r.includes('-desires-')) ? 'Desires'
           : node.taxonomy_refs.some(r => r.includes('-intentions-')) ? 'Intentions' : 'Unknown';
-        const isPending = node.scoring_method === 'default_pending';
+        const isPending = node.scoring_method === 'unscored';
 
         return (
           <div key={node.id} className={`diag-qbaf-card ${isPending ? 'diag-qbaf-pending' : ''}`}>
@@ -109,9 +109,9 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
             </div>
             <div className="diag-qbaf-claim-text">{node.text}</div>
             <div className="diag-qbaf-strength-row">
-              <span className="diag-k">Base:</span> <span className="diag-v">{base.toFixed(2)}</span>
+              <span className="diag-k">Intrinsic:</span> <span className="diag-v">{base.toFixed(2)}</span>
               <span className="diag-qbaf-arrow">→</span>
-              <span className="diag-k">Computed:</span> <span className="diag-v">{computed.toFixed(2)}</span>
+              <span className="diag-k">Dialectical:</span> <span className="diag-v">{computed.toFixed(2)}</span>
               {Math.abs(delta) > 0.01 && (
                 <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}>
                   ({delta > 0 ? '+' : ''}{delta.toFixed(2)})
@@ -145,16 +145,16 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
                         values_grounding: 'Values', tradeoff_acknowledgment: 'Tradeoffs', precedent_citation: 'Precedent',
                         mechanism_specificity: 'Mechanism', scope_bounding: 'Scope', failure_mode_addressing: 'Failure modes',
                       } as Record<string, string>)[key] ?? key}:</span>
-                      <span className="diag-v">{(val as number).toFixed(2)}</span>
+                      <span className="diag-v">{((val as number) ?? 0).toFixed(2)}</span>
                     </span>
                   ))}
               </div>
             )}
             <div className="diag-qbaf-meta">
               <span className="diag-badge diag-badge-type">{bdiLayer}{node.bdi_confidence != null && node.bdi_confidence < 0.5 ? '*' : ''}</span>
-              <span className="diag-muted">Scored by: {node.scoring_method === 'ai_rubric' ? 'AI rubric (v3)' : node.scoring_method === 'human' ? 'Human' : node.scoring_method === 'fact_check' ? 'Fact-check verification' : node.scoring_method === 'default_pending' ? 'Unscored (default 0.5)' : 'Unknown'}</span>
+              <span className="diag-muted">Scored by: {node.scoring_method === 'bdi_criteria' ? 'BDI Criteria (v3)' : node.scoring_method === 'human' ? 'Human' : node.scoring_method === 'fact_check' ? 'Fact-check verification' : node.scoring_method === 'unscored' ? 'Unscored (default 0.5)' : 'Unknown'}</span>
               {node.bdi_confidence != null && node.bdi_confidence < 0.5 && (
-                <span className="diag-muted" title="AI scoring confidence is low for Beliefs claims (Q-0 calibration r &lt; 0.2)"> (low confidence)</span>
+                <span className="diag-muted" title="Scoring reliability is low for Beliefs claims (Q-0 calibration r &lt; 0.2)"> (low scoring reliability)</span>
               )}
             </div>
             {isPending && (
@@ -215,7 +215,7 @@ function EntryView({ entryId }: { entryId: string }) {
               <span className="diag-badge diag-badge-type">{im.force}</span>
             </div>
             <div className="diag-kv">
-              <span className="diag-k">Target:</span> <span className="diag-v">{speakerLabel(im.target_debater as PoverId)}</span>
+              <span className="diag-k">Target:</span> <span className="diag-v">{speakerLabel(im.target_debater as SpeakerId)}</span>
             </div>
             <div className="diag-kv">
               <span className="diag-k">Burden:</span> <span className="diag-v">{im.burden.toFixed(2)}</span>
@@ -528,7 +528,7 @@ function EntryView({ entryId }: { entryId: string }) {
               <div style={{ fontSize: '0.75rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
                   <div>
-                    <div className="diag-k">POV Nodes</div>
+                    <div className="diag-k">Perspective Nodes</div>
                     <div className="diag-v">{usedPov.length} / {injectedPov.length} used ({injectedPov.length > 0 ? Math.round(100 * usedPov.length / injectedPov.length) : 0}%)</div>
                   </div>
                   <div>
@@ -767,7 +767,7 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
         const delta = endVal - startVal;
         return (
           <div className="diag-timeline-tooltip">
-            <strong>{hoveredClaim}</strong> ({speakerLabel(node.speaker as PoverId)}):
+            <strong>{hoveredClaim}</strong> ({speakerLabel(node.speaker as SpeakerId)}):
             {' '}{startVal.toFixed(2)} → {endVal.toFixed(2)}
             {Math.abs(delta) > 0.01 && (
               <span className={delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}>
@@ -784,7 +784,7 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
         {Object.entries(TIMELINE_SPEAKER_COLORS).map(([speaker, color]) => (
           <span key={speaker} className="diag-timeline-legend-item">
             <span style={{ display: 'inline-block', width: 10, height: 3, background: color, marginRight: 4 }} />
-            {speakerLabel(speaker as PoverId)}
+            {speakerLabel(speaker as SpeakerId)}
           </span>
         ))}
       </div>
@@ -896,7 +896,7 @@ function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
                 </div>
                 <div className="whatif-node-text">{n.text.slice(0, 100)}{n.text.length > 100 ? '...' : ''}</div>
                 <div className="whatif-slider-row">
-                  <span className="diag-k">Base:</span>
+                  <span className="diag-k">Intrinsic:</span>
                   <input
                     type="range"
                     min={0}
@@ -905,7 +905,7 @@ function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
                     value={currentBase}
                     onChange={e => handleSliderChange(n.id, Number(e.target.value))}
                     className="whatif-slider"
-                    title={`Base strength: ${currentBase.toFixed(2)} (original: ${origBase.toFixed(2)})`}
+                    title={`Intrinsic strength: ${currentBase.toFixed(2)} (original: ${origBase.toFixed(2)})`}
                   />
                   <span className="whatif-slider-value">{currentBase.toFixed(2)}</span>
                   {isOverridden && (
@@ -914,7 +914,7 @@ function WhatIfSection({ nodes, edges }: { nodes: ArgumentNetworkNode[]; edges: 
                 </div>
                 {whatIfStrengths && (
                   <div className="whatif-result-row">
-                    <span className="diag-k">Computed:</span>
+                    <span className="diag-k">Dialectical:</span>
                     <span className="diag-v">{origComputed.toFixed(2)}</span>
                     <span className="diag-qbaf-arrow">{'\u2192'}</span>
                     <span className={`whatif-new-value ${Math.abs(delta) > 0.01 ? (delta > 0 ? 'whatif-up' : 'whatif-down') : ''}`}>
@@ -1135,7 +1135,7 @@ function OverviewView() {
         <CollapsibleSection title="Commitment Stores" defaultOpen>
           {Object.entries(commitments).map(([poverId, store]) => (
             <div key={poverId} className="diag-commit-store">
-              <strong>{speakerLabel(poverId as PoverId)}</strong>
+              <strong>{speakerLabel(poverId as SpeakerId)}</strong>
               <div className="diag-commit-counts">
                 Asserted: {store.asserted.length} | Conceded: {store.conceded.length} | Challenged: {store.challenged.length}
               </div>
@@ -1206,7 +1206,7 @@ function OverviewView() {
                 <span className="diag-k" style={{ fontSize: '0.6rem' }}>Burden (avg {ms.avg_burden.toFixed(2)}):</span>
                 {Object.entries(ms.burden_per_debater).map(([debater, burden]) => (
                   <div key={debater} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0' }}>
-                    <span style={{ fontSize: '0.6rem', width: 60, textAlign: 'right' }}>{speakerLabel(debater as PoverId)}</span>
+                    <span style={{ fontSize: '0.6rem', width: 60, textAlign: 'right' }}>{speakerLabel(debater as SpeakerId)}</span>
                     <div style={{ flex: 1, height: 4, background: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ width: `${(burden / maxBurden * 100)}%`, height: '100%', background: burden > ms.avg_burden * 1.5 ? '#ef4444' : '#3b82f6', transition: 'width 0.2s' }} />
                     </div>
@@ -1231,7 +1231,7 @@ function OverviewView() {
                   <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '2px 0', fontSize: '0.6rem' }}>
                     <span className="diag-muted" style={{ width: 24 }}>R{h.round}</span>
                     <span className="diag-badge" style={{ fontSize: '0.5rem', background: `${familyColors[h.family] ?? '#6b7280'}30`, color: familyColors[h.family] ?? '#6b7280' }}>{h.move}</span>
-                    <span style={{ fontSize: '0.55rem' }}>{'→'} {speakerLabel(h.target as PoverId)}</span>
+                    <span style={{ fontSize: '0.55rem' }}>{'→'} {speakerLabel(h.target as SpeakerId)}</span>
                     <span className="diag-muted" style={{ fontSize: '0.5rem' }}>({h.burden.toFixed(1)})</span>
                   </div>
                 ))}
@@ -1276,7 +1276,7 @@ function OverviewView() {
               <span className="diag-k">Speaker selection:</span>
               <div className="diag-badges">
                 {Object.entries(selectionCounts).sort((a, b) => b[1] - a[1]).map(([s, c]) => (
-                  <span key={s} className="diag-badge diag-badge-move">{speakerLabel(s as PoverId)} ({c})</span>
+                  <span key={s} className="diag-badge diag-badge-move">{speakerLabel(s as SpeakerId)} ({c})</span>
                 ))}
               </div>
             </div>
@@ -1304,7 +1304,7 @@ function OverviewView() {
             <div style={{ marginTop: 6, fontSize: '0.65rem' }}>
               {modEntries.slice(-5).reverse().map(({ id, trace }) => (
                 <div key={id} className="diag-mod-round" style={{ display: 'flex', gap: 6, alignItems: 'baseline', marginBottom: 2 }}>
-                  <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem', minWidth: 50 }}>{speakerLabel(trace.selected as PoverId)}</span>
+                  <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem', minWidth: 50 }}>{speakerLabel(trace.selected as SpeakerId)}</span>
                   <span className="diag-muted" style={{ flex: 1 }}>{trace.focus_point}</span>
                   {trace.intervention_move && <span className="diag-badge" style={{ fontSize: '0.5rem', background: trace.intervention_validated ? 'rgba(139,92,246,0.2)' : 'rgba(239,68,68,0.15)', color: trace.intervention_validated ? '#8b5cf6' : '#ef4444' }}>{trace.intervention_move}{trace.intervention_validated ? '' : ' (suppressed)'}</span>}
                   {trace.health_score != null && <span className="diag-muted" style={{ fontSize: '0.5rem' }}>H:{trace.health_score.toFixed(2)}</span>}
@@ -1324,7 +1324,7 @@ function OverviewView() {
             <div key={claim.claim_id} className={`diag-ledger-entry ${claim.addressed_round ? 'diag-ledger-addressed' : ''}`}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                 <span className="diag-an-id">{claim.claim_id}</span>
-                <span className="diag-an-speaker">({speakerLabel(claim.speaker as PoverId)})</span>
+                <span className="diag-an-speaker">({speakerLabel(claim.speaker as SpeakerId)})</span>
                 <span className="diag-badge" style={{ fontSize: '0.5rem', background: claim.addressed_round ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: claim.addressed_round ? '#22c55e' : '#ef4444' }}>
                   {claim.addressed_round ? `addressed R${claim.addressed_round}` : `since R${claim.first_unanswered_round}`}
                 </span>
@@ -1365,7 +1365,7 @@ function OverviewView() {
               return (
                 <div key={speaker} className="diag-drift-speaker">
                   <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
-                    <strong>{speakerLabel(speaker as PoverId)}</strong>
+                    <strong>{speakerLabel(speaker as SpeakerId)}</strong>
                     <span className="diag-muted">self-sim: {latest.self_similarity.toFixed(3)}</span>
                     <span className={`diag-badge ${selfDelta < -0.05 ? 'diag-drift-warning' : ''}`} style={{ fontSize: '0.5rem' }}>
                       {selfDelta > 0 ? '+' : ''}{selfDelta.toFixed(3)}
@@ -1373,7 +1373,7 @@ function OverviewView() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, fontSize: '0.6rem', paddingLeft: 8 }}>
                     {Object.entries(latest.opponent_similarities).map(([opp, sim]) => (
-                      <span key={opp}>→ {speakerLabel(opp as PoverId)}: {sim.toFixed(3)}</span>
+                      <span key={opp}>→ {speakerLabel(opp as SpeakerId)}: {sim.toFixed(3)}</span>
                     ))}
                   </div>
                 </div>
@@ -1680,7 +1680,7 @@ export function DiagnosticsPanel() {
       <div className="diagnostics-resize-handle" onMouseDown={onMouseDown} />
       <div className="diagnostics-panel" style={{ height }}>
         <div className="diagnostics-panel-header">
-          <h3>Diagnostics</h3>
+          <h3>Debate Diagnostics</h3>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
             {selectedDiagEntry && (
               <button className="btn btn-sm" onClick={() => selectDiagEntry(null)} style={{ fontSize: '0.65rem' }}>
@@ -1705,8 +1705,8 @@ export function DiagnosticsPanel() {
               setTimeout(() => {
                 void api.sendDiagnosticsState({ debate, selectedEntry: entry });
               }, 1000);
-            }} style={{ fontSize: '0.65rem' }} title="Show how each POV's taxonomy context and citations evolve across turns">
-              POV Progression
+            }} style={{ fontSize: '0.65rem' }} title="Show how each Perspective's taxonomy context and citations evolve across turns">
+              Perspective Progression
             </button>
           </div>
         </div>

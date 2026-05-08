@@ -6,7 +6,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { ReflectionEdit, ReflectionResult } from '../hooks/useDebateStore';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId } from '../types/debate';
+import type { SpeakerId } from '../types/debate';
 
 /** Scroll the debate transcript to the referenced evidence entry (e.g. "S13" or "Moderator Round 4"). */
 function scrollToEvidence(entry: string) {
@@ -369,7 +369,7 @@ function EditCard({ edit, pover, editIndex }: {
 }
 
 function PoverReflection({ result }: { result: ReflectionResult }) {
-  const info = POVER_INFO[result.pover as Exclude<PoverId, 'user'>];
+  const info = POVER_INFO[result.pover as Exclude<SpeakerId, 'user'>];
   const color = info?.color || '#888';
   const pending = result.edits.filter(e => e.status === 'pending').length;
   const approved = result.edits.filter(e => e.status === 'approved').length;
@@ -495,7 +495,7 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
             userSelect: 'none',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: '1rem', flex: 1 }}>Reflections</h3>
+          <h3 style={{ margin: 0, fontSize: '1rem', flex: 1 }}>Post-Debate Reflections</h3>
           {reflections.length > 0 && totalPending > 0 && (
             <>
               <button className="btn btn-primary" style={{ fontSize: '0.7rem', padding: '3px 10px' }} onClick={approveAll}>
@@ -527,7 +527,7 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
                 onClick={() => requestReflections()}
                 style={{ fontSize: '0.8rem', padding: '8px 24px' }}
               >
-                Start Reflections
+                Start Post-Debate Reflections
               </button>
             </div>
           )}

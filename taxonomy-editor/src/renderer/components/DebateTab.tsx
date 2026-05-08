@@ -342,7 +342,7 @@ export function DebateTab() {
               />
             ) : (
               <div className="debate-empty-state">
-                <h2>POV Debater</h2>
+                <h2>Perspective Debater</h2>
                 <p>Select a debate from the list or create a new one.</p>
                 <button className="btn" onClick={() => setShowNewDialog(true)}>
                   + New Debate

@@ -52,8 +52,8 @@ export function QbafClaimBadge({ node }: QbafClaimBadgeProps) {
   const band = strengthBand(computed);
   const showDelta = Math.abs(delta) > 0.1;
   const bdiLetter = node.bdi_category ? BDI_LETTER[node.bdi_category] : '';
-  const subScoreLine = node.bdi_sub_scores ? `\n  Sub-scores: ${formatSubScores(node.bdi_sub_scores)}` : '';
-  const confLine = node.bdi_confidence != null && node.bdi_confidence < 0.5 ? '\n  (low AI scoring confidence for this category)' : '';
+  const subScoreLine = node.bdi_sub_scores ? `\n  Criteria scores: ${formatSubScores(node.bdi_sub_scores)}` : '';
+  const confLine = node.bdi_confidence != null && node.bdi_confidence < 0.5 ? '\n  (low scoring reliability for this category)' : '';
 
   return (
     <span
@@ -130,7 +130,7 @@ export function QbafScoreSlider({ node, onScoreChange }: QbafScoreSliderProps) {
         value={score}
         onChange={e => onScoreChange(node.id, Number(e.target.value))}
         className="qbaf-score-slider"
-        title={`Base strength: ${score.toFixed(1)} — adjust to reflect how well-evidenced this claim is`}
+        title={`Intrinsic strength: ${score.toFixed(1)} — adjust to reflect how well-evidenced this claim is`}
       />
       <QbafClaimBadge node={node} />
     </div>
@@ -199,7 +199,7 @@ export function QbafSummary({ nodes, edges }: QbafSummaryProps) {
           const avg = group.reduce((s, n) => s + (n.computed_strength ?? 0), 0) / group.length;
           const conf = cat === 'belief' ? 'low' : cat === 'desire' ? 'medium' : 'good';
           return (
-            <span key={cat} className="qbaf-stat" title={`AI scoring confidence: ${conf}`}>
+            <span key={cat} className="qbaf-stat" title={`Scoring reliability: ${conf}`}>
               {cat[0].toUpperCase()}: {group.length} claims, avg {avg.toFixed(2)} ({conf})
             </span>
           );

@@ -291,7 +291,7 @@ function MainApp() {
     const pct = total > 0 ? Math.round((completed.length / total) * 100) : 0;
     return (
       <div className="loading">
-        <div className="loading-title">Loading Accelerationist POV...</div>
+        <div className="loading-title">Loading Accelerationist Perspective...</div>
         {total > 0 && (
           <>
             <div className="loading-bar-track">
@@ -313,7 +313,7 @@ function MainApp() {
         <div className="background-loading-banner">
           <div className="background-loading-bar" />
           <span className="background-loading-text">
-            Loading remaining POVs... ({loadingProgress.completed.length} of {loadingProgress.total})
+            Loading remaining Perspectives... ({loadingProgress.completed.length} of {loadingProgress.total})
           </span>
         </div>
       )}

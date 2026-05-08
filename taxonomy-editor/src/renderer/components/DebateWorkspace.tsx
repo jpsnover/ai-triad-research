@@ -7,7 +7,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
-import type { PoverId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode } from '../types/debate';
+import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
@@ -146,19 +146,19 @@ function getPolicyAction(polId: string): string {
 }
 
 
-function speakerLabel(speaker: PoverId | 'system' | 'document' | 'moderator'): string {
+function speakerLabel(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string {
   if (speaker === 'system') return 'System';
   if (speaker === 'moderator') return 'Moderator';
   if (speaker === 'user') return 'You';
   if (speaker === 'document') return 'Document';
-  const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
+  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
   return info ? info.label : speaker;
 }
 
-function speakerColor(speaker: PoverId | 'system' | 'document' | 'moderator'): string | undefined {
+function speakerColor(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string | undefined {
   if (speaker === 'system' || speaker === 'user' || speaker === 'document') return undefined;
   if (speaker === 'moderator') return 'var(--color-moderator, #8b5cf6)';
-  const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
+  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
   return info?.color;
 }
 
@@ -446,7 +446,7 @@ function DebateSimilarPovPanel({ query, onClose }: { query: string; onClose: () 
   return (
     <div className="debate-similar-pov-panel">
       <div className="debate-similar-pov-header">
-        <span className="debate-similar-pov-title">Similar POVs</span>
+        <span className="debate-similar-pov-title">Similar Perspectives</span>
         <span className="debate-similar-pov-query" title={query}>&ldquo;{truncatedQuery}&rdquo;</span>
         <button className="debate-find-close" onClick={onClose} title="Close">×</button>
       </div>
@@ -799,9 +799,9 @@ function ProbingCard({ entry, statementId }: { entry: TranscriptEntry; statement
   const handleAsk = async (q: { text: string; targets: string[] }) => {
     if (debateGenerating) return;
     // If the question targets specific debaters, prepend @mentions so askQuestion routes to them
-    const validTargets = (q.targets || []).filter(t => POVER_INFO[t as Exclude<PoverId, 'user'>]);
+    const validTargets = (q.targets || []).filter(t => POVER_INFO[t as Exclude<SpeakerId, 'user'>]);
     if (validTargets.length > 0 && validTargets.length < 3) {
-      const mentions = validTargets.map(t => `@${POVER_INFO[t as Exclude<PoverId, 'user'>]?.label}`).join(' ');
+      const mentions = validTargets.map(t => `@${POVER_INFO[t as Exclude<SpeakerId, 'user'>]?.label}`).join(' ');
       await askQuestion(`${mentions} ${q.text}`);
       return;
     }
@@ -821,7 +821,7 @@ function ProbingCard({ entry, statementId }: { entry: TranscriptEntry; statement
       </div>
       <div className="debate-probing-questions">
         {questions.map((q, i) => {
-          const validTargets = (q.targets || []).filter(t => POVER_INFO[t as Exclude<PoverId, 'user'>]);
+          const validTargets = (q.targets || []).filter(t => POVER_INFO[t as Exclude<SpeakerId, 'user'>]);
           const hasTargets = validTargets.length > 0 && validTargets.length < 3;
           return (
             <button
@@ -830,13 +830,13 @@ function ProbingCard({ entry, statementId }: { entry: TranscriptEntry; statement
               onClick={() => void handleAsk(q)}
               disabled={!!debateGenerating}
               title={[
-                q.targets?.length > 0 ? `Directed at: ${q.targets.map((t) => POVER_INFO[t as Exclude<PoverId, 'user'>]?.label || t).join(', ')}` : null,
+                q.targets?.length > 0 ? `Directed at: ${q.targets.map((t) => POVER_INFO[t as Exclude<SpeakerId, 'user'>]?.label || t).join(', ')}` : null,
                 q.threatens ? `Threatens: ${q.threatens}` : null,
                 q.type ? `Type: ${q.type}` : null,
               ].filter(Boolean).join('\n') || 'Ask this question to all debaters'}
             >
               {hasTargets && validTargets.map(t => {
-                const info = POVER_INFO[t as Exclude<PoverId, 'user'>];
+                const info = POVER_INFO[t as Exclude<SpeakerId, 'user'>];
                 return (
                   <span key={t} className="debate-probing-target" style={info?.color ? { color: info.color } : undefined}>
                     @{info?.label}
@@ -924,7 +924,7 @@ function DebateContextMenu({
         Search Google for &lsquo;{truncatedText}&rsquo;
       </button>
       <button className="debate-context-menu-item" onClick={handleSimilarPovs}>
-        Similar POVs for &lsquo;{truncatedText}&rsquo;
+        Similar Perspectives for &lsquo;{truncatedText}&rsquo;
       </button>
       {menu.isPoverStatement && (
         <button
@@ -1672,7 +1672,7 @@ function DebaterToggles() {
   if (!activeDebate) return null;
 
   const allPovers = AI_POVERS;
-  const isActive = (p: PoverId) => activeDebate.active_povers.includes(p);
+  const isActive = (p: SpeakerId) => activeDebate.active_povers.includes(p);
   const disabled = !!debateGenerating;
 
   return (
@@ -1722,7 +1722,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
   const disabled = isGenerating || sending || activeDebate.phase === 'closed';
 
   // Filter mention options to active AI povers
-  const mentionOptions = AI_MENTION_OPTIONS.filter(o => activeDebate.active_povers.includes(o.id as PoverId));
+  const mentionOptions = AI_MENTION_OPTIONS.filter(o => activeDebate.active_povers.includes(o.id as SpeakerId));
 
   const insertMention = (label: string) => {
     // Find the last @ in the input and replace from there
@@ -1927,7 +1927,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
           disabled={disabled}
           title="Each debater reflects on the debate and proposes taxonomy edits"
         >
-          Reflections
+          Post-Debate Reflections
         </button>
         <button
           className={`btn${showEvaluation ? ' active' : ''}`}
@@ -2268,7 +2268,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           onClick={toggleDiagnostics}
           title={diagnosticsEnabled ? 'Disable diagnostics mode' : 'Enable diagnostics mode — click entries to inspect'}
         >
-          {diagnosticsEnabled ? 'Diagnostics ON' : 'Diagnostics'}
+          {diagnosticsEnabled ? 'Debate Diagnostics ON' : 'Debate Diagnostics'}
         </button>
         {isCrossCutting && (
           <button

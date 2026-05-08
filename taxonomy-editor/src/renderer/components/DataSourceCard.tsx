@@ -90,9 +90,9 @@ function Dropdown({ label, configKey, options }: {
 }
 
 const DATA_SOURCE_DESCRIPTIONS: Record<DataSourceId, string> = {
-  taxonomyNodes: 'POV taxonomy nodes selected by cosine similarity, organized into BDI sections.',
-  situationNodes: 'Contested concepts with per-POV interpretations (DOLCE D&S situations).',
-  vulnerabilities: 'Steelman vulnerabilities — where this POV\'s position is weakest.',
+  taxonomyNodes: 'Perspective taxonomy nodes selected by cosine similarity, organized into BDI sections.',
+  situationNodes: 'Contested concepts with per-Perspective interpretations (DOLCE D&S situations).',
+  vulnerabilities: 'Steelman vulnerabilities — where this Perspective\'s position is weakest.',
   fallacies: 'Possible reasoning fallacies identified on taxonomy nodes.',
   policyRegistry: 'Policy actions referenced by taxonomy nodes.',
   sourceDocument: 'The source document snapshot (markdown) being analyzed.',

@@ -4,14 +4,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, DebateSession } from '../types/debate';
+import type { SpeakerId, DebateSession } from '../types/debate';
 
 function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
   if (speaker === 'document') return 'Document';
   if (speaker === 'moderator') return 'Moderator';
-  return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+  return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
 export function GroundingPanel({ debate }: { debate: DebateSession }) {

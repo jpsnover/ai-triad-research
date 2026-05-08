@@ -10,13 +10,13 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import type { DebateSession, TranscriptEntry, ArgumentNetworkNode, ArgumentNetworkEdge, PoverId } from '../../types/debate';
+import type { DebateSession, TranscriptEntry, ArgumentNetworkNode, ArgumentNetworkEdge, SpeakerId } from '../../types/debate';
 import { POVER_INFO } from '../../types/debate';
 import { AI_POVERS } from '@lib/debate/types';
 
 // ── Local view types ──────────────────────────────────────
 
-type Pover = Exclude<PoverId, 'user'>;
+type Pover = Exclude<SpeakerId, 'user'>;
 const POVS = AI_POVERS;
 
 type Mode = 'snapshot' | 'diff' | 'since-opening';
@@ -747,7 +747,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
         display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
       }}>
         <div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>POV Progression</div>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>Perspective Progression</div>
           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
             {session.title} — {turns.length} turn{turns.length === 1 ? '' : 's'}
           </div>
@@ -797,7 +797,7 @@ export function PovProgressionView({ session, nodeLabels }: PovProgressionViewPr
         />
 
         <div style={{ marginBottom: 6, fontSize: '0.85rem', fontWeight: 600 }}>
-          {curr.label} — POV streams
+          {curr.label} — Perspective streams
         </div>
         {POVS.map(p => (
           <PovLane

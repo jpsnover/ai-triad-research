@@ -674,7 +674,7 @@ Return ONLY JSON (no markdown):
                               value={item.suggestedLabel}
                               onChange={e => setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedLabel: e.target.value } : c))}
                             /></label>
-                            <label>POV:
+                            <label>Perspective:
                               <select value={item.suggestedPov} onChange={e => setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedPov: e.target.value } : c))}>
                                 <option value="accelerationist">Accelerationist</option>
                                 <option value="safetyist">Safetyist</option>
@@ -732,7 +732,7 @@ Return ONLY JSON (no markdown):
                         <div className="harvest-proposal-edit">
                           <label>Label: <input value={item.label} onChange={e => setProposals(prev => prev.map((p, j) => j === i ? { ...p, label: e.target.value } : p))} /></label>
                           <label>Description: <textarea value={item.description} rows={3} onChange={e => setProposals(prev => prev.map((p, j) => j === i ? { ...p, description: e.target.value } : p))} /></label>
-                          <label>POV: <select value={item.pov} onChange={e => setProposals(prev => prev.map((p, j) => j === i ? { ...p, pov: e.target.value } : p))}>
+                          <label>Perspective: <select value={item.pov} onChange={e => setProposals(prev => prev.map((p, j) => j === i ? { ...p, pov: e.target.value } : p))}>
                             <option value="accelerationist">Accelerationist</option>
                             <option value="safetyist">Safetyist</option>
                             <option value="skeptic">Skeptic</option>

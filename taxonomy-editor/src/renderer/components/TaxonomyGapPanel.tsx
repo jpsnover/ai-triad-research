@@ -14,7 +14,7 @@ import type {
   CrossCuttingProposal,
 } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId } from '../types/debate';
+import type { SpeakerId } from '../types/debate';
 
 interface Props {
   debate: DebateSession;
@@ -134,7 +134,7 @@ function SummaryBanner({ summary }: { summary: TaxonomyGapAnalysis['summary'] })
 
         {/* Underserved POV */}
         <div style={{ ...CARD, flex: '1 1 120px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 2 }}>Most Underserved POV</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 2 }}>Most Underserved Perspective</div>
           <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{summary.most_underserved_pov}</div>
         </div>
 
@@ -152,7 +152,7 @@ function SummaryBanner({ summary }: { summary: TaxonomyGapAnalysis['summary'] })
 
         {/* Cross-POV gaps */}
         <div style={{ ...CARD, flex: '1 1 100px' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 2 }}>Cross-POV Gaps</div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 2 }}>Cross-Perspective Gaps</div>
           <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{summary.cross_pov_gap_count}</div>
         </div>
       </div>
@@ -171,7 +171,7 @@ function SummaryBanner({ summary }: { summary: TaxonomyGapAnalysis['summary'] })
   );
 }
 
-// ── Section 2: Per-POV Coverage ─────────────────────────
+// ── Section 2: Per-Perspective Coverage ─────────────────────────
 
 function PovCoverageCard({ pov, coverage, bdi }: { pov: string; coverage: PovCoverage; bdi?: BdiBalance }) {
   const [expanded, setExpanded] = useState(false);
@@ -281,7 +281,7 @@ function PovCoverageSection({ analysis }: { analysis: TaxonomyGapAnalysis }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={SECTION_HEADER}>Per-POV Coverage</div>
+      <div style={SECTION_HEADER}>Per-Perspective Coverage</div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {povKeys.map(pov => (
           <PovCoverageCard
@@ -344,7 +344,7 @@ function UnmappedArgumentsSection({ args }: { args: UnmappedArgument[] }) {
 function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
-  const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
+  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
   return info?.label || speaker;
 }
 
@@ -355,7 +355,7 @@ function CrossPovGapsSection({ gaps }: { gaps: CrossPovGap[] }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={SECTION_HEADER}>Cross-POV Gaps ({gaps.length})</div>
+      <div style={SECTION_HEADER}>Cross-Perspective Gaps ({gaps.length})</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {gaps.map((gap, i) => (
           <div key={i} style={CARD}>
@@ -504,7 +504,7 @@ function CrossCuttingProposalsSection({ proposals }: { proposals: CrossCuttingPr
               fontSize: '0.65rem', cursor: 'pointer', padding: '2px 0',
             }}
           >
-            {expandedIndex === i ? 'Hide' : 'Show'} per-POV interpretations
+            {expandedIndex === i ? 'Hide' : 'Show'} per-Perspective interpretations
           </button>
 
           {expandedIndex === i && (

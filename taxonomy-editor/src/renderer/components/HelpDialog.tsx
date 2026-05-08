@@ -287,7 +287,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             </p>
             <h4>Features</h4>
             <p><strong>Pin</strong> — Pin any item to compare it side-by-side with the active item.</p>
-            <p><strong>Search</strong> — Full-text search with raw, wildcard, and regex modes. Scope by POV and/or category.</p>
+            <p><strong>Search</strong> — Full-text search with raw, wildcard, and regex modes. Scope by Perspective and/or category.</p>
             <p><strong>Resize</strong> — Drag the border between the list and detail panels to resize.</p>
           </div>
         )}

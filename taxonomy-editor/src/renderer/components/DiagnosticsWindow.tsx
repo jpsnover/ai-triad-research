@@ -9,7 +9,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
+import type { SpeakerId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { getMoveName, MOVE_EDGE_MAP } from '@lib/debate/helpers';
@@ -68,7 +68,7 @@ function AifBadge({ type, label }: { type: 'I-node' | 'CA-node' | 'RA-node' | 'P
 function speakerLabel(speaker: string): string {
   if (speaker === 'system') return 'Moderator';
   if (speaker === 'user') return 'You';
-  return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+  return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
 function TrafficLight({ pass, label, tip }: { pass: boolean; label: string; tip: string }) {
@@ -1045,7 +1045,7 @@ function TensionsListDetail({ content }: { content: string }) {
               {relationIcon(t.relation)}
             </span>
             <span style={{ color: povColor(t.target), fontWeight: 600 }}>{t.target}</span>
-            <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.58rem' }}>{t.confidence.toFixed(2)}</span>
+            <span style={{ marginLeft: 6, color: 'var(--text-muted)', fontSize: '0.58rem' }}>{(t.confidence ?? 0).toFixed(2)}</span>
           </div>
         ))}
       </div>
@@ -1105,7 +1105,7 @@ function TensionsListDetail({ content }: { content: string }) {
 
             {/* Confidence footer */}
             <div style={{ padding: '4px 12px 8px', fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-              Confidence: {sel.confidence.toFixed(2)}
+              Confidence: {(sel.confidence ?? 0).toFixed(2)}
             </div>
           </>
         ) : (
@@ -1417,15 +1417,15 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
 function subScoreTip(key: string, val: number): string {
   const band = val >= 0.7 ? 'Strong' : val >= 0.4 ? 'Moderate' : 'Weak';
   const base: Record<string, string> = {
-    evidence_quality: `Evidence Quality: ${val.toFixed(2)} (${band})\n\nHow well-supported is this claim by cited evidence?\n\nScoring: AI assigns 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low AI reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = strong evidence cited\n0.4–0.69 = partial or indirect evidence\n<0.4 = unsupported or speculative`,
-    source_reliability: `Source Reliability: ${val.toFixed(2)} (${band})\n\nHow credible and authoritative are the sources cited?\n\nScoring: AI assigns 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low AI reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = authoritative, peer-reviewed, or official sources\n0.4–0.69 = mixed or secondary sources\n<0.4 = no sources or unreliable ones`,
-    falsifiability: `Falsifiability: ${val.toFixed(2)} (${band})\n\nCan this claim be tested or disproven with observable evidence?\n\nScoring: AI assigns 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low AI reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = clearly testable with specific criteria\n0.4–0.69 = partially testable\n<0.4 = unfalsifiable or purely theoretical`,
-    values_grounding: `Values Grounding: ${val.toFixed(2)} (${band})\n\nIs this value claim explicitly grounded in stated values or principles?\n\nScoring: AI rates 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = explicitly ties to named values, ethical frameworks, or stated principles\n0.4–0.69 = implicitly value-laden but not explicitly grounded\n<0.4 = value claim without clear normative basis`,
-    tradeoff_acknowledgment: `Tradeoff Acknowledgment: ${val.toFixed(2)} (${band})\n\nDoes the claim acknowledge competing tradeoffs or costs?\n\nScoring: AI rates 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = explicitly names costs, risks, or competing values\n0.4–0.69 = mentions tradeoffs in passing\n<0.4 = presents the position as cost-free or ignores downsides`,
-    precedent_citation: `Precedent Citation: ${val.toFixed(2)} (${band})\n\nDoes the claim cite relevant precedent, norms, or established practice?\n\nScoring: AI rates 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = cites specific precedents, case law, or established norms\n0.4–0.69 = references general precedent without specifics\n<0.4 = no precedent cited, purely aspirational`,
-    mechanism_specificity: `Mechanism Specificity: ${val.toFixed(2)} (${band})\n\nHow specific is the proposed mechanism, action, or implementation path?\n\nScoring: AI rates 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = concrete steps, named actors, defined timelines\n0.4–0.69 = general approach without implementation detail\n<0.4 = vague aspiration with no actionable mechanism`,
-    scope_bounding: `Scope Bounding: ${val.toFixed(2)} (${band})\n\nAre the boundaries, limitations, and applicability conditions defined?\n\nScoring: AI rates 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = explicitly defines where the proposal applies and where it doesn't\n0.4–0.69 = some boundaries mentioned but incomplete\n<0.4 = unbounded claim with no defined limits`,
-    failure_mode_addressing: `Failure Mode Addressing: ${val.toFixed(2)} (${band})\n\nDoes the claim address what could go wrong or how failures would be handled?\n\nScoring: AI rates 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = explicitly names failure scenarios and mitigations\n0.4–0.69 = acknowledges risk without specific mitigation\n<0.4 = no consideration of failure modes`,
+    evidence_quality: `Evidence Quality: ${val.toFixed(2)} (${band})\n\nHow well-supported is this claim by cited evidence?\n\nScoring: Scores default to 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low scoring reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = strong evidence cited\n0.4–0.69 = partial or indirect evidence\n<0.4 = unsupported or speculative`,
+    source_reliability: `Source Reliability: ${val.toFixed(2)} (${band})\n\nHow credible and authoritative are the sources cited?\n\nScoring: Scores default to 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low scoring reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = authoritative, peer-reviewed, or official sources\n0.4–0.69 = mixed or secondary sources\n<0.4 = no sources or unreliable ones`,
+    falsifiability: `Falsifiability: ${val.toFixed(2)} (${band})\n\nCan this claim be tested or disproven with observable evidence?\n\nScoring: Scores default to 0.5 for all Belief claims (human adjusts later via slider). Beliefs have low scoring reliability (Q-0 calibration r = -0.12 to 0.20).\n≥0.7 = clearly testable with specific criteria\n0.4–0.69 = partially testable\n<0.4 = unfalsifiable or purely theoretical`,
+    values_grounding: `Values Grounding: ${val.toFixed(2)} (${band})\n\nIs this value claim explicitly grounded in stated values or principles?\n\nScoring: Rated 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = explicitly ties to named values, ethical frameworks, or stated principles\n0.4–0.69 = implicitly value-laden but not explicitly grounded\n<0.4 = value claim without clear normative basis`,
+    tradeoff_acknowledgment: `Tradeoff Acknowledgment: ${val.toFixed(2)} (${band})\n\nDoes the claim acknowledge competing tradeoffs or costs?\n\nScoring: Rated 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = explicitly names costs, risks, or competing values\n0.4–0.69 = mentions tradeoffs in passing\n<0.4 = presents the position as cost-free or ignores downsides`,
+    precedent_citation: `Precedent Citation: ${val.toFixed(2)} (${band})\n\nDoes the claim cite relevant precedent, norms, or established practice?\n\nScoring: Rated 0–1 independently for Desire claims (Q-0 calibration r = 0.65). base_strength = average of all 3 Desire sub-scores.\n≥0.7 = cites specific precedents, case law, or established norms\n0.4–0.69 = references general precedent without specifics\n<0.4 = no precedent cited, purely aspirational`,
+    mechanism_specificity: `Mechanism Specificity: ${val.toFixed(2)} (${band})\n\nHow specific is the proposed mechanism, action, or implementation path?\n\nScoring: Rated 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = concrete steps, named actors, defined timelines\n0.4–0.69 = general approach without implementation detail\n<0.4 = vague aspiration with no actionable mechanism`,
+    scope_bounding: `Scope Bounding: ${val.toFixed(2)} (${band})\n\nAre the boundaries, limitations, and applicability conditions defined?\n\nScoring: Rated 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = explicitly defines where the proposal applies and where it doesn't\n0.4–0.69 = some boundaries mentioned but incomplete\n<0.4 = unbounded claim with no defined limits`,
+    failure_mode_addressing: `Failure Mode Addressing: ${val.toFixed(2)} (${band})\n\nDoes the claim address what could go wrong or how failures would be handled?\n\nScoring: Rated 0–1 independently for Intention claims (Q-0 calibration r = 0.71). base_strength = average of all 3 Intention sub-scores.\n≥0.7 = explicitly names failure scenarios and mitigations\n0.4–0.69 = acknowledges risk without specific mitigation\n<0.4 = no consideration of failure modes`,
   };
   return base[key] || key;
 }
@@ -1631,8 +1631,8 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
                   <AifBadge type="CA-node" />
                   {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
                   {contribution != null && (
-                    <span title={`Attack contribution = (source strength (${srcStr.toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'default', opacity: hasWeight ? 1 : 0.5 }}>
-                      −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStr.toFixed(2)}×{edgeWeight.toFixed(1)}{hasWeight ? '' : '?'}×{atkMult.toFixed(1)})</span>
+                    <span title={`Attack contribution = (source strength (${(srcStr ?? 0).toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'default', opacity: hasWeight ? 1 : 0.5 }}>
+                      −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({(srcStr ?? 0).toFixed(2)}×{edgeWeight.toFixed(1)}{hasWeight ? '' : '?'}×{atkMult.toFixed(1)})</span>
                     </span>
                   )}
                   {onGotoEntry && sourceNode?.source_entry_id && (
@@ -1673,8 +1673,8 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
                   <AifBadge type="RA-node" />
                   {'\u2190'} {s.source} <strong>supports</strong>{s.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {s.scheme}</span> : ''}
                   {contributionS != null && (
-                    <span title={`Support contribution = source strength (${srcStrS.toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'default', opacity: hasWeightS ? 1 : 0.5 }}>
-                      +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({srcStrS.toFixed(2)}×{edgeWeightS.toFixed(1)}{hasWeightS ? '' : '?'})</span>
+                    <span title={`Support contribution = source strength (${(srcStrS ?? 0).toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'default', opacity: hasWeightS ? 1 : 0.5 }}>
+                      +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({(srcStrS ?? 0).toFixed(2)}×{edgeWeightS.toFixed(1)}{hasWeightS ? '' : '?'})</span>
                     </span>
                   )}
                   {onGotoEntry && sourceNode?.source_entry_id && (
@@ -2060,11 +2060,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
               { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
               { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
-              { id: 'reflections', label: 'Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
+              { id: 'reflections', label: 'Post-Debate Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
               { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
               { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
               { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
-              { id: 'pov-progression', label: 'POV Progression', visible: true },
+              { id: 'pov-progression', label: 'Perspective Progression', visible: true },
             ];
             return (
               <div style={{
@@ -3030,7 +3030,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         fontSize: 'inherit',
                                         textAlign: 'left',
                                       }}
-                                      title="Show POV details"
+                                      title="Show Perspective details"
                                     >{r.node_id}</button>
                                   </td>
                                   <td style={{ padding: '4px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' }}>
@@ -3091,9 +3091,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           family?: string; move?: string; force?: string; target_debater?: string;
                           trigger_reason?: string;
                         } | undefined;
-                        const targetPoverId = intMeta?.target_debater;
-                        const targetLabel = targetPoverId
-                          ? (POVER_INFO[targetPoverId as Exclude<PoverId, 'user'>]?.label ?? targetPoverId)
+                        const targetSpeakerId = intMeta?.target_debater;
+                        const targetLabel = targetSpeakerId
+                          ? (POVER_INFO[targetSpeakerId as Exclude<SpeakerId, 'user'>]?.label ?? targetSpeakerId)
                           : null;
                         const speakerIsTarget = targetLabel
                           ? targetLabel === speakerLabel(entry.speaker)
@@ -3280,7 +3280,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       )}
 
                       {(diag as Record<string, unknown>)?.edges_used && ((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).length > 0 && (
-                        <Section title={`Edges Used (${((diag as Record<string, unknown>).edges_used as unknown[]).length})`} defaultOpen copyText={((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).map(e => `${e.source} ${e.type} ${e.target} (${e.confidence.toFixed(2)})`).join('\n')}>
+                        <Section title={`Edges Used (${((diag as Record<string, unknown>).edges_used as unknown[]).length})`} defaultOpen copyText={((diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]).map(e => `${e.source} ${e.type} ${e.target} (${(e.confidence ?? 0).toFixed(2)})`).join('\n')}>
                           <EdgesUsedGrouped edges={(diag as Record<string, unknown>).edges_used as { source: string; target: string; type: string; confidence: number }[]} allEdges={allEdges} taxNodeMap={taxNodeMap} nodeLabels={nodeLabels} />
                         </Section>
                       )}

@@ -147,7 +147,7 @@ export function PolicyDashboard() {
           </div>
           <div className="policy-dashboard-stat">
             <div className="policy-dashboard-stat-value">{stats.crossPovCount}</div>
-            <div className="policy-dashboard-stat-label">Cross-POV</div>
+            <div className="policy-dashboard-stat-label">Cross-Perspective</div>
           </div>
         </div>
 
@@ -179,7 +179,7 @@ export function PolicyDashboard() {
 
         {/* Tag distribution */}
         <div className="policy-dashboard-section">
-          <h3 className="policy-dashboard-section-title">POV Distribution</h3>
+          <h3 className="policy-dashboard-section-title">Perspective Distribution</h3>
           <div className="policy-dashboard-bars">
             {stats.tagEntries.map(([tag, count]) => (
               <div key={tag} className="policy-dashboard-bar-row">

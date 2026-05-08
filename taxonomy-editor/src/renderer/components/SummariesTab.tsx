@@ -489,7 +489,7 @@ export function SummariesTab() {
                         <div style={{ fontSize: '0.7rem', marginTop: 4, color: 'var(--text-secondary)' }}>{uc.suggested_description}</div>
                       )}
                       <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4, display: 'flex', gap: 8 }}>
-                        {uc.suggested_pov && <span>POV: {uc.suggested_pov}</span>}
+                        {uc.suggested_pov && <span>Perspective: {uc.suggested_pov}</span>}
                         {uc.suggested_category && <span>Category: {uc.suggested_category}</span>}
                       </div>
                       {uc.reason && (

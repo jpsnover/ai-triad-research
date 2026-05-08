@@ -25,6 +25,12 @@ function Export-AggregatedCruxes {
         [ValidateRange(0.5, 0.95)]
         [double]$SimilarityThreshold = 0.80,
 
+        [ValidateRange(0.3, 0.9)]
+        [double]$NodeLinkThreshold = 0.45,
+
+        [ValidateRange(1, 10)]
+        [int]$MaxLinkedNodes = 5,
+
         [string]$OutputPath
     )
 
@@ -51,9 +57,12 @@ function Export-AggregatedCruxes {
         Where-Object { $_.Name -notmatch 'diagnostics|harvest|transcript' }
 
     foreach ($File in $DebateFiles) {
+        try {
+        $D = $null
         try { $D = Get-Content $File.FullName -Raw | ConvertFrom-Json } catch { continue }
+        if (-not $D) { continue }
 
-        $DebateId = $D.id
+        $DebateId = if ($D.PSObject.Properties['id']) { $D.id } else { $File.BaseName -replace '^debate-','' }
         $TopicText = ''
         if ($D.PSObject.Properties['topic']) {
             if ($D.topic -is [string]) { $TopicText = $D.topic }
@@ -61,7 +70,7 @@ function Export-AggregatedCruxes {
         }
 
         # Synthesis cruxes from transcript
-        if ($D.transcript) {
+        if ($D.PSObject.Properties['transcript'] -and $D.transcript) {
             foreach ($Entry in @($D.transcript)) {
                 if ($Entry.type -ne 'synthesis') { continue }
                 if (-not $Entry.PSObject.Properties['metadata'] -or -not $Entry.metadata) { continue }
@@ -134,6 +143,7 @@ function Export-AggregatedCruxes {
                 })
             }
         }
+        } catch { Write-Verbose "Skipping $($File.Name): $($_.Exception.Message)" }
     }
 
     Write-Host "  Extracted $($AllCruxes.Count) cruxes from $($DebateFiles.Count) debates"
@@ -269,6 +279,66 @@ function Export-AggregatedCruxes {
     }
 
     Write-Host "  Built $($AggregatedCruxes.Count) aggregated cruxes"
+
+    # ── Phase 4: Link cruxes to taxonomy nodes via embedding similarity ───────
+    Write-Host 'Phase 4: Linking cruxes to taxonomy nodes...' -ForegroundColor Cyan
+
+    # Load node embeddings
+    $EmbPath = Join-Path (Get-TaxonomyDir) 'embeddings.json'
+    $NodeVecs = @{}
+    if (Test-Path $EmbPath) {
+        $EmbData = Get-Content -Raw $EmbPath | ConvertFrom-Json
+        foreach ($Prop in $EmbData.nodes.PSObject.Properties) {
+            # Only include taxonomy nodes (not policies/conflicts)
+            if ($Prop.Name -match '^(acc|saf|skp|sit|cc)-') {
+                $NodeVecs[$Prop.Name] = [double[]]@($Prop.Value.vector)
+            }
+        }
+    }
+
+    if ($NodeVecs.Count -gt 0) {
+        # Embed all crux statements in one batch
+        $CruxStatements = @($AggregatedCruxes | ForEach-Object { $_.statement })
+        $CruxIds = @($AggregatedCruxes | ForEach-Object { $_.id })
+        $CruxEmbeddings = Get-TextEmbedding -Texts $CruxStatements -Ids $CruxIds
+
+        if ($CruxEmbeddings -and $CruxEmbeddings.Count -gt 0) {
+            # Pre-build node matrix for vectorized search
+            $NodeIds = @($NodeVecs.Keys)
+            $NodeMatrix = @($NodeVecs.Values)
+
+            $LinkedCount = 0
+            foreach ($Crux in $AggregatedCruxes) {
+                if (-not $CruxEmbeddings.ContainsKey($Crux.id)) { continue }
+                $CruxVec = $CruxEmbeddings[$Crux.id]
+
+                # Compute similarity against all nodes
+                $Scores = [System.Collections.Generic.List[PSObject]]::new()
+                for ($ni = 0; $ni -lt $NodeIds.Count; $ni++) {
+                    $NVec = $NodeMatrix[$ni]
+                    $Dot = 0.0
+                    for ($k = 0; $k -lt $CruxVec.Count; $k++) { $Dot += $CruxVec[$k] * $NVec[$k] }
+                    if ($Dot -ge $NodeLinkThreshold) {
+                        $Scores.Add([PSCustomObject]@{ Id = $NodeIds[$ni]; Score = $Dot })
+                    }
+                }
+
+                # Top N by score
+                $TopNodes = @($Scores | Sort-Object Score -Descending | Select-Object -First $MaxLinkedNodes | ForEach-Object { $_.Id })
+                if ($TopNodes.Count -gt 0) {
+                    $Crux.linked_node_ids = $TopNodes
+                    $LinkedCount++
+                }
+            }
+            Write-Host "  $LinkedCount / $($AggregatedCruxes.Count) cruxes linked to taxonomy nodes"
+        }
+        else {
+            Write-Host "  Crux embeddings failed — linked_node_ids will be empty" -ForegroundColor Yellow
+        }
+    }
+    else {
+        Write-Host "  No node embeddings available — skipping node linking" -ForegroundColor Yellow
+    }
 
     # Stats
     $ByType = @{}

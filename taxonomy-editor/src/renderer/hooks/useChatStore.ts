@@ -8,7 +8,7 @@ import type {
   ChatMode,
   ChatEntry,
 } from '../types/chat';
-import type { PoverId, TaxonomyRef } from '../types/debate';
+import type { SpeakerId, TaxonomyRef } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
@@ -130,7 +130,7 @@ interface ChatStore {
 
   // Actions
   loadSessions: () => Promise<void>;
-  createChat: (mode: ChatMode, pover: Exclude<PoverId, 'user'>, topic: string, chatModel?: string) => Promise<string>;
+  createChat: (mode: ChatMode, pover: Exclude<SpeakerId, 'user'>, topic: string, chatModel?: string) => Promise<string>;
   loadChat: (id: string) => Promise<void>;
   deleteChat: (id: string) => Promise<void>;
   renameChat: (id: string, newTitle: string) => Promise<void>;

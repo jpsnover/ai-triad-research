@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { PoverId, TaxonomyRef } from './debate';
+import type { SpeakerId, TaxonomyRef } from './debate';
 
 export type ChatMode = 'brainstorm' | 'inform' | 'decide';
 
 export interface ChatEntry {
   id: string;
   timestamp: string;
-  speaker: PoverId | 'system';
+  speaker: SpeakerId | 'system';
   content: string;
   taxonomy_refs: TaxonomyRef[];
   metadata?: Record<string, unknown>;
@@ -21,7 +21,7 @@ export interface ChatSession {
   updated_at: string;
   mode: ChatMode;
   topic: string;
-  pover: Exclude<PoverId, 'user'>;
+  pover: Exclude<SpeakerId, 'user'>;
   transcript: ChatEntry[];
   /** Chat-specific AI model override. If set, used instead of the global model. */
   chat_model?: string;
@@ -33,7 +33,7 @@ export interface ChatSessionSummary {
   created_at: string;
   updated_at: string;
   mode: ChatMode;
-  pover: Exclude<PoverId, 'user'>;
+  pover: Exclude<SpeakerId, 'user'>;
 }
 
 export const CHAT_MODE_INFO: Record<ChatMode, {

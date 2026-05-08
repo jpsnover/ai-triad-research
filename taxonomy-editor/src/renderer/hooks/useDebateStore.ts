@@ -7,7 +7,7 @@ import type {
   DebateSessionSummary,
   DebateSourceType,
   DebateAudience,
-  PoverId,
+  SpeakerId,
   TranscriptEntry,
   TaxonomyRef,
 } from '../types/debate';
@@ -492,7 +492,7 @@ function checkAnInvariants(label: string, get: () => any, expectedMinCount: numb
  */
 async function extractClaimsAndUpdateAN(
   statement: string,
-  speaker: PoverId,
+  speaker: SpeakerId,
   entryId: string,
   taxonomyRefs: string[],
 
@@ -506,8 +506,8 @@ async function extractClaimsAndUpdateAN(
 
   const model = getConfiguredModel();
   const an = debate.argument_network || { nodes: [], edges: [] };
-  const priorClaims = an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker }));
-  const speakerLabel = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+  const priorClaims = an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker }));
+  const speakerLabel = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 
   const extractStartedAt = Date.now();
   const anCountBefore = an.nodes.length;
@@ -909,8 +909,8 @@ async function extractClaimsAndUpdateAN(
           const maxEntailment = Math.max(...nliResult.results.map(r => r.nli_entailment ?? 0));
 
           if (maxEntailment < 0.6) {
-            const targetLabel = POVER_INFO[targetPover as Exclude<PoverId, 'user'>]?.label ?? targetPover;
-            const speakerLbl = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label ?? speaker;
+            const targetLabel = POVER_INFO[targetPover as Exclude<SpeakerId, 'user'>]?.label ?? targetPover;
+            const speakerLbl = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
             const topAssertions = targetCommits.asserted.slice(-3).map(a => `"${a}"`).join('; ');
 
             const addEntry = get().addTranscriptEntry;
@@ -1035,7 +1035,7 @@ async function extractClaimsAndUpdateAN(
                 taxonomy_refs: [],
                 turn_number: cur.transcript.length,
                 base_strength: attackType === 'attacks' ? 0.7 : 0.6,
-                scoring_method: 'ai_rubric',
+                scoring_method: 'bdi_criteria',
                 bdi_category: 'belief',
                 specificity: 'precise',
               };
@@ -1387,7 +1387,7 @@ function formatEdgeContext(activePovers: string[]): string {
 
   const lines = ['', '=== KNOWN TENSIONS BETWEEN POSITIONS ==='];
   for (const e of top) {
-    lines.push(`${e.source} ${e.type} ${e.target} (confidence: ${e.confidence.toFixed(2)})`);
+    lines.push(`${e.source} ${e.type} ${e.target} (confidence: ${(e.confidence ?? 0).toFixed(2)})`);
   }
   return lines.join('\n');
 }
@@ -1414,7 +1414,7 @@ function buildSynthesisPrompt(
 
 
 function buildDebateResponsePrompt(
-  poverId: Exclude<PoverId, 'user'>,
+  poverId: Exclude<SpeakerId, 'user'>,
   topic: string,
   taxonomyContext: string,
   recentTranscript: string,
@@ -1441,7 +1441,7 @@ function formatGapHint(gapInjections?: GapInjection[]): string {
 
 
 function buildCrossRespondPrompt(
-  poverId: Exclude<PoverId, 'user'>,
+  poverId: Exclude<SpeakerId, 'user'>,
   topic: string,
   taxonomyContext: string,
   recentTranscript: string,
@@ -1565,7 +1565,7 @@ interface DebateStore {
   activeDebateId: string | null;
   activeDebate: DebateSession | null;
   debateLoading: boolean;
-  debateGenerating: PoverId | null;
+  debateGenerating: SpeakerId | null;
   debateError: string | null;
   responseLength: 'brief' | 'medium' | 'detailed';
   setResponseLength: (length: 'brief' | 'medium' | 'detailed') => void;
@@ -1592,7 +1592,7 @@ interface DebateStore {
   setDiagPopoutOpen: (open: boolean) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: PoverId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -1601,11 +1601,11 @@ interface DebateStore {
   closeDebate: () => void;
   addTranscriptEntry: (entry: Omit<TranscriptEntry, 'id' | 'timestamp'>) => string;
   deleteTranscriptEntries: (entryIds: string[]) => Promise<void>;
-  togglePover: (poverId: PoverId) => Promise<void>;
+  togglePover: (poverId: SpeakerId) => Promise<void>;
   updatePhase: (phase: DebateSession['phase']) => void;
   updateTopic: (topic: Partial<DebateSession['topic']>) => void;
   saveDebate: () => Promise<void>;
-  setGenerating: (pover: PoverId | null) => void;
+  setGenerating: (pover: SpeakerId | null) => void;
   setError: (error: string | null) => void;
 
   // Phase 2: Clarification
@@ -1619,8 +1619,8 @@ interface DebateStore {
   proceedToOpening: () => void;
 
   // Phase 3: Opening Statements
-  openingOrder: Exclude<PoverId, 'user'>[];
-  setOpeningOrder: (order: Exclude<PoverId, 'user'>[]) => void;
+  openingOrder: Exclude<SpeakerId, 'user'>[];
+  setOpeningOrder: (order: Exclude<SpeakerId, 'user'>[]) => void;
   initialCrossRespondRounds: number;
   setInitialCrossRespondRounds: (n: number) => void;
   runOpeningStatements: () => Promise<void>;
@@ -1841,7 +1841,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     });
 
     const topic = ccNode.label;
-    const allPovers = [...AI_POVERS] as PoverId[];
+    const allPovers = [...AI_POVERS] as SpeakerId[];
 
     const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent);
     await get().loadDebate(id);
@@ -1899,7 +1899,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     const sourceContent = lines.join('\n');
     const topic = `Conflict: ${conflict.claim_label}`;
-    const allPovers = [...AI_POVERS] as PoverId[];
+    const allPovers = [...AI_POVERS] as SpeakerId[];
 
     // createDebate saves to disk and sets activeDebate directly — no need for loadDebate
     const id = await get().createDebate(topic, allPovers, false, 'topic', claimId, sourceContent);
@@ -2015,7 +2015,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const { activeDebate, saveDebate } = get();
     if (!activeDebate) return;
     const current = activeDebate.active_povers;
-    let updated: PoverId[];
+    let updated: SpeakerId[];
     if (current.includes(poverId)) {
       // Remove — but must keep at least 2
       updated = current.filter(p => p !== poverId);
@@ -2094,7 +2094,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
-    set({ debateGenerating: 'system' as PoverId });
+    set({ debateGenerating: 'system' as SpeakerId });
     const prompt = activeDebate.source_type === 'situations'
       ? situationClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience)
       : (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')
@@ -2148,7 +2148,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       taxonomy_refs: [],
     });
 
-    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
 
     const clarifications: { speaker: string; questions: string[]; answers: string }[] = [];
     const clarEntries = get().activeDebate!.transcript.filter((e) => e.type === 'clarification');
@@ -2159,7 +2159,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         ? rawQs.map((q: unknown) => typeof q === 'string' ? q : (q as { question: string }).question ?? String(q))
         : [entry.content];
       clarifications.push({
-        speaker: POVER_INFO[entry.speaker as Exclude<PoverId, 'user'>]?.label || entry.speaker,
+        speaker: POVER_INFO[entry.speaker as Exclude<SpeakerId, 'user'>]?.label || entry.speaker,
         questions: qs,
         answers,
       });
@@ -2259,7 +2259,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Runs here so it executes whether the user submitted answers or skipped clarification
     if (activeDebate && !activeDebate.document_analysis &&
         (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')) {
-      set({ debateGenerating: 'system' as PoverId });
+      set({ debateGenerating: 'system' as SpeakerId });
       const model = getConfiguredModel();
       const isStillValid = createDebateGuard(get);
       try {
@@ -2274,7 +2274,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         const activePovers = activeDebate.active_povers
           .filter(p => p !== 'user')
-          .map(p => POVER_INFO[p as Exclude<PoverId, 'user'>]?.pov)
+          .map(p => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.pov)
           .filter(Boolean);
 
         const { prompt: analysisPrompt } = documentAnalysisPrompt(
@@ -2483,7 +2483,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           speakerClaims,
         );
         const allANNodes = (get().activeDebate?.argument_network?.nodes || []).map(n => ({
-          id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker,
+          id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
         }));
         const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
         const edgeBlock = formatDebaterEdgeContext(info.pov);
@@ -2691,7 +2691,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Validate targets are active POVers
     for (const t of targets) {
       if (!activeDebate.active_povers.includes(t)) {
-        const label = t === 'user' ? 'You' : POVER_INFO[t as Exclude<PoverId, 'user'>]?.label || t;
+        const label = t === 'user' ? 'You' : POVER_INFO[t as Exclude<SpeakerId, 'user'>]?.label || t;
         set({ debateError: `${label} is not in this debate` });
         return;
       }
@@ -2736,7 +2736,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         speakerClaims,
       );
       const allANNodes = (get().activeDebate?.argument_network?.nodes || []).map(n => ({
-        id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker,
+        id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
       }));
       const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
       const edgeBlock = formatDebaterEdgeContext(info.pov);
@@ -2944,7 +2944,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const lastSpeakerEntry = [...activeDebate.transcript].reverse().find(
       (e) => (e.type === 'statement' || e.type === 'opening') && e.speaker !== 'user' && e.speaker !== 'system',
     );
-    const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<PoverId, 'user'> | undefined;
+    const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<SpeakerId, 'user'> | undefined;
     const moderatorTrace: Record<string, unknown> = {
       selected: POVER_INFO[responderPover].label,
       excluded_last_speaker: lastSpeaker ? POVER_INFO[lastSpeaker]?.label ?? lastSpeaker : null,
@@ -3008,7 +3008,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       speakerClaims,
     );
     const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
-      id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker,
+      id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
     }));
     const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
     const edgeBlock = formatDebaterEdgeContext(info.pov);
@@ -3063,7 +3063,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Build pendingIntervention for the Draft/Cite stages
     const pendingInterventionData = intervention ? (() => {
       const moveConfig = MOVE_RESPONSE_CONFIG[intervention.move as keyof typeof MOVE_RESPONSE_CONFIG];
-      const targetLabel = POVER_INFO[intervention.target_debater as Exclude<PoverId, 'user'>]?.label ?? intervention.target_debater;
+      const targetLabel = POVER_INFO[intervention.target_debater as Exclude<SpeakerId, 'user'>]?.label ?? intervention.target_debater;
       const isTargeted = targetLabel.toLowerCase() === info.label.toLowerCase();
       return {
         move: intervention.move,
@@ -3227,7 +3227,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               );
               const concessions = currentD?.commitments?.[responderPover]?.conceded ?? [];
               if (selfDecreasing && driftingToward && concessions.length === 0) {
-                const opLabel = POVER_INFO[driftingToward as Exclude<PoverId, 'user'>]?.label ?? driftingToward;
+                const opLabel = POVER_INFO[driftingToward as Exclude<SpeakerId, 'user'>]?.label ?? driftingToward;
                 addTranscriptEntry({
                   type: 'system', speaker: 'system',
                   content: `[Sycophancy guard] ${info.label} appears to be drifting toward ${opLabel}'s position over the last 3 turns without explicit concession. Self-similarity: ${recent.map(d => d.self_similarity.toFixed(2)).join(' → ')}.`,
@@ -3522,7 +3522,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     _abortController = new AbortController();
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
     getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: synthesis', data: { phase: 'synthesis' } });
 
     const model = getConfiguredModel();
@@ -3566,7 +3566,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (synthesis.areas_of_agreement?.length > 0) {
         lines.push('## Areas of Agreement', '');
         for (const a of synthesis.areas_of_agreement) {
-          const who = Array.isArray(a.povers) ? a.povers.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ') : '';
+          const who = Array.isArray(a.povers) ? a.povers.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ') : '';
           lines.push(`- ${stripNodeIds(a.point)}${who ? ` (${who})` : ''}`);
         }
       }
@@ -3581,7 +3581,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
           if (Array.isArray(d.positions)) {
             for (const pos of d.positions) {
-              const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label || pos.pover;
+              const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label || pos.pover;
               lines.push(`  - ${label}: ${stripNodeIds(pos.stance)}`);
             }
           }
@@ -3600,10 +3600,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         lines.push('', '## Document Claims', '');
         for (const dc of synthesis.document_claims) {
           const accepted = Array.isArray(dc.accepted_by)
-            ? dc.accepted_by.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ')
+            ? dc.accepted_by.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ')
             : '';
           const challenged = Array.isArray(dc.challenged_by)
-            ? dc.challenged_by.map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label || p).join(', ')
+            ? dc.challenged_by.map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label || p).join(', ')
             : '';
           lines.push(`- ${stripNodeIds(dc.claim)}`);
           if (accepted) lines.push(`  - Accepted by: ${accepted}`);
@@ -3613,7 +3613,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (synthesis.argument_map?.length > 0) {
         lines.push('', '## Argument Map', '');
         for (const claim of synthesis.argument_map) {
-          const claimantLabel = POVER_INFO[claim.claimant as Exclude<PoverId, 'user'>]?.label || claim.claimant;
+          const claimantLabel = POVER_INFO[claim.claimant as Exclude<SpeakerId, 'user'>]?.label || claim.claimant;
           const typeTag = claim.type ? ` [${claim.type}]` : '';
           lines.push(`- **${claim.claim_id}** (${claimantLabel})${typeTag}: ${stripNodeIds(claim.claim)}`);
           if (claim.supported_by?.length > 0) {
@@ -3628,7 +3628,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
           if (claim.attacked_by?.length > 0) {
             for (const attack of claim.attacked_by) {
-              const attackerLabel = POVER_INFO[attack.claimant as Exclude<PoverId, 'user'>]?.label || attack.claimant;
+              const attackerLabel = POVER_INFO[attack.claimant as Exclude<SpeakerId, 'user'>]?.label || attack.claimant;
               const schemeTag = attack.scheme ? ` via ${attack.scheme}` : '';
               lines.push(`  - ← **${attack.claim_id}** ${attack.attack_type}${schemeTag} (${attackerLabel}): ${stripNodeIds(attack.claim)}`);
             }
@@ -3865,7 +3865,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -3939,7 +3939,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
 
     const model = getConfiguredModel();
 
@@ -4111,7 +4111,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             taxonomy_refs: [],
             turn_number: baseTurnNumber,
             base_strength: 0.5,
-            scoring_method: 'default_pending' as const,
+            scoring_method: 'unscored' as const,
             bdi_category: 'belief' as const,
             specificity: 'precise' as const,
           };
@@ -4139,7 +4139,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             taxonomy_refs: [],
             turn_number: baseTurnNumber,
             base_strength: attackType === 'attacks' ? 0.7 : 0.6,
-            scoring_method: 'ai_rubric',
+            scoring_method: 'bdi_criteria',
             bdi_category: 'belief',
             specificity: 'precise',
           });
@@ -4195,13 +4195,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (toCompress.length < 4) return; // Not enough to bother
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as PoverId });
+    set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
 
     const model = getConfiguredModel();
     const entriesText = toCompress.map((e) => {
       const label = e.speaker === 'user' ? 'Moderator'
         : e.speaker === 'system' ? 'System'
-        : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label || e.speaker;
+        : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label || e.speaker;
       return `${label} [${e.type}]: ${e.content}`;
     }).join('\n\n');
 
@@ -4246,7 +4246,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
-    const povers = (activeDebate.active_povers ?? []).filter(p => p !== 'user') as Exclude<PoverId, 'user'>[];
+    const povers = (activeDebate.active_povers ?? []).filter(p => p !== 'user') as Exclude<SpeakerId, 'user'>[];
     const results: ReflectionResult[] = [];
 
     for (const pover of povers) {
@@ -4254,7 +4254,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const info = POVER_INFO[pover];
       if (!info) continue;
 
-      set({ debateGenerating: pover as PoverId });
+      set({ debateGenerating: pover as SpeakerId });
 
       const taxState = useTaxonomyStore.getState();
       const povKey = info.pov as 'accelerationist' | 'safetyist' | 'skeptic';
@@ -4269,7 +4269,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const an = activeDebate.argument_network;
       const anBlock = an
         ? formatArgumentNetworkContext(
-            an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label || n.speaker })),
+            an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker })),
             an.edges,
           )
         : undefined;
@@ -4283,7 +4283,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const convSignals = activeDebate.convergence_signals;
       const convBlock = convSignals && convSignals.length > 0
         ? convSignals.slice(-5).map(s =>
-            `Turn ${s.entry_id} (${POVER_INFO[s.speaker as Exclude<PoverId, 'user'>]?.label || s.speaker}): ` +
+            `Turn ${s.entry_id} (${POVER_INFO[s.speaker as Exclude<SpeakerId, 'user'>]?.label || s.speaker}): ` +
             `move_disposition=${s.move_disposition?.ratio?.toFixed(2) ?? 'N/A'}, ` +
             `engagement_depth=${s.engagement_depth?.ratio?.toFixed(2) ?? 'N/A'}, ` +
             `recycling_rate=${s.recycling_rate?.max_self_overlap?.toFixed(2) ?? 'N/A'}`

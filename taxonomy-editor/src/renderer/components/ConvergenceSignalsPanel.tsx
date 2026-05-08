@@ -4,7 +4,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { DebateSession, ConvergenceSignals } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId } from '../types/debate';
+import type { SpeakerId } from '../types/debate';
 import { SUPPORT_MOVES } from '@lib/debate/helpers';
 
 interface Props {
@@ -14,23 +14,23 @@ interface Props {
 const TOOLTIPS = {
   collabRatio: 'Average proportion of collaborative vs confrontational moves.\nCollaborative: concede, integrate, steel-build, identify-crux.\nConfrontational: counterexample, undercut, empirical challenge, burden-shift, expose-assumption.\nHigher = more convergence-oriented.',
   concessions: 'How many concession opportunities were taken out of total.\nAn opportunity = facing a strong attack with QBAF strength >= 0.6 and using a concession move (CONCEDE, CONCEDE-AND-PIVOT, CONDITIONAL-AGREE).',
-  recycling: 'Average max word-overlap with the speaker\'s own prior turns.\nHigh values (>50%) mean the debater is repeating themselves rather than evolving their position.',
+  recycling: 'Average max word-overlap with the speaker\'s own prior turns.\nHigh values (>50%) mean the debater is restating arguments rather than evolving their position.',
   cruxMoves: 'Cumulative count of IDENTIFY-CRUX moves.\nCruxes are key disagreement points that, if resolved, would change a debater\'s position.',
   chartTitle: 'How each debater\'s collaborative-to-confrontational ratio evolves turn by turn.\nLines trending upward indicate more collaboration as the debate matures.',
   confCollab: 'Count of confrontational (red) vs collaborative (green) moves this turn.\nConfrontational: counterexample, undercut, empirical challenge, burden-shift, expose-assumption.\nCollaborative: concede, concede-and-pivot, conditional-agree, integrate, steel-build, identify-crux.',
-  engagement: 'Fraction of this turn\'s claims that connect to existing argument network nodes (targeted) vs standalone new claims.\nHigher = more engaged with prior arguments.',
-  recyclingCol: 'Max word-overlap between this turn\'s content and the speaker\'s prior turns.\nRed (>50%) indicates high repetition.',
+  engagement: 'Fraction of this turn\'s claims that connect to existing argument network nodes (targeted) vs standalone new claims.\nHigher = more dialectically engaged with prior arguments.',
+  recyclingCol: 'Max word-overlap between this turn\'s content and the speaker\'s prior turns.\nRed (>50%) indicates high argument redundancy.',
   concessionCol: 'Whether the speaker faced strong attacks (QBAF >= 0.6) and used a concession move.\nTaken (green) = conceded. Missed (red) = faced attacks but didn\'t concede. N/A = no strong attacks faced.',
   drift: 'How much the speaker\'s position changed since their last turn.\nMeasured as delta in word-overlap with their opening statement.',
   cruxCol: 'Whether IDENTIFY-CRUX was used this turn (1 or 0), with cumulative count across all turns.\nCruxes are disagreement points that, if resolved, would change a debater\'s position.',
 };
 
-function speakerLabel(speaker: PoverId): string {
+function speakerLabel(speaker: SpeakerId): string {
   if (speaker === 'user') return 'You';
-  return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+  return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
-function speakerColor(speaker: PoverId): string {
+function speakerColor(speaker: SpeakerId): string {
   const colors: Record<string, string> = {
     prometheus: '#f59e0b',
     sentinel: '#3b82f6',
@@ -99,14 +99,14 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
         <text x={PAD - 2} y={PAD + 4} textAnchor="end" fontSize={7} fill="var(--text-muted)">1.0</text>
         <text x={PAD - 2} y={H - PAD + 4} textAnchor="end" fontSize={7} fill="var(--text-muted)">0.0</text>
         {linesBySpkr.map(l => (
-          <polyline key={l.speaker} fill="none" stroke={speakerColor(l.speaker as PoverId)}
+          <polyline key={l.speaker} fill="none" stroke={speakerColor(l.speaker as SpeakerId)}
             strokeWidth={1.5} points={l.points} />
         ))}
       </svg>
       <div style={{ display: 'flex', gap: 12, fontSize: '0.6rem' }}>
         {speakers.map(s => (
-          <span key={s} style={{ color: speakerColor(s as PoverId) }}>
-            {speakerLabel(s as PoverId)}
+          <span key={s} style={{ color: speakerColor(s as SpeakerId) }}>
+            {speakerLabel(s as SpeakerId)}
           </span>
         ))}
       </div>
@@ -134,15 +134,15 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
       {stats.map(s => (
         <div key={s.speaker} style={{
           padding: 8, borderRadius: 6, background: 'var(--bg-tertiary, #2a2a2a)',
-          border: `1px solid ${speakerColor(s.speaker as PoverId)}33`,
+          border: `1px solid ${speakerColor(s.speaker as SpeakerId)}33`,
         }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: speakerColor(s.speaker as PoverId), marginBottom: 4 }}>
-            {speakerLabel(s.speaker as PoverId)}
+          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: speakerColor(s.speaker as SpeakerId), marginBottom: 4 }}>
+            {speakerLabel(s.speaker as SpeakerId)}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#e2e8f0', display: 'grid', gap: 2 }}>
             <div title={TOOLTIPS.collabRatio} style={{ cursor: 'default' }}>Collab ratio: <strong>{pct(s.avgCollabRatio)}</strong></div>
             <div title={TOOLTIPS.concessions} style={{ cursor: 'default' }}>Concessions: <strong>{s.takenCount}/{s.opportunityCount}</strong> opportunities</div>
-            <div title={TOOLTIPS.recycling} style={{ cursor: 'default' }}>Avg recycling: <strong>{pct(s.avgRecycling)}</strong></div>
+            <div title={TOOLTIPS.recycling} style={{ cursor: 'default' }}>Avg redundancy: <strong>{pct(s.avgRecycling)}</strong></div>
             <div title={TOOLTIPS.cruxMoves} style={{ cursor: 'default' }}>Crux moves: <strong>{s.cruxTotal}</strong></div>
           </div>
         </div>
@@ -253,8 +253,8 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <th style={{ padding: '4px 4px', textAlign: 'left' }}>Rnd</th>
               <th style={{ padding: '4px 4px', textAlign: 'left' }}>Speaker</th>
               <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.confCollab}>Conf/Collab</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.engagement}>Engagement</th>
-              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.recyclingCol}>Recycling</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.engagement}>Dialectical Engagement</th>
+              <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.recyclingCol}>Argument Redundancy</th>
               <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.concessionCol}>Concession</th>
               <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.drift}>Drift</th>
               <th style={{ padding: '4px 4px', textAlign: 'center', cursor: 'default' }} title={TOOLTIPS.cruxCol}>Crux</th>
@@ -330,7 +330,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
               <div style={cell}>
-                <div style={lbl}>Disposition</div>
+                <div style={lbl}>Polarity</div>
                 <div style={val}>
                   <span style={{ color: '#ef4444' }}>{md.confrontational}C</span>{' / '}
                   <span style={{ color: '#22c55e' }}>{md.collaborative}S</span>
@@ -341,7 +341,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 </div>
               </div>
               <div style={cell}>
-                <div style={lbl}>Engagement</div>
+                <div style={lbl}>Dialectical Engagement</div>
                 <div style={val}>
                   {ed.targeted}/{ed.targeted + ed.standalone} targeted = <strong>{pct(ed.ratio)}</strong>
                   {ed.ratio >= 0.7
@@ -352,7 +352,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 </div>
               </div>
               <div style={cell}>
-                <div style={lbl}>Recycling</div>
+                <div style={lbl}>Argument Redundancy</div>
                 <div style={val}>
                   avg <strong>{pct(rr.avg_self_overlap)}</strong>, max <strong>{pct(rr.max_self_overlap)}</strong>
                   {rr.semantic_max_similarity != null && (
@@ -366,10 +366,10 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 </div>
               </div>
               <div style={cell}>
-                <div style={lbl}>Strongest Opposition</div>
+                <div style={lbl}>Dominant Counterargument</div>
                 <div style={val}>
                   {so ? (
-                    <>{so.node_id} str={so.strength.toFixed(2)} by {speakerLabel(so.attacker as PoverId)}
+                    <>{so.node_id} str={so.strength.toFixed(2)} by {speakerLabel(so.attacker as SpeakerId)}
                       {so.strength >= 0.7
                         ? <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>strong</span>
                         : so.strength >= 0.5
@@ -386,7 +386,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 </div>
               </div>
               <div style={cell}>
-                <div style={lbl}>Position Delta</div>
+                <div style={lbl}>Position Drift</div>
                 <div style={val}>
                   opening: <strong>{pct(pd.overlap_with_opening)}</strong>, drift: <strong>{pct(pd.drift)}</strong>
                   {pd.overlap_with_opening >= 0.6
@@ -397,7 +397,7 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 </div>
               </div>
               <div style={{ ...cell, gridColumn: '1 / -1' }}>
-                <div style={lbl}>Crux</div>
+                <div style={lbl}>Crux Engagement</div>
                 <div style={val}>
                   this turn: {cr.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr.cumulative_count} | follow-through: {cr.cumulative_follow_through}
                   {cr.cumulative_count > 0 && cr.cumulative_follow_through === 0 && (

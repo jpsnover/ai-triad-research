@@ -253,15 +253,15 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
         <span>Speaker: {node.speaker}</span>
         <span>Turn: {node.turn_number}</span>
         {node.computed_strength != null && <span>Strength: {node.computed_strength.toFixed(2)}</span>}
-        {node.base_strength != null && <span>Base: {node.base_strength.toFixed(2)}</span>}
-        {node.bdi_confidence != null && <span>AI conf: {node.bdi_confidence.toFixed(2)}</span>}
+        {node.base_strength != null && <span>Intrinsic: {node.base_strength.toFixed(2)}</span>}
+        {node.bdi_confidence != null && <span>Reliability: {node.bdi_confidence.toFixed(2)}</span>}
         {(node as Record<string, unknown>).extraction_confidence != null && (
           <span>FIRE conf: {((node as Record<string, unknown>).extraction_confidence as number).toFixed(2)}</span>
         )}
       </div>
       {node.bdi_sub_scores && (
         <div className="ag-detail-subscores">
-          <strong>Sub-scores:</strong>{' '}
+          <strong>Criteria scores:</strong>{' '}
           {Object.entries(node.bdi_sub_scores)
             .filter(([, v]) => v != null)
             .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${(v as number).toFixed(2)}`)

@@ -125,7 +125,7 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
 
       {!node ? (
         <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', padding: '8px 0' }}>
-          Node not found in loaded POV files. (Taxonomy may not be loaded yet, or this id belongs to a non-POV registry.)
+          Node not found in loaded Perspective files. (Taxonomy may not be loaded yet, or this id belongs to a non-Perspective registry.)
         </div>
       ) : (
         <>

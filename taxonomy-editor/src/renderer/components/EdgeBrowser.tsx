@@ -47,7 +47,7 @@ const DEFAULT_FILTERS: FilterState = {
 // ── Filter options ───────────────────────────────────────
 
 const POVS = [
-  { value: '', label: 'All POVs' },
+  { value: '', label: 'All Perspectives' },
   { value: 'accelerationist', label: 'Accelerationist' },
   { value: 'safetyist', label: 'Safetyist' },
   { value: 'skeptic', label: 'Skeptic' },

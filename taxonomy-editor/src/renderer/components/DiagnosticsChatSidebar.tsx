@@ -110,7 +110,7 @@ function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, Tax
     for (const s of debate.convergence_signals) bySpeaker.set(s.speaker, s);
     for (const [speaker, sig] of bySpeaker) {
       const label = POVER_INFO[speaker as keyof typeof POVER_INFO]?.label ?? speaker;
-      lines.push(`${label}: collab=${(sig.move_disposition.ratio * 100).toFixed(0)}%, engagement=${(sig.engagement_depth.ratio * 100).toFixed(0)}%, recycling=${(sig.recycling_rate.max_self_overlap * 100).toFixed(0)}%, concession=${sig.concession_opportunity.outcome}, drift=${(sig.position_delta.drift * 100).toFixed(0)}%`);
+      lines.push(`${label}: collab=${(sig.move_disposition.ratio * 100).toFixed(0)}%, dialectical engagement=${(sig.engagement_depth.ratio * 100).toFixed(0)}%, argument redundancy=${(sig.recycling_rate.max_self_overlap * 100).toFixed(0)}%, concession=${sig.concession_opportunity.outcome}, drift=${(sig.position_delta.drift * 100).toFixed(0)}%`);
     }
   }
 
@@ -365,7 +365,7 @@ const SLASH_COMMANDS: Record<string, { description: string; handler: (debate: De
         const bdi = n.bdi_category ? ` ${n.bdi_category[0].toUpperCase()}` : '';
         const conf = n.bdi_confidence != null && n.bdi_confidence < 0.5 ? ' *' : '';
         return `${i + 1}. **${n.id}** (${speaker},${bdi}, str=${n.computed_strength?.toFixed(2)}${conf}): ${n.text.slice(0, 100)}`;
-      }), '', '_* = low AI scoring confidence (Beliefs)_'].join('\n');
+      }), '', '_* = low scoring reliability (Beliefs)_'].join('\n');
     },
   },
   '/convergence': {
@@ -380,8 +380,8 @@ const SLASH_COMMANDS: Record<string, { description: string; handler: (debate: De
         const label = POVER_INFO[speaker as keyof typeof POVER_INFO]?.label ?? speaker;
         lines.push(`\n**${label}:**`);
         lines.push(`- Collaborative moves: ${(sig.move_disposition.ratio * 100).toFixed(0)}%`);
-        lines.push(`- Engagement depth: ${(sig.engagement_depth.ratio * 100).toFixed(0)}%`);
-        lines.push(`- Recycling rate: ${(sig.recycling_rate.max_self_overlap * 100).toFixed(0)}%`);
+        lines.push(`- Dialectical engagement: ${(sig.engagement_depth.ratio * 100).toFixed(0)}%`);
+        lines.push(`- Argument redundancy: ${(sig.recycling_rate.max_self_overlap * 100).toFixed(0)}%`);
         lines.push(`- Concession: ${sig.concession_opportunity.outcome}`);
         lines.push(`- Position drift: ${(sig.position_delta.drift * 100).toFixed(0)}%`);
       }
@@ -764,7 +764,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
       }}>
         <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
-          Diagnostics Chat
+          Debate Diagnostics Chat
         </span>
         <span style={{
           fontSize: '0.6rem', color: 'var(--text-muted)',

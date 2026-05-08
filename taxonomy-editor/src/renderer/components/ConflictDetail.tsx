@@ -393,7 +393,7 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
               <span className={`conflict-qbaf-edge-type ${edge.type === 'attacks' ? 'conflict-qbaf-attack' : 'conflict-qbaf-support'}`}>
                 {edge.type === 'attacks' ? '\u2694' : '\u2764'} {edge.attack_type ?? edge.type}
               </span>
-              <span className="conflict-qbaf-edge-weight">weight: {edge.weight.toFixed(2)}</span>
+              <span className="conflict-qbaf-edge-weight">weight: {(edge.weight ?? 1.0).toFixed(2)}</span>
             </div>
           ))}
         </div>

@@ -120,7 +120,7 @@ export function PolicyAlignmentPanel() {
           value={filter}
           onChange={(e) => setFilter(e.target.value as 'cross-pov' | 'all-shared')}
         >
-          <option value="cross-pov">Cross-POV ({crossPovCount})</option>
+          <option value="cross-pov">Cross-Perspective ({crossPovCount})</option>
           <option value="all-shared">All Shared ({sharedPolicies.length})</option>
         </select>
         <input

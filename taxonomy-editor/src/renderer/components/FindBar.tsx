@@ -310,7 +310,7 @@ export function FindBar() {
 
       <div className="find-scopes">
         <div className="find-scope-group">
-          <span className="find-scope-label">POV</span>
+          <span className="find-scope-label">Perspective</span>
           {POV_SCOPES.map(s => (
             <button
               key={s.id}

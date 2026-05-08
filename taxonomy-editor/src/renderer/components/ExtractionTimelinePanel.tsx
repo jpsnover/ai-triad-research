@@ -15,7 +15,7 @@ import type {
   ExtractionSummary,
 } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
-import type { PoverId } from '../types/debate';
+import type { SpeakerId } from '../types/debate';
 
 interface Props {
   debate: DebateSession;
@@ -31,9 +31,9 @@ const STATUS_COLORS: Record<ClaimExtractionTrace['status'], { bg: string; fg: st
   skipped: { bg: 'rgba(148,163,184,0.18)', fg: '#94a3b8', label: 'Skipped' },
 };
 
-function speakerLabel(speaker: PoverId): string {
+function speakerLabel(speaker: SpeakerId): string {
   if (speaker === 'user') return 'You';
-  return POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label || speaker;
+  return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
 
 function StatusBadge({ status }: { status: ClaimExtractionTrace['status'] }) {
