@@ -1698,6 +1698,26 @@ Plan your argumentative strategy. Consider:
 5. How might opponents respond, and how does your plan account for that?
 6. What taxonomy nodes or policy evidence do you need to cite?${pi ? '\n7. How will you respond to the moderator directive?' : ''}
 
+=== FIELD-AWARE STRATEGY ===
+Your taxonomy nodes have epistemic_type and assumes fields. Use them in planning:
+
+MATCH ARGUMENT MODE TO CLAIM TYPE:
+- empirical_claim → argue with evidence, challenge with counter-evidence
+- normative_prescription → argue from coherence/values, challenge via value conflicts
+- strategic_recommendation → challenge feasibility, cite analogous cases
+- predictive → demand specific timelines and falsifiable thresholds
+- definitional → use DISTINGUISH to show the definition is too narrow/broad/loaded
+- interpretive_lens → use REFRAME to offer a competing lens
+
+CROSS-TYPE MISMATCH: If you and an opponent are arguing different types (you: empirical, them: normative), NAME THE MISMATCH in your plan before engaging.
+
+ASSUMPTION TARGETING:
+- Your nodes list their assumptions. If an opponent challenges one, plan to DEFEND or CONCEDE it.
+- Opponent nodes' assumptions are pre-identified UNDERCUT targets — plan to attack the foundation, not the superstructure.
+- Shared assumptions = common ground. Plan to name them explicitly.
+
+BRIDGING NODES: If citing a bridging node, plan how the analogy holds under scrutiny.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "strategic_goal": "1-2 sentences: what this turn should accomplish",
@@ -2781,6 +2801,10 @@ If you detect any of these patterns, you MUST recommend an intervention:
 - For scope creep: use CHECK to verify whether the introduced concept appears in the source material
 
 Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
+
+=== EPISTEMIC TYPE & ASSUMPTION AWARENESS ===
+* EPISTEMIC TYPE MISMATCH: If debaters argue past each other because one makes an empirical claim while the other argues a normative prescription, direct them to name the type of disagreement.
+* HIDDEN ASSUMPTIONS: If a debater's argument relies on an unchallenged assumption, direct an opponent to examine it.
 `;
 
   return `You are a debate moderator analyzing the current state of a structured debate.
