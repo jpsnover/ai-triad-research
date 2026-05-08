@@ -57,6 +57,8 @@ mkdir -p "$DATA_LOCAL"
             GIT_START=$(date +%s)
             write_status "copying" ".git" 0 0
             cp -a "$DATA_REMOTE/.git" "$DATA_LOCAL/.git" 2>/dev/null || true
+            # SMB mounts don't copy empty directories — git requires these
+            mkdir -p "$DATA_LOCAL/.git/refs/heads" "$DATA_LOCAL/.git/refs/tags" "$DATA_LOCAL/.git/refs/remotes/origin" "$DATA_LOCAL/.git/info"
             GIT_SIZE=$(du -sh "$DATA_LOCAL/.git" 2>/dev/null | cut -f1)
             log "Copied .git ($GIT_SIZE, $(($(date +%s) - GIT_START))s) [priority]"
         fi
