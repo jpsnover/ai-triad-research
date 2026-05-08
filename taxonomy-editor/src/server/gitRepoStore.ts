@@ -98,9 +98,24 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     }
   }
 
+  // If the entrypoint background copy is still running, wait for it to deliver .git/
+  // rather than starting an expensive git clone that will race with the copy.
+  try {
+    const copyStatus = JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8'));
+    if (copyStatus.state !== 'complete') {
+      const r: InitError = { ok: false, error: `Waiting for entrypoint copy (state: ${copyStatus.state}, dir: ${copyStatus.dir ?? '?'}, ${copyStatus.copied ?? 0}/${copyStatus.total ?? '?'})` };
+      lastInitResult = { ...r, timestamp: new Date().toISOString() };
+      return r;
+    }
+  } catch {
+    // No copy-status file — either not in a container or copy finished and cleaned up. Continue.
+  }
+
   const repoSlug = getRepoSlug();
   if (!repoSlug) {
-    return { ok: false, error: 'GITHUB_REPO is not configured — cannot initialize data repo.' };
+    const r: InitError = { ok: false, error: 'GITHUB_REPO is not configured — cannot initialize data repo.' };
+    lastInitResult = { ...r, timestamp: new Date().toISOString() };
+    return r;
   }
 
   const dataRoot = getDataRoot();
