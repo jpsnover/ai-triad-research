@@ -60,7 +60,7 @@ function optimizeExplorationExit(data: CalibrationDataPoint[]): OptimizationResu
 
   // Quality metric: crux resolution weighted by engagement
   const points = valid.map(d => ({
-    x: d.exploration_exit_threshold,
+    x: d.argumentation_exit_threshold,
     y: (d.crux_addressed_ratio ?? 0) * (d.engaging_real_disagreement ? 1.0 : 0.5),
   }));
 
@@ -86,11 +86,11 @@ function optimizeExplorationExit(data: CalibrationDataPoint[]): OptimizationResu
   // Clamp to reasonable range
   bestThreshold = Math.max(0.45, Math.min(0.85, bestThreshold));
 
-  const current = valid[0].exploration_exit_threshold;
+  const current = valid[0].argumentation_exit_threshold;
   const delta = Math.abs(bestThreshold - current);
 
   return {
-    parameter: 'thresholds.exploration_exit',
+    parameter: 'thresholds.argumentation_exit',
     current_value: current,
     recommended_value: bestThreshold,
     confidence: valid.length >= 15 && delta > 0.05 ? 'high' : valid.length >= 8 ? 'medium' : 'low',
@@ -842,8 +842,8 @@ export function recalibrateParameters(
         if (result.confidence === 'low') continue; // Only apply medium/high confidence
 
         switch (result.parameter) {
-          case 'thresholds.exploration_exit':
-            weights.thresholds.exploration_exit = result.recommended_value;
+          case 'thresholds.argumentation_exit':
+            weights.thresholds.argumentation_exit = result.recommended_value;
             break;
           case 'argumentative_saturation':
             if (typeof result.recommended_value === 'object') {

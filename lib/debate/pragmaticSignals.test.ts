@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   countLexiconHits,
   computePragmaticConvergence,
-  computeSynthesisPragmaticSignal,
+  computeConcludingPragmaticSignal,
   HEDGE_LEXICON,
   ASSERTIVE_LEXICON,
   CONCESSIVE_LEXICON,
@@ -204,21 +204,21 @@ describe('computePragmaticConvergence', () => {
   });
 });
 
-// ── computeSynthesisPragmaticSignal ──────────────────────────
+// ── computeConcludingPragmaticSignal ──────────────────────────
 
-describe('computeSynthesisPragmaticSignal', () => {
+describe('computeConcludingPragmaticSignal', () => {
   it('returns 0 for empty texts', () => {
-    expect(computeSynthesisPragmaticSignal([], [])).toBe(0);
+    expect(computeConcludingPragmaticSignal([], [])).toBe(0);
   });
 
   it('returns 0 when window texts are empty but exploration texts are not', () => {
-    expect(computeSynthesisPragmaticSignal([], ['exploration text'])).toBe(0);
+    expect(computeConcludingPragmaticSignal([], ['exploration text'])).toBe(0);
   });
 
   it('returns a value in [0, 1]', () => {
     const texts = ['Building on the previous point, if we accept the data...'];
-    const explorationTexts = ['Perhaps this seems possible.'];
-    const result = computeSynthesisPragmaticSignal(texts, explorationTexts);
+    const argumentationTexts = ['Perhaps this seems possible.'];
+    const result = computeConcludingPragmaticSignal(texts, argumentationTexts);
     expect(result).toBeGreaterThanOrEqual(0);
     expect(result).toBeLessThanOrEqual(1);
   });
@@ -229,8 +229,8 @@ describe('computeSynthesisPragmaticSignal', () => {
       'Synthesizing the arguments, integrating the evidence suggests a way forward.',
     ];
     const plainTexts = ['I think AI is good. Markets will decide.'];
-    const withIntegration = computeSynthesisPragmaticSignal(integrationTexts, []);
-    const withoutIntegration = computeSynthesisPragmaticSignal(plainTexts, []);
+    const withIntegration = computeConcludingPragmaticSignal(integrationTexts, []);
+    const withoutIntegration = computeConcludingPragmaticSignal(plainTexts, []);
     expect(withIntegration).toBeGreaterThan(withoutIntegration);
   });
 
@@ -239,8 +239,8 @@ describe('computeSynthesisPragmaticSignal', () => {
       'If we accept the premise, provided that safeguards exist, assuming that oversight is maintained.',
     ];
     const plainTexts = ['I disagree completely.'];
-    const withConditional = computeSynthesisPragmaticSignal(conditionalTexts, []);
-    const withoutConditional = computeSynthesisPragmaticSignal(plainTexts, []);
+    const withConditional = computeConcludingPragmaticSignal(conditionalTexts, []);
+    const withoutConditional = computeConcludingPragmaticSignal(plainTexts, []);
     expect(withConditional).toBeGreaterThan(withoutConditional);
   });
 
@@ -251,14 +251,14 @@ describe('computeSynthesisPragmaticSignal', () => {
       'I suspect this seems tentatively correct.',
     ];
     const confidentSynthesis = ['The evidence clearly shows a path forward.'];
-    const result = computeSynthesisPragmaticSignal(confidentSynthesis, hedgyExploration);
+    const result = computeConcludingPragmaticSignal(confidentSynthesis, hedgyExploration);
     // Sub-signal (c) should contribute positively
     expect(result).toBeGreaterThan(0);
   });
 
   it('handles empty exploration texts', () => {
     const texts = ['Building on the previous point.'];
-    const result = computeSynthesisPragmaticSignal(texts, []);
+    const result = computeConcludingPragmaticSignal(texts, []);
     expect(result).toBeGreaterThanOrEqual(0);
     expect(result).toBeLessThanOrEqual(1);
   });

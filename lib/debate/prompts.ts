@@ -102,9 +102,9 @@ function buildRecapSection(taxonomyContext: string, phase?: DebatePhase): string
 
   if (phase) {
     const priorities: Record<DebatePhase, string> = {
-      'thesis-antithesis': 'Stake out your position; challenge opponents\' core claims.',
-      'exploration': 'Find cruxes, test edge cases, name agreements.',
-      'synthesis': 'Converge where possible; narrow remaining disagreements.',
+      'confrontation': 'Stake out your position; challenge opponents\' core claims.',
+      'argumentation': 'Find cruxes, test edge cases, name agreements.',
+      'concluding': 'Converge where possible; narrow remaining disagreements.',
     };
     lines.push(`Phase priority: ${priorities[phase]}`);
   }
@@ -204,7 +204,7 @@ Vary your moves: sometimes concede, sometimes challenge, sometimes reframe. A de
 // ── Phase-specific instruction blocks ──────────────────────────────
 
 const PHASE_INSTRUCTIONS: Record<DebatePhase, string> = {
-  'thesis-antithesis': `## CURRENT PHASE: THESIS & ANTITHESIS (early rounds)
+  'confrontation': `## CURRENT PHASE: THESIS & ANTITHESIS (early rounds)
 Your goal this phase is to STAKE OUT your position clearly and challenge opponents' core claims.
 - Lead with your strongest arguments and most compelling evidence.
 - Identify the cruxes — the specific factual or value questions where you most disagree.
@@ -212,7 +212,7 @@ Your goal this phase is to STAKE OUT your position clearly and challenge opponen
 - Name your key assumptions explicitly so opponents can engage with them.
 Do NOT try to find common ground yet — that comes later. Focus on making each position as clear and distinct as possible.`,
 
-  'exploration': `## CURRENT PHASE: EXPLORATION (middle rounds)
+  'argumentation': `## CURRENT PHASE: EXPLORATION (middle rounds)
 Your goal this phase is to PROBE DEEPER and TEST EDGE CASES. The positions are established — now stress-test them.
 - Identify the cruxes: what specific evidence or argument would change your mind?
 - Use SPECIFY moves to force falsifiable predictions from opponents.
@@ -222,7 +222,7 @@ Your goal this phase is to PROBE DEEPER and TEST EDGE CASES. The positions are e
 - CONCEDE at least one opponent point per 2 turns. If an opponent made a strong argument you haven't addressed, grant it and pivot to your remaining disagreement. Debates that never concede anything are unconvincing.
 Do NOT simply restate your opening position. If you catch yourself repeating an earlier argument, stop and find a new angle.`,
 
-  'synthesis': `## CURRENT PHASE: SYNTHESIS (final rounds)
+  'concluding': `## CURRENT PHASE: CONCLUDING (final rounds)
 Your goal this phase is to CONVERGE where possible and NARROW remaining disagreements to their sharpest form.
 - Lead with what you've CONCEDED during this debate — name at least 2-3 specific opponent points you now accept.
 - Then state what you've LEARNED — how has your understanding shifted?
@@ -234,7 +234,7 @@ Do NOT introduce new arguments or reopen settled points. Focus on crystallizing 
 You MUST include a "position_update" field in your JSON output summarizing how your position has evolved.`,
 };
 
-// ── Constructive moves (available in exploration + synthesis phases) ──
+// ── Constructive moves (available in argumentation + concluding phases) ──
 
 const CONSTRUCTIVE_MOVES = `
 CONSTRUCTIVE EMPHASIS — in this phase, prioritize these moves from the canonical 10:
@@ -269,14 +269,14 @@ function allInstructions(phase?: DebatePhase): string {
   // Add phase-specific instructions
   if (phase) {
     blocks.push(PHASE_INSTRUCTIONS[phase]);
-    if (phase !== 'thesis-antithesis') {
+    if (phase !== 'confrontation') {
       blocks.push(CONSTRUCTIVE_MOVES);
     }
   }
 
-  // Add position_update schema in synthesis phase
-  if (phase === 'synthesis') {
-    blocks.push(`POSITION UPDATE: In the synthesis phase, you MUST include a "position_update" field in your JSON output:
+  // Add position_update schema in concluding phase
+  if (phase === 'concluding') {
+    blocks.push(`POSITION UPDATE: In the concluding phase, you MUST include a "position_update" field in your JSON output:
   "position_update": "1-3 sentences describing how your position has evolved during this debate — what you've conceded, what you've learned, and what remains unchanged."`);
   }
 
@@ -745,7 +745,7 @@ Respond ONLY with a JSON object in this exact format (no markdown, no code fence
 {"questions": [{"question": "your clarifying question", "options": ["option 1 text", "option 2 text", "option 3 text"]}]}`;
 }
 
-export function synthesisPrompt(
+export function concludingPrompt(
   originalTopic: string,
   qaPairs: string,
   audience?: DebateAudience,
@@ -1122,12 +1122,12 @@ export function crossRespondSelectionPrompt(
     : '';
 
   // Phase-specific moderator objectives
-  const phaseObjective = phase === 'thesis-antithesis'
+  const phaseObjective = phase === 'confrontation'
     ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence — let positions be fully articulated before seeking common ground.\n`
-    : phase === 'exploration'
+    : phase === 'argumentation'
     ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to:\n- Name specific conditions under which they would change their mind\n- Explore edge cases where positions might converge\n- Use INTEGRATE and SPECIFY moves when appropriate\n- Explicitly acknowledge areas of agreement before exploring remaining disagreements\nAvoid directing debaters to simply restate or defend positions already established.\n`
-    : phase === 'synthesis'
-    ? `\n\n=== PHASE: SYNTHESIS ===\nYour priority is convergence. Direct debaters to:\n- Summarize what they've learned or conceded during the debate\n- Propose integrated positions that incorporate insights from multiple perspectives\n- Narrow remaining disagreements to their sharpest, most precise form\n- State conditional agreements: "I would accept X if Y"\nDo NOT direct debaters to introduce new arguments or reopen settled points.\n`
+    : phase === 'concluding'
+    ? `\n\n=== PHASE: CONCLUDING ===\nYour priority is convergence. Direct debaters to:\n- Summarize what they've learned or conceded during the debate\n- Propose integrated positions that incorporate insights from multiple perspectives\n- Narrow remaining disagreements to their sharpest, most precise form\n- State conditional agreements: "I would accept X if Y"\nDo NOT direct debaters to introduce new arguments or reopen settled points.\n`
     : '';
 
   const audienceLine = audience
@@ -1217,15 +1217,15 @@ REQUIRED: At least 1 of this turn's 3–5 taxonomy_refs must be a node_id NOT in
 Re-citing a node is fine when it carries new weight, but repeating the same set of nodes turn after turn signals you are not exploring your worldview. Rotate through Beliefs, Desires, and Intentions you have not leaned on recently.${uncitedLine}${crossPovLine}\n`;
   }
 
-  const constructiveMoveList = phase && phase !== 'thesis-antithesis'
+  const constructiveMoveList = phase && phase !== 'confrontation'
     ? '\nConstructive emphasis: INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT' : '';
 
-  const positionUpdateField = phase === 'synthesis'
+  const positionUpdateField = phase === 'concluding'
     ? `\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
 
-  const phaseDirective = phase === 'synthesis'
+  const phaseDirective = phase === 'concluding'
     ? 'Focus on convergence. Name what you agree on, narrow remaining disagreements, and propose conditional agreements.'
-    : phase === 'exploration'
+    : phase === 'argumentation'
     ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
     : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
 
@@ -1565,7 +1565,7 @@ export function planStagePrompt(input: StagePromptInput, brief: string): string 
     ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${input.priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your plan.\n`
     : '';
 
-  const constructiveMoveList = input.phase && input.phase !== 'thesis-antithesis'
+  const constructiveMoveList = input.phase && input.phase !== 'confrontation'
     ? '\nConstructive emphasis: INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT'
     : '';
 
@@ -1632,13 +1632,13 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 }
 
 export function draftStagePrompt(input: StagePromptInput, brief: string, plan: string): string {
-  const phaseDirective = input.phase === 'synthesis'
+  const phaseDirective = input.phase === 'concluding'
     ? 'Focus on convergence. Name what you agree on, narrow remaining disagreements, and propose conditional agreements.'
-    : input.phase === 'exploration'
+    : input.phase === 'argumentation'
     ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
     : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
 
-  const positionUpdateField = input.phase === 'synthesis'
+  const positionUpdateField = input.phase === 'concluding'
     ? `,\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
 
   // Build intervention response block for the Draft prompt
@@ -2302,7 +2302,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 export function missingArgumentsPrompt(
   topic: string,
   taxonomyNodesSummary: string,
-  synthesisText: string,
+  concludingText: string,
   audience?: DebateAudience,
 ): string {
   return `You have NOT seen the debate transcript. You receive only:
@@ -2319,8 +2319,8 @@ ${topic}
 AVAILABLE POSITIONS (each position belongs to one of three perspectives — accelerationist, safetyist, or skeptic — and one BDI category — Belief, Desire, or Intention):
 ${taxonomyNodesSummary}
 
-SYNTHESIS OF WHAT WAS DISCUSSED:
-${synthesisText}
+CONCLUDING SUMMARY OF WHAT WAS DISCUSSED:
+${concludingText}
 
 For each missing argument:
 - "argument": State the argument in 1-2 sentences, as a debater would actually make it
@@ -2350,7 +2350,7 @@ Return ONLY JSON (no markdown, no code fences):
  */
 export function taxonomyRefinementPrompt(
   topic: string,
-  synthesisText: string,
+  concludingText: string,
   referencedNodes: { id: string; label: string; pov: string; category: string; description: string }[],
   argumentMapSummary: string,
   audience?: DebateAudience,
@@ -2367,8 +2367,8 @@ ${getReadingLevel(audience)}
 DEBATE TOPIC:
 ${topic}
 
-SYNTHESIS (what was argued, agreed, and disagreed):
-${synthesisText}
+CONCLUDING SUMMARY (what was argued, agreed, and disagreed):
+${concludingText}
 
 ARGUMENT MAP (claims and their relationships):
 ${argumentMapSummary}
@@ -2669,12 +2669,12 @@ export function moderatorSelectionPrompt(
     ? `\n\n=== METAPHOR REFRAMING SUGGESTION ===\nThe debate may benefit from a fresh perspective. Consider asking a debater to engage with this reframing:\n\n"${metaphorReframe.prompt}"\n\nWhat this metaphor reveals: ${metaphorReframe.reveals}\nWhat it challenges: ${metaphorReframe.challenges}\n\nYou may include this in the focus_point if you judge it would be more productive than continuing the current line of argument. Set "metaphor_reframe": true in your response if you use it.\n`
     : '';
 
-  const phaseObjective = phase === 'thesis-antithesis'
+  const phaseObjective = phase === 'confrontation'
     ? `\n\n=== PHASE: THESIS & ANTITHESIS ===\nYour priority is to ensure each debater's core position is clearly stated and directly challenged. Direct exchanges toward the strongest disagreements. Avoid premature convergence.\nIMPORTANT: Do NOT declare stagnation during this phase. Positions are still being established — stagnation requires at least 3 rounds of cross-engagement before it can be diagnosed. Use CHALLENGE only for direct self-contradictions, not for failure to engage (which is expected when positions are still being laid out).\n`
-    : phase === 'exploration'
+    : phase === 'argumentation'
     ? `\n\n=== PHASE: EXPLORATION ===\nYour priority is to move the debate toward cruxes and testable disagreements. Direct debaters to name conditions under which they would change their mind, explore edge cases, and explicitly acknowledge agreement before exploring remaining disagreements.\n`
-    : phase === 'synthesis'
-    ? `\n\n=== PHASE: SYNTHESIS ===\nYour priority is convergence. Direct debaters to summarize concessions, propose integrated positions, narrow remaining disagreements, and state conditional agreements.\n`
+    : phase === 'concluding'
+    ? `\n\n=== PHASE: CONCLUDING ===\nYour priority is convergence. Direct debaters to summarize concessions, propose integrated positions, narrow remaining disagreements, and state conditional agreements.\n`
     : '';
 
   const audienceLine = audience
@@ -2727,7 +2727,7 @@ Available intervention moves (organized by family):
 - Repair: CLARIFY (undefined term), CHECK (misunderstanding), SUMMARIZE (periodic anchor)
 - Reconciliation: ACKNOWLEDGE (reward concession), REVOICE (translate jargon)
 - Reflection: META-REFLECT (identify cruxes, examine assumptions)
-- Synthesis: COMPRESS (force brevity), COMMIT (final position — synthesis phase only)
+- Concluding: COMPRESS (force brevity), COMMIT (final position — concluding phase only)
 
 Your recommendation is ADVISORY. The engine will validate it against budget, cooldown, phase rules, and prerequisites before acting. If the engine overrides you, the debate continues without intervention.
 

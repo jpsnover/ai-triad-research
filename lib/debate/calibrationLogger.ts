@@ -38,8 +38,8 @@ export interface CalibrationDataPoint {
   // ── Parameter 1: Exploration exit threshold ──
   /** Saturation score at the moment of exploration→synthesis transition (null if no transition) */
   argumentative_saturation_at_transition: number | null;
-  /** The exploration_exit threshold that was active */
-  exploration_exit_threshold: number;
+  /** The argumentation_exit threshold that was active */
+  argumentation_exit_threshold: number;
   /** Neutral evaluator: debate engaging real disagreement? */
   engaging_real_disagreement: boolean | null;
   /** Neutral evaluator: fraction of cruxes addressed */
@@ -200,7 +200,7 @@ export function extractCalibrationData(
   session: DebateSession,
   origin: 'local' | 'azure',
   config: {
-    explorationExitThreshold?: number;
+    argumentationExitThreshold?: number;
     relevanceThreshold?: number;
     draftTemperature?: number;
     attackWeights?: [number, number, number];
@@ -293,7 +293,7 @@ export function extractCalibrationData(
   // Synthesis preferences use internal claim IDs (C1, C2...) not AN IDs (AN-1, AN-2...).
   // The argument_map maps C-IDs to claim text. We match claim text to AN nodes by word overlap.
   let concordance: number | null = null;
-  const synthEntry = session.transcript.find((e: { type: string }) => e.type === 'synthesis');
+  const synthEntry = session.transcript.find((e: { type: string }) => e.type === 'concluding');
   const synthMeta = (synthEntry?.metadata as Record<string, unknown>)?.synthesis as {
     preferences?: { prevails?: string; claim_ids?: string[]; conflict?: string }[];
     argument_map?: { claim_id?: string; claim?: string; claimant?: string }[];
@@ -571,7 +571,7 @@ export function extractCalibrationData(
     rounds,
 
     argumentative_saturation_at_transition: argumentativeSaturationAtTransition,
-    exploration_exit_threshold: config.explorationExitThreshold ?? 0.65,
+    argumentation_exit_threshold: config.argumentationExitThreshold ?? 0.65,
     engaging_real_disagreement: engaging,
     crux_addressed_ratio: cruxRatio,
 
@@ -772,7 +772,7 @@ export function readCalibrationLog(dataRoot: string): CalibrationDataPoint[] {
 /** A point-in-time snapshot of all 15 tracked parameter values. */
 export interface ParameterSnapshot {
   // Debate parameters (1-10)
-  exploration_exit: number;
+  argumentation_exit: number;
   relevance_threshold: number;
   attack_weights: [number, number, number];
   draft_temperature: number;
@@ -824,7 +824,7 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
   } catch { /* use defaults */ }
 
   return {
-    exploration_exit: weights?.thresholds?.exploration_exit ?? 0.65,
+    argumentation_exit: weights?.thresholds?.argumentation_exit ?? 0.65,
     relevance_threshold: 0.45,
     attack_weights: [1.0, 1.1, 1.2],
     draft_temperature: 0.7,
@@ -855,7 +855,7 @@ export function diffSnapshots(
   const changes: ParameterHistoryEntry['changes'] = [];
 
   const simpleKeys: (keyof ParameterSnapshot)[] = [
-    'exploration_exit', 'relevance_threshold', 'draft_temperature',
+    'argumentation_exit', 'relevance_threshold', 'draft_temperature',
     'recent_window', 'gc_trigger', 'polarity_resolved', 'max_nodes_cap',
     'semantic_recycling_threshold', 'cluster_min_similarity',
     'duplicate_similarity_threshold', 'fire_confidence_threshold',

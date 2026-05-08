@@ -619,7 +619,7 @@ describe('Transcript management', () => {
     const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
 
     const session = await engine.run();
-    const synthEntries = session.transcript.filter(e => e.type === 'synthesis');
+    const synthEntries = session.transcript.filter(e => e.type === 'concluding');
     expect(synthEntries.length).toBe(1);
     expect(synthEntries[0].speaker).toBe('system');
   });

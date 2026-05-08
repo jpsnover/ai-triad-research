@@ -13,29 +13,29 @@
     "qbaf_agreement_density": 0.35,
     "position_stability": 0.25,
     "irreducible_disagreement_ratio": 0.25,
-    "synthesis_pragmatic_signal": 0.15
+    "concluding_pragmatic_signal": 0.15
   },
   "thresholds": {
-    "exploration_exit": 0.65,
-    "synthesis_exit": 0.70,
+    "argumentation_exit": 0.65,
+    "concluding_exit": 0.70,
     "confidence_floor": 0.40,
     "crux_semantic_novelty": 0.70
   },
   "phase_bounds": {
-    "min_thesis_rounds": 2,
-    "max_thesis_rounds": 4,
-    "min_exploration_rounds": 2,
-    "max_exploration_rounds": 8,
-    "min_synthesis_rounds": 2,
-    "max_synthesis_rounds": 3,
+    "min_confrontation_rounds": 2,
+    "max_confrontation_rounds": 4,
+    "min_argumentation_rounds": 2,
+    "max_argumentation_rounds": 8,
+    "min_concluding_rounds": 2,
+    "max_concluding_rounds": 3,
     "max_total_rounds_default": 12,
     "max_regressions": 2,
     "regression_ratchet": 0.10
   },
   "pacing_presets": {
-    "tight": { "maxTotalRounds": 8, "explorationExit": 0.55, "synthesisExit": 0.60 },
-    "moderate": { "maxTotalRounds": 12, "explorationExit": 0.65, "synthesisExit": 0.70 },
-    "thorough": { "maxTotalRounds": 15, "explorationExit": 0.80, "synthesisExit": 0.80 }
+    "tight": { "maxTotalRounds": 8, "argumentationExit": 0.55, "concludingExit": 0.60 },
+    "moderate": { "maxTotalRounds": 12, "argumentationExit": 0.65, "concludingExit": 0.70 },
+    "thorough": { "maxTotalRounds": 15, "argumentationExit": 0.80, "concludingExit": 0.80 }
   },
   "network": {
     "gc_trigger": 175,

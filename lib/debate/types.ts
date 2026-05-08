@@ -5,19 +5,19 @@ export type SpeakerId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
 
 /**
  * Progressive debate phases — each phase has different goals and instruction sets.
- * - thesis-antithesis: Rounds 1–2. Debaters stake out positions and challenge each other's core claims.
- * - exploration: Middle rounds. Debaters probe deeper, find cruxes, and test edge cases.
- * - synthesis: Final rounds. Debaters identify convergence, narrow remaining disagreements, and propose integrations.
+ * - confrontation: Rounds 1–2. Debaters stake out positions and challenge each other's core claims.
+ * - argumentation: Middle rounds. Debaters probe deeper, find cruxes, and test edge cases.
+ * - concluding: Final rounds. Debaters identify convergence, narrow remaining disagreements, and propose integrations.
  */
-export type DebatePhase = 'thesis-antithesis' | 'exploration' | 'synthesis' | 'terminated';
+export type DebatePhase = 'confrontation' | 'argumentation' | 'concluding' | 'terminated';
 
 /** Determine which debate phase a given round falls in.
  * @deprecated Use evaluatePhaseTransition() from phaseTransitions.ts for adaptive staging.
  * Retained as the fixed-round fallback when useAdaptiveStaging is false. */
 export function getDebatePhase(round: number, totalRounds: number): DebatePhase {
-  if (round <= 2) return 'thesis-antithesis';
-  if (round > totalRounds - 2) return 'synthesis';
-  return 'exploration';
+  if (round <= 2) return 'confrontation';
+  if (round > totalRounds - 2) return 'concluding';
+  return 'argumentation';
 }
 
 // ── Adaptive Staging Types ──────────────────────────────────────────
@@ -30,8 +30,8 @@ export interface PhaseTransitionConfig {
   maxTotalRounds: number;
   pacing: DebatePacing;
   dialecticalStyle: DialecticalStyle;
-  explorationExitThreshold: number;
-  synthesisExitThreshold: number;
+  argumentationExitThreshold: number;
+  concludingExitThreshold: number;
   allowEarlyTermination: boolean;
 }
 
@@ -48,8 +48,8 @@ export interface PhaseState {
   rounds_in_phase: number;
   total_rounds_elapsed: number;
   regression_count: number;
-  exploration_exit_threshold: number;
-  synthesis_exit_threshold: number;
+  argumentation_exit_threshold: number;
+  concluding_exit_threshold: number;
   prior_crux_clusters: string[][];
   veto_history: { round: number; veto_type: string }[];
   gc_ran_this_phase: boolean;
@@ -115,8 +115,8 @@ export interface SignalContext {
     }>;
     priorCruxClusters: ReadonlyArray<ReadonlyArray<string>>;
     regressionCount: number;
-    explorationExitThreshold: number;
-    synthesisExitThreshold: number;
+    argumentationExitThreshold: number;
+    concludingExitThreshold: number;
   };
 
   extraction: {
@@ -237,7 +237,7 @@ export interface TranscriptEntry {
     | 'opening'
     | 'statement'
     | 'question'
-    | 'synthesis'
+    | 'concluding'
     | 'probing'
     | 'fact-check'
     | 'reflection'
@@ -617,9 +617,9 @@ export interface TurnValidationConfig {
   judgeModel?: string;
   /** Per-phase sampling rate, 0..1. Default 1 (always). Persisted but not yet honored. */
   sampleRate?: {
-    'thesis-antithesis'?: number;
-    exploration?: number;
-    synthesis?: number;
+    'confrontation'?: number;
+    argumentation?: number;
+    concluding?: number;
   };
 }
 
@@ -1531,7 +1531,7 @@ export interface ModeratorState {
   phase: DebatePhase;
   round: number;
   total_rounds: number;
-  exploration_rounds: number;
+  argumentation_rounds: number;
 
   intervention_history: {
     round: number;

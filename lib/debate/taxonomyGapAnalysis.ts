@@ -352,9 +352,9 @@ function computeCrossPovGaps(
   const gaps: CrossPovGap[] = [];
 
   // Find synthesis entries
-  const synthesisEntries = transcript.filter(e => e.type === 'synthesis');
+  const concludingEntries = transcript.filter(e => e.type === 'concluding');
 
-  for (const entry of synthesisEntries) {
+  for (const entry of concludingEntries) {
     const meta = entry.metadata as Record<string, unknown> | undefined;
     if (!meta) continue;
 

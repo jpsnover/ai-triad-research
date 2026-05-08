@@ -27,7 +27,7 @@ const session = JSON.parse(fs.readFileSync(debatePath, 'utf8'));
 let fixed = 0;
 
 for (const entry of session.transcript) {
-  if (entry.type === 'synthesis') continue; // handled separately
+  if (entry.type === 'concluding') continue; // handled separately
 
   const content: string = entry.content;
   const hasRawJson = content.includes('"statement"') || content.trim().startsWith('```json');
@@ -88,7 +88,7 @@ for (const entry of session.transcript) {
 }
 
 // Fix synthesis entry
-const synthEntry = session.transcript.find((e: any) => e.type === 'synthesis');
+const synthEntry = session.transcript.find((e: any) => e.type === 'concluding');
 if (synthEntry) {
   const hasRawJson = synthEntry.content.includes('"areas_of_') || synthEntry.content.trim().startsWith('{') || synthEntry.content.trim().startsWith('```');
 

@@ -22,7 +22,7 @@ import {
   checkInterventionCompliance,
   getResponseFieldForMove,
   getMoveResponseConfig,
-  getSynthesisResponder,
+  getConcludingResponder,
 } from './moderator.js';
 import type {
   ModeratorState,
@@ -75,18 +75,18 @@ function makeSignals(overrides: Partial<ConvergenceSignals> = {}): ConvergenceSi
 // ── initModeratorState ───────────────────────────────────
 
 describe('initModeratorState', () => {
-  it('computes budget as ceil(explorationRounds / 2.5)', () => {
+  it('computes budget as ceil(argumentationRounds / 2.5)', () => {
     const s = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
-    // explorationRounds = max(10 - 3, 1) = 7; ceil(7 / 2.5) = 3
+    // argumentationRounds = max(10 - 3, 1) = 7; ceil(7 / 2.5) = 3
     expect(s.budget_total).toBe(3);
     expect(s.budget_remaining).toBe(3);
-    expect(s.exploration_rounds).toBe(7);
+    expect(s.argumentation_rounds).toBe(7);
   });
 
   it('handles minimum total rounds', () => {
     const s = initModeratorState(3, ['prometheus', 'sentinel']);
-    // explorationRounds = max(3 - 3, 1) = 1; ceil(1 / 2.5) = 1
-    expect(s.exploration_rounds).toBe(1);
+    // argumentationRounds = max(3 - 3, 1) = 1; ceil(1 / 2.5) = 1
+    expect(s.argumentation_rounds).toBe(1);
     expect(s.budget_total).toBe(1);
   });
 
@@ -117,55 +117,55 @@ describe('initModeratorState', () => {
 
 describe('isPhaseAppropriate', () => {
   it('allows procedural moves in all phases', () => {
-    expect(isPhaseAppropriate('REDIRECT', 'thesis-antithesis')).toBe(true);
-    expect(isPhaseAppropriate('REDIRECT', 'exploration')).toBe(true);
-    // synthesis doesn't include procedural in primary, but REDIRECT is procedural
-    // and synthesis primary = { synthesis, reconciliation }, secondary = { repair }
-    expect(isPhaseAppropriate('REDIRECT', 'synthesis')).toBe(false);
+    expect(isPhaseAppropriate('REDIRECT', 'confrontation')).toBe(true);
+    expect(isPhaseAppropriate('REDIRECT', 'argumentation')).toBe(true);
+    // concluding doesn't include procedural in primary, but REDIRECT is procedural
+    // and concluding primary = { synthesis, reconciliation }, secondary = { repair }
+    expect(isPhaseAppropriate('REDIRECT', 'concluding')).toBe(false);
   });
 
-  it('allows elicitation in thesis-antithesis', () => {
-    expect(isPhaseAppropriate('PIN', 'thesis-antithesis')).toBe(true);
-    expect(isPhaseAppropriate('PROBE', 'thesis-antithesis')).toBe(true);
-    expect(isPhaseAppropriate('CHALLENGE', 'thesis-antithesis')).toBe(true);
+  it('allows elicitation in confrontation', () => {
+    expect(isPhaseAppropriate('PIN', 'confrontation')).toBe(true);
+    expect(isPhaseAppropriate('PROBE', 'confrontation')).toBe(true);
+    expect(isPhaseAppropriate('CHALLENGE', 'confrontation')).toBe(true);
   });
 
-  it('allows elicitation in exploration', () => {
-    expect(isPhaseAppropriate('PIN', 'exploration')).toBe(true);
-    expect(isPhaseAppropriate('PROBE', 'exploration')).toBe(true);
+  it('allows elicitation in argumentation', () => {
+    expect(isPhaseAppropriate('PIN', 'argumentation')).toBe(true);
+    expect(isPhaseAppropriate('PROBE', 'argumentation')).toBe(true);
   });
 
-  it('blocks elicitation in synthesis', () => {
-    expect(isPhaseAppropriate('PIN', 'synthesis')).toBe(false);
-    expect(isPhaseAppropriate('PROBE', 'synthesis')).toBe(false);
+  it('blocks elicitation in concluding', () => {
+    expect(isPhaseAppropriate('PIN', 'concluding')).toBe(false);
+    expect(isPhaseAppropriate('PROBE', 'concluding')).toBe(false);
   });
 
   it('allows reconciliation in all phases', () => {
-    expect(isPhaseAppropriate('ACKNOWLEDGE', 'thesis-antithesis')).toBe(true);
-    expect(isPhaseAppropriate('REVOICE', 'exploration')).toBe(true);
-    expect(isPhaseAppropriate('ACKNOWLEDGE', 'synthesis')).toBe(true);
+    expect(isPhaseAppropriate('ACKNOWLEDGE', 'confrontation')).toBe(true);
+    expect(isPhaseAppropriate('REVOICE', 'argumentation')).toBe(true);
+    expect(isPhaseAppropriate('ACKNOWLEDGE', 'concluding')).toBe(true);
   });
 
-  it('allows COMMIT only in synthesis', () => {
-    expect(isPhaseAppropriate('COMMIT', 'thesis-antithesis')).toBe(false);
-    expect(isPhaseAppropriate('COMMIT', 'exploration')).toBe(false);
-    expect(isPhaseAppropriate('COMMIT', 'synthesis')).toBe(true);
+  it('allows COMMIT only in concluding', () => {
+    expect(isPhaseAppropriate('COMMIT', 'confrontation')).toBe(false);
+    expect(isPhaseAppropriate('COMMIT', 'argumentation')).toBe(false);
+    expect(isPhaseAppropriate('COMMIT', 'concluding')).toBe(true);
   });
 
-  it('allows META-REFLECT only in exploration', () => {
-    expect(isPhaseAppropriate('META-REFLECT', 'exploration')).toBe(true);
-    expect(isPhaseAppropriate('META-REFLECT', 'thesis-antithesis')).toBe(false);
-    expect(isPhaseAppropriate('META-REFLECT', 'synthesis')).toBe(false);
+  it('allows META-REFLECT only in argumentation', () => {
+    expect(isPhaseAppropriate('META-REFLECT', 'argumentation')).toBe(true);
+    expect(isPhaseAppropriate('META-REFLECT', 'confrontation')).toBe(false);
+    expect(isPhaseAppropriate('META-REFLECT', 'concluding')).toBe(false);
   });
 
-  it('allows synthesis moves in exploration as secondary (except COMMIT)', () => {
-    expect(isPhaseAppropriate('COMPRESS', 'exploration')).toBe(true);
-    expect(isPhaseAppropriate('COMMIT', 'exploration')).toBe(false);
+  it('allows concluding moves in argumentation as secondary (except COMMIT)', () => {
+    expect(isPhaseAppropriate('COMPRESS', 'argumentation')).toBe(true);
+    expect(isPhaseAppropriate('COMMIT', 'argumentation')).toBe(false);
   });
 
-  it('allows repair in synthesis as secondary', () => {
-    expect(isPhaseAppropriate('CLARIFY', 'synthesis')).toBe(true);
-    expect(isPhaseAppropriate('CHECK', 'synthesis')).toBe(true);
+  it('allows repair in concluding as secondary', () => {
+    expect(isPhaseAppropriate('CLARIFY', 'concluding')).toBe(true);
+    expect(isPhaseAppropriate('CHECK', 'concluding')).toBe(true);
   });
 });
 
@@ -476,7 +476,7 @@ describe('updateSliBreaches', () => {
 
 describe('validateRecommendation', () => {
   it('proceeds for a valid recommendation', () => {
-    const state = makeState({ phase: 'exploration', rounds_since_last_intervention: 2 });
+    const state = makeState({ phase: 'argumentation', rounds_since_last_intervention: 2 });
     const sel = makeSelection({ suggested_move: 'PIN', target_debater: 'sentinel' });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(true);
@@ -484,7 +484,7 @@ describe('validateRecommendation', () => {
   });
 
   it('suppresses when intervene is false', () => {
-    const state = makeState({ phase: 'exploration' });
+    const state = makeState({ phase: 'argumentation' });
     const sel = makeSelection({ intervene: false });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(false);
@@ -492,7 +492,7 @@ describe('validateRecommendation', () => {
   });
 
   it('refills budget when exhausted and proceeds (non-COMMIT)', () => {
-    const state = makeState({ phase: 'exploration', budget_remaining: 0, budget_total: 3, rounds_since_last_intervention: 5 });
+    const state = makeState({ phase: 'argumentation', budget_remaining: 0, budget_total: 3, rounds_since_last_intervention: 5 });
     const sel = makeSelection({ suggested_move: 'PIN' });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(true);
@@ -502,7 +502,7 @@ describe('validateRecommendation', () => {
   });
 
   it('increases gap on each budget refill epoch', () => {
-    const state = makeState({ phase: 'exploration', budget_remaining: 0, budget_total: 4, rounds_since_last_intervention: 5, budget_epoch: 1, refill_gap: 2 });
+    const state = makeState({ phase: 'argumentation', budget_remaining: 0, budget_total: 4, rounds_since_last_intervention: 5, budget_epoch: 1, refill_gap: 2 });
     const sel = makeSelection({ suggested_move: 'PIN' });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(true);
@@ -511,7 +511,7 @@ describe('validateRecommendation', () => {
   });
 
   it('COMMIT is off-budget', () => {
-    const state = makeState({ phase: 'synthesis', budget_remaining: 0, rounds_since_last_intervention: 5 });
+    const state = makeState({ phase: 'concluding', budget_remaining: 0, rounds_since_last_intervention: 5 });
     const sel = makeSelection({ suggested_move: 'COMMIT', target_debater: 'prometheus' });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(true);
@@ -519,7 +519,7 @@ describe('validateRecommendation', () => {
 
   it('suppresses when cooldown active (non-exempt family)', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       rounds_since_last_intervention: 0,
       required_gap: 1,
     });
@@ -531,7 +531,7 @@ describe('validateRecommendation', () => {
 
   it('reconciliation is cooldown-exempt', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       rounds_since_last_intervention: 0,
       required_gap: 2,
     });
@@ -541,7 +541,7 @@ describe('validateRecommendation', () => {
   });
 
   it('suppresses on phase mismatch', () => {
-    const state = makeState({ phase: 'thesis-antithesis', rounds_since_last_intervention: 2 });
+    const state = makeState({ phase: 'confrontation', rounds_since_last_intervention: 2 });
     const sel = makeSelection({ suggested_move: 'COMMIT' });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(false);
@@ -550,7 +550,7 @@ describe('validateRecommendation', () => {
 
   it('suppresses same-debater consecutive (non-reconciliation)', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       rounds_since_last_intervention: 2,
       last_target: 'sentinel',
     });
@@ -562,7 +562,7 @@ describe('validateRecommendation', () => {
 
   it('allows same-debater consecutive for reconciliation', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       rounds_since_last_intervention: 0,
       required_gap: 1,
       last_target: 'sentinel',
@@ -574,7 +574,7 @@ describe('validateRecommendation', () => {
 
   it('suppresses when burden cap exceeded', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       rounds_since_last_intervention: 2,
       burden_per_debater: { prometheus: 0.5, sentinel: 5.0, cassandra: 0.5 },
       avg_burden: 2.0,
@@ -588,7 +588,7 @@ describe('validateRecommendation', () => {
 
   it('allows high-burden debater with low-burden move', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       rounds_since_last_intervention: 2,
       burden_per_debater: { prometheus: 0.5, sentinel: 5.0, cassandra: 0.5 },
       avg_burden: 2.0,
@@ -599,9 +599,9 @@ describe('validateRecommendation', () => {
     expect(r.proceed).toBe(true);
   });
 
-  it('suppresses CHALLENGE in thesis-antithesis before round 4', () => {
+  it('suppresses CHALLENGE in confrontation before round 4', () => {
     const state = makeState({
-      phase: 'thesis-antithesis',
+      phase: 'confrontation',
       round: 1,
       rounds_since_last_intervention: 2,
     });
@@ -611,9 +611,9 @@ describe('validateRecommendation', () => {
     expect(r.suppressed_reason).toBe('phase_mismatch');
   });
 
-  it('allows CHALLENGE in thesis-antithesis at round 4+', () => {
+  it('allows CHALLENGE in confrontation at round 4+', () => {
     const state = makeState({
-      phase: 'thesis-antithesis',
+      phase: 'confrontation',
       round: 4,
       rounds_since_last_intervention: 2,
     });
@@ -622,9 +622,9 @@ describe('validateRecommendation', () => {
     expect(r.proceed).toBe(true);
   });
 
-  it('allows CHALLENGE in exploration at round 1', () => {
+  it('allows CHALLENGE in argumentation at round 1', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       round: 1,
       rounds_since_last_intervention: 2,
     });
@@ -640,7 +640,7 @@ describe('updateModeratorState', () => {
   it('increments rounds_since_last_intervention when no intervention', () => {
     const state = makeState({ rounds_since_last_intervention: 2 });
     const validation = { proceed: false, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'sentinel' as const };
-    updateModeratorState(state, undefined, validation, 3, 'exploration');
+    updateModeratorState(state, undefined, validation, 3, 'argumentation');
     expect(state.rounds_since_last_intervention).toBe(3);
     expect(state.round).toBe(3);
   });
@@ -654,7 +654,7 @@ describe('updateModeratorState', () => {
       'test evidence',
     );
     const validation = { proceed: true, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'sentinel' as const };
-    updateModeratorState(state, intervention, validation, 5, 'exploration');
+    updateModeratorState(state, intervention, validation, 5, 'argumentation');
     expect(state.rounds_since_last_intervention).toBe(0);
     expect(state.interventions_fired).toBe(1);
     expect(state.budget_remaining).toBeCloseTo(state.budget_total - 0.34, 1);
@@ -669,7 +669,7 @@ describe('updateModeratorState', () => {
       'evidence',
     );
     const validation = { proceed: true, validated_move: 'COMMIT' as InterventionMove, validated_family: 'synthesis' as const, validated_target: 'prometheus' as const };
-    updateModeratorState(state, intervention, validation, 8, 'synthesis');
+    updateModeratorState(state, intervention, validation, 8, 'concluding');
     expect(state.interventions_fired).toBe(0);
     expect(state.budget_remaining).toBe(state.budget_total);
   });
@@ -683,13 +683,13 @@ describe('updateModeratorState', () => {
       'evidence',
     );
     const validation = { proceed: true, validated_move: 'PROBE' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'cassandra' as const };
-    updateModeratorState(state, intervention, validation, 6, 'exploration');
+    updateModeratorState(state, intervention, validation, 6, 'argumentation');
     expect(state.required_gap).toBe(1);
   });
 
   it('elicitation family is subject to cooldown', () => {
     const state = makeState({
-      phase: 'exploration',
+      phase: 'argumentation',
       rounds_since_last_intervention: 0,
       required_gap: 1,
     });
@@ -708,7 +708,7 @@ describe('updateModeratorState', () => {
       'evidence',
     );
     const validation = { proceed: true, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'prometheus' as const };
-    updateModeratorState(state, intervention, validation, 4, 'exploration');
+    updateModeratorState(state, intervention, validation, 4, 'argumentation');
     // elicitation burden weight = 1.0
     expect(state.burden_per_debater.prometheus).toBe(1.0);
     expect(state.avg_burden).toBeCloseTo(1.0 / 3);
@@ -723,7 +723,7 @@ describe('updateModeratorState', () => {
       'evidence',
     );
     const validation = { proceed: true, validated_move: 'CHALLENGE' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'sentinel' as const };
-    updateModeratorState(state, intervention, validation, 5, 'exploration');
+    updateModeratorState(state, intervention, validation, 5, 'argumentation');
     expect(state.intervention_history).toHaveLength(1);
     expect(state.intervention_history[0]).toMatchObject({
       round: 5,
@@ -743,7 +743,7 @@ describe('updateModeratorState', () => {
       validated_target: 'sentinel' as const,
       suppressed_reason: 'cooldown_active' as const,
     };
-    updateModeratorState(state, undefined, validation, 3, 'exploration');
+    updateModeratorState(state, undefined, validation, 3, 'argumentation');
     expect(state.cooldown_blocked_count).toBe(1);
   });
 
@@ -756,7 +756,7 @@ describe('updateModeratorState', () => {
       'evidence',
     );
     const validation = { proceed: true, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'sentinel' as const };
-    updateModeratorState(state, intervention, validation, 5, 'exploration');
+    updateModeratorState(state, intervention, validation, 5, 'argumentation');
     expect(state.trajectory_freeze_until).toBe(6);
   });
 });
@@ -967,10 +967,10 @@ describe('getMoveResponseConfig', () => {
 
 describe('computeTriggerEvaluationContext', () => {
   it('computes context from clean state', () => {
-    const state = makeState({ round: 4, phase: 'exploration' });
+    const state = makeState({ round: 4, phase: 'argumentation' });
     const ctx = computeTriggerEvaluationContext(state, { prometheus: 3, sentinel: 3, cassandra: 2 });
     expect(ctx.round).toBe(4);
-    expect(ctx.phase).toBe('exploration');
+    expect(ctx.phase).toBe('argumentation');
     expect(ctx.budget_remaining).toBe(state.budget_remaining);
     // rounds_since_last_intervention = 0, required_gap = 1 → cooldown = max(0, 1 - 0) = 1
     expect(ctx.cooldown_rounds_left).toBe(1);
@@ -981,7 +981,7 @@ describe('computeTriggerEvaluationContext', () => {
   it('includes recent intervention history', () => {
     const state = makeState({
       round: 6,
-      phase: 'exploration',
+      phase: 'argumentation',
       intervention_history: [
         { round: 4, move: 'PIN' as InterventionMove, family: 'elicitation', target: 'sentinel' as const, burden: 1.0 },
       ],
@@ -1009,11 +1009,11 @@ describe('computeTriggerEvaluationContext', () => {
 
 describe('formatTriggerContext', () => {
   it('produces readable multi-line output', () => {
-    const state = makeState({ round: 5, phase: 'exploration' });
+    const state = makeState({ round: 5, phase: 'argumentation' });
     const ctx = computeTriggerEvaluationContext(state, { prometheus: 4, sentinel: 3, cassandra: 3 });
     const text = formatTriggerContext(ctx);
     expect(text).toContain('Round: 5');
-    expect(text).toContain('Phase: exploration');
+    expect(text).toContain('Phase: argumentation');
     expect(text).toContain('Budget:');
     expect(text).toContain('Cooldown:');
     expect(text).toContain('Burden:');
@@ -1031,7 +1031,7 @@ describe('formatTriggerContext', () => {
   it('suppresses health scores when convergence signal count < 3', () => {
     const state = makeState({
       round: 2,
-      phase: 'thesis-antithesis',
+      phase: 'confrontation',
       health_history: [makeHealth(), makeHealth()],
     });
     const ctx = computeTriggerEvaluationContext(state, { prometheus: 1, sentinel: 1 });
@@ -1045,7 +1045,7 @@ describe('formatTriggerContext', () => {
   it('shows health scores when convergence signal count >= 3', () => {
     const state = makeState({
       round: 5,
-      phase: 'exploration',
+      phase: 'argumentation',
       health_history: [makeHealth(), makeHealth(), makeHealth()],
     });
     const ctx = computeTriggerEvaluationContext(state, { prometheus: 3, sentinel: 3 });
@@ -1057,9 +1057,9 @@ describe('formatTriggerContext', () => {
   });
 });
 
-// ── getSynthesisResponder ────────────────────────────────
+// ── getConcludingResponder ────────────────────────────────
 
-describe('getSynthesisResponder', () => {
+describe('getConcludingResponder', () => {
   const povers: ('prometheus' | 'sentinel' | 'cassandra')[] = ['prometheus', 'sentinel', 'cassandra'];
 
   function transcript(...speakers: string[]) {
@@ -1069,52 +1069,52 @@ describe('getSynthesisResponder', () => {
   it('returns first-appearing debater when none committed', () => {
     const state = makeState();
     const t = transcript('prometheus', 'sentinel', 'cassandra', 'prometheus');
-    expect(getSynthesisResponder(state, povers, t)).toBe('prometheus');
+    expect(getConcludingResponder(state, povers, t)).toBe('prometheus');
   });
 
   it('skips debaters already committed', () => {
     const state = makeState({
       intervention_history: [
-        { round: 9, move: 'COMMIT' as InterventionMove, family: 'synthesis', target: 'prometheus' as const, burden: 0.8 },
+        { round: 9, move: 'COMMIT' as InterventionMove, family: 'concluding', target: 'prometheus' as const, burden: 0.8 },
       ],
     });
     const t = transcript('prometheus', 'sentinel', 'cassandra');
-    expect(getSynthesisResponder(state, povers, t)).toBe('sentinel');
+    expect(getConcludingResponder(state, povers, t)).toBe('sentinel');
   });
 
   it('returns null when all debaters committed', () => {
     const state = makeState({
       intervention_history: [
-        { round: 9, move: 'COMMIT' as InterventionMove, family: 'synthesis', target: 'prometheus' as const, burden: 0.8 },
-        { round: 10, move: 'COMMIT' as InterventionMove, family: 'synthesis', target: 'sentinel' as const, burden: 0.8 },
-        { round: 11, move: 'COMMIT' as InterventionMove, family: 'synthesis', target: 'cassandra' as const, burden: 0.8 },
+        { round: 9, move: 'COMMIT' as InterventionMove, family: 'concluding', target: 'prometheus' as const, burden: 0.8 },
+        { round: 10, move: 'COMMIT' as InterventionMove, family: 'concluding', target: 'sentinel' as const, burden: 0.8 },
+        { round: 11, move: 'COMMIT' as InterventionMove, family: 'concluding', target: 'cassandra' as const, burden: 0.8 },
       ],
     });
     const t = transcript('prometheus', 'sentinel', 'cassandra');
-    expect(getSynthesisResponder(state, povers, t)).toBeNull();
+    expect(getConcludingResponder(state, povers, t)).toBeNull();
   });
 
   it('respects first-appearance order', () => {
     const state = makeState();
     // cassandra spoke first
     const t = transcript('cassandra', 'prometheus', 'sentinel');
-    expect(getSynthesisResponder(state, povers, t)).toBe('cassandra');
+    expect(getConcludingResponder(state, povers, t)).toBe('cassandra');
   });
 
   it('includes debaters who never spoke in fallback order', () => {
     const state = makeState();
     // Only prometheus spoke
     const t = transcript('prometheus');
-    const first = getSynthesisResponder(state, povers, t);
+    const first = getConcludingResponder(state, povers, t);
     expect(first).toBe('prometheus');
 
     // After prometheus committed, sentinel is next (from activePovers order)
     const state2 = makeState({
       intervention_history: [
-        { round: 9, move: 'COMMIT' as InterventionMove, family: 'synthesis', target: 'prometheus' as const, burden: 0.8 },
+        { round: 9, move: 'COMMIT' as InterventionMove, family: 'concluding', target: 'prometheus' as const, burden: 0.8 },
       ],
     });
-    const second = getSynthesisResponder(state2, povers, t);
+    const second = getConcludingResponder(state2, povers, t);
     expect(second).toBe('sentinel');
   });
 
@@ -1125,6 +1125,6 @@ describe('getSynthesisResponder', () => {
       ],
     });
     const t = transcript('prometheus', 'sentinel', 'cassandra');
-    expect(getSynthesisResponder(state, povers, t)).toBe('prometheus');
+    expect(getConcludingResponder(state, povers, t)).toBe('prometheus');
   });
 });

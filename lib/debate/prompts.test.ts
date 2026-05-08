@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   clarificationPrompt,
-  synthesisPrompt,
+  concludingPrompt,
   userSeedClaimsPrompt,
   openingStatementPrompt,
   debateResponsePrompt,
@@ -138,15 +138,15 @@ describe('clarificationPrompt', () => {
   });
 });
 
-describe('synthesisPrompt', () => {
+describe('concludingPrompt', () => {
   it('returns a non-empty string containing topic and Q&A', () => {
-    const result = synthesisPrompt(TOPIC, 'Q: scope? A: federal only');
+    const result = concludingPrompt(TOPIC, 'Q: scope? A: federal only');
     expectNonEmpty(result);
     expectContains(result, TOPIC, 'Q: scope? A: federal only', '"refined_topic"');
   });
 
   it('handles empty Q&A pairs', () => {
-    const result = synthesisPrompt(TOPIC, '');
+    const result = concludingPrompt(TOPIC, '');
     expectNonEmpty(result);
   });
 });
@@ -334,7 +334,7 @@ describe('crossRespondSelectionPrompt', () => {
   });
 
   it('includes phase objectives for each phase', () => {
-    for (const phase of ['thesis-antithesis', 'exploration', 'synthesis'] as const) {
+    for (const phase of ['confrontation', 'argumentation', 'concluding'] as const) {
       const result = crossRespondSelectionPrompt(TRANSCRIPT, ACTIVE_POVERS, '', undefined, null, phase);
       expectContains(result, 'PHASE');
     }
@@ -378,17 +378,17 @@ describe('crossRespondPrompt', () => {
     expectContains(result, 'NOT yet cited');
   });
 
-  it('includes phase instructions for synthesis', () => {
+  it('includes phase instructions for concluding', () => {
     const result = crossRespondPrompt(
       DEBATER.label, DEBATER.pov, DEBATER.personality,
       TOPIC, TAXONOMY_CONTEXT, TRANSCRIPT, 'Focus.', 'Sentinel',
-      undefined, undefined, undefined, undefined, 'synthesis',
+      undefined, undefined, undefined, undefined, 'concluding',
     );
-    expectContains(result, 'SYNTHESIS', 'position_update', 'convergence');
+    expectContains(result, 'CONCLUDING', 'position_update', 'convergence');
   });
 
-  it('includes constructive moves for exploration/synthesis phases', () => {
-    for (const phase of ['exploration', 'synthesis'] as const) {
+  it('includes constructive moves for argumentation/concluding phases', () => {
+    for (const phase of ['argumentation', 'concluding'] as const) {
       const result = crossRespondPrompt(
         DEBATER.label, DEBATER.pov, DEBATER.personality,
         TOPIC, TAXONOMY_CONTEXT, TRANSCRIPT, 'Focus.', 'Sentinel',
@@ -474,7 +474,7 @@ describe('4-stage turn pipeline', () => {
     });
 
     it('includes phase instructions when phase is set', () => {
-      const result = briefStagePrompt(makeStageInput({ phase: 'exploration' }));
+      const result = briefStagePrompt(makeStageInput({ phase: 'argumentation' }));
       expectContains(result, 'EXPLORATION');
     });
   });
@@ -493,7 +493,7 @@ describe('4-stage turn pipeline', () => {
 
     it('includes phase context when provided', () => {
       const result = planStagePrompt(
-        makeStageInput({ phaseContext: { rationale: 'Moving to synthesis', phase_progress: 0.8, approaching_transition: true } }),
+        makeStageInput({ phaseContext: { rationale: 'Moving to concluding', phase_progress: 0.8, approaching_transition: true } }),
         '{}',
       );
       expectContains(result, 'PHASE STATUS', '80%', 'Approaching phase transition');
@@ -507,13 +507,13 @@ describe('4-stage turn pipeline', () => {
       expectContains(result, '"statement"', '"claim_sketches"', '"turn_symbols"');
     });
 
-    it('includes position_update for synthesis phase', () => {
-      const result = draftStagePrompt(makeStageInput({ phase: 'synthesis' }), '{}', '{}');
+    it('includes position_update for concluding phase', () => {
+      const result = draftStagePrompt(makeStageInput({ phase: 'concluding' }), '{}', '{}');
       expectContains(result, '"position_update"');
     });
 
-    it('omits position_update for non-synthesis phases', () => {
-      const result = draftStagePrompt(makeStageInput({ phase: 'exploration' }), '{}', '{}');
+    it('omits position_update for non-concluding phases', () => {
+      const result = draftStagePrompt(makeStageInput({ phase: 'argumentation' }), '{}', '{}');
       expect(result).not.toContain('"position_update"');
     });
 
@@ -751,7 +751,7 @@ describe('missingArgumentsPrompt', () => {
 
 describe('taxonomyRefinementPrompt', () => {
   it('returns a non-empty string with taxonomy suggestions schema', () => {
-    const result = taxonomyRefinementPrompt(TOPIC, 'synthesis', [
+    const result = taxonomyRefinementPrompt(TOPIC, 'concluding', [
       { id: 'acc-beliefs-001', label: 'Innovation', pov: 'accelerationist', category: 'Beliefs', description: 'desc' },
     ], 'arg map summary');
     expectNonEmpty(result);

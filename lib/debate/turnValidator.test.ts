@@ -68,7 +68,7 @@ function makeParams(overrides: Partial<ValidateTurnParams> = {}): ValidateTurnPa
       my_claims: [{ claim: 'AI regulation should require audits by 2028', targets: ['sentinel'] }],
       policy_refs: ['pol-001'],
     },
-    phase: 'exploration' as DebatePhase,
+    phase: 'argumentation' as DebatePhase,
     speaker: 'prometheus' as SpeakerId,
     round: 3,
     priorTurns: [],
@@ -90,9 +90,9 @@ describe('resolveTurnValidationConfig', () => {
     expect(c.maxRetries).toBe(2);
     expect(c.deterministicOnly).toBe(false);
     expect(c.judgeModel).toBe('claude-haiku-4-5-20251001');
-    expect(c.sampleRate['thesis-antithesis']).toBe(1);
-    expect(c.sampleRate.exploration).toBe(1);
-    expect(c.sampleRate.synthesis).toBe(1);
+    expect(c.sampleRate['confrontation']).toBe(1);
+    expect(c.sampleRate.argumentation).toBe(1);
+    expect(c.sampleRate.concluding).toBe(1);
   });
 
   it('fills defaults when given empty object', () => {
@@ -117,16 +117,16 @@ describe('resolveTurnValidationConfig', () => {
       maxRetries: 1,
       deterministicOnly: true,
       judgeModel: 'custom-model',
-      sampleRate: { exploration: 0.5 },
+      sampleRate: { argumentation: 0.5 },
     });
     expect(c.enabled).toBe(false);
     expect(c.maxRetries).toBe(1);
     expect(c.deterministicOnly).toBe(true);
     expect(c.judgeModel).toBe('custom-model');
-    expect(c.sampleRate.exploration).toBe(0.5);
+    expect(c.sampleRate.argumentation).toBe(0.5);
     // Un-specified phases get defaults
-    expect(c.sampleRate['thesis-antithesis']).toBe(1);
-    expect(c.sampleRate.synthesis).toBe(1);
+    expect(c.sampleRate['confrontation']).toBe(1);
+    expect(c.sampleRate.concluding).toBe(1);
   });
 });
 
@@ -402,7 +402,7 @@ describe('Stage A Rule 7: novelty (new refs)', () => {
       taxonomy_refs: [{ node_id: 'acc-B-001', relevance: 'prior' }, { node_id: 'saf-D-002', relevance: 'prior' }],
     });
     const p = makeParams({
-      phase: 'exploration',
+      phase: 'argumentation',
       priorTurns: [priorEntry],
       taxonomyRefs: [makeTaxRef('acc-B-001'), makeTaxRef('saf-D-002')],
     });
@@ -598,7 +598,7 @@ describe('Stage A Rule 10: hedge density', () => {
     const p = makeParams({
       statement: moderate,
       audience: 'general_public',
-      phase: 'exploration',
+      phase: 'argumentation',
     });
     const r = await validateTurn(p);
     // Whether it warns depends on exact density vs threshold; the point is the
@@ -610,10 +610,10 @@ describe('Stage A Rule 10: hedge density', () => {
 // ── Stage A: Rule 11 — constructive move requirement ────
 
 describe('Stage A Rule 11: constructive move requirement', () => {
-  it('warns when no constructive move after round 4 in exploration', async () => {
+  it('warns when no constructive move after round 4 in argumentation', async () => {
     const p = makeParams({
       round: 5,
-      phase: 'exploration',
+      phase: 'argumentation',
       meta: {
         ...makeParams().meta,
         move_types: ['COUNTEREXAMPLE', 'DISTINGUISH'],
@@ -624,10 +624,10 @@ describe('Stage A Rule 11: constructive move requirement', () => {
     expect(r.dimensions.advancement.signals).toContain('no_constructive_move');
   });
 
-  it('errors when no constructive move in synthesis phase', async () => {
+  it('errors when no constructive move in concluding phase', async () => {
     const p = makeParams({
       round: 5,
-      phase: 'synthesis',
+      phase: 'concluding',
       meta: {
         ...makeParams().meta,
         move_types: ['COUNTEREXAMPLE'],
@@ -638,10 +638,10 @@ describe('Stage A Rule 11: constructive move requirement', () => {
     expect(r.outcome).not.toBe('pass');
   });
 
-  it('errors when no constructive move at round 6 in exploration', async () => {
+  it('errors when no constructive move at round 6 in argumentation', async () => {
     const p = makeParams({
       round: 6,
-      phase: 'exploration',
+      phase: 'argumentation',
       meta: {
         ...makeParams().meta,
         move_types: ['COUNTEREXAMPLE'],
@@ -658,7 +658,7 @@ describe('Stage A Rule 11: constructive move requirement', () => {
     // like CONCEDE, EXTEND, INTEGRATE match because normalization is a no-op.
     const p = makeParams({
       round: 5,
-      phase: 'exploration',
+      phase: 'argumentation',
       meta: {
         ...makeParams().meta,
         move_types: ['COUNTEREXAMPLE', 'CONCEDE'],
@@ -671,7 +671,7 @@ describe('Stage A Rule 11: constructive move requirement', () => {
   it('passes when INTEGRATE is present', async () => {
     const p = makeParams({
       round: 5,
-      phase: 'exploration',
+      phase: 'argumentation',
       meta: {
         ...makeParams().meta,
         move_types: ['INTEGRATE'],
@@ -684,7 +684,7 @@ describe('Stage A Rule 11: constructive move requirement', () => {
   it('passes when EXTEND is present', async () => {
     const p = makeParams({
       round: 5,
-      phase: 'exploration',
+      phase: 'argumentation',
       meta: {
         ...makeParams().meta,
         move_types: ['EXTEND'],
@@ -694,10 +694,10 @@ describe('Stage A Rule 11: constructive move requirement', () => {
     expect(r.repairHints.filter(h => h.includes('No constructive move'))).toHaveLength(0);
   });
 
-  it('does not apply in thesis-antithesis phase', async () => {
+  it('does not apply in confrontation phase', async () => {
     const p = makeParams({
       round: 5,
-      phase: 'thesis-antithesis',
+      phase: 'confrontation',
       meta: {
         ...makeParams().meta,
         move_types: ['COUNTEREXAMPLE'],
@@ -710,7 +710,7 @@ describe('Stage A Rule 11: constructive move requirement', () => {
   it('does not apply before round 4', async () => {
     const p = makeParams({
       round: 3,
-      phase: 'exploration',
+      phase: 'argumentation',
       meta: {
         ...makeParams().meta,
         move_types: ['COUNTEREXAMPLE'],

@@ -83,7 +83,7 @@ export function formatDebateMarkdown(session: DebateSession): string {
   const debates = session.transcript.filter(e =>
     e.type === 'statement' || e.type === 'question' || e.type === 'probing',
   );
-  const synthesis = session.transcript.find(e => e.type === 'synthesis');
+  const synthesis = session.transcript.find(e => e.type === 'concluding');
   const factChecks = session.transcript.filter(e => e.type === 'fact-check');
 
   // Opening Statements

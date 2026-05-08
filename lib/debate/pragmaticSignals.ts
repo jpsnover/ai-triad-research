@@ -241,12 +241,12 @@ export function computePragmaticConvergence(
  * Compute synthesis pragmatic signal for the synthesis stage detector.
  *
  * @param texts - Debater texts from the current synthesis window
- * @param explorationTexts - Debater texts from the exploration phase (for baseline)
+ * @param argumentationTexts - Debater texts from the exploration phase (for baseline)
  * @returns A value in [0, 1] where higher means synthesis is progressing well
  */
-export function computeSynthesisPragmaticSignal(
+export function computeConcludingPragmaticSignal(
   texts: string[],
-  explorationTexts: string[],
+  argumentationTexts: string[],
 ): number {
   if (texts.length === 0) return 0;
 
@@ -267,9 +267,9 @@ export function computeSynthesisPragmaticSignal(
   // If hedging has decreased from exploration, synthesis is replacing uncertainty
   // with conditional structure.
   const currentHedgeRate = lexiconRate(texts, HEDGE_LEXICON);
-  const explorationHedgeRate = lexiconRate(explorationTexts, HEDGE_LEXICON);
-  const qualificationDrop = explorationHedgeRate > 0
-    ? Math.max(0, Math.min(1, 1 - currentHedgeRate / explorationHedgeRate))
+  const argumentationHedgeRate = lexiconRate(argumentationTexts, HEDGE_LEXICON);
+  const qualificationDrop = argumentationHedgeRate > 0
+    ? Math.max(0, Math.min(1, 1 - currentHedgeRate / argumentationHedgeRate))
     : 0;
 
   // Average the three sub-signals

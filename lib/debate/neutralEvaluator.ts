@@ -364,7 +364,7 @@ export interface DivergenceItem {
   type: 'claim_assessment_mismatch' | 'crux_omitted' | 'crux_status_mismatch';
   description: string;
   neutral_view: string;
-  synthesis_view: string;
+  concluding_view: string;
   severity: 'high' | 'medium' | 'low';
 }
 
@@ -374,9 +374,9 @@ export interface DivergenceItem {
  */
 export function computeDivergence(
   neutralEval: NeutralEvaluation,
-  synthesisAgreements: { point: string }[],
-  synthesisDisagreements: { point: string; positions?: { pover: string; stance: string }[] }[],
-  synthesisUnresolved: string[],
+  concludingAgreements: { point: string }[],
+  concludingDisagreements: { point: string; positions?: { pover: string; stance: string }[] }[],
+  concludingUnresolved: string[],
 ): DivergenceItem[] {
   const items: DivergenceItem[] = [];
 
@@ -385,11 +385,11 @@ export function computeDivergence(
   for (const claim of neutralEval.claims) {
     if (claim.neutral_assessment === 'refuted' || claim.neutral_assessment === 'contested_unresolved') {
       const claimLower = claim.claim_text.toLowerCase();
-      const inDisagreements = synthesisDisagreements.some(
+      const inDisagreements = concludingDisagreements.some(
         d => d.point.toLowerCase().includes(claimLower.slice(0, 40)) ||
              claimLower.includes(d.point.toLowerCase().slice(0, 40)),
       );
-      const inAgreements = synthesisAgreements.some(
+      const inAgreements = concludingAgreements.some(
         a => a.point.toLowerCase().includes(claimLower.slice(0, 40)),
       );
 
@@ -398,7 +398,7 @@ export function computeDivergence(
           type: 'claim_assessment_mismatch',
           description: `Synthesis treats as agreed, but neutral evaluator assessed as ${claim.neutral_assessment}`,
           neutral_view: `${claim.claim_text} → ${claim.neutral_assessment}: ${claim.reasoning}`,
-          synthesis_view: 'Listed in areas of agreement',
+          concluding_view: 'Listed in areas of agreement',
           severity: claim.confidence === 'high' ? 'high' : 'medium',
         });
       }
@@ -410,15 +410,15 @@ export function computeDivergence(
     if (crux.status === 'unaddressed' && crux.confidence !== 'low') {
       const cruxLower = crux.description.toLowerCase();
       const inSynthesis =
-        synthesisDisagreements.some(d => d.point.toLowerCase().includes(cruxLower.slice(0, 40))) ||
-        synthesisUnresolved.some(u => u.toLowerCase().includes(cruxLower.slice(0, 40)));
+        concludingDisagreements.some(d => d.point.toLowerCase().includes(cruxLower.slice(0, 40))) ||
+        concludingUnresolved.some(u => u.toLowerCase().includes(cruxLower.slice(0, 40)));
 
       if (!inSynthesis) {
         items.push({
           type: 'crux_omitted',
           description: `Neutral evaluator identified an unaddressed crux that the synthesis did not surface`,
           neutral_view: `${crux.description} (${crux.disagreement_type}, ${crux.status})`,
-          synthesis_view: 'Not mentioned in disagreements or unresolved questions',
+          concluding_view: 'Not mentioned in disagreements or unresolved questions',
           severity: crux.confidence === 'high' ? 'high' : 'medium',
         });
       }
@@ -429,7 +429,7 @@ export function computeDivergence(
   for (const crux of neutralEval.cruxes) {
     if (crux.status === 'unaddressed') {
       const cruxLower = crux.description.toLowerCase();
-      const matchedAgreement = synthesisAgreements.find(
+      const matchedAgreement = concludingAgreements.find(
         a => a.point.toLowerCase().includes(cruxLower.slice(0, 40)) ||
              cruxLower.includes(a.point.toLowerCase().slice(0, 40)),
       );
@@ -438,7 +438,7 @@ export function computeDivergence(
           type: 'crux_status_mismatch',
           description: `Synthesis considers resolved/agreed, but neutral evaluator sees it as unaddressed`,
           neutral_view: `${crux.description} → ${crux.status}`,
-          synthesis_view: `Listed as agreement: ${matchedAgreement.point}`,
+          concluding_view: `Listed as agreement: ${matchedAgreement.point}`,
           severity: 'high',
         });
       }

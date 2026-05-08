@@ -83,7 +83,7 @@ export function generateDialecticTraces(session: DebateSession): DialecticTrace[
   const an = session.argument_network;
   if (!an || an.nodes.length === 0) return [];
 
-  const synthEntry = session.transcript.find(e => e.type === 'synthesis');
+  const synthEntry = session.transcript.find(e => e.type === 'concluding');
   if (!synthEntry?.metadata?.synthesis) return [];
 
   const synthesis = synthEntry.metadata.synthesis as { preferences?: PreferenceEntry[] } | undefined;

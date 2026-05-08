@@ -204,9 +204,9 @@ export function resolveTurnValidationConfig(
     deterministicOnly: src.deterministicOnly ?? false,
     judgeModel: src.judgeModel ?? 'claude-haiku-4-5-20251001',
     sampleRate: {
-      'thesis-antithesis': src.sampleRate?.['thesis-antithesis'] ?? 1,
-      exploration: src.sampleRate?.exploration ?? 1,
-      synthesis: src.sampleRate?.synthesis ?? 1,
+      'confrontation': src.sampleRate?.['confrontation'] ?? 1,
+      argumentation: src.sampleRate?.argumentation ?? 1,
+      concluding: src.sampleRate?.concluding ?? 1,
     },
   };
 }
@@ -327,7 +327,7 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     warnings.push(msg);
   }
 
-  // Rule 7: novelty (warning everywhere; harder expectation outside thesis-antithesis)
+  // Rule 7: novelty (warning everywhere; harder expectation outside confrontation)
   const priorNodeIds = new Set<string>();
   for (const t of priorTurns) {
     for (const r of t.taxonomy_refs ?? []) priorNodeIds.add(r.node_id);
@@ -336,7 +336,7 @@ function runStageA(p: ValidateTurnParams): StageAResult {
   if (newRefs.length === 0 && priorNodeIds.size > 0) {
     const msg = 'No new taxonomy_refs beyond your last two turns — introduce at least one node you have not cited recently.';
     warnings.push(msg);
-    if (phase !== 'thesis-antithesis') {
+    if (phase !== 'confrontation') {
       // Treat as a stronger advancement failure in later phases but still warning-level.
       advancementSignals.push('no_new_refs');
     }
@@ -389,13 +389,13 @@ function runStageA(p: ValidateTurnParams): StageAResult {
   }
 
   // Rule 11: constructive move requirement — at least one support move after round 4
-  if (phase !== 'thesis-antithesis' && round >= 4 && meta.move_types && meta.move_types.length > 0) {
+  if (phase !== 'confrontation' && round >= 4 && meta.move_types && meta.move_types.length > 0) {
     const resolved = meta.move_types.map(m => resolveMoveName(getMoveName(m)));
     const hasConstructive = resolved.some(m => SUPPORT_MOVES.has(m));
     if (!hasConstructive) {
       const constructiveList = 'CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, SPECIFY';
       const msg = `No constructive move found — include at least one of: ${constructiveList}. Convergence requires engaging with opponents' strongest points, not just attacking.`;
-      if (phase === 'synthesis' || round >= 6) {
+      if (phase === 'concluding' || round >= 6) {
         errors.push(msg);
       } else {
         warnings.push(msg);
@@ -726,9 +726,9 @@ function computeHedgeDensity(statement: string): number {
 function getHedgeThreshold(phase: DebatePhase, audience?: DebateAudience): number {
   if (audience === 'academic_community') return 0.50;
   const byPhase: Record<DebatePhase, number> = {
-    'thesis-antithesis': 0.40,
-    exploration: 0.30,
-    synthesis: 0.20,
+    'confrontation': 0.40,
+    argumentation: 0.30,
+    concluding: 0.20,
   };
   if (audience === 'general_public') {
     return (byPhase[phase] ?? 0.30) - 0.05;

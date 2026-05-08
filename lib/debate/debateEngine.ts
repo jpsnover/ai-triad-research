@@ -60,7 +60,7 @@ import {
   clarificationPrompt,
   documentClarificationPrompt,
   situationClarificationPrompt,
-  synthesisPrompt,
+  concludingPrompt,
   crossRespondSelectionPrompt,
   formatCriticalQuestions,
   selectReframingMetaphor,
@@ -137,7 +137,7 @@ import {
   buildIntervention,
   buildInterventionBriefInjection,
   checkInterventionCompliance,
-  getSynthesisResponder,
+  getConcludingResponder,
 } from './moderator.js';
 import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js';
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
@@ -196,9 +196,9 @@ export interface DebateConfig {
   /** Override max total rounds (otherwise derived from pacing preset). */
   maxTotalRounds?: number;
   /** Override exploration exit threshold (otherwise derived from pacing preset). */
-  explorationExitThreshold?: number;
+  argumentationExitThreshold?: number;
   /** Override synthesis exit threshold (otherwise derived from pacing preset). */
-  synthesisExitThreshold?: number;
+  concludingExitThreshold?: number;
   /** Allow early termination on health collapse. Default: true when adaptive staging is on. */
   allowEarlyTermination?: boolean;
   /** AbortSignal for external cancellation. When aborted, the engine stops at the next checkpoint. */
@@ -404,7 +404,7 @@ export class DebateEngine {
     try {
       const weights = loadProvisionalWeights();
       const dataPoint = extractCalibrationData(this.session, 'local', {
-        explorationExitThreshold: weights.thresholds.exploration_exit,
+        argumentationExitThreshold: weights.thresholds.argumentation_exit,
         relevanceThreshold: 0.45, // TODO: read from config when externalized
         draftTemperature: 0.7,
         attackWeights: [1.0, 1.1, 1.2],
@@ -500,8 +500,8 @@ export class DebateEngine {
         maxTotalRounds: this.config.maxTotalRounds ?? preset.maxTotalRounds,
         pacing,
         dialecticalStyle: 'adversarial',
-        explorationExitThreshold: this.config.explorationExitThreshold ?? preset.explorationExit,
-        synthesisExitThreshold: this.config.synthesisExitThreshold ?? preset.synthesisExit,
+        argumentationExitThreshold: this.config.argumentationExitThreshold ?? preset.argumentationExit,
+        concludingExitThreshold: this.config.concludingExitThreshold ?? preset.concludingExit,
         allowEarlyTermination: this.config.allowEarlyTermination ?? true,
       };
       this._phaseState = initPhaseState(this._adaptiveConfig);
@@ -849,8 +849,8 @@ export class DebateEngine {
         })),
         priorCruxClusters: state.prior_crux_clusters,
         regressionCount: state.regression_count,
-        explorationExitThreshold: state.exploration_exit_threshold,
-        synthesisExitThreshold: state.synthesis_exit_threshold,
+        argumentationExitThreshold: state.argumentation_exit_threshold,
+        concludingExitThreshold: state.concluding_exit_threshold,
       },
 
       extraction: {
@@ -1199,8 +1199,8 @@ export class DebateEngine {
     // Auto-generate answers and synthesize refined topic
     this.progress('clarification', undefined, 'Synthesizing refined topic');
     const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
-    const synthPrompt = synthesisPrompt(this.config.topic, qaPairs, this.config.audience);
-    const synthText = await this.generate(synthPrompt, 'Topic synthesis', 60_000);
+    const concludingPromptText = concludingPrompt(this.config.topic, qaPairs, this.config.audience);
+    const synthText = await this.generate(concludingPromptText, 'Topic synthesis', 60_000);
 
     try {
       const parsed = parseJsonRobust(synthText) as { refined_topic?: string };
@@ -1528,9 +1528,9 @@ export class DebateEngine {
 
       // Compute scores for telemetry
       const coldStart = state.rounds_in_phase < (
-        state.current_phase === 'thesis-antithesis' ? w.phase_bounds.min_thesis_rounds
-        : state.current_phase === 'exploration' ? w.phase_bounds.min_exploration_rounds
-        : w.phase_bounds.min_synthesis_rounds
+        state.current_phase === 'confrontation' ? w.phase_bounds.min_confrontation_rounds
+        : state.current_phase === 'argumentation' ? w.phase_bounds.min_argumentation_rounds
+        : w.phase_bounds.min_concluding_rounds
       );
       const satScore = computeSaturationScore(signals, ctx, coldStart);
       const convScore = computeConvergenceScore(ctx, coldStart);
@@ -1619,7 +1619,7 @@ export class DebateEngine {
         diag.regressions.push({
           from_round: round,
           crux_id: cruxId,
-          threshold_after: state.exploration_exit_threshold,
+          threshold_after: state.argumentation_exit_threshold,
         });
 
         this.progress('debate', undefined,
@@ -1627,9 +1627,9 @@ export class DebateEngine {
 
         this.addEntry({
           type: 'system', speaker: 'system',
-          content: `[Phase regression] synthesis → exploration: ${result.reason}. Threshold ratcheted to ${(state.exploration_exit_threshold * 100).toFixed(0)}%.`,
+          content: `[Phase regression] synthesis → exploration: ${result.reason}. Threshold ratcheted to ${(state.argumentation_exit_threshold * 100).toFixed(0)}%.`,
           taxonomy_refs: [],
-          metadata: { adaptive_regression: true, reason: result.reason, new_threshold: state.exploration_exit_threshold },
+          metadata: { adaptive_regression: true, reason: result.reason, new_threshold: state.argumentation_exit_threshold },
         });
         currentPhaseStartRound = round + 1;
       }
@@ -1693,7 +1693,7 @@ export class DebateEngine {
     this.session.adaptive_staging_diagnostics = diag;
   }
 
-  private async runCrossRespondRound(round: number, phase: DebatePhase = 'exploration'): Promise<void> {
+  private async runCrossRespondRound(round: number, phase: DebatePhase = 'argumentation'): Promise<void> {
     this.checkAborted();
 
     const sourceDocSummary = this.session.document_analysis?.claims_summary
@@ -1912,9 +1912,9 @@ export class DebateEngine {
         phaseContext: (() => {
           const w = loadProvisionalWeights();
           const coldStart = this._phaseState!.rounds_in_phase < (
-            this._phaseState!.current_phase === 'thesis-antithesis' ? w.phase_bounds.min_thesis_rounds
-            : this._phaseState!.current_phase === 'exploration' ? w.phase_bounds.min_exploration_rounds
-            : w.phase_bounds.min_synthesis_rounds
+            this._phaseState!.current_phase === 'confrontation' ? w.phase_bounds.min_confrontation_rounds
+            : this._phaseState!.current_phase === 'argumentation' ? w.phase_bounds.min_argumentation_rounds
+            : w.phase_bounds.min_concluding_rounds
           );
           const satScore = this._signalRegistry
             ? computeSaturationScore(this._signalRegistry, this.buildSignalContext(round), coldStart) : 0;
@@ -2352,7 +2352,7 @@ export class DebateEngine {
   // ── Synthesis ──────────────────────────────────────────────
 
   private async runSynthesis(): Promise<void> {
-    this.progress('synthesis', undefined, 'Generating synthesis');
+    this.progress('concluding', undefined, 'Generating synthesis');
 
     const fullTranscript = formatRecentTranscript(this.session.transcript, 50, this.session.context_summaries);
     const hasSourceDoc = this.config.sourceType === 'document' || this.config.sourceType === 'url';
@@ -2365,11 +2365,11 @@ export class DebateEngine {
     }
 
     const start = Date.now();
-    let synthesisData: Record<string, unknown> = {};
+    let concludingData: Record<string, unknown> = {};
 
     // Phase 1: Extract core synthesis
     this.checkAborted();
-    this.progress('synthesis', undefined, 'Phase 1/3: Extracting agreements and disagreements');
+    this.progress('concluding', undefined, 'Phase 1/3: Extracting agreements and disagreements');
     const cruxContext = (this.session.crux_tracker?.length ?? 0) > 0
       ? formatCruxResolutionContext(this.session.crux_tracker!)
       : undefined;
@@ -2391,11 +2391,11 @@ export class DebateEngine {
     if (Object.keys(extractData).length === 0) {
       this.warn('Synthesis Phase 1', 'AI returned empty or unparseable output — synthesis data will be incomplete', 'Proceeding with partial synthesis');
     }
-    Object.assign(synthesisData, extractData);
+    Object.assign(concludingData, extractData);
 
     // Phase 2: Build argument map
     this.checkAborted();
-    this.progress('synthesis', undefined, 'Phase 2/3: Building argument map');
+    this.progress('concluding', undefined, 'Phase 2/3: Building argument map');
     const disagreementsSummary = JSON.stringify(extractData.areas_of_disagreement ?? []);
     const mapText = await this.generate(
       synthMapPrompt(this.session.topic.final, fullTranscript, disagreementsSummary, hasSourceDoc, this.config.audience),
@@ -2415,11 +2415,11 @@ export class DebateEngine {
     if (Object.keys(mapData).length === 0) {
       this.warn('Synthesis Phase 2', 'AI returned empty or unparseable output — argument map will be incomplete', 'Proceeding with partial synthesis');
     }
-    Object.assign(synthesisData, mapData);
+    Object.assign(concludingData, mapData);
 
     // Phase 3: Evaluate preferences + policy implications
     this.checkAborted();
-    this.progress('synthesis', undefined, 'Phase 3/3: Evaluating preferences');
+    this.progress('concluding', undefined, 'Phase 3/3: Evaluating preferences');
     const argMapSummary = JSON.stringify(mapData.argument_map ?? []);
     const evalText = await this.generate(
       synthEvaluatePrompt(this.session.topic.final, disagreementsSummary, argMapSummary, policyContext, this.config.audience),
@@ -2439,15 +2439,15 @@ export class DebateEngine {
     if (Object.keys(evalData).length === 0) {
       this.warn('Synthesis Phase 3', 'AI returned empty or unparseable output — evaluation data will be incomplete', 'Proceeding with partial synthesis');
     }
-    Object.assign(synthesisData, evalData);
+    Object.assign(concludingData, evalData);
 
     const elapsed = Date.now() - start;
 
     // Format readable content
     const lines: string[] = [];
-    const agreements = synthesisData.areas_of_agreement as { point: string; povers: string[] }[] | undefined;
-    const disagreements = synthesisData.areas_of_disagreement as { point: string; positions: { pover: string; stance: string }[] }[] | undefined;
-    const cruxes = synthesisData.cruxes as { question: string; type?: string }[] | undefined;
+    const agreements = concludingData.areas_of_agreement as { point: string; povers: string[] }[] | undefined;
+    const disagreements = concludingData.areas_of_disagreement as { point: string; positions: { pover: string; stance: string }[] }[] | undefined;
+    const cruxes = concludingData.cruxes as { question: string; type?: string }[] | undefined;
 
     if (agreements?.length) {
       lines.push('**Areas of Agreement:**');
@@ -2488,7 +2488,7 @@ export class DebateEngine {
       lines.push('');
     }
 
-    const unresolvedQuestions = synthesisData.unresolved_questions as string[] | undefined;
+    const unresolvedQuestions = concludingData.unresolved_questions as string[] | undefined;
     if (unresolvedQuestions?.length) {
       lines.push('**Unresolved Questions:**');
       lines.push('');
@@ -2496,7 +2496,7 @@ export class DebateEngine {
       lines.push('');
     }
 
-    const preferences = synthesisData.preferences as { conflict: string; prevails: string; criterion: string; rationale: string; what_would_change_this?: string }[] | undefined;
+    const preferences = concludingData.preferences as { conflict: string; prevails: string; criterion: string; rationale: string; what_would_change_this?: string }[] | undefined;
     if (preferences?.length) {
       lines.push('**Resolution Analysis:**');
       lines.push('');
@@ -2519,18 +2519,18 @@ export class DebateEngine {
     let content: string;
     if (lines.length > 0) {
       content = lines.join('\n');
-    } else if (typeof synthesisData.summary === 'string') {
-      content = synthesisData.summary;
+    } else if (typeof concludingData.summary === 'string') {
+      content = concludingData.summary;
     } else {
-      content = JSON.stringify(synthesisData, null, 2);
+      content = JSON.stringify(concludingData, null, 2);
     }
 
     const entry = this.addEntry({
-      type: 'synthesis',
+      type: 'concluding',
       speaker: 'system',
       content,
       taxonomy_refs: [],
-      metadata: { synthesis: synthesisData },
+      metadata: { synthesis: concludingData },
     });
 
     this.recordDiagnostic(entry.id, {
@@ -2550,9 +2550,9 @@ export class DebateEngine {
   private async runMissingArgumentsPass(): Promise<void> {
     try {
       // Wait briefly for synthesis to produce data we can reference
-      const synthEntry = this.session.transcript.find(e => e.type === 'synthesis');
-      const synthesisText = synthEntry?.content ?? '';
-      if (!synthesisText) return; // No synthesis yet — will be called after synthesis completes
+      const synthEntry = this.session.transcript.find(e => e.type === 'concluding');
+      const concludingText = synthEntry?.content ?? '';
+      if (!concludingText) return; // No synthesis yet — will be called after synthesis completes
 
       // Build compact taxonomy summary (labels + BDI categories)
       const summaryLines: string[] = [];
@@ -2569,7 +2569,7 @@ export class DebateEngine {
       const prompt = missingArgumentsPrompt(
         this.session.topic.final,
         taxonomySummary,
-        synthesisText.slice(0, 4000), // Cap synthesis text
+        concludingText.slice(0, 4000), // Cap synthesis text
         this.config.audience,
       );
 
@@ -2591,9 +2591,9 @@ export class DebateEngine {
    */
   private async runTaxonomyRefinementPass(): Promise<void> {
     try {
-      const synthEntry = this.session.transcript.find(e => e.type === 'synthesis');
-      const synthesisText = synthEntry?.content ?? '';
-      if (!synthesisText) return;
+      const synthEntry = this.session.transcript.find(e => e.type === 'concluding');
+      const concludingText = synthEntry?.content ?? '';
+      if (!concludingText) return;
 
       // Collect all taxonomy node IDs referenced during the debate
       const refIds = new Set<string>();
@@ -2640,7 +2640,7 @@ export class DebateEngine {
 
       const prompt = taxonomyRefinementPrompt(
         this.session.topic.final,
-        synthesisText.slice(0, 4000),
+        concludingText.slice(0, 4000),
         referencedNodes.slice(0, 25), // Cap nodes sent to prompt
         anSummary,
         this.config.audience,
@@ -2815,11 +2815,11 @@ export class DebateEngine {
    */
   private async runCrossCuttingProposalPass(): Promise<void> {
     try {
-      const synthEntry = this.session.transcript.find(e => e.type === 'synthesis');
-      const synthesisData = synthEntry?.metadata?.synthesis as Record<string, unknown> | undefined;
-      if (!synthesisData) return;
+      const synthEntry = this.session.transcript.find(e => e.type === 'concluding');
+      const concludingData = synthEntry?.metadata?.synthesis as Record<string, unknown> | undefined;
+      if (!concludingData) return;
 
-      const agreements = ((synthesisData.areas_of_agreement ?? []) as { point: string; povers: string[] }[])
+      const agreements = ((concludingData.areas_of_agreement ?? []) as { point: string; povers: string[] }[])
         .filter(a => (a.povers?.length ?? 0) >= 3);
 
       if (agreements.length === 0) return;

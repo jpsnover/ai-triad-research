@@ -17,7 +17,7 @@ import type {
   ArgumentNetworkEdge,
   TranscriptEntry,
 } from './types.js';
-import { computePragmaticConvergence, computeSynthesisPragmaticSignal } from './pragmaticSignals.js';
+import { computePragmaticConvergence, computeConcludingPragmaticSignal } from './pragmaticSignals.js';
 import { computeSchemeStagnationCombined, computeSchemeCoverageFactor } from './schemeStagnation.js';
 import {
   computeExtractionConfidence,
@@ -41,7 +41,7 @@ interface ProvisionalWeights {
   convergence: Record<string, number>;
   thresholds: Record<string, number>;
   phase_bounds: Record<string, number>;
-  pacing_presets: Record<string, { maxTotalRounds: number; explorationExit: number; synthesisExit: number }>;
+  pacing_presets: Record<string, { maxTotalRounds: number; argumentationExit: number; concludingExit: number }>;
   network: Record<string, number>;
   budget: Record<string, number>;
   crux_detection?: { min_base_strength: number; min_cross_pov_attackers: number; min_total_cross_pov_edges: number };
@@ -88,20 +88,20 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
     },
     convergence: {
       qbaf_agreement_density: 0.30, position_stability: 0.20,
-      irreducible_disagreement_ratio: 0.20, synthesis_pragmatic_signal: 0.15,
+      irreducible_disagreement_ratio: 0.20, concluding_pragmatic_signal: 0.15,
       crux_resolution_ratio: 0.15,
     },
-    thresholds: { exploration_exit: 0.65, synthesis_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
+    thresholds: { argumentation_exit: 0.65, concluding_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
     phase_bounds: {
-      min_thesis_rounds: 2, max_thesis_rounds: 4,
-      min_exploration_rounds: 2, max_exploration_rounds: 8,
-      min_synthesis_rounds: 2, max_synthesis_rounds: 3,
+      min_confrontation_rounds: 2, max_confrontation_rounds: 4,
+      min_argumentation_rounds: 2, max_argumentation_rounds: 8,
+      min_concluding_rounds: 2, max_concluding_rounds: 3,
       max_total_rounds_default: 12, max_regressions: 2, regression_ratchet: 0.10,
     },
     pacing_presets: {
-      tight: { maxTotalRounds: 8, explorationExit: 0.55, synthesisExit: 0.60 },
-      moderate: { maxTotalRounds: 12, explorationExit: 0.65, synthesisExit: 0.70 },
-      thorough: { maxTotalRounds: 15, explorationExit: 0.80, synthesisExit: 0.80 },
+      tight: { maxTotalRounds: 8, argumentationExit: 0.55, concludingExit: 0.60 },
+      moderate: { maxTotalRounds: 12, argumentationExit: 0.65, concludingExit: 0.70 },
+      thorough: { maxTotalRounds: 15, argumentationExit: 0.80, concludingExit: 0.80 },
     },
     network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },
     budget: { soft_multiplier: 6, hard_multiplier: 10, max_soft_multiplier: 8 },
@@ -120,12 +120,12 @@ export function initPhaseState(config: PhaseTransitionConfig): PhaseState {
   const pacing = w.pacing_presets[config.pacing] ?? w.pacing_presets.moderate;
 
   return {
-    current_phase: 'thesis-antithesis',
+    current_phase: 'confrontation',
     rounds_in_phase: 0,
     total_rounds_elapsed: 0,
     regression_count: 0,
-    exploration_exit_threshold: config.explorationExitThreshold ?? pacing.explorationExit,
-    synthesis_exit_threshold: config.synthesisExitThreshold ?? pacing.synthesisExit,
+    argumentation_exit_threshold: config.argumentationExitThreshold ?? pacing.argumentationExit,
+    concluding_exit_threshold: config.concludingExitThreshold ?? pacing.concludingExit,
     prior_crux_clusters: [],
     veto_history: [],
     gc_ran_this_phase: false,
@@ -138,7 +138,7 @@ export function validatePhaseState(state: PhaseState): { valid: boolean; errors:
   const errors: string[] = [];
   const w = loadProvisionalWeights();
 
-  const validPhases: DebatePhase[] = ['thesis-antithesis', 'exploration', 'synthesis', 'terminated'];
+  const validPhases: DebatePhase[] = ['confrontation', 'argumentation', 'concluding', 'terminated'];
   if (!validPhases.includes(state.current_phase)) {
     errors.push(`Invalid phase: ${state.current_phase}`);
   }
@@ -148,8 +148,8 @@ export function validatePhaseState(state: PhaseState): { valid: boolean; errors:
   if (state.regression_count > w.phase_bounds.max_regressions) {
     errors.push(`Regression count ${state.regression_count} exceeds budget ${w.phase_bounds.max_regressions}`);
   }
-  if (state.exploration_exit_threshold < (w.thresholds.exploration_exit - 0.01)) {
-    errors.push(`Exploration threshold ${state.exploration_exit_threshold} below baseline`);
+  if (state.argumentation_exit_threshold < (w.thresholds.argumentation_exit - 0.01)) {
+    errors.push(`Exploration threshold ${state.argumentation_exit_threshold} below baseline`);
   }
 
   return { valid: errors.length === 0, errors };
@@ -161,11 +161,11 @@ export function validateAdaptiveConfig(config: PhaseTransitionConfig): { valid: 
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (config.explorationExitThreshold > 0.95) {
-    errors.push('explorationExitThreshold > 0.95: exploration will almost never exit organically');
+  if (config.argumentationExitThreshold > 0.95) {
+    errors.push('argumentationExitThreshold > 0.95: exploration will almost never exit organically');
   }
-  if (config.synthesisExitThreshold < 0.30) {
-    errors.push('synthesisExitThreshold < 0.30: synthesis will exit before meaningful convergence');
+  if (config.concludingExitThreshold < 0.30) {
+    errors.push('concludingExitThreshold < 0.30: synthesis will exit before meaningful convergence');
   }
   if (config.maxTotalRounds < 6) {
     errors.push('maxTotalRounds < 6: below the minimum sum of per-phase minimums');
@@ -255,7 +255,7 @@ export function buildSignalRegistry(): Signal[] {
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
-        const currentRatio = ctx.convergenceSignals.dialectical_engagement.ratio;
+        const currentRatio = ctx.convergenceSignals?.dialectical_engagement?.ratio ?? 0;
         const peakRatio = ctx.priorSignals.get('_peak_engagement_ratio', 0) ?? currentRatio;
         if (peakRatio <= 0) return 0;
         return 1 - (currentRatio / peakRatio);
@@ -395,7 +395,7 @@ export function computeConvergenceScore(ctx: SignalContext, coldStart: boolean):
   // Synthesis pragmatic signal
   const recentTexts = recentRounds.map(r => r.text);
   const allTexts = ctx.transcript.lastNRounds(999).map(r => r.text);
-  const synthPragmatic = computeSynthesisPragmaticSignal(recentTexts, allTexts);
+  const concludingPragmatic = computeConcludingPragmaticSignal(recentTexts, allTexts);
 
   // Crux resolution ratio: proportion of tracked cruxes that reached terminal state
   const cruxResolution = ctx.phase.cruxResolution;
@@ -407,7 +407,7 @@ export function computeConvergenceScore(ctx: SignalContext, coldStart: boolean):
     w.convergence.qbaf_agreement_density * qbafAgreementDensity
     + w.convergence.position_stability * Math.max(0, positionStability)
     + w.convergence.irreducible_disagreement_ratio * irreducibleRatio
-    + w.convergence.synthesis_pragmatic_signal * synthPragmatic
+    + w.convergence.concluding_pragmatic_signal * concludingPragmatic
     + (w.convergence.crux_resolution_ratio ?? 0) * cruxResolutionRatio
   ));
 }
@@ -475,9 +475,9 @@ export function evaluatePhaseTransition(
   const w = loadProvisionalWeights();
   const pb = w.phase_bounds;
   const coldStart = state.rounds_in_phase < (
-    state.current_phase === 'thesis-antithesis' ? pb.min_thesis_rounds
-    : state.current_phase === 'exploration' ? pb.min_exploration_rounds
-    : pb.min_synthesis_rounds
+    state.current_phase === 'confrontation' ? pb.min_confrontation_rounds
+    : state.current_phase === 'argumentation' ? pb.min_argumentation_rounds
+    : pb.min_concluding_rounds
   );
 
   // Global: early termination
@@ -497,31 +497,31 @@ export function evaluatePhaseTransition(
   }
 
   // Global: network hard cap
-  if (needsHardCap(ctx.network.nodeCount, w.network.hard_cap) && state.current_phase !== 'synthesis') {
-    return { action: 'force_transition', new_phase: 'synthesis', reason: `Network hard cap (${ctx.network.nodeCount} >= ${w.network.hard_cap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { network_size: ctx.network.nodeCount } };
+  if (needsHardCap(ctx.network.nodeCount, w.network.hard_cap) && state.current_phase !== 'concluding') {
+    return { action: 'force_transition', new_phase: 'concluding', reason: `Network hard cap (${ctx.network.nodeCount} >= ${w.network.hard_cap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { network_size: ctx.network.nodeCount } };
   }
 
   // Global: max total rounds — budget-aware
   // Reserve enough rounds for downstream phases' minimums so all three phases complete.
   const downstreamMinimums =
-    state.current_phase === 'thesis-antithesis' ? pb.min_exploration_rounds + pb.min_synthesis_rounds
-    : state.current_phase === 'exploration' ? pb.min_synthesis_rounds
+    state.current_phase === 'confrontation' ? pb.min_argumentation_rounds + pb.min_concluding_rounds
+    : state.current_phase === 'argumentation' ? pb.min_concluding_rounds
     : 0;
   const budgetDeadline = config.maxTotalRounds - downstreamMinimums;
 
   if (state.total_rounds_elapsed >= config.maxTotalRounds) {
     // Absolute ceiling — terminate if in synthesis, otherwise force-advance
-    if (state.current_phase === 'synthesis') {
+    if (state.current_phase === 'concluding') {
       return { action: 'terminate', reason: `Max total rounds (${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed } };
     }
-    const nextPhase: DebatePhase = state.current_phase === 'thesis-antithesis' ? 'exploration' : 'synthesis';
+    const nextPhase: DebatePhase = state.current_phase === 'confrontation' ? 'argumentation' : 'concluding';
     return { action: 'force_transition', new_phase: nextPhase, reason: `Budget exhausted at round ${state.total_rounds_elapsed}/${config.maxTotalRounds}, forcing advance to ${nextPhase}`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, downstream_reserved: downstreamMinimums } };
   }
 
   // Approaching deadline — force-transition to ensure downstream phases get their minimums.
   // Respect cold start: don't cut a phase short before its minimum rounds, unless at absolute ceiling (above).
-  if (state.current_phase !== 'synthesis' && !coldStart && state.total_rounds_elapsed >= budgetDeadline) {
-    const nextPhase: DebatePhase = state.current_phase === 'thesis-antithesis' ? 'exploration' : 'synthesis';
+  if (state.current_phase !== 'concluding' && !coldStart && state.total_rounds_elapsed >= budgetDeadline) {
+    const nextPhase: DebatePhase = state.current_phase === 'confrontation' ? 'argumentation' : 'concluding';
     return { action: 'force_transition', new_phase: nextPhase, reason: `Budget ceiling approaching (${state.total_rounds_elapsed}/${config.maxTotalRounds}), reserving ${downstreamMinimums} rounds for remaining phases`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, budget_deadline: budgetDeadline, downstream_reserved: downstreamMinimums } };
   }
 
@@ -533,10 +533,10 @@ export function evaluatePhaseTransition(
   );
   const satScore = computeSaturationScore(signals, ctx, coldStart);
   const convScore = computeConvergenceScore(ctx, coldStart);
-  const activeScore = state.current_phase === 'synthesis' ? convScore : satScore;
+  const activeScore = state.current_phase === 'concluding' ? convScore : satScore;
   const stabilityConf = computeStabilityConfidence(
     activeScore,
-    ctx.priorSignals.movingAverage(state.current_phase === 'synthesis' ? '_convergence_score' : '_argumentative_saturation_score', 3),
+    ctx.priorSignals.movingAverage(state.current_phase === 'concluding' ? '_convergence_score' : '_argumentative_saturation_score', 3),
     state.rounds_in_phase,
   );
 
@@ -556,12 +556,12 @@ export function evaluatePhaseTransition(
 
   // Phase-specific predicates
   switch (state.current_phase) {
-    case 'thesis-antithesis':
+    case 'confrontation':
       return evaluateThesisExit(state, ctx, signals, pb, coldStart, satScore);
-    case 'exploration':
+    case 'argumentation':
       return evaluateExplorationExit(state, ctx, signals, config, w, coldStart, satScore);
-    case 'synthesis':
-      return evaluateSynthesisExit(state, ctx, config, w, coldStart, convScore);
+    case 'concluding':
+      return evaluateConcludingExit(state, ctx, config, w, coldStart, convScore);
   }
 }
 
@@ -572,12 +572,12 @@ function evaluateThesisExit(
   const components: Record<string, number> = { rounds_in_phase: state.rounds_in_phase };
 
   if (coldStart) {
-    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_thesis_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
+    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_confrontation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Hard cap
-  if (state.rounds_in_phase >= pb.max_thesis_rounds) {
-    return { action: 'transition', new_phase: 'exploration', reason: `Max thesis rounds (${pb.max_thesis_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
+  if (state.rounds_in_phase >= pb.max_confrontation_rounds) {
+    return { action: 'transition', new_phase: 'argumentation', reason: `Max thesis rounds (${pb.max_confrontation_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   // Must have all POVs responded
@@ -601,7 +601,7 @@ function evaluateThesisExit(
 
   if (claimRateDeclining || cruxFound) {
     return {
-      action: 'transition', new_phase: 'exploration',
+      action: 'transition', new_phase: 'argumentation',
       reason: cruxFound ? 'Crux identified' : `Claim rate declining (${claimRateRatio.toFixed(2)} of peak)`,
       veto_active: false, force_active: false, confidence_deferred: false, components,
     };
@@ -618,37 +618,38 @@ function evaluateExplorationExit(
   const components: Record<string, number> = {
     rounds_in_phase: state.rounds_in_phase,
     argumentative_saturation_score: satScore,
-    threshold: state.exploration_exit_threshold,
+    threshold: state.argumentation_exit_threshold,
   };
 
   if (coldStart) {
-    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_exploration_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
+    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_argumentation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Force exits
-  if (state.rounds_in_phase >= pb.max_exploration_rounds) {
-    return { action: 'transition', new_phase: 'synthesis', reason: `Max exploration rounds (${pb.max_exploration_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
+  if (state.rounds_in_phase >= pb.max_argumentation_rounds) {
+    return { action: 'transition', new_phase: 'concluding', reason: `Max exploration rounds (${pb.max_argumentation_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   const softBudget = config.maxTotalRounds * w.budget.soft_multiplier;
   if (state.api_calls_used >= softBudget) {
     components.api_soft_budget = softBudget;
-    return { action: 'transition', new_phase: 'synthesis', reason: `API soft budget hit (${state.api_calls_used} >= ${softBudget})`, veto_active: false, force_active: true, confidence_deferred: false, components };
+    return { action: 'transition', new_phase: 'concluding', reason: `API soft budget hit (${state.api_calls_used} >= ${softBudget})`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   // "Debate is dead" force — use semantic similarity when available, fallback to lexical
-  const lexicalRecycling = ctx.convergenceSignals.argument_redundancy.avg_self_overlap;
-  const semanticRecycling = ctx.convergenceSignals.argument_redundancy.semantic_max_similarity;
+  const lexicalRecycling = ctx.convergenceSignals?.argument_redundancy?.avg_self_overlap ?? 0;
+  const semanticRecycling = ctx.convergenceSignals?.argument_redundancy?.semantic_max_similarity;
   const recyclingPressure = semanticRecycling != null ? Math.max(lexicalRecycling, semanticRecycling) : lexicalRecycling;
-  const engagementFatigue = 1 - (ctx.convergenceSignals.dialectical_engagement.ratio / Math.max(0.01, ctx.priorSignals.get('_peak_engagement_ratio', 0) ?? ctx.convergenceSignals.dialectical_engagement.ratio));
+  const deRatio = ctx.convergenceSignals?.dialectical_engagement?.ratio ?? 0;
+  const engagementFatigue = 1 - (deRatio / Math.max(0.01, ctx.priorSignals.get('_peak_engagement_ratio', 0) ?? deRatio));
   components.recycling_pressure = recyclingPressure;
   components.engagement_fatigue = Math.max(0, engagementFatigue);
   if (recyclingPressure > 0.8 && engagementFatigue > 0.8) {
-    return { action: 'transition', new_phase: 'synthesis', reason: 'Debate is dead (recycling > 0.8 AND fatigue > 0.8)', veto_active: false, force_active: true, confidence_deferred: false, components };
+    return { action: 'transition', new_phase: 'concluding', reason: 'Debate is dead (recycling > 0.8 AND fatigue > 0.8)', veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   // Composite score check
-  if (satScore >= state.exploration_exit_threshold) {
+  if (satScore >= state.argumentation_exit_threshold) {
     // Check vetoes
     const freshCrux = ctx.phase.cruxNodes.some(c => {
       const cruxNode = ctx.network.nodes.find(n => n.id === c.id);
@@ -668,13 +669,13 @@ function evaluateExplorationExit(
       return { action: 'stay', reason: 'Veto: concession made this round', veto_active: true, force_active: false, confidence_deferred: false, components };
     }
 
-    return { action: 'transition', new_phase: 'synthesis', reason: `Saturation score ${satScore.toFixed(2)} >= threshold ${state.exploration_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
+    return { action: 'transition', new_phase: 'concluding', reason: `Saturation score ${satScore.toFixed(2)} >= threshold ${state.argumentation_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
-  return { action: 'stay', reason: `Saturation ${satScore.toFixed(2)} < threshold ${state.exploration_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
+  return { action: 'stay', reason: `Saturation ${satScore.toFixed(2)} < threshold ${state.argumentation_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
 }
 
-function evaluateSynthesisExit(
+function evaluateConcludingExit(
   state: PhaseState, ctx: SignalContext, config: PhaseTransitionConfig,
   w: ProvisionalWeights, coldStart: boolean, convScore: number,
 ): PredicateResult {
@@ -682,17 +683,17 @@ function evaluateSynthesisExit(
   const components: Record<string, number> = {
     rounds_in_phase: state.rounds_in_phase,
     convergence_score: convScore,
-    threshold: state.synthesis_exit_threshold,
+    threshold: state.concluding_exit_threshold,
     regression_count: state.regression_count,
   };
 
   if (coldStart) {
-    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_synthesis_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
+    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_concluding_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Force exits
-  if (state.rounds_in_phase >= pb.max_synthesis_rounds) {
-    return { action: 'terminate', reason: `Max synthesis rounds (${pb.max_synthesis_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
+  if (state.rounds_in_phase >= pb.max_concluding_rounds) {
+    return { action: 'terminate', reason: `Max synthesis rounds (${pb.max_concluding_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   // Synthesis stall
@@ -730,7 +731,7 @@ function evaluateSynthesisExit(
 
     if (convDrop2 > 0.10 || novelCruxes.length > 0) {
       return {
-        action: 'regress', new_phase: 'exploration',
+        action: 'regress', new_phase: 'argumentation',
         reason: novelCruxes.length > 0
           ? `Novel crux discovered in synthesis (${novelCruxes.map(c => c.id).join(', ')})`
           : `Convergence drop ${convDrop2.toFixed(2)} > 0.10 over 2 rounds`,
@@ -740,21 +741,21 @@ function evaluateSynthesisExit(
   }
 
   // Normal exit
-  if (convScore >= state.synthesis_exit_threshold) {
-    return { action: 'transition', reason: `Convergence ${convScore.toFixed(2)} >= threshold ${state.synthesis_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
+  if (convScore >= state.concluding_exit_threshold) {
+    return { action: 'transition', reason: `Convergence ${convScore.toFixed(2)} >= threshold ${state.concluding_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Soft budget: lower threshold
   const softBudget = config.maxTotalRounds * w.budget.soft_multiplier;
   if (state.api_calls_used >= softBudget) {
-    const loweredThreshold = state.synthesis_exit_threshold - 0.10;
+    const loweredThreshold = state.concluding_exit_threshold - 0.10;
     if (convScore >= loweredThreshold) {
       components.lowered_threshold = loweredThreshold;
       return { action: 'transition', reason: `Convergence ${convScore.toFixed(2)} >= lowered threshold ${loweredThreshold.toFixed(2)} (soft budget)`, veto_active: false, force_active: false, confidence_deferred: false, components };
     }
   }
 
-  return { action: 'stay', reason: `Convergence ${convScore.toFixed(2)} < threshold ${state.synthesis_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
+  return { action: 'stay', reason: `Convergence ${convScore.toFixed(2)} < threshold ${state.concluding_exit_threshold.toFixed(2)}`, veto_active: false, force_active: false, confidence_deferred: false, components };
 }
 
 // ── Phase Transition Application ────────────────────────────
@@ -768,7 +769,7 @@ export function applyTransition(state: PhaseState, result: PredicateResult): Pha
       return next;
     case 'transition':
     case 'force_transition':
-      next.current_phase = result.new_phase ?? 'synthesis';
+      next.current_phase = result.new_phase ?? 'concluding';
       next.rounds_in_phase = 0;
       next.gc_ran_this_phase = false;
       if (result.veto_active) {
@@ -776,10 +777,10 @@ export function applyTransition(state: PhaseState, result: PredicateResult): Pha
       }
       return next;
     case 'regress':
-      next.current_phase = 'exploration';
+      next.current_phase = 'argumentation';
       next.rounds_in_phase = 0;
       next.regression_count = state.regression_count + 1;
-      next.exploration_exit_threshold = state.exploration_exit_threshold + w.phase_bounds.regression_ratchet;
+      next.argumentation_exit_threshold = state.argumentation_exit_threshold + w.phase_bounds.regression_ratchet;
       next.gc_ran_this_phase = false;
       // Record crux cluster
       const cruxIds = (result.components.novel_cruxes ?? 0) > 0
@@ -812,17 +813,17 @@ export function buildPhaseContext(state: PhaseState, config: PhaseTransitionConf
   let scoreProgress: number;
 
   switch (state.current_phase) {
-    case 'thesis-antithesis':
-      timeProgress = pb.max_thesis_rounds > 1 ? (state.rounds_in_phase - 1) / (pb.max_thesis_rounds - 1) : 0;
+    case 'confrontation':
+      timeProgress = pb.max_confrontation_rounds > 1 ? (state.rounds_in_phase - 1) / (pb.max_confrontation_rounds - 1) : 0;
       scoreProgress = 0;
       break;
-    case 'exploration':
-      timeProgress = pb.max_exploration_rounds > 1 ? (state.rounds_in_phase - 1) / (pb.max_exploration_rounds - 1) : 0;
-      scoreProgress = state.exploration_exit_threshold > 0 ? satScore / state.exploration_exit_threshold : 0;
+    case 'argumentation':
+      timeProgress = pb.max_argumentation_rounds > 1 ? (state.rounds_in_phase - 1) / (pb.max_argumentation_rounds - 1) : 0;
+      scoreProgress = state.argumentation_exit_threshold > 0 ? satScore / state.argumentation_exit_threshold : 0;
       break;
-    case 'synthesis':
-      timeProgress = pb.max_synthesis_rounds > 1 ? (state.rounds_in_phase - 1) / (pb.max_synthesis_rounds - 1) : 0;
-      scoreProgress = state.synthesis_exit_threshold > 0 ? convScore / state.synthesis_exit_threshold : 0;
+    case 'concluding':
+      timeProgress = pb.max_concluding_rounds > 1 ? (state.rounds_in_phase - 1) / (pb.max_concluding_rounds - 1) : 0;
+      scoreProgress = state.concluding_exit_threshold > 0 ? convScore / state.concluding_exit_threshold : 0;
       break;
   }
 
@@ -842,17 +843,17 @@ export function buildPhaseContext(state: PhaseState, config: PhaseTransitionConf
 
 function buildPhaseRationale(state: PhaseState, satScore: number, convScore: number): string {
   switch (state.current_phase) {
-    case 'thesis-antithesis':
+    case 'confrontation':
       return `Thesis-antithesis phase, round ${state.rounds_in_phase}. Debaters are establishing positions.`;
-    case 'exploration': {
+    case 'argumentation': {
       const pct = (satScore * 100).toFixed(0);
-      const threshPct = (state.exploration_exit_threshold * 100).toFixed(0);
+      const threshPct = (state.argumentation_exit_threshold * 100).toFixed(0);
       const regrNote = state.regression_count > 0 ? ` (${state.regression_count} regression${state.regression_count > 1 ? 's' : ''})` : '';
       return `Exploration phase, round ${state.rounds_in_phase}. Saturation at ${pct}% of ${threshPct}% threshold${regrNote}.`;
     }
-    case 'synthesis': {
+    case 'concluding': {
       const pct = (convScore * 100).toFixed(0);
-      const threshPct = (state.synthesis_exit_threshold * 100).toFixed(0);
+      const threshPct = (state.concluding_exit_threshold * 100).toFixed(0);
       return `Synthesis phase, round ${state.rounds_in_phase}. Convergence at ${pct}% of ${threshPct}% threshold.`;
     }
   }
@@ -887,8 +888,8 @@ export function buildSignalTelemetry(
     phase: state.current_phase,
     signals: signalValues,
     composite: {
-      argumentative_saturation_score: state.current_phase !== 'synthesis' ? satScore : null,
-      convergence_score: state.current_phase === 'synthesis' ? convScore : null,
+      argumentative_saturation_score: state.current_phase !== 'concluding' ? satScore : null,
+      convergence_score: state.current_phase === 'concluding' ? convScore : null,
     },
     confidence: { extraction: extractionConf, stability: stabilityConf, global: globalConf },
     predicate_result: result,

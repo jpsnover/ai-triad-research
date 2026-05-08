@@ -1274,8 +1274,8 @@ describe('computeConvergenceSignals — arco', () => {
   });
 
   it('phase_mean averages across same-phase signals', () => {
-    const e1 = makeEntry({ id: 'arco-7a', metadata: { phase: 'exploration' } });
-    const e2 = makeEntry({ id: 'arco-7b', metadata: { phase: 'exploration' } });
+    const e1 = makeEntry({ id: 'arco-7a', metadata: { phase: 'argumentation' } });
+    const e2 = makeEntry({ id: 'arco-7b', metadata: { phase: 'argumentation' } });
     const topicEmbed = makeEmbedding(10);
     // First turn: high similarity
     const embed1 = makeSimilarEmbedding(10);
@@ -1304,8 +1304,8 @@ describe('computeConvergenceSignals — arco', () => {
   });
 
   it('phase_mean does not include signals from different phases', () => {
-    const e1 = makeEntry({ id: 'arco-8a', metadata: { phase: 'thesis-antithesis' } });
-    const e2 = makeEntry({ id: 'arco-8b', metadata: { phase: 'exploration' } });
+    const e1 = makeEntry({ id: 'arco-8a', metadata: { phase: 'confrontation' } });
+    const e2 = makeEntry({ id: 'arco-8b', metadata: { phase: 'argumentation' } });
     const topicEmbed = makeEmbedding(20);
     const embed1 = makeDissimilarEmbedding(20); // low similarity
     const embed2 = makeSimilarEmbedding(20);     // high similarity
@@ -1320,7 +1320,7 @@ describe('computeConvergenceSignals — arco', () => {
       'arco-8b', 'prometheus', [e1, e2], [], [], [sig1],
       embeddings, undefined, topicEmbed,
     );
-    // sig2 phase_mean should only reflect the current (exploration) phase turn
+    // sig2 phase_mean should only reflect the current (argumentation) phase turn
     expect(sig2.arco).toBeDefined();
     expect(sig2.arco!.phase_mean).toBeCloseTo(sig2.arco!.turn_similarity, 5);
   });

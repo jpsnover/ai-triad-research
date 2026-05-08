@@ -11,7 +11,7 @@ import {
   buildIntervention,
   buildInterventionBriefInjection,
   checkInterventionCompliance,
-  getSynthesisResponder,
+  getConcludingResponder,
 } from './moderator.js';
 import type {
   ModeratorState,
@@ -51,9 +51,9 @@ function transcript(...speakers: string[]) {
 // ── Full pipeline: Stage 1 parse → Engine validate → Stage 2 build → Compliance ──
 
 describe('moderator pipeline integration', () => {
-  it('runs a normal intervention pipeline (PIN in exploration)', () => {
+  it('runs a normal intervention pipeline (PIN in argumentation)', () => {
     const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
-    state.phase = 'exploration';
+    state.phase = 'argumentation';
     state.round = 4;
     state.rounds_since_last_intervention = 2;
 
@@ -105,7 +105,7 @@ describe('moderator pipeline integration', () => {
     expect(nonCompliant.repair_hint).toContain('pin_response');
 
     // Update state
-    updateModeratorState(state, intervention, validation, 4, 'exploration');
+    updateModeratorState(state, intervention, validation, 4, 'argumentation');
     expect(state.interventions_fired).toBe(1);
     expect(state.budget_remaining).toBeCloseTo(state.budget_total - 0.34, 1);
     expect(state.rounds_since_last_intervention).toBe(0);
@@ -116,7 +116,7 @@ describe('moderator pipeline integration', () => {
 
   it('suppresses intervention due to cooldown, then allows after waiting', () => {
     const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
-    state.phase = 'exploration';
+    state.phase = 'argumentation';
     state.round = 4;
     state.rounds_since_last_intervention = 0;
     state.required_gap = 1;
@@ -138,7 +138,7 @@ describe('moderator pipeline integration', () => {
     expect(v1.suppressed_reason).toBe('cooldown_active');
 
     // Track the cooldown block
-    updateModeratorState(state, undefined, v1, 4, 'exploration');
+    updateModeratorState(state, undefined, v1, 4, 'argumentation');
     expect(state.cooldown_blocked_count).toBe(1);
     expect(state.rounds_since_last_intervention).toBe(1);
 
@@ -150,7 +150,7 @@ describe('moderator pipeline integration', () => {
 
   it('allows reconciliation through cooldown', () => {
     const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
-    state.phase = 'exploration';
+    state.phase = 'argumentation';
     state.round = 5;
     state.rounds_since_last_intervention = 0;
     state.required_gap = 2;
@@ -173,7 +173,7 @@ describe('moderator pipeline integration', () => {
 
   it('health score drives trajectory modifier', () => {
     const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
-    state.phase = 'exploration';
+    state.phase = 'argumentation';
 
     // Simulate 3 rounds of declining health
     const sigs = [
@@ -198,7 +198,7 @@ describe('moderator pipeline integration', () => {
         validated_family: 'elicitation' as const,
         validated_target: 'prometheus' as const,
       };
-      updateModeratorState(state, undefined, noInterventionValidation, i + 3, 'exploration');
+      updateModeratorState(state, undefined, noInterventionValidation, i + 3, 'argumentation');
     }
 
     // Health should have declined
@@ -211,17 +211,17 @@ describe('moderator pipeline integration', () => {
 
 // ── Synthesis COMMIT automation pipeline ──────────────────
 
-describe('synthesis COMMIT automation', () => {
+describe('concluding COMMIT automation', () => {
   it('fires COMMIT for each debater in first-appearance order', () => {
     const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
-    state.phase = 'synthesis';
+    state.phase = 'concluding';
     state.round = 9;
     state.rounds_since_last_intervention = 3;
 
     const trans = transcript('prometheus', 'sentinel', 'cassandra', 'prometheus', 'sentinel', 'cassandra');
 
     // Round 1: prometheus gets COMMIT
-    const target1 = getSynthesisResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
+    const target1 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
     expect(target1).toBe('prometheus');
 
     const sel1: SelectionResult = {
@@ -232,43 +232,43 @@ describe('synthesis COMMIT automation', () => {
       intervene: true,
       suggested_move: 'COMMIT',
       target_debater: target1!,
-      trigger_reasoning: 'Automatic COMMIT in synthesis phase',
+      trigger_reasoning: 'Automatic COMMIT in concluding phase',
     };
 
     const v1 = validateRecommendation(sel1, state);
     expect(v1.proceed).toBe(true);
     expect(v1.validated_move).toBe('COMMIT');
 
-    const int1 = buildIntervention(v1, 'Prometheus, provide your final commitment.', 'synthesis COMMIT', { signal: 'synthesis_phase', round: 9 });
-    updateModeratorState(state, int1, v1, 9, 'synthesis');
+    const int1 = buildIntervention(v1, 'Prometheus, provide your final commitment.', 'concluding COMMIT', { signal: 'concluding_phase', round: 9 });
+    updateModeratorState(state, int1, v1, 9, 'concluding');
 
     // COMMIT should NOT consume budget
     expect(state.interventions_fired).toBe(0);
     expect(state.budget_remaining).toBe(state.budget_total);
 
     // Round 2: sentinel gets COMMIT
-    const target2 = getSynthesisResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
+    const target2 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
     expect(target2).toBe('sentinel');
 
     const v2Result = validateRecommendation({
       ...sel1, responder: target2!, target_debater: target2!,
     } as SelectionResult, state);
     expect(v2Result.proceed).toBe(true);
-    const int2 = buildIntervention(v2Result, 'Sentinel, provide your final commitment.', 'synthesis COMMIT', { signal: 'synthesis_phase', round: 10 });
-    updateModeratorState(state, int2, v2Result, 10, 'synthesis');
+    const int2 = buildIntervention(v2Result, 'Sentinel, provide your final commitment.', 'concluding COMMIT', { signal: 'concluding_phase', round: 10 });
+    updateModeratorState(state, int2, v2Result, 10, 'concluding');
 
     // Round 3: cassandra gets COMMIT
-    const target3 = getSynthesisResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
+    const target3 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
     expect(target3).toBe('cassandra');
 
     // After all committed
     const v3Result = validateRecommendation({
       ...sel1, responder: target3!, target_debater: target3!,
     } as SelectionResult, state);
-    const int3 = buildIntervention(v3Result, 'Cassandra, provide your final commitment.', 'synthesis COMMIT', { signal: 'synthesis_phase', round: 11 });
-    updateModeratorState(state, int3, v3Result, 11, 'synthesis');
+    const int3 = buildIntervention(v3Result, 'Cassandra, provide your final commitment.', 'concluding COMMIT', { signal: 'concluding_phase', round: 11 });
+    updateModeratorState(state, int3, v3Result, 11, 'concluding');
 
-    const target4 = getSynthesisResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
+    const target4 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
     expect(target4).toBeNull();
 
     // Still no budget consumed
@@ -301,8 +301,8 @@ describe('synthesis COMMIT automation', () => {
     const intervention = buildIntervention(
       { proceed: true, validated_move: 'COMMIT', validated_family: 'synthesis', validated_target: 'prometheus' },
       'Prometheus, state your final position.',
-      'synthesis phase',
-      { signal: 'synthesis_phase', round: 9 },
+      'concluding phase',
+      { signal: 'concluding_phase', round: 9 },
     );
     const brief = buildInterventionBriefInjection(intervention);
     expect(brief).toContain('commitment');
@@ -322,9 +322,9 @@ describe('multi-round simulation', () => {
     // Simulate 8 rounds
     for (let round = 1; round <= 8; round++) {
       let phase: DebatePhase;
-      if (round <= 2) phase = 'thesis-antithesis';
-      else if (round > 6) phase = 'synthesis';
-      else phase = 'exploration';
+      if (round <= 2) phase = 'confrontation';
+      else if (round > 6) phase = 'concluding';
+      else phase = 'argumentation';
       phases.push(phase);
       state.phase = phase;
       state.round = round;
@@ -340,7 +340,7 @@ describe('multi-round simulation', () => {
       updateSliBreaches(health, state);
 
       // Every other round, attempt an intervention
-      if (round % 2 === 0 && phase === 'exploration') {
+      if (round % 2 === 0 && phase === 'argumentation') {
         const targets = ['prometheus', 'sentinel', 'cassandra'] as const;
         const target = targets[(round / 2 - 1) % 3];
         const moves: InterventionMove[] = ['PIN', 'PROBE', 'CHALLENGE'];
@@ -373,9 +373,9 @@ describe('multi-round simulation', () => {
     }
 
     // Verify phase progression
-    expect(phases[0]).toBe('thesis-antithesis');
-    expect(phases[2]).toBe('exploration');
-    expect(phases[7]).toBe('synthesis');
+    expect(phases[0]).toBe('confrontation');
+    expect(phases[2]).toBe('argumentation');
+    expect(phases[7]).toBe('concluding');
 
     // Verify health history was tracked
     expect(state.health_history.length).toBe(8);

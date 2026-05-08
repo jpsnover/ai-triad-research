@@ -155,9 +155,9 @@ function computeMoveDiversity(moveCount: number, priorMoveCount?: number): numbe
 
 /**
  * Phase-appropriate bonus:
- * - thesis-antithesis: reward confrontational moves (DISTINGUISH, COUNTEREXAMPLE, etc.)
- * - exploration: reward crux identification and engagement depth
- * - synthesis: reward constructive moves (INTEGRATE, CONCEDE-AND-PIVOT) and clarifies_taxonomy
+ * - confrontation: reward confrontational moves (DISTINGUISH, COUNTEREXAMPLE, etc.)
+ * - argumentation: reward crux identification and engagement depth
+ * - concluding: reward constructive moves (INTEGRATE, CONCEDE-AND-PIVOT) and clarifies_taxonomy
  */
 function computePhaseBonus(
   tv: TurnValidation,
@@ -165,19 +165,19 @@ function computePhaseBonus(
   phase: DebatePhase,
 ): number {
   switch (phase) {
-    case 'thesis-antithesis': {
+    case 'confrontation': {
       // Reward strong engagement and clear positions
       const confrontational = cs.move_polarity.ratio < 0.5 ? 0.7 : 0.4; // low ratio = more confrontational
       return clamp(confrontational + (cs.dialectical_engagement.ratio > 0.5 ? 0.3 : 0));
     }
-    case 'exploration': {
+    case 'argumentation': {
       // Reward crux identification and concession handling
       const cruxBonus = cs.crux_engagement_rate.used_this_turn ? 0.5 : 0;
       const concessionBonus = cs.concession_opportunity.outcome === 'taken' ? 0.3 : 0;
       const engagementBonus = cs.dialectical_engagement.ratio > 0.6 ? 0.2 : 0;
       return clamp(cruxBonus + concessionBonus + engagementBonus);
     }
-    case 'synthesis': {
+    case 'concluding': {
       // Reward collaborative moves and taxonomy clarification
       const collaborative = cs.move_polarity.ratio > 0.5 ? 0.5 : 0.2;
       const clarifiesBonus = tv.clarifies_taxonomy.length > 0 ? 0.3 : 0;

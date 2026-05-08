@@ -36,8 +36,8 @@ function makeConfig(overrides: Partial<PhaseTransitionConfig> = {}): PhaseTransi
     maxTotalRounds: 12,
     pacing: 'moderate',
     dialecticalStyle: 'deliberative',
-    explorationExitThreshold: 0.65,
-    synthesisExitThreshold: 0.70,
+    argumentationExitThreshold: 0.65,
+    concludingExitThreshold: 0.70,
     allowEarlyTermination: true,
     ...overrides,
   };
@@ -45,12 +45,12 @@ function makeConfig(overrides: Partial<PhaseTransitionConfig> = {}): PhaseTransi
 
 function makePhaseState(overrides: Partial<PhaseState> = {}): PhaseState {
   return {
-    current_phase: 'exploration',
+    current_phase: 'argumentation',
     rounds_in_phase: 3,
     total_rounds_elapsed: 5,
     regression_count: 0,
-    exploration_exit_threshold: 0.65,
-    synthesis_exit_threshold: 0.70,
+    argumentation_exit_threshold: 0.65,
+    concluding_exit_threshold: 0.70,
     prior_crux_clusters: [],
     veto_history: [],
     gc_ran_this_phase: false,
@@ -96,14 +96,14 @@ function makeSignalContext(overrides: Partial<SignalContext> = {}): SignalContex
     },
     processRewards: [],
     phase: {
-      current: 'exploration',
+      current: 'argumentation',
       allPovsResponded: true,
       cruxNodes: [],
       cruxResolution: [],
       priorCruxClusters: [],
       regressionCount: 0,
-      explorationExitThreshold: 0.65,
-      synthesisExitThreshold: 0.70,
+      argumentationExitThreshold: 0.65,
+      concludingExitThreshold: 0.70,
     },
     extraction: {
       lastRoundStatus: 'ok',
@@ -190,9 +190,9 @@ describe('resetWeightsCache', () => {
 describe('initPhaseState', () => {
   beforeEach(() => resetWeightsCache());
 
-  it('starts in thesis-antithesis with zero counters', () => {
+  it('starts in confrontation with zero counters', () => {
     const state = initPhaseState(makeConfig());
-    expect(state.current_phase).toBe('thesis-antithesis');
+    expect(state.current_phase).toBe('confrontation');
     expect(state.rounds_in_phase).toBe(0);
     expect(state.total_rounds_elapsed).toBe(0);
     expect(state.regression_count).toBe(0);
@@ -200,26 +200,26 @@ describe('initPhaseState', () => {
   });
 
   it('uses config thresholds when provided', () => {
-    const state = initPhaseState(makeConfig({ explorationExitThreshold: 0.80, synthesisExitThreshold: 0.90 }));
-    expect(state.exploration_exit_threshold).toBe(0.80);
-    expect(state.synthesis_exit_threshold).toBe(0.90);
+    const state = initPhaseState(makeConfig({ argumentationExitThreshold: 0.80, concludingExitThreshold: 0.90 }));
+    expect(state.argumentation_exit_threshold).toBe(0.80);
+    expect(state.concluding_exit_threshold).toBe(0.90);
   });
 
   it('falls back to pacing preset when thresholds are absent', () => {
     const state = initPhaseState(makeConfig({
-      explorationExitThreshold: undefined as unknown as number,
-      synthesisExitThreshold: undefined as unknown as number,
+      argumentationExitThreshold: undefined as unknown as number,
+      concludingExitThreshold: undefined as unknown as number,
       pacing: 'tight',
     }));
     const w = loadProvisionalWeights();
-    expect(state.exploration_exit_threshold).toBe(w.pacing_presets.tight.explorationExit);
-    expect(state.synthesis_exit_threshold).toBe(w.pacing_presets.tight.synthesisExit);
+    expect(state.argumentation_exit_threshold).toBe(w.pacing_presets.tight.argumentationExit);
+    expect(state.concluding_exit_threshold).toBe(w.pacing_presets.tight.concludingExit);
   });
 
   it('falls back to moderate when pacing preset is unknown', () => {
     const state = initPhaseState(makeConfig({ pacing: 'unknown' as 'moderate' }));
     const w = loadProvisionalWeights();
-    expect(state.exploration_exit_threshold).toBe(w.pacing_presets.moderate.explorationExit);
+    expect(state.argumentation_exit_threshold).toBe(w.pacing_presets.moderate.argumentationExit);
   });
 
   it('initializes empty veto_history and prior_crux_clusters', () => {
@@ -265,7 +265,7 @@ describe('validatePhaseState', () => {
   });
 
   it('rejects exploration threshold below baseline', () => {
-    const result = validatePhaseState(makePhaseState({ exploration_exit_threshold: 0.10 }));
+    const result = validatePhaseState(makePhaseState({ argumentation_exit_threshold: 0.10 }));
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => e.includes('Exploration threshold'))).toBe(true);
   });
@@ -288,16 +288,16 @@ describe('validateAdaptiveConfig', () => {
     expect(result.errors).toHaveLength(0);
   });
 
-  it('rejects explorationExitThreshold > 0.95', () => {
-    const result = validateAdaptiveConfig(makeConfig({ explorationExitThreshold: 0.96 }));
+  it('rejects argumentationExitThreshold > 0.95', () => {
+    const result = validateAdaptiveConfig(makeConfig({ argumentationExitThreshold: 0.96 }));
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('explorationExitThreshold'))).toBe(true);
+    expect(result.errors.some(e => e.includes('argumentationExitThreshold'))).toBe(true);
   });
 
-  it('rejects synthesisExitThreshold < 0.30', () => {
-    const result = validateAdaptiveConfig(makeConfig({ synthesisExitThreshold: 0.29 }));
+  it('rejects concludingExitThreshold < 0.30', () => {
+    const result = validateAdaptiveConfig(makeConfig({ concludingExitThreshold: 0.29 }));
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.includes('synthesisExitThreshold'))).toBe(true);
+    expect(result.errors.some(e => e.includes('concludingExitThreshold'))).toBe(true);
   });
 
   it('rejects maxTotalRounds < 6', () => {
@@ -609,30 +609,30 @@ describe('evaluatePhaseTransition', () => {
 
     it('force transitions to synthesis on network hard cap (non-synthesis)', () => {
       const w = loadProvisionalWeights();
-      const state = makePhaseState({ current_phase: 'exploration' });
+      const state = makePhaseState({ current_phase: 'argumentation' });
       const ctx = makeSignalContext({
         network: { nodes: [], edges: [], nodeCount: w.network.hard_cap },
       });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('force_transition');
-      expect(result.new_phase).toBe('synthesis');
+      expect(result.new_phase).toBe('concluding');
     });
 
     it('does not force-transition on network hard cap in synthesis', () => {
       const w = loadProvisionalWeights();
-      const state = makePhaseState({ current_phase: 'synthesis', rounds_in_phase: 2 });
+      const state = makePhaseState({ current_phase: 'concluding', rounds_in_phase: 2 });
       const ctx = makeSignalContext({
         network: { nodes: [], edges: [], nodeCount: w.network.hard_cap },
         phase: {
-          current: 'synthesis',
+          current: 'concluding',
           allPovsResponded: true,
           cruxNodes: [],
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          explorationExitThreshold: 0.65,
-          synthesisExitThreshold: 0.70,
+          argumentationExitThreshold: 0.65,
+          concludingExitThreshold: 0.70,
         },
       });
       const config = makeConfig();
@@ -641,8 +641,8 @@ describe('evaluatePhaseTransition', () => {
     });
 
     it('terminates on max total rounds when in synthesis', () => {
-      const state = makePhaseState({ current_phase: 'synthesis', total_rounds_elapsed: 12, rounds_in_phase: 2 });
-      const ctx = makeSignalContext({ phase: { current: 'synthesis', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, explorationExitThreshold: 0.65, synthesisExitThreshold: 0.70 } });
+      const state = makePhaseState({ current_phase: 'concluding', total_rounds_elapsed: 12, rounds_in_phase: 2 });
+      const ctx = makeSignalContext({ phase: { current: 'concluding', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
       const config = makeConfig({ maxTotalRounds: 12 });
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('terminate');
@@ -650,31 +650,31 @@ describe('evaluatePhaseTransition', () => {
     });
 
     it('force-transitions to next phase on max total rounds when not in synthesis', () => {
-      const state = makePhaseState({ current_phase: 'exploration', total_rounds_elapsed: 12, rounds_in_phase: 5 });
+      const state = makePhaseState({ current_phase: 'argumentation', total_rounds_elapsed: 12, rounds_in_phase: 5 });
       const ctx = makeSignalContext();
       const config = makeConfig({ maxTotalRounds: 12 });
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('force_transition');
-      expect(result.new_phase).toBe('synthesis');
+      expect(result.new_phase).toBe('concluding');
       expect(result.reason).toContain('Budget exhausted');
     });
 
     it('force-transitions when budget deadline approached (reserves downstream minimums)', () => {
-      // moderate pacing (12 rounds): exploration budget deadline = 12 - min_synthesis(2) = 10
-      const state = makePhaseState({ current_phase: 'exploration', total_rounds_elapsed: 10, rounds_in_phase: 5 });
+      // moderate pacing (12 rounds): argumentation budget deadline = 12 - min_concluding(2) = 10
+      const state = makePhaseState({ current_phase: 'argumentation', total_rounds_elapsed: 10, rounds_in_phase: 5 });
       const ctx = makeSignalContext();
       const config = makeConfig({ maxTotalRounds: 12 });
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('force_transition');
-      expect(result.new_phase).toBe('synthesis');
+      expect(result.new_phase).toBe('concluding');
       expect(result.reason).toContain('reserving');
     });
   });
 
-  describe('thesis-antithesis phase', () => {
+  describe('confrontation phase', () => {
     it('stays during cold start (below min rounds)', () => {
-      const state = makePhaseState({ current_phase: 'thesis-antithesis', rounds_in_phase: 1 });
-      const ctx = makeSignalContext({ phase: { current: 'thesis-antithesis', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, explorationExitThreshold: 0.65, synthesisExitThreshold: 0.70 } });
+      const state = makePhaseState({ current_phase: 'confrontation', rounds_in_phase: 1 });
+      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('stay');
@@ -684,24 +684,24 @@ describe('evaluatePhaseTransition', () => {
     it('force-transitions on max thesis rounds', () => {
       const w = loadProvisionalWeights();
       const state = makePhaseState({
-        current_phase: 'thesis-antithesis',
-        rounds_in_phase: w.phase_bounds.max_thesis_rounds,
+        current_phase: 'confrontation',
+        rounds_in_phase: w.phase_bounds.max_confrontation_rounds,
       });
-      const ctx = makeSignalContext({ phase: { current: 'thesis-antithesis', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, explorationExitThreshold: 0.65, synthesisExitThreshold: 0.70 } });
+      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
-      expect(result.new_phase).toBe('exploration');
+      expect(result.new_phase).toBe('argumentation');
       expect(result.force_active).toBe(true);
     });
 
     it('stays when not all POVs have responded', () => {
       const w = loadProvisionalWeights();
       const state = makePhaseState({
-        current_phase: 'thesis-antithesis',
-        rounds_in_phase: w.phase_bounds.min_thesis_rounds,
+        current_phase: 'confrontation',
+        rounds_in_phase: w.phase_bounds.min_confrontation_rounds,
       });
-      const ctx = makeSignalContext({ phase: { current: 'thesis-antithesis', allPovsResponded: false, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, explorationExitThreshold: 0.65, synthesisExitThreshold: 0.70 } });
+      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: false, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('stay');
@@ -711,32 +711,32 @@ describe('evaluatePhaseTransition', () => {
     it('transitions when crux is found and all POVs responded', () => {
       const w = loadProvisionalWeights();
       const state = makePhaseState({
-        current_phase: 'thesis-antithesis',
-        rounds_in_phase: w.phase_bounds.min_thesis_rounds,
+        current_phase: 'confrontation',
+        rounds_in_phase: w.phase_bounds.min_confrontation_rounds,
       });
       const ctx = makeSignalContext({
         phase: {
-          current: 'thesis-antithesis',
+          current: 'confrontation',
           allPovsResponded: true,
           cruxNodes: [{ id: 'crux-1', crossPovAttackCount: 2, computedStrength: 0.8 }],
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          explorationExitThreshold: 0.65,
-          synthesisExitThreshold: 0.70,
+          argumentationExitThreshold: 0.65,
+          concludingExitThreshold: 0.70,
         },
       });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
-      expect(result.new_phase).toBe('exploration');
+      expect(result.new_phase).toBe('argumentation');
       expect(result.reason).toContain('Crux identified');
     });
   });
 
   describe('exploration phase', () => {
     it('stays during cold start', () => {
-      const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 1 });
+      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 1 });
       const ctx = makeSignalContext();
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
@@ -747,14 +747,14 @@ describe('evaluatePhaseTransition', () => {
     it('force-transitions on max exploration rounds', () => {
       const w = loadProvisionalWeights();
       const state = makePhaseState({
-        current_phase: 'exploration',
-        rounds_in_phase: w.phase_bounds.max_exploration_rounds,
+        current_phase: 'argumentation',
+        rounds_in_phase: w.phase_bounds.max_argumentation_rounds,
       });
       const ctx = makeSignalContext();
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
-      expect(result.new_phase).toBe('synthesis');
+      expect(result.new_phase).toBe('concluding');
       expect(result.force_active).toBe(true);
     });
 
@@ -762,7 +762,7 @@ describe('evaluatePhaseTransition', () => {
       const w = loadProvisionalWeights();
       const softBudget = 12 * w.budget.soft_multiplier;
       const state = makePhaseState({
-        current_phase: 'exploration',
+        current_phase: 'argumentation',
         rounds_in_phase: 3,
         api_calls_used: softBudget,
       });
@@ -770,12 +770,12 @@ describe('evaluatePhaseTransition', () => {
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
-      expect(result.new_phase).toBe('synthesis');
+      expect(result.new_phase).toBe('concluding');
       expect(result.reason).toContain('API soft budget');
     });
 
     it('force-transitions when debate is dead (recycling > 0.8 AND fatigue > 0.8)', () => {
-      const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 3 });
+      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3 });
       const ctx = makeSignalContext({
         convergenceSignals: {
           argument_redundancy: { avg_self_overlap: 0.85, semantic_max_similarity: 0.9 },
@@ -791,15 +791,15 @@ describe('evaluatePhaseTransition', () => {
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
-      expect(result.new_phase).toBe('synthesis');
+      expect(result.new_phase).toBe('concluding');
       expect(result.reason).toContain('Debate is dead');
     });
 
     it('fires fresh-crux veto when saturation above threshold but crux just discovered', () => {
       const state = makePhaseState({
-        current_phase: 'exploration',
+        current_phase: 'argumentation',
         rounds_in_phase: 3,
-        exploration_exit_threshold: 0.01, // very low so saturation exceeds it
+        argumentation_exit_threshold: 0.01, // very low so saturation exceeds it
       });
       // Need a crux node that was added at the current round
       const cruxNode = makeNode('crux-1', 'prometheus', 5, 0.8);
@@ -810,14 +810,14 @@ describe('evaluatePhaseTransition', () => {
           nodeCount: 1,
         },
         phase: {
-          current: 'exploration',
+          current: 'argumentation',
           allPovsResponded: true,
           cruxNodes: [{ id: 'crux-1', crossPovAttackCount: 2, computedStrength: 0.8 }],
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          explorationExitThreshold: 0.01,
-          synthesisExitThreshold: 0.70,
+          argumentationExitThreshold: 0.01,
+          concludingExitThreshold: 0.70,
         },
         transcript: {
           currentRound: 5,
@@ -839,17 +839,17 @@ describe('evaluatePhaseTransition', () => {
 
   describe('synthesis phase', () => {
     it('stays during cold start', () => {
-      const state = makePhaseState({ current_phase: 'synthesis', rounds_in_phase: 1 });
+      const state = makePhaseState({ current_phase: 'concluding', rounds_in_phase: 1 });
       const ctx = makeSignalContext({
         phase: {
-          current: 'synthesis',
+          current: 'concluding',
           allPovsResponded: true,
           cruxNodes: [],
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          explorationExitThreshold: 0.65,
-          synthesisExitThreshold: 0.70,
+          argumentationExitThreshold: 0.65,
+          concludingExitThreshold: 0.70,
         },
       });
       const config = makeConfig();
@@ -861,19 +861,19 @@ describe('evaluatePhaseTransition', () => {
     it('terminates on max synthesis rounds', () => {
       const w = loadProvisionalWeights();
       const state = makePhaseState({
-        current_phase: 'synthesis',
-        rounds_in_phase: w.phase_bounds.max_synthesis_rounds,
+        current_phase: 'concluding',
+        rounds_in_phase: w.phase_bounds.max_concluding_rounds,
       });
       const ctx = makeSignalContext({
         phase: {
-          current: 'synthesis',
+          current: 'concluding',
           allPovsResponded: true,
           cruxNodes: [],
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          explorationExitThreshold: 0.65,
-          synthesisExitThreshold: 0.70,
+          argumentationExitThreshold: 0.65,
+          concludingExitThreshold: 0.70,
         },
       });
       const config = makeConfig();
@@ -886,7 +886,7 @@ describe('evaluatePhaseTransition', () => {
       const w = loadProvisionalWeights();
       const cruxNode = makeNode('novel-crux', 'prometheus', 5, 0.8);
       const state = makePhaseState({
-        current_phase: 'synthesis',
+        current_phase: 'concluding',
         rounds_in_phase: 2,
         regression_count: 0,
       });
@@ -897,14 +897,14 @@ describe('evaluatePhaseTransition', () => {
           nodeCount: 1,
         },
         phase: {
-          current: 'synthesis',
+          current: 'concluding',
           allPovsResponded: true,
           cruxNodes: [{ id: 'novel-crux', crossPovAttackCount: 2, computedStrength: 0.8 }],
           cruxResolution: [],
           priorCruxClusters: [], // not in prior clusters
           regressionCount: 0,
-          explorationExitThreshold: 0.65,
-          synthesisExitThreshold: 0.70,
+          argumentationExitThreshold: 0.65,
+          concludingExitThreshold: 0.70,
         },
         transcript: {
           currentRound: 5,
@@ -930,7 +930,7 @@ describe('evaluatePhaseTransition', () => {
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('regress');
-      expect(result.new_phase).toBe('exploration');
+      expect(result.new_phase).toBe('argumentation');
       expect(result.reason).toContain('Novel crux');
     });
 
@@ -938,21 +938,21 @@ describe('evaluatePhaseTransition', () => {
       const w = loadProvisionalWeights();
       const cruxNode = makeNode('novel-crux', 'prometheus', 5, 0.8);
       const state = makePhaseState({
-        current_phase: 'synthesis',
+        current_phase: 'concluding',
         rounds_in_phase: 2,
         regression_count: w.phase_bounds.max_regressions, // already at max
       });
       const ctx = makeSignalContext({
         network: { nodes: [cruxNode], edges: [], nodeCount: 1 },
         phase: {
-          current: 'synthesis',
+          current: 'concluding',
           allPovsResponded: true,
           cruxNodes: [{ id: 'novel-crux', crossPovAttackCount: 2, computedStrength: 0.8 }],
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: w.phase_bounds.max_regressions,
-          explorationExitThreshold: 0.65,
-          synthesisExitThreshold: 0.70,
+          argumentationExitThreshold: 0.65,
+          concludingExitThreshold: 0.70,
         },
         transcript: {
           currentRound: 5,
@@ -982,7 +982,7 @@ describe('evaluatePhaseTransition', () => {
 
   describe('confidence gating', () => {
     it('defers when extraction confidence is low', () => {
-      const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 3 });
+      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3 });
       const ctx = makeSignalContext({
         extraction: {
           lastRoundStatus: 'parse_error',
@@ -1015,31 +1015,31 @@ describe('applyTransition', () => {
   });
 
   it('transitions to specified phase and resets rounds', () => {
-    const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 5 });
+    const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 5 });
     const result: PredicateResult = {
-      action: 'transition', new_phase: 'synthesis', reason: 'Test',
+      action: 'transition', new_phase: 'concluding', reason: 'Test',
       veto_active: false, force_active: false, confidence_deferred: false, components: {},
     };
     const next = applyTransition(state, result);
-    expect(next.current_phase).toBe('synthesis');
+    expect(next.current_phase).toBe('concluding');
     expect(next.rounds_in_phase).toBe(0);
     expect(next.gc_ran_this_phase).toBe(false);
   });
 
   it('defaults to synthesis when new_phase is absent', () => {
-    const state = makePhaseState({ current_phase: 'exploration' });
+    const state = makePhaseState({ current_phase: 'argumentation' });
     const result: PredicateResult = {
       action: 'transition', reason: 'Test',
       veto_active: false, force_active: false, confidence_deferred: false, components: {},
     };
     const next = applyTransition(state, result);
-    expect(next.current_phase).toBe('synthesis');
+    expect(next.current_phase).toBe('concluding');
   });
 
   it('records veto in history when veto_active', () => {
     const state = makePhaseState({ veto_history: [] });
     const result: PredicateResult = {
-      action: 'transition', new_phase: 'synthesis', reason: 'Veto reason',
+      action: 'transition', new_phase: 'concluding', reason: 'Veto reason',
       veto_active: true, force_active: false, confidence_deferred: false, components: {},
     };
     const next = applyTransition(state, result);
@@ -1049,37 +1049,37 @@ describe('applyTransition', () => {
 
   it('regression increments regression_count and ratchets threshold', () => {
     const w = loadProvisionalWeights();
-    const state = makePhaseState({ regression_count: 0, exploration_exit_threshold: 0.65 });
+    const state = makePhaseState({ regression_count: 0, argumentation_exit_threshold: 0.65 });
     const result: PredicateResult = {
-      action: 'regress', new_phase: 'exploration', reason: 'Novel crux',
+      action: 'regress', new_phase: 'argumentation', reason: 'Novel crux',
       veto_active: false, force_active: false, confidence_deferred: false, components: { novel_cruxes: 0 },
     };
     const next = applyTransition(state, result);
-    expect(next.current_phase).toBe('exploration');
+    expect(next.current_phase).toBe('argumentation');
     expect(next.regression_count).toBe(1);
-    expect(next.exploration_exit_threshold).toBeCloseTo(0.65 + w.phase_bounds.regression_ratchet);
+    expect(next.argumentation_exit_threshold).toBeCloseTo(0.65 + w.phase_bounds.regression_ratchet);
     expect(next.rounds_in_phase).toBe(0);
   });
 
   it('terminate returns state unchanged', () => {
-    const state = makePhaseState({ current_phase: 'synthesis', rounds_in_phase: 3 });
+    const state = makePhaseState({ current_phase: 'concluding', rounds_in_phase: 3 });
     const result: PredicateResult = {
       action: 'terminate', reason: 'Done', veto_active: false, force_active: true,
       confidence_deferred: false, components: {},
     };
     const next = applyTransition(state, result);
-    expect(next.current_phase).toBe('synthesis');
+    expect(next.current_phase).toBe('concluding');
     expect(next.rounds_in_phase).toBe(3);
   });
 
   it('force_transition works like transition', () => {
-    const state = makePhaseState({ current_phase: 'exploration' });
+    const state = makePhaseState({ current_phase: 'argumentation' });
     const result: PredicateResult = {
-      action: 'force_transition', new_phase: 'synthesis', reason: 'Hard cap',
+      action: 'force_transition', new_phase: 'concluding', reason: 'Hard cap',
       veto_active: false, force_active: true, confidence_deferred: false, components: {},
     };
     const next = applyTransition(state, result);
-    expect(next.current_phase).toBe('synthesis');
+    expect(next.current_phase).toBe('concluding');
     expect(next.rounds_in_phase).toBe(0);
   });
 });
@@ -1107,32 +1107,32 @@ describe('advanceRound', () => {
 describe('buildPhaseContext', () => {
   beforeEach(() => resetWeightsCache());
 
-  it('returns thesis-antithesis with establishing message', () => {
-    const state = makePhaseState({ current_phase: 'thesis-antithesis', rounds_in_phase: 1 });
+  it('returns confrontation with establishing message', () => {
+    const state = makePhaseState({ current_phase: 'confrontation', rounds_in_phase: 1 });
     const config = makeConfig();
     const pc = buildPhaseContext(state, config, 0, 0);
-    expect(pc.phase).toBe('thesis-antithesis');
+    expect(pc.phase).toBe('confrontation');
     expect(pc.rationale).toContain('establishing positions');
   });
 
   it('returns exploration with saturation percentage', () => {
-    const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 3 });
+    const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3 });
     const config = makeConfig();
     const pc = buildPhaseContext(state, config, 0.45, 0);
-    expect(pc.phase).toBe('exploration');
+    expect(pc.phase).toBe('argumentation');
     expect(pc.rationale).toContain('45%');
   });
 
   it('returns synthesis with convergence percentage', () => {
-    const state = makePhaseState({ current_phase: 'synthesis', rounds_in_phase: 1 });
+    const state = makePhaseState({ current_phase: 'concluding', rounds_in_phase: 1 });
     const config = makeConfig();
     const pc = buildPhaseContext(state, config, 0, 0.60);
-    expect(pc.phase).toBe('synthesis');
+    expect(pc.phase).toBe('concluding');
     expect(pc.rationale).toContain('60%');
   });
 
   it('progress is clamped to [0,1]', () => {
-    const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 100 });
+    const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 100 });
     const config = makeConfig();
     const pc = buildPhaseContext(state, config, 2.0, 0);
     expect(pc.phase_progress).toBeGreaterThanOrEqual(0);
@@ -1142,9 +1142,9 @@ describe('buildPhaseContext', () => {
   it('approaching_transition fires at >= 85% progress', () => {
     const w = loadProvisionalWeights();
     const state = makePhaseState({
-      current_phase: 'exploration',
-      rounds_in_phase: w.phase_bounds.max_exploration_rounds - 1,
-      exploration_exit_threshold: 0.65,
+      current_phase: 'argumentation',
+      rounds_in_phase: w.phase_bounds.max_argumentation_rounds - 1,
+      argumentation_exit_threshold: 0.65,
     });
     const config = makeConfig();
     const pc = buildPhaseContext(state, config, 0.60, 0);
@@ -1152,7 +1152,7 @@ describe('buildPhaseContext', () => {
   });
 
   it('includes regression note when regressions > 0', () => {
-    const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 3, regression_count: 1 });
+    const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3, regression_count: 1 });
     const config = makeConfig();
     const pc = buildPhaseContext(state, config, 0.3, 0);
     expect(pc.rationale).toContain('1 regression');
@@ -1184,7 +1184,7 @@ describe('buildSignalTelemetry', () => {
   beforeEach(() => resetWeightsCache());
 
   it('produces a telemetry record with all fields', () => {
-    const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 3, total_rounds_elapsed: 5 });
+    const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3, total_rounds_elapsed: 5 });
     const ctx = makeSignalContext();
     const signals = buildSignalRegistry();
     const result: PredicateResult = {
@@ -1193,7 +1193,7 @@ describe('buildSignalTelemetry', () => {
     };
     const record = buildSignalTelemetry(state, ctx, signals, result, 0.5, 100);
     expect(record.round).toBe(5);
-    expect(record.phase).toBe('exploration');
+    expect(record.phase).toBe('argumentation');
     expect(record.phase_progress).toBe(0.5);
     expect(record.elapsed_ms).toBe(100);
     expect(record.predicate_result).toBe(result);
@@ -1201,7 +1201,7 @@ describe('buildSignalTelemetry', () => {
   });
 
   it('fills argumentative_saturation_score for non-synthesis phase', () => {
-    const state = makePhaseState({ current_phase: 'exploration' });
+    const state = makePhaseState({ current_phase: 'argumentation' });
     const ctx = makeSignalContext();
     const signals = buildSignalRegistry();
     const result: PredicateResult = {
@@ -1214,17 +1214,17 @@ describe('buildSignalTelemetry', () => {
   });
 
   it('fills convergence_score for synthesis phase', () => {
-    const state = makePhaseState({ current_phase: 'synthesis' });
+    const state = makePhaseState({ current_phase: 'concluding' });
     const ctx = makeSignalContext({
       phase: {
-        current: 'synthesis',
+        current: 'concluding',
         allPovsResponded: true,
         cruxNodes: [],
         cruxResolution: [],
         priorCruxClusters: [],
         regressionCount: 0,
-        explorationExitThreshold: 0.65,
-        synthesisExitThreshold: 0.70,
+        argumentationExitThreshold: 0.65,
+        concludingExitThreshold: 0.70,
       },
     });
     const signals = buildSignalRegistry();
@@ -1261,36 +1261,36 @@ describe('lifecycle integration', () => {
     const config = makeConfig();
     let state = initPhaseState(config);
 
-    // Advance through thesis-antithesis
-    expect(state.current_phase).toBe('thesis-antithesis');
+    // Advance through confrontation
+    expect(state.current_phase).toBe('confrontation');
     const w = loadProvisionalWeights();
-    for (let i = 0; i < w.phase_bounds.max_thesis_rounds; i++) {
+    for (let i = 0; i < w.phase_bounds.max_confrontation_rounds; i++) {
       state = advanceRound(state);
     }
-    expect(state.rounds_in_phase).toBe(w.phase_bounds.max_thesis_rounds);
+    expect(state.rounds_in_phase).toBe(w.phase_bounds.max_confrontation_rounds);
 
     // Apply thesis -> exploration transition
     const thesisResult: PredicateResult = {
-      action: 'transition', new_phase: 'exploration', reason: 'Max rounds',
+      action: 'transition', new_phase: 'argumentation', reason: 'Max rounds',
       veto_active: false, force_active: true, confidence_deferred: false, components: {},
     };
     state = applyTransition(state, thesisResult);
-    expect(state.current_phase).toBe('exploration');
+    expect(state.current_phase).toBe('argumentation');
     expect(state.rounds_in_phase).toBe(0);
-    expect(state.total_rounds_elapsed).toBe(w.phase_bounds.max_thesis_rounds);
+    expect(state.total_rounds_elapsed).toBe(w.phase_bounds.max_confrontation_rounds);
 
     // Advance through exploration
-    for (let i = 0; i < w.phase_bounds.max_exploration_rounds; i++) {
+    for (let i = 0; i < w.phase_bounds.max_argumentation_rounds; i++) {
       state = advanceRound(state);
     }
 
     // Apply exploration -> synthesis transition
-    const explorationResult: PredicateResult = {
-      action: 'transition', new_phase: 'synthesis', reason: 'Saturation',
+    const argumentationResult: PredicateResult = {
+      action: 'transition', new_phase: 'concluding', reason: 'Saturation',
       veto_active: false, force_active: false, confidence_deferred: false, components: {},
     };
-    state = applyTransition(state, explorationResult);
-    expect(state.current_phase).toBe('synthesis');
+    state = applyTransition(state, argumentationResult);
+    expect(state.current_phase).toBe('concluding');
     expect(state.rounds_in_phase).toBe(0);
   });
 
@@ -1298,26 +1298,26 @@ describe('lifecycle integration', () => {
     const config = makeConfig();
     const w = loadProvisionalWeights();
     let state = makePhaseState({
-      current_phase: 'synthesis',
+      current_phase: 'concluding',
       rounds_in_phase: 2,
       regression_count: 0,
-      exploration_exit_threshold: 0.65,
+      argumentation_exit_threshold: 0.65,
     });
 
     const regressResult: PredicateResult = {
-      action: 'regress', new_phase: 'exploration', reason: 'Novel crux',
+      action: 'regress', new_phase: 'argumentation', reason: 'Novel crux',
       veto_active: false, force_active: false, confidence_deferred: false,
       components: { novel_cruxes: 0 },
     };
     state = applyTransition(state, regressResult);
-    expect(state.current_phase).toBe('exploration');
+    expect(state.current_phase).toBe('argumentation');
     expect(state.regression_count).toBe(1);
-    expect(state.exploration_exit_threshold).toBeCloseTo(0.65 + w.phase_bounds.regression_ratchet);
+    expect(state.argumentation_exit_threshold).toBeCloseTo(0.65 + w.phase_bounds.regression_ratchet);
 
     // Second regression ratchets further
-    state = { ...state, current_phase: 'synthesis', rounds_in_phase: 2 };
+    state = { ...state, current_phase: 'concluding', rounds_in_phase: 2 };
     state = applyTransition(state, regressResult);
     expect(state.regression_count).toBe(2);
-    expect(state.exploration_exit_threshold).toBeCloseTo(0.65 + 2 * w.phase_bounds.regression_ratchet);
+    expect(state.argumentation_exit_threshold).toBeCloseTo(0.65 + 2 * w.phase_bounds.regression_ratchet);
   });
 });

@@ -48,7 +48,7 @@ function makeInput(overrides: Partial<ProcessRewardInput> = {}): ProcessRewardIn
   return {
     convergenceSignals: makeConvergenceSignals(),
     turnValidation: makeValidation(),
-    phase: 'exploration',
+    phase: 'argumentation',
     moveCount: 2,
     taxonomyRefCount: 3,
     ...overrides,
@@ -187,16 +187,16 @@ describe('computeProcessReward', () => {
 
   // ── Phase bonuses ──
 
-  it('rewards confrontational moves in thesis-antithesis', () => {
+  it('rewards confrontational moves in confrontation', () => {
     const confrontational = computeProcessReward(makeInput({
-      phase: 'thesis-antithesis',
+      phase: 'confrontation',
       convergenceSignals: makeConvergenceSignals({
         move_polarity: { confrontational: 3, collaborative: 0, ratio: 0.0 },
         dialectical_engagement: { targeted: 3, standalone: 0, ratio: 1.0 },
       }),
     }));
     const collaborative = computeProcessReward(makeInput({
-      phase: 'thesis-antithesis',
+      phase: 'confrontation',
       convergenceSignals: makeConvergenceSignals({
         move_polarity: { confrontational: 0, collaborative: 3, ratio: 1.0 },
         dialectical_engagement: { targeted: 3, standalone: 0, ratio: 1.0 },
@@ -205,15 +205,15 @@ describe('computeProcessReward', () => {
     expect(confrontational.components.move_quality).toBeGreaterThan(collaborative.components.move_quality);
   });
 
-  it('rewards crux identification in exploration', () => {
+  it('rewards crux identification in argumentation', () => {
     const crux = computeProcessReward(makeInput({
-      phase: 'exploration',
+      phase: 'argumentation',
       convergenceSignals: makeConvergenceSignals({
         crux_engagement_rate: { used_this_turn: true, cumulative_count: 1, cumulative_follow_through: 0 },
       }),
     }));
     const noCrux = computeProcessReward(makeInput({
-      phase: 'exploration',
+      phase: 'argumentation',
       convergenceSignals: makeConvergenceSignals({
         crux_engagement_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
       }),
@@ -221,9 +221,9 @@ describe('computeProcessReward', () => {
     expect(crux.components.move_quality).toBeGreaterThan(noCrux.components.move_quality);
   });
 
-  it('rewards collaborative moves and taxonomy clarification in synthesis', () => {
+  it('rewards collaborative moves and taxonomy clarification in concluding', () => {
     const goodSynthesis = computeProcessReward(makeInput({
-      phase: 'synthesis',
+      phase: 'concluding',
       convergenceSignals: makeConvergenceSignals({
         move_polarity: { confrontational: 0, collaborative: 3, ratio: 1.0 },
       }),
@@ -232,7 +232,7 @@ describe('computeProcessReward', () => {
       }),
     }));
     const poorSynthesis = computeProcessReward(makeInput({
-      phase: 'synthesis',
+      phase: 'concluding',
       convergenceSignals: makeConvergenceSignals({
         move_polarity: { confrontational: 3, collaborative: 0, ratio: 0.0 },
       }),

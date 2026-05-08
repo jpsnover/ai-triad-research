@@ -107,7 +107,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
     ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${input.priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your plan.\n`
     : '';
 
-  const constructiveMoveList = input.phase && input.phase !== 'thesis-antithesis'
+  const constructiveMoveList = input.phase && input.phase !== 'confrontation'
     ? '\nConstructive moves also available: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD'
     : '';
 
@@ -173,13 +173,13 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 export function draftStageEnvelope(
   input: StagePromptInput, brief: string, plan: string,
 ): PromptEnvelope {
-  const phaseDirective = input.phase === 'synthesis'
+  const phaseDirective = input.phase === 'concluding'
     ? 'Focus on convergence. Name what you agree on, narrow remaining disagreements, and propose conditional agreements.'
-    : input.phase === 'exploration'
+    : input.phase === 'argumentation'
     ? 'Probe deeper. Find cruxes, test edge cases, and name areas of agreement explicitly.'
     : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
 
-  const positionUpdateField = input.phase === 'synthesis'
+  const positionUpdateField = input.phase === 'concluding'
     ? `,\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
 
   // Build intervention response block

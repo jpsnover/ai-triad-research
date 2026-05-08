@@ -90,7 +90,7 @@ export interface HarvestManifest {
 
 /** Extract promotable conflicts from synthesis metadata */
 export function extractConflictCandidates(debate: DebateSession): HarvestConflictItem[] {
-  const synthEntry = debate.transcript.find(e => e.type === 'synthesis');
+  const synthEntry = debate.transcript.find(e => e.type === 'concluding');
   if (!synthEntry?.metadata?.synthesis) return [];
 
   const synthesis = synthEntry.metadata.synthesis as {
@@ -292,7 +292,7 @@ export function validateCondensedSteelman(
 
 /** Extract preference verdicts from synthesis */
 export function extractVerdictCandidates(debate: DebateSession): HarvestVerdictItem[] {
-  const synthEntry = debate.transcript.find(e => e.type === 'synthesis');
+  const synthEntry = debate.transcript.find(e => e.type === 'concluding');
   if (!synthEntry?.metadata?.synthesis) return [];
 
   const synthesis = synthEntry.metadata.synthesis as {

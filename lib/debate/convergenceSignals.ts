@@ -276,11 +276,11 @@ export function computeProcessReward(input: ProcessRewardInput): { score: number
 
   // 5. Move quality — phase-appropriate disposition + diversity bonus
   const moveRatio = sig.move_polarity?.ratio ?? 0.5;
-  const phaseAppropriate = input.phase === 'synthesis'
-    ? moveRatio  // collaboration valued in synthesis
-    : input.phase === 'thesis-antithesis'
-    ? 1 - moveRatio  // confrontation expected in thesis-antithesis
-    : 0.5 + 0.5 * (moveRatio - 0.5);  // neutral in exploration
+  const phaseAppropriate = input.phase === 'concluding'
+    ? moveRatio  // collaboration valued in concluding
+    : input.phase === 'confrontation'
+    ? 1 - moveRatio  // confrontation expected in confrontation
+    : 0.5 + 0.5 * (moveRatio - 0.5);  // neutral in argumentation
 
   // Diversity bonus: having a different number of moves from prior turn
   const diversityBonus = input.priorMoveCount != null && input.moveCount !== input.priorMoveCount ? 0.1 : 0;

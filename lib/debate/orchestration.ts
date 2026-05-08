@@ -44,7 +44,7 @@ import {
   formatTriggerContext,
   buildIntervention,
   buildInterventionBriefInjection,
-  getSynthesisResponder,
+  getConcludingResponder,
 } from './moderator.js';
 
 import {
@@ -271,8 +271,8 @@ export async function runModeratorSelection(
   const triggerBlock = formatTriggerContext(triggerCtx);
 
   // ── Synthesis COMMIT automation ──
-  const synthesisTarget = phase === 'synthesis'
-    ? getSynthesisResponder(modState, activePovers, transcript as TranscriptEntry[])
+  const concludingTarget = phase === 'concluding'
+    ? getConcludingResponder(modState, activePovers, transcript as TranscriptEntry[])
     : null;
 
   let responder: Exclude<SpeakerId, 'user'> | null = null;
@@ -287,19 +287,19 @@ export async function runModeratorSelection(
   let selectionElapsed = 0;
   let selectionParseError: unknown;
 
-  if (synthesisTarget) {
+  if (concludingTarget) {
     // Deterministic synthesis — skip Stage 1 LLM, fire COMMIT directly
-    responder = synthesisTarget as Exclude<SpeakerId, 'user'>;
+    responder = concludingTarget as Exclude<SpeakerId, 'user'>;
     focusPoint = 'Provide your final commitment: concessions, conditions for change, and sharpest remaining disagreements';
     addressing = 'all';
     selectionResultObj = {
-      responder: synthesisTarget,
+      responder: concludingTarget,
       addressing: 'general',
       focus_point: focusPoint,
       agreement_detected: false,
       intervene: true,
       suggested_move: 'COMMIT' as InterventionMove,
-      target_debater: synthesisTarget,
+      target_debater: concludingTarget,
       trigger_reasoning: 'Automatic COMMIT in synthesis phase',
     };
 
@@ -318,7 +318,7 @@ export async function runModeratorSelection(
         );
         const stage2Text = await callbacks.generate(
           stage2Prompt, model, { temperature: 0.7, timeoutMs: 60_000 },
-          `Round ${round}: Moderator COMMIT → ${poverInfo[synthesisTarget]?.label}`,
+          `Round ${round}: Moderator COMMIT → ${poverInfo[concludingTarget]?.label}`,
         );
 
         const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
@@ -328,7 +328,7 @@ export async function runModeratorSelection(
           activeIntervention = buildIntervention(
             validation, interventionText,
             'Automatic synthesis-phase COMMIT',
-            { signal: 'synthesis_phase', round },
+            { signal: 'concluding_phase', round },
           );
 
           callbacks.addEntry({
@@ -348,7 +348,7 @@ export async function runModeratorSelection(
             },
           });
 
-          callbacks.progress('debate', undefined, `Moderator: COMMIT → ${poverInfo[synthesisTarget]?.label}`);
+          callbacks.progress('debate', undefined, `Moderator: COMMIT → ${poverInfo[concludingTarget]?.label}`);
         }
       } catch (err) {
         callbacks.warn('Moderator synthesis COMMIT generation', err, 'Proceeding without COMMIT intervention');

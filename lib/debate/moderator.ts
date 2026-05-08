@@ -60,15 +60,15 @@ const MOVE_BUDGET_COST: Record<InterventionMove, number> = {
 };
 
 const PHASE_ALLOWED_FAMILIES: Record<DebatePhase, Set<InterventionFamily>> = {
-  'thesis-antithesis': new Set(['procedural', 'repair', 'reconciliation']),
-  'exploration': new Set(['procedural', 'elicitation', 'repair', 'reconciliation', 'reflection']),
-  'synthesis': new Set(['synthesis', 'reconciliation']),
+  'confrontation': new Set(['procedural', 'repair', 'reconciliation']),
+  'argumentation': new Set(['procedural', 'elicitation', 'repair', 'reconciliation', 'reflection']),
+  'concluding': new Set(['synthesis', 'reconciliation']),
 };
 
 const PHASE_SECONDARY_FAMILIES: Record<DebatePhase, Set<InterventionFamily>> = {
-  'thesis-antithesis': new Set(),
-  'exploration': new Set(['synthesis']),
-  'synthesis': new Set(['repair']),
+  'confrontation': new Set(),
+  'argumentation': new Set(['synthesis']),
+  'concluding': new Set(['repair']),
 };
 
 const DEFAULT_PRIORITY: InterventionMove[] = [
@@ -164,7 +164,7 @@ const MOVE_RESPONSE_CONFIG: Record<InterventionMove, MoveResponseConfig> = {
 // ── Initialization ─────────────────────────────────────
 
 export function initModeratorState(totalRounds: number, activePovers: SpeakerId[]): ModeratorState {
-  const explorationRounds = Math.max(totalRounds - 3, 1);
+  const argumentationRounds = Math.max(totalRounds - 3, 1);
   const burdenMap: Record<string, number> = {};
   const triggerMap: Record<string, Partial<Record<InterventionMove, number>>> = {};
   for (const p of activePovers) {
@@ -174,8 +174,8 @@ export function initModeratorState(totalRounds: number, activePovers: SpeakerId[
 
   return {
     interventions_fired: 0,
-    budget_total: Math.ceil(explorationRounds / 2.5),
-    budget_remaining: Math.ceil(explorationRounds / 2.5),
+    budget_total: Math.ceil(argumentationRounds / 2.5),
+    budget_remaining: Math.ceil(argumentationRounds / 2.5),
     rounds_since_last_intervention: 0,
     required_gap: 1,
     last_target: null,
@@ -188,10 +188,10 @@ export function initModeratorState(totalRounds: number, activePovers: SpeakerId[
     consecutive_rise: 0,
     trajectory_freeze_until: -1,
     sli_consecutive_breaches: {},
-    phase: 'thesis-antithesis',
+    phase: 'confrontation',
     round: 0,
     total_rounds: totalRounds,
-    exploration_rounds: explorationRounds,
+    argumentation_rounds: argumentationRounds,
     intervention_history: [],
     cooldown_blocked_count: 0,
     budget_epoch: 0,
@@ -202,18 +202,18 @@ export function initModeratorState(totalRounds: number, activePovers: SpeakerId[
 // ── Phase appropriateness ──────────────────────────────
 
 export function isPhaseAppropriate(move: InterventionMove, phase: DebatePhase): boolean {
-  // COMMIT only in synthesis — checked first to prevent secondary-family leak
-  if (move === 'COMMIT') return phase === 'synthesis';
+  // COMMIT only in concluding — checked first to prevent secondary-family leak
+  if (move === 'COMMIT') return phase === 'concluding';
 
   const family = MOVE_TO_FAMILY[move];
   if (PHASE_ALLOWED_FAMILIES[phase].has(family)) return true;
   if (PHASE_SECONDARY_FAMILIES[phase].has(family)) return true;
 
-  // META-REFLECT only in exploration (rounds 4 through N-2, handled by caller)
-  if (move === 'META-REFLECT' && phase === 'exploration') return true;
+  // META-REFLECT only in argumentation (rounds 4 through N-2, handled by caller)
+  if (move === 'META-REFLECT' && phase === 'argumentation') return true;
 
-  // Elicitation allowed in thesis-antithesis with restriction (only after round 2)
-  if (family === 'elicitation' && phase === 'thesis-antithesis') return true;
+  // Elicitation allowed in confrontation with restriction (only after round 2)
+  if (family === 'elicitation' && phase === 'confrontation') return true;
 
   return false;
 }
@@ -412,8 +412,8 @@ export function validateRecommendation(
     return suppress(move, selection.target_debater, 'phase_mismatch');
   }
 
-  // P4: Block CHALLENGE in thesis-antithesis before round 4 — positions still being established
-  if (move === 'CHALLENGE' && state.phase === 'thesis-antithesis' && state.round < 4) {
+  // P4: Block CHALLENGE in confrontation before round 4 — positions still being established
+  if (move === 'CHALLENGE' && state.phase === 'confrontation' && state.round < 4) {
     return suppress(move, selection.target_debater, 'phase_mismatch');
   }
 
@@ -843,7 +843,7 @@ export function detectNearMisses(
 
 // ── Synthesis COMMIT automation ───────────────────────
 
-export function getSynthesisResponder(
+export function getConcludingResponder(
   state: ModeratorState,
   activePovers: SpeakerId[],
   transcript: { speaker: string; type: string }[],
