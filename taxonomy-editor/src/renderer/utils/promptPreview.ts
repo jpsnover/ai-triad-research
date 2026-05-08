@@ -16,7 +16,7 @@ import { interpretationText } from '../types/taxonomy';
 import type { PromptPreviewResult } from '@lib/debate/types';
 import {
   clarificationPrompt,
-  synthesisPrompt,
+  concludingPrompt,
   openingStatementPrompt,
   debateResponsePrompt,
   crossRespondSelectionPrompt,
@@ -97,7 +97,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
         break;
       }
       case 'debate-synthesis-topic': {
-        text = synthesisPrompt(topic, '(clarification Q&A would appear here)');
+        text = concludingPrompt(topic, '(clarification Q&A would appear here)');
         sections.push(section('Prompt', text));
         break;
       }

@@ -135,7 +135,7 @@ $TotalChars = 0
 for ($i = 0; $i -lt $Entries.Count; $i++) {
     $Entry = $Entries[$i]
     $Speaker = $Entry.speaker
-    if ($Entry.type -eq 'synthesis' -or $Entry.type -eq 'fact-check') {
+    if ($Entry.type -in @('concluding','synthesis','fact-check')) {
         $Voice = $DefaultVoices['system']
     } else {
         $Voice = $DefaultVoices[$Speaker]
@@ -145,7 +145,7 @@ for ($i = 0; $i -lt $Entries.Count; $i++) {
     $Text = $Entry.content
     if ($Entry.type -eq 'fact-check') {
         $Text = "Fact check: $Text"
-    } elseif ($Entry.type -eq 'synthesis') {
+    } elseif ($Entry.type -in @('concluding','synthesis')) {
         $Text = "Synthesis: $Text"
     }
 

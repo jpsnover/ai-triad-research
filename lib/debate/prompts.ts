@@ -462,6 +462,52 @@ dismisses an empirical claim ("the data shows Y") as "just an opinion," flag the
 mismatch explicitly. Name the category error, then redirect to the appropriate mode of
 argument.
 
+EPISTEMIC TYPE: Each node in your taxonomy includes an epistemic_type field that
+classifies the KIND of claim it makes. This is distinct from falsifiability — a
+claim can be highly falsifiable but still be a prediction rather than an empirical
+observation. Matching your argumentative approach to the epistemic type prevents
+the most common debate category errors.
+
+- EMPIRICAL CLAIM: This node asserts something about how the world IS, based on
+  observation or data. Argue with evidence. Challenge with counter-evidence. If
+  you and your opponent both cite empirical claims, the debate should turn on
+  evidence quality, recency, and representativeness — not on values.
+
+- NORMATIVE PRESCRIPTION: This node asserts what SHOULD happen — a goal, a duty,
+  or a principle. You cannot refute a normative claim with evidence alone. Argue
+  from coherence, shared values, or consequences. Challenge by showing the
+  prescription conflicts with other values the opponent holds, or that it leads to
+  unacceptable outcomes when applied consistently.
+
+- STRATEGIC RECOMMENDATION: This node proposes HOW to act — a policy, a method, or
+  a program. The appropriate challenge is FEASIBILITY: Can this actually be
+  implemented? What are the costs? What happens when it encounters real-world
+  constraints? Evidence about what HAS worked (or failed) in analogous cases is
+  the strongest move.
+
+- PREDICTIVE: This node makes a claim about the FUTURE. The appropriate challenge
+  is to demand specificity: What timeline? What threshold? What would count as
+  this prediction failing? Predictions without falsifiable timelines are
+  unfalsifiable — call that out.
+
+- DEFINITIONAL: This node defines a term or draws a conceptual boundary. The
+  disagreement is about WHAT COUNTS AS X, not about facts or values. The
+  appropriate response is to show that the definition is too narrow (excludes
+  relevant cases), too broad (includes irrelevant cases), or loaded (smuggles in a
+  conclusion). Use DISTINGUISH.
+
+- INTERPRETIVE LENS: This node offers a FRAMING — a way of seeing the problem.
+  Lenses cannot be refuted; they can only be shown to be less useful than an
+  alternative lens for the case at hand. Use REFRAME to offer a competing lens and
+  show what your lens reveals that theirs hides.
+
+CROSS-TYPE ENGAGEMENT: When you and an opponent are operating from different
+epistemic types on the same topic — you're making an empirical claim and they're
+arguing from a normative prescription — NAME THE MISMATCH before engaging. "You're
+arguing that we SHOULD do X. I'm arguing that X WON'T WORK. These are different
+questions — let's address both." This prevents the most common form of talking past
+each other.
+
 NODE SCOPE: Each node in your taxonomy is scoped as either a "claim" or a "scheme."
 This distinction should shape how you argue from the node and how you challenge
 opponents who rely on one.
@@ -490,6 +536,12 @@ to, or zooming in from a scheme to test it against a specific case), name the mo
 explicitly: "Let me step back from the specific case to challenge the framework" or
 "Let me test that principle against a concrete example."
 
+- BRIDGING nodes connect two perspectives or domains. When arguing from a bridging
+  node, your job is to show how the bridge holds under scrutiny — that the analogy or
+  connection is substantive, not superficial. When attacking a bridging node, show where
+  the analogy breaks down — what's true on one side of the bridge that isn't true on the
+  other.
+
 INTELLECTUAL LINEAGE: Each node in your taxonomy may include an intellectual_lineage
 field listing the philosophical traditions, schools of thought, or intellectual movements
 that inform the position. Use lineage in three specific ways:
@@ -516,7 +568,34 @@ that inform the position. Use lineage in three specific ways:
 
 Do NOT use lineage as decoration. Listing traditions without connecting them to your
 actual argument is empty credentialism. Every lineage reference should do argumentative
-work — ground a claim, narrow a disagreement, or expose a tension.`;
+work — ground a claim, narrow a disagreement, or expose a tension.
+
+ASSUMPTIONS: Each node in your taxonomy lists its key underlying assumptions — the
+unstated premises it depends on. Assumptions are the load-bearing structure of
+arguments: if an assumption fails, the argument built on it collapses.
+
+USING YOUR OWN ASSUMPTIONS:
+- When advancing a position, you KNOW what your argument assumes (it's listed in
+  your taxonomy). If an opponent challenges one of your stated assumptions, do not
+  pretend you weren't making it. Either DEFEND the assumption with evidence, or
+  CONCEDE that it's genuinely contestable and explain what your argument looks like
+  without it.
+- When your argument depends on an assumption that your OPPONENT explicitly rejects,
+  that assumption IS the crux. Name it: "This disagreement hinges on whether [stated
+  assumption] holds. If it does, my conclusion follows. If it doesn't, yours does."
+
+TARGETING OPPONENTS' ASSUMPTIONS:
+- The listed assumptions on opponent nodes are pre-identified attack surfaces. An
+  UNDERCUT move that targets a stated assumption is often more effective than a direct
+  REBUT of the conclusion — it removes the foundation rather than fighting the
+  superstructure.
+- When two opponents share an assumption that YOU reject, name the shared assumption
+  and challenge it. This shifts the debate from two-against-one on the conclusion to
+  a genuine three-way disagreement on the premise.
+
+SHARED ASSUMPTIONS AS COMMON GROUND:
+- When you and an opponent share the same assumption, that's common ground — state it
+  explicitly. Shared assumptions narrow the disagreement to what actually differs.`;
 
 const DIALECTICAL_MOVES = `Your response should employ 1-3 of these dialectical moves. Choose strategically:
 
@@ -1155,7 +1234,9 @@ Identify the most productive next exchange. Which debater should respond, to who
   * If the debate is stuck in dueling evidence, direct a debater whose nodes use Structural_Critique or Reframe to zoom out.
   * FALSIFIABILITY MISMATCH: If one debater is making empirical demands of a position that is fundamentally normative (low falsifiability), or if a debater is presenting a testable claim (high falsifiability) without citing evidence, direct the exchange toward the appropriate mode of argument — evidence for the testable, coherence for the normative.
   * SCOPE MISMATCH: If debaters are talking past each other — one arguing a specific claim while the other argues a general framework — direct one to match the other's scope, or explicitly ask a debater to zoom in (apply their scheme to the specific case) or zoom out (challenge the framework behind a specific claim).
-  * SHARED LINEAGE: If two debaters draw from the same intellectual tradition but reach different conclusions, direct them to engage on where their shared framework diverges — this tends to produce the most productive exchanges.${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
+  * SHARED LINEAGE: If two debaters draw from the same intellectual tradition but reach different conclusions, direct them to engage on where their shared framework diverges — this tends to produce the most productive exchanges.
+  * EPISTEMIC TYPE MISMATCH: If debaters are arguing past each other because one is making an empirical claim while the other is arguing a normative prescription (or a definition, or a prediction), direct them to name the type of disagreement before continuing. "You're arguing about what IS true and your opponent is arguing about what SHOULD happen — address both dimensions."
+  * HIDDEN ASSUMPTIONS: If a debater's argument relies heavily on an assumption that opponents haven't challenged, direct an opponent to examine it — "The argument at [node-id] assumes [assumption]. Has anyone tested that premise?"${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
 
 If all debaters seem to be in agreement, say so and suggest what angle could be explored next.
 

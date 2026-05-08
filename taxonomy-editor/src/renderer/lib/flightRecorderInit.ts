@@ -302,6 +302,9 @@ export function initFlightRecorder(): FlightRecorder {
 
   (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = dumpOnReactError;
 
+  // ── ErrorBoundary "Dump Log" button hook ──
+  (globalThis as unknown as { __triggerManualDump: () => void }).__triggerManualDump = triggerManualDump;
+
   return recorder;
 }
 

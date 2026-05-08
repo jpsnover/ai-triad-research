@@ -331,7 +331,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
                 {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://arxiv.org/abs/2411.00784'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>arXiv:2411.00784</a>
               </li>
               <li><strong>4-Stage Pipeline</strong> — Each debate turn: BRIEF → PLAN → DRAFT → CITE with per-stage temperatures</li>
-              <li><strong>Adaptive Staging</strong> — Seven convergence diagnostics trigger phase transitions (thesis-antithesis → exploration → synthesis)</li>
+              <li><strong>Adaptive Staging</strong> — Seven convergence diagnostics trigger phase transitions (confrontation → argumentation → concluding)</li>
               <li><strong>13-Scheme Taxonomy</strong> — Derived from Walton's argumentation schemes with scheme-specific critical questions.
                 {' '}<a href="#" onClick={(e) => { e.preventDefault(); void api.openExternal('https://www.cambridge.org/core/books/argumentation-schemes/9AE7E4E6ABDE690565442B2BD516A8B6'); }} style={{ color: 'var(--accent)', fontSize: '0.85em' }}>Walton, Reed & Macagno (2008)</a>
               </li>

@@ -159,7 +159,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     setConcessionUpdates(concessionCandidates);
 
     // Extract taxonomy proposals + modifications from synthesis metadata
-    const synthEntry = activeDebate.transcript.find(e => e.type === 'synthesis');
+    const synthEntry = activeDebate.transcript.find(e => e.type === 'concluding');
     const synthMeta = (synthEntry?.metadata as Record<string, unknown>)?.synthesis as Record<string, unknown> | undefined;
     if (synthMeta) {
       const rawProposals = synthMeta.taxonomy_proposals as { label: string; description: string; pov: string; category: string; rationale: string; source_claims?: string[] }[] | undefined;
@@ -632,7 +632,7 @@ Return ONLY JSON (no markdown):
                         <div><strong>Prevails:</strong> {(() => {
                           // Resolve claim ID to text from argument_map
                           if (/^C\d+$/.test(item.prevails)) {
-                            const synthEntry = activeDebate?.transcript.find(e => e.type === 'synthesis');
+                            const synthEntry = activeDebate?.transcript.find(e => e.type === 'concluding');
                             const argMap = (synthEntry?.metadata?.synthesis as { argument_map?: { claim_id: string; claim: string; claimant: string }[] })?.argument_map;
                             const claim = argMap?.find(c => c.claim_id === item.prevails);
                             if (claim) return `${claim.claimant}: "${claim.claim}"`;

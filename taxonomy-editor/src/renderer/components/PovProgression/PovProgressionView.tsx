@@ -165,7 +165,7 @@ function buildTimeline(session: DebateSession): TurnSnapshot[] {
   }
 
   // Synthesis
-  const synthesis = transcript.find(e => e.type === 'synthesis');
+  const synthesis = transcript.find(e => e.type === 'concluding');
   if (synthesis) {
     turns.push(makeTurn(turns.length, 'Synthesis', [synthesis], anByEntry, edgesByEntry, anById));
   }

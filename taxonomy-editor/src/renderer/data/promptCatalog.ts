@@ -14,7 +14,7 @@ import {
 } from '../prompts/analysis';
 import {
   clarificationPrompt,
-  synthesisPrompt,
+  concludingPrompt,
   openingStatementPrompt,
   debateResponsePrompt,
   crossRespondSelectionPrompt,
@@ -178,10 +178,10 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     title: 'Debate: Topic Synthesis',
     description: 'Synthesizes the original debate topic with clarifying Q&A into a refined topic statement.',
     source: 'prompts/debate.ts',
-    template: synthesisPrompt('{original_topic}', '{qa_pairs}'),
+    template: concludingPrompt('{original_topic}', '{qa_pairs}'),
     group: 'debate-setup',
     purpose: 'Fires after clarification Q&A. Combines the original topic with the user\'s answers to produce a refined, narrow topic statement that all debaters will argue about.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: [],
   },
 
@@ -365,7 +365,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: synthExtractPrompt('{topic}', '{transcript}'),
     group: 'debate-analysis',
     purpose: 'First phase of the 3-phase synthesis pipeline. Identifies agreements, classifies disagreements by type (EMPIRICAL/VALUES/DEFINITIONAL) and BDI layer, extracts cruxes with resolution status, and lists unresolved questions.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['argumentNetwork', 'commitments'],
   },
   {
@@ -376,7 +376,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: synthMapPrompt('{topic}', '{transcript}', '{disagreements}'),
     group: 'debate-analysis',
     purpose: 'Second phase of the 3-phase synthesis pipeline. Extracts claims with IDs, attack/support relationships, argumentation schemes, and proposes new taxonomy nodes or modifications for gaps the debate surfaced.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['taxonomyNodes', 'situationNodes', 'argumentNetwork', 'sourceDocument'],
   },
   {
@@ -387,7 +387,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: synthEvaluatePrompt('{topic}', '{disagreements}', '{argument_map}'),
     group: 'debate-analysis',
     purpose: 'Third phase of the 3-phase synthesis pipeline. For each disagreement, determines which position prevails and why. Identifies concrete policy actions that differ depending on which position wins.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['argumentNetwork', 'policyRegistry'],
   },
 
@@ -400,7 +400,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: debateSynthesisPrompt('{topic}', '{transcript}'),
     group: 'debate-analysis',
     purpose: 'Fires at the end of a debate. Produces a comprehensive synthesis: areas of agreement, disagreement (with BDI layer and resolvability), cruxes, document claims, and preference verdicts. The highest-value prompt in the debate pipeline.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['taxonomyNodes', 'situationNodes', 'argumentNetwork', 'commitments'],
   },
   {
@@ -443,7 +443,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: missingArgumentsPrompt('{topic}', '{taxonomy_nodes_summary}', '{synthesis_text}'),
     group: 'debate-analysis',
     purpose: 'Fires post-synthesis with a separate LLM that has NOT seen the transcript. Identifies blind spots by comparing what was argued against what could have been argued from the taxonomy. Finds arguments a well-prepared debater would have raised.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['taxonomyNodes', 'situationNodes'],
   },
   {
@@ -454,7 +454,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
     group: 'debate-analysis',
     purpose: 'Fires post-synthesis. Identifies nodes that were too vague, too broad, too narrow, should be split, or were refuted. Proposes complete revised descriptions in genus-differentia format with debate evidence citations.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['taxonomyNodes', 'argumentNetwork'],
   },
   {
@@ -475,7 +475,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
     group: 'debate-analysis',
     purpose: 'Fires post-synthesis when agreements exist. Even when perspectives agree on a surface point, they often agree for different reasons. Decomposes each agreement into per-POV BDI interpretations for situation node creation.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['taxonomyNodes', 'situationNodes'],
   },
   {
@@ -486,7 +486,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
     group: 'debate-analysis',
     purpose: 'Fires post-debate for each debater. Reviews weak defenses, concessions, positions argued without taxonomy backing, and convergence patterns. Proposes REVISE, ADD, QUALIFY, or DEPRECATE edits with confidence levels and evidence citations.',
-    phase: 'synthesis',
+    phase: 'concluding',
     applicableDataSources: ['taxonomyNodes', 'commitments', 'argumentNetwork'],
   },
 

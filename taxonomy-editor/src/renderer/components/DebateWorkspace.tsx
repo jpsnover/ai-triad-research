@@ -50,21 +50,21 @@ const PHASE_TITLES: Record<string, string> = {
   closed: 'Debate Closed',
 };
 
-type AdaptivePhase = 'thesis-antithesis' | 'exploration' | 'synthesis';
+type AdaptivePhase = 'confrontation' | 'argumentation' | 'concluding';
 
 const ADAPTIVE_PHASE_LABELS: Record<AdaptivePhase, string> = {
-  'thesis-antithesis': 'Thesis-Antithesis',
-  'exploration': 'Exploration',
-  'synthesis': 'Synthesis',
+  'confrontation': 'Confrontation',
+  'argumentation': 'Argumentation',
+  'concluding': 'Concluding',
 };
 
 const ADAPTIVE_PHASE_COLORS: Record<AdaptivePhase, string> = {
-  'thesis-antithesis': '#f59e0b',
-  'exploration': '#3b82f6',
-  'synthesis': '#10b981',
+  'confrontation': '#f59e0b',
+  'argumentation': '#3b82f6',
+  'concluding': '#10b981',
 };
 
-const ADAPTIVE_PHASES: AdaptivePhase[] = ['thesis-antithesis', 'exploration', 'synthesis'];
+const ADAPTIVE_PHASES: AdaptivePhase[] = ['confrontation', 'argumentation', 'concluding'];
 
 function PhaseProgressBar({ currentPhase, phaseProgress, roundsInPhase, approachingTransition, rationale }: {
   currentPhase: AdaptivePhase;
@@ -1553,14 +1553,14 @@ function OpeningActions() {
                         className="debate-opening-order-btn"
                         onClick={() => moveUp(idx)}
                         disabled={idx === 0}
-                        title="Move up"
-                      >&#9650;</button>
+                        title="Move left"
+                      >&#9664;</button>
                       <button
                         className="debate-opening-order-btn"
                         onClick={() => moveDown(idx)}
                         disabled={idx === openingOrder.length - 1}
-                        title="Move down"
-                      >&#9660;</button>
+                        title="Move right"
+                      >&#9654;</button>
                     </span>
                   </li>
                 );
@@ -1711,7 +1711,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
   const [showReflections, setShowReflections] = useState(false);
   const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
-  const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'synthesis') || false;
+  const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'concluding') || false;
   const isAdaptive = (activeDebate as any)?.adaptive_staging?.enabled ?? false;
   const adaptivePhase: AdaptivePhase | null = isAdaptive ? ((activeDebate as any).adaptive_staging?.current_phase ?? null) : null;
   const approachingTransition = isAdaptive ? ((activeDebate as any).adaptive_staging?.approaching_transition ?? false) : false;
@@ -2369,7 +2369,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           };
           return (
             <PhaseProgressBar
-              currentPhase={staging.current_phase || 'thesis-antithesis'}
+              currentPhase={staging.current_phase || 'confrontation'}
               phaseProgress={staging.phase_progress || 0}
               roundsInPhase={staging.rounds_in_phase || 0}
               approachingTransition={staging.approaching_transition || false}

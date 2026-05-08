@@ -160,7 +160,7 @@ for f in new_files:
     if d.get('crux_tracker'):
         tracker_count += 1
     for e in d.get('transcript', []):
-        if e.get('type') == 'synthesis':
+        if e.get('type') in ('concluding', 'synthesis'):
             cruxes = e.get('metadata', {}).get('synthesis', {}).get('cruxes', [])
             if cruxes:
                 synth_crux_count += len(cruxes)

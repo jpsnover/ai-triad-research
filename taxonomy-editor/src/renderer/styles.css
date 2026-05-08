@@ -12822,6 +12822,12 @@ th[data-tooltip]::after {
 .ag-detail-edges { font-size: 0.68rem; margin-top: 4px; }
 .ag-detail-edge { margin: 2px 0; }
 .ag-detail-weight { font-size: 0.6rem; color: var(--text-muted); margin-left: 4px; }
+.ag-detail-attribution { margin-top: 8px; padding: 6px 8px; background: rgba(245,158,11,0.06); border-radius: 4px; border-left: 2px solid rgba(245,158,11,0.4); }
+.ag-detail-explanation { font-size: 0.68rem; color: var(--text-secondary); font-style: italic; margin-bottom: 4px; }
+.ag-detail-attr-list { font-size: 0.65rem; }
+.ag-detail-attr-row { display: flex; align-items: center; gap: 4px; margin-top: 1px; }
+.ag-detail-attr-source { color: var(--text-muted); }
+.ag-detail-attr-scheme { color: var(--text-muted); font-style: italic; }
 /* ── Timeline Scrubber (CG-3) ────────────────────────── */
 .ts-container { display: flex; flex-direction: column; gap: 6px; }
 .ts-empty { text-align: center; padding: 20px; color: var(--text-muted); }

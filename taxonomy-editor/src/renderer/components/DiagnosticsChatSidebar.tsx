@@ -110,7 +110,7 @@ function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, Tax
     for (const s of debate.convergence_signals) bySpeaker.set(s.speaker, s);
     for (const [speaker, sig] of bySpeaker) {
       const label = POVER_INFO[speaker as keyof typeof POVER_INFO]?.label ?? speaker;
-      lines.push(`${label}: collab=${(sig.move_disposition.ratio * 100).toFixed(0)}%, dialectical engagement=${(sig.engagement_depth.ratio * 100).toFixed(0)}%, argument redundancy=${(sig.recycling_rate.max_self_overlap * 100).toFixed(0)}%, concession=${sig.concession_opportunity.outcome}, drift=${(sig.position_delta.drift * 100).toFixed(0)}%`);
+      lines.push(`${label}: collab=${((sig.move_disposition?.ratio ?? 0) * 100).toFixed(0)}%, dialectical engagement=${((sig.engagement_depth?.ratio ?? 0) * 100).toFixed(0)}%, argument redundancy=${((sig.recycling_rate?.max_self_overlap ?? 0) * 100).toFixed(0)}%, concession=${sig.concession_opportunity?.outcome ?? 'none'}, drift=${((sig.position_delta?.drift ?? 0) * 100).toFixed(0)}%`);
     }
   }
 
@@ -379,11 +379,11 @@ const SLASH_COMMANDS: Record<string, { description: string; handler: (debate: De
       for (const [speaker, sig] of bySpeaker) {
         const label = POVER_INFO[speaker as keyof typeof POVER_INFO]?.label ?? speaker;
         lines.push(`\n**${label}:**`);
-        lines.push(`- Collaborative moves: ${(sig.move_disposition.ratio * 100).toFixed(0)}%`);
-        lines.push(`- Dialectical engagement: ${(sig.engagement_depth.ratio * 100).toFixed(0)}%`);
-        lines.push(`- Argument redundancy: ${(sig.recycling_rate.max_self_overlap * 100).toFixed(0)}%`);
-        lines.push(`- Concession: ${sig.concession_opportunity.outcome}`);
-        lines.push(`- Position drift: ${(sig.position_delta.drift * 100).toFixed(0)}%`);
+        lines.push(`- Collaborative moves: ${((sig.move_disposition?.ratio ?? 0) * 100).toFixed(0)}%`);
+        lines.push(`- Dialectical engagement: ${((sig.engagement_depth?.ratio ?? 0) * 100).toFixed(0)}%`);
+        lines.push(`- Argument redundancy: ${((sig.recycling_rate?.max_self_overlap ?? 0) * 100).toFixed(0)}%`);
+        lines.push(`- Concession: ${sig.concession_opportunity?.outcome ?? 'none'}`);
+        lines.push(`- Position drift: ${((sig.position_delta?.drift ?? 0) * 100).toFixed(0)}%`);
       }
       return lines.join('\n');
     },

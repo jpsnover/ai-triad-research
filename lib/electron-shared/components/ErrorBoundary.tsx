@@ -54,6 +54,12 @@ export default class ErrorBoundary extends Component<Props, State> {
           <button className="error-boundary-retry" onClick={this.handleRetry}>
             Try Again
           </button>
+          <button className="error-boundary-retry" onClick={() => {
+            const hook = (globalThis as unknown as { __triggerManualDump?: () => void }).__triggerManualDump;
+            if (hook) hook();
+          }} style={{ marginLeft: 8 }}>
+            Dump Log
+          </button>
         </div>
       );
     }

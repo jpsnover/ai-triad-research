@@ -165,7 +165,7 @@ function Get-AITDebate {
         $Transcript = if ($Raw.PSObject.Properties['transcript']) { @($Raw.transcript) } else { @() }
         $StmtCount  = @($Transcript | Where-Object { $_.type -eq 'statement' }).Count
         $IntCount   = @($Transcript | Where-Object { $_.type -eq 'intervention' }).Count
-        $HasSynth   = @($Transcript | Where-Object { $_.type -eq 'synthesis' }).Count -gt 0
+        $HasSynth   = @($Transcript | Where-Object { $_.type -eq 'concluding' -or $_.type -eq 'synthesis' }).Count -gt 0
 
         # Round count: count distinct rounds from statements (3 speakers per round)
         $RoundCount = if ($Debaters.Count -gt 0 -and $StmtCount -gt 0) { [Math]::Ceiling($StmtCount / $Debaters.Count) } else { 0 }

@@ -31,7 +31,7 @@ import {
   situationClarificationPrompt,
   documentClarificationPrompt,
   formatSituationDebateContext,
-  synthesisPrompt,
+  concludingPrompt,
   userSeedClaimsPrompt,
   openingStatementPrompt,
   debateResponsePrompt,
@@ -822,7 +822,7 @@ async function extractClaimsAndUpdateAN(
             const currentEntry = baseDebate.transcript.find((e: { id: string }) => e.id === entryId);
             const entryMeta = currentEntry?.metadata as Record<string, unknown> | undefined;
             const moveTypes = (entryMeta?.move_types as (string | MoveAnnotation)[]) ?? [];
-            const phase = ((entryMeta?.debate_phase as string) ?? 'exploration') as DebatePhase;
+            const phase = ((entryMeta?.debate_phase as string) ?? 'argumentation') as DebatePhase;
 
             // Count prior turn's distinct moves for diversity comparison
             const priorSpeakerEntry = baseDebate.transcript
@@ -1409,7 +1409,7 @@ function buildSynthesisPrompt(
     for (const q of c.questions) qaPairs += `  - ${q}\n`;
     qaPairs += `User answered: ${c.answers}\n`;
   }
-  return synthesisPrompt(originalTopic, qaPairs, audience);
+  return concludingPrompt(originalTopic, qaPairs, audience);
 }
 
 
@@ -1915,7 +1915,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const session = raw as DebateSession;
       // BDI migration shim: normalize legacy bdi_layer values in synthesis entries
       for (const entry of session.transcript) {
-        if (entry.type === 'synthesis' && entry.metadata?.synthesis) {
+        if (entry.type === 'concluding' && entry.metadata?.synthesis) {
           const synthesis = entry.metadata.synthesis as { areas_of_disagreement?: { bdi_layer?: string }[] };
           if (Array.isArray(synthesis.areas_of_disagreement)) {
             for (const d of synthesis.areas_of_disagreement) {
@@ -3523,7 +3523,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     _abortController = new AbortController();
     const isStillValid = createDebateGuard(get);
     set({ debateError: null, debateWarnings: [], debateGenerating: 'system' as SpeakerId });
-    getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: synthesis', data: { phase: 'synthesis' } });
+    getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: concluding', data: { phase: 'concluding' } });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -3667,7 +3667,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         .map((t: Record<string, unknown>) => ({ node_id: t.node_id as string, relevance: (t.how_used as string) || '' }));
 
       const synthEntryId = addTranscriptEntry({
-        type: 'synthesis',
+        type: 'concluding',
         speaker: 'system',
         content: lines.join('\n'),
         taxonomy_refs: taxonomyCoverage,
@@ -3784,7 +3784,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       // Cross-cutting node promotion — propose situation nodes from 3-way agreements
       try {
         const ccDebate = get().activeDebate;
-        const synthEntry = ccDebate?.transcript.find(e => e.type === 'synthesis');
+        const synthEntry = ccDebate?.transcript.find(e => e.type === 'concluding');
         const synthData = (synthEntry?.metadata as Record<string, unknown>)?.synthesis as Record<string, unknown> | undefined;
         const agreements = ((synthData?.areas_of_agreement ?? []) as { point: string; povers?: string[] }[])
           .filter(a => (a.povers?.length ?? 0) >= 3);

@@ -12,6 +12,7 @@ import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
+import { explainNodeStrength } from '../utils/qbafExplain';
 import { getMoveName, MOVE_EDGE_MAP } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
@@ -23,6 +24,7 @@ import type { NavigateCommand } from './DiagnosticsChatSidebar';
 import { TaxonomyGapPanel } from './TaxonomyGapPanel';
 import { GroundingPanel } from './GroundingPanel';
 import { PovProgressionView } from './PovProgression/PovProgressionView';
+import { triggerManualDump } from '../lib/flightRecorderInit';
 
 const DiagSearchContext = createContext('');
 
@@ -785,7 +787,7 @@ function HelpContent() {
           chaining between stages.</li>
         <li><strong>Adaptive Staging</strong> — Seven convergence diagnostics (computed
           deterministically from the argument network) track debate health and trigger
-          phase transitions (thesis-antithesis → exploration → synthesis).</li>
+          phase transitions (confrontation → argumentation → concluding).</li>
         <li><strong>Dialectic Traces</strong> — Deterministic BFS traversal through the argument
           network produces human-readable narrative chains explaining why a position prevailed.</li>
         <li><strong>13-Scheme Taxonomy</strong> — Derived from Walton's argumentation schemes,
@@ -1485,11 +1487,12 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
 /** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.1, undermine: 1.2 };
 
-function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore }: {
+function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
   allNodes: ArgumentNetworkNode[];
+  allEdges?: ArgumentNetworkEdge[];
   isSource: boolean;
   computedStrength?: number;
   statementId?: string;
@@ -1503,6 +1506,10 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
   const responded = attacks.length > 0 || supports.length > 0;
   const hasChildren = attacks.length > 0 || supports.length > 0;
   const rowRef = useRef<HTMLDivElement>(null);
+  const attribution = useMemo(() => {
+    if (!expanded || !allEdges || allEdges.length === 0) return null;
+    return explainNodeStrength(allNodes, allEdges, node.id);
+  }, [expanded, allEdges, allNodes, node.id]);
   useEffect(() => {
     if (focused) rowRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [focused]);
@@ -1703,6 +1710,28 @@ function INodeRow({ node, attacks, supports, allNodes, isSource, computedStrengt
               </div>
             );
           })}
+          {/* Leave-one-out QBAF attribution */}
+          {attribution && attribution.attributions.length > 0 && (
+            <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(245,158,11,0.06)', borderRadius: 4, borderLeft: '2px solid rgba(245,158,11,0.4)' }}>
+              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f59e0b', marginBottom: 3 }}>QBAF Attribution (leave-one-out)</div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 4 }}>{attribution.summary}</div>
+              {attribution.attributions.slice(0, 6).map((a, i) => (
+                <div key={i} style={{ fontSize: '0.62rem', display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, fontWeight: i === 0 ? 700 : 400 }}>
+                  <span style={{ color: a.influence >= 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace', minWidth: 48, textAlign: 'right' }}>
+                    {a.influence >= 0 ? '+' : ''}{a.influence.toFixed(3)}
+                  </span>
+                  <span style={{ color: a.edgeType === 'attacks' ? '#ef4444' : '#22c55e' }}>
+                    {a.edgeType}{a.attackType ? ` (${a.attackType})` : ''}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}>from {a.sourceId}</span>
+                  {a.scheme && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>via {a.scheme}</span>}
+                </div>
+              ))}
+              {attribution.attributions.length > 6 && (
+                <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>...and {attribution.attributions.length - 6} more</div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2037,6 +2066,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
         {(!debate || showHelp) && <div style={{ flex: 1 }} />}
         <button
+          onClick={() => { triggerManualDump(); }}
+          title="Dump flight recorder to disk (Ctrl+Alt+D)"
+          style={{ background: 'none', color: '#ef4444', border: '1px solid #ef4444', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
+        >
+          Dump Log
+        </button>
+        <button
           onClick={() => setShowHelp(!showHelp)}
           style={{ background: showHelp ? '#f59e0b' : 'none', color: showHelp ? '#000' : '#f59e0b', border: '1px solid #f59e0b', borderRadius: 4, padding: '2px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}
         >
@@ -2220,7 +2256,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       <tbody>
                         {diag.phases.map((p, i) => (
                           <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: 4, fontWeight: 600, color: p.phase === 'thesis-antithesis' ? '#60a5fa' : p.phase === 'exploration' ? '#f59e0b' : '#34d399' }}>{p.phase}</td>
+                            <td style={{ padding: 4, fontWeight: 600, color: p.phase === 'confrontation' ? '#60a5fa' : p.phase === 'argumentation' ? '#f59e0b' : '#34d399' }}>{p.phase}</td>
                             <td style={{ padding: 4 }}>{p.rounds.length > 0 ? `${p.rounds[0]}–${p.rounds[p.rounds.length - 1]}` : '—'}</td>
                             <td style={{ padding: 4, color: 'var(--text-secondary)' }}>{p.exit_reason}</td>
                           </tr>
@@ -2255,7 +2291,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               background: t.predicate_result.action !== 'stay' ? 'rgba(245, 158, 11, 0.1)' : undefined,
                             }}>
                               <td style={{ padding: '2px 4px' }}>{t.round}</td>
-                              <td style={{ padding: '2px 4px', color: t.phase === 'thesis-antithesis' ? '#60a5fa' : t.phase === 'exploration' ? '#f59e0b' : '#34d399' }}>{t.phase.slice(0, 5)}</td>
+                              <td style={{ padding: '2px 4px', color: t.phase === 'confrontation' ? '#60a5fa' : t.phase === 'argumentation' ? '#f59e0b' : '#34d399' }}>{t.phase.slice(0, 5)}</td>
                               <td style={{ padding: '2px 4px' }}>{t.composite.saturation_score?.toFixed(2) ?? '—'}</td>
                               <td style={{ padding: '2px 4px' }}>{t.composite.convergence_score?.toFixed(2) ?? '—'}</td>
                               <td style={{ padding: '2px 4px', color: t.confidence.global < 0.4 ? '#ef4444' : undefined }}>{t.confidence.global.toFixed(2)}</td>
@@ -2540,6 +2576,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           attacks={attacks}
                           supports={supports}
                           allNodes={an.nodes}
+                          allEdges={an.edges}
                           isSource={isSource}
                           computedStrength={strengthMap.get(n.id)}
                           strengthMap={strengthMap}
@@ -2892,7 +2929,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'details', label: 'Overview', has: hasDetails, copy: '' },
               { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
               { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
-              { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : entry.content },
+              { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : (typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content, null, 2)) },
               { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
               { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
               { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
@@ -3448,10 +3485,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           <Highlight text={String((briefStage.work_product as Record<string, unknown>).phase_considerations)} />
                         </div>
                       )}
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={briefStage.prompt} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{briefStage.prompt}</pre>
                       </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={briefStage.raw_response} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{briefStage.raw_response}</pre>
                       </details>
                     </div>
@@ -3525,10 +3562,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={planStage.prompt} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{planStage.prompt}</pre>
                       </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={planStage.raw_response} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{planStage.raw_response}</pre>
                       </details>
                     </div>
@@ -3553,7 +3590,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {!draftStage && entry.content && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
                           <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                            <Highlight text={entry.content} />
+                            {typeof entry.content === 'string'
+                              ? <Highlight text={entry.content} />
+                              : <Highlight text={Array.isArray(entry.content)
+                                  ? (entry.content as unknown[]).map((item, i) => typeof item === 'string' ? item : (item as Record<string, unknown>)?.text ?? (item as Record<string, unknown>)?.content ?? JSON.stringify(item)).join('\n')
+                                  : JSON.stringify(entry.content, null, 2)} />}
                           </div>
                         </details>
                       )}
@@ -3680,10 +3721,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </details>
                       )}
                       {draftStage && (<>
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={draftStage.prompt} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.prompt}</pre>
                       </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={draftStage.raw_response} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.raw_response}</pre>
                       </details>
                       </>)}
@@ -3801,10 +3842,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           })()}
                         </details>
                       )}
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Prompt</summary>
+                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={citeStage.prompt} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{citeStage.prompt}</pre>
                       </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>Raw Response</summary>
+                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={citeStage.raw_response} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{citeStage.raw_response}</pre>
                       </details>
                     </div>

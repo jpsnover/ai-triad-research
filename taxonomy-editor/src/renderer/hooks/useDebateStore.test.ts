@@ -72,7 +72,7 @@ vi.mock('../prompts/debate', () => ({
   clarificationPrompt: vi.fn().mockReturnValue('mock-clarification-prompt'),
   situationClarificationPrompt: vi.fn().mockReturnValue('mock-sit-clarification-prompt'),
   documentClarificationPrompt: vi.fn().mockReturnValue('mock-doc-clarification-prompt'),
-  synthesisPrompt: vi.fn().mockReturnValue('mock-synthesis-prompt'),
+  concludingPrompt: vi.fn().mockReturnValue('mock-synthesis-prompt'),
   userSeedClaimsPrompt: vi.fn().mockReturnValue('mock-seed-prompt'),
   openingStatementPrompt: vi.fn().mockReturnValue('mock-opening-prompt'),
   debateResponsePrompt: vi.fn().mockReturnValue('mock-response-prompt'),

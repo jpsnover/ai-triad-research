@@ -1985,7 +1985,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       if (Array.isArray(raw)) {
         // For array fields (assumes, intellectual_lineage), match if any element contains the value
-        if (raw.some((v: string) => v.toLowerCase().includes(normalizedValue))) {
+        if (raw.some((v: unknown) => { const s = typeof v === 'string' ? v : (v as { name?: string })?.name ?? ''; return s.toLowerCase().includes(normalizedValue); })) {
           results.push({ id: nodeId, label: nodeLabel, pov });
         }
       } else {

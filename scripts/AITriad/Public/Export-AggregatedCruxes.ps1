@@ -72,7 +72,7 @@ function Export-AggregatedCruxes {
         # Synthesis cruxes from transcript
         if ($D.PSObject.Properties['transcript'] -and $D.transcript) {
             foreach ($Entry in @($D.transcript)) {
-                if ($Entry.type -ne 'synthesis') { continue }
+                if ($Entry.type -ne 'concluding' -and $Entry.type -ne 'synthesis') { continue }
                 if (-not $Entry.PSObject.Properties['metadata'] -or -not $Entry.metadata) { continue }
                 $Synth = $Entry.metadata
                 if (-not $Synth.PSObject.Properties['synthesis'] -or -not $Synth.synthesis) { continue }

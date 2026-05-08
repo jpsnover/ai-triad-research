@@ -82,7 +82,7 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
     const pts = signals.filter(s => s.speaker === spkr);
     return {
       speaker: spkr,
-      points: pts.map(p => `${x(p.round)},${H - PAD - p.move_disposition.ratio * (H - 2 * PAD)}`).join(' '),
+      points: pts.map(p => `${x(p.round)},${H - PAD - (p.move_disposition?.ratio ?? 0) * (H - 2 * PAD)}`).join(' '),
     };
   });
 
@@ -118,12 +118,12 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
   const speakers = [...new Set(signals.map(s => s.speaker))];
   const stats = speakers.map(spkr => {
     const spkrSignals = signals.filter(s => s.speaker === spkr);
-    const missedCount = spkrSignals.filter(s => s.concession_opportunity.outcome === 'missed').length;
-    const takenCount = spkrSignals.filter(s => s.concession_opportunity.outcome === 'taken').length;
+    const missedCount = spkrSignals.filter(s => s.concession_opportunity?.outcome === 'missed').length;
+    const takenCount = spkrSignals.filter(s => s.concession_opportunity?.outcome === 'taken').length;
     const opportunityCount = missedCount + takenCount;
-    const avgCollabRatio = spkrSignals.reduce((sum, s) => sum + s.move_disposition.ratio, 0) / (spkrSignals.length || 1);
-    const avgRecycling = spkrSignals.reduce((sum, s) => sum + Math.max(s.recycling_rate.max_self_overlap, s.recycling_rate.semantic_max_similarity ?? 0), 0) / (spkrSignals.length || 1);
-    const cruxTotal = spkrSignals.length > 0 ? spkrSignals[spkrSignals.length - 1].crux_rate.cumulative_count : 0;
+    const avgCollabRatio = spkrSignals.reduce((sum, s) => sum + (s.move_disposition?.ratio ?? 0), 0) / (spkrSignals.length || 1);
+    const avgRecycling = spkrSignals.reduce((sum, s) => sum + Math.max(s.recycling_rate?.max_self_overlap ?? 0, s.recycling_rate?.semantic_max_similarity ?? 0), 0) / (spkrSignals.length || 1);
+    const cruxTotal = spkrSignals.length > 0 ? spkrSignals[spkrSignals.length - 1].crux_rate?.cumulative_count ?? 0 : 0;
     return { speaker: spkr, missedCount, takenCount, opportunityCount, avgCollabRatio, avgRecycling, cruxTotal };
   });
 
@@ -276,28 +276,28 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                   {speakerLabel(sig.speaker)}
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <span style={{ color: '#ef4444' }}>{sig.move_disposition.confrontational}</span>
+                  <span style={{ color: '#ef4444' }}>{sig.move_disposition?.confrontational ?? 0}</span>
                   {' / '}
-                  <span style={{ color: '#22c55e' }}>{sig.move_disposition.collaborative}</span>
+                  <span style={{ color: '#22c55e' }}>{sig.move_disposition?.collaborative ?? 0}</span>
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <MiniBar value={sig.engagement_depth.ratio} max={1} color="#3b82f6" />
+                  <MiniBar value={sig.engagement_depth?.ratio ?? 0} max={1} color="#3b82f6" />
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   {(() => {
-                    const effective = Math.max(sig.recycling_rate.max_self_overlap, sig.recycling_rate.semantic_max_similarity ?? 0);
-                    return <MiniBar value={effective} max={1} color={sig.recycling_rate.semantically_recycled ? '#ef4444' : effective > 0.5 ? '#f59e0b' : '#22c55e'} />;
+                    const effective = Math.max(sig.recycling_rate?.max_self_overlap ?? 0, sig.recycling_rate?.semantic_max_similarity ?? 0);
+                    return <MiniBar value={effective} max={1} color={sig.recycling_rate?.semantically_recycled ? '#ef4444' : effective > 0.5 ? '#f59e0b' : '#22c55e'} />;
                   })()}
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <OutcomeBadge outcome={sig.concession_opportunity.outcome} />
+                  <OutcomeBadge outcome={sig.concession_opportunity?.outcome ?? 'none'} />
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  {pct(sig.position_delta.drift)}
+                  {pct(sig.position_delta?.drift ?? 0)}
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  {sig.crux_rate.used_this_turn ? '1' : '0'}
-                  <span style={{ color: 'var(--text-muted)' }}> ({sig.crux_rate.cumulative_count})</span>
+                  {sig.crux_rate?.used_this_turn ? '1' : '0'}
+                  <span style={{ color: 'var(--text-muted)' }}> ({sig.crux_rate?.cumulative_count ?? 0})</span>
                 </td>
               </tr>
             ))}
@@ -332,10 +332,10 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <div style={cell}>
                 <div style={lbl}>Polarity</div>
                 <div style={val}>
-                  <span style={{ color: '#ef4444' }}>{md.confrontational}C</span>{' / '}
-                  <span style={{ color: '#22c55e' }}>{md.collaborative}S</span>
-                  {' = '}<strong>{pct(md.ratio)}</strong>
-                  {md.ratio >= 0.5
+                  <span style={{ color: '#ef4444' }}>{md?.confrontational ?? 0}C</span>{' / '}
+                  <span style={{ color: '#22c55e' }}>{md?.collaborative ?? 0}S</span>
+                  {' = '}<strong>{pct(md?.ratio ?? 0)}</strong>
+                  {(md?.ratio ?? 0) >= 0.5
                     ? <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>cooperative</span>
                     : <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>confrontational</span>}
                 </div>
@@ -343,10 +343,10 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <div style={cell}>
                 <div style={lbl}>Dialectical Engagement</div>
                 <div style={val}>
-                  {ed.targeted}/{ed.targeted + ed.standalone} targeted = <strong>{pct(ed.ratio)}</strong>
-                  {ed.ratio >= 0.7
+                  {ed?.targeted ?? 0}/{(ed?.targeted ?? 0) + (ed?.standalone ?? 0)} targeted = <strong>{pct(ed?.ratio ?? 0)}</strong>
+                  {(ed?.ratio ?? 0) >= 0.7
                     ? <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>deep</span>
-                    : ed.ratio >= 0.4
+                    : (ed?.ratio ?? 0) >= 0.4
                       ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>moderate</span>
                       : <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>standalone</span>}
                 </div>
@@ -354,13 +354,13 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <div style={cell}>
                 <div style={lbl}>Argument Redundancy</div>
                 <div style={val}>
-                  avg <strong>{pct(rr.avg_self_overlap)}</strong>, max <strong>{pct(rr.max_self_overlap)}</strong>
-                  {rr.semantic_max_similarity != null && (
+                  avg <strong>{pct(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pct(rr?.max_self_overlap ?? 0)}</strong>
+                  {rr?.semantic_max_similarity != null && (
                     <>, sem <strong>{pct(rr.semantic_max_similarity)}</strong></>
                   )}
-                  {rr.semantically_recycled
+                  {rr?.semantically_recycled
                     ? <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>semantic repeat</span>
-                    : rr.max_self_overlap >= 0.5
+                    : (rr?.max_self_overlap ?? 0) >= 0.5
                       ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>repeating</span>
                       : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>fresh</span>}
                 </div>
@@ -369,10 +369,10 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                 <div style={lbl}>Dominant Counterargument</div>
                 <div style={val}>
                   {so ? (
-                    <>{so.node_id} str={so.strength.toFixed(2)} by {speakerLabel(so.attacker as SpeakerId)}
-                      {so.strength >= 0.7
+                    <>{so.node_id} str={(so.strength ?? 0).toFixed(2)} by {speakerLabel(so.attacker as SpeakerId)}
+                      {(so.strength ?? 0) >= 0.7
                         ? <span style={{ color: '#ef4444', marginLeft: 4, fontSize: '0.62rem' }}>strong</span>
-                        : so.strength >= 0.5
+                        : (so.strength ?? 0) >= 0.5
                           ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>moderate</span>
                           : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>weak</span>}
                     </>
@@ -382,16 +382,16 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <div style={cell}>
                 <div style={lbl}>Concession</div>
                 <div style={val}>
-                  {co.strong_attacks_faced} attacks, used: {co.concession_used ? 'Y' : 'N'} — <OutcomeBadge outcome={co.outcome} />
+                  {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} — <OutcomeBadge outcome={co?.outcome ?? 'none'} />
                 </div>
               </div>
               <div style={cell}>
                 <div style={lbl}>Position Drift</div>
                 <div style={val}>
-                  opening: <strong>{pct(pd.overlap_with_opening)}</strong>, drift: <strong>{pct(pd.drift)}</strong>
-                  {pd.overlap_with_opening >= 0.6
+                  opening: <strong>{pct(pd?.overlap_with_opening ?? 0)}</strong>, drift: <strong>{pct(pd?.drift ?? 0)}</strong>
+                  {(pd?.overlap_with_opening ?? 0) >= 0.6
                     ? <span style={{ color: '#f59e0b', marginLeft: 4, fontSize: '0.62rem' }}>anchored</span>
-                    : pd.overlap_with_opening < 0.3
+                    : (pd?.overlap_with_opening ?? 0) < 0.3
                       ? <span style={{ color: '#3b82f6', marginLeft: 4, fontSize: '0.62rem' }}>shifted</span>
                       : <span style={{ color: '#22c55e', marginLeft: 4, fontSize: '0.62rem' }}>evolved</span>}
                 </div>
@@ -399,11 +399,11 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
               <div style={{ ...cell, gridColumn: '1 / -1' }}>
                 <div style={lbl}>Crux Engagement</div>
                 <div style={val}>
-                  this turn: {cr.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr.cumulative_count} | follow-through: {cr.cumulative_follow_through}
-                  {cr.cumulative_count > 0 && cr.cumulative_follow_through === 0 && (
+                  this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr?.cumulative_count ?? 0} | follow-through: {cr?.cumulative_follow_through ?? 0}
+                  {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) === 0 && (
                     <span style={{ color: '#f59e0b', marginLeft: 6, fontSize: '0.62rem' }}>no follow-through</span>
                   )}
-                  {cr.cumulative_count > 0 && cr.cumulative_follow_through > 0 && (
+                  {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) > 0 && (
                     <span style={{ color: '#22c55e', marginLeft: 6, fontSize: '0.62rem' }}>resolving</span>
                   )}
                 </div>

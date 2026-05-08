@@ -10,6 +10,7 @@
 import { useState, useMemo } from 'react';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from '../types/debate';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import { explainNodeStrength } from '../utils/qbafExplain';
 
 // ── Colors & Constants ────────────────────────────────────
 
@@ -241,6 +242,11 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
   const outgoingEdges = edges.filter(e => e.source === node.id);
   const getNodeText = (id: string) => allNodes.find(n => n.id === id)?.text?.slice(0, 80) ?? id;
 
+  const explanation = useMemo(() => {
+    if (node.computed_strength == null || incomingEdges.length === 0) return null;
+    return explainNodeStrength(allNodes, edges, node.id);
+  }, [node.id, node.computed_strength, allNodes, edges, incomingEdges.length]);
+
   return (
     <div className="ag-detail-panel">
       <div className="ag-detail-header">
@@ -299,6 +305,34 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
               {e.weight != null && <span className="ag-detail-weight">w:{e.weight.toFixed(2)}</span>}
             </div>
           ))}
+        </div>
+      )}
+      {explanation && (
+        <div className="ag-detail-attribution">
+          <div className="ag-detail-explanation">{explanation.summary}</div>
+          {explanation.attributions.length > 0 && (
+            <div className="ag-detail-attr-list">
+              <strong>Edge attributions:</strong>
+              {explanation.attributions.map((a, i) => (
+                <div
+                  key={i}
+                  className="ag-detail-attr-row"
+                  style={{ fontWeight: i === 0 ? 700 : 400 }}
+                >
+                  <span style={{ color: a.influence >= 0 ? '#16a34a' : '#dc2626' }}>
+                    {a.influence >= 0 ? '+' : ''}{a.influence.toFixed(3)}
+                  </span>
+                  {' '}
+                  <span className="ag-detail-attr-type" style={{ color: a.edgeType === 'attacks' ? '#dc2626' : '#16a34a' }}>
+                    {a.edgeType}{a.attackType ? ` (${a.attackType})` : ''}
+                  </span>
+                  {' from '}
+                  <span className="ag-detail-attr-source">{a.sourceId}</span>
+                  {a.scheme && <span className="ag-detail-attr-scheme"> via {a.scheme}</span>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

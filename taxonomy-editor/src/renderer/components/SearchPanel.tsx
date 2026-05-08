@@ -247,12 +247,12 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     for (const pov of POV_KEYS) {
       const file = state[pov];
       if (file) for (const n of file.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) vals.add(l);
+        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) vals.add(s); }
       }
     }
     if (state.situations) {
       for (const n of state.situations.nodes) {
-        for (const l of n.graph_attributes?.intellectual_lineage ?? []) vals.add(l);
+        for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) vals.add(s); }
       }
     }
     return [...vals].sort();
