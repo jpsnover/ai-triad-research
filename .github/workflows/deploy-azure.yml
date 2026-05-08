@@ -156,7 +156,7 @@ jobs:
         id: new_revision
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          SUFFIX="deploy-${SHORT_SHA}"
+          SUFFIX="deploy-${SHORT_SHA}-$(date +%s | tail -c 5)"
           NEW_REV="${{ env.CONTAINER_APP_NAME }}--${SUFFIX}"
 
           # Deploy new revision — in Multiple mode it starts with 0% traffic
