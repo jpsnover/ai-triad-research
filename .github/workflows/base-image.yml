@@ -94,14 +94,6 @@ jobs:
           name: sbom-base
           path: sbom-base.spdx.json
 
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign image
-        env:
-          COSIGN_EXPERIMENTAL: '1'
-        run: cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-
       - name: Image size report
         if: success()
         run: docker images ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
