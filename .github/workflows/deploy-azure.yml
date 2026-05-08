@@ -287,12 +287,13 @@ jobs:
 
       - name: Trigger data-repo initialization
         if: inputs.enable_git_sync && steps.health_check.outputs.healthy == 'true'
+        continue-on-error: true
         run: |
           APP_URL="${{ steps.deploy.outputs.appUrl }}"
           echo "Triggering git data-repo init via ${APP_URL}/api/sync/init..."
-          RESULT=$(curl -s -X POST "${APP_URL}/api/sync/init" -H "Content-Type: application/json")
-          echo "$RESULT" | jq .
-          OK=$(echo "$RESULT" | jq -r '.ok // false')
+          RESULT=$(curl -s --max-time 15 --connect-timeout 5 -X POST "${APP_URL}/api/sync/init" -H "Content-Type: application/json")
+          echo "$RESULT" | jq . 2>/dev/null || echo "(non-JSON response: $RESULT)"
+          OK=$(echo "$RESULT" | jq -r '.ok // false' 2>/dev/null || echo "false")
           if [ "$OK" != "true" ]; then
             echo "::warning::Data-repo init returned ok=$OK — the app will retry on next restart"
           fi
