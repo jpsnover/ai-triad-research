@@ -37,7 +37,7 @@ import { needsGc, needsHardCap } from './networkGc.js';
 
 interface ProvisionalWeights {
   schema_version: number;
-  saturation: Record<string, number>;
+  argumentative_saturation: Record<string, number>;
   convergence: Record<string, number>;
   thresholds: Record<string, number>;
   phase_bounds: Record<string, number>;
@@ -62,8 +62,8 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
       const path = require('path') as typeof import('path');
 
       const candidates = [
-        debateDir ? path.join(debateDir, 'provisional-weights.json') : null,
-        path.resolve(__dirname, 'provisional-weights.json'),
+        debateDir ? path.join(debateDir, 'calibration-config.json') : null,
+        path.resolve(__dirname, 'calibration-config.json'),
       ].filter(Boolean) as string[];
 
       for (const p of candidates) {
@@ -82,7 +82,7 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
   // Hardcoded fallback — PROVISIONAL pending Phase 5 validation
   _cachedWeights = {
     schema_version: 1,
-    saturation: {
+    argumentative_saturation: {
       recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
       engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,
     },
@@ -189,19 +189,19 @@ export function buildSignalRegistry(): Signal[] {
     // Saturation signals (exploration exit)
     {
       id: 'recycling_pressure',
-      weight: w.saturation.recycling_pressure,
+      weight: w.argumentative_saturation.recycling_pressure,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
-        const lexical = ctx.convergenceSignals.recycling_rate.avg_self_overlap;
-        const semantic = ctx.convergenceSignals.recycling_rate.semantic_max_similarity;
+        const lexical = ctx.convergenceSignals.argument_redundancy.avg_self_overlap;
+        const semantic = ctx.convergenceSignals.argument_redundancy.semantic_max_similarity;
         if (semantic != null) return Math.max(lexical, semantic);
         return lexical;
       },
     },
     {
       id: 'crux_maturity',
-      weight: w.saturation.crux_maturity,
+      weight: w.argumentative_saturation.crux_maturity,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -241,7 +241,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'concession_plateau',
-      weight: w.saturation.concession_plateau,
+      weight: w.argumentative_saturation.concession_plateau,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -251,11 +251,11 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'engagement_fatigue',
-      weight: w.saturation.engagement_fatigue,
+      weight: w.argumentative_saturation.engagement_fatigue,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
-        const currentRatio = ctx.convergenceSignals.engagement_depth.ratio;
+        const currentRatio = ctx.convergenceSignals.dialectical_engagement.ratio;
         const peakRatio = ctx.priorSignals.get('_peak_engagement_ratio', 0) ?? currentRatio;
         if (peakRatio <= 0) return 0;
         return 1 - (currentRatio / peakRatio);
@@ -263,7 +263,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'pragmatic_convergence',
-      weight: w.saturation.pragmatic_convergence,
+      weight: w.argumentative_saturation.pragmatic_convergence,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -277,7 +277,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'scheme_stagnation',
-      weight: w.saturation.scheme_stagnation,
+      weight: w.argumentative_saturation.scheme_stagnation,
       enabled: true,
       maturity: 'v1-ship' as const,
       compute: (ctx: SignalContext) => {
@@ -304,7 +304,7 @@ export function buildSignalRegistry(): Signal[] {
     },
     {
       id: 'process_reward_trend',
-      weight: w.saturation.process_reward_trend ?? 0.10,
+      weight: w.argumentative_saturation.process_reward_trend ?? 0.10,
       enabled: true,
       maturity: 'post-validation' as const,
       compute: (ctx: SignalContext) => {
@@ -373,7 +373,7 @@ export function computeConvergenceScore(ctx: SignalContext, coldStart: boolean):
   qbafAgreementDensity = Math.min(1, qbafAgreementDensity / Math.max(1, ctx.transcript.activePovsCount));
 
   // Position stability
-  const positionStability = 1 - ctx.convergenceSignals.position_delta.drift;
+  const positionStability = 1 - ctx.convergenceSignals.position_drift.drift;
 
   // Irreducible disagreement ratio
   const recentCrossPovEdges = ctx.network.edges.filter(e => {
@@ -536,7 +536,7 @@ export function evaluatePhaseTransition(
   const activeScore = state.current_phase === 'synthesis' ? convScore : satScore;
   const stabilityConf = computeStabilityConfidence(
     activeScore,
-    ctx.priorSignals.movingAverage(state.current_phase === 'synthesis' ? '_convergence_score' : '_saturation_score', 3),
+    ctx.priorSignals.movingAverage(state.current_phase === 'synthesis' ? '_convergence_score' : '_argumentative_saturation_score', 3),
     state.rounds_in_phase,
   );
 
@@ -617,7 +617,7 @@ function evaluateExplorationExit(
   const pb = w.phase_bounds;
   const components: Record<string, number> = {
     rounds_in_phase: state.rounds_in_phase,
-    saturation_score: satScore,
+    argumentative_saturation_score: satScore,
     threshold: state.exploration_exit_threshold,
   };
 
@@ -637,10 +637,10 @@ function evaluateExplorationExit(
   }
 
   // "Debate is dead" force — use semantic similarity when available, fallback to lexical
-  const lexicalRecycling = ctx.convergenceSignals.recycling_rate.avg_self_overlap;
-  const semanticRecycling = ctx.convergenceSignals.recycling_rate.semantic_max_similarity;
+  const lexicalRecycling = ctx.convergenceSignals.argument_redundancy.avg_self_overlap;
+  const semanticRecycling = ctx.convergenceSignals.argument_redundancy.semantic_max_similarity;
   const recyclingPressure = semanticRecycling != null ? Math.max(lexicalRecycling, semanticRecycling) : lexicalRecycling;
-  const engagementFatigue = 1 - (ctx.convergenceSignals.engagement_depth.ratio / Math.max(0.01, ctx.priorSignals.get('_peak_engagement_ratio', 0) ?? ctx.convergenceSignals.engagement_depth.ratio));
+  const engagementFatigue = 1 - (ctx.convergenceSignals.dialectical_engagement.ratio / Math.max(0.01, ctx.priorSignals.get('_peak_engagement_ratio', 0) ?? ctx.convergenceSignals.dialectical_engagement.ratio));
   components.recycling_pressure = recyclingPressure;
   components.engagement_fatigue = Math.max(0, engagementFatigue);
   if (recyclingPressure > 0.8 && engagementFatigue > 0.8) {
@@ -700,8 +700,8 @@ function evaluateSynthesisExit(
   const convDelta = priorConv !== null ? Math.abs(convScore - priorConv) : 1;
   components.convergence_delta = convDelta;
   const synthRecycling = Math.max(
-    ctx.convergenceSignals.recycling_rate.avg_self_overlap,
-    ctx.convergenceSignals.recycling_rate.semantic_max_similarity ?? 0,
+    ctx.convergenceSignals.argument_redundancy.avg_self_overlap,
+    ctx.convergenceSignals.argument_redundancy.semantic_max_similarity ?? 0,
   );
   if (convDelta < 0.05 && synthRecycling > 0.5) {
     const priorPriorConv = ctx.priorSignals.get('_convergence_score', 2);
@@ -887,7 +887,7 @@ export function buildSignalTelemetry(
     phase: state.current_phase,
     signals: signalValues,
     composite: {
-      saturation_score: state.current_phase !== 'synthesis' ? satScore : null,
+      argumentative_saturation_score: state.current_phase !== 'synthesis' ? satScore : null,
       convergence_score: state.current_phase === 'synthesis' ? convScore : null,
     },
     confidence: { extraction: extractionConf, stability: stabilityConf, global: globalConf },

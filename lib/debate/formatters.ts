@@ -6,7 +6,7 @@
  * Slug generation, Markdown export, diagnostics/harvest output builders.
  */
 
-import type { DebateSession, PoverId, TranscriptEntry } from './types.js';
+import type { DebateSession, SpeakerId, TranscriptEntry } from './types.js';
 import { POVER_INFO } from './types.js';
 import {
   extractConflictCandidates,
@@ -53,7 +53,7 @@ export function generateSlug(text: string, maxLength: number = 60): string {
 function speakerLabel(speaker: string): string {
   if (speaker === 'user') return 'Moderator';
   if (speaker === 'system') return 'System';
-  const info = POVER_INFO[speaker as Exclude<PoverId, 'user'>];
+  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
   return info ? `${info.label} (${info.pov})` : speaker;
 }
 
@@ -163,7 +163,7 @@ export function formatDebateMarkdown(session: DebateSession): string {
         lines.push('### Areas of Agreement');
         lines.push('');
         for (const a of agreements) {
-          const povers = a.povers?.map(p => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label ?? p).join(', ') ?? '';
+          const povers = a.povers?.map(p => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label ?? p).join(', ') ?? '';
           lines.push(`- ${a.point}${povers ? ` (${povers})` : ''}`);
         }
         lines.push('');
@@ -179,7 +179,7 @@ export function formatDebateMarkdown(session: DebateSession): string {
           const bdiTag = d.bdi_layer ? ` {${d.bdi_layer}}` : '';
           lines.push(`- **${d.point}**${typeTag}${bdiTag}`);
           for (const pos of d.positions ?? []) {
-            const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label ?? pos.pover;
+            const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label ?? pos.pover;
             lines.push(`  - **${label}:** ${pos.stance}`);
           }
           if (d.resolvability) {

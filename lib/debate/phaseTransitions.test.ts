@@ -89,9 +89,9 @@ function makeSignalContext(overrides: Partial<SignalContext> = {}): SignalContex
       movingAverage: (_signalId: string, _window: number) => null,
     },
     convergenceSignals: {
-      recycling_rate: { avg_self_overlap: 0.2, semantic_max_similarity: 0.3 },
-      engagement_depth: { ratio: 0.8 },
-      position_delta: { drift: 0.2 },
+      argument_redundancy: { avg_self_overlap: 0.2, semantic_max_similarity: 0.3 },
+      dialectical_engagement: { ratio: 0.8 },
+      position_drift: { drift: 0.2 },
       concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
     },
     processRewards: [],
@@ -157,7 +157,7 @@ describe('loadProvisionalWeights', () => {
 
   it('saturation weights sum to 1.0', () => {
     const w = loadProvisionalWeights();
-    const sum = Object.values(w.saturation).reduce((a, b) => a + b, 0);
+    const sum = Object.values(w.argumentative_saturation).reduce((a, b) => a + b, 0);
     expect(sum).toBeCloseTo(1.0, 5);
   });
 
@@ -345,7 +345,7 @@ describe('buildSignalRegistry', () => {
     const signals = buildSignalRegistry();
     const w = loadProvisionalWeights();
     for (const sig of signals) {
-      const configuredWeight = w.saturation[sig.id];
+      const configuredWeight = w.argumentative_saturation[sig.id];
       if (configuredWeight != null) {
         expect(sig.weight).toBe(configuredWeight);
       } else {
@@ -436,17 +436,17 @@ describe('computeConvergenceScore', () => {
     // Low drift = high stability = higher convergence
     const ctxLowDrift = makeSignalContext({
       convergenceSignals: {
-        recycling_rate: { avg_self_overlap: 0, semantic_max_similarity: 0 },
-        engagement_depth: { ratio: 1 },
-        position_delta: { drift: 0.0 },
+        argument_redundancy: { avg_self_overlap: 0, semantic_max_similarity: 0 },
+        dialectical_engagement: { ratio: 1 },
+        position_drift: { drift: 0.0 },
         concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
       },
     });
     const ctxHighDrift = makeSignalContext({
       convergenceSignals: {
-        recycling_rate: { avg_self_overlap: 0, semantic_max_similarity: 0 },
-        engagement_depth: { ratio: 1 },
-        position_delta: { drift: 0.9 },
+        argument_redundancy: { avg_self_overlap: 0, semantic_max_similarity: 0 },
+        dialectical_engagement: { ratio: 1 },
+        position_drift: { drift: 0.9 },
         concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
       },
     });
@@ -778,9 +778,9 @@ describe('evaluatePhaseTransition', () => {
       const state = makePhaseState({ current_phase: 'exploration', rounds_in_phase: 3 });
       const ctx = makeSignalContext({
         convergenceSignals: {
-          recycling_rate: { avg_self_overlap: 0.85, semantic_max_similarity: 0.9 },
-          engagement_depth: { ratio: 0.1 }, // very low current ratio
-          position_delta: { drift: 0.2 },
+          argument_redundancy: { avg_self_overlap: 0.85, semantic_max_similarity: 0.9 },
+          dialectical_engagement: { ratio: 0.1 }, // very low current ratio
+          position_drift: { drift: 0.2 },
           concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
         },
         priorSignals: {
@@ -921,9 +921,9 @@ describe('evaluatePhaseTransition', () => {
           movingAverage: () => 0.5,
         },
         convergenceSignals: {
-          recycling_rate: { avg_self_overlap: 0.1, semantic_max_similarity: 0.1 },
-          engagement_depth: { ratio: 0.8 },
-          position_delta: { drift: 0.2 },
+          argument_redundancy: { avg_self_overlap: 0.1, semantic_max_similarity: 0.1 },
+          dialectical_engagement: { ratio: 0.8 },
+          position_drift: { drift: 0.2 },
           concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
         },
       });
@@ -968,9 +968,9 @@ describe('evaluatePhaseTransition', () => {
           movingAverage: () => 0.5,
         },
         convergenceSignals: {
-          recycling_rate: { avg_self_overlap: 0.1, semantic_max_similarity: 0.1 },
-          engagement_depth: { ratio: 0.8 },
-          position_delta: { drift: 0.2 },
+          argument_redundancy: { avg_self_overlap: 0.1, semantic_max_similarity: 0.1 },
+          dialectical_engagement: { ratio: 0.8 },
+          position_drift: { drift: 0.2 },
           concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
         },
       });
@@ -1200,7 +1200,7 @@ describe('buildSignalTelemetry', () => {
     expect(record.network_size).toBe(10);
   });
 
-  it('fills saturation_score for non-synthesis phase', () => {
+  it('fills argumentative_saturation_score for non-synthesis phase', () => {
     const state = makePhaseState({ current_phase: 'exploration' });
     const ctx = makeSignalContext();
     const signals = buildSignalRegistry();
@@ -1209,7 +1209,7 @@ describe('buildSignalTelemetry', () => {
       confidence_deferred: false, components: {},
     };
     const record = buildSignalTelemetry(state, ctx, signals, result, 0.5, 50);
-    expect(record.composite.saturation_score).not.toBeNull();
+    expect(record.composite.argumentative_saturation_score).not.toBeNull();
     expect(record.composite.convergence_score).toBeNull();
   });
 
@@ -1234,7 +1234,7 @@ describe('buildSignalTelemetry', () => {
     };
     const record = buildSignalTelemetry(state, ctx, signals, result, 0.5, 50);
     expect(record.composite.convergence_score).not.toBeNull();
-    expect(record.composite.saturation_score).toBeNull();
+    expect(record.composite.argumentative_saturation_score).toBeNull();
   });
 
   it('records signal values for each enabled signal', () => {

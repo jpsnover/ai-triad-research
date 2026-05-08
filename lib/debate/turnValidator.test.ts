@@ -9,7 +9,7 @@ import type {
   TranscriptEntry,
   TurnValidationConfig,
   DebatePhase,
-  PoverId,
+  SpeakerId,
   DebateAudience,
   ModeratorIntervention,
 } from './types.js';
@@ -69,7 +69,7 @@ function makeParams(overrides: Partial<ValidateTurnParams> = {}): ValidateTurnPa
       policy_refs: ['pol-001'],
     },
     phase: 'exploration' as DebatePhase,
-    speaker: 'prometheus' as PoverId,
+    speaker: 'prometheus' as SpeakerId,
     round: 3,
     priorTurns: [],
     recentTurns: [],

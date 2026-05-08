@@ -6,7 +6,7 @@
  * validate AI-generated descriptions, and prepare items for user review.
  */
 
-import type { DebateSession, TranscriptEntry, PoverId } from './types.js';
+import type { DebateSession, TranscriptEntry, SpeakerId } from './types.js';
 import { POVER_INFO } from './types.js';
 import { nodePovFromId } from './nodeIdUtils.js';
 
@@ -359,7 +359,7 @@ export function extractConceptCandidates(
     // Skip very short claims
     if (node.text.length < 30) continue;
 
-    const speakerLabel = POVER_INFO[node.speaker as Exclude<PoverId, 'user'>]?.label || node.speaker;
+    const speakerLabel = POVER_INFO[node.speaker as Exclude<SpeakerId, 'user'>]?.label || node.speaker;
     const speakerPov = POV_FOR_POVER[node.speaker] || 'situations';
 
     candidates.push({

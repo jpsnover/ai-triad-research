@@ -343,7 +343,7 @@ describe('generateFactCheckComments', () => {
     const session = makeSession({
       transcript: [makeEntry()],
       argument_network: {
-        nodes: [makeAnNode({ verification_status: 'verified', scoring_method: 'ai_rubric' })],
+        nodes: [makeAnNode({ verification_status: 'verified', scoring_method: 'bdi_criteria' })],
         edges: [],
       },
     });

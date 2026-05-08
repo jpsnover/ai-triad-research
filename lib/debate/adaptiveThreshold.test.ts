@@ -31,7 +31,7 @@ function makeState(overrides: Partial<AdaptiveState> = {}): AdaptiveState {
 }
 
 function makeWeightsFile(dir: string, overrides: Record<string, unknown> = {}): string {
-  const weightsPath = path.join(dir, 'provisional-weights.json');
+  const weightsPath = path.join(dir, 'calibration-config.json');
   const weights = {
     schema_version: 1,
     relevance: {

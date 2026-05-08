@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
+export type SpeakerId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
 
 /**
  * Progressive debate phases — each phase has different goals and instruction sets.
@@ -93,9 +93,9 @@ export interface SignalContext {
   };
 
   convergenceSignals: {
-    recycling_rate: { avg_self_overlap: number; semantic_max_similarity?: number };
-    engagement_depth: { ratio: number };
-    position_delta: { drift: number };
+    argument_redundancy: { avg_self_overlap: number; semantic_max_similarity?: number };
+    dialectical_engagement: { ratio: number };
+    position_drift: { drift: number };
     concession_opportunity: { outcome: string; strong_attacks_faced: number };
   };
 
@@ -152,7 +152,7 @@ export interface SignalTelemetryRecord {
   round: number;
   phase: DebatePhase;
   signals: Record<string, number>;
-  composite: { saturation_score: number | null; convergence_score: number | null };
+  composite: { argumentative_saturation_score: number | null; convergence_score: number | null };
   confidence: { extraction: number; stability: number; global: number };
   predicate_result: PredicateResult;
   phase_progress: number;
@@ -243,13 +243,13 @@ export interface TranscriptEntry {
     | 'reflection'
     | 'system'
     | 'intervention';
-  speaker: PoverId | 'system' | 'moderator';
+  speaker: SpeakerId | 'system' | 'moderator';
   content: string;
   taxonomy_refs: TaxonomyRef[];
   /** Pre-CQ: bare string IDs. Post-CQ: objects with relevance. Check typeof. */
   policy_refs?: (string | { policy_id: string; relevance: string })[];
   metadata?: Record<string, unknown>;
-  addressing?: PoverId | 'all';
+  addressing?: SpeakerId | 'all';
   /** Cached AI-generated summaries at different detail tiers (DT-2). */
   summaries?: {
     brief: string;   // 2-3 sentences: core claim + strongest reasoning
@@ -396,7 +396,7 @@ export interface DebateSession {
   source_ref: string;
   /** For document/url: the loaded text content for prompt injection */
   source_content: string;
-  active_povers: PoverId[];
+  active_povers: SpeakerId[];
   user_is_pover: boolean;
   transcript: TranscriptEntry[];
   context_summaries: ContextSummary[];
@@ -536,18 +536,18 @@ export interface PerturbationResult {
 export interface ConvergenceSignals {
   entry_id: string;
   round: number;
-  speaker: PoverId;
-  move_disposition: {
+  speaker: SpeakerId;
+  move_polarity: {
     confrontational: number;
     collaborative: number;
     ratio: number;
   };
-  engagement_depth: {
+  dialectical_engagement: {
     targeted: number;
     standalone: number;
     ratio: number;
   };
-  recycling_rate: {
+  argument_redundancy: {
     avg_self_overlap: number;
     max_self_overlap: number;
     /** Peak cosine similarity between this turn's embedding and any prior turn by the same speaker. Absent when embeddings unavailable. */
@@ -555,7 +555,7 @@ export interface ConvergenceSignals {
     /** True when semantic_max_similarity exceeds the recycling threshold (default 0.85). */
     semantically_recycled?: boolean;
   };
-  strongest_opposing: {
+  dominant_counterargument: {
     node_id: string;
     strength: number;
     attacker: string;
@@ -566,11 +566,11 @@ export interface ConvergenceSignals {
     concession_used: boolean;
     outcome: 'taken' | 'missed' | 'none';
   };
-  position_delta: {
+  position_drift: {
     overlap_with_opening: number;
     drift: number;
   };
-  crux_rate: {
+  crux_engagement_rate: {
     used_this_turn: boolean;
     cumulative_count: number;
     cumulative_follow_through: number;
@@ -590,7 +590,7 @@ export interface ConvergenceSignals {
 export interface ProcessRewardEntry {
   entry_id: string;
   round: number;
-  speaker: PoverId;
+  speaker: SpeakerId;
   phase: DebatePhase;
   /** Composite process reward in [0,1]. Higher = better turn quality. */
   score: number;
@@ -728,7 +728,7 @@ export interface DocumentAnalysis {
 export interface ArgumentNetworkNode {
   id: string;
   text: string;
-  speaker: PoverId | 'system' | 'document';
+  speaker: SpeakerId | 'system' | 'document';
   source_entry_id: string;
   taxonomy_refs: string[];
   turn_number: number;
@@ -738,8 +738,8 @@ export interface ArgumentNetworkNode {
   base_strength?: number;
   /** QBAF: Post-propagation acceptability via gradual semantics (0-1). Absent in pre-QBAF debates. */
   computed_strength?: number;
-  /** QBAF: How the base_strength was determined. 'ai_rubric' for AI-scored D/I claims, 'human' for user-assigned, 'default_pending' for unscored Beliefs (default 0.5), 'fact_check' for Beliefs scored by retrieval-augmented verification, 'bdi_composite' for Desires/Intentions scored by sub-score composite. */
-  scoring_method?: 'ai_rubric' | 'human' | 'default_pending' | 'fact_check' | 'bdi_composite';
+  /** QBAF: How the base_strength was determined. 'bdi_criteria' for AI-scored D/I claims, 'human' for user-assigned, 'unscored' for unscored Beliefs (default 0.5), 'fact_check' for Beliefs scored by retrieval-augmented verification, 'bdi_composite' for Desires/Intentions scored by sub-score composite. */
+  scoring_method?: 'bdi_criteria' | 'human' | 'unscored' | 'fact_check' | 'bdi_composite';
   /** Per-BDI-criterion sub-scores from claim extraction. Absent in pre-BDI-separation debates. */
   bdi_sub_scores?: BdiSubScores;
   /** Q-0 calibration confidence for this BDI category (Beliefs: 0.3, Desires: 0.65, Intentions: 0.71). */
@@ -748,7 +748,7 @@ export interface ArgumentNetworkNode {
   bdi_category?: 'belief' | 'desire' | 'intention';
   /** Claim specificity — precise Belief claims are auto-fact-checked. */
   specificity?: 'precise' | 'general' | 'abstract';
-  /** If this claim is a steelman of an opponent's position, the opponent's PoverId. */
+  /** If this claim is a steelman of an opponent's position, the opponent's SpeakerId. */
   steelman_of?: string;
   /** Inline verification status from web search (Intervention 2). */
   verification_status?: 'verified' | 'disputed' | 'unverifiable' | 'pending';
@@ -989,7 +989,7 @@ export interface OpeningPipelineResult {
 export interface ClaimExtractionTrace {
   entry_id: string;
   round: number;
-  speaker: PoverId;
+  speaker: SpeakerId;
 
   /** Lifecycle outcome for the extraction call. */
   status:
@@ -1118,7 +1118,7 @@ export interface FactCheckResult {
 export interface ArgumentAttack {
   claim_id: string;
   claim: string;
-  claimant: PoverId | string;
+  claimant: SpeakerId | string;
   attack_type: 'rebut' | 'undercut' | 'undermine';
   scheme?: DialecticalScheme;
 }
@@ -1135,7 +1135,7 @@ export interface SupportLink {
 export interface ArgumentClaim {
   claim_id: string;
   claim: string;
-  claimant: PoverId | string;
+  claimant: SpeakerId | string;
   type?: 'empirical' | 'normative' | 'definitional';
   /** Pre-P4: string[]. Post-P4: SupportLink[]. Check typeof [0]. */
   supported_by?: (string | SupportLink)[];
@@ -1143,10 +1143,10 @@ export interface ArgumentClaim {
 }
 
 export interface SynthesisResult {
-  areas_of_agreement: { point: string; povers: PoverId[] }[];
+  areas_of_agreement: { point: string; povers: SpeakerId[] }[];
   areas_of_disagreement: {
     point: string;
-    positions: { pover: PoverId; stance: string }[];
+    positions: { pover: SpeakerId; stance: string }[];
     /** BDI layer classification — added in dolce-phase-1. Absent in older debates. */
     bdi_layer?: 'belief' | 'desire' | 'intention';
     /** How this disagreement could be resolved — added in dolce-phase-1. Absent in older debates. */
@@ -1174,7 +1174,7 @@ export interface SynthesisCrux {
   resolution_status?: 'resolved' | 'irreducible' | 'active';
   resolution_evidence?: string;
   /** Which debaters are involved in this crux. */
-  speakers?: PoverId[];
+  speakers?: SpeakerId[];
 }
 
 // ── Cross-debate crux aggregation types ──────────────
@@ -1228,7 +1228,7 @@ export interface PolicyImplication {
 }
 
 /** POVer display metadata */
-export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
+export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
   label: string;
   pov: string;
   color: string;
@@ -1274,7 +1274,7 @@ export const POVER_INFO: Record<Exclude<PoverId, 'user'>, {
 };
 
 /** The three AI debater IDs (excludes 'user'). Single source of truth — use instead of literal arrays. */
-export const AI_POVERS = ['prometheus', 'sentinel', 'cassandra'] as const satisfies readonly Exclude<PoverId, 'user'>[];
+export const AI_POVERS = ['prometheus', 'sentinel', 'cassandra'] as const satisfies readonly Exclude<SpeakerId, 'user'>[];
 
 /** The three taxonomy POV keys. Single source of truth — use instead of literal arrays. */
 export const POV_KEYS = ['accelerationist', 'safetyist', 'skeptic'] as const;
@@ -1435,7 +1435,7 @@ export interface InterventionMetadata {
   move: InterventionMove;
   force: InteractionalForce;
   burden: number;
-  target_debater: PoverId;
+  target_debater: SpeakerId;
   trigger_reason: string;
   source_evidence: {
     signal?: string;
@@ -1452,7 +1452,7 @@ export interface ModeratorIntervention {
   move: InterventionMove;
   force: InteractionalForce;
   burden: number;
-  target_debater: PoverId;
+  target_debater: SpeakerId;
   text: string;
   original_claim_text?: string;
   trigger_reason: string;
@@ -1466,14 +1466,14 @@ export interface ModeratorIntervention {
 }
 
 export interface SelectionResult {
-  responder: PoverId;
-  addressing: PoverId | 'general';
+  responder: SpeakerId;
+  addressing: SpeakerId | 'general';
   focus_point: string;
   agreement_detected: boolean;
   metaphor_reframe?: string;
   intervene: boolean;
   suggested_move?: InterventionMove;
-  target_debater?: PoverId;
+  target_debater?: SpeakerId;
   trigger_reasoning?: string;
   trigger_evidence?: {
     signal_name: string;
@@ -1487,7 +1487,7 @@ export interface EngineValidationResult {
   proceed: boolean;
   validated_move: InterventionMove;
   validated_family: InterventionFamily;
-  validated_target: PoverId;
+  validated_target: SpeakerId;
   suppressed_reason?: 'budget_exhausted' | 'cooldown_active' | 'phase_mismatch'
     | 'same_debater_consecutive' | 'prerequisite_override' | 'burden_cap'
     | 'engine_override';
@@ -1513,7 +1513,7 @@ export interface ModeratorState {
   budget_remaining: number;
   rounds_since_last_intervention: number;
   required_gap: number;
-  last_target: PoverId | null;
+  last_target: SpeakerId | null;
   last_family: InterventionFamily | null;
 
   burden_per_debater: Record<string, number>;
@@ -1537,7 +1537,7 @@ export interface ModeratorState {
     round: number;
     move: InterventionMove;
     family: InterventionFamily;
-    target: PoverId;
+    target: SpeakerId;
     burden: number;
   }[];
 

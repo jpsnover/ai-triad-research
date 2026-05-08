@@ -16,13 +16,13 @@ function makeConvergenceSignals(overrides: Partial<ConvergenceSignals> = {}): Co
     entry_id: 'entry-1',
     round: 3,
     speaker: 'prometheus',
-    move_disposition: { confrontational: 1, collaborative: 1, ratio: 0.5 },
-    engagement_depth: { targeted: 2, standalone: 1, ratio: 0.67 },
-    recycling_rate: { avg_self_overlap: 0.2, max_self_overlap: 0.3 },
-    strongest_opposing: null,
+    move_polarity: { confrontational: 1, collaborative: 1, ratio: 0.5 },
+    dialectical_engagement: { targeted: 2, standalone: 1, ratio: 0.67 },
+    argument_redundancy: { avg_self_overlap: 0.2, max_self_overlap: 0.3 },
+    dominant_counterargument: null,
     concession_opportunity: { strong_attacks_faced: 0, concession_used: false, outcome: 'none' },
-    position_delta: { overlap_with_opening: 0.6, drift: 0.1 },
-    crux_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
+    position_drift: { overlap_with_opening: 0.6, drift: 0.1 },
+    crux_engagement_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
     ...overrides,
   };
 }
@@ -86,10 +86,10 @@ describe('computeProcessReward', () => {
 
   it('rewards high engagement depth', () => {
     const high = computeProcessReward(makeInput({
-      convergenceSignals: makeConvergenceSignals({ engagement_depth: { targeted: 4, standalone: 0, ratio: 1.0 } }),
+      convergenceSignals: makeConvergenceSignals({ dialectical_engagement: { targeted: 4, standalone: 0, ratio: 1.0 } }),
     }));
     const low = computeProcessReward(makeInput({
-      convergenceSignals: makeConvergenceSignals({ engagement_depth: { targeted: 0, standalone: 4, ratio: 0.0 } }),
+      convergenceSignals: makeConvergenceSignals({ dialectical_engagement: { targeted: 0, standalone: 4, ratio: 0.0 } }),
     }));
     expect(high.components.engagement).toBeGreaterThan(low.components.engagement);
     expect(high.score).toBeGreaterThan(low.score);
@@ -99,10 +99,10 @@ describe('computeProcessReward', () => {
 
   it('rewards low recycling rate (high novelty)', () => {
     const novel = computeProcessReward(makeInput({
-      convergenceSignals: makeConvergenceSignals({ recycling_rate: { avg_self_overlap: 0.1, max_self_overlap: 0.2 } }),
+      convergenceSignals: makeConvergenceSignals({ argument_redundancy: { avg_self_overlap: 0.1, max_self_overlap: 0.2 } }),
     }));
     const recycled = computeProcessReward(makeInput({
-      convergenceSignals: makeConvergenceSignals({ recycling_rate: { avg_self_overlap: 0.9, max_self_overlap: 0.95 } }),
+      convergenceSignals: makeConvergenceSignals({ argument_redundancy: { avg_self_overlap: 0.9, max_self_overlap: 0.95 } }),
     }));
     expect(novel.components.novelty).toBeGreaterThan(recycled.components.novelty);
   });
@@ -110,7 +110,7 @@ describe('computeProcessReward', () => {
   it('uses semantic similarity when available', () => {
     const withSemantic = computeProcessReward(makeInput({
       convergenceSignals: makeConvergenceSignals({
-        recycling_rate: { avg_self_overlap: 0.2, max_self_overlap: 0.3, semantic_max_similarity: 0.9 },
+        argument_redundancy: { avg_self_overlap: 0.2, max_self_overlap: 0.3, semantic_max_similarity: 0.9 },
       }),
     }));
     // semantic_max_similarity=0.9 → novelty = 1-0.9 = 0.1
@@ -191,15 +191,15 @@ describe('computeProcessReward', () => {
     const confrontational = computeProcessReward(makeInput({
       phase: 'thesis-antithesis',
       convergenceSignals: makeConvergenceSignals({
-        move_disposition: { confrontational: 3, collaborative: 0, ratio: 0.0 },
-        engagement_depth: { targeted: 3, standalone: 0, ratio: 1.0 },
+        move_polarity: { confrontational: 3, collaborative: 0, ratio: 0.0 },
+        dialectical_engagement: { targeted: 3, standalone: 0, ratio: 1.0 },
       }),
     }));
     const collaborative = computeProcessReward(makeInput({
       phase: 'thesis-antithesis',
       convergenceSignals: makeConvergenceSignals({
-        move_disposition: { confrontational: 0, collaborative: 3, ratio: 1.0 },
-        engagement_depth: { targeted: 3, standalone: 0, ratio: 1.0 },
+        move_polarity: { confrontational: 0, collaborative: 3, ratio: 1.0 },
+        dialectical_engagement: { targeted: 3, standalone: 0, ratio: 1.0 },
       }),
     }));
     expect(confrontational.components.move_quality).toBeGreaterThan(collaborative.components.move_quality);
@@ -209,13 +209,13 @@ describe('computeProcessReward', () => {
     const crux = computeProcessReward(makeInput({
       phase: 'exploration',
       convergenceSignals: makeConvergenceSignals({
-        crux_rate: { used_this_turn: true, cumulative_count: 1, cumulative_follow_through: 0 },
+        crux_engagement_rate: { used_this_turn: true, cumulative_count: 1, cumulative_follow_through: 0 },
       }),
     }));
     const noCrux = computeProcessReward(makeInput({
       phase: 'exploration',
       convergenceSignals: makeConvergenceSignals({
-        crux_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
+        crux_engagement_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
       }),
     }));
     expect(crux.components.move_quality).toBeGreaterThan(noCrux.components.move_quality);
@@ -225,7 +225,7 @@ describe('computeProcessReward', () => {
     const goodSynthesis = computeProcessReward(makeInput({
       phase: 'synthesis',
       convergenceSignals: makeConvergenceSignals({
-        move_disposition: { confrontational: 0, collaborative: 3, ratio: 1.0 },
+        move_polarity: { confrontational: 0, collaborative: 3, ratio: 1.0 },
       }),
       turnValidation: makeValidation({
         clarifies_taxonomy: [{ action: 'narrow', node_id: 'acc-beliefs-001', rationale: 'test' }],
@@ -234,7 +234,7 @@ describe('computeProcessReward', () => {
     const poorSynthesis = computeProcessReward(makeInput({
       phase: 'synthesis',
       convergenceSignals: makeConvergenceSignals({
-        move_disposition: { confrontational: 3, collaborative: 0, ratio: 0.0 },
+        move_polarity: { confrontational: 3, collaborative: 0, ratio: 0.0 },
       }),
     }));
     expect(goodSynthesis.components.move_quality).toBeGreaterThan(poorSynthesis.components.move_quality);

@@ -15,7 +15,7 @@ import { createCLIAdapter } from './aiAdapter.js';
 import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts, loadVocabulary } from './taxonomyLoader.js';
 import { DebateEngine } from './debateEngine.js';
 import type { DebateConfig } from './debateEngine.js';
-import type { DebateSourceType, PoverId, DebateAudience } from './types.js';
+import type { DebateSourceType, SpeakerId, DebateAudience } from './types.js';
 import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types.js';
 import { formatSituationDebateContext } from './prompts.js';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
@@ -275,7 +275,7 @@ async function main(): Promise<void> {
   });
 
   // Validate debaters
-  const activePovers = (config.activePovers ?? ['prometheus', 'sentinel', 'cassandra']) as Exclude<PoverId, 'user'>[];
+  const activePovers = (config.activePovers ?? ['prometheus', 'sentinel', 'cassandra']) as Exclude<SpeakerId, 'user'>[];
   if (activePovers.length < 2) throw new ActionableError({
     goal: 'Validate debate configuration',
     problem: `At least 2 debaters required, but only ${activePovers.length} specified`,

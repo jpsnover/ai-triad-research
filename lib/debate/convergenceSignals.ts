@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type {
-  PoverId,
+  SpeakerId,
   DebatePhase,
   TranscriptEntry,
   ArgumentNetworkNode,
@@ -22,7 +22,7 @@ export const ARCO_DRIFT_THRESHOLD = 0.5;
 
 export function computeConvergenceSignals(
   entryId: string,
-  speaker: PoverId,
+  speaker: SpeakerId,
   transcript: TranscriptEntry[],
   nodes: ArgumentNetworkNode[],
   edges: ArgumentNetworkEdge[],
@@ -119,7 +119,7 @@ export function computeConvergenceSignals(
     strengths = computeQbafStrengths(qbafNodes, qbafEdges).strengths;
   }
 
-  let strongestOpposing: ConvergenceSignals['strongest_opposing'] = null;
+  let strongestOpposing: ConvergenceSignals['dominant_counterargument'] = null;
   const attacksOnSpeaker = edges.filter(e => e.type === 'attacks' && speakerNodeIds.has(e.target));
   for (const atk of attacksOnSpeaker) {
     const s = strengths.get(atk.source) ?? 0.5;
@@ -146,7 +146,7 @@ export function computeConvergenceSignals(
   // 6. Position delta — word overlap between this turn and speaker's opening statement
   const openingEntry = transcript.find(e => e.speaker === speaker && e.type === 'opening');
   const overlapWithOpening = (openingEntry && entry) ? wordOverlap(entry.content, openingEntry.content) : 0;
-  const priorDelta = existingSignals.filter(s => s.speaker === speaker).slice(-1)[0]?.position_delta;
+  const priorDelta = existingSignals.filter(s => s.speaker === speaker).slice(-1)[0]?.position_drift;
   const drift = priorDelta ? Math.abs(overlapWithOpening - priorDelta.overlap_with_opening) : 0;
 
   // 7. Crux rate — did this turn use IDENTIFY-CRUX, and cumulative tracking
@@ -155,9 +155,9 @@ export function computeConvergenceSignals(
     return upper === 'IDENTIFY CRUX' || upper === 'IDENTIFY-CRUX';
   });
   const priorCruxSignals = existingSignals.filter(s => s.speaker === speaker);
-  const cumulativeCruxCount = priorCruxSignals.reduce((c, s) => c + (s.crux_rate.used_this_turn ? 1 : 0), 0) + (cruxUsedThisTurn ? 1 : 0);
+  const cumulativeCruxCount = priorCruxSignals.reduce((c, s) => c + (s.crux_engagement_rate.used_this_turn ? 1 : 0), 0) + (cruxUsedThisTurn ? 1 : 0);
   const priorFollowThrough = priorCruxSignals.length > 0
-    ? priorCruxSignals[priorCruxSignals.length - 1].crux_rate.cumulative_follow_through
+    ? priorCruxSignals[priorCruxSignals.length - 1].crux_engagement_rate.cumulative_follow_through
     : 0;
   const followedThroughThisTurn = cruxUsedThisTurn && collaborative > 0 ? 1 : 0;
   const cumulativeFollowThrough = priorFollowThrough + followedThroughThisTurn;
@@ -198,13 +198,13 @@ export function computeConvergenceSignals(
     entry_id: entryId,
     round,
     speaker,
-    move_disposition: { confrontational, collaborative, ratio: moveRatio },
-    engagement_depth: { targeted, standalone, ratio: engagementRatio },
-    recycling_rate: { avg_self_overlap: avgSelfOverlap, max_self_overlap: maxSelfOverlap, semantic_max_similarity: semanticMaxSimilarity, semantically_recycled: semanticallyRecycled },
-    strongest_opposing: strongestOpposing,
+    move_polarity: { confrontational, collaborative, ratio: moveRatio },
+    dialectical_engagement: { targeted, standalone, ratio: engagementRatio },
+    argument_redundancy: { avg_self_overlap: avgSelfOverlap, max_self_overlap: maxSelfOverlap, semantic_max_similarity: semanticMaxSimilarity, semantically_recycled: semanticallyRecycled },
+    dominant_counterargument: strongestOpposing,
     concession_opportunity: { strong_attacks_faced: strongAttacksFaced, concession_used: concessionUsed, outcome: concessionOutcome },
-    position_delta: { overlap_with_opening: overlapWithOpening, drift },
-    crux_rate: { used_this_turn: cruxUsedThisTurn, cumulative_count: cumulativeCruxCount, cumulative_follow_through: cumulativeFollowThrough },
+    position_drift: { overlap_with_opening: overlapWithOpening, drift },
+    crux_engagement_rate: { used_this_turn: cruxUsedThisTurn, cumulative_count: cumulativeCruxCount, cumulative_follow_through: cumulativeFollowThrough },
     arco,
   };
 }
@@ -241,8 +241,8 @@ export interface ProcessRewardInput {
  * validation, and move metadata.
  *
  * Components (each in [0,1]):
- *  - engagement:    engagement_depth.ratio (are claims targeting prior arguments?)
- *  - novelty:       1 - recycling_rate (is the turn saying something new?)
+ *  - engagement:    dialectical_engagement.ratio (are claims targeting prior arguments?)
+ *  - novelty:       1 - argument_redundancy (is the turn saying something new?)
  *  - consistency:   concession coherence (did the debater concede when warranted?)
  *  - grounding:     taxonomy ref density, boosted by validation grounding pass
  *  - move_quality:  move diversity + phase-appropriate disposition
@@ -252,11 +252,11 @@ export function computeProcessReward(input: ProcessRewardInput): { score: number
   const sig = input.convergenceSignals;
 
   // 1. Engagement — ratio of targeted to standalone claims
-  const engagement = sig.engagement_depth?.ratio ?? 0;
+  const engagement = sig.dialectical_engagement?.ratio ?? 0;
 
   // 2. Novelty — inverse of recycling rate (prefer semantic if available)
-  const recycling = sig.recycling_rate?.semantic_max_similarity
-    ?? sig.recycling_rate?.avg_self_overlap
+  const recycling = sig.argument_redundancy?.semantic_max_similarity
+    ?? sig.argument_redundancy?.avg_self_overlap
     ?? 0;
   const novelty = Math.max(0, 1 - recycling);
 
@@ -275,7 +275,7 @@ export function computeProcessReward(input: ProcessRewardInput): { score: number
   const grounding = Math.min(1, refDensity + groundingBoost);
 
   // 5. Move quality — phase-appropriate disposition + diversity bonus
-  const moveRatio = sig.move_disposition?.ratio ?? 0.5;
+  const moveRatio = sig.move_polarity?.ratio ?? 0.5;
   const phaseAppropriate = input.phase === 'synthesis'
     ? moveRatio  // collaboration valued in synthesis
     : input.phase === 'thesis-antithesis'

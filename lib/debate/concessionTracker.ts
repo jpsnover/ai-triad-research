@@ -7,7 +7,7 @@
  * nodes for harvest when threshold is crossed.
  */
 
-import type { DebateSession, PoverId } from './types.js';
+import type { DebateSession, SpeakerId } from './types.js';
 import { POVER_INFO } from './types.js';
 import type { ConcessionRecord, ConcessionType } from './taxonomyTypes.js';
 
@@ -124,7 +124,7 @@ export function extractConcessions(debate: DebateSession): ConcessionEntry[] {
   const entries: ConcessionEntry[] = [];
 
   for (const [speaker, store] of Object.entries(debate.commitments)) {
-    const label = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label ?? speaker;
+    const label = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
 
     for (const text of store.conceded) {
       // Find the turn where this concession was made
@@ -137,7 +137,7 @@ export function extractConcessions(debate: DebateSession): ConcessionEntry[] {
 
       // Determine who it was conceded to (addressing field or previous speaker)
       const concededTo = matchingEntry?.addressing
-        ? (POVER_INFO[matchingEntry.addressing as Exclude<PoverId, 'user'>]?.label ?? String(matchingEntry.addressing))
+        ? (POVER_INFO[matchingEntry.addressing as Exclude<SpeakerId, 'user'>]?.label ?? String(matchingEntry.addressing))
         : 'opponent';
 
       entries.push({ text, speaker: label, turn, conceded_to: concededTo });

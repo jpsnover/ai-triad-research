@@ -10,7 +10,7 @@
  */
 
 import type {
-  PoverId,
+  SpeakerId,
   TranscriptEntry,
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
@@ -89,7 +89,7 @@ export interface ModeratorSelectionCallbacks {
 export interface ModeratorSelectionInput {
   round: number;
   phase: DebatePhase;
-  activePovers: Exclude<PoverId, 'user'>[];
+  activePovers: Exclude<SpeakerId, 'user'>[];
   totalRounds: number;
   model: string;
   audience?: DebateAudience;
@@ -107,7 +107,7 @@ export interface ModeratorSelectionInput {
 }
 
 export interface ModeratorSelectionResult {
-  responder: Exclude<PoverId, 'user'>;
+  responder: Exclude<SpeakerId, 'user'>;
   focusPoint: string;
   addressing: string;
   agreementDetected: boolean;
@@ -149,7 +149,7 @@ function buildQbafContext(an: { nodes: ArgumentNetworkNode[]; edges: ArgumentNet
     + 'Claims marked [unscored] have default strength (0.5) — their actual strength is unknown pending human review.\n'
     + 'Claims marked [low-confidence] are Belief claims where AI scoring reliability is poor — weight them carefully.\n'
     + unaddressed.map(n => {
-      const unscoredTag = n.scoring_method === 'default_pending' ? ' [unscored]' : '';
+      const unscoredTag = n.scoring_method === 'unscored' ? ' [unscored]' : '';
       const bdiTag = n.bdi_category ? ` ${n.bdi_category[0].toUpperCase()}` : '';
       const confTag = n.bdi_confidence != null && n.bdi_confidence < 0.5 ? ' [low-confidence]' : '';
       return `- ${n.id} (${poverInfo[n.speaker]?.label ?? n.speaker},${bdiTag}, strength ${n.computed_strength!.toFixed(2)}${unscoredTag}${confTag}): ${n.text}`;
@@ -275,7 +275,7 @@ export async function runModeratorSelection(
     ? getSynthesisResponder(modState, activePovers, transcript as TranscriptEntry[])
     : null;
 
-  let responder: Exclude<PoverId, 'user'> | null = null;
+  let responder: Exclude<SpeakerId, 'user'> | null = null;
   let focusPoint = 'Continue the discussion';
   let addressing = 'general';
   let agreementDetected = false;
@@ -289,7 +289,7 @@ export async function runModeratorSelection(
 
   if (synthesisTarget) {
     // Deterministic synthesis — skip Stage 1 LLM, fire COMMIT directly
-    responder = synthesisTarget as Exclude<PoverId, 'user'>;
+    responder = synthesisTarget as Exclude<SpeakerId, 'user'>;
     focusPoint = 'Provide your final commitment: concessions, conditions for change, and sharpest remaining disagreements';
     addressing = 'all';
     selectionResultObj = {
@@ -378,7 +378,7 @@ export async function runModeratorSelection(
 
     try {
       const parsed = parseJsonRobust(selectionText) as Record<string, unknown>;
-      const labelMap: Record<string, Exclude<PoverId, 'user'>> = {};
+      const labelMap: Record<string, Exclude<SpeakerId, 'user'>> = {};
       for (const p of activePovers) {
         labelMap[p] = p;
         labelMap[poverInfo[p].label.toLowerCase()] = p;
@@ -391,7 +391,7 @@ export async function runModeratorSelection(
 
       selectionResultObj = {
         responder: responder ?? activePovers[0],
-        addressing: (addressing as PoverId | 'general') ?? 'general',
+        addressing: (addressing as SpeakerId | 'general') ?? 'general',
         focus_point: focusPoint,
         agreement_detected: agreementDetected,
         intervene: !!parsed.intervene,
@@ -476,7 +476,7 @@ export async function runModeratorSelection(
                 stage2Parsed.original_claim_text as string | undefined,
               );
 
-              responder = validation.validated_target as Exclude<PoverId, 'user'>;
+              responder = validation.validated_target as Exclude<SpeakerId, 'user'>;
 
               interventionBriefInjection = buildInterventionBriefInjection(
                 activeIntervention, poverInfo[responder]?.label ?? responder,
@@ -499,7 +499,7 @@ export async function runModeratorSelection(
                 speaker: 'moderator',
                 content: interventionText,
                 taxonomy_refs: [],
-                addressing: activeIntervention.target_debater as PoverId,
+                addressing: activeIntervention.target_debater as SpeakerId,
                 intervention_metadata: interventionMeta,
               });
 
@@ -521,7 +521,7 @@ export async function runModeratorSelection(
   const lastSpeakerEntry = [...transcript].reverse().find(
     (e) => (e.type === 'statement' || e.type === 'opening') && e.speaker !== 'user' && e.speaker !== 'system' && e.speaker !== 'moderator',
   );
-  const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<PoverId, 'user'> | undefined;
+  const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<SpeakerId, 'user'> | undefined;
 
   if (!responder || !activePovers.includes(responder) || (responder === lastSpeaker && !activeIntervention)) {
     const alternatives = activePovers.filter(p => p !== lastSpeaker);
@@ -563,7 +563,7 @@ export async function runModeratorSelection(
 function buildEarlyReturn(
   modState: ModeratorState,
   healthScore: DebateHealthScore,
-  fallbackResponder: Exclude<PoverId, 'user'>,
+  fallbackResponder: Exclude<SpeakerId, 'user'>,
   _poverInfo: Record<string, { label: string }>,
 ): ModeratorSelectionResult {
   return {
@@ -600,7 +600,7 @@ export interface TurnRetryInput {
   pipelineInput: TurnPipelineInput;
   validationConfig?: TurnValidationConfig;
   model: string;
-  speaker: PoverId;
+  speaker: SpeakerId;
   round: number;
   priorTurns: TranscriptEntry[];
   recentTurns: TranscriptEntry[];

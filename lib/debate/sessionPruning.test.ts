@@ -27,13 +27,13 @@ function makeSignal(round: number): ConvergenceSignals {
     entry_id: `entry-${round}`,
     round,
     speaker: 'prometheus',
-    move_disposition: { confrontational: 1, collaborative: 0, ratio: 1 },
-    engagement_depth: { targeted: 1, standalone: 0, ratio: 1 },
-    recycling_rate: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
-    strongest_opposing: null,
+    move_polarity: { confrontational: 1, collaborative: 0, ratio: 1 },
+    dialectical_engagement: { targeted: 1, standalone: 0, ratio: 1 },
+    argument_redundancy: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
+    dominant_counterargument: null,
     concession_opportunity: { strong_attacks_faced: 0, concession_used: false, outcome: 'none' },
-    position_delta: { overlap_with_opening: 0.8, drift: 0.2 },
-    crux_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
+    position_drift: { overlap_with_opening: 0.8, drift: 0.2 },
+    crux_engagement_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
   };
 }
 

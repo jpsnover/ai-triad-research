@@ -8,7 +8,7 @@ import type {
   CommitmentStore,
   TrackedCrux,
   ContextSummary,
-  PoverId,
+  SpeakerId,
 } from './types.js';
 import { POVER_INFO } from './types.js';
 
@@ -45,7 +45,7 @@ export function buildMediumTierSummary(
   }
 
   for (const [speaker, claims] of bySpeaker) {
-    const label = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label ?? speaker;
+    const label = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
     const topClaims = claims
       .sort((a, b) => (b.computed_strength ?? 0.5) - (a.computed_strength ?? 0.5))
       .slice(0, 5);
@@ -58,7 +58,7 @@ export function buildMediumTierSummary(
 
   // Commitments made during this window
   for (const [speaker, store] of Object.entries(commitments)) {
-    const label = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label ?? speaker;
+    const label = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
     const recentConcessions = store.conceded.slice(-3);
     if (recentConcessions.length > 0) {
       lines.push(`${label} conceded: ${recentConcessions.join('; ')}`);
@@ -93,7 +93,7 @@ export function buildDistantTierSummary(
 
   // Concession summary
   for (const [speaker, store] of Object.entries(commitments)) {
-    const label = POVER_INFO[speaker as Exclude<PoverId, 'user'>]?.label ?? speaker;
+    const label = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
     if (store.conceded.length > 0) {
       lines.push(`${label} has conceded ${store.conceded.length} point(s): ${store.conceded.slice(0, 5).join('; ')}${store.conceded.length > 5 ? ` (+${store.conceded.length - 5} more)` : ''}`);
     }
@@ -126,7 +126,7 @@ export function buildDistantTierSummary(
   if (topNodes.length > 0) {
     lines.push('Strongest surviving claims:');
     for (const n of topNodes) {
-      const label = POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker;
+      const label = POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label ?? n.speaker;
       lines.push(`  - [${label}, ${n.computed_strength?.toFixed(2)}] ${n.text}`);
     }
   }
@@ -217,7 +217,7 @@ export function formatTieredTranscript(
   for (const e of recent) {
     const label = e.speaker === 'user' ? 'Moderator'
       : e.speaker === 'system' ? 'System'
-      : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label || e.speaker;
+      : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label || e.speaker;
     const typeTag = e.type === 'question' ? ' [question]' : e.type === 'opening' ? ' [opening]' : '';
     const contentStr = typeof e.content === 'string' ? e.content : JSON.stringify(e.content);
     parts.push(`${label}${typeTag}: ${contentStr}`);

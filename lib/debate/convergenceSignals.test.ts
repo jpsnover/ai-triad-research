@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD } from './convergenceSignals.js';
 import type {
-  PoverId,
+  SpeakerId,
   TranscriptEntry,
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
@@ -79,13 +79,13 @@ function makeSignals(overrides: Partial<ConvergenceSignals> = {}): ConvergenceSi
     entry_id: 'prev-entry',
     round: 1,
     speaker: 'prometheus',
-    move_disposition: { confrontational: 0, collaborative: 0, ratio: 0 },
-    engagement_depth: { targeted: 0, standalone: 0, ratio: 0 },
-    recycling_rate: { avg_self_overlap: 0, max_self_overlap: 0 },
-    strongest_opposing: null,
+    move_polarity: { confrontational: 0, collaborative: 0, ratio: 0 },
+    dialectical_engagement: { targeted: 0, standalone: 0, ratio: 0 },
+    argument_redundancy: { avg_self_overlap: 0, max_self_overlap: 0 },
+    dominant_counterargument: null,
     concession_opportunity: { strong_attacks_faced: 0, concession_used: false, outcome: 'none' },
-    position_delta: { overlap_with_opening: 0.5, drift: 0 },
-    crux_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
+    position_drift: { overlap_with_opening: 0.5, drift: 0 },
+    crux_engagement_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
     ...overrides,
   };
 }
@@ -107,13 +107,13 @@ describe('computeConvergenceSignals — empty inputs', () => {
     );
     expect(result.entry_id).toBe('missing-id');
     expect(result.speaker).toBe('prometheus');
-    expect(result.move_disposition.ratio).toBe(0);
-    expect(result.engagement_depth.ratio).toBe(0);
-    expect(result.recycling_rate.avg_self_overlap).toBe(0);
-    expect(result.strongest_opposing).toBeNull();
+    expect(result.move_polarity.ratio).toBe(0);
+    expect(result.dialectical_engagement.ratio).toBe(0);
+    expect(result.argument_redundancy.avg_self_overlap).toBe(0);
+    expect(result.dominant_counterargument).toBeNull();
     expect(result.concession_opportunity.outcome).toBe('none');
-    expect(result.position_delta.overlap_with_opening).toBe(0);
-    expect(result.crux_rate.used_this_turn).toBe(false);
+    expect(result.position_drift.overlap_with_opening).toBe(0);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(false);
   });
 
   it('returns zeroed signals when no nodes or edges exist', () => {
@@ -121,8 +121,8 @@ describe('computeConvergenceSignals — empty inputs', () => {
     const result = computeConvergenceSignals(
       'e1', 'prometheus', [entry], [], [], [],
     );
-    expect(result.engagement_depth).toEqual({ targeted: 0, standalone: 0, ratio: 0 });
-    expect(result.strongest_opposing).toBeNull();
+    expect(result.dialectical_engagement).toEqual({ targeted: 0, standalone: 0, ratio: 0 });
+    expect(result.dominant_counterargument).toBeNull();
   });
 
   it('handles entry not found in transcript gracefully', () => {
@@ -131,7 +131,7 @@ describe('computeConvergenceSignals — empty inputs', () => {
       'nonexistent', 'prometheus', [entry], [], [], [],
     );
     expect(result.round).toBe(0); // findIndex returns -1, round = -1 + 1 = 0
-    expect(result.move_disposition.ratio).toBe(0);
+    expect(result.move_polarity.ratio).toBe(0);
   });
 });
 
@@ -168,9 +168,9 @@ describe('computeConvergenceSignals — move disposition', () => {
     const result = computeConvergenceSignals(
       'atk', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.confrontational).toBe(3);
-    expect(result.move_disposition.collaborative).toBe(0);
-    expect(result.move_disposition.ratio).toBe(0);
+    expect(result.move_polarity.confrontational).toBe(3);
+    expect(result.move_polarity.collaborative).toBe(0);
+    expect(result.move_polarity.ratio).toBe(0);
   });
 
   it('counts only support moves as collaborative', () => {
@@ -181,9 +181,9 @@ describe('computeConvergenceSignals — move disposition', () => {
     const result = computeConvergenceSignals(
       'sup', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.confrontational).toBe(0);
-    expect(result.move_disposition.collaborative).toBe(3);
-    expect(result.move_disposition.ratio).toBe(1);
+    expect(result.move_polarity.confrontational).toBe(0);
+    expect(result.move_polarity.collaborative).toBe(3);
+    expect(result.move_polarity.ratio).toBe(1);
   });
 
   it('computes ratio for mixed attack and support moves', () => {
@@ -194,9 +194,9 @@ describe('computeConvergenceSignals — move disposition', () => {
     const result = computeConvergenceSignals(
       'mixed', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.confrontational).toBe(2);
-    expect(result.move_disposition.collaborative).toBe(2);
-    expect(result.move_disposition.ratio).toBe(0.5);
+    expect(result.move_polarity.confrontational).toBe(2);
+    expect(result.move_polarity.collaborative).toBe(2);
+    expect(result.move_polarity.ratio).toBe(0.5);
   });
 
   it('returns ratio 0 when no moves are present', () => {
@@ -204,9 +204,9 @@ describe('computeConvergenceSignals — move disposition', () => {
     const result = computeConvergenceSignals(
       'nomoves', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.ratio).toBe(0);
-    expect(result.move_disposition.confrontational).toBe(0);
-    expect(result.move_disposition.collaborative).toBe(0);
+    expect(result.move_polarity.ratio).toBe(0);
+    expect(result.move_polarity.confrontational).toBe(0);
+    expect(result.move_polarity.collaborative).toBe(0);
   });
 
   it('ignores neutral moves (IDENTIFY-CRUX, SPECIFY, etc.) in disposition counts', () => {
@@ -217,9 +217,9 @@ describe('computeConvergenceSignals — move disposition', () => {
     const result = computeConvergenceSignals(
       'neutral', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.confrontational).toBe(0);
-    expect(result.move_disposition.collaborative).toBe(0);
-    expect(result.move_disposition.ratio).toBe(0);
+    expect(result.move_polarity.confrontational).toBe(0);
+    expect(result.move_polarity.collaborative).toBe(0);
+    expect(result.move_polarity.ratio).toBe(0);
   });
 
   it('handles MoveAnnotation objects in move_types', () => {
@@ -235,9 +235,9 @@ describe('computeConvergenceSignals — move disposition', () => {
     const result = computeConvergenceSignals(
       'annot', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.confrontational).toBe(1);
-    expect(result.move_disposition.collaborative).toBe(1);
-    expect(result.move_disposition.ratio).toBe(0.5);
+    expect(result.move_polarity.confrontational).toBe(1);
+    expect(result.move_polarity.collaborative).toBe(1);
+    expect(result.move_polarity.ratio).toBe(0.5);
   });
 
   it('normalizes hyphenated and underscored move names', () => {
@@ -249,8 +249,8 @@ describe('computeConvergenceSignals — move disposition', () => {
       'norm', 'prometheus', [entry], [], [], [],
     );
     // CONCEDE-AND-PIVOT is support (dual), EMPIRICAL CHALLENGE is attack
-    expect(result.move_disposition.collaborative).toBeGreaterThanOrEqual(1);
-    expect(result.move_disposition.confrontational).toBeGreaterThanOrEqual(1);
+    expect(result.move_polarity.collaborative).toBeGreaterThanOrEqual(1);
+    expect(result.move_polarity.confrontational).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -267,9 +267,9 @@ describe('computeConvergenceSignals — engagement depth', () => {
     const result = computeConvergenceSignals(
       entryId, 'prometheus', [entry], [n1, n2], [edge], [],
     );
-    expect(result.engagement_depth.targeted).toBe(1);
-    expect(result.engagement_depth.standalone).toBe(0);
-    expect(result.engagement_depth.ratio).toBe(1);
+    expect(result.dialectical_engagement.targeted).toBe(1);
+    expect(result.dialectical_engagement.standalone).toBe(0);
+    expect(result.dialectical_engagement.ratio).toBe(1);
   });
 
   it('counts nodes with no cross-turn edges as standalone', () => {
@@ -280,9 +280,9 @@ describe('computeConvergenceSignals — engagement depth', () => {
     const result = computeConvergenceSignals(
       entryId, 'prometheus', [entry], [n1], [], [],
     );
-    expect(result.engagement_depth.targeted).toBe(0);
-    expect(result.engagement_depth.standalone).toBe(1);
-    expect(result.engagement_depth.ratio).toBe(0);
+    expect(result.dialectical_engagement.targeted).toBe(0);
+    expect(result.dialectical_engagement.standalone).toBe(1);
+    expect(result.dialectical_engagement.ratio).toBe(0);
   });
 
   it('ignores intra-turn edges for engagement depth', () => {
@@ -296,9 +296,9 @@ describe('computeConvergenceSignals — engagement depth', () => {
       entryId, 'prometheus', [entry], [n1, n2], [edge], [],
     );
     // Both edges are intra-turn, so both nodes are standalone
-    expect(result.engagement_depth.targeted).toBe(0);
-    expect(result.engagement_depth.standalone).toBe(2);
-    expect(result.engagement_depth.ratio).toBe(0);
+    expect(result.dialectical_engagement.targeted).toBe(0);
+    expect(result.dialectical_engagement.standalone).toBe(2);
+    expect(result.dialectical_engagement.ratio).toBe(0);
   });
 
   it('computes ratio for mixed targeted and standalone', () => {
@@ -312,9 +312,9 @@ describe('computeConvergenceSignals — engagement depth', () => {
     const result = computeConvergenceSignals(
       entryId, 'prometheus', [entry], [n1, n2, n3], [edge], [],
     );
-    expect(result.engagement_depth.targeted).toBe(1);
-    expect(result.engagement_depth.standalone).toBe(1);
-    expect(result.engagement_depth.ratio).toBe(0.5);
+    expect(result.dialectical_engagement.targeted).toBe(1);
+    expect(result.dialectical_engagement.standalone).toBe(1);
+    expect(result.dialectical_engagement.ratio).toBe(0.5);
   });
 
   it('handles incoming edges (target is turn node, source is external)', () => {
@@ -327,8 +327,8 @@ describe('computeConvergenceSignals — engagement depth', () => {
     const result = computeConvergenceSignals(
       entryId, 'prometheus', [entry], [n1, n2], [edge], [],
     );
-    expect(result.engagement_depth.targeted).toBe(1);
-    expect(result.engagement_depth.standalone).toBe(0);
+    expect(result.dialectical_engagement.targeted).toBe(1);
+    expect(result.dialectical_engagement.standalone).toBe(0);
   });
 
   it('returns ratio 0 when turn has no nodes', () => {
@@ -336,7 +336,7 @@ describe('computeConvergenceSignals — engagement depth', () => {
     const result = computeConvergenceSignals(
       'eng6', 'prometheus', [entry], [], [], [],
     );
-    expect(result.engagement_depth.ratio).toBe(0);
+    expect(result.dialectical_engagement.ratio).toBe(0);
   });
 });
 
@@ -351,8 +351,8 @@ describe('computeConvergenceSignals — recycling rate', () => {
     const result = computeConvergenceSignals(
       'rec1', 'prometheus', [entry], [], [], [],
     );
-    expect(result.recycling_rate.avg_self_overlap).toBe(0);
-    expect(result.recycling_rate.max_self_overlap).toBe(0);
+    expect(result.argument_redundancy.avg_self_overlap).toBe(0);
+    expect(result.argument_redundancy.max_self_overlap).toBe(0);
   });
 
   it('computes high overlap when repeating same words', () => {
@@ -369,8 +369,8 @@ describe('computeConvergenceSignals — recycling rate', () => {
     const result = computeConvergenceSignals(
       'r-current', 'sentinel', [prior, current], [], [], [],
     );
-    expect(result.recycling_rate.avg_self_overlap).toBe(1);
-    expect(result.recycling_rate.max_self_overlap).toBe(1);
+    expect(result.argument_redundancy.avg_self_overlap).toBe(1);
+    expect(result.argument_redundancy.max_self_overlap).toBe(1);
   });
 
   it('computes low overlap with different vocabulary', () => {
@@ -387,8 +387,8 @@ describe('computeConvergenceSignals — recycling rate', () => {
     const result = computeConvergenceSignals(
       'r-low-current', 'cassandra', [prior, current], [], [], [],
     );
-    expect(result.recycling_rate.avg_self_overlap).toBe(0);
-    expect(result.recycling_rate.max_self_overlap).toBe(0);
+    expect(result.argument_redundancy.avg_self_overlap).toBe(0);
+    expect(result.argument_redundancy.max_self_overlap).toBe(0);
   });
 
   it('averages overlap across multiple prior turns by same speaker', () => {
@@ -411,8 +411,8 @@ describe('computeConvergenceSignals — recycling rate', () => {
       'rm3', 'prometheus', [prior1, prior2, current], [], [], [],
     );
     // Perfect overlap with prior1 (1.0), zero with prior2 (0.0), avg = 0.5
-    expect(result.recycling_rate.max_self_overlap).toBe(1);
-    expect(result.recycling_rate.avg_self_overlap).toBeCloseTo(0.5, 1);
+    expect(result.argument_redundancy.max_self_overlap).toBe(1);
+    expect(result.argument_redundancy.avg_self_overlap).toBeCloseTo(0.5, 1);
   });
 
   it('ignores prior entries by different speakers', () => {
@@ -429,7 +429,7 @@ describe('computeConvergenceSignals — recycling rate', () => {
     const result = computeConvergenceSignals(
       'ro-curr', 'prometheus', [other, current], [], [], [],
     );
-    expect(result.recycling_rate.avg_self_overlap).toBe(0);
+    expect(result.argument_redundancy.avg_self_overlap).toBe(0);
   });
 });
 
@@ -441,8 +441,8 @@ describe('computeConvergenceSignals — semantic recycling', () => {
     const result = computeConvergenceSignals(
       'sem1', 'prometheus', [entry], [], [], [],
     );
-    expect(result.recycling_rate.semantic_max_similarity).toBeUndefined();
-    expect(result.recycling_rate.semantically_recycled).toBeUndefined();
+    expect(result.argument_redundancy.semantic_max_similarity).toBeUndefined();
+    expect(result.argument_redundancy.semantically_recycled).toBeUndefined();
   });
 
   it('returns undefined when current entry has no embedding', () => {
@@ -455,8 +455,8 @@ describe('computeConvergenceSignals — semantic recycling', () => {
     const result = computeConvergenceSignals(
       'sem2', 'prometheus', [prior, entry], [], [], [], embeddings,
     );
-    expect(result.recycling_rate.semantic_max_similarity).toBeUndefined();
-    expect(result.recycling_rate.semantically_recycled).toBeUndefined();
+    expect(result.argument_redundancy.semantic_max_similarity).toBeUndefined();
+    expect(result.argument_redundancy.semantically_recycled).toBeUndefined();
   });
 
   it('detects high semantic similarity (above threshold)', () => {
@@ -470,8 +470,8 @@ describe('computeConvergenceSignals — semantic recycling', () => {
     const result = computeConvergenceSignals(
       'sh-curr', 'prometheus', [prior, entry], [], [], [], embeddings,
     );
-    expect(result.recycling_rate.semantic_max_similarity).toBeGreaterThan(SEMANTIC_RECYCLING_THRESHOLD);
-    expect(result.recycling_rate.semantically_recycled).toBe(true);
+    expect(result.argument_redundancy.semantic_max_similarity).toBeGreaterThan(SEMANTIC_RECYCLING_THRESHOLD);
+    expect(result.argument_redundancy.semantically_recycled).toBe(true);
   });
 
   it('detects low semantic similarity (below threshold)', () => {
@@ -484,8 +484,8 @@ describe('computeConvergenceSignals — semantic recycling', () => {
     const result = computeConvergenceSignals(
       'sl-curr', 'sentinel', [prior, entry], [], [], [], embeddings,
     );
-    expect(result.recycling_rate.semantic_max_similarity).toBeDefined();
-    expect(result.recycling_rate.semantically_recycled).toBe(false);
+    expect(result.argument_redundancy.semantic_max_similarity).toBeDefined();
+    expect(result.argument_redundancy.semantically_recycled).toBe(false);
   });
 
   it('returns undefined when speaker has no prior turns with embeddings', () => {
@@ -497,8 +497,8 @@ describe('computeConvergenceSignals — semantic recycling', () => {
       'sn-curr', 'prometheus', [entry], [], [], [], embeddings,
     );
     // No prior same-speaker entries, so maxSim stays 0 and fields are undefined
-    expect(result.recycling_rate.semantic_max_similarity).toBeUndefined();
-    expect(result.recycling_rate.semantically_recycled).toBeUndefined();
+    expect(result.argument_redundancy.semantic_max_similarity).toBeUndefined();
+    expect(result.argument_redundancy.semantically_recycled).toBeUndefined();
   });
 
   it('picks the maximum similarity across multiple prior turns', () => {
@@ -513,9 +513,9 @@ describe('computeConvergenceSignals — semantic recycling', () => {
     const result = computeConvergenceSignals(
       'sm-curr', 'cassandra', [p1, p2, curr], [], [], [], embeddings,
     );
-    expect(result.recycling_rate.semantic_max_similarity).toBeDefined();
+    expect(result.argument_redundancy.semantic_max_similarity).toBeDefined();
     // The similarity with p2 should be higher than with p1
-    const simP2 = result.recycling_rate.semantic_max_similarity!;
+    const simP2 = result.argument_redundancy.semantic_max_similarity!;
     expect(simP2).toBeGreaterThan(0.5);
   });
 });
@@ -529,7 +529,7 @@ describe('computeConvergenceSignals — strongest opposing', () => {
     const result = computeConvergenceSignals(
       'op1', 'prometheus', [entry], [n1], [], [],
     );
-    expect(result.strongest_opposing).toBeNull();
+    expect(result.dominant_counterargument).toBeNull();
   });
 
   it('identifies the strongest attack on speaker nodes using precomputedStrengths', () => {
@@ -549,11 +549,11 @@ describe('computeConvergenceSignals — strongest opposing', () => {
       [speakerNode, attackerNode1, attackerNode2],
       [edge1, edge2], [], undefined, strengths,
     );
-    expect(result.strongest_opposing).not.toBeNull();
-    expect(result.strongest_opposing!.node_id).toBe('at2');
-    expect(result.strongest_opposing!.strength).toBe(0.9);
-    expect(result.strongest_opposing!.attacker).toBe('cassandra');
-    expect(result.strongest_opposing!.bdi_category).toBe('desire');
+    expect(result.dominant_counterargument).not.toBeNull();
+    expect(result.dominant_counterargument!.node_id).toBe('at2');
+    expect(result.dominant_counterargument!.strength).toBe(0.9);
+    expect(result.dominant_counterargument!.attacker).toBe('cassandra');
+    expect(result.dominant_counterargument!.bdi_category).toBe('desire');
   });
 
   it('defaults to 0.5 strength when node is not in precomputed strengths', () => {
@@ -566,8 +566,8 @@ describe('computeConvergenceSignals — strongest opposing', () => {
     const result = computeConvergenceSignals(
       'op3', 'prometheus', [entry], [sp, at], [edge], [], undefined, strengths,
     );
-    expect(result.strongest_opposing).not.toBeNull();
-    expect(result.strongest_opposing!.strength).toBe(0.5);
+    expect(result.dominant_counterargument).not.toBeNull();
+    expect(result.dominant_counterargument!.strength).toBe(0.5);
   });
 
   it('ignores support edges for strongest opposing', () => {
@@ -582,7 +582,7 @@ describe('computeConvergenceSignals — strongest opposing', () => {
     const result = computeConvergenceSignals(
       'op4', 'prometheus', [entry], [sp, sup], [edge], [], undefined, strengths,
     );
-    expect(result.strongest_opposing).toBeNull();
+    expect(result.dominant_counterargument).toBeNull();
   });
 
   it('uses QBAF computation when no precomputed strengths provided', () => {
@@ -594,10 +594,10 @@ describe('computeConvergenceSignals — strongest opposing', () => {
     const result = computeConvergenceSignals(
       'op5', 'prometheus', [entry], [sp, at], [edge], [],
     );
-    expect(result.strongest_opposing).not.toBeNull();
-    expect(result.strongest_opposing!.node_id).toBe('at5');
+    expect(result.dominant_counterargument).not.toBeNull();
+    expect(result.dominant_counterargument!.node_id).toBe('at5');
     // QBAF should compute a strength close to the base_strength
-    expect(result.strongest_opposing!.strength).toBeGreaterThan(0);
+    expect(result.dominant_counterargument!.strength).toBeGreaterThan(0);
   });
 
   it('sets attacker to "unknown" when attacker node is not found', () => {
@@ -612,8 +612,8 @@ describe('computeConvergenceSignals — strongest opposing', () => {
     const result = computeConvergenceSignals(
       'op6', 'prometheus', [entry], [sp], [edge], [], undefined, strengths,
     );
-    expect(result.strongest_opposing).not.toBeNull();
-    expect(result.strongest_opposing!.attacker).toBe('unknown');
+    expect(result.dominant_counterargument).not.toBeNull();
+    expect(result.dominant_counterargument!.attacker).toBe('unknown');
   });
 });
 
@@ -723,7 +723,7 @@ describe('computeConvergenceSignals — position delta', () => {
     const result = computeConvergenceSignals(
       'pd-curr', 'prometheus', [opening, current], [], [], [],
     );
-    expect(result.position_delta.overlap_with_opening).toBe(1);
+    expect(result.position_drift.overlap_with_opening).toBe(1);
   });
 
   it('returns 0 overlap when no opening statement exists', () => {
@@ -735,7 +735,7 @@ describe('computeConvergenceSignals — position delta', () => {
     const result = computeConvergenceSignals(
       'pd-noopen', 'prometheus', [current], [], [], [],
     );
-    expect(result.position_delta.overlap_with_opening).toBe(0);
+    expect(result.position_drift.overlap_with_opening).toBe(0);
   });
 
   it('computes drift from prior signal overlap value', () => {
@@ -753,15 +753,15 @@ describe('computeConvergenceSignals — position delta', () => {
     const priorSignals: ConvergenceSignals[] = [
       makeSignals({
         speaker: 'sentinel',
-        position_delta: { overlap_with_opening: 0.8, drift: 0 },
+        position_drift: { overlap_with_opening: 0.8, drift: 0 },
       }),
     ];
     const result = computeConvergenceSignals(
       'pd-d-curr', 'sentinel', [opening, current], [], [], priorSignals,
     );
     // drift = |current_overlap - 0.8|
-    expect(result.position_delta.drift).toBeCloseTo(
-      Math.abs(result.position_delta.overlap_with_opening - 0.8),
+    expect(result.position_drift.drift).toBeCloseTo(
+      Math.abs(result.position_drift.overlap_with_opening - 0.8),
       5,
     );
   });
@@ -781,7 +781,7 @@ describe('computeConvergenceSignals — position delta', () => {
     const result = computeConvergenceSignals(
       'pd-nd-curr', 'prometheus', [opening, current], [], [], [],
     );
-    expect(result.position_delta.drift).toBe(0);
+    expect(result.position_drift.drift).toBe(0);
   });
 
   it('uses the last prior signal for drift calculation', () => {
@@ -797,15 +797,15 @@ describe('computeConvergenceSignals — position delta', () => {
       content: 'alpha bravo charlie delta echo foxtrot',
     });
     const priorSignals: ConvergenceSignals[] = [
-      makeSignals({ speaker: 'prometheus', position_delta: { overlap_with_opening: 0.9, drift: 0 } }),
-      makeSignals({ speaker: 'prometheus', position_delta: { overlap_with_opening: 0.3, drift: 0.6 } }),
+      makeSignals({ speaker: 'prometheus', position_drift: { overlap_with_opening: 0.9, drift: 0 } }),
+      makeSignals({ speaker: 'prometheus', position_drift: { overlap_with_opening: 0.3, drift: 0.6 } }),
     ];
     const result = computeConvergenceSignals(
       'pd-last-curr', 'prometheus', [opening, current], [], [], priorSignals,
     );
     // Should use last signal's overlap_with_opening (0.3)
-    expect(result.position_delta.drift).toBeCloseTo(
-      Math.abs(result.position_delta.overlap_with_opening - 0.3),
+    expect(result.position_drift.drift).toBeCloseTo(
+      Math.abs(result.position_drift.overlap_with_opening - 0.3),
       5,
     );
   });
@@ -822,8 +822,8 @@ describe('computeConvergenceSignals — crux rate', () => {
     const result = computeConvergenceSignals(
       'cr1', 'prometheus', [entry], [], [], [],
     );
-    expect(result.crux_rate.used_this_turn).toBe(true);
-    expect(result.crux_rate.cumulative_count).toBe(1);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(true);
+    expect(result.crux_engagement_rate.cumulative_count).toBe(1);
   });
 
   it('detects IDENTIFY_CRUX variant', () => {
@@ -834,7 +834,7 @@ describe('computeConvergenceSignals — crux rate', () => {
     const result = computeConvergenceSignals(
       'cr2', 'prometheus', [entry], [], [], [],
     );
-    expect(result.crux_rate.used_this_turn).toBe(true);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(true);
   });
 
   it('returns false when no crux move used', () => {
@@ -845,8 +845,8 @@ describe('computeConvergenceSignals — crux rate', () => {
     const result = computeConvergenceSignals(
       'cr3', 'prometheus', [entry], [], [], [],
     );
-    expect(result.crux_rate.used_this_turn).toBe(false);
-    expect(result.crux_rate.cumulative_count).toBe(0);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(false);
+    expect(result.crux_engagement_rate.cumulative_count).toBe(0);
   });
 
   it('accumulates crux count from prior signals', () => {
@@ -857,14 +857,14 @@ describe('computeConvergenceSignals — crux rate', () => {
     const priorSignals: ConvergenceSignals[] = [
       makeSignals({
         speaker: 'prometheus',
-        crux_rate: { used_this_turn: true, cumulative_count: 2, cumulative_follow_through: 1 },
+        crux_engagement_rate: { used_this_turn: true, cumulative_count: 2, cumulative_follow_through: 1 },
       }),
     ];
     const result = computeConvergenceSignals(
       'cr4', 'prometheus', [entry], [], [], priorSignals,
     );
     // Prior had 2 crux uses, this turn adds 1, but cumulative is recounted from signals
-    expect(result.crux_rate.cumulative_count).toBe(2); // prior 1 (from signals) + this 1
+    expect(result.crux_engagement_rate.cumulative_count).toBe(2); // prior 1 (from signals) + this 1
   });
 
   it('tracks follow-through when crux used with collaborative move', () => {
@@ -875,8 +875,8 @@ describe('computeConvergenceSignals — crux rate', () => {
     const result = computeConvergenceSignals(
       'cr5', 'prometheus', [entry], [], [], [],
     );
-    expect(result.crux_rate.used_this_turn).toBe(true);
-    expect(result.crux_rate.cumulative_follow_through).toBe(1);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(true);
+    expect(result.crux_engagement_rate.cumulative_follow_through).toBe(1);
   });
 
   it('does not count follow-through when crux used without collaborative move', () => {
@@ -887,8 +887,8 @@ describe('computeConvergenceSignals — crux rate', () => {
     const result = computeConvergenceSignals(
       'cr6', 'prometheus', [entry], [], [], [],
     );
-    expect(result.crux_rate.used_this_turn).toBe(true);
-    expect(result.crux_rate.cumulative_follow_through).toBe(0);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(true);
+    expect(result.crux_engagement_rate.cumulative_follow_through).toBe(0);
   });
 
   it('does not count follow-through when no crux used even with collaborative move', () => {
@@ -899,8 +899,8 @@ describe('computeConvergenceSignals — crux rate', () => {
     const result = computeConvergenceSignals(
       'cr7', 'prometheus', [entry], [], [], [],
     );
-    expect(result.crux_rate.used_this_turn).toBe(false);
-    expect(result.crux_rate.cumulative_follow_through).toBe(0);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(false);
+    expect(result.crux_engagement_rate.cumulative_follow_through).toBe(0);
   });
 
   it('accumulates follow-through from prior signals', () => {
@@ -911,13 +911,13 @@ describe('computeConvergenceSignals — crux rate', () => {
     const priorSignals: ConvergenceSignals[] = [
       makeSignals({
         speaker: 'prometheus',
-        crux_rate: { used_this_turn: true, cumulative_count: 1, cumulative_follow_through: 1 },
+        crux_engagement_rate: { used_this_turn: true, cumulative_count: 1, cumulative_follow_through: 1 },
       }),
     ];
     const result = computeConvergenceSignals(
       'cr8', 'prometheus', [entry], [], [], priorSignals,
     );
-    expect(result.crux_rate.cumulative_follow_through).toBe(2);
+    expect(result.crux_engagement_rate.cumulative_follow_through).toBe(2);
   });
 });
 
@@ -938,13 +938,13 @@ describe('computeConvergenceSignals — speaker isolation', () => {
     });
     const otherSpeakerSignal = makeSignals({
       speaker: 'sentinel',
-      position_delta: { overlap_with_opening: 0.1, drift: 0.9 },
+      position_drift: { overlap_with_opening: 0.1, drift: 0.9 },
     });
     const result = computeConvergenceSignals(
       'iso-curr', 'prometheus', [opening, current], [], [], [otherSpeakerSignal],
     );
     // No prior prometheus signals, so drift should be 0
-    expect(result.position_delta.drift).toBe(0);
+    expect(result.position_drift.drift).toBe(0);
   });
 
   it('only counts prior crux signals from the same speaker', () => {
@@ -954,13 +954,13 @@ describe('computeConvergenceSignals — speaker isolation', () => {
     });
     const otherSpeakerSignal = makeSignals({
       speaker: 'sentinel',
-      crux_rate: { used_this_turn: true, cumulative_count: 5, cumulative_follow_through: 3 },
+      crux_engagement_rate: { used_this_turn: true, cumulative_count: 5, cumulative_follow_through: 3 },
     });
     const result = computeConvergenceSignals(
       'iso-crux', 'prometheus', [entry], [], [], [otherSpeakerSignal],
     );
     // Should not inherit sentinel's crux counts
-    expect(result.crux_rate.cumulative_count).toBe(1);
+    expect(result.crux_engagement_rate.cumulative_count).toBe(1);
   });
 });
 
@@ -1015,23 +1015,23 @@ describe('computeConvergenceSignals — integration', () => {
     expect(result.speaker).toBe('prometheus');
 
     // Move disposition: COUNTEREXAMPLE (attack) + CONCEDE-AND-PIVOT (support) + IDENTIFY-CRUX (neutral)
-    expect(result.move_disposition.confrontational).toBe(1);
-    expect(result.move_disposition.collaborative).toBe(1);
-    expect(result.move_disposition.ratio).toBe(0.5);
+    expect(result.move_polarity.confrontational).toBe(1);
+    expect(result.move_polarity.collaborative).toBe(1);
+    expect(result.move_polarity.ratio).toBe(0.5);
 
     // Engagement depth: pn1 has cross-turn edge to sn1
-    expect(result.engagement_depth.targeted).toBe(1);
-    expect(result.engagement_depth.standalone).toBe(0);
-    expect(result.engagement_depth.ratio).toBe(1);
+    expect(result.dialectical_engagement.targeted).toBe(1);
+    expect(result.dialectical_engagement.standalone).toBe(0);
+    expect(result.dialectical_engagement.ratio).toBe(1);
 
     // Recycling rate: overlap between current and opening (same speaker)
-    expect(result.recycling_rate.avg_self_overlap).toBeGreaterThan(0);
+    expect(result.argument_redundancy.avg_self_overlap).toBeGreaterThan(0);
 
     // Strongest opposing: sn1 attacks pn1 with strength 0.75
-    expect(result.strongest_opposing).not.toBeNull();
-    expect(result.strongest_opposing!.node_id).toBe('sn1');
-    expect(result.strongest_opposing!.strength).toBe(0.75);
-    expect(result.strongest_opposing!.attacker).toBe('sentinel');
+    expect(result.dominant_counterargument).not.toBeNull();
+    expect(result.dominant_counterargument!.node_id).toBe('sn1');
+    expect(result.dominant_counterargument!.strength).toBe(0.75);
+    expect(result.dominant_counterargument!.attacker).toBe('sentinel');
 
     // Concession: sn1 has strength 0.75 >= 0.6, and CONCEDE-AND-PIVOT is a support move
     expect(result.concession_opportunity.strong_attacks_faced).toBe(1);
@@ -1039,13 +1039,13 @@ describe('computeConvergenceSignals — integration', () => {
     expect(result.concession_opportunity.outcome).toBe('taken');
 
     // Position delta: some overlap with opening
-    expect(result.position_delta.overlap_with_opening).toBeGreaterThan(0);
-    expect(result.position_delta.drift).toBe(0); // no prior signals
+    expect(result.position_drift.overlap_with_opening).toBeGreaterThan(0);
+    expect(result.position_drift.drift).toBe(0); // no prior signals
 
     // Crux rate: IDENTIFY-CRUX used + CONCEDE-AND-PIVOT is collaborative
-    expect(result.crux_rate.used_this_turn).toBe(true);
-    expect(result.crux_rate.cumulative_count).toBe(1);
-    expect(result.crux_rate.cumulative_follow_through).toBe(1);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(true);
+    expect(result.crux_engagement_rate.cumulative_count).toBe(1);
+    expect(result.crux_engagement_rate.cumulative_follow_through).toBe(1);
   });
 
   it('produces correct signals across sequential calls', () => {
@@ -1072,17 +1072,17 @@ describe('computeConvergenceSignals — integration', () => {
     const sig1 = computeConvergenceSignals(
       'seq-t2', 'prometheus', [opening, turn2], [], [], [],
     );
-    expect(sig1.crux_rate.cumulative_count).toBe(1);
-    expect(sig1.crux_rate.cumulative_follow_through).toBe(1); // crux + CONCEDE (support)
+    expect(sig1.crux_engagement_rate.cumulative_count).toBe(1);
+    expect(sig1.crux_engagement_rate.cumulative_follow_through).toBe(1); // crux + CONCEDE (support)
 
     // Second call uses first signal
     const sig2 = computeConvergenceSignals(
       'seq-t3', 'prometheus', [opening, turn2, turn3], [], [], [sig1],
     );
-    expect(sig2.crux_rate.cumulative_count).toBe(2);
-    expect(sig2.crux_rate.cumulative_follow_through).toBe(1); // crux + COUNTEREXAMPLE (attack, not support)
+    expect(sig2.crux_engagement_rate.cumulative_count).toBe(2);
+    expect(sig2.crux_engagement_rate.cumulative_follow_through).toBe(1); // crux + COUNTEREXAMPLE (attack, not support)
     // Position should drift more since vocabulary changed
-    expect(sig2.position_delta.overlap_with_opening).toBeLessThan(sig1.position_delta.overlap_with_opening);
+    expect(sig2.position_drift.overlap_with_opening).toBeLessThan(sig1.position_drift.overlap_with_opening);
   });
 });
 
@@ -1094,8 +1094,8 @@ describe('computeConvergenceSignals — edge cases', () => {
     const result = computeConvergenceSignals(
       'ec1', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.ratio).toBe(0);
-    expect(result.crux_rate.used_this_turn).toBe(false);
+    expect(result.move_polarity.ratio).toBe(0);
+    expect(result.crux_engagement_rate.used_this_turn).toBe(false);
   });
 
   it('handles metadata without move_types key', () => {
@@ -1103,7 +1103,7 @@ describe('computeConvergenceSignals — edge cases', () => {
     const result = computeConvergenceSignals(
       'ec2', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.ratio).toBe(0);
+    expect(result.move_polarity.ratio).toBe(0);
   });
 
   it('handles entry with undefined metadata', () => {
@@ -1112,7 +1112,7 @@ describe('computeConvergenceSignals — edge cases', () => {
     const result = computeConvergenceSignals(
       'ec3', 'prometheus', [entry], [], [], [],
     );
-    expect(result.move_disposition.ratio).toBe(0);
+    expect(result.move_polarity.ratio).toBe(0);
   });
 
   it('handles user speaker type for recycling', () => {
@@ -1121,7 +1121,7 @@ describe('computeConvergenceSignals — edge cases', () => {
     const result = computeConvergenceSignals(
       'ec4-curr', 'user', [prior, current], [], [], [],
     );
-    expect(result.recycling_rate.avg_self_overlap).toBe(1);
+    expect(result.argument_redundancy.avg_self_overlap).toBe(1);
   });
 
   it('handles very short content for word overlap (words <= 3 chars filtered out)', () => {
@@ -1139,7 +1139,7 @@ describe('computeConvergenceSignals — edge cases', () => {
       'ec5-curr', 'prometheus', [prior, current], [], [], [],
     );
     // wordOverlap filters words <= 3 chars, so overlap should be 0
-    expect(result.recycling_rate.avg_self_overlap).toBe(0);
+    expect(result.argument_redundancy.avg_self_overlap).toBe(0);
   });
 
   it('correctly identifies opening of correct speaker type', () => {
@@ -1164,7 +1164,7 @@ describe('computeConvergenceSignals — edge cases', () => {
     const result = computeConvergenceSignals(
       'ec6-curr', 'prometheus', [sentinelOpening, promOpening, current], [], [], [],
     );
-    expect(result.position_delta.overlap_with_opening).toBe(1);
+    expect(result.position_drift.overlap_with_opening).toBe(1);
   });
 
   it('handles nodes with undefined base_strength (defaults to 0.5 in QBAF)', () => {
@@ -1177,7 +1177,7 @@ describe('computeConvergenceSignals — edge cases', () => {
     const result = computeConvergenceSignals(
       'ec7', 'prometheus', [entry], [sp, at], [edge], [],
     );
-    expect(result.strongest_opposing).not.toBeNull();
+    expect(result.dominant_counterargument).not.toBeNull();
   });
 
   it('handles edges with undefined weight (defaults to 0.5)', () => {
@@ -1189,7 +1189,7 @@ describe('computeConvergenceSignals — edge cases', () => {
     const result = computeConvergenceSignals(
       'ec8', 'prometheus', [entry], [sp, at], [edge], [],
     );
-    expect(result.strongest_opposing).not.toBeNull();
+    expect(result.dominant_counterargument).not.toBeNull();
   });
 });
 

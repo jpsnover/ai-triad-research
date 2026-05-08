@@ -21,7 +21,7 @@
 import type {
   DebatePhase,
   DebateAudience,
-  PoverId,
+  SpeakerId,
   TaxonomyRef,
   TranscriptEntry,
   TurnValidation,
@@ -218,7 +218,7 @@ export interface ValidateTurnParams {
   taxonomyRefs: TaxonomyRef[];
   meta: PoverResponseMeta;
   phase: DebatePhase;
-  speaker: PoverId;
+  speaker: SpeakerId;
   round: number;
   /** Last up to 2 same-agent prior turns, newest last. */
   priorTurns: TranscriptEntry[];

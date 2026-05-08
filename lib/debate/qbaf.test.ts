@@ -2,8 +2,26 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { computeEdgeAttribution } from './qbaf.js';
+import { computeQbafStrengths, computeEdgeAttribution } from './qbaf.js';
 import type { QbafNode, QbafEdge } from './qbaf.js';
+
+describe('computeQbafStrengths — NaN guard', () => {
+  it('clamps NaN base_strength to 0.5 instead of propagating', () => {
+    const nodes: QbafNode[] = [
+      { id: 'A', base_strength: NaN },
+      { id: 'B', base_strength: 0.7 },
+    ];
+    const edges: QbafEdge[] = [
+      { source: 'B', target: 'A', type: 'supports', weight: 0.5 },
+    ];
+    const result = computeQbafStrengths(nodes, edges);
+    const aStrength = result.strengths.get('A')!;
+    const bStrength = result.strengths.get('B')!;
+    expect(Number.isFinite(aStrength)).toBe(true);
+    expect(Number.isFinite(bStrength)).toBe(true);
+    expect(result.converged).toBe(true);
+  });
+});
 
 describe('computeEdgeAttribution', () => {
   it('identifies attack as negative attribution', () => {

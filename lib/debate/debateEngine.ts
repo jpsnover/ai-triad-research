@@ -13,7 +13,7 @@ import type { LoadedTaxonomy } from './taxonomyLoader.js';
 import type {
   DebateSession,
   DebateSourceType,
-  PoverId,
+  SpeakerId,
   TranscriptEntry,
   TaxonomyRef,
   ContextSummary,
@@ -161,7 +161,7 @@ export interface DebateConfig {
   sourceType: DebateSourceType;
   sourceRef?: string;
   sourceContent?: string;
-  activePovers: Exclude<PoverId, 'user'>[];
+  activePovers: Exclude<SpeakerId, 'user'>[];
   protocolId?: string;
   model: string;
   /** Separate model for claim extraction/classification (evaluator role). Cross-vendor recommended. Defaults to `model` if unset. */
@@ -408,7 +408,7 @@ export class DebateEngine {
         relevanceThreshold: 0.45, // TODO: read from config when externalized
         draftTemperature: 0.7,
         attackWeights: [1.0, 1.1, 1.2],
-        saturationWeights: weights.saturation,
+        argumentativeSaturationWeights: weights.argumentative_saturation,
       });
       // Resolve data root — env var or .aitriad.json fallback
       const __engineDir = path.dirname(fileURLToPath(import.meta.url));
@@ -664,7 +664,7 @@ export class DebateEngine {
     if (entry.summaries) return;
 
     try {
-      const speaker = POVER_INFO[entry.speaker as PoverId]?.label ?? entry.speaker;
+      const speaker = POVER_INFO[entry.speaker as SpeakerId]?.label ?? entry.speaker;
       const prompt = entrySummarizationPrompt(entry.content, speaker);
       const raw = await this.adapter.generateText(prompt, this.config.model, {
         temperature: 0.3, // Low temp for faithful summarization
@@ -818,9 +818,9 @@ export class DebateEngine {
       },
 
       convergenceSignals: {
-        recycling_rate: { avg_self_overlap: lastConvSignal?.recycling_rate?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.recycling_rate?.semantic_max_similarity },
-        engagement_depth: { ratio: lastConvSignal?.engagement_depth?.ratio ?? 1 },
-        position_delta: { drift: lastConvSignal?.position_delta?.drift ?? 0 },
+        argument_redundancy: { avg_self_overlap: lastConvSignal?.argument_redundancy?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.argument_redundancy?.semantic_max_similarity },
+        dialectical_engagement: { ratio: lastConvSignal?.dialectical_engagement?.ratio ?? 1 },
+        position_drift: { drift: lastConvSignal?.position_drift?.drift ?? 0 },
         concession_opportunity: {
           outcome: lastConvSignal?.concession_opportunity?.outcome ?? 'none',
           strong_attacks_faced: lastConvSignal?.concession_opportunity?.strong_attacks_faced ?? 0,
@@ -1128,7 +1128,7 @@ export class DebateEngine {
 
   // ── Commitment context ─────────────────────────────────────
 
-  private getCommitmentContext(poverId: Exclude<PoverId, 'user'>): string {
+  private getCommitmentContext(poverId: Exclude<SpeakerId, 'user'>): string {
     const commitments = this.session.commitments?.[poverId];
     if (!commitments) return '';
 
@@ -1141,14 +1141,14 @@ export class DebateEngine {
   }
 
   /** Get recent claims from other debaters so the current speaker doesn't echo them */
-  private getEstablishedPointsContext(poverId: Exclude<PoverId, 'user'>): string {
+  private getEstablishedPointsContext(poverId: Exclude<SpeakerId, 'user'>): string {
     const an = this.session.argument_network;
     if (!an || an.nodes.length === 0) return '';
 
     const allNodes = an.nodes.map(n => ({
       id: n.id,
       text: n.text,
-      speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker,
+      speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label ?? n.speaker,
     }));
 
     return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 10, an.edges);
@@ -1514,7 +1514,7 @@ export class DebateEngine {
 
       const lastConvSignal = (this.session.convergence_signals ?? []).slice(-1)[0];
       if (lastConvSignal) {
-        this.updatePeakTracker('_peak_engagement_ratio', lastConvSignal.engagement_depth.ratio);
+        this.updatePeakTracker('_peak_engagement_ratio', lastConvSignal.dialectical_engagement.ratio);
       }
 
       // Record peak trackers into signal history so priorSignals.get() works
@@ -1536,7 +1536,7 @@ export class DebateEngine {
       const convScore = computeConvergenceScore(ctx, coldStart);
 
       // Record composite scores in signal history
-      this.recordSignalHistory('_saturation_score', round, satScore);
+      this.recordSignalHistory('_argumentative_saturation_score', round, satScore);
       this.recordSignalHistory('_convergence_score', round, convScore);
 
       // Record individual signal values
@@ -1992,7 +1992,7 @@ export class DebateEngine {
       content: statement,
       taxonomy_refs: taxonomyRefs,
       policy_refs: meta.policy_refs,
-      addressing: addressing as PoverId | 'all',
+      addressing: addressing as SpeakerId | 'all',
       metadata: {
         cross_respond: true,
         round,
@@ -2171,7 +2171,7 @@ export class DebateEngine {
       // Build speaker mapping once and reuse for consistency
       if (!this._neutralMapping) {
         this._neutralMapping = buildSpeakerMapping(
-          this.config.activePovers as Exclude<PoverId, 'user'>[],
+          this.config.activePovers as Exclude<SpeakerId, 'user'>[],
         );
         this.session.neutral_speaker_mapping = this._neutralMapping;
       }
@@ -2263,7 +2263,7 @@ export class DebateEngine {
     if (distantEntries.length >= 4) {
       const entries = distantEntries.map(e => {
         const label = e.speaker === 'user' ? 'Moderator'
-          : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label ?? e.speaker;
+          : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label ?? e.speaker;
         return `${label}: ${e.content}`;
       }).join('\n\n');
 
@@ -2312,7 +2312,7 @@ export class DebateEngine {
       // Not enough entries for two tiers — fall back to single LLM summary
       const entries = toCompress.map(e => {
         const label = e.speaker === 'user' ? 'Moderator'
-          : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label ?? e.speaker;
+          : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label ?? e.speaker;
         return `${label}: ${e.content}`;
       }).join('\n\n');
 
@@ -2453,7 +2453,7 @@ export class DebateEngine {
       lines.push('**Areas of Agreement:**');
       lines.push('');
       for (const a of agreements) {
-        const povers = (a.povers ?? []).map(p => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label ?? p).join(', ');
+        const povers = (a.povers ?? []).map(p => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label ?? p).join(', ');
         lines.push(`- ${a.point} (${povers})`);
       }
       lines.push('');
@@ -2466,7 +2466,7 @@ export class DebateEngine {
         const typeTag = (d as Record<string, unknown>).type ? ` {${(d as Record<string, unknown>).type}}` : '';
         lines.push(`- ${d.point}${typeTag}${bdiTag}`);
         for (const pos of d.positions ?? []) {
-          const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label ?? pos.pover;
+          const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label ?? pos.pover;
           lines.push(`    - ${label}: ${pos.stance}`);
         }
         const resolvability = (d as Record<string, unknown>).resolvability as string | undefined;
@@ -2968,7 +2968,7 @@ export class DebateEngine {
    * current-round claims to classify as maintained/refined/abandoned.
    */
   private async trackPerClaimDrift(
-    speaker: Exclude<PoverId, 'user'>,
+    speaker: Exclude<SpeakerId, 'user'>,
     round: number,
   ): Promise<void> {
     const openingClaims = this._openingClaims.get(speaker);
@@ -3060,7 +3060,7 @@ export class DebateEngine {
    * the speaker's opening and each opponent's opening.
    */
   private async trackPositionDrift(
-    speaker: Exclude<PoverId, 'user'>,
+    speaker: Exclude<SpeakerId, 'user'>,
     responseText: string,
     round: number,
   ): Promise<void> {
@@ -3101,7 +3101,7 @@ export class DebateEngine {
    * AND opponent_similarity increased monotonically for any opponent for 3+ turns
    * AND no concessions were made during those turns.
    */
-  private detectSycophancy(speaker: Exclude<PoverId, 'user'>, round: number): void {
+  private detectSycophancy(speaker: Exclude<SpeakerId, 'user'>, round: number): void {
     // Per-claim tracking handles sycophancy detection when active
     if (this._openingClaims.size > 0) return;
 
@@ -3137,7 +3137,7 @@ export class DebateEngine {
     }
 
     const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
-    const opponentLabel = POVER_INFO[driftingToward as Exclude<PoverId, 'user'>]?.label ?? driftingToward;
+    const opponentLabel = POVER_INFO[driftingToward as Exclude<SpeakerId, 'user'>]?.label ?? driftingToward;
 
     const sycEntry = this.addEntry({
       type: 'system',
@@ -3193,7 +3193,7 @@ export class DebateEngine {
    */
   private async validateSteelmans(
     newNodes: ArgumentNetworkNode[],
-    speaker: Exclude<PoverId, 'user'>,
+    speaker: Exclude<SpeakerId, 'user'>,
   ): Promise<void> {
     const adapter = this.adapter as ExtendedAIAdapter;
     if (!adapter.nliClassify) return; // NLI not available in CLI adapter
@@ -3217,7 +3217,7 @@ export class DebateEngine {
         const maxEntailment = Math.max(...result.results.map(r => r.nli_entailment ?? 0));
 
         if (maxEntailment < 0.6) {
-          const targetLabel = POVER_INFO[targetPover as Exclude<PoverId, 'user'>]?.label ?? targetPover;
+          const targetLabel = POVER_INFO[targetPover as Exclude<SpeakerId, 'user'>]?.label ?? targetPover;
           const speakerLabel = POVER_INFO[speaker]?.label ?? speaker;
           const topAssertions = targetCommitments.asserted.slice(-3).map(a => `"${a}"`).join('; ');
 
@@ -3503,7 +3503,7 @@ Return ONLY JSON (no markdown, no code fences):
 
   private async extractClaims(
     statement: string,
-    speaker: Exclude<PoverId, 'user'>,
+    speaker: Exclude<SpeakerId, 'user'>,
     entryId: string,
     taxonomyRefIds: string[],
     debaterClaims?: { claim: string; targets: string[] }[],
@@ -3514,7 +3514,7 @@ Return ONLY JSON (no markdown, no code fences):
     const allPriorClaims = an.nodes.map(n => ({
       id: n.id,
       text: n.text,
-      speaker: POVER_INFO[n.speaker as Exclude<PoverId, 'user'>]?.label ?? n.speaker,
+      speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label ?? n.speaker,
     }));
     const priorClaims = allPriorClaims.slice(-30);
 
@@ -3655,7 +3655,7 @@ Return ONLY JSON (no markdown, no code fences):
       }
       for (const node of an.nodes) {
         const strength = result.strengths.get(node.id);
-        if (strength !== undefined) node.computed_strength = strength;
+        if (strength !== undefined && Number.isFinite(strength)) node.computed_strength = strength;
       }
 
       // Update convergence tracker with QBAF strengths

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { DebateAudience, DebatePhase, PoverId } from './types.js';
+import type { DebateAudience, DebatePhase, SpeakerId } from './types.js';
 import type { GenerateOptions } from './aiAdapter.js';
 
 export type PromptType =
@@ -17,7 +17,7 @@ export interface PromptEnvelope {
   layer4_variable: string;
   meta: {
     promptType: PromptType;
-    persona?: PoverId;
+    persona?: SpeakerId;
     audience?: DebateAudience;
     phase?: DebatePhase;
     layer1Hash?: string;

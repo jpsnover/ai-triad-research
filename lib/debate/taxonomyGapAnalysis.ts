@@ -32,14 +32,14 @@ export interface ContextManifestEntry {
 
 // ── Internal constants ───────────────────────────────────────────────
 
-/** Map POV labels to PoverId speaker names. */
+/** Map POV labels to SpeakerId speaker names. */
 const POV_TO_SPEAKER: Record<string, string> = {
   accelerationist: 'prometheus',
   safetyist: 'sentinel',
   skeptic: 'cassandra',
 };
 
-/** Map PoverId speaker names back to POV labels. */
+/** Map SpeakerId speaker names back to POV labels. */
 const SPEAKER_TO_POV: Record<string, string> = {
   prometheus: 'accelerationist',
   sentinel: 'safetyist',

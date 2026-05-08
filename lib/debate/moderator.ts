@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import type {
-  PoverId,
+  SpeakerId,
   DebatePhase,
   InterventionFamily,
   InterventionMove,
@@ -163,7 +163,7 @@ const MOVE_RESPONSE_CONFIG: Record<InterventionMove, MoveResponseConfig> = {
 
 // ── Initialization ─────────────────────────────────────
 
-export function initModeratorState(totalRounds: number, activePovers: PoverId[]): ModeratorState {
+export function initModeratorState(totalRounds: number, activePovers: SpeakerId[]): ModeratorState {
   const explorationRounds = Math.max(totalRounds - 3, 1);
   const burdenMap: Record<string, number> = {};
   const triggerMap: Record<string, Partial<Record<InterventionMove, number>>> = {};
@@ -257,7 +257,7 @@ export function adaptiveModifier(prior: number, observedTriggerCount: number): n
   return prior * decay + 1.0 * (1 - decay);
 }
 
-export function getPersonaModifier(debater: PoverId, move: InterventionMove, triggerCounts: Record<string, Partial<Record<InterventionMove, number>>>): number {
+export function getPersonaModifier(debater: SpeakerId, move: InterventionMove, triggerCounts: Record<string, Partial<Record<InterventionMove, number>>>): number {
   const priors = PERSONA_PRIOR_MODIFIERS[debater];
   if (!priors) return 1.0;
   const prior = priors[move] ?? 1.0;
@@ -290,7 +290,7 @@ export function getSliModifier(family: InterventionFamily, state: ModeratorState
 
 export function computeEffectiveThreshold(
   baseThreshold: number,
-  debater: PoverId,
+  debater: SpeakerId,
   move: InterventionMove,
   state: ModeratorState,
 ): number {
@@ -321,8 +321,8 @@ export function computeDebateHealthScore(
     };
   }
 
-  const engagement = window.reduce((sum, s) => sum + s.engagement_depth.ratio, 0) / window.length;
-  const novelty = 1 - window.reduce((sum, s) => sum + s.recycling_rate.avg_self_overlap, 0) / window.length;
+  const engagement = window.reduce((sum, s) => sum + s.dialectical_engagement.ratio, 0) / window.length;
+  const novelty = 1 - window.reduce((sum, s) => sum + s.argument_redundancy.avg_self_overlap, 0) / window.length;
   const concessionOpps = window.filter(s => s.concession_opportunity.outcome !== 'none');
   const responsiveness = concessionOpps.length > 0
     ? concessionOpps.filter(s => s.concession_opportunity.outcome === 'taken').length / concessionOpps.length
@@ -436,7 +436,7 @@ export function validateRecommendation(
   };
 }
 
-function suppress(move: InterventionMove, target: PoverId, reason: EngineValidationResult['suppressed_reason']): EngineValidationResult {
+function suppress(move: InterventionMove, target: SpeakerId, reason: EngineValidationResult['suppressed_reason']): EngineValidationResult {
   return {
     proceed: false,
     validated_move: move,
@@ -533,7 +533,7 @@ export interface TriggerEvaluationContext {
   cooldown_rounds_left: number;
   last_intervention_move: InterventionMove | null;
   last_intervention_family: InterventionFamily | null;
-  last_intervention_target: PoverId | null;
+  last_intervention_target: SpeakerId | null;
   burden_per_debater: Record<string, number>;
   avg_burden: number;
   health_score: DebateHealthScore | null;
@@ -845,20 +845,20 @@ export function detectNearMisses(
 
 export function getSynthesisResponder(
   state: ModeratorState,
-  activePovers: PoverId[],
+  activePovers: SpeakerId[],
   transcript: { speaker: string; type: string }[],
-): PoverId | null {
+): SpeakerId | null {
   const committed = new Set(
     state.intervention_history
       .filter(h => h.move === 'COMMIT')
       .map(h => h.target),
   );
-  const order: PoverId[] = [];
+  const order: SpeakerId[] = [];
   const seen = new Set<string>();
   for (const e of transcript) {
-    if (activePovers.includes(e.speaker as PoverId) && !seen.has(e.speaker)) {
+    if (activePovers.includes(e.speaker as SpeakerId) && !seen.has(e.speaker)) {
       seen.add(e.speaker);
-      order.push(e.speaker as PoverId);
+      order.push(e.speaker as SpeakerId);
     }
   }
   for (const p of activePovers) {

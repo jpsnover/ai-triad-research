@@ -73,6 +73,44 @@ describe('BDI composite scoring', () => {
     expect(node.scoring_method).not.toBe('bdi_composite');
   });
 
+  it('guards against NaN sub-scores in Desire composite', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'AI governance should prioritize safety mechanisms with NaN guard test for desire claims',
+        bdi_category: 'desire',
+        base_strength: 'grounded',
+        bdi_sub_scores: { values_grounding: NaN, tradeoff_acknowledgment: 0.8, precedent_citation: 0.6 },
+      }],
+    }, baseOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    const node = result.newNodes[0];
+    expect(node.scoring_method).toBe('bdi_composite');
+    // NaN → 0.5 fallback, (0.5 + 0.8 + 0.6) / 3 ≈ 0.633
+    expect(node.base_strength).toBeCloseTo((0.5 + 0.8 + 0.6) / 3, 4);
+    expect(Number.isFinite(node.base_strength)).toBe(true);
+  });
+
+  it('guards against NaN sub-scores in Intention composite', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'AI governance should prioritize safety mechanisms with NaN guard test for intention claims',
+        bdi_category: 'intention',
+        base_strength: 'grounded',
+        bdi_sub_scores: { mechanism_specificity: NaN, scope_bounding: NaN, failure_mode_addressing: NaN },
+      }],
+    }, baseOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    const node = result.newNodes[0];
+    expect(node.scoring_method).toBe('bdi_composite');
+    // All NaN → all 0.5 fallback → mean = 0.5
+    expect(node.base_strength).toBeCloseTo(0.5, 5);
+    expect(Number.isFinite(node.base_strength)).toBe(true);
+  });
+
   it('falls back to generic scoring when sub-scores are absent', () => {
     const result = processExtractedClaims({
       ...baseInput,
@@ -85,7 +123,7 @@ describe('BDI composite scoring', () => {
 
     expect(result.newNodes).toHaveLength(1);
     const node = result.newNodes[0];
-    expect(node.scoring_method).toBe('ai_rubric');
+    expect(node.scoring_method).toBe('bdi_criteria');
   });
 });
 

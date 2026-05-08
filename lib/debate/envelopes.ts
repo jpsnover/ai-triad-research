@@ -3,7 +3,7 @@
 
 import type { PromptEnvelope } from './cacheTypes.js';
 import type { StagePromptInput } from './prompts.js';
-import type { PoverId } from './types.js';
+import type { SpeakerId } from './types.js';
 import { documentAnalysisContext } from './documentAnalysis.js';
 import {
   _MUST_CORE_BEHAVIORS,
@@ -93,7 +93,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 
     meta: {
       promptType: 'brief',
-      persona: input.label.toLowerCase() as PoverId,
+      persona: input.label.toLowerCase() as SpeakerId,
       audience: input.audience,
       phase: input.phase,
     },
@@ -163,7 +163,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 
     meta: {
       promptType: 'plan',
-      persona: input.label.toLowerCase() as PoverId,
+      persona: input.label.toLowerCase() as SpeakerId,
       audience: input.audience,
       phase: input.phase,
     },
@@ -255,7 +255,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 
     meta: {
       promptType: 'draft',
-      persona: input.label.toLowerCase() as PoverId,
+      persona: input.label.toLowerCase() as SpeakerId,
       audience: input.audience,
       phase: input.phase,
       layer1Hash: DRAFT_LAYER1_HASH,
@@ -319,7 +319,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 
     meta: {
       promptType: 'cite',
-      persona: input.label.toLowerCase() as PoverId,
+      persona: input.label.toLowerCase() as SpeakerId,
       audience: input.audience,
       phase: input.phase,
     },

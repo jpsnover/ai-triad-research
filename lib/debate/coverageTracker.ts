@@ -31,11 +31,11 @@ export interface CoverageResult {
 }
 
 export interface CoverageOptions {
-  /** Cosine similarity threshold for considering a claim "discussed". Default from provisional-weights.json. */
+  /** Cosine similarity threshold for considering a claim "discussed". Default from calibration-config.json. */
   threshold?: number;
 }
 
-/** Load coverage thresholds from provisional-weights.json, falling back to defaults. */
+/** Load coverage thresholds from calibration-config.json, falling back to defaults. */
 function getCoverageDefaults(): { discussed: number; covered: number; partial: number } {
   const w = loadProvisionalWeights() as Record<string, unknown>;
   const cov = (w as { coverage?: { discussed_threshold?: number; covered_threshold?: number; partial_threshold?: number } }).coverage;

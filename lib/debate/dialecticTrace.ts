@@ -19,7 +19,7 @@ import type {
   ArgumentNetworkEdge,
   DebateSession,
   PreferenceEntry,
-  PoverId,
+  SpeakerId,
 } from './types.js';
 
 // ── Types ─────────────────────────────────────────────────

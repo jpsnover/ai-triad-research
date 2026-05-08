@@ -10,7 +10,7 @@
 import fs from 'fs';
 import { parsePoverResponse, parseJsonRobust, stripCodeFences } from './helpers.js';
 import { POVER_INFO } from './types.js';
-import type { PoverId } from './types.js';
+import type { SpeakerId } from './types.js';
 import { formatDebateMarkdown } from './formatters.js';
 
 function log(msg: string): void {
@@ -144,7 +144,7 @@ if (synthEntry) {
       if (synthData.areas_of_agreement?.length) {
         lines.push('**Areas of Agreement:**');
         for (const a of synthData.areas_of_agreement) {
-          const povers = (a.povers || []).map((p: string) => POVER_INFO[p as Exclude<PoverId, 'user'>]?.label ?? p).join(', ');
+          const povers = (a.povers || []).map((p: string) => POVER_INFO[p as Exclude<SpeakerId, 'user'>]?.label ?? p).join(', ');
           lines.push(`- ${a.point} (${povers})`);
         }
         lines.push('');
@@ -154,7 +154,7 @@ if (synthEntry) {
         for (const d of synthData.areas_of_disagreement) {
           lines.push(`- ${d.point}`);
           for (const pos of d.positions || []) {
-            const label = POVER_INFO[pos.pover as Exclude<PoverId, 'user'>]?.label ?? pos.pover;
+            const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label ?? pos.pover;
             lines.push(`  - ${label}: ${pos.stance}`);
           }
         }

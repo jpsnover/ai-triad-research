@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "status": "CALIBRATED — 290 data points, 2026-05-03. 3 parameters updated by optimizer.",
-  "saturation": {
+  "argumentative_saturation": {
     "recycling_pressure": 0.01,
     "crux_maturity": 0.28,
     "concession_plateau": 0.01,

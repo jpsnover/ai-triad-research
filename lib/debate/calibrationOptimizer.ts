@@ -3,7 +3,7 @@
 
 /**
  * Parameter optimizer — reads calibration-log.json and computes optimal
- * values for the top 5 parameters. Writes results to provisional-weights.json.
+ * values for the top 5 parameters. Writes results to calibration-config.json.
  *
  * No LLM calls. No human input. Pure arithmetic on logged debate data.
  *
@@ -140,7 +140,7 @@ export interface AdaptiveState {
 }
 
 /**
- * Apply the relevance threshold recommendation to provisional-weights.json
+ * Apply the relevance threshold recommendation to calibration-config.json
  * if safety rails pass. Called after each completed debate.
  */
 export function applyRelevanceThresholdAdaptation(
@@ -169,7 +169,7 @@ export function applyRelevanceThresholdAdaptation(
     return { applied: false, reason: `recommended ${newValue} outside bounds [0.35, 0.60]` };
   }
 
-  const targetPath = weightsPath ?? path.resolve(__dirname, 'provisional-weights.json');
+  const targetPath = weightsPath ?? path.resolve(__dirname, 'calibration-config.json');
 
   try {
     const raw = fs.readFileSync(targetPath, 'utf-8');
@@ -317,20 +317,20 @@ function optimizeDraftTemperature(data: CalibrationDataPoint[]): OptimizationRes
  */
 function optimizeSaturationWeights(data: CalibrationDataPoint[]): OptimizationResult | null {
   const valid = data.filter(d =>
-    d.saturation_signals_at_transition != null &&
+    d.argumentative_saturation_signals_at_transition != null &&
     d.crux_addressed_ratio != null &&
     d.engaging_real_disagreement != null,
   );
   if (valid.length < 8) return null;
 
-  const signalNames = Object.keys(valid[0].saturation_signals_at_transition!);
+  const signalNames = Object.keys(valid[0].argumentative_saturation_signals_at_transition!);
   if (signalNames.length === 0) return null;
 
   // Build X (signals) and y (quality) vectors
   const y = valid.map(d =>
     (d.crux_addressed_ratio ?? 0) * (d.engaging_real_disagreement ? 1.0 : 0.5),
   );
-  const X = valid.map(d => signalNames.map(name => d.saturation_signals_at_transition![name] ?? 0));
+  const X = valid.map(d => signalNames.map(name => d.argumentative_saturation_signals_at_transition![name] ?? 0));
 
   // Simple OLS: w = (X^T X)^{-1} X^T y
   // For small dimensions (6 signals × N debates), this is trivial
@@ -395,8 +395,8 @@ function optimizeSaturationWeights(data: CalibrationDataPoint[]): OptimizationRe
   signalNames.forEach((name, i) => { recommended[name] = normalized[i]; });
 
   return {
-    parameter: 'saturation',
-    current_value: valid[0].saturation_weights,
+    parameter: 'argumentative_saturation',
+    current_value: valid[0].argumentative_saturation_weights,
     recommended_value: recommended,
     confidence: valid.length >= 15 ? 'high' : valid.length >= 10 ? 'medium' : 'low',
     data_points_used: valid.length,
@@ -776,7 +776,7 @@ function optimizeBudgetMultiplier(data: CalibrationDataPoint[]): OptimizationRes
 
 /**
  * Run all 16 optimization algorithms on the calibration log.
- * Returns a report with recommendations. Optionally writes to provisional-weights.json.
+ * Returns a report with recommendations. Optionally writes to calibration-config.json.
  */
 export function recalibrateParameters(
   dataRoot: string,
@@ -826,12 +826,12 @@ export function recalibrateParameters(
   // Ensure initial snapshot exists
   seedInitialSnapshot(dataRoot);
 
-  // Apply to provisional-weights.json if requested
+  // Apply to calibration-config.json if requested
   if (options.apply && report.results.length > 0) {
 
 
     const weightsPath = options.weightsPath ??
-      path.resolve(__dirname, 'provisional-weights.json');
+      path.resolve(__dirname, 'calibration-config.json');
 
     try {
       const beforeSnapshot = captureSnapshot(weightsPath);
@@ -845,9 +845,9 @@ export function recalibrateParameters(
           case 'thresholds.exploration_exit':
             weights.thresholds.exploration_exit = result.recommended_value;
             break;
-          case 'saturation':
+          case 'argumentative_saturation':
             if (typeof result.recommended_value === 'object') {
-              weights.saturation = result.recommended_value;
+              weights.argumentative_saturation = result.recommended_value;
             }
             break;
           case 'network.gc_trigger':
@@ -861,7 +861,7 @@ export function recalibrateParameters(
             break;
           // draft_temperature, attack_weights, recent_window,
           // crux thresholds, node caps, and recycling threshold are not yet in
-          // provisional-weights.json — logged for manual review until externalized
+          // calibration-config.json — logged for manual review until externalized
         }
       }
 
@@ -935,10 +935,10 @@ if (isMain) {
   }
 
   if (apply && report.applied) {
-    console.log('Applied changes to provisional-weights.json');
+    console.log('Applied changes to calibration-config.json');
   } else if (apply && !report.applied) {
     console.log('--apply requested but no changes met confidence threshold');
   } else {
-    console.log('Dry run. Use --apply to write changes to provisional-weights.json');
+    console.log('Dry run. Use --apply to write changes to calibration-config.json');
   }
 }

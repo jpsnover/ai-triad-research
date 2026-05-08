@@ -837,8 +837,8 @@ export function processExtractedClaims(
       turn_number: turnNumber,
       base_strength: typeof claim.base_strength === 'number' ? claim.base_strength : 0.5,
       scoring_method: typeof claim.base_strength === 'number'
-        ? 'ai_rubric'
-        : (claim.bdi_category === 'belief' ? 'default_pending' : 'ai_rubric'),
+        ? 'bdi_criteria'
+        : (claim.bdi_category === 'belief' ? 'unscored' : 'bdi_criteria'),
       bdi_sub_scores: claim.bdi_sub_scores && typeof claim.bdi_sub_scores === 'object'
         ? claim.bdi_sub_scores as ArgumentNetworkNode['bdi_sub_scores'] : undefined,
       bdi_confidence: bdiConfidenceMap[claim.bdi_category ?? ''] ?? 0.5,
@@ -853,13 +853,19 @@ export function processExtractedClaims(
     if (node.bdi_category === 'desire' && node.bdi_sub_scores) {
       const { values_grounding, tradeoff_acknowledgment, precedent_citation } = node.bdi_sub_scores;
       if (values_grounding != null || tradeoff_acknowledgment != null || precedent_citation != null) {
-        node.base_strength = ((values_grounding ?? 0.5) + (tradeoff_acknowledgment ?? 0.5) + (precedent_citation ?? 0.5)) / 3;
+        const vg = Number.isFinite(values_grounding) ? values_grounding! : 0.5;
+        const ta = Number.isFinite(tradeoff_acknowledgment) ? tradeoff_acknowledgment! : 0.5;
+        const pc = Number.isFinite(precedent_citation) ? precedent_citation! : 0.5;
+        node.base_strength = (vg + ta + pc) / 3;
         node.scoring_method = 'bdi_composite';
       }
     } else if (node.bdi_category === 'intention' && node.bdi_sub_scores) {
       const { mechanism_specificity, scope_bounding, failure_mode_addressing } = node.bdi_sub_scores;
       if (mechanism_specificity != null || scope_bounding != null || failure_mode_addressing != null) {
-        node.base_strength = ((mechanism_specificity ?? 0.5) + (scope_bounding ?? 0.5) + (failure_mode_addressing ?? 0.5)) / 3;
+        const ms = Number.isFinite(mechanism_specificity) ? mechanism_specificity! : 0.5;
+        const sb = Number.isFinite(scope_bounding) ? scope_bounding! : 0.5;
+        const fm = Number.isFinite(failure_mode_addressing) ? failure_mode_addressing! : 0.5;
+        node.base_strength = (ms + sb + fm) / 3;
         node.scoring_method = 'bdi_composite';
       }
     }

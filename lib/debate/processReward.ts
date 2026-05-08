@@ -84,13 +84,13 @@ export interface ProcessRewardInput {
 export function computeProcessReward(input: ProcessRewardInput): ProcessRewardScore {
   const { convergenceSignals: cs, turnValidation: tv, phase } = input;
 
-  // 1. Engagement: direct from convergence signals engagement_depth ratio
-  const engagement = clamp(cs.engagement_depth.ratio);
+  // 1. Engagement: direct from convergence signals dialectical_engagement ratio
+  const engagement = clamp(cs.dialectical_engagement.ratio);
 
   // 2. Novelty: inverse of recycling rate.
   //    Use semantic similarity when available (more accurate), fall back to lexical.
-  const recyclingRate = cs.recycling_rate.semantic_max_similarity
-    ?? cs.recycling_rate.avg_self_overlap;
+  const recyclingRate = cs.argument_redundancy.semantic_max_similarity
+    ?? cs.argument_redundancy.avg_self_overlap;
   const novelty = clamp(1 - recyclingRate);
 
   // 3. Consistency: blend of concession responsiveness and position stability.
@@ -100,7 +100,7 @@ export function computeProcessReward(input: ProcessRewardInput): ProcessRewardSc
     cs.concession_opportunity.outcome === 'taken' ? 1.0 :
     cs.concession_opportunity.outcome === 'none' ? 0.8 : // no opportunity — neutral-positive
     0.0; // missed
-  const driftPenalty = clamp(cs.position_delta.drift * 2); // scale drift [0,0.5] → [0,1]
+  const driftPenalty = clamp(cs.position_drift.drift * 2); // scale drift [0,0.5] → [0,1]
   const consistency = clamp(concessionScore * 0.6 + (1 - driftPenalty) * 0.4);
 
   // 4. Grounding: from turn validation dimensions + taxonomy ref utilization.
@@ -167,19 +167,19 @@ function computePhaseBonus(
   switch (phase) {
     case 'thesis-antithesis': {
       // Reward strong engagement and clear positions
-      const confrontational = cs.move_disposition.ratio < 0.5 ? 0.7 : 0.4; // low ratio = more confrontational
-      return clamp(confrontational + (cs.engagement_depth.ratio > 0.5 ? 0.3 : 0));
+      const confrontational = cs.move_polarity.ratio < 0.5 ? 0.7 : 0.4; // low ratio = more confrontational
+      return clamp(confrontational + (cs.dialectical_engagement.ratio > 0.5 ? 0.3 : 0));
     }
     case 'exploration': {
       // Reward crux identification and concession handling
-      const cruxBonus = cs.crux_rate.used_this_turn ? 0.5 : 0;
+      const cruxBonus = cs.crux_engagement_rate.used_this_turn ? 0.5 : 0;
       const concessionBonus = cs.concession_opportunity.outcome === 'taken' ? 0.3 : 0;
-      const engagementBonus = cs.engagement_depth.ratio > 0.6 ? 0.2 : 0;
+      const engagementBonus = cs.dialectical_engagement.ratio > 0.6 ? 0.2 : 0;
       return clamp(cruxBonus + concessionBonus + engagementBonus);
     }
     case 'synthesis': {
       // Reward collaborative moves and taxonomy clarification
-      const collaborative = cs.move_disposition.ratio > 0.5 ? 0.5 : 0.2;
+      const collaborative = cs.move_polarity.ratio > 0.5 ? 0.5 : 0.2;
       const clarifiesBonus = tv.clarifies_taxonomy.length > 0 ? 0.3 : 0;
       const concessionBonus = cs.concession_opportunity.outcome === 'taken' ? 0.2 : 0;
       return clamp(collaborative + clarifiesBonus + concessionBonus);

@@ -29,12 +29,12 @@ function makeSignals(overrides: Partial<ConvergenceSignals> = {}): ConvergenceSi
     entry_id: 'test',
     round: 1,
     speaker: 'prometheus',
-    move_disposition: { confrontational: 1, collaborative: 0, ratio: 1 },
-    engagement_depth: { targeted: 1, standalone: 0, ratio: 0.8 },
-    recycling_rate: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
-    strongest_opposing: null,
+    move_polarity: { confrontational: 1, collaborative: 0, ratio: 1 },
+    dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.8 },
+    argument_redundancy: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
+    dominant_counterargument: null,
     concession_opportunity: { strong_attacks_faced: 0, concession_used: false, outcome: 'none' },
-    position_delta: { overlap_with_opening: 0.8 },
+    position_drift: { overlap_with_opening: 0.8 },
     ...overrides,
   };
 }
@@ -177,9 +177,9 @@ describe('moderator pipeline integration', () => {
 
     // Simulate 3 rounds of declining health
     const sigs = [
-      makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.8 } }),
-      makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.6 } }),
-      makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.4 } }),
+      makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.8 } }),
+      makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.6 } }),
+      makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.4 } }),
     ];
 
     const turnCounts = { prometheus: 3, sentinel: 3, cassandra: 3 };
@@ -331,7 +331,7 @@ describe('multi-round simulation', () => {
 
       // Simulate health update
       const health = computeDebateHealthScore(
-        [makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.5 + round * 0.05 } })],
+        [makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.5 + round * 0.05 } })],
         { prometheus: round, sentinel: round, cassandra: round },
         round * 2,
         50,

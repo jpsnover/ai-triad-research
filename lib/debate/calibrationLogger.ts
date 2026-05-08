@@ -6,7 +6,7 @@
  *
  * After each debate, extracts calibration-relevant metrics from the session
  * and appends a data point to calibration-log.json. The optimizer reads
- * this log to auto-tune parameters in provisional-weights.json.
+ * this log to auto-tune parameters in calibration-config.json.
  *
  * Works in both local (Electron) and Azure (server) environments — the log
  * lives in the data directory alongside debate sessions.
@@ -37,7 +37,7 @@ export interface CalibrationDataPoint {
 
   // ── Parameter 1: Exploration exit threshold ──
   /** Saturation score at the moment of exploration→synthesis transition (null if no transition) */
-  saturation_at_transition: number | null;
+  argumentative_saturation_at_transition: number | null;
   /** The exploration_exit threshold that was active */
   exploration_exit_threshold: number;
   /** Neutral evaluator: debate engaging real disagreement? */
@@ -69,9 +69,9 @@ export interface CalibrationDataPoint {
 
   // ── Parameter 5: Saturation signal weights ──
   /** Raw saturation signal values at transition point */
-  saturation_signals_at_transition: Record<string, number> | null;
+  argumentative_saturation_signals_at_transition: Record<string, number> | null;
   /** The signal weights that were active */
-  saturation_weights: Record<string, number>;
+  argumentative_saturation_weights: Record<string, number>;
 
   // ── Parameter 6: Context compression window ──
   /** Fraction of claims that fell out of context and were never addressed */
@@ -204,7 +204,7 @@ export function extractCalibrationData(
     relevanceThreshold?: number;
     draftTemperature?: number;
     attackWeights?: [number, number, number];
-    saturationWeights?: Record<string, number>;
+    argumentativeSaturationWeights?: Record<string, number>;
     recentWindow?: number;
     gcTrigger?: number;
     polarityResolvedThreshold?: number;
@@ -344,17 +344,17 @@ export function extractCalibrationData(
     signal_telemetry?: {
       round: number;
       phase: string;
-      composite?: { saturation_score?: number; convergence_score?: number };
+      composite?: { argumentative_saturation_score?: number; convergence_score?: number };
       signals?: Record<string, number>;
     }[];
   } | undefined;
-  let saturationAtTransition: number | null = null;
+  let argumentativeSaturationAtTransition: number | null = null;
   let signalsAtTransition: Record<string, number> | null = null;
   if (asd?.signal_telemetry && asd.signal_telemetry.length > 0) {
     const telemetry = asd.signal_telemetry;
     // Find the last entry before phase changed (closest to transition)
     const last = telemetry[telemetry.length - 1];
-    saturationAtTransition = last.composite?.saturation_score ?? null;
+    argumentativeSaturationAtTransition = last.composite?.argumentative_saturation_score ?? null;
     signalsAtTransition = last.signals ?? null;
   }
 
@@ -570,7 +570,7 @@ export function extractCalibrationData(
     model: (session as any).debate_model ?? (session as any).config?.model ?? (session as any).model ?? 'unknown',
     rounds,
 
-    saturation_at_transition: saturationAtTransition,
+    argumentative_saturation_at_transition: argumentativeSaturationAtTransition,
     exploration_exit_threshold: config.explorationExitThreshold ?? 0.65,
     engaging_real_disagreement: engaging,
     crux_addressed_ratio: cruxRatio,
@@ -586,8 +586,8 @@ export function extractCalibrationData(
     repetition_rate: totalTurns > 0 ? repetitionWarnings / totalTurns : 0,
     draft_temperature: config.draftTemperature ?? 0.7,
 
-    saturation_signals_at_transition: signalsAtTransition,
-    saturation_weights: config.saturationWeights ?? {
+    argumentative_saturation_signals_at_transition: signalsAtTransition,
+    argumentative_saturation_weights: config.argumentativeSaturationWeights ?? {
       recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
       engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,
     },
@@ -776,7 +776,7 @@ export interface ParameterSnapshot {
   relevance_threshold: number;
   attack_weights: [number, number, number];
   draft_temperature: number;
-  saturation_weights: Record<string, number>;
+  argumentative_saturation_weights: Record<string, number>;
   recent_window: number;
   gc_trigger: number;
   polarity_resolved: number;
@@ -810,7 +810,7 @@ export interface ParameterHistoryEntry {
   }[];
 }
 
-/** Build the current snapshot from provisional-weights.json + hardcoded defaults. */
+/** Build the current snapshot from calibration-config.json + hardcoded defaults. */
 export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
 
 
@@ -818,7 +818,7 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
   let weights: any = {};
   // Resolve relative to this file — use import.meta.url for ESM compatibility
   const thisDir = path.dirname(new URL(import.meta.url).pathname);
-  const wPath = weightsPath ?? path.resolve(thisDir, 'provisional-weights.json');
+  const wPath = weightsPath ?? path.resolve(thisDir, 'calibration-config.json');
   try {
     weights = JSON.parse(fs.readFileSync(wPath, 'utf-8'));
   } catch { /* use defaults */ }
@@ -828,7 +828,7 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
     relevance_threshold: 0.45,
     attack_weights: [1.0, 1.1, 1.2],
     draft_temperature: 0.7,
-    saturation_weights: weights?.saturation ?? {
+    argumentative_saturation_weights: weights?.argumentative_saturation ?? {
       recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
       engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,
     },
@@ -874,10 +874,10 @@ export function diffSnapshots(
   }
 
   // Saturation weights
-  const bsw = before.saturation_weights, asw = after.saturation_weights;
+  const bsw = before.argumentative_saturation_weights, asw = after.argumentative_saturation_weights;
   const swChanged = Object.keys({ ...bsw, ...asw }).some(k => (bsw[k] ?? 0) !== (asw[k] ?? 0));
   if (swChanged) {
-    changes.push({ parameter: 'saturation_weights', from: { ...bsw }, to: { ...asw } });
+    changes.push({ parameter: 'argumentative_saturation_weights', from: { ...bsw }, to: { ...asw } });
   }
 
   return changes;

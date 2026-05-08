@@ -6,7 +6,7 @@
  * No UI, Zustand, or Electron dependencies.
  */
 
-import type { PoverId, TranscriptEntry, TaxonomyRef } from './types.js';
+import type { SpeakerId, TranscriptEntry, TaxonomyRef } from './types.js';
 import { POVER_INFO } from './types.js';
 
 export function generateId(): string {
@@ -135,14 +135,14 @@ function repairJson(text: string): string {
 }
 
 /** Parse @-mentions from user input. Returns { targets, cleanedInput } */
-export function parseAtMention(input: string): { targets: PoverId[]; cleanedInput: string } {
-  const mentionMap: Record<string, PoverId> = {
+export function parseAtMention(input: string): { targets: SpeakerId[]; cleanedInput: string } {
+  const mentionMap: Record<string, SpeakerId> = {
     prometheus: 'prometheus',
     sentinel: 'sentinel',
     cassandra: 'cassandra',
   };
 
-  const targets: PoverId[] = [];
+  const targets: SpeakerId[] = [];
   let remaining = input;
 
   // Extract all leading @mentions
@@ -197,7 +197,7 @@ export function formatRecentTranscript(
   for (const e of recent) {
     const label = e.speaker === 'user' ? 'Moderator'
       : e.speaker === 'system' ? 'System'
-      : POVER_INFO[e.speaker as Exclude<PoverId, 'user'>]?.label || e.speaker;
+      : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label || e.speaker;
     const typeTag = e.type === 'question' ? ' [question]' : e.type === 'opening' ? ' [opening]' : '';
     const contentStr = typeof e.content === 'string' ? e.content : JSON.stringify(e.content);
     parts.push(`${label}${typeTag}: ${contentStr}`);

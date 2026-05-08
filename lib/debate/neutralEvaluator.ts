@@ -16,7 +16,7 @@
 import type { AIAdapter } from './aiAdapter.js';
 import type {
   TranscriptEntry,
-  PoverId,
+  SpeakerId,
   ContextSummary,
 } from './types.js';
 import { POVER_INFO } from './types.js';
@@ -74,9 +74,9 @@ export interface NeutralEvaluation {
 
 /** Speaker label assignment — randomized per debate to prevent positional bias. */
 export interface SpeakerMapping {
-  /** Maps PoverId → neutral label ('Speaker A', 'Speaker B', 'Speaker C') */
+  /** Maps SpeakerId → neutral label ('Speaker A', 'Speaker B', 'Speaker C') */
   forward: Record<string, string>;
-  /** Maps neutral label → PoverId (for UI re-attribution) */
+  /** Maps neutral label → SpeakerId (for UI re-attribution) */
   reverse: Record<string, string>;
 }
 
@@ -84,7 +84,7 @@ export interface SpeakerMapping {
  * Build a randomized speaker mapping. Assignment is shuffled so that
  * 'prometheus' is not always 'Speaker A'.
  */
-export function buildSpeakerMapping(activePovers: PoverId[]): SpeakerMapping {
+export function buildSpeakerMapping(activePovers: SpeakerId[]): SpeakerMapping {
   const labels = ['Speaker A', 'Speaker B', 'Speaker C'];
   // Fisher-Yates shuffle on labels
   const shuffled = [...labels];
@@ -247,7 +247,7 @@ export interface NeutralEvaluatorConfig {
   topic: string;
   transcript: TranscriptEntry[];
   contextSummaries?: ContextSummary[];
-  activePovers: PoverId[];
+  activePovers: SpeakerId[];
   model: string;
   /** Pre-built mapping for consistency across checkpoints within one debate. */
   speakerMapping?: SpeakerMapping;

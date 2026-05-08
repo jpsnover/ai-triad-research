@@ -62,12 +62,12 @@ function makeSignals(overrides: Partial<ConvergenceSignals> = {}): ConvergenceSi
     entry_id: 'test',
     round: 1,
     speaker: 'prometheus',
-    move_disposition: { confrontational: 1, collaborative: 0, ratio: 1 },
-    engagement_depth: { targeted: 1, standalone: 0, ratio: 1 },
-    recycling_rate: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
-    strongest_opposing: null,
+    move_polarity: { confrontational: 1, collaborative: 0, ratio: 1 },
+    dialectical_engagement: { targeted: 1, standalone: 0, ratio: 1 },
+    argument_redundancy: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
+    dominant_counterargument: null,
     concession_opportunity: { strong_attacks_faced: 0, concession_used: false, outcome: 'none' },
-    position_delta: { overlap_with_opening: 0.8 },
+    position_drift: { overlap_with_opening: 0.8 },
     ...overrides,
   };
 }
@@ -385,14 +385,14 @@ describe('computeDebateHealthScore', () => {
     expect(h.components.novelty).toBe(1.0);
   });
 
-  it('computes engagement from engagement_depth ratio', () => {
-    const sig = makeSignals({ engagement_depth: { targeted: 2, standalone: 1, ratio: 0.6 } });
+  it('computes engagement from dialectical_engagement ratio', () => {
+    const sig = makeSignals({ dialectical_engagement: { targeted: 2, standalone: 1, ratio: 0.6 } });
     const h = computeDebateHealthScore([sig], { prometheus: 3, sentinel: 3 }, 10, 10);
     expect(h.components.engagement).toBeCloseTo(0.6);
   });
 
   it('computes novelty as 1 - avg_self_overlap', () => {
-    const sig = makeSignals({ recycling_rate: { avg_self_overlap: 0.4, max_self_overlap: 0.5 } });
+    const sig = makeSignals({ argument_redundancy: { avg_self_overlap: 0.4, max_self_overlap: 0.5 } });
     const h = computeDebateHealthScore([sig], { prometheus: 3, sentinel: 3 }, 10, 10);
     expect(h.components.novelty).toBeCloseTo(0.6);
   });
@@ -433,10 +433,10 @@ describe('computeDebateHealthScore', () => {
 
   it('uses 3-turn sliding window', () => {
     const sigs = [
-      makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.2 } }),
-      makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.4 } }),
-      makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.6 } }),
-      makeSignals({ engagement_depth: { targeted: 1, standalone: 0, ratio: 0.8 } }),
+      makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.2 } }),
+      makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.4 } }),
+      makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.6 } }),
+      makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.8 } }),
     ];
     const h = computeDebateHealthScore(sigs, { prometheus: 3, sentinel: 3 }, 10, 10);
     // Window = last 3: [0.4, 0.6, 0.8] → avg engagement = 0.6

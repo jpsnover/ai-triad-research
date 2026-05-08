@@ -279,5 +279,6 @@ export function computeEdgeAttribution(
 // ── Helpers ───────────────────────────────────────────────
 
 function clamp(v: number): number {
+  if (!Number.isFinite(v)) return 0.5;
   return Math.max(0, Math.min(1, v));
 }
