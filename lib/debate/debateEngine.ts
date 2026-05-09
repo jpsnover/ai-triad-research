@@ -1312,15 +1312,24 @@ export class DebateEngine {
 
       // Seed argument network with document i-nodes
       const an = this.session.argument_network!;
+      const adapter = this.adapter as ExtendedAIAdapter;
       for (const inode of analysis.i_nodes) {
-        an.nodes.push({
+        const node: import('./types.js').ArgumentNetworkNode = {
           id: inode.id,
           text: inode.text,
           speaker: 'document',
           source_entry_id: entry.id,
           taxonomy_refs: inode.taxonomy_refs,
           turn_number: 0,
-        });
+        };
+        // Embed doc i-nodes for AN-based taxonomy relevance scoring
+        if (adapter.computeQueryEmbedding) {
+          try {
+            const { vector } = await adapter.computeQueryEmbedding(inode.text.slice(0, 300));
+            if (vector && vector.length > 0) node.embedding = vector;
+          } catch { /* embedding failure never blocks seeding */ }
+        }
+        an.nodes.push(node);
       }
 
       this.recordDiagnostic(entry.id, { prompt, raw_response: text });
