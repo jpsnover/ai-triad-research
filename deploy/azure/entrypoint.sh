@@ -60,6 +60,8 @@ mkdir -p "$DATA_LOCAL"
             # SMB doesn't copy empty dirs — git needs refs/heads etc.
             mkdir -p "$DATA_LOCAL/.git/refs/heads" "$DATA_LOCAL/.git/refs/tags" \
                      "$DATA_LOCAL/.git/refs/remotes/origin" "$DATA_LOCAL/.git/info"
+            # Remove stale lock files from previous container runs
+            rm -f "$DATA_LOCAL/.git/index.lock" "$DATA_LOCAL/.git/HEAD.lock"
             # Signal that .git is ready for use
             touch "$DATA_LOCAL/.git-ready"
             GIT_SIZE=$(du -sh "$DATA_LOCAL/.git" 2>/dev/null | cut -f1)
