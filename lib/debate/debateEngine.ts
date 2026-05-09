@@ -101,10 +101,12 @@ import {
   cosineSimilarity,
   scoreNodeRelevance,
   scoreNodesLexical,
+  scoreNodesViaAN,
   selectRelevantNodes,
   selectRelevantSituationNodes,
   buildRelevanceQuery,
   type RelevanceOptions,
+  type ANClaimEmbedding,
 } from './taxonomyRelevance.js';
 import {
   generateId,
@@ -1007,10 +1009,45 @@ export class DebateEngine {
     let scores: Map<string, number> | null = null;
     let scoringMode: 'embedding' | 'lexical' = 'embedding';
 
-    // Preferred path: real per-turn query embedding via adapter (same model as embeddings.json)
     const adapter = this.adapter as ExtendedAIAdapter;
     const hasEmbeddings = Object.keys(this.taxonomy.embeddings).length > 0;
-    if (hasEmbeddings && adapter.computeQueryEmbedding) {
+
+    // ── Hybrid AN + topic scoring ──
+    // AN-based: score taxonomy nodes by max similarity to any active AN claim
+    // Topic-based: score by similarity to topic query (floor at 0.5×)
+    // Final: max(AN_score, topic_score × 0.5)
+    const an = this.session.argument_network;
+    const claimEmbeddings: ANClaimEmbedding[] = (an?.nodes ?? [])
+      .filter(n => n.embedding && n.embedding.length > 0)
+      .map(n => ({ id: n.id, vector: n.embedding!, strength: n.computed_strength }));
+
+    if (hasEmbeddings && claimEmbeddings.length > 0) {
+      // Topic score as floor
+      let topicScores: Map<string, number> | null = null;
+      if (adapter.computeQueryEmbedding) {
+        try {
+          const { vector } = await adapter.computeQueryEmbedding(query);
+          if (vector && vector.length > 0) {
+            topicScores = scoreNodeRelevance(vector, this.taxonomy.embeddings);
+          }
+        } catch (err) {
+          this.warn('Topic embedding for relevance floor', err, 'Using AN-only scoring');
+        }
+      }
+
+      // AN score via cached claim embeddings
+      const anScores = scoreNodesViaAN(claimEmbeddings, this.taxonomy.embeddings, undefined, true);
+
+      // Hybrid: max(AN_score, topic_score × 0.5)
+      scores = new Map<string, number>();
+      const allIds = new Set([...anScores.keys(), ...(topicScores?.keys() ?? [])]);
+      for (const id of allIds) {
+        const anScore = anScores.get(id) ?? 0;
+        const topicFloor = (topicScores?.get(id) ?? 0) * 0.5;
+        scores.set(id, Math.max(anScore, topicFloor));
+      }
+    } else if (hasEmbeddings && adapter.computeQueryEmbedding) {
+      // First-mover fallback: no AN claims yet — topic-only scoring
       try {
         const { vector } = await adapter.computeQueryEmbedding(query);
         if (vector && vector.length > 0) {
@@ -1021,8 +1058,7 @@ export class DebateEngine {
       }
     }
 
-    // Fallback: lexical overlap against node label + description (no adapter embedding).
-    // This at least varies turn-to-turn with the query text, unlike the old "first vector" hack.
+    // Fallback: lexical overlap (no adapter embedding available)
     if (!scores) {
       scores = scoreNodesLexical(query, ctx.povNodes, ctx.situationNodes);
       scoringMode = 'lexical';
@@ -3652,6 +3688,17 @@ Return ONLY JSON (no markdown, no code fences):
 
     an.nodes.push(...claimsResult.newNodes);
     an.edges.push(...claimsResult.newEdges);
+
+    // Embed new AN nodes for AN-based taxonomy relevance scoring (non-blocking)
+    const adapter = this.adapter as ExtendedAIAdapter;
+    if (adapter.computeQueryEmbedding && claimsResult.newNodes.length > 0) {
+      for (const node of claimsResult.newNodes) {
+        try {
+          const { vector } = await adapter.computeQueryEmbedding(node.text.slice(0, 300));
+          if (vector && vector.length > 0) node.embedding = vector;
+        } catch { /* embedding failure never blocks extraction */ }
+      }
+    }
 
     const commits = this.session.commitments![speaker];
     commits.asserted.push(...claimsResult.commitments.asserted);

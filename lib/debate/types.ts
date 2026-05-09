@@ -748,6 +748,8 @@ export interface ArgumentNetworkNode {
   bdi_category?: 'belief' | 'desire' | 'intention';
   /** Claim specificity — precise Belief claims are auto-fact-checked. */
   specificity?: 'precise' | 'general' | 'abstract';
+  /** 384-dim all-MiniLM-L6-v2 embedding, computed on extraction. Used for AN-based taxonomy relevance scoring. */
+  embedding?: number[];
   /** If this claim is a steelman of an opponent's position, the opponent's SpeakerId. */
   steelman_of?: string;
   /** Inline verification status from web search (Intervention 2). */
