@@ -1298,7 +1298,7 @@ export class DebateEngine {
       [order[i], order[j]] = [order[j], order[i]];
     }
 
-    const priorStatements: { speaker: string; statement: string }[] = [];
+    const priorStatements: { speaker: string; pov: string; poverId: string; statement: string; summary: string }[] = [];
 
     const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
       this.progress('generating', undefined, label);
@@ -1320,9 +1320,32 @@ export class DebateEngine {
 
       let priorBlock = '';
       if (priorStatements.length > 0) {
-        priorBlock = '\n\n=== PRIOR OPENING STATEMENTS ===\n';
+        priorBlock = '\n\n=== PRIOR OPENING POSITIONS (structured) ===\n';
+        const an = this.session.argument_network;
         for (const ps of priorStatements) {
-          priorBlock += `\n${ps.speaker}:\n${ps.statement}\n`;
+          priorBlock += `\n--- ${ps.speaker} (${ps.pov}) ---\n`;
+          priorBlock += `Summary: ${ps.summary}\n\n`;
+
+          // Get AN nodes from this speaker's opening
+          const speakerNodes = (an?.nodes ?? []).filter(n =>
+            n.speaker === ps.poverId &&
+            (n as any).source_round === 0
+          );
+
+          if (speakerNodes.length > 0) {
+            priorBlock += 'Claims extracted:\n';
+            for (const node of speakerNodes) {
+              const bdi = node.bdi_category ?? 'unknown';
+              const strength = node.scoring_method === 'bdi_composite' ? 'composite'
+                : node.scoring_method === 'unscored' ? 'unscored' : 'bdi_criteria';
+              const refs = (node as any).taxonomy_refs?.slice(0, 2).join(', ') ?? '';
+              const refsLabel = refs ? ` → grounded in ${refs}` : '';
+              priorBlock += `- [${node.id}] (${bdi}, ${strength}) "${node.text.slice(0, 120)}"${refsLabel}\n`;
+            }
+          } else {
+            priorBlock += `(No structured claims extracted yet)\n`;
+          }
+          priorBlock += '\n';
         }
       }
 
@@ -1411,7 +1434,13 @@ export class DebateEngine {
       // Post-turn summarization (DT-2)
       await this.summarizeEntry(entry);
 
-      priorStatements.push({ speaker: info.label, statement });
+      priorStatements.push({
+        speaker: info.label,
+        pov: info.pov,
+        poverId,
+        statement,
+        summary: statement.split('\n')[0].slice(0, 150) + '...',
+      });
     }
 
     this.session.phase = 'debate';
