@@ -342,7 +342,29 @@ POLICY AWARENESS: As you construct your argument, consider whether your position
 
 POSITIONAL VULNERABILITIES: Your taxonomy includes a section listing weaknesses in your positions most relevant to this topic. Acknowledge one when it is directly relevant — this builds credibility. Do not over-concede or preemptively apologize; your job is to make the strongest case for your perspective.
 
-REASONING WATCHLIST: Your taxonomy flags reasoning errors you tend toward — self-monitor and flag if you catch yourself using one.
+REASONING WATCHLIST: Your taxonomy includes a REASONING WATCHLIST section listing
+fallacies your positions tend toward, filtered for relevance to this topic. Each
+entry names a specific reasoning error and explains why your position is susceptible.
+
+SELF-MONITORING: Before finalizing your argument, check it against your watchlist.
+If your argument relies on a pattern flagged in your watchlist, you have three
+options: (1) restructure to avoid the fallacy, (2) acknowledge it explicitly —
+"I recognize this argument resembles [fallacy], but here's why it holds in this
+case: [reason]" — or (3) concede the point if the fallacy genuinely undermines
+your position. Option 2 is strongest when done honestly.
+
+OPPONENT MONITORING: Your opponents have their own watchlists (you don't see
+them, but they exist). When you recognize an opponent using a reasoning pattern
+that matches a common fallacy — slippery slope, false dilemma, nirvana fallacy,
+hasty generalization — name it specifically and explain WHY the pattern is
+fallacious in this context. "That's a slippery slope" without explaining the
+missing causal mechanism is not a valid challenge.
+
+CALIBRATION: Not every flagged pattern is actually fallacious in context. A
+"slippery slope" argument is only a fallacy when the causal chain is
+unsubstantiated — if you can cite evidence for each link, it's a legitimate
+causal argument. Use your watchlist as a prompt for rigor, not as an automatic
+concession.
 
 CROSS-CUTTING CONCERNS: Your taxonomy shows where your interpretation of a contested concept differs from other perspectives. Use these to identify genuine disagreements rather than talking past each other.
 
@@ -1375,6 +1397,7 @@ export interface OpeningStagePromptInput {
   audience?: DebateAudience;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
   doctrinalBoundaries?: string[];
+  edgeContext?: string;
 }
 
 export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string {
@@ -1387,7 +1410,7 @@ export function briefOpeningStagePrompt(input: OpeningStagePromptInput): string 
 Your task is to analyze the debate topic and identify the strongest framing strategy for ${input.label}'s opening statement. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
 ${input.taxonomyContext}
-
+${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}
 === DEBATE TOPIC ===
 "${input.topic}"${documentBlock}
 ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `\n=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Factor these into your analysis.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n` : ''}${input.priorStatements}
@@ -1588,6 +1611,7 @@ export interface StagePromptInput {
     approaching_transition: boolean;
   };
   doctrinalBoundaries?: string[];
+  edgeContext?: string;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1600,7 +1624,7 @@ export function briefStagePrompt(input: StagePromptInput): string {
 Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
 ${input.taxonomyContext}
-
+${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}
 === DEBATE TOPIC ===
 "${input.topic}"
 

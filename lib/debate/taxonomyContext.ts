@@ -154,7 +154,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       const n = sorted[i];
       const isPrimary = hasScores && i < PRIMARY_COUNT;
       const prefix = isPrimary ? '★ ' : '  ';
-      lines.push(`${prefix}[${n.id}] ${n.label}: ${n.description}`);
+      const scoreLabel = hasScores ? ` (relevance: ${(ctx.nodeScores!.get(n.id) ?? 0).toFixed(2)})` : '';
+      lines.push(`${prefix}[${n.id}]${scoreLabel} ${n.label}: ${n.description}`);
       if (n.graph_attributes?.epistemic_type) {
         lines.push(`    Epistemic type: ${n.graph_attributes.epistemic_type}`);
       }
