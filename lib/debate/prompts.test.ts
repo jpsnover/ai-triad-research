@@ -416,7 +416,7 @@ describe('4-stage opening pipeline', () => {
     it('returns a non-empty string with JSON schema', () => {
       const result = briefOpeningStagePrompt(input);
       expectNonEmpty(result);
-      expectContains(result, '"situation_assessment"', '"strongest_angles"', '"relevant_taxonomy_nodes"', '"key_tensions"');
+      expectContains(result, '"situation_assessment"', '"strongest_angles"', '"grounding"', '"key_tensions"');
     });
 
     it('includes prior positions schema for non-first speakers', () => {
@@ -470,7 +470,7 @@ describe('4-stage turn pipeline', () => {
     it('returns a non-empty string with situation brief schema', () => {
       const result = briefStagePrompt(input);
       expectNonEmpty(result);
-      expectContains(result, '"situation_assessment"', '"key_claims_to_address"', '"relevant_taxonomy_nodes"');
+      expectContains(result, '"situation_assessment"', '"key_claims_to_address"', '"grounding"');
     });
 
     it('includes phase instructions when phase is set', () => {

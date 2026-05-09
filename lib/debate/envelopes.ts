@@ -67,19 +67,15 @@ export function briefStageEnvelope(input: StagePromptInput): PromptEnvelope {
       `Analyze the debate state and produce a structured brief. Focus on:
 1. What is the current state of the debate? What just happened?
 2. What are the most important claims that need addressing? Include the AN-ID if available.
-3. Which taxonomy nodes from the context above are most relevant to the assignment?
-4. What commitments have been made that constrain or enable ${input.label}'s response?
-5. What structural tensions exist that ${input.label} could exploit or must navigate?
-6. What does the current debate phase demand?
+3. What commitments have been made that constrain or enable ${input.label}'s response?
+4. What structural tensions exist that ${input.label} could exploit or must navigate?
+5. What does the current debate phase demand?
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences describing the current debate state and what just happened",
   "key_claims_to_address": [
-    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known"}
-  ],
-  "relevant_taxonomy_nodes": [
-    {"node_id": "e.g. acc-beliefs-003", "why": "1 sentence: why this node matters for the assignment"}
+    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "why": "anchors the response to this claim"}]}
   ],
   "relevant_commitments": [
     {"speaker": "who", "commitment": "what was committed", "type": "asserted | conceded | challenged"}

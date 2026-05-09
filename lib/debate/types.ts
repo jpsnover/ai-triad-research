@@ -896,8 +896,7 @@ export interface StageDiagnostics {
 
 export interface BriefWorkProduct {
   situation_assessment: string;
-  key_claims_to_address: { claim: string; speaker: string; an_id?: string }[];
-  relevant_taxonomy_nodes: { node_id: string; why: string }[];
+  key_claims_to_address: { claim: string; speaker: string; an_id?: string; grounding?: { node_id: string; why: string }[] }[];
   relevant_commitments: { speaker: string; commitment: string; type: string }[];
   edge_tensions: { edge: string; relevance: string }[];
   phase_considerations: string;
@@ -955,9 +954,9 @@ export interface TurnPipelineResult {
 
 export interface OpeningBriefWorkProduct {
   situation_assessment: string;
-  strongest_angles: { angle: string; why: string }[];
-  relevant_taxonomy_nodes: { node_id: string; why: string }[];
+  strongest_angles: { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[];
   key_tensions: { tension: string; opportunity: string }[];
+  document_claims_to_engage?: { d_id: string; claim: string; stance: string; why: string; grounding?: { node_id: string; why: string }[] }[];
   prior_positions_to_address?: { speaker: string; position: string; response_strategy: string }[];
 }
 

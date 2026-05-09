@@ -1417,7 +1417,7 @@ ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `\n=== USER-STATED P
 
 Analyze the topic${input.isFirst ? '' : ' and prior opening statements'} and produce a structured brief. Focus on:
 1. What are the key dimensions of this topic that ${input.label}'s perspective can address?
-2. Which taxonomy nodes are most relevant and should anchor the opening argument?
+2. What are the strongest angles ${input.label} can take? For each angle, identify which taxonomy nodes ground it.
 3. What are the strongest claims ${input.label} can make from their perspective?
 ${input.isFirst ? '4. What framing will best establish this perspective for the audience?' : `4. What positions from prior speakers should ${input.label} acknowledge or contrast with?
 5. What framing gaps or unchallenged assumptions can ${input.label} exploit?`}
@@ -1426,16 +1426,13 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences: the key dimensions of the topic and what matters most for this perspective",
   "strongest_angles": [
-    {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective"}
-  ],
-  "relevant_taxonomy_nodes": [
-    {"node_id": "e.g. acc-beliefs-003", "why": "1 sentence: why this node should anchor the opening"}
+    {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective", "grounding": [{"node_id": "acc-beliefs-003", "why": "anchors the empirical basis"}]}
   ],
   "key_tensions": [
     {"tension": "a key tension or tradeoff in the topic", "opportunity": "how ${input.label} can use this"}
   ]${input.documentAnalysis ? `,
   "document_claims_to_engage": [
-    {"d_id": "D-1", "claim": "the claim text", "stance": "accept | challenge | reframe", "why": "1 sentence: why this claim matters for ${input.pov}"}
+    {"d_id": "D-1", "claim": "the claim text", "stance": "accept | challenge | reframe", "why": "1 sentence: why this claim matters for ${input.pov}", "grounding": [{"node_id": "saf-beliefs-011", "why": "provides the normative basis for this stance"}]}
   ]` : ''}${input.isFirst ? '' : `,
   "prior_positions_to_address": [
     {"speaker": "who", "position": "their key claim", "response_strategy": "acknowledge / contrast / challenge"}
@@ -1641,20 +1638,16 @@ ${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
 
 Analyze the debate state and produce a structured brief. Focus on:
 1. What is the current state of the debate? What just happened?
-2. What are the most important claims that need addressing? Include the AN-ID if available.
-3. Which taxonomy nodes from the context above are most relevant to the assignment?
-4. What commitments have been made that constrain or enable ${input.label}'s response?
-5. What structural tensions exist that ${input.label} could exploit or must navigate?
-6. What does the current debate phase demand?
+2. What are the most important claims that need addressing? Include the AN-ID if available. For each claim, identify which taxonomy nodes ground your response.
+3. What commitments have been made that constrain or enable ${input.label}'s response?
+4. What structural tensions exist that ${input.label} could exploit or must navigate?
+5. What does the current debate phase demand?
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences describing the current debate state and what just happened",
   "key_claims_to_address": [
-    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known"}
-  ],
-  "relevant_taxonomy_nodes": [
-    {"node_id": "e.g. acc-beliefs-003", "why": "1 sentence: why this node matters for the assignment"}
+    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "why": "anchors the response to this claim"}]}
   ],
   "relevant_commitments": [
     {"speaker": "who", "commitment": "what was committed", "type": "asserted | conceded | challenged"}
