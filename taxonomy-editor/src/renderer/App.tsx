@@ -16,6 +16,7 @@ import { DebateTab } from './components/DebateTab';
 import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
 import { DeploymentErrorScreen } from './components/DeploymentErrorScreen';
+import { StartupProgressScreen } from './components/StartupProgressScreen';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
 import { DebatePopoutWindow } from './components/DebatePopoutWindow';
@@ -138,6 +139,7 @@ function MainApp() {
   const [pullResult, setPullResult] = useState<string | null>(null);
   const [showFirstRun, setShowFirstRun] = useState(false);
   const [dataRoot, setDataRoot] = useState('');
+  const [copyStatus, setCopyStatus] = useState<{ state: string; dir?: string; copied?: number; total?: number } | null>(null);
 
   useEffect(() => {
     // Check if data is available before loading
@@ -153,6 +155,35 @@ function MainApp() {
       }
     });
   }, [loadAll]);
+
+  // Poll copy status while showFirstRun is true in web mode
+  useEffect(() => {
+    const isWeb = import.meta.env.VITE_TARGET === 'web';
+    if (!showFirstRun || !isWeb || !dataRoot) return;
+
+    let cancelled = false;
+    const poll = () => {
+      void api.getCopyStatus().then(status => {
+        if (cancelled) return;
+        setCopyStatus(status);
+        if (status.state === 'complete') {
+          // Copy finished — re-check data availability
+          void api.isDataAvailable().then(available => {
+            if (cancelled) return;
+            if (available) {
+              setShowFirstRun(false);
+              setCopyStatus(null);
+              void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
+            }
+            // If still not available after copy complete, DeploymentErrorScreen will show
+          });
+        }
+      });
+    };
+    poll();
+    const interval = setInterval(poll, 2000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [showFirstRun, dataRoot, loadAll]);
 
   // Check for data updates after initial load
   useEffect(() => {
@@ -281,6 +312,10 @@ function MainApp() {
     // Container mode with configured data root = deployment error, not first run
     const isWeb = import.meta.env.VITE_TARGET === 'web';
     if (isWeb && dataRoot) {
+      // Show progress screen while copy is running, error screen only after copy completes
+      if (copyStatus && copyStatus.state !== 'complete' && copyStatus.state !== 'unknown') {
+        return <StartupProgressScreen status={copyStatus} />;
+      }
       return <DeploymentErrorScreen dataRoot={dataRoot} />;
     }
     return <FirstRunDialog dataRoot={dataRoot} onComplete={handleFirstRunComplete} onSkip={handleFirstRunSkip} />;

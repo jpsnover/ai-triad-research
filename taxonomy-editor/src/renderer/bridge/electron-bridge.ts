@@ -40,6 +40,7 @@ export const api: AppAPI = {
   // Data management
   isDataAvailable: () => window.electronAPI.isDataAvailable(),
   getDataRoot: () => window.electronAPI.getDataRoot(),
+  getCopyStatus: () => Promise.resolve({ state: 'complete' }),
   cloneDataRepo: (p) => window.electronAPI.cloneDataRepo(p),
   setDataRoot: (p) => window.electronAPI.setDataRoot(p),
   pickDirectory: (defaultPath) => window.electronAPI.pickDirectory(defaultPath),

@@ -1433,7 +1433,10 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "key_tensions": [
     {"tension": "a key tension or tradeoff in the topic", "opportunity": "how ${input.label} can use this"}
-  ]${input.isFirst ? '' : `,
+  ]${input.documentAnalysis ? `,
+  "document_claims_to_engage": [
+    {"d_id": "D-1", "claim": "the claim text", "stance": "accept | challenge | reframe", "why": "1 sentence: why this claim matters for ${input.pov}"}
+  ]` : ''}${input.isFirst ? '' : `,
   "prior_positions_to_address": [
     {"speaker": "who", "position": "their key claim", "response_strategy": "acknowledge / contrast / challenge"}
   ]`}

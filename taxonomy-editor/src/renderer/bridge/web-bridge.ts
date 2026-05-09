@@ -207,6 +207,7 @@ const rawApi: AppAPI = {
   // Data management
   isDataAvailable: () => get('/api/data/available'),
   getDataRoot: () => get('/api/data/root'),
+  getCopyStatus: () => get<{ state: string; dir?: string; copied?: number; total?: number }>('/status').catch(() => ({ state: 'unknown' })),
   cloneDataRepo: (targetPath) => post('/api/data/clone', { targetPath }),
   setDataRoot: (newRoot) => post('/api/data/set-root', { newRoot }),
   pickDirectory: () => Promise.resolve({ cancelled: true }),

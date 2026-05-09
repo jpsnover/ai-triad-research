@@ -232,6 +232,8 @@ export class DebateEngine {
   private lastApiCallTime = 0;
   /** Last computed injection manifest — stored on transcript entries for usage analysis. */
   private _lastInjectionManifest: ContextInjectionManifest | null = null;
+  /** Full relevance score map (POV + situation nodes) from last context build. */
+  private _lastRelevanceScores: Map<string, number> | null = null;
   /** Speaker mapping for neutral evaluator — built once, reused across checkpoints. */
   private _neutralMapping: SpeakerMapping | null = null;
   /** Whether the midpoint neutral evaluation has already run this debate. */
@@ -590,8 +592,10 @@ export class DebateEngine {
     const manifest = this._lastInjectionManifest;
     if (!manifest) return;
 
-    const scoreMap = new Map<string, number>();
-    if (manifest.nodeScores && manifest.povNodeIds) {
+    // Use the full relevance scores map (covers POV + situation nodes).
+    // Falls back to manifest's POV-only array for backwards compatibility.
+    const scoreMap = this._lastRelevanceScores ?? new Map<string, number>();
+    if (scoreMap.size === 0 && manifest.nodeScores && manifest.povNodeIds) {
       for (let i = 0; i < manifest.povNodeIds.length; i++) {
         if (i < manifest.nodeScores.length) {
           scoreMap.set(manifest.povNodeIds[i], manifest.nodeScores[i]);
@@ -1052,6 +1056,7 @@ export class DebateEngine {
     };
     this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
     this._lastInjectionManifest.scoring_mode = scoringMode;
+    this._lastRelevanceScores = scores;
     return formatTaxonomyContext(filteredCtx, pov);
   }
 

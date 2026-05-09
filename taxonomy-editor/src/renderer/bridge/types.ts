@@ -57,6 +57,7 @@ export interface AppAPI {
   // --- Data management ---
   isDataAvailable: () => Promise<boolean>;
   getDataRoot: () => Promise<string>;
+  getCopyStatus: () => Promise<{ state: string; dir?: string; copied?: number; total?: number }>;
   cloneDataRepo: (targetPath: string) => Promise<{ success: boolean; message: string }>;
   setDataRoot: (newRoot: string) => Promise<void>;
   pickDirectory: (defaultPath?: string) => Promise<{ cancelled: boolean; path?: string }>;

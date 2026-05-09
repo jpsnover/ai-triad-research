@@ -3033,17 +3033,24 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', tableLayout: 'fixed' }}>
                           <colgroup>
                             <col style={{ width: '180px' }} />
+                            <col style={{ width: '52px' }} />
                             <col />
                           </colgroup>
                           <thead>
                             <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
                               <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Id</th>
+                              <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>Score</th>
                               <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Relevance</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {entry.taxonomy_refs!.map((r, i) => {
+                            {[...entry.taxonomy_refs!].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((r, i) => {
                               const isSelected = selectedTaxRefId === r.node_id;
+                              const score = r.relevance_score;
+                              const scoreColor = score == null ? 'var(--text-muted)'
+                                : score >= 0.45 ? '#16a34a'
+                                : score >= 0.30 ? '#d97706'
+                                : '#dc2626';
                               return (
                                 <tr
                                   key={i}
@@ -3068,7 +3075,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         textAlign: 'left',
                                       }}
                                       title="Show Perspective details"
-                                    >{r.node_id}</button>
+                                    >{r.primary ? '★ ' : ''}{r.node_id}</button>
+                                  </td>
+                                  <td style={{ padding: '4px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: scoreColor, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                    {score != null ? score.toFixed(2) : '—'}
                                   </td>
                                   <td style={{ padding: '4px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' }}>
                                     {r.relevance}
@@ -3431,12 +3441,46 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).document_claims_to_engage) && ((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string }[]).length > 0 && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Document Claims to Engage</summary>
+                          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                                <th style={{ padding: '3px 6px', fontWeight: 600, color: 'var(--text-muted)', width: '60px' }}>D-ID</th>
+                                <th style={{ padding: '3px 6px', fontWeight: 600, color: 'var(--text-muted)', width: '70px' }}>Stance</th>
+                                <th style={{ padding: '3px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Claim &amp; Rationale</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string }[]).map((dc, i) => {
+                                const stanceColor = dc.stance === 'accept' ? '#16a34a' : dc.stance === 'challenge' ? '#dc2626' : '#d97706';
+                                return (
+                                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{dc.d_id}</td>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>{dc.stance}</td>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top' }}>
+                                      <Highlight text={dc.claim} />
+                                      <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: '0.65rem' }}><Highlight text={dc.why} /></div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </details>
+                      )}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Relevant Taxonomy Nodes</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
                             <tbody>
                               {((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string; why: string }[]).map((n, i) => {
                                 const isSelected = selectedTaxRefId === n.node_id;
+                                const matchedRef = entry.taxonomy_refs?.find(r => r.node_id === n.node_id);
+                                const briefScore = matchedRef?.relevance_score;
+                                const briefScoreColor = briefScore == null ? 'var(--text-muted)'
+                                  : briefScore >= 0.45 ? '#16a34a'
+                                  : briefScore >= 0.30 ? '#d97706'
+                                  : '#dc2626';
                                 return (
                                   <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
                                     <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
@@ -3445,6 +3489,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                                         title="Show node details"
                                       >{n.node_id}</button>
+                                    </td>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: briefScoreColor, fontFamily: 'monospace', width: '40px' }}>
+                                      {briefScore != null ? briefScore.toFixed(2) : '—'}
                                     </td>
                                     <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={n.why} /></td>
                                   </tr>
@@ -3753,9 +3800,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Taxonomy References</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
                             <tbody>
-                              {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string }[]).map((r, i) => {
+                              {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string; relevance_score?: number; primary?: boolean }[]).map((r, i) => {
                                 const isSelected = selectedTaxRefId === r.node_id;
                                 const isNew = !briefNodes.has(r.node_id);
+                                const citeScore = r.relevance_score;
+                                const citeScoreColor = citeScore == null ? 'var(--text-muted)'
+                                  : citeScore >= 0.45 ? '#16a34a'
+                                  : citeScore >= 0.30 ? '#d97706'
+                                  : '#dc2626';
                                 return (
                                   <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
                                     <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
@@ -3763,10 +3815,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
                                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                                         title="Show node details"
-                                      >{r.node_id}</button>
+                                      >{r.primary ? '★ ' : ''}{r.node_id}</button>
                                       {isNew && (
                                         <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
                                       )}
+                                    </td>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: citeScoreColor, fontFamily: 'monospace', width: '40px' }}>
+                                      {citeScore != null ? citeScore.toFixed(2) : '—'}
                                     </td>
                                     <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={r.relevance} /></td>
                                   </tr>

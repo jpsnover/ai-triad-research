@@ -206,3 +206,63 @@ export function buildRelevanceQuery(
   const combined = `${topic}\n\n${recentTranscript}`;
   return combined.length > maxLength ? combined.slice(0, maxLength) : combined;
 }
+
+// ── AN-based relevance scoring ──────────────────────────────────────
+
+export interface ANClaimEmbedding {
+  /** Argument network node ID (e.g., AN-3) */
+  id: string;
+  /** Pre-computed embedding vector */
+  vector: number[];
+  /** Optional QBAF computed strength — used to weight claim contribution */
+  strength?: number;
+}
+
+/**
+ * Score taxonomy nodes by maximum similarity to any argument network claim.
+ *
+ * Instead of one blended query embedding, this computes cosine similarity
+ * between each node and each AN claim, then takes the max. Nodes that are
+ * highly relevant to ANY active argument score high, even if they're
+ * irrelevant to the debate topic in aggregate.
+ *
+ * When `strengthWeighted` is true, the similarity is multiplied by the
+ * claim's QBAF strength (0-1), so strong surviving arguments contribute
+ * more to node relevance than weak/refuted claims.
+ *
+ * Falls back to topicVector scoring when no AN claims are available.
+ */
+export function scoreNodesViaAN(
+  claimEmbeddings: ANClaimEmbedding[],
+  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
+  topicVector?: number[],
+  strengthWeighted: boolean = false,
+): Map<string, number> {
+  const scores = new Map<string, number>();
+
+  // Fallback: no AN claims yet (e.g., first opening statement)
+  if (claimEmbeddings.length === 0) {
+    if (topicVector) {
+      return scoreNodeRelevance(topicVector, nodeEmbeddings);
+    }
+    return scores;
+  }
+
+  for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
+    if (!entry.vector || !Array.isArray(entry.vector)) continue;
+
+    let maxScore = 0;
+    for (const claim of claimEmbeddings) {
+      let sim = cosineSimilarity(entry.vector, claim.vector);
+      if (strengthWeighted && claim.strength != null) {
+        // Blend: 70% raw similarity + 30% strength-weighted
+        // This prevents a single high-strength claim from dominating
+        sim = sim * (0.7 + 0.3 * claim.strength);
+      }
+      if (sim > maxScore) maxScore = sim;
+    }
+    scores.set(nodeId, maxScore);
+  }
+
+  return scores;
+}

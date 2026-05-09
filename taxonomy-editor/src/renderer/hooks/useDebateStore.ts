@@ -22,7 +22,8 @@ import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, processExtractedClaims } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary, GapArgument, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../types/debate';
-import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery } from '../utils/taxonomyRelevance';
+import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, scoreNodesViaAN } from '../utils/taxonomyRelevance';
+import type { ANClaimEmbedding } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
 import { updateConvergenceTracker } from '../utils/convergenceScoring';
@@ -1222,37 +1223,46 @@ async function getRelevantTaxonomyContext(
   const allCCNodes: SituationNode[] = state.situations?.nodes ?? [];
 
   try {
-    // Build query from debate context
-    const query = buildRelevanceQuery(topic, recentTranscript);
-
-    // Get query embedding
-    const { vector: queryVector } = await api.computeQueryEmbedding(query);
-
-    // Get embeddings for all POV nodes
-    const nodeTexts = allPovNodes.map(n => `${n.label}: ${n.description}`);
-    const nodeIds = allPovNodes.map(n => n.id);
-    const { vectors } = await api.computeEmbeddings(nodeTexts, nodeIds);
-
-    // Build scores map
-    const scores = new Map<string, number>();
-    for (let i = 0; i < nodeIds.length; i++) {
-      const dot = queryVector.reduce((s, v, j) => s + v * vectors[i][j], 0);
-      const normQ = Math.sqrt(queryVector.reduce((s, v) => s + v * v, 0));
-      const normN = Math.sqrt(vectors[i].reduce((s, v) => s + v * v, 0));
-      scores.set(nodeIds[i], normQ > 0 && normN > 0 ? dot / (normQ * normN) : 0);
+    // Build a combined node embedding map for scoring (POV + CC nodes)
+    const allNodeTexts = [
+      ...allPovNodes.map(n => `${n.label}: ${n.description}`),
+      ...allCCNodes.map(n => `${n.label}: ${n.description}`),
+    ];
+    const allNodeIds = [
+      ...allPovNodes.map(n => n.id),
+      ...allCCNodes.map(n => n.id),
+    ];
+    const { vectors: allVectors } = await api.computeEmbeddings(allNodeTexts, allNodeIds);
+    const nodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+    for (let i = 0; i < allNodeIds.length; i++) {
+      nodeEmbeddings[allNodeIds[i]] = { pov, vector: allVectors[i] };
     }
 
-    // Also score CC nodes
-    const ccTexts = allCCNodes.map(n => `${n.label}: ${n.description}`);
-    const ccIds = allCCNodes.map(n => n.id);
-    if (ccTexts.length > 0) {
-      const { vectors: ccVectors } = await api.computeEmbeddings(ccTexts, ccIds);
-      for (let i = 0; i < ccIds.length; i++) {
-        const dot = queryVector.reduce((s, v, j) => s + v * ccVectors[i][j], 0);
-        const normQ = Math.sqrt(queryVector.reduce((s, v) => s + v * v, 0));
-        const normN = Math.sqrt(ccVectors[i].reduce((s, v) => s + v * v, 0));
-        scores.set(ccIds[i], normQ > 0 && normN > 0 ? dot / (normQ * normN) : 0);
-      }
+    // Collect AN claims and embed them for multi-claim relevance scoring
+    const debate = useDebateStore.getState().activeDebate;
+    const anNodes = debate?.argument_network?.nodes ?? [];
+    let scores: Map<string, number>;
+
+    if (anNodes.length > 0) {
+      // AN-based scoring: embed each claim, score nodes by max similarity
+      const claimTexts = anNodes.map(n => n.text);
+      const claimIds = anNodes.map(n => n.id);
+      const { vectors: claimVectors } = await api.computeEmbeddings(claimTexts, claimIds);
+
+      const claimEmbeddings: ANClaimEmbedding[] = anNodes.map((n, i) => ({
+        id: n.id,
+        vector: claimVectors[i],
+        strength: n.computed_strength,
+      }));
+
+      scores = scoreNodesViaAN(claimEmbeddings, nodeEmbeddings, undefined, true);
+      console.log(`[taxonomy] AN-based scoring: ${claimEmbeddings.length} claims against ${allNodeIds.length} nodes`);
+    } else {
+      // No AN yet (pre-opening) — fall back to single topic query
+      const query = buildRelevanceQuery(topic, recentTranscript);
+      const { vector: queryVector } = await api.computeQueryEmbedding(query);
+      scores = scoreNodeRelevance(queryVector, nodeEmbeddings);
+      console.log(`[taxonomy] Topic-query scoring (no AN claims yet): ${allNodeIds.length} nodes`);
     }
 
     const scoredPov = selectRelevantNodes(allPovNodes, scores, threshold, 3, 35);
@@ -2532,6 +2542,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         const knownNodeIds = getAllKnownNodeIds();
         const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, knownNodeIds);
 
+        // Enrich taxonomy refs with relevance scores from context injection
+        if (ctx.nodeScores) {
+          for (const ref of taxonomyRefs) {
+            const score = ctx.nodeScores.get(ref.node_id);
+            if (score != null) ref.relevance_score = score;
+          }
+        }
+
         addTranscriptEntry({
           type: 'opening',
           speaker: poverId,
@@ -2765,6 +2783,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         const responseTime = Date.now() - t0;
         if (!isStillValid()) return;
         const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
+
+        // Enrich taxonomy refs with relevance scores from context injection
+        if (ctx.nodeScores) {
+          for (const ref of taxonomyRefs) {
+            const score = ctx.nodeScores.get(ref.node_id);
+            if (score != null) ref.relevance_score = score;
+          }
+        }
 
         addTranscriptEntry({
           type: 'statement',
@@ -3140,6 +3166,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
       if (turnResult.aborted) return;
       const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
+
+      // Enrich taxonomy refs with relevance scores from context injection
+      if (ctx.nodeScores) {
+        for (const ref of taxonomyRefs) {
+          const score = ctx.nodeScores.get(ref.node_id);
+          if (score != null) ref.relevance_score = score;
+        }
+      }
 
       addTranscriptEntry({
         type: 'statement',
