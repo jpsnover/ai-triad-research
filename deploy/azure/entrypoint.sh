@@ -38,16 +38,6 @@ log "$DATA_LOCAL: exists=$([ -d "$DATA_LOCAL" ] && echo yes || echo no), writabl
 
 mkdir -p "$DATA_LOCAL"
 
-# Pre-create git directory structure BEFORE the background copy starts.
-# SMB mounts don't copy empty directories, and git requires refs/heads/ etc.
-# to exist even when all refs are in packed-refs. Creating these upfront
-# eliminates the race between the background copy and initDataRepo retries.
-if [ "$GIT_SYNC_ENABLED" = "1" ]; then
-    mkdir -p "$DATA_LOCAL/.git/refs/heads" "$DATA_LOCAL/.git/refs/tags" \
-             "$DATA_LOCAL/.git/refs/remotes/origin" "$DATA_LOCAL/.git/info" \
-             "$DATA_LOCAL/.git/objects"
-fi
-
 # ── Background data copy ──
 (
     write_status() {
@@ -67,8 +57,13 @@ fi
             GIT_START=$(date +%s)
             write_status "copying" ".git" 0 0
             cp -a "$DATA_REMOTE/.git" "$DATA_LOCAL/.git" 2>/dev/null || true
+            # SMB doesn't copy empty dirs — git needs refs/heads etc.
+            mkdir -p "$DATA_LOCAL/.git/refs/heads" "$DATA_LOCAL/.git/refs/tags" \
+                     "$DATA_LOCAL/.git/refs/remotes/origin" "$DATA_LOCAL/.git/info"
+            # Signal that .git is ready for use
+            touch "$DATA_LOCAL/.git-ready"
             GIT_SIZE=$(du -sh "$DATA_LOCAL/.git" 2>/dev/null | cut -f1)
-            log "Copied .git ($GIT_SIZE, $(($(date +%s) - GIT_START))s) [priority]"
+            log "Copied .git ($GIT_SIZE, $(($(date +%s) - GIT_START))s) [priority, .git-ready written]"
         fi
 
         for dir in $COPY_DIRS; do
