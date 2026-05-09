@@ -88,6 +88,13 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
   }
   if (dataRootHasGit()) {
     const dataRoot = getDataRoot();
+    // Unconditionally clear lock files at startup — no legitimate git process
+    // can be running when initDataRepo is called (server just started).
+    const lockFile = path.join(dataRoot, '.git', 'index.lock');
+    if (fs.existsSync(lockFile)) {
+      console.log('[gitRepoStore] Removing stale index.lock from startup');
+      try { fs.unlinkSync(lockFile); } catch { /* ignore */ }
+    }
     const opts = { cwd: dataRoot, timeout: GIT_INIT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 };
     try {
       await execFileP('git', ['config', '--global', '--add', 'safe.directory', dataRoot], opts);
@@ -310,7 +317,7 @@ async function ensureSessionBranch(): Promise<string> {
  * is never blocked by a git hiccup.
  */
 export async function commitWorkingTreeChanges(summary?: string): Promise<void> {
-  if (!isEnabled()) return;
+  if (!isEnabled() || isCopyInProgress()) return;
 
   try {
     await serialize(async () => {
@@ -362,6 +369,18 @@ export interface SyncStatus {
    * surfaces a persistent banner directing the user to the conflict modal.
    */
   rebase_in_progress: boolean;
+  /** True when the entrypoint background copy is still writing data files. */
+  copy_in_progress?: boolean;
+}
+
+/** Check if the entrypoint background copy is still running (container only). */
+function isCopyInProgress(): boolean {
+  try {
+    const copyStatus = JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8'));
+    return copyStatus.state !== 'complete';
+  } catch {
+    return false; // No status file — not in container or copy finished
+  }
 }
 
 export interface UnsyncedFile {
@@ -381,6 +400,16 @@ export async function getSyncStatus(): Promise<SyncStatus> {
       pr_number: null, pr_url: null, push_pending: false,
       github_configured: false, main_updated_available: false,
       rebase_in_progress: false,
+    };
+  }
+
+  // Skip all git operations while entrypoint copy is still writing data files
+  if (isCopyInProgress()) {
+    return {
+      enabled: true, unsynced_count: 0, session_branch: null,
+      pr_number: null, pr_url: null, push_pending: false,
+      github_configured: !!getRepoSlug(), main_updated_available: false,
+      rebase_in_progress: false, copy_in_progress: true,
     };
   }
 
@@ -454,7 +483,7 @@ function clearMainUpdatedAvailable(): void {
 
 /** Per-file list for the unsynced-changes drawer. */
 export async function listUnsynced(): Promise<UnsyncedFile[]> {
-  if (!isEnabled()) return [];
+  if (!isEnabled() || isCopyInProgress()) return [];
 
   return serialize(async () => {
     await ensureSessionBranch();
@@ -492,7 +521,7 @@ export async function listUnsynced(): Promise<UnsyncedFile[]> {
 
 /** Unified diff of a single file vs origin/main (or main). */
 export async function getFileDiff(relPath: string): Promise<string> {
-  if (!isEnabled()) return '';
+  if (!isEnabled() || isCopyInProgress()) return '';
 
   // Guard against shell injection / path escape
   if (relPath.includes('..') || path.isAbsolute(relPath)) {
@@ -538,7 +567,7 @@ export async function getFileDiff(relPath: string): Promise<string> {
 
 /** Revert a single file on the session branch, then rewrite history to exclude it. */
 export async function discardFile(relPath: string): Promise<void> {
-  if (!isEnabled()) return;
+  if (!isEnabled() || isCopyInProgress()) return;
   if (relPath.includes('..') || path.isAbsolute(relPath)) {
     throw new Error(`Invalid path: ${relPath}`);
   }
@@ -577,7 +606,7 @@ export async function discardFile(relPath: string): Promise<void> {
 
 /** Reset the session branch to origin/main (or main), dropping all local commits. */
 export async function discardAll(): Promise<void> {
-  if (!isEnabled()) return;
+  if (!isEnabled() || isCopyInProgress()) return;
 
   await serialize(async () => {
     await ensureSessionBranch();
@@ -743,6 +772,7 @@ export interface ResyncError {
 
 export async function resync(mode: ResyncMode): Promise<ResyncResult | ResyncError> {
   if (!isEnabled()) return { ok: false, error: 'Git sync is disabled on this server.', code: 'disabled' };
+  if (isCopyInProgress()) return { ok: false, error: 'Data copy is still in progress — please wait.', code: 'disabled' };
 
   const creds = await getCredentials();
   const repoSlug = getRepoSlug();
