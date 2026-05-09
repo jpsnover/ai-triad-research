@@ -38,7 +38,14 @@ function isFeatureFlagEnabled(): boolean {
 
 function dataRootHasGit(): boolean {
   try {
-    return fs.existsSync(path.join(getDataRoot(), '.git'));
+    const dataRoot = getDataRoot();
+    const gitDir = path.join(dataRoot, '.git');
+    if (!fs.existsSync(gitDir)) return false;
+    // The entrypoint writes .git-ready after cp -a + mkdir -p completes.
+    // If .git/ exists without .git-ready, the copy is still in progress.
+    const readyMarker = path.join(dataRoot, '.git-ready');
+    if (!fs.existsSync(readyMarker)) return false;
+    return true;
   } catch {
     return false;
   }
