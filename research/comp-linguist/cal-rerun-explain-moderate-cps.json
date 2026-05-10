@@ -1,0 +1,10 @@
+{
+  "topic": "Should AI systems be required to explain their reasoning to affected individuals?",
+  "slug": "cal-rerun-explain-moderate-cps",
+  "model": "gemini-3.1-flash-lite-preview",
+  "pacing": "moderate",
+  "activePovers": ["cassandra", "prometheus", "sentinel"],
+  "useAdaptiveStaging": true,
+  "outputDir": "../ai-triad-data/debates",
+  "outputFormat": "all"
+}

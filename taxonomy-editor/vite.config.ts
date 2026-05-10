@@ -16,6 +16,12 @@ export default defineConfig({
     'import.meta.env.VITE_TARGET': JSON.stringify(process.env.VITE_TARGET || 'electron'),
     __APP_VERSION__: JSON.stringify(require('./package.json').version),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    __COMPONENT_VERSIONS__: JSON.stringify({
+      react: require('react/package.json').version,
+      zustand: require('zustand/package.json').version,
+      vite: require('vite/package.json').version,
+      typescript: require('typescript/package.json').version,
+    }),
   },
   resolve: {
     alias: {

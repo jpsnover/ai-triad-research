@@ -318,6 +318,8 @@ void app.whenReady().then(() => {
   // Diagnostics popout window
   ipcMain.handle('open-diagnostics-window', () => {
     if (diagWindow && !diagWindow.isDestroyed()) {
+      if (diagWindow.isMinimized()) diagWindow.restore();
+      diagWindow.show();
       diagWindow.focus();
       return;
     }
@@ -371,6 +373,8 @@ void app.whenReady().then(() => {
   // POV Progression popout window
   ipcMain.handle('open-pov-progression-window', () => {
     if (povProgWindow && !povProgWindow.isDestroyed()) {
+      if (povProgWindow.isMinimized()) povProgWindow.restore();
+      povProgWindow.show();
       povProgWindow.focus();
       return;
     }
@@ -406,6 +410,8 @@ void app.whenReady().then(() => {
     if (debateWindow && !debateWindow.isDestroyed()) {
       // Reuse existing window — send the new debate ID
       debateWindow.webContents.send('debate-window-load', debateId);
+      if (debateWindow.isMinimized()) debateWindow.restore();
+      debateWindow.show();
       debateWindow.focus();
       return;
     }

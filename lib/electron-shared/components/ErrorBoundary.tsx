@@ -27,6 +27,11 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error(`[ErrorBoundary${this.props.fallbackLabel ? ` - ${this.props.fallbackLabel}` : ''}]`, error, info);
+    // Stash crash details on globalThis so Dump Log can include them even if the
+    // flight recorder hook wasn't initialized before the crash.
+    (globalThis as unknown as { __lastErrorBoundaryCrash?: { error: Error; componentStack?: string; timestamp: number } }).__lastErrorBoundaryCrash = {
+      error, componentStack: info.componentStack ?? undefined, timestamp: Date.now(),
+    };
     // Flight recorder dump — uses global hook to avoid hard dependency from shared lib.
     // The taxonomy-editor sets this in flightRecorderInit.ts.
     const hook = (globalThis as unknown as { __onErrorBoundaryCatch?: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch;
@@ -54,9 +59,21 @@ export default class ErrorBoundary extends Component<Props, State> {
           <button className="error-boundary-retry" onClick={this.handleRetry}>
             Try Again
           </button>
-          <button className="error-boundary-retry" onClick={() => {
+          <button className="error-boundary-retry" onClick={(e) => {
+            const btn = e.target as HTMLButtonElement;
+            const crash = (globalThis as unknown as { __lastErrorBoundaryCrash?: { error: Error; componentStack?: string; timestamp: number } }).__lastErrorBoundaryCrash;
+            if (crash) {
+              console.error('[ErrorBoundary Dump]', crash.error.message, '\nStack:', crash.error.stack, '\nComponent:', crash.componentStack);
+            }
             const hook = (globalThis as unknown as { __triggerManualDump?: () => void }).__triggerManualDump;
-            if (hook) hook();
+            if (hook) {
+              hook();
+              btn.textContent = 'Dumped!';
+            } else if (crash) {
+              btn.textContent = 'See console (F12)';
+            } else {
+              btn.textContent = 'No recorder';
+            }
           }} style={{ marginLeft: 8 }}>
             Dump Log
           </button>

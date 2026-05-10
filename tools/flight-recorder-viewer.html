@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flight Recorder Viewer</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --bg2: #16213e;
+    --bg3: #0f3460;
+    --text: #e0e0e0;
+    --muted: #888;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --purple: #a855f7;
+    --border: #333;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 13px; background: var(--bg); color: var(--text); }
+
+  /* Layout */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .toolbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .toolbar h1 { font-size: 14px; font-weight: 600; }
+  .toolbar button, .toolbar select, .toolbar input { font-family: inherit; font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+  .toolbar button:hover { background: var(--bg3); }
+  .toolbar input[type="text"] { width: 200px; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .file-name { color: var(--muted); font-size: 11px; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Summary cards */
+  .summary { display: flex; gap: 12px; padding: 12px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; }
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; min-width: 120px; }
+  .card .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 2px; }
+  .card .value { font-size: 18px; font-weight: 700; }
+  .card .sub { font-size: 10px; color: var(--muted); }
+
+  /* Main content */
+  .content { display: flex; flex: 1; overflow: hidden; }
+  .sidebar { width: 220px; border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+  .main { flex: 1; overflow-y: auto; }
+
+  /* Type filter sidebar */
+  .filter-group { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .filter-group h3 { font-size: 11px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .filter-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; cursor: pointer; font-size: 12px; }
+  .filter-item input { cursor: pointer; }
+  .filter-item .count { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .filter-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Event list */
+  .event-row { display: flex; align-items: flex-start; padding: 6px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); cursor: pointer; transition: background 0.1s; }
+  .event-row:hover { background: rgba(255,255,255,0.03); }
+  .event-row.selected { background: rgba(59,130,246,0.1); border-left: 3px solid var(--accent); }
+  .event-row.level-error, .event-row.level-fatal { border-left: 3px solid var(--red); }
+  .event-row.level-warn { border-left: 3px solid var(--amber); }
+
+  .event-seq { width: 45px; color: var(--muted); font-size: 11px; flex-shrink: 0; text-align: right; padding-right: 8px; }
+  .event-time { width: 85px; color: var(--muted); font-size: 11px; flex-shrink: 0; }
+  .event-level { width: 18px; flex-shrink: 0; text-align: center; }
+  .event-level .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+  .event-type { width: 130px; font-size: 11px; color: var(--accent); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
+  .event-component { width: 140px; font-size: 11px; color: var(--purple); flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
+  .event-message { flex: 1; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .event-duration { width: 60px; text-align: right; font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+  /* Detail panel */
+  .detail { position: fixed; bottom: 0; left: 220px; right: 0; height: 280px; background: var(--bg2); border-top: 2px solid var(--accent); overflow-y: auto; padding: 12px 16px; display: none; z-index: 10; }
+  .detail.visible { display: block; }
+  .detail h3 { font-size: 13px; margin-bottom: 8px; }
+  .detail pre { font-size: 12px; background: var(--bg); padding: 8px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  .detail .field { margin-bottom: 6px; }
+  .detail .field-label { color: var(--muted); font-size: 11px; display: inline-block; width: 100px; }
+  .detail .field-value { color: var(--text); }
+  .detail .error-box { background: rgba(239,68,68,0.1); border: 1px solid var(--red); border-radius: 4px; padding: 8px; margin-top: 8px; }
+  .detail .close-btn { position: absolute; top: 8px; right: 12px; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+  /* Context panel */
+  .context-panel { padding: 8px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); font-size: 12px; }
+  .context-toggle { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--accent); cursor: pointer; font-size: 11px; padding: 2px 8px; font-family: inherit; }
+  .context-toggle:hover { background: var(--bg3); }
+  .context-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; margin-top: 8px; }
+  .context-section { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
+  .context-section h4 { font-size: 11px; text-transform: uppercase; color: var(--amber); margin-bottom: 4px; letter-spacing: 0.5px; }
+  .context-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+  .context-row:last-child { border-bottom: none; }
+  .context-key { color: var(--muted); font-size: 11px; }
+  .context-val { color: var(--text); font-size: 11px; font-weight: 600; text-align: right; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  .context-val.error { color: var(--red); }
+  .context-val.ok { color: var(--green); }
+
+  /* Timeline chart */
+  .timeline { height: 60px; background: var(--bg2); border-bottom: 1px solid var(--border); padding: 4px 16px; flex-shrink: 0; position: relative; }
+  .timeline canvas { width: 100%; height: 100%; }
+
+  /* Trigger banner */
+  .trigger-banner { padding: 8px 16px; background: rgba(239,68,68,0.1); border-bottom: 1px solid var(--red); font-size: 12px; }
+  .trigger-banner .trigger-type { color: var(--red); font-weight: 600; }
+
+  /* Empty state */
+  .empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); flex-direction: column; gap: 12px; }
+  .empty .drop-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 60px; text-align: center; }
+
+  .has-detail .main { margin-bottom: 280px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="toolbar">
+    <h1>Flight Recorder</h1>
+    <button onclick="document.getElementById('fileInput').click()">Open File</button>
+    <input type="file" id="fileInput" accept=".jsonl,.ndjson,.json" style="display:none" onchange="loadFile(this.files[0])">
+    <input type="text" id="searchBox" placeholder="Search messages..." oninput="applyFilters()">
+    <select id="levelFilter" onchange="applyFilters()">
+      <option value="">All Levels</option>
+      <option value="debug">Debug</option>
+      <option value="info">Info</option>
+      <option value="warn">Warn</option>
+      <option value="error">Error</option>
+      <option value="fatal">Fatal</option>
+    </select>
+    <div class="spacer"></div>
+    <span class="file-name" id="fileName">No file loaded</span>
+  </div>
+
+  <div id="summaryArea" class="summary" style="display:none"></div>
+  <div id="triggerArea" style="display:none"></div>
+  <div id="contextArea" style="display:none"></div>
+  <div id="timelineArea" class="timeline" style="display:none"><canvas id="timelineCanvas"></canvas></div>
+
+  <div class="content">
+    <div class="sidebar" id="sidebar">
+      <div class="filter-group">
+        <h3>Event Types</h3>
+        <div id="typeFilters"></div>
+      </div>
+    </div>
+    <div class="main" id="mainArea">
+      <div class="empty" id="emptyState">
+        <div class="drop-zone" id="dropZone">
+          <div style="font-size: 24px; margin-bottom: 8px;">Drop .jsonl file here</div>
+          <div>or click Open File</div>
+          <div style="margin-top: 12px; font-size: 11px; color: var(--muted)">
+            PowerShell: Show-FlightRecorder -Last 1
+          </div>
+        </div>
+      </div>
+      <div id="eventList" style="display:none"></div>
+    </div>
+  </div>
+
+  <div class="detail" id="detailPanel">
+    <button class="close-btn" onclick="closeDetail()">&times;</button>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<script>
+let allEvents = [];
+let header = null;
+let dictionary = [];
+let trigger = null;
+let contextRecord = null;
+let filteredEvents = [];
+let selectedSeq = null;
+let activeTypes = new Set();
+
+const LEVEL_COLORS = { debug: '#666', info: '#22c55e', warn: '#f59e0b', error: '#ef4444', fatal: '#dc2626' };
+const TYPE_CATEGORIES = {
+  'Lifecycle': ['lifecycle'],
+  'AI': ['ai.request', 'ai.response', 'ai.error'],
+  'Argument Net': ['an.extract', 'an.commit', 'an.reject', 'an.qbaf', 'an.gc'],
+  'Turn Pipeline': ['turn.stage', 'turn.validate', 'turn.repair'],
+  'Debate': ['debate.phase', 'debate.round', 'debate.signal', 'debate.moderate'],
+  'Adaptive': ['adaptive.eval', 'adaptive.transition', 'adaptive.regress'],
+  'State': ['state.save', 'state.load', 'state.error', 'state.change'],
+  'UI': ['user.action', 'ui.navigate', 'ui.select', 'ui.toggle'],
+  'System': ['system.error', 'system.warning', 'system.memory', 'system.perf'],
+};
+
+// Drag and drop
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('dropZone');
+  document.body.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = '#3b82f6'; });
+  document.body.addEventListener('dragleave', () => { dz.style.borderColor = '#333'; });
+  document.body.addEventListener('drop', e => { e.preventDefault(); dz.style.borderColor = '#333'; if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+});
+
+function loadFile(file) {
+  if (!file) return;
+  document.getElementById('fileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => parseNdjson(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseNdjson(text) {
+  allEvents = [];
+  header = null;
+  dictionary = [];
+  trigger = null;
+  contextRecord = null;
+
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const obj = JSON.parse(trimmed);
+      if (obj._type === 'header') header = obj;
+      else if (obj._type === 'dictionary') dictionary = obj.entries || [];
+      else if (obj._type === 'trigger') trigger = obj;
+      else if (obj._type === 'context') contextRecord = obj;
+      else if (obj._type === 'event') allEvents.push(obj);
+      else if (obj.type && obj._seq != null) allEvents.push(obj); // headerless event
+    } catch { /* skip malformed lines */ }
+  }
+
+  allEvents.sort((a, b) => a._seq - b._seq);
+  renderSummary();
+  renderTrigger();
+  renderContext();
+  renderTypeFilters();
+  activeTypes = new Set(allEvents.map(e => e.type));
+  applyFilters();
+  renderTimeline();
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('eventList').style.display = 'block';
+}
+
+function renderSummary() {
+  const area = document.getElementById('summaryArea');
+  if (!header && allEvents.length === 0) { area.style.display = 'none'; return; }
+  area.style.display = 'flex';
+
+  const errors = allEvents.filter(e => e.level === 'error' || e.level === 'fatal').length;
+  const warns = allEvents.filter(e => e.level === 'warn').length;
+  const types = new Set(allEvents.map(e => e.type)).size;
+  const components = new Set(allEvents.map(e => e.component)).size;
+  const firstWall = allEvents.length ? allEvents[0]._wall : 0;
+  const lastWall = allEvents.length ? allEvents[allEvents.length - 1]._wall : 0;
+  const spanMs = lastWall - firstWall;
+
+  let html = '';
+  html += card('Events', allEvents.length, header ? `${header.events_lost || 0} lost` : '');
+  html += card('Errors', errors, `${warns} warnings`, errors > 0 ? 'var(--red)' : '');
+  html += card('Types', types, `${components} components`);
+  html += card('Time Span', formatDuration(spanMs), header ? `uptime: ${formatDuration(header.uptime_ms)}` : '');
+  if (header?.app_version) html += card('Version', header.app_version, header.platform || '');
+  if (header?.active_debate_id) html += card('Debate', header.active_debate_id.slice(0, 8), `phase: ${header.active_debate_phase || '?'}`);
+  if (header?.memory_usage_mb) html += card('Memory', `${header.memory_usage_mb.toFixed(0)} MB`, '');
+  area.innerHTML = html;
+}
+
+function card(label, value, sub, color) {
+  return `<div class="card"><div class="label">${label}</div><div class="value" ${color ? `style="color:${color}"` : ''}>${value}</div><div class="sub">${sub}</div></div>`;
+}
+
+function renderTrigger() {
+  const area = document.getElementById('triggerArea');
+  if (!trigger) { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+  area.className = 'trigger-banner';
+  let html = `<span class="trigger-type">${trigger.trigger_type}</span> at ${trigger.timestamp}`;
+  if (trigger.error) html += ` &mdash; ${trigger.error.name}: ${trigger.error.message}`;
+  area.innerHTML = html;
+}
+
+function renderContext() {
+  const area = document.getElementById('contextArea');
+  if (!contextRecord) { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+  area.className = 'context-panel';
+
+  const sections = [];
+  for (const [key, val] of Object.entries(contextRecord)) {
+    if (key === '_type') continue;
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      const rows = [];
+      for (const [k, v] of Object.entries(val)) {
+        if (v && typeof v === 'object' && !Array.isArray(v)) {
+          // Nested object — flatten
+          for (const [k2, v2] of Object.entries(v)) {
+            rows.push([`${k}.${k2}`, formatCtxVal(v2)]);
+          }
+        } else {
+          rows.push([k, formatCtxVal(v)]);
+        }
+      }
+      sections.push({ title: key, rows });
+    }
+  }
+
+  let html = '<div style="display:flex;align-items:center;gap:8px">';
+  html += '<span style="font-weight:600;color:var(--amber)">Context</span>';
+  // Show key facts inline
+  const app = contextRecord.app;
+  const perf = contextRecord.performance;
+  if (app) {
+    html += `<span style="color:var(--muted)">v${app.version || '?'}</span>`;
+    html += `<span style="color:var(--muted)">${app.deployment_mode || app.os || ''}</span>`;
+  }
+  if (perf?.uptime_s) html += `<span style="color:var(--muted)">up ${perf.uptime_s}s</span>`;
+  if (perf?.heap_used_mb) html += `<span style="color:var(--muted)">${perf.heap_used_mb}MB heap</span>`;
+  html += '<div style="flex:1"></div>';
+  html += '<button class="context-toggle" onclick="toggleContextDetail()">Details</button>';
+  html += '</div>';
+  html += '<div id="contextDetail" class="context-grid" style="display:none">';
+  for (const sec of sections) {
+    html += `<div class="context-section"><h4>${esc(sec.title)}</h4>`;
+    for (const [k, v] of sec.rows) {
+      const cls = v === 'null' || v === 'N/A' ? ' error' : '';
+      html += `<div class="context-row"><span class="context-key">${esc(k)}</span><span class="context-val${cls}" title="${esc(String(v))}">${esc(String(v))}</span></div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  area.innerHTML = html;
+}
+
+function toggleContextDetail() {
+  const el = document.getElementById('contextDetail');
+  el.style.display = el.style.display === 'none' ? 'grid' : 'none';
+}
+
+function formatCtxVal(v) {
+  if (v === null || v === undefined) return 'null';
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  if (Array.isArray(v)) return v.length === 0 ? '(empty)' : v.join(', ');
+  return String(v);
+}
+
+function esc(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function renderTypeFilters() {
+  const container = document.getElementById('typeFilters');
+  const typeCounts = {};
+  for (const e of allEvents) typeCounts[e.type] = (typeCounts[e.type] || 0) + 1;
+
+  let html = '';
+  for (const [cat, types] of Object.entries(TYPE_CATEGORIES)) {
+    const catTypes = types.filter(t => typeCounts[t]);
+    if (catTypes.length === 0) continue;
+    html += `<div style="margin-top:8px;font-size:10px;color:var(--muted);text-transform:uppercase">${cat}</div>`;
+    for (const t of catTypes) {
+      html += `<label class="filter-item"><input type="checkbox" checked data-type="${t}" onchange="toggleType(this)"><span>${t}</span><span class="count">${typeCounts[t]}</span></label>`;
+    }
+  }
+  // Uncategorized
+  const categorized = new Set(Object.values(TYPE_CATEGORIES).flat());
+  const uncategorized = Object.keys(typeCounts).filter(t => !categorized.has(t));
+  if (uncategorized.length) {
+    html += `<div style="margin-top:8px;font-size:10px;color:var(--muted);text-transform:uppercase">Other</div>`;
+    for (const t of uncategorized) {
+      html += `<label class="filter-item"><input type="checkbox" checked data-type="${t}" onchange="toggleType(this)"><span>${t}</span><span class="count">${typeCounts[t]}</span></label>`;
+    }
+  }
+  container.innerHTML = html;
+}
+
+function toggleType(cb) {
+  if (cb.checked) activeTypes.add(cb.dataset.type);
+  else activeTypes.delete(cb.dataset.type);
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = document.getElementById('searchBox').value.toLowerCase();
+  const level = document.getElementById('levelFilter').value;
+
+  filteredEvents = allEvents.filter(e => {
+    if (!activeTypes.has(e.type)) return false;
+    if (level && e.level !== level) return false;
+    if (search) {
+      const haystack = `${e.type} ${e.component} ${e.message || ''} ${e.speaker || ''} ${JSON.stringify(e.data || {})}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  renderEventList();
+}
+
+function renderEventList() {
+  const container = document.getElementById('eventList');
+  // Virtualized: render in chunks for large lists
+  const rows = filteredEvents.map(e => {
+    const wallStr = e._wall ? new Date(e._wall).toISOString().slice(11, 23) : '';
+    const dur = e.duration_ms != null ? `${e.duration_ms}ms` : '';
+    return `<div class="event-row level-${e.level} ${e._seq === selectedSeq ? 'selected' : ''}" data-seq="${e._seq}" onclick="selectEvent(${e._seq})">
+      <span class="event-seq">${e._seq}</span>
+      <span class="event-time">${wallStr}</span>
+      <span class="event-level"><span class="dot" style="background:${LEVEL_COLORS[e.level] || '#666'}"></span></span>
+      <span class="event-type">${e.type}</span>
+      <span class="event-component">${e.component}</span>
+      <span class="event-message">${escHtml(e.message || '')}</span>
+      <span class="event-duration">${dur}</span>
+    </div>`;
+  });
+  container.innerHTML = rows.join('');
+}
+
+function selectEvent(seq) {
+  selectedSeq = seq;
+  const e = allEvents.find(ev => ev._seq === seq);
+  if (!e) return;
+
+  // Highlight row
+  document.querySelectorAll('.event-row').forEach(r => r.classList.toggle('selected', parseInt(r.dataset.seq) === seq));
+
+  const panel = document.getElementById('detailPanel');
+  const content = document.getElementById('detailContent');
+  panel.classList.add('visible');
+  document.getElementById('app').classList.add('has-detail');
+
+  let html = `<h3>${e.type} <span style="color:${LEVEL_COLORS[e.level]}">[${e.level}]</span></h3>`;
+  html += field('Sequence', e._seq);
+  html += field('Wall Clock', e._wall ? new Date(e._wall).toISOString() : 'N/A');
+  html += field('Monotonic', `${(e._ts / 1000).toFixed(3)}s`);
+  html += field('Component', e.component);
+  if (e.speaker) html += field('Speaker', e.speaker);
+  if (e.debate_id) html += field('Debate', e.debate_id);
+  if (e.turn_id) html += field('Turn', e.turn_id);
+  if (e.call_id) html += field('Call', e.call_id);
+  if (e.duration_ms != null) html += field('Duration', `${e.duration_ms}ms`);
+  if (e.message) html += field('Message', e.message);
+
+  if (e.data && Object.keys(e.data).length > 0) {
+    html += `<div style="margin-top:8px"><span class="field-label">Data</span></div><pre>${escHtml(JSON.stringify(e.data, null, 2))}</pre>`;
+  }
+
+  if (e.error) {
+    html += `<div class="error-box"><strong>${escHtml(e.error.name)}</strong>: ${escHtml(e.error.message)}`;
+    if (e.error.stack) html += `<pre style="margin-top:4px;font-size:11px">${escHtml(e.error.stack)}</pre>`;
+    html += `</div>`;
+  }
+
+  // Origin tag
+  if (e._origin) html += field('Origin', e._origin);
+
+  content.innerHTML = html;
+}
+
+function closeDetail() {
+  document.getElementById('detailPanel').classList.remove('visible');
+  document.getElementById('app').classList.remove('has-detail');
+  selectedSeq = null;
+}
+
+function renderTimeline() {
+  if (allEvents.length < 2) { document.getElementById('timelineArea').style.display = 'none'; return; }
+  document.getElementById('timelineArea').style.display = 'block';
+  const canvas = document.getElementById('timelineCanvas');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const minTs = allEvents[0]._ts;
+  const maxTs = allEvents[allEvents.length - 1]._ts;
+  const range = maxTs - minTs || 1;
+  const w = rect.width;
+  const h = rect.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Bucket events into time bins
+  const bins = 200;
+  const binCounts = new Array(bins).fill(0);
+  const binErrors = new Array(bins).fill(0);
+  for (const e of allEvents) {
+    const bin = Math.min(Math.floor(((e._ts - minTs) / range) * bins), bins - 1);
+    binCounts[bin]++;
+    if (e.level === 'error' || e.level === 'fatal') binErrors[bin]++;
+  }
+  const maxCount = Math.max(...binCounts, 1);
+
+  // Draw bars
+  const barW = w / bins;
+  for (let i = 0; i < bins; i++) {
+    const barH = (binCounts[i] / maxCount) * (h - 8);
+    ctx.fillStyle = binErrors[i] > 0 ? '#ef4444' : 'rgba(59,130,246,0.5)';
+    ctx.fillRect(i * barW, h - barH - 4, Math.max(barW - 1, 1), barH);
+  }
+
+  // Click to scroll
+  canvas.onclick = (ev) => {
+    const x = ev.offsetX;
+    const bin = Math.floor((x / w) * bins);
+    const targetTs = minTs + (bin / bins) * range;
+    const closest = allEvents.reduce((best, e) => Math.abs(e._ts - targetTs) < Math.abs(best._ts - targetTs) ? e : best);
+    const row = document.querySelector(`.event-row[data-seq="${closest._seq}"]`);
+    if (row) { row.scrollIntoView({ block: 'center' }); selectEvent(closest._seq); }
+  };
+}
+
+function field(label, value) {
+  return `<div class="field"><span class="field-label">${label}</span><span class="field-value">${escHtml(String(value))}</span></div>`;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function formatDuration(ms) {
+  if (ms == null) return '?';
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 3600000) return `${Math.floor(ms / 60000)}m ${Math.floor((ms % 60000) / 1000)}s`;
+  return `${Math.floor(ms / 3600000)}h ${Math.floor((ms % 3600000) / 60000)}m`;
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeDetail(); return; }
+  if (!filteredEvents.length) return;
+  const idx = filteredEvents.findIndex(ev => ev._seq === selectedSeq);
+  if (e.key === 'ArrowDown' || e.key === 'j') {
+    e.preventDefault();
+    const next = idx < filteredEvents.length - 1 ? idx + 1 : idx;
+    selectEvent(filteredEvents[next]._seq);
+    document.querySelector(`.event-row[data-seq="${filteredEvents[next]._seq}"]`)?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'ArrowUp' || e.key === 'k') {
+    e.preventDefault();
+    const prev = idx > 0 ? idx - 1 : 0;
+    selectEvent(filteredEvents[prev]._seq);
+    document.querySelector(`.event-row[data-seq="${filteredEvents[prev]._seq}"]`)?.scrollIntoView({ block: 'nearest' });
+  }
+});
+
+// Handle file passed via query string (for PowerShell integration)
+const params = new URLSearchParams(window.location.search);
+const fileParam = params.get('file');
+if (fileParam) {
+  // Can't read local files directly from browser — show instructions
+  document.getElementById('fileName').textContent = fileParam;
+}
+</script>
+</body>
+</html>

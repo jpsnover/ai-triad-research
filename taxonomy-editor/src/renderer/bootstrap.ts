@@ -57,6 +57,11 @@ window.addEventListener('unhandledrejection', (e) => {
   }
 });
 
+// Tag body with runtime target so CSS can gate Electron-only rules
+if (import.meta.env.VITE_TARGET !== 'web') {
+  document.body.classList.add('electron');
+}
+
 // Dynamic import so that if App's transitive imports crash,
 // the error handlers above are already registered.
 import('./index.tsx').catch(showCrashScreen);

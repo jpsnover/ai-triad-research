@@ -163,8 +163,13 @@ ${taxonomySample}
 Analyze this document and extract its key claims as information nodes (i-nodes). For each i-node:
 1. Extract the claim as a near-verbatim sentence or close paraphrase from the document
 2. Classify its type: empirical (testable fact), normative (value judgment), definitional (how a term is defined or scoped), assumption (unstated premise), or evidence (data/example supporting a claim)
-3. Map it to relevant taxonomy node IDs from the list above — only include IDs that actually appear in the taxonomy
-4. Map it to relevant policy item IDs if applicable
+3. Rate extraction_confidence (0-1): how faithfully this i-node represents the source text
+   - 0.9-1.0: near-verbatim quote, meaning fully preserved
+   - 0.7-0.89: faithful paraphrase, core meaning intact
+   - 0.5-0.69: inferred claim not explicitly stated but implied by the text
+   - Below 0.5: do not include — you are editorializing beyond the source
+4. Map it to relevant taxonomy node IDs from the list above — only include IDs that actually appear in the taxonomy
+5. Map it to relevant policy item IDs if applicable
 
 Also identify tension points — places where the document's claims would provoke sharp disagreement between the debate perspectives.
 
@@ -185,6 +190,7 @@ Return ONLY JSON (no markdown, no code fences):
       "id": "D-1",
       "text": "near-verbatim claim from the document",
       "type": "empirical",
+      "extraction_confidence": 0.92,
       "taxonomy_refs": ["acc-goals-002"],
       "policy_refs": []
     }

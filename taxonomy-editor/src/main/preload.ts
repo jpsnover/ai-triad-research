@@ -12,6 +12,11 @@ ipcRenderer.on('debate-window-load', (_event, debateId: string) => {
 });
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  // Synchronous system info — available without IPC round-trip
+  processVersions: { ...process.versions },
+  osRelease: process.getSystemVersion?.() ?? process.platform,
+  osPlatform: process.platform,
+  osArch: process.arch,
   getTaxonomyDirs: (): Promise<string[]> =>
     ipcRenderer.invoke('get-taxonomy-dirs'),
 
@@ -138,6 +143,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('dump-flight-recorder', ndjson),
   forwardFlightEvent: (event: unknown): void => {
     ipcRenderer.send('forward-flight-event', event);
+  },
+  triggerMainDump: (): Promise<{ filePath: string }> =>
+    ipcRenderer.invoke('trigger-main-dump'),
+  onTriggerDump: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on('trigger-dump', handler);
+    return () => { ipcRenderer.removeListener('trigger-dump', handler); };
+  },
+  sendDumpResult: (result: { filePath: string }): void => {
+    ipcRenderer.send('dump-result', result);
   },
   onFlightEventFromPopup: (callback: (_e: unknown, payload: unknown) => void) => {
     ipcRenderer.on('flight-event-from-popup', callback as (...args: unknown[]) => void);

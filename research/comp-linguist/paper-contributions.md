@@ -141,4 +141,47 @@ This approach demonstrates a lightweight, reversible method for aligning LLM-gen
 
 ---
 
-*Generated 2026-05-05 by Computational Linguist (AI Triad Research)*
+## 5. Argument-Network-Driven Taxonomy Relevance Scoring
+
+**Venue fit:** Information Retrieval, Computational Argumentation, Multi-Agent Systems (SIGIR, COMMA, AAMAS)
+
+### Problem Statement
+
+Multi-agent debate systems that inject structured knowledge (taxonomy nodes, ontological context) into agent prompts face a relevance scoring problem: which nodes from a large taxonomy are most relevant to a specific debate turn? The standard approach embeds the debate topic as a single query vector and scores all nodes by cosine similarity. This produces systematically low scores when the topic text is short (a URL, a one-sentence prompt) or when the debate has evolved beyond its original framing.
+
+### Prior Approach and Its Limitations
+
+Our system previously constructed a relevance query by concatenating the debate topic with the last 500 characters of recent transcript, embedding this as a single vector (all-MiniLM-L6-v2, 384-dim), and scoring all taxonomy nodes by cosine similarity against it. This approach had three failure modes: (1) **length mismatch** — a 50-character topic query compared against 200-word genus-differentia node descriptions produces systematically low cosine similarity (observed P90 = 0.43, mean = 0.32); (2) **semantic blending** — a multi-topic debate turn about both "compute governance" and "open-source safety" produces one averaged query vector that matches neither concept well; (3) **static anchoring** — as the debate evolves and new arguments emerge, scoring remains anchored to the original topic string, not the actual discourse trajectory.
+
+### Our Approach
+
+We replace the single topic-query embedding with per-claim argument network (AN) scoring. After each debate turn, the claim extraction pipeline identifies 3–8 distinct claims and adds them to the argument network. Each claim is independently embedded. Taxonomy node relevance is then computed as:
+
+```
+node_score = max(cosine(node_embedding, claim_embedding) for claim in AN_claims)
+```
+
+A node that is highly similar to *any* active claim scores high, even if it is irrelevant to the original topic string. Optionally, claim similarity is strength-weighted — claims with higher QBAF computed strength contribute more, so nodes relevant to strong surviving arguments are prioritized over nodes relevant to refuted claims.
+
+The approach is computationally efficient: with 150 AN claims and 572 taxonomy nodes, the scoring requires ~86K dot products on 384-dim vectors — under 100ms in Python, negligible in JavaScript.
+
+### Experimental Validation
+
+On a sample debate about state-led AI regulation, we compared single-query scoring against AN-claim-max scoring across 195 skeptic POV nodes:
+
+| Metric | Single Query | AN-Claim-Max | Improvement |
+|---|---|---|---|
+| Mean score | 0.320 | 0.373 | +16.6% |
+| P90 score | 0.435 | 0.456 | +4.8% |
+| Max score | 0.569 | 0.598 | +5.1% |
+| Nodes ≥ 0.45 (green threshold) | 11 | 23 | **+109%** |
+
+The most dramatic improvement was on "Protecting Data Privacy and Individual Autonomy" (skp-desires-003): single-query score 0.19 (bottom quartile, would not be injected), AN-claim-max score 0.56 (top 15%, strongly injected). The single query missed this node because the topic text ("Discuss: [URL]") shared no semantic surface with "data privacy." The AN-claim-max scored it correctly because a debate claim about "state-managed data extraction" was semantically close.
+
+### Significance
+
+This approach makes three contributions: (1) it eliminates the query-length and topic-format sensitivity of single-vector scoring, producing meaningful scores even for URL-based or one-sentence debate topics; (2) it makes relevance scoring *adaptive* — as the debate progresses and the AN grows, the taxonomy nodes surfaced to each agent shift to match the actual discourse trajectory; (3) it connects formal argumentation (QBAF strength) to information retrieval (embedding similarity), using argument quality as a relevance signal — a bridge between the computational argumentation and IR communities.
+
+---
+
+*Updated 2026-05-09 by CL.Investigate1 (Computational Linguist) · AI Triad Research*

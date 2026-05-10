@@ -473,7 +473,7 @@ CHALLENGING YOUR OPPONENTS' NODES:
 - Against LOW falsifiability claims: Do NOT waste time demanding empirical proof for
   what is fundamentally a value position — that's a category error that stalls the
   debate. Instead, challenge on coherence: does this principle generalize consistently?
-  Use REDUCTIO or COUNTEREXAMPLE to show cases where their stated value leads to
+  Use COUNTEREXAMPLE to show cases where their stated value leads to
   conclusions they'd reject. Or use REFRAME to show that a different value framework
   handles the same concerns without the downsides.
 
@@ -1422,17 +1422,19 @@ Analyze the topic${input.isFirst ? '' : ' and prior opening statements'} and pro
 ${input.isFirst ? '4. What framing will best establish this perspective for the audience?' : `4. What positions from prior speakers should ${input.label} acknowledge or contrast with?
 5. What framing gaps or unchallenged assumptions can ${input.label} exploit?`}
 
+GROUNDING DEPTH: Each angle and claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences: the key dimensions of the topic and what matters most for this perspective",
   "strongest_angles": [
-    {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective", "grounding": [{"node_id": "acc-beliefs-003", "why": "anchors the empirical basis"}]}
+    {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "why": "primary anchor — empirical basis"}, {"node_id": "acc-desires-007", "label": "Node Label Here", "why": "supporting normative commitment"}]}
   ],
   "key_tensions": [
     {"tension": "a key tension or tradeoff in the topic", "opportunity": "how ${input.label} can use this"}
   ]${input.documentAnalysis ? `,
   "document_claims_to_engage": [
-    {"d_id": "D-1", "claim": "the claim text", "stance": "accept | challenge | reframe", "why": "1 sentence: why this claim matters for ${input.pov}", "grounding": [{"node_id": "saf-beliefs-011", "why": "provides the normative basis for this stance"}]}
+    {"d_id": "D-1", "claim": "the claim text", "stance": "accept | challenge | reframe", "why": "1 sentence: why this claim matters for ${input.pov}", "grounding": [{"node_id": "saf-beliefs-011", "label": "Node Label Here", "why": "primary — normative basis for this stance"}, {"node_id": "saf-intentions-003", "label": "Node Label Here", "why": "supporting — strategic mechanism"}]}
   ]` : ''}${input.isFirst ? '' : `,
   "prior_positions_to_address": [
     {"speaker": "who", "position": "their key claim", "response_strategy": "acknowledge / contrast / challenge"}
@@ -1454,14 +1456,47 @@ Plan your opening statement strategy. This is your first appearance — you need
 3. Decide on the argumentative structure (claim + evidence + warrant for each main point)
 ${input.isFirst ? '4. Set the terms of debate from your perspective' : '4. Decide how to position yourself relative to prior speakers — acknowledge their strongest points before diverging'}
 
+=== FIELD-AWARE STRATEGY ===
+Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:
+
+EPISTEMIC TYPE — match argument mode to claim type:
+- empirical_claim → argue with evidence
+- normative_prescription → argue from coherence/values
+- strategic_recommendation → challenge feasibility, cite analogous cases
+- predictive → demand specific timelines and falsifiable thresholds
+- definitional → use DISTINGUISH
+- interpretive_lens → use REFRAME
+
+RHETORICAL STRATEGY — plan HOW to argue based on your nodes' strategies:
+- Techno_Optimism → lead with possibility. Pairs: EXTEND, REFRAME
+- Precautionary_Framing → lead with stakes. Pairs: EMPIRICAL CHALLENGE, SPECIFY
+- Appeal_To_Evidence → lead with data. Pairs: EMPIRICAL CHALLENGE, UNDERCUT
+- Structural_Critique → lead with systems. Pairs: REFRAME, DISTINGUISH
+- Moral_Imperative → lead with obligation. Pairs: COUNTEREXAMPLE, CONCEDE-AND-PIVOT
+- Cost_Benefit_Analysis → lead with tradeoffs. Pairs: DISTINGUISH, SPECIFY, INTEGRATE
+- Analogical_Reasoning → lead with precedent. Pairs: COUNTEREXAMPLE, EXTEND
+- Inevitability_Framing → lead with trajectory. Pairs: REFRAME, EXTEND
+- Pragmatic_Framing → lead with what works. Pairs: COUNTEREXAMPLE, INTEGRATE
+
+FALSIFIABILITY — calibrate evidence demands:
+- HIGH → cite concrete evidence and measurable outcomes
+- MEDIUM → separate testable parts from judgment calls
+- LOW → argue from coherence/values, not pseudo-empirical claims
+
+ASSUMPTIONS — your nodes list their assumptions. Name 1-2 key assumptions your position depends on and plan how to handle challenges to them.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "strategic_goal": "1-2 sentences: what your opening should accomplish",
   "core_thesis": "1 sentence: your central claim in this debate",
   "argument_structure": [
-    {"point": "main claim #1", "evidence": "what supports it", "taxonomy_anchor": "node_id to ground it"}
+    {"point": "main claim #1", "evidence": "what supports it", "taxonomy_anchor": "node_id to ground it"},
+    {"point": "main claim #2", "evidence": "what supports it", "taxonomy_anchor": "node_id to ground it"}
   ],
-  "framing_choices": "2-3 sentences: how you will frame the issue and why this framing favors your perspective",
+  "framing_choices": [
+    {"frame": "how you will frame the issue", "why": "why this framing favors your perspective"},
+    {"frame": "alternative or complementary framing", "why": "what this framing reveals that the first doesn't"}
+  ],
   "anticipated_challenges": ["what opponents will likely attack", "what assumptions you're exposing"]
 }`;
 }
@@ -1643,11 +1678,13 @@ Analyze the debate state and produce a structured brief. Focus on:
 4. What structural tensions exist that ${input.label} could exploit or must navigate?
 5. What does the current debate phase demand?
 
+GROUNDING DEPTH: Each claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences describing the current debate state and what just happened",
   "key_claims_to_address": [
-    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "why": "anchors the response to this claim"}]}
+    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "why": "primary — anchors the response"}, {"node_id": "acc-intentions-012", "label": "Node Label Here", "why": "supporting — strategic counter"}]}
   ],
   "relevant_commitments": [
     {"speaker": "who", "commitment": "what was committed", "type": "asserted | conceded | challenged"}
@@ -1719,17 +1756,34 @@ Plan your argumentative strategy. Consider:
 6. What taxonomy nodes or policy evidence do you need to cite?${pi ? '\n7. How will you respond to the moderator directive?' : ''}
 
 === FIELD-AWARE STRATEGY ===
-Your taxonomy nodes have epistemic_type and assumes fields. Use them in planning:
+Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:
 
-MATCH ARGUMENT MODE TO CLAIM TYPE:
+EPISTEMIC TYPE — match argument mode to claim type:
 - empirical_claim → argue with evidence, challenge with counter-evidence
 - normative_prescription → argue from coherence/values, challenge via value conflicts
 - strategic_recommendation → challenge feasibility, cite analogous cases
 - predictive → demand specific timelines and falsifiable thresholds
 - definitional → use DISTINGUISH to show the definition is too narrow/broad/loaded
 - interpretive_lens → use REFRAME to offer a competing lens
-
 CROSS-TYPE MISMATCH: If you and an opponent are arguing different types (you: empirical, them: normative), NAME THE MISMATCH in your plan before engaging.
+
+RHETORICAL STRATEGY — plan HOW to argue based on node strategy:
+- Techno_Optimism → lead with possibility, frame status quo as risk. Pairs: EXTEND, REFRAME
+- Precautionary_Framing → lead with stakes and irreversibility. Pairs: EMPIRICAL CHALLENGE, SPECIFY
+- Appeal_To_Evidence → lead with data, demand evidentiary standards. Pairs: EMPIRICAL CHALLENGE, UNDERCUT
+- Structural_Critique → lead with systems/power/incentives. Pairs: REFRAME, DISTINGUISH
+- Moral_Imperative → lead with obligation and human cost. Pairs: COUNTEREXAMPLE, CONCEDE-AND-PIVOT
+- Cost_Benefit_Analysis → lead with tradeoffs, quantify where possible. Pairs: DISTINGUISH, SPECIFY, INTEGRATE
+- Analogical_Reasoning → lead with precedent, stress-test the analogy. Pairs: COUNTEREXAMPLE, EXTEND
+- Inevitability_Framing → lead with trajectory, name the forces. Pairs: REFRAME, EXTEND
+- Pragmatic_Framing → lead with what works, challenge implementability. Pairs: COUNTEREXAMPLE, INTEGRATE
+When an opponent uses a recognizable strategy, match your counter-move to it.
+
+FALSIFIABILITY — calibrate evidence demands:
+- HIGH → cite concrete evidence, name measurable outcomes and thresholds
+- MEDIUM → separate testable parts (argue on evidence) from judgment calls (argue on coherence)
+- LOW → argue from coherence and value consistency. Challenge via COUNTEREXAMPLE or REFRAME
+Against opponents: demand evidence for HIGH claims, DISTINGUISH testable vs. untestable for MEDIUM, challenge coherence for LOW. Flag category errors (treating values as empirical or vice versa).
 
 ASSUMPTION TARGETING:
 - Your nodes list their assumptions. If an opponent challenges one, plan to DEFEND or CONCEDE it.
@@ -1747,8 +1801,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "target_claims": ["AN-3", "AN-7"],
   "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
-  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"],
-  "evidence_needed": ["acc-beliefs-003 for empirical grounding", "pol-012 for policy connection"]${directiveField}
+  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"]${directiveField}
 }`;
 }
 
@@ -2724,13 +2777,32 @@ Edit types:
 
 Rules:
 - Only propose edits with clear debate evidence. Do not suggest changes based on general knowledge.
-- Descriptions MUST use genus-differentia format with Encompasses: and Excludes: clauses.
 - Labels: Desires use present participle targeting ideal state, Beliefs use noun phrase, Intentions use present participle denoting strategic action.
 - Match the tone, abstraction level, and specificity of the existing taxonomy nodes above. Your proposed labels and descriptions should read as natural additions to the same taxonomy — not more abstract, not more concrete, not more colloquial, not more technical than the surrounding entries.
 - Be intellectually honest — if an opponent landed a strong blow, acknowledge it.
 - Propose 0 edits if nothing warrants change. Quality over quantity.
 - Limit to your 3-5 most important edits.
 - For each edit, assess your confidence: how strong is the debate evidence supporting this change?
+
+DESCRIPTION FORMAT — all proposed descriptions MUST follow this exact 3-line structure:
+  Line 1 (genus-differentia): "A [Belief|Desire|Intention] within [POV] discourse that [ONE distinguishing concept]."
+    - The differentia states WHAT the position IS, not WHY it is correct.
+    - ONE concept only. No causal connectors: do NOT use "rendering", "thereby", "thus", "therefore", "contingent on".
+    - Do NOT pack mechanism + target + failure modes + caveats into one sentence.
+  Line 2: "Encompasses: [3-5 sub-themes as comma-separated list]."
+    - Sub-themes this node covers, all at the same abstraction level.
+    - These are WHAT falls under this concept, not reasons WHY the position is correct.
+  Line 3: "Excludes: [2-3 neighboring concepts]."
+    - Concepts this node is NOT about. Name them neutrally.
+    - Do NOT editorialize: "pre-deployment gatekeeping" is correct; "pre-deployment gatekeeping that functions as an anti-competitive compliance tax" is editorial.
+
+  Do NOT add "Qualified by:", "Note:", "However:", or any other sections.
+  Caveats and conditions belong in the assumes field or as separate nodes, NOT in the description.
+
+  EXAMPLE (correct):
+    "A Belief within safetyist discourse that current interpretability tools cannot provide formal verification of AI safety in deep neural networks.
+    Encompasses: opacity of high-dimensional latent spaces, absence of proven causal links between internal activations and model behavior, limitations of mechanistic interpretability at scale.
+    Excludes: the claim that model insights are theoretically impossible, transparency achieved through open-source code access."
 
 Return ONLY JSON (no markdown, no code fences):
 {

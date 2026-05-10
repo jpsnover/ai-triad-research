@@ -82,7 +82,7 @@ function DispositionChart({ signals }: { signals: ConvergenceSignals[] }) {
     const pts = signals.filter(s => s.speaker === spkr);
     return {
       speaker: spkr,
-      points: pts.map(p => `${x(p.round)},${H - PAD - (p.move_disposition?.ratio ?? 0) * (H - 2 * PAD)}`).join(' '),
+      points: pts.map(p => `${x(p.round)},${H - PAD - (p.move_polarity?.ratio ?? 0) * (H - 2 * PAD)}`).join(' '),
     };
   });
 
@@ -121,9 +121,9 @@ function SummaryStats({ signals }: { signals: ConvergenceSignals[] }) {
     const missedCount = spkrSignals.filter(s => s.concession_opportunity?.outcome === 'missed').length;
     const takenCount = spkrSignals.filter(s => s.concession_opportunity?.outcome === 'taken').length;
     const opportunityCount = missedCount + takenCount;
-    const avgCollabRatio = spkrSignals.reduce((sum, s) => sum + (s.move_disposition?.ratio ?? 0), 0) / (spkrSignals.length || 1);
-    const avgRecycling = spkrSignals.reduce((sum, s) => sum + Math.max(s.recycling_rate?.max_self_overlap ?? 0, s.recycling_rate?.semantic_max_similarity ?? 0), 0) / (spkrSignals.length || 1);
-    const cruxTotal = spkrSignals.length > 0 ? spkrSignals[spkrSignals.length - 1].crux_rate?.cumulative_count ?? 0 : 0;
+    const avgCollabRatio = spkrSignals.reduce((sum, s) => sum + (s.move_polarity?.ratio ?? 0), 0) / (spkrSignals.length || 1);
+    const avgRecycling = spkrSignals.reduce((sum, s) => sum + Math.max(s.argument_redundancy?.max_self_overlap ?? 0, s.argument_redundancy?.semantic_max_similarity ?? 0), 0) / (spkrSignals.length || 1);
+    const cruxTotal = spkrSignals.length > 0 ? spkrSignals[spkrSignals.length - 1].crux_engagement_rate?.cumulative_count ?? 0 : 0;
     return { speaker: spkr, missedCount, takenCount, opportunityCount, avgCollabRatio, avgRecycling, cruxTotal };
   });
 
@@ -276,28 +276,28 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
                   {speakerLabel(sig.speaker)}
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <span style={{ color: '#ef4444' }}>{sig.move_disposition?.confrontational ?? 0}</span>
+                  <span style={{ color: '#ef4444' }}>{sig.move_polarity?.confrontational ?? 0}</span>
                   {' / '}
-                  <span style={{ color: '#22c55e' }}>{sig.move_disposition?.collaborative ?? 0}</span>
+                  <span style={{ color: '#22c55e' }}>{sig.move_polarity?.collaborative ?? 0}</span>
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  <MiniBar value={sig.engagement_depth?.ratio ?? 0} max={1} color="#3b82f6" />
+                  <MiniBar value={sig.dialectical_engagement?.ratio ?? 0} max={1} color="#3b82f6" />
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   {(() => {
-                    const effective = Math.max(sig.recycling_rate?.max_self_overlap ?? 0, sig.recycling_rate?.semantic_max_similarity ?? 0);
-                    return <MiniBar value={effective} max={1} color={sig.recycling_rate?.semantically_recycled ? '#ef4444' : effective > 0.5 ? '#f59e0b' : '#22c55e'} />;
+                    const effective = Math.max(sig.argument_redundancy?.max_self_overlap ?? 0, sig.argument_redundancy?.semantic_max_similarity ?? 0);
+                    return <MiniBar value={effective} max={1} color={sig.argument_redundancy?.semantically_recycled ? '#ef4444' : effective > 0.5 ? '#f59e0b' : '#22c55e'} />;
                   })()}
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
                   <OutcomeBadge outcome={sig.concession_opportunity?.outcome ?? 'none'} />
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  {pct(sig.position_delta?.drift ?? 0)}
+                  {pct(sig.position_drift?.drift ?? 0)}
                 </td>
                 <td style={{ padding: '4px 4px', textAlign: 'center' }}>
-                  {sig.crux_rate?.used_this_turn ? '1' : '0'}
-                  <span style={{ color: 'var(--text-muted)' }}> ({sig.crux_rate?.cumulative_count ?? 0})</span>
+                  {sig.crux_engagement_rate?.used_this_turn ? '1' : '0'}
+                  <span style={{ color: 'var(--text-muted)' }}> ({sig.crux_engagement_rate?.cumulative_count ?? 0})</span>
                 </td>
               </tr>
             ))}
@@ -306,13 +306,13 @@ export function ConvergenceSignalsPanel({ debate }: Props) {
       </div>
 
       {selected && (() => {
-        const md = selected.move_disposition;
-        const ed = selected.engagement_depth;
-        const rr = selected.recycling_rate;
-        const so = selected.strongest_opposing;
+        const md = selected.move_polarity;
+        const ed = selected.dialectical_engagement;
+        const rr = selected.argument_redundancy;
+        const so = selected.dominant_counterargument;
         const co = selected.concession_opportunity;
-        const pd = selected.position_delta;
-        const cr = selected.crux_rate;
+        const pd = selected.position_drift;
+        const cr = selected.crux_engagement_rate;
         const lbl: React.CSSProperties = { color: '#94a3b8', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.03em' };
         const val: React.CSSProperties = { color: '#e2e8f0', fontSize: '0.7rem' };
         const cell: React.CSSProperties = { padding: '3px 6px', borderRadius: 3, background: 'rgba(255,255,255,0.03)' };

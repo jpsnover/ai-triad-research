@@ -709,6 +709,8 @@ export interface DocumentINode {
   id: string;
   text: string;
   type: 'empirical' | 'normative' | 'definitional' | 'assumption' | 'evidence';
+  /** FIRE: How faithfully this i-node represents the source text (0-1). */
+  extraction_confidence?: number;
   taxonomy_refs: string[];
   policy_refs: string[];
 }
@@ -739,7 +741,7 @@ export interface ArgumentNetworkNode {
   /** QBAF: Post-propagation acceptability via gradual semantics (0-1). Absent in pre-QBAF debates. */
   computed_strength?: number;
   /** QBAF: How the base_strength was determined. 'bdi_criteria' for AI-scored D/I claims, 'human' for user-assigned, 'unscored' for unscored Beliefs (default 0.5), 'fact_check' for Beliefs scored by retrieval-augmented verification, 'bdi_composite' for Desires/Intentions scored by sub-score composite. */
-  scoring_method?: 'bdi_criteria' | 'human' | 'unscored' | 'fact_check' | 'bdi_composite';
+  scoring_method?: 'bdi_criteria' | 'human' | 'unscored' | 'fact_check' | 'bdi_composite' | 'belief_specificity' | 'belief_verification' | 'evidence_qbaf';
   /** Per-BDI-criterion sub-scores from claim extraction. Absent in pre-BDI-separation debates. */
   bdi_sub_scores?: BdiSubScores;
   /** Q-0 calibration confidence for this BDI category (Beliefs: 0.3, Desires: 0.65, Intentions: 0.71). */
@@ -908,7 +910,6 @@ export interface PlanWorkProduct {
   target_claims: string[];
   argument_sketch: string;
   anticipated_responses: string[];
-  evidence_needed: string[];
 }
 
 export interface TurnSymbol {

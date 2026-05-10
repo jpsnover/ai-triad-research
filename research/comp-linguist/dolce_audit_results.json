@@ -1,0 +1,1576 @@
+{
+  "total_nodes": 793,
+  "compliant": 645,
+  "non_compliant": 148,
+  "compliance_rate": 81.3,
+  "by_pov": {
+    "accelerationist": {
+      "total": 156,
+      "compliant": 137,
+      "rate": 87.8
+    },
+    "safetyist": {
+      "total": 223,
+      "compliant": 190,
+      "rate": 85.2
+    },
+    "situations": {
+      "total": 218,
+      "compliant": 161,
+      "rate": 73.9
+    },
+    "skeptic": {
+      "total": 196,
+      "compliant": 157,
+      "rate": 80.1
+    }
+  },
+  "by_category": {
+    "Desires": {
+      "total": 71,
+      "compliant": 61,
+      "rate": 85.9
+    },
+    "Beliefs": {
+      "total": 199,
+      "compliant": 160,
+      "rate": 80.4
+    },
+    "Intentions": {
+      "total": 305,
+      "compliant": 263,
+      "rate": 86.2
+    },
+    "situations": {
+      "total": 218,
+      "compliant": 161,
+      "rate": 73.9
+    }
+  },
+  "violation_counts": {
+    "OVERLOADED": 19,
+    "EXCLUDES": 62,
+    "CAUSAL CONNECTOR": 13,
+    "ENCOMPASSES": 75,
+    "MULTI-CONCEPT": 7,
+    "MISSING": 1,
+    "GENUS": 6
+  },
+  "non_compliant_nodes": [
+    {
+      "id": "acc-intentions-003",
+      "label": "Prioritizing Performance-Gated Empirical Output Verification",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "OVERLOADED: differentia is 311 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-009",
+      "label": "Framing AI Safety as Doomsday Alarmism",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-011",
+      "label": "Making Genius Abundant and Free",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-beliefs-013",
+      "label": "Universal Proliferation of Expert Cognition",
+      "pov": "accelerationist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-beliefs-016",
+      "label": "Thermodynamic Determinism of Intelligence",
+      "pov": "accelerationist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-046",
+      "label": "Institutional Inertia in Regulation",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-048",
+      "label": "Operational Definitions of Intelligence",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-051",
+      "label": "Living Taxonomy of AI Failures",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-052",
+      "label": "Accelerating AI Development & Deployment",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-054",
+      "label": "Behavioral & Empirical AI Safety",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-063",
+      "label": "Consumer-Driven Corporate AI Adoption",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-064",
+      "label": "Deterritorialization of Social Flows",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-065",
+      "label": "Preceptorship at Scale",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-067",
+      "label": "Techno-Capital Machine",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-desires-020",
+      "label": "Integrating Universal AI Literacy",
+      "pov": "accelerationist",
+      "category": "Desires",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-073",
+      "label": "Private Ordering as Governance Alternative",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "OVERLOADED: differentia is 331 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-intentions-074",
+      "label": "National AI Market Preemption",
+      "pov": "accelerationist",
+      "category": "Intentions",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-beliefs-034",
+      "label": "Temporal Mismatch in Accountability Bootstrapping",
+      "pov": "accelerationist",
+      "category": "Beliefs",
+      "violations": [
+        "OVERLOADED: differentia is 365 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "acc-beliefs-037",
+      "label": "AI-Driven Neutral Interest Rate Shift",
+      "pov": "accelerationist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-002",
+      "label": "Significant Probability of Existential AI Risk",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-005",
+      "label": "Implementing Verifiable Dynamic Adversarial Sandboxing",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-008",
+      "label": "Potential for Deceptive Alignment",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "CAUSAL CONNECTOR: 'contingent on' in differentia \u2014 state what the position IS, not why it's correct",
+        "MULTI-CONCEPT: semicolon in differentia suggests multiple concepts packed together",
+        "OVERLOADED: differentia is 452 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-015",
+      "label": "Good AIs Policing Bad Ones",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "OVERLOADED: differentia is 398 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-016",
+      "label": "Focusing on True AI Catastrophes",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5",
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-014",
+      "label": "Fragility of Software-Based Safety Guards",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "CAUSAL CONNECTOR: 'rendering' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-019",
+      "label": "AI Agents Eroding Social Trust",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-020",
+      "label": "Agent-to-agent knowledge propagation of unsafe practices",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-024",
+      "label": "Documentation Debt",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: 7 items \u2014 should be 2-5 (may be too broad)",
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-desires-009",
+      "label": "Clinical Moral Agency Preservation",
+      "pov": "safetyist",
+      "category": "Desires",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-044",
+      "label": "Objective Standards for AI Liability",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-025",
+      "label": "Unexpected Emergent Capabilities",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-desires-011",
+      "label": "Psychological Stewardship in AI Design",
+      "pov": "safetyist",
+      "category": "Desires",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-057",
+      "label": "Bootstrapping Alignment",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-075",
+      "label": "Fiduciary Oversight of Autonomous Systems",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-034",
+      "label": "Agentic Identity Spoofing",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-035",
+      "label": "Mathematical Limits of AI Truthfulness",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5",
+        "MULTI-CONCEPT: 3 'that' clauses in differentia \u2014 may be overloaded"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-036",
+      "label": "AI-Driven Skill Decay in Specialized Fields",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-desires-013",
+      "label": "AI-Enabled Totalitarianism Risk",
+      "pov": "safetyist",
+      "category": "Desires",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-088",
+      "label": "Agentic Layer Failure Surfaces",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-090",
+      "label": "Artificial Conscience as Internal Constraint",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-093",
+      "label": "Constitutional AI as Identity Training",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-044",
+      "label": "Environmental Arbitrage in AI Infrastructure",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-094",
+      "label": "Pre-mortem Analysis for AI Risk",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-100",
+      "label": "The Treacherous Turn in AI Development",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-055",
+      "label": "Representational Risk in Self-Supervised Learning",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-desires-018",
+      "label": "Humanitarian Restraining Factor of Choice",
+      "pov": "safetyist",
+      "category": "Desires",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-134",
+      "label": "International and Institutional AI Governance",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-135",
+      "label": "AI Risk Assessment Standards and Safety Thresholds",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: 10 items \u2014 should be 2-5 (may be too broad)",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-intentions-136",
+      "label": "Domain-Specific AI Governance and Applied Safety",
+      "pov": "safetyist",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: 8 items \u2014 should be 2-5 (may be too broad)",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-090",
+      "label": "AI-Enabled Weapons of Mass Destruction",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing",
+        "OVERLOADED: differentia is 370 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-092",
+      "label": "Monolithic Architecture as Systemic Fragility",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "OVERLOADED: differentia is 326 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "saf-beliefs-102",
+      "label": "Deep-Seated AI Flaws and Persistence",
+      "pov": "safetyist",
+      "category": "Beliefs",
+      "violations": [
+        "OVERLOADED: differentia is 317 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-006",
+      "label": "When AI Works on Average but Fails Specific Groups",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-011",
+      "label": "Sharing AI's Secret Code",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-012",
+      "label": "AI That Thinks For Itself",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-013",
+      "label": "Using AI To Do Science",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-014",
+      "label": "Optimizing for Narrow Metrics vs. Real-World Goals",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-017",
+      "label": "The Mechanisms for Utopia and Dystopia Are the Same",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-019",
+      "label": "Acting Now vs. Waiting For Proof",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-025",
+      "label": "Opaque Training Data and Unknown Origins",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-026",
+      "label": "Bouncing Back From AI Failures",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-027",
+      "label": "Should Federal AI Law Override States?",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thus' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-028",
+      "label": "The Proof-Before-Policy Problem",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-034",
+      "label": "Denial-of-Governance Attacks",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-038",
+      "label": "AI Job Loss Spiral",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-039",
+      "label": "Total Job Changes in Economy",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-040",
+      "label": "Skills Become Outdated Fast",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-044",
+      "label": "Bad AI Info Sticks Around",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-048",
+      "label": "Observed AI Exposure Metric",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-053",
+      "label": "Academic Citation as Evidence of AI Impact",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-054",
+      "label": "The Evidence Dilemma in AI Governance",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-058",
+      "label": "Disclosure Problem in AI Agency",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-060",
+      "label": "Functional Agency vs Moral Agency",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 6 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-062",
+      "label": "Legal Personhood as Governance Tool",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-065",
+      "label": "Technological Exceptionalism in AI Policy",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3",
+        "MULTI-CONCEPT: 3 'that' clauses in differentia \u2014 may be overloaded"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-067",
+      "label": "Rolling Disruption of AI Advances",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-073",
+      "label": "Alignment Stress Testing",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-074",
+      "label": "Amplified Oversight via AI Debate",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-078",
+      "label": "AI-Driven Political Backlash",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 7 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-080",
+      "label": "Gender-Specific AI Risk Exposure",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-081",
+      "label": "Fierce Ambivalence as Strategic Stance",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-083",
+      "label": "The Performance-Understanding Gap",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-085",
+      "label": "AI-Specific Attack Surface Expansion",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-086",
+      "label": "Automated Red Teaming via AI-vs-AI",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-105",
+      "label": "Assigning Legal Responsibility for AI Actions",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-112",
+      "label": "AI as Normal Technology",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-008",
+      "label": "AGI Discourse as a Research Trap",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "MULTI-CONCEPT: 3 'that' clauses in differentia \u2014 may be overloaded"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-120",
+      "label": "Federal Infrastructure Funding as Regulatory Leverage",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-121",
+      "label": "Component-System Category Error",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5",
+        "OVERLOADED: differentia is 303 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-139",
+      "label": "Procedure Fetish in AI Governance",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-011",
+      "label": "Sociotechnical Complexity in AI Systems",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "MISSING: no description"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-021",
+      "label": "Normative Pragmatism in IHL",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-027",
+      "label": "Governance Mirage",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-034",
+      "label": "Legislative Lag in Technological Governance",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing",
+        "OVERLOADED: differentia is 372 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-038",
+      "label": "Swivel Chair Governance",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-040",
+      "label": "Information Asymmetry in AI Governance",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-043",
+      "label": "Cloud Empires as Virtual States",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-047",
+      "label": "History-Informed Backcasting Methodology",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-048",
+      "label": "Hybrid Socio-Technical Governance Model",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "GENUS: doesn't start with 'A situation...' or 'A(n) [B/D/I] within...' \u2014 starts with: \"A governance framework that combines traditional institution\"",
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing",
+        "OVERLOADED: differentia is 358 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-050",
+      "label": "Maximum Feasible Participation in AI",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "GENUS: doesn't start with 'A situation...' or 'A(n) [B/D/I] within...' \u2014 starts with: \"A governance model that mandates the inclusion of affected i\"",
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-051",
+      "label": "Regulatory Optimism Critique",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "GENUS: doesn't start with 'A situation...' or 'A(n) [B/D/I] within...' \u2014 starts with: \"A critique of the belief that governance mechanisms can reli\"",
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-054",
+      "label": "Sociotechnical Fallibilism and Meliorism",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "GENUS: doesn't start with 'A situation...' or 'A(n) [B/D/I] within...' \u2014 starts with: \"A philosophical framework that integrates fallibilism (the r\"",
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-056",
+      "label": "Synthetic Empathy Mediated Loneliness Reduction",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-058",
+      "label": "Benevolent Sexism Detection Gap",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-059",
+      "label": "Categorical Mismatch in Sentiment Analysis",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "OVERLOADED: differentia is 360 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-061",
+      "label": "Reversal Methodology in Moral Agency",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "GENUS: doesn't start with 'A situation...' or 'A(n) [B/D/I] within...' \u2014 starts with: \"A methodology that shifts the focus of AI moral agency from \"",
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing",
+        "OVERLOADED: differentia is 329 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-154",
+      "label": "Challenges in AI Governance and Policy",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: 8 items \u2014 should be 2-5 (may be too broad)"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "sit-162",
+      "label": "Societal Narratives and Human Impacts of AI",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "ENCOMPASSES: 7 items \u2014 should be 2-5 (may be too broad)"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "cc-065",
+      "label": "Government-Industry Pre-Release Security Vetting",
+      "pov": "situations",
+      "category": "",
+      "violations": [
+        "GENUS: doesn't start with 'A situation...' or 'A(n) [B/D/I] within...' \u2014 starts with: \"A formal, institutionalized process where private AI develop\"",
+        "ENCOMPASSES: clause missing",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-006",
+      "label": "Influence of Tech Worker Collectives",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "OVERLOADED: differentia is 337 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-008",
+      "label": "Implementing Decentralized Architectural Verification",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-011",
+      "label": "Critiquing AI as Mere Pattern Matching",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3",
+        "CAUSAL CONNECTOR: 'rendering' in differentia \u2014 state what the position IS, not why it's correct",
+        "OVERLOADED: differentia is 350 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-012",
+      "label": "Focus on Real vs. Sci-Fi Risks",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-013",
+      "label": "Sharing AI Profits with Everyone",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-027",
+      "label": "Proof-of-Concept Trap",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-022",
+      "label": "AI Cost vs. Human Worker Cost",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-desires-007",
+      "label": "AI Creates Harmful Products",
+      "pov": "skeptic",
+      "category": "Desires",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-desires-008",
+      "label": "AI Risks Concentrated Wealth",
+      "pov": "skeptic",
+      "category": "Desires",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct",
+        "OVERLOADED: differentia is 311 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-desires-009",
+      "label": "Voice as Unique Digital Fingerprint",
+      "pov": "skeptic",
+      "category": "Desires",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-026",
+      "label": "Automation-Induced Performance Deficits",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-036",
+      "label": "AI-Driven Productivity Ratchet Effect",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-028",
+      "label": "AI-washing in Financial Services",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-039",
+      "label": "Algorithmic Nudging of Client Behavior",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "MULTI-CONCEPT: 3 'that' clauses in differentia \u2014 may be overloaded"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-040",
+      "label": "Risk-Utility Test for AI Design",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5",
+        "OVERLOADED: differentia is 308 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-033",
+      "label": "Jagged Technological Frontier",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-044",
+      "label": "AI Should Report Like Factories Do",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "OVERLOADED: differentia is 332 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-038",
+      "label": "Gender-Specific Risk Exposure in AI",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-040",
+      "label": "Strict Liability for Autonomous AI Conduct",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-043",
+      "label": "AI's Negative Cognitive Impact on Humans",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-044",
+      "label": "Hidden Economic and Environmental Costs of AI",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-045",
+      "label": "AI's Role in Generating Harmful Content",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-055",
+      "label": "Practical Approaches to AI Risk Management",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-desires-059",
+      "label": "Alternative AI Frameworks and Critiques",
+      "pov": "skeptic",
+      "category": "Desires",
+      "violations": [
+        "EXCLUDES: 5 items \u2014 should be 1-3"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-050",
+      "label": "AI-Induced Cognitive Offloading",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-051",
+      "label": "AI-Induced Creative Homogenization",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-052",
+      "label": "AI-Induced Skill Atrophy in Clinical Settings",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-053",
+      "label": "Entry-Level Hiring Slowdown as Early Warning",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-054",
+      "label": "Environmental Cost of AI Training",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-057",
+      "label": "Public Hostility Toward Tech Booms",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-058",
+      "label": "Skill-Biased Technological Change in Cognitive Work",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-073",
+      "label": "Technological Fixes for Wicked Social Problems",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-desires-066",
+      "label": "Human Capacity for Moral Refusal",
+      "pov": "skeptic",
+      "category": "Desires",
+      "violations": [
+        "ENCOMPASSES: only 1 item(s) \u2014 need 2-5"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-070",
+      "label": "Informational Asymmetry in Command",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "MULTI-CONCEPT: 3 'that' clauses in differentia \u2014 may be overloaded"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-094",
+      "label": "Algorithmic Bias, Discrimination, and Structural Harms",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "ENCOMPASSES: 9 items \u2014 should be 2-5 (may be too broad)",
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-095",
+      "label": "Data Integrity, Privacy, and Epistemic Harm",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "EXCLUDES: clause missing"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-intentions-089",
+      "label": "Audit Washing in Algorithmic Governance",
+      "pov": "skeptic",
+      "category": "Intentions",
+      "violations": [
+        "OVERLOADED: differentia is 316 chars \u2014 consider simplifying"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-096",
+      "label": "Technological Fetishization of AI",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "CAUSAL CONNECTOR: 'thereby' in differentia \u2014 state what the position IS, not why it's correct"
+      ],
+      "compliant": false
+    },
+    {
+      "id": "skp-beliefs-099",
+      "label": "Illusory Economic Gains and Social Value Erosion",
+      "pov": "skeptic",
+      "category": "Beliefs",
+      "violations": [
+        "MULTI-CONCEPT: 3 'that' clauses in differentia \u2014 may be overloaded"
+      ],
+      "compliant": false
+    }
+  ]
+}

@@ -855,6 +855,29 @@ export function registerIpcHandlers(): void {
     }
   });
 
+  // ── Flight recorder: popup requests main window to dump ──
+  ipcMain.handle('trigger-main-dump', (event) => {
+    return new Promise<{ filePath: string }>((resolve, reject) => {
+      // Find the main window (any window that isn't the sender)
+      const mainWin = BrowserWindow.getAllWindows().find(w => w.webContents !== event.sender);
+      if (!mainWin || mainWin.isDestroyed()) {
+        reject(new Error('Main window not available'));
+        return;
+      }
+      // One-time listener for the dump result from the main window
+      const handler = (_e: Electron.IpcMainEvent, result: { filePath: string }) => {
+        clearTimeout(timeout);
+        resolve(result);
+      };
+      const timeout = setTimeout(() => {
+        ipcMain.removeListener('dump-result', handler);
+        reject(new Error('Dump request timed out'));
+      }, 10_000);
+      ipcMain.once('dump-result', handler);
+      mainWin.webContents.send('trigger-dump');
+    });
+  });
+
   // ── Flight recorder dump ──
   ipcMain.handle('dump-flight-recorder', (_event, ndjson: string) => {
     const dumpDir = path.join(app.getPath('userData'), 'flight-recorder');

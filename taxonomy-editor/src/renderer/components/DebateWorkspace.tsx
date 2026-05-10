@@ -2253,7 +2253,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const isClarificationPhase = activeDebate.phase === 'clarification' || activeDebate.phase === 'setup';
   const isEditClaimsPhase = activeDebate.phase === 'edit-claims';
   const isOpeningPhase = activeDebate.phase === 'opening';
-  const isDebatePhase = activeDebate.phase === 'debate';
+  const isDebatePhase = activeDebate.phase === 'debate'
+    || activeDebate.phase === 'closed'
+    || activeDebate.adaptive_staging?.current_phase != null;
   const isCrossCutting = activeDebate.source_type === 'situations';
 
   return (

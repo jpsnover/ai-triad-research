@@ -375,6 +375,8 @@ Export-ModuleMember -Function @(
     'Invoke-DebateAB'
     'Get-AICostReport'
     'Show-OSSLicenses'
+    'Get-FlightRecorderDump'
+    'Show-FlightRecorder'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

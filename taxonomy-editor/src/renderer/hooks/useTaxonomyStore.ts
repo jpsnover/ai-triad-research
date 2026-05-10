@@ -1277,10 +1277,24 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const integrity: ValidationResult = validateTaxonomy(taxData);
       const integrityErrors = integrity.issues.filter(i => i.severity === 'error');
       if (integrityErrors.length > 0) {
-        const errorSummary = integrityErrors
-          .slice(0, 5)
-          .map(i => `[${i.code}] ${i.entityId}: ${i.message} — Fix: ${i.fix}`)
-          .join('\n');
+        // Group errors by code, then by entityId for readable summary
+        const byCode = new Map<string, Map<string, number>>();
+        for (const i of integrityErrors) {
+          let entities = byCode.get(i.code);
+          if (!entities) { entities = new Map(); byCode.set(i.code, entities); }
+          entities.set(i.entityId, (entities.get(i.entityId) ?? 0) + 1);
+        }
+        const lines: string[] = [];
+        for (const [code, entities] of byCode) {
+          const ids = [...entities.entries()];
+          if (ids.length <= 3) {
+            lines.push(`${code}: ${ids.map(([id, n]) => n > 1 ? `${id} (×${n})` : id).join(', ')}`);
+          } else {
+            const shown = ids.slice(0, 2).map(([id, n]) => n > 1 ? `${id} (×${n})` : id).join(', ');
+            lines.push(`${code}: ${shown} + ${ids.length - 2} more (${integrityErrors.filter(e => e.code === code).length} total)`);
+          }
+        }
+        const errorSummary = lines.join('\n');
         getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.validation', data: { stage: 'integrity', error_count: integrityErrors.length, entities: integrityErrors.slice(0, 10).map(i => `${i.code}: ${i.entityId}`), duration_ms: Math.round(performance.now() - saveStart) } });
         set({
           validationErrors: errors,
@@ -2096,3 +2110,6 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     });
   },
 }));
+
+// Expose store for flight recorder context provider (avoids circular import)
+((window as unknown as { __ZUSTAND_STORES__?: Record<string, unknown> }).__ZUSTAND_STORES__ ??= {} as Record<string, unknown>).taxonomy = useTaxonomyStore;

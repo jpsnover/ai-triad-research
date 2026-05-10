@@ -15,6 +15,21 @@ import type { RecordInput, TriggerType } from '@lib/flight-recorder/types';
 import { api } from '@bridge';
 import { showDumpToast } from './dumpToast';
 
+declare const __APP_VERSION__: string;
+declare const __BUILD_DATE__: string;
+declare const __COMPONENT_VERSIONS__: Record<string, string>;
+
+function getDeploymentMode(): string {
+  const target = import.meta.env.VITE_TARGET;
+  if (target === 'web') return 'web-container';
+  if (import.meta.env.DEV) return 'electron-dev';
+  return 'electron-prod';
+}
+
+function getElectronAPI(): { processVersions?: Record<string, string | undefined>; osRelease?: string } | undefined {
+  return (window as unknown as { electronAPI?: { processVersions?: Record<string, string | undefined>; osRelease?: string } }).electronAPI;
+}
+
 // ── Dump throttle state ──────────────────────────────────────────────────
 
 let lastDumpTime = 0;
@@ -155,6 +170,35 @@ export function initFlightRecorder(): FlightRecorder {
   if (isPopup && typeof (window as unknown as { electronAPI?: { forwardFlightEvent?: unknown } }).electronAPI?.forwardFlightEvent === 'function') {
     const shim = createPopupShim(windowId);
     setGlobalRecorder(shim);
+
+    // Set up error boundary hook for popup — forward crash event to main window's recorder
+    (globalThis as unknown as { __onErrorBoundaryCatch: (err: Error, stack?: string) => void }).__onErrorBoundaryCatch = (error, componentStack) => {
+      shim.record({
+        type: 'system.error',
+        component: 'react-error-boundary',
+        level: 'fatal',
+        message: error.message,
+        error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
+        data: componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined,
+      });
+    };
+
+    // Set up manual dump trigger for popup — request main window to dump via IPC
+    (globalThis as unknown as { __triggerManualDump: () => void }).__triggerManualDump = () => {
+      // Forward a dump-request event; the main window listener triggers persistDump
+      shim.record({ type: 'lifecycle', component: 'flight-recorder', level: 'info', message: 'Manual dump requested from popup' });
+      // Trigger dump on main window via broadcast channel or direct IPC
+      try {
+        const eApi = (window as unknown as { electronAPI: { triggerMainDump?: () => Promise<{ filePath: string }> } }).electronAPI;
+        if (eApi.triggerMainDump) {
+          void eApi.triggerMainDump().then(result => {
+            console.log(`[flight-recorder] Dump saved: ${result.filePath}`);
+            void api.clipboardWriteText(result.filePath);
+          });
+        }
+      } catch { /* fallback: dump request forwarded as event */ }
+    };
+
     return shim;
   }
 
@@ -198,33 +242,99 @@ export function initFlightRecorder(): FlightRecorder {
     data: { capacity: 3000, window: windowId },
   });
 
-  // ── Context provider (active debate info for dump header) ──
+  // ── Context provider (full app state snapshot for dump) ──
+  // See operations/diagnostics/flight-recorder-context-spec.md for field descriptions.
+  // MUST be synchronous, handle uninitialized stores, no secrets, target <2KB.
+
+  // Defer store import to avoid circular dependency — resolved on first context call.
+  let _stores: { useDebateStore: any; useTaxonomyStore: any } | null = null;
+  function getStores() {
+    if (!_stores) {
+      try {
+        // Dynamic import workaround: Vite rewrites import() but we need synchronous access.
+        // The stores are already loaded by the time the first dump is triggered.
+        const debateMod = (window as any).__ZUSTAND_STORES__?.debate;
+        const taxMod = (window as any).__ZUSTAND_STORES__?.taxonomy;
+        if (debateMod && taxMod) _stores = { useDebateStore: debateMod, useTaxonomyStore: taxMod };
+      } catch { /* not ready yet */ }
+    }
+    return _stores;
+  }
 
   recorder.setContextProvider(() => {
     try {
-      // Lazy imports to avoid circular dependency at module load time.
-      // Zustand stores — getState() is synchronous.
-      const { useDebateStore } = require('../hooks/useDebateStore');
-      const { useTaxonomyStore } = require('../hooks/useTaxonomyStore');
+      const stores = getStores();
+      if (!stores) return {};
+      const useDebateStore = stores.useDebateStore as { getState: () => any };
+      const useTaxonomyStore = stores.useTaxonomyStore as { getState: () => any };
 
       const taxState = useTaxonomyStore.getState();
-      const ctx: Record<string, unknown> = {
-        window: windowId,
-        activeTab: taxState.activeTab,
-        toolbarPanel: taxState.toolbarPanel,
-      };
-
       const debateState = useDebateStore.getState();
       const debate = debateState.activeDebate;
-      if (debate) {
-        ctx.active_debate_id = debate.id;
-        ctx.active_debate_phase = debate.phase;
-        ctx.active_debate_round = debate.transcript?.filter(
-          (e: { type: string }) => e.type === 'cross_respond',
-        ).length ?? 0;
-      }
+      const mem = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } }).memory;
+      const eApi = getElectronAPI();
+      const pv = eApi?.processVersions;
 
-      return ctx;
+      return {
+        app: {
+          version: typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined,
+          build_date: typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : undefined,
+          build_fingerprint: `build-${(window as unknown as { __BUILD_FINGERPRINT?: string }).__BUILD_FINGERPRINT ?? 'unknown'}`,
+          deployment_mode: getDeploymentMode(),
+          vite_target: import.meta.env.VITE_TARGET ?? 'electron',
+          platform: eApi?.osPlatform ?? navigator.platform,
+          arch: eApi?.osArch ?? (navigator.userAgent.includes('arm64') ? 'arm64' : 'x64'),
+          os: eApi?.osPlatform ?? navigator.platform,
+          os_version: eApi?.osRelease ?? undefined,
+        },
+        windows: {
+          main: {
+            active_tab: taxState.activeTab,
+            toolbar_panel: taxState.toolbarPanel ?? null,
+            selected_node_id: taxState.selectedNodeId ?? null,
+          },
+        },
+        debate: debate ? {
+          id: debate.id,
+          phase: debate.phase,
+          adaptive_phase: debate.adaptive_staging?.current_phase ?? null,
+          transcript_length: debate.transcript?.length ?? 0,
+          an_nodes: debate.argument_network?.nodes?.length ?? 0,
+          model: debateState.debateModel,
+          temperature: debateState.debateTemperature,
+          is_generating: !!debateState.debateGenerating,
+          convergence_signals_count: debate.convergence_signals?.length ?? 0,
+          protocol: debate.protocol ?? null,
+        } : null,
+        taxonomy: {
+          loaded: {
+            accelerationist: taxState.accelerationist?.nodes?.length ?? 0,
+            safetyist: taxState.safetyist?.nodes?.length ?? 0,
+            skeptic: taxState.skeptic?.nodes?.length ?? 0,
+            situations: taxState.situations?.nodes?.length ?? 0,
+          },
+          dirty_files: [...(taxState.dirty ?? [])],
+          save_error: taxState.saveError ?? null,
+          edges_count: taxState.edgesFile?.edges?.length ?? 0,
+        },
+        ai: {
+          backend: taxState.aiBackend,
+          model: taxState.geminiModel,
+        },
+        performance: {
+          uptime_s: Math.round(performance.now() / 1000),
+          heap_used_mb: mem ? Math.round(mem.usedJSHeapSize / 1048576) : undefined,
+          heap_total_mb: mem ? Math.round(mem.totalJSHeapSize / 1048576) : undefined,
+          ring_buffer_utilization_pct: Math.round((recorder.buffer.retained / recorder.buffer.capacity) * 100),
+        },
+        sbom: {
+          node: pv?.node ?? undefined,
+          electron: pv?.electron ?? undefined,
+          chrome: pv?.chrome ?? undefined,
+          v8: pv?.v8 ?? undefined,
+          ...(typeof __COMPONENT_VERSIONS__ !== 'undefined' ? __COMPONENT_VERSIONS__ : {}),
+        },
+      };
     } catch {
       return {};
     }
@@ -304,6 +414,21 @@ export function initFlightRecorder(): FlightRecorder {
 
   // ── ErrorBoundary "Dump Log" button hook ──
   (globalThis as unknown as { __triggerManualDump: () => void }).__triggerManualDump = triggerManualDump;
+
+  // ── Listen for dump requests from popup windows (via main process relay) ──
+  const eApi = (window as unknown as { electronAPI?: { onTriggerDump?: (cb: () => void) => () => void; sendDumpResult?: (r: { filePath: string }) => void } }).electronAPI;
+  if (eApi?.onTriggerDump && eApi?.sendDumpResult) {
+    eApi.onTriggerDump(() => {
+      const { ndjson } = recorder.buildDump('manual');
+      void api.dumpFlightRecorder(ndjson).then(result => {
+        eApi.sendDumpResult!({ filePath: result.filePath });
+        console.log(`[flight-recorder] Dump triggered by popup, saved: ${result.filePath}`);
+      }).catch(err => {
+        console.warn('[flight-recorder] Popup-triggered dump failed:', err);
+        eApi.sendDumpResult!({ filePath: '' });
+      });
+    });
+  }
 
   return recorder;
 }

@@ -5,6 +5,7 @@ import type { Dictionary } from './dictionary.js';
 import type {
   FlightRecorderEvent,
   DumpHeader,
+  DumpContext,
   DumpDictionary,
   DumpEvent,
   DumpTrigger,
@@ -14,9 +15,10 @@ import type {
  * Serialize a flight recorder snapshot to NDJSON (one JSON object per line).
  *
  * Structure:
- *   Line 1:   header  — system context, buffer stats
+ *   Line 1:   header  — buffer stats
  *   Line 2:   dictionary — all interned strings
- *   Lines 3…N: events — oldest first, dictionary handles expanded
+ *   Line 3:   context (optional) — app state at dump time
+ *   Lines 4…N: events — oldest first, dictionary handles expanded
  *   Last line: trigger — the error/event that caused the dump
  */
 export function serializeDump(
@@ -24,6 +26,7 @@ export function serializeDump(
   dictionary: Dictionary,
   events: FlightRecorderEvent[],
   trigger: DumpTrigger,
+  context?: DumpContext,
 ): string {
   const lines: string[] = [];
 
@@ -37,7 +40,12 @@ export function serializeDump(
   };
   lines.push(JSON.stringify(dictLine));
 
-  // Lines 3…N: events with dictionary handles expanded
+  // Line 3: context (optional)
+  if (context) {
+    lines.push(JSON.stringify(context));
+  }
+
+  // Lines 4…N: events with dictionary handles expanded
   for (const event of events) {
     const expanded: DumpEvent = {
       _type: 'event',

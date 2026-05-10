@@ -158,6 +158,11 @@ export interface DumpEvent {
   duration_ms?: number;
 }
 
+export interface DumpContext {
+  _type: 'context';
+  [key: string]: unknown;
+}
+
 export type TriggerType = 'uncaught_error' | 'unhandled_rejection' | 'error_boundary' | 'explicit' | 'manual';
 
 export interface DumpTrigger {

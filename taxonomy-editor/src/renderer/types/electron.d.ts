@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 export interface ElectronAPI {
+  processVersions: Record<string, string | undefined>;
+  osRelease: string;
   getTaxonomyDirs: () => Promise<string[]>;
   getActiveTaxonomyDir: () => Promise<string>;
   setTaxonomyDir: (dirName: string) => Promise<void>;
@@ -71,6 +73,9 @@ export interface ElectronAPI {
   openExternal: (url: string) => Promise<void>;
   openFile: (filePath: string) => Promise<void>;
   forwardFlightEvent?: (event: unknown) => void;
+  triggerMainDump?: () => Promise<{ filePath: string }>;
+  onTriggerDump?: (callback: () => void) => () => void;
+  sendDumpResult?: (result: { filePath: string }) => void;
   buildNodeSourceIndex: () => Promise<unknown>;
   buildPolicySourceIndex: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;

@@ -360,7 +360,7 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
       <div className="conflict-qbaf-claims">
         {graph.nodes.map(node => {
           const band = strengthBand(node.computed_strength);
-          const delta = node.computed_strength - node.base_strength;
+          const delta = (node.computed_strength ?? 0) - (node.base_strength ?? 0);
           const isPrevailing = resolution?.prevailing_claim === node.id;
           return (
             <div key={node.id} className={`conflict-qbaf-claim ${isPrevailing ? 'conflict-qbaf-prevailing' : ''}`}>
@@ -371,13 +371,13 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
                 {band.label}
                 {Math.abs(delta) > 0.1 && (
                   <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`}>
-                    {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+                    {delta > 0 ? '+' : ''}{(delta ?? 0).toFixed(2)}
                   </span>
                 )}
               </span>
               {node.bdi_sub_scores && (
                 <span className="conflict-qbaf-subscores" title={Object.entries(node.bdi_sub_scores).filter(([,v]) => v != null).map(([k,v]) => `${k}: ${v}`).join(', ')}>
-                  [{Object.values(node.bdi_sub_scores).filter(v => v != null).map(v => (v as number).toFixed(1)).join('/')}]
+                  [{Object.values(node.bdi_sub_scores).filter(v => v != null).map(v => ((v as number) ?? 0).toFixed(1)).join('/')}]
                 </span>
               )}
             </div>
@@ -405,7 +405,7 @@ function QbafConflictPanel({ qbaf }: { qbaf: ConflictQbaf }) {
           <div className="conflict-qbaf-resolution-header">Resolution Analysis</div>
           <div className="conflict-qbaf-resolution-body">
             <span>Prevailing: <strong>{graph.nodes.find(n => n.id === resolution.prevailing_claim)?.text.slice(0, 60) ?? resolution.prevailing_claim}</strong></span>
-            <span>Strength: {resolution.prevailing_strength.toFixed(2)} (margin: {resolution.margin.toFixed(2)})</span>
+            <span>Strength: {(resolution.prevailing_strength ?? 0).toFixed(2)} (margin: {(resolution.margin ?? 0).toFixed(2)})</span>
             <span>Criterion: {resolution.criterion.replace(/_/g, ' ')}</span>
           </div>
         </div>
@@ -467,7 +467,7 @@ function DialecticTracePanel({ trace }: { trace: DialecticTrace }) {
                   <span className="conflict-trace-attack-type">{step.attack_type}</span>
                 )}
                 {step.strength != null && (
-                  <span className="conflict-trace-strength">{step.strength.toFixed(2)}</span>
+                  <span className="conflict-trace-strength">{(step.strength ?? 0).toFixed(2)}</span>
                 )}
               </div>
               <div className="conflict-trace-claim">{step.claim}</div>

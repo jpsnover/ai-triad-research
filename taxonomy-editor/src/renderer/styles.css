@@ -613,17 +613,17 @@ body {
   color: #fff;
 }
 
-/* ─── Compact mode for short viewports ─── */
+/* ─── Compact mode for short viewports (Electron only) ─── */
 @media (max-height: 700px) {
-  .toolbar { width: 38px; padding: 4px 0; }
-  .toolbar-icon { width: 32px; height: 30px; }
-  .toolbar-separator { margin: 2px 0; }
+  .electron .toolbar { width: 38px; padding: 4px 0; }
+  .electron .toolbar-icon { width: 32px; height: 30px; }
+  .electron .toolbar-separator { margin: 2px 0; }
 }
 
 @media (max-height: 560px) {
-  .toolbar-icon { width: 30px; height: 26px; }
-  .toolbar-icon svg { width: 16px; height: 16px; }
-  .toolbar-separator { margin: 1px 0; }
+  .electron .toolbar-icon { width: 30px; height: 26px; }
+  .electron .toolbar-icon svg { width: 16px; height: 16px; }
+  .electron .toolbar-separator { margin: 1px 0; }
 }
 
 .toolbar-icon {
@@ -8140,7 +8140,7 @@ body {
 
 .debate-opening-order-btns {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   margin-left: 2px;
 }
 
@@ -8149,7 +8149,7 @@ body {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.55rem;
+  font-size: 0.7rem;
   line-height: 1;
   padding: 0 2px;
 }

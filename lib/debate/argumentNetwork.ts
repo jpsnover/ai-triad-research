@@ -8,6 +8,9 @@
 
 import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, maxOverlapVsExisting, lookupTaxonomyEdgeWeight } from './helpers.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
+import { retrieveEvidence } from './evidenceRetriever.js';
+import { computeFactCheckStrength } from './qbaf.js';
+import type { WebEvidenceItem } from './qbaf.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -114,6 +117,11 @@ For each distinct claim in the statement:
 Extract 3-6 claims. Each claim must be traceable to text actually in the statement. Do NOT invent claims. Prefer more rather than fewer — include secondary and supporting claims, not just the headline assertion.
 
 For each claim, also classify:
+- "extraction_confidence": how faithfully this claim captures what the speaker actually said (0-1):
+  0.9-1.0: near-verbatim sentence from the statement
+  0.7-0.89: faithful compression, core meaning preserved
+  0.5-0.69: implicit premise or reading between the lines
+  Below 0.5: do not include — you are editorializing beyond the statement
 - "bdi_category": "belief" (empirical/factual claim), "desire" (normative/value claim), or "intention" (strategic/methodological claim)
 - "base_strength": classify the evidential grounding as ONE of:
   "grounded" — cites specific data, named sources, dates, or directly verifiable facts
@@ -121,9 +129,14 @@ For each claim, also classify:
   "asserted" — claim stated without supporting reasoning or evidence
   Do NOT output numeric scores. Use ONLY these three categories.
 - "bdi_sub_scores": for each criterion, answer "yes", "partial", or "no":
-  For belief claims: {"evidence_quality": "partial", "source_reliability": "partial", "falsifiability": "partial"} (always "partial" — human adjusts later)
+  For belief claims: OMIT bdi_sub_scores — use "belief_verification" instead (see below)
   For desire claims: {"values_grounding": "yes/partial/no", "tradeoff_acknowledgment": "yes/partial/no", "precedent_citation": "yes/partial/no"}
   For intention claims: {"mechanism_specificity": "yes/partial/no", "scope_bounding": "yes/partial/no", "failure_mode_addressing": "yes/partial/no"}
+- "belief_verification": REQUIRED for belief claims ONLY. Answer each sub-step:
+  {"evidence_cited": "what specific evidence does this claim cite (1 sentence, or 'none')",
+   "source_located": "found" (evidence traceable to the source document) | "not_found" (claim cites evidence not in the source) | "no_source" (claim cites no specific evidence),
+   "evidence_supports": "strongly" (evidence directly entails the claim) | "partially" (evidence is relevant but doesn't fully support) | "weakly" (loose connection) | "contradicts" (evidence works against the claim),
+   "counter_evidence": "none" (no contradicting info in the source) | "minor" (some tension but not decisive) | "significant" (source contains strong counter-evidence)}
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
 
@@ -133,6 +146,7 @@ Return ONLY JSON (no markdown):
   "claims": [
     {
       "text": "near-verbatim claim from the statement",
+      "extraction_confidence": 0.92,
       "bdi_category": "belief or desire or intention",
       "base_strength": "grounded or reasoned or asserted",
       "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"},
@@ -218,9 +232,14 @@ Also classify each claim:
   "asserted" — claim stated without supporting reasoning or evidence
   Do NOT output numeric scores. Use ONLY these three categories.
 - "bdi_sub_scores": for each criterion, answer "yes", "partial", or "no":
-  belief: {"evidence_quality": "partial", "source_reliability": "partial", "falsifiability": "partial"} (always "partial" — human adjusts)
+  For belief claims: OMIT bdi_sub_scores — use "belief_verification" instead (see below)
   desire: {"values_grounding": "yes/partial/no", "tradeoff_acknowledgment": "yes/partial/no", "precedent_citation": "yes/partial/no"}
   intention: {"mechanism_specificity": "yes/partial/no", "scope_bounding": "yes/partial/no", "failure_mode_addressing": "yes/partial/no"}
+- "belief_verification": REQUIRED for belief claims ONLY. Answer each sub-step:
+  {"evidence_cited": "what evidence this claim cites (1 sentence, or 'none')",
+   "source_located": "found" | "not_found" | "no_source",
+   "evidence_supports": "strongly" | "partially" | "weakly" | "contradicts",
+   "counter_evidence": "none" | "minor" | "significant"}
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 
@@ -621,6 +640,39 @@ const BDI_TERNARY_MAP: Record<BdiTernary, number> = {
   no: 0.0,
 };
 
+/** Belief specificity → base_strength proxy (t/455 Stage 1).
+ *  AI reliably judges whether a claim cites specific data vs makes broad assertions. */
+const BELIEF_SPECIFICITY_MAP: Record<string, number> = {
+  precise: 0.70,  // cites specific data, named sources, dates
+  general: 0.50,  // broad empirical claim without specific details
+  abstract: 0.35, // theoretical, not empirically testable
+};
+
+/** Compute base_strength from a ThinkPRM verification chain (t/455 Stage 3).
+ *  Decomposes the unreliable holistic "evidence quality" judgment into 4 tractable
+ *  sub-steps, each producing a sub-score in [0,1]. */
+export function beliefVerificationToStrength(v: BeliefVerification): number {
+  // Sub-step 1: source_located — was the evidence found in the source?
+  const locationScore = v.source_located === 'found' ? 1.0
+    : v.source_located === 'not_found' ? 0.3  // claim cites evidence not in source
+    : 0.1;  // no_source — claim cites nothing specific
+
+  // Sub-step 2: evidence_supports — does the evidence actually support the claim?
+  const supportScore = v.evidence_supports === 'strongly' ? 1.0
+    : v.evidence_supports === 'partially' ? 0.65
+    : v.evidence_supports === 'weakly' ? 0.35
+    : 0.1;  // contradicts
+
+  // Sub-step 3: counter_evidence — does the source contain contradicting info?
+  const counterPenalty = v.counter_evidence === 'none' ? 0
+    : v.counter_evidence === 'minor' ? 0.15
+    : 0.30;  // significant
+
+  // Composite: weighted average with counter-evidence penalty
+  const raw = 0.4 * locationScore + 0.6 * supportScore - counterPenalty;
+  return Math.max(0.1, Math.min(0.95, raw));
+}
+
 export function discreteNodeStrength(category: string): number {
   const key = category.toLowerCase() as NodeStrengthCategory;
   return NODE_STRENGTH_MAP[key] ?? 0.5;
@@ -716,13 +768,29 @@ export function normalizeExtractedClaim(claim: RawExtractedClaim): RawExtractedC
 
 // ── Shared claim processing ──────────────────────────────────
 
+/** ThinkPRM-style 4-step verification chain for Belief claims (t/455 Stage 3).
+ *  Each sub-step is a self-contained judgment the model can perform reliably. */
+export interface BeliefVerification {
+  /** What specific evidence does the claim cite? */
+  evidence_cited: string;
+  /** Is the cited evidence present in the source document? */
+  source_located: 'found' | 'not_found' | 'no_source';
+  /** Does the cited evidence actually support the claim? */
+  evidence_supports: 'strongly' | 'partially' | 'weakly' | 'contradicts';
+  /** Does the source contain information contradicting the claim? */
+  counter_evidence: 'none' | 'minor' | 'significant';
+}
+
 export interface RawExtractedClaim {
   text: string;
+  extraction_confidence?: number;
   bdi_category?: string;
   base_strength?: number | string;
   bdi_sub_scores?: Record<string, number | string>;
   specificity?: string;
   steelman_of?: string | null;
+  /** ThinkPRM verification chain for Belief claims (t/455 Stage 3). */
+  belief_verification?: BeliefVerification;
   responds_to?: {
     prior_claim_id: string;
     relationship: string;
@@ -742,6 +810,10 @@ export interface ProcessClaimsOptions {
   duplicateOverlapThreshold?: number;
   maxClaims?: number;
   isClassifyPath: boolean;
+  /** Path to sources directory for evidence retrieval (t/455 Stage 2).
+   *  When provided, Belief claims get QBAF-adjusted base_strength from
+   *  retrieved evidence. Requires Node.js filesystem access. */
+  sourcesDir?: string;
 }
 
 export interface ProcessClaimsInput {
@@ -807,7 +879,8 @@ export function processExtractedClaims(
       continue;
     }
 
-    const overlapVsAN = maxOverlapVsExisting(claim.text, allNodes);
+    const debaterNodes = allNodes.filter(n => n.speaker !== 'document');
+    const overlapVsAN = maxOverlapVsExisting(claim.text, debaterNodes);
     if (overlapVsAN > maxOverlap) maxOverlap = overlapVsAN;
 
     if (overlapVsAN >= dupThreshold) {
@@ -845,11 +918,12 @@ export function processExtractedClaims(
       bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
       specificity: claim.specificity as ArgumentNetworkNode['specificity'],
       steelman_of: claim.steelman_of || undefined,
+      extraction_confidence: typeof claim.extraction_confidence === 'number'
+        ? claim.extraction_confidence : undefined,
     };
 
     // BDI composite scoring: for Desires and Intentions with sub-scores,
     // use the mean of the 3 calibrated criteria as base_strength (Q-0: r=0.65/0.71).
-    // Beliefs excluded (r≈0.20) — evidence QBAF handles those separately.
     if (node.bdi_category === 'desire' && node.bdi_sub_scores) {
       const { values_grounding, tradeoff_acknowledgment, precedent_citation } = node.bdi_sub_scores;
       if (values_grounding != null || tradeoff_acknowledgment != null || precedent_citation != null) {
@@ -867,6 +941,63 @@ export function processExtractedClaims(
         const fm = Number.isFinite(failure_mode_addressing) ? failure_mode_addressing! : 0.5;
         node.base_strength = (ms + sb + fm) / 3;
         node.scoring_method = 'bdi_composite';
+      }
+    } else if (node.bdi_category === 'belief') {
+      // ── Belief scoring pipeline (t/455) ──
+      // Priority: ThinkPRM verification (Stage 3) > evidence QBAF (Stage 2)
+      //         > specificity proxy (Stage 1) > generic
+      let beliefScored = false;
+
+      // Stage 3: ThinkPRM 4-step verification chain
+      // The extraction prompt decomposes "evidence quality" into 4 tractable sub-steps.
+      // Each sub-step is self-contained — the model doesn't need external access.
+      if (claim.belief_verification
+        && claim.belief_verification.source_located
+        && claim.belief_verification.evidence_supports) {
+        node.base_strength = beliefVerificationToStrength(claim.belief_verification);
+        node.scoring_method = 'belief_verification';
+        beliefScored = true;
+      }
+
+      // Stage 2: Evidence-retrieval-augmented scoring via QBAF
+      // Converts the unreliable "rate evidence quality" judgment into a tractable
+      // comparison task: "does this passage support or contradict this claim?"
+      // Only runs if Stage 3 (ThinkPRM) didn't already score the claim.
+      if (!beliefScored && options.sourcesDir) {
+        try {
+          const evidence = retrieveEvidence(node.text, options.sourcesDir, { topK: 5 });
+          if (evidence.length > 0) {
+            // Map EvidenceItem → WebEvidenceItem for the QBAF pipeline.
+            // Evidence items with high similarity likely support; low similarity
+            // items are neutral. We classify as supporting since retrieveEvidence
+            // already filters by relevance — truly contradicting evidence would
+            // require NLI classification which is Stage 3 territory.
+            const webEvidence: WebEvidenceItem[] = evidence.map(e => ({
+              id: e.id,
+              text: e.text,
+              relation: 'supports' as const,
+              source_reliability: Math.min(1, e.similarity_score + 0.2),
+              relevance: e.similarity_score,
+            }));
+
+            const specStrength = BELIEF_SPECIFICITY_MAP[node.specificity ?? ''] ?? 0.50;
+            const result = computeFactCheckStrength(specStrength, webEvidence);
+            node.base_strength = result.adjusted_strength;
+            node.scoring_method = 'evidence_qbaf';
+            beliefScored = true;
+          }
+        } catch {
+          // Evidence retrieval failed (filesystem unavailable, etc.) — fall through
+        }
+      }
+
+      // Stage 1: Specificity proxy fallback
+      if (!beliefScored) {
+        const specStrength = BELIEF_SPECIFICITY_MAP[node.specificity ?? ''];
+        if (specStrength != null) {
+          node.base_strength = specStrength;
+          node.scoring_method = 'belief_specificity';
+        }
       }
     }
 

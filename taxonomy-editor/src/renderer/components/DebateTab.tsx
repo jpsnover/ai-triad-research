@@ -223,8 +223,11 @@ export function DebateTab() {
                     type="checkbox"
                     className="bulk-select-checkbox"
                     checked={selectedIds.has(s.id)}
-                    onChange={() => {}} // handled by parent onClick
-                    onClick={e => e.stopPropagation()}
+                    onChange={() => setSelectedIds(prev => {
+                      const next = new Set(prev);
+                      next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+                      return next;
+                    })}
                   />
                 )}
                 {renamingId === s.id ? (

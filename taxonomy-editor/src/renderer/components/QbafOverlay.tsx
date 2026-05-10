@@ -24,7 +24,7 @@ const BDI_LETTER: Record<string, string> = { belief: 'B', desire: 'D', intention
 function formatSubScores(scores: BdiSubScores): string {
   return Object.entries(scores)
     .filter(([, v]) => v != null)
-    .map(([k, v]) => `${BDI_LABELS[k] ?? k}: ${(v as number).toFixed(2)}`)
+    .map(([k, v]) => `${BDI_LABELS[k] ?? k}: ${((v as number) ?? 0).toFixed(2)}`)
     .join(', ');
 }
 
@@ -112,7 +112,7 @@ export function QbafScoreSlider({ node, onScoreChange }: QbafScoreSliderProps) {
           <span className="qbaf-sub-scores-inline" title={formatSubScores(node.bdi_sub_scores)}>
             {Object.entries(node.bdi_sub_scores)
               .filter(([, v]) => v != null)
-              .map(([k, v]) => <span key={k} className="qbaf-sub-score-pip">{BDI_LABELS[k]?.[0] ?? '?'}{(v as number).toFixed(1)}</span>)}
+              .map(([k, v]) => <span key={k} className="qbaf-sub-score-pip">{BDI_LABELS[k]?.[0] ?? '?'}{((v as number) ?? 0).toFixed(1)}</span>)}
           </span>
         )}
       </div>
@@ -153,9 +153,9 @@ export function QbafEdgeIndicator({ edge }: QbafEdgeIndicatorProps) {
     <span
       className={`qbaf-edge-indicator ${isAttack ? 'qbaf-edge-attack' : 'qbaf-edge-support'}`}
       style={{ borderBottomWidth: `${thickness}px` }}
-      title={`${isAttack ? 'Attack' : 'Support'} weight: ${edge.weight.toFixed(2)}${edge.attack_type ? ` (${edge.attack_type})` : ''}`}
+      title={`${isAttack ? 'Attack' : 'Support'} weight: ${(edge.weight ?? 0).toFixed(2)}${edge.attack_type ? ` (${edge.attack_type})` : ''}`}
     >
-      {isAttack ? '\u2194' : '\u2192'} {edge.weight.toFixed(2)}
+      {isAttack ? '\u2194' : '\u2192'} {(edge.weight ?? 0).toFixed(2)}
     </span>
   );
 }

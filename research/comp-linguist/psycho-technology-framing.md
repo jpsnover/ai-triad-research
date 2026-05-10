@@ -30,6 +30,8 @@ The Belief-Desire-Intention decomposition is the system's first act of relevance
 
 This matters because different kinds of claims are relevant in different ways. You can refute a Belief with evidence but not a Desire. You can challenge an Intention's feasibility but not its values. By decomposing claims into their BDI types, the system prevents the most common failure of policy discourse: arguing about evidence when the disagreement is actually about values, or arguing about values when the disagreement is actually about strategy.
 
+BDI is the coarse decomposition. Within it, each node carries a finer-grained `epistemic_type` — empirical claim, normative prescription, strategic recommendation, predictive, definitional, or interpretive lens — that tells debate agents *how* to argue. An empirical claim demands evidence; a normative prescription demands coherence with stated values; a strategic recommendation demands feasibility analysis; a definitional claim demands terminological precision. Each node also carries its key `assumes` — the unstated premises it depends on — giving opponents pre-identified attack surfaces for UNDERCUT moves. These metadata layers turn each taxonomy node from a static description into an actionable argumentative resource.
+
 This is psycho-technology in its purest form: it restructures how the reader perceives an argument, making visible the *kind* of disagreement that would otherwise be collapsed into "I disagree."
 
 ### Three-POV Structure: Engineering Perspectival Salience
@@ -47,6 +49,8 @@ The system's situation nodes — shared concepts carrying three BDI-decomposed i
 The Quantitative Bipolar Argumentation Framework is the system's relevance engine. Every claim enters the argument network with a base strength. Attacks reduce it; supports increase it. Strength propagates through the network — a claim attacked by a strong, well-supported counterargument loses more strength than one attacked by a weak assertion.
 
 The result: a computed relevance ranking over all arguments in the debate. Not hand-ranked by a human curator. Not ranked by an LLM's intuition. Ranked by the formal structure of the argumentation itself — which claims survived adversarial scrutiny, which were undermined, which were never engaged.
+
+QBAF also drives a second relevance function: **taxonomy node selection**. Rather than scoring the entire 572-node taxonomy against a blended topic query (which produces low-precision scores), the system embeds each argument network claim individually and scores every taxonomy node against every active claim, taking the maximum. A taxonomy node that is highly relevant to *any* argument in the debate gets surfaced — even if it's irrelevant to the original topic string. As the debate evolves and new arguments emerge, the taxonomy nodes that the system presents to each agent shift to match the actual discourse trajectory, not the static topic. This means the relevance engineering is dynamic: the system gets *more precise* about what matters as the debate progresses and the argument network grows.
 
 This is relevance engineering through argumentation: the system computes what matters by testing what survives.
 
@@ -95,6 +99,8 @@ This is the wisdom harvesting mechanism:
 
 Each cycle harvests wisdom by subjecting the system's current understanding to adversarial scrutiny and incorporating what survives. The taxonomy doesn't grow by accumulation (that would produce information); it grows by adversarial refinement (that produces wisdom). Arguments that are never challenged are untested knowledge. Arguments that survive challenge from three structurally different perspectives approach wisdom.
 
+The quality of this loop depends on the quality of the taxonomy's metadata. Each of the 572 POV nodes carries 11 graph attributes — epistemic type, rhetorical strategy, falsifiability, scope, intellectual lineage, assumptions, audience, emotional register, steelman vulnerability, possible fallacies, and policy actions. These attributes are themselves subject to quality assurance: automated cross-validation flags anomalies (BDI×epistemic type mismatches, vocabulary leakage between fields, format inconsistencies), and dual-model LLM verification corrects misclassifications. The taxonomy is not just adversarially refined through debate — its internal metadata is validated through systematic quality passes that ensure the wisdom-harvesting machinery operates on clean inputs.
+
 ---
 
 ## Why "Rosetta Stone"
@@ -139,4 +145,4 @@ The result is not a database of AI policy positions (that's information). It's n
 
 ---
 
-*Drafted: 2026-05-06 · Computational Linguist · AI Triad Research*
+*Drafted: 2026-05-06 · Updated: 2026-05-09 · Computational Linguist · AI Triad Research*

@@ -6,7 +6,7 @@
  * state updates from the main window via IPC.
  */
 
-import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext, Fragment } from 'react';
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
@@ -25,6 +25,8 @@ import { TaxonomyGapPanel } from './TaxonomyGapPanel';
 import { GroundingPanel } from './GroundingPanel';
 import { PovProgressionView } from './PovProgression/PovProgressionView';
 import { triggerManualDump } from '../lib/flightRecorderInit';
+
+declare const __COMPONENT_VERSIONS__: Record<string, string>;
 
 const DiagSearchContext = createContext('');
 
@@ -122,13 +124,13 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
         <span style={{ color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
         <strong>Attempt {a.attempt}{a.attempt === 0 ? ' (original)' : ''}</strong>
         <OutcomeBadge outcome={v.outcome} />
-        <span style={{ color: 'var(--text-muted)' }}>score {v.score.toFixed(2)}</span>
-        <span style={{ color: 'var(--text-muted)' }}>{(a.response_time_ms / 1000).toFixed(1)}s</span>
+        <span style={{ color: 'var(--text-muted)' }}>score {(v.score ?? 0).toFixed(2)}</span>
+        <span style={{ color: 'var(--text-muted)' }}>{((a.response_time_ms ?? 0) / 1000).toFixed(1)}s</span>
         {v.judge_used && <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>judge: {v.judge_model}</span>}
       </div>
       {open && (
         <div style={{ padding: '4px 10px 10px', fontSize: '0.72rem' }}>
-          {v.repairHints.length > 0 && (
+          {(v.repairHints?.length ?? 0) > 0 && (
             <>
               <div style={{ fontWeight: 600, marginTop: 4 }}>Repair hints</div>
               <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
@@ -136,7 +138,7 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
               </ul>
             </>
           )}
-          {v.clarifies_taxonomy.length > 0 && (
+          {(v.clarifies_taxonomy?.length ?? 0) > 0 && (
             <>
               <div style={{ fontWeight: 600, marginTop: 4 }}>Taxonomy clarification hints</div>
               <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
@@ -166,13 +168,31 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
   );
 }
 
-function TurnValidationSection({ trail }: { trail: TurnValidationTrail }) {
+function sanitizeTurnValidation(trail: TurnValidationTrail): TurnValidationTrail {
+  return {
+    final: {
+      ...trail.final,
+      score: trail.final.score ?? 0,
+      dimensions: {
+        schema: trail.final.dimensions?.schema ?? { pass: true, issues: [] },
+        grounding: trail.final.dimensions?.grounding ?? { pass: true, issues: [] },
+        advancement: trail.final.dimensions?.advancement ?? { pass: true, signals: [] },
+        clarifies: trail.final.dimensions?.clarifies ?? { pass: true, signals: [] },
+      },
+      repairHints: trail.final.repairHints ?? [],
+    },
+    attempts: trail.attempts ?? [],
+  };
+}
+
+function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidationTrail }) {
+  const trail = sanitizeTurnValidation(rawTrail);
   const f = trail.final;
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <OutcomeBadge outcome={f.outcome} />
-        <span style={{ fontSize: '0.8rem' }}>score <strong>{f.score.toFixed(2)}</strong></span>
+        <span style={{ fontSize: '0.8rem' }}>score <strong>{(f.score ?? 0).toFixed(2)}</strong></span>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           {trail.attempts.length} attempt{trail.attempts.length === 1 ? '' : 's'}
         </span>
@@ -181,10 +201,10 @@ function TurnValidationSection({ trail }: { trail: TurnValidationTrail }) {
         )}
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        <TrafficLight pass={f.dimensions.schema.pass}      label="schema"      tip={f.dimensions.schema.issues.join('\n') || 'OK'} />
-        <TrafficLight pass={f.dimensions.grounding.pass}   label="grounding"   tip={f.dimensions.grounding.issues.join('\n') || 'OK'} />
-        <TrafficLight pass={f.dimensions.advancement.pass} label="advancement" tip={f.dimensions.advancement.signals.join('\n') || 'OK'} />
-        <TrafficLight pass={f.dimensions.clarifies.pass}   label="clarifies"   tip={f.dimensions.clarifies.signals.join('\n') || 'no taxonomy hints'} />
+        <TrafficLight pass={f.dimensions?.schema?.pass ?? true}      label="schema"      tip={f.dimensions?.schema?.issues?.join('\n') || 'OK'} />
+        <TrafficLight pass={f.dimensions?.grounding?.pass ?? true}   label="grounding"   tip={f.dimensions?.grounding?.issues?.join('\n') || 'OK'} />
+        <TrafficLight pass={f.dimensions?.advancement?.pass ?? true} label="advancement" tip={f.dimensions?.advancement?.signals?.join('\n') || 'OK'} />
+        <TrafficLight pass={f.dimensions?.clarifies?.pass ?? true}   label="clarifies"   tip={f.dimensions?.clarifies?.signals?.join('\n') || 'no taxonomy hints'} />
       </div>
       {f.repairHints.length > 0 && (
         <div style={{ fontSize: '0.75rem', marginBottom: 8 }}>
@@ -1307,7 +1327,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             {trace.budget_remaining != null && trace.budget_total != null && (
               <div>
                 <strong
-                  title={'Intervention budget — how many moderator interventions remain.\n\nBudget = ceil(exploration_rounds / 2.5). For a 20-round debate with ~17 exploration rounds, budget ≈ 7.\nEach intervention (except COMMIT) consumes 1 budget unit.\nWhen budget reaches 0, no further interventions can fire (except off-budget COMMIT moves in synthesis phase).\nThis prevents the moderator from over-intervening and dominating the debate.'}
+                  title={'Intervention budget — how many moderator interventions remain.\n\nBudget = ceil(argumentation_rounds / 2.5). For a 20-round debate with ~17 argumentation rounds, budget ≈ 7.\nEach intervention (except COMMIT) consumes 1 budget unit.\nWhen budget reaches 0, no further interventions can fire (except off-budget COMMIT moves in concluding phase).\nThis prevents the moderator from over-intervening and dominating the debate.'}
                   style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
                 >Budget:</strong> {trace.budget_remaining}/{trace.budget_total}
               </div>
@@ -1325,15 +1345,15 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', fontSize: '0.62rem', marginBottom: 6 }}>
               {Object.entries(trace.health_components).map(([k, v]) => {
                 const tooltips: Record<string, string> = {
-                  engagement: 'Engagement (weight: 0.25, SLI floor: 0.25)\n\nMeasures how substantively debaters engage with each other\'s claims.\nComputed as the average engagement_depth.ratio from the last 3 convergence signals.\nengagement_depth.ratio = fraction of prior claims that were directly addressed.\n\nLow engagement means debaters are talking past each other — triggers elicitation interventions (PIN, PROBE, CHALLENGE).',
-                  novelty: 'Novelty (weight: 0.25, SLI floor: 0.25)\n\nMeasures whether debaters are introducing new ideas vs. recycling old arguments.\nComputed as: 1 − avg(recycling_rate.avg_self_overlap) over the last 3 signals.\navg_self_overlap compares each statement to the speaker\'s own prior statements via cosine similarity.\n\nLow novelty means the debate is going in circles — triggers elicitation interventions.',
+                  engagement: 'Engagement (weight: 0.25, SLI floor: 0.25)\n\nMeasures how substantively debaters engage with each other\'s claims.\nComputed as the average dialectical_engagement.ratio from the last 3 convergence signals.\ndialectical_engagement.ratio = fraction of prior claims that were directly addressed.\n\nLow engagement means debaters are talking past each other — triggers elicitation interventions (PIN, PROBE, CHALLENGE).',
+                  novelty: 'Novelty (weight: 0.25, SLI floor: 0.25)\n\nMeasures whether debaters are introducing new ideas vs. recycling old arguments.\nComputed as: 1 − avg(argument_redundancy.avg_self_overlap) over the last 3 signals.\navg_self_overlap compares each statement to the speaker\'s own prior statements via cosine similarity.\n\nLow novelty means the debate is going in circles — triggers elicitation interventions.',
                   responsiveness: 'Responsiveness (weight: 0.20, SLI floor: 0.15)\n\nMeasures whether debaters take concession opportunities when warranted.\nComputed from convergence signals: of turns where a concession opportunity existed, what fraction were "taken" vs. "missed"?\nIf no concession opportunities arose, defaults to 1.0 (no penalty).\n\nLow responsiveness means debaters are ignoring valid challenges — triggers elicitation interventions.',
                   coverage: 'Coverage (weight: 0.15, SLI floor: 0.20)\n\nMeasures what fraction of relevant taxonomy nodes have been cited in the debate.\nComputed as: min(cited_node_count / relevant_node_count, 1.0).\nIf no relevant nodes exist, defaults to 1.0.\n\nLow coverage means the debate is ignoring important perspectives from the taxonomy — triggers procedural interventions (REDIRECT, BALANCE, SEQUENCE).',
                   balance: 'Balance (weight: 0.15, SLI floor: 0.30)\n\nMeasures whether all debaters are getting roughly equal speaking time.\nComputed as: 1 − (max_turns − min_turns) / total_turns.\n1.0 = perfectly balanced; 0.0 = one debater completely dominated.\n\nLow balance means one debater is being sidelined — triggers procedural interventions (BALANCE, REDIRECT).',
                 };
                 return (
                   <span key={k} title={tooltips[k] || k} style={{ padding: '1px 5px', borderRadius: 3, background: 'var(--bg-primary)', border: '1px solid var(--border)', cursor: 'default' }}>
-                    {k}: {(v as number).toFixed(2)}
+                    {k}: {((v as number) ?? 0).toFixed(2)}
                   </span>
                 );
               })}
@@ -1345,7 +1365,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                 title={'Burden — cumulative intervention load per debater.\n\nEach intervention adds a burden weight based on its family:\n• Elicitation (PIN, PROBE, CHALLENGE): 1.0 — most disruptive\n• Synthesis (COMPRESS, COMMIT): 0.8\n• Repair (CLARIFY, CHECK, SUMMARIZE): 0.75\n• Reflection (META-REFLECT): 0.6\n• Procedural (REDIRECT, BALANCE, SEQUENCE): 0.5\n• Reconciliation (ACKNOWLEDGE, REVOICE): 0.25 — least disruptive\n\nBurden cap: if a debater\'s burden exceeds 1.5× the average burden, high-burden moves (weight > 0.5) against that debater are suppressed.\nThis prevents the moderator from repeatedly targeting the same debater.'}
                 style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
               >Burden:</strong>{' '}
-              {Object.entries(trace.burden_per_debater).map(([d, b]) => `${d}: ${(b as number).toFixed(2)}`).join(', ')}
+              {Object.entries(trace.burden_per_debater).map(([d, b]) => `${d}: ${((b as number) ?? 0).toFixed(2)}`).join(', ')}
             </div>
           )}
           {trace.intervention_recommended && (
@@ -1461,7 +1481,7 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
         if (!editable) {
           return (
             <span key={key} title={subScoreTip(key, v)} style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: `${c}15`, color: c, fontWeight: 600, cursor: 'default' }}>
-              {label}: {v.toFixed(2)}
+              {label}: {(v ?? 0).toFixed(2)}
             </span>
           );
         }
@@ -1472,11 +1492,11 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
             <input
               type="range"
               min={0} max={1} step={0.05}
-              value={v}
+              value={v ?? 0}
               onChange={(e) => onUpdateSubScore(node.id, key, parseFloat(e.target.value))}
               style={{ width: 48, height: 10, accentColor: c, cursor: 'pointer' }}
             />
-            <span style={{ color: c, minWidth: 26 }}>{v.toFixed(2)}</span>
+            <span style={{ color: c, minWidth: 26 }}>{(v ?? 0).toFixed(2)}</span>
           </span>
         );
       })}
@@ -1757,9 +1777,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive' | 'pov-progression';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive' | 'pov-progression' | 'fr-context';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
+  const [detailHeight, setDetailHeight] = useState(300);
+  const detailResizing = useRef(false);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [policyMap, setPolicyMap] = useState<Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>>(new Map());
@@ -2059,9 +2081,16 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <h2 style={{ margin: 0, fontSize: '1rem', color: '#f59e0b', whiteSpace: 'nowrap' }}>Debate Diagnostics</h2>
         {debate && (
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260, userSelect: 'all', fontFamily: 'monospace' }} title={`${debate.title} — ${debate.id}`}>
-            {debate.title}
-          </span>
+          <>
+            <button
+              onClick={() => { void api.clipboardWriteText(debate.id); }}
+              style={{ fontSize: '0.62rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 5px', cursor: 'pointer', opacity: 0.7 }}
+              title={`Copy debate ID: ${debate.id}`}
+            >{debate.id}</button>
+            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260, userSelect: 'all', fontFamily: 'monospace' }} title={debate.title}>
+              {debate.title}
+            </span>
+          </>
         )}
         {debate && !showHelp && <SearchBar query={searchQuery} setQuery={setSearchQuery} matchCount={matchCount} inputRef={searchInputRef} />}
         {(!debate || showHelp) && <div style={{ flex: 1 }} />}
@@ -2101,6 +2130,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
               { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
               { id: 'pov-progression', label: 'Perspective Progression', visible: true },
+              { id: 'fr-context', label: 'Flight Recorder', visible: true },
             ];
             return (
               <div style={{
@@ -2158,8 +2188,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {/* Content area */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
 
-          {/* Overview content — shown when no entry is selected */}
-          {!selectedEntry && <>
+          {/* Overview content — shown when no entry is selected (or always for transcript tab) */}
+          {(!selectedEntry || effectiveOverviewTab === 'transcript') && <>
 
           {/* Extraction Timeline — diagnoses AN-plateau failures */}
           {effectiveOverviewTab === 'extraction' && (
@@ -2294,7 +2324,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <td style={{ padding: '2px 4px', color: t.phase === 'confrontation' ? '#60a5fa' : t.phase === 'argumentation' ? '#f59e0b' : '#34d399' }}>{t.phase.slice(0, 5)}</td>
                               <td style={{ padding: '2px 4px' }}>{t.composite.saturation_score?.toFixed(2) ?? '—'}</td>
                               <td style={{ padding: '2px 4px' }}>{t.composite.convergence_score?.toFixed(2) ?? '—'}</td>
-                              <td style={{ padding: '2px 4px', color: t.confidence.global < 0.4 ? '#ef4444' : undefined }}>{t.confidence.global.toFixed(2)}</td>
+                              <td style={{ padding: '2px 4px', color: (t.confidence?.global ?? 0) < 0.4 ? '#ef4444' : undefined }}>{(t.confidence?.global ?? 0).toFixed(2)}</td>
                               <td style={{ padding: '2px 4px' }}>{t.network_size}</td>
                               <td style={{ padding: '2px 4px', fontWeight: t.predicate_result.action !== 'stay' ? 700 : 400 }}>{t.predicate_result.action}</td>
                               <td style={{ padding: '2px 4px', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.predicate_result.reason}>{t.predicate_result.reason}</td>
@@ -2610,6 +2640,110 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             </div>
           )}
 
+          {/* Flight Recorder Context — live snapshot of app state */}
+          {effectiveOverviewTab === 'fr-context' && (() => {
+            const taxState = useTaxonomyStore.getState();
+            const mem = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } }).memory;
+            const eApi = (window as unknown as { electronAPI?: { processVersions?: Record<string, string | undefined>; osRelease?: string } }).electronAPI;
+            const pv = eApi?.processVersions;
+            const sections: { title: string; rows: [string, string | number | null | undefined][] }[] = [
+              {
+                title: 'App',
+                rows: [
+                  ['Platform', eApi?.osPlatform ?? navigator.platform],
+                  ['Arch', eApi?.osArch ?? 'unknown'],
+                  ['OS Version', eApi?.osRelease ?? 'N/A'],
+                  ['VITE_TARGET', import.meta.env.VITE_TARGET ?? 'electron'],
+                  ['Mode', import.meta.env.DEV ? 'dev' : 'prod'],
+                ],
+              },
+              {
+                title: 'SBOM',
+                rows: [
+                  ['Node', pv?.node ?? 'N/A'],
+                  ['Electron', pv?.electron ?? 'N/A'],
+                  ['Chrome', pv?.chrome ?? 'N/A'],
+                  ['V8', pv?.v8 ?? 'N/A'],
+                  ['React', typeof __COMPONENT_VERSIONS__ !== 'undefined' ? __COMPONENT_VERSIONS__.react : 'N/A'],
+                  ['Zustand', typeof __COMPONENT_VERSIONS__ !== 'undefined' ? __COMPONENT_VERSIONS__.zustand : 'N/A'],
+                ],
+              },
+              {
+                title: 'Windows',
+                rows: [
+                  ['Active Tab', taxState.activeTab],
+                  ['Toolbar Panel', taxState.toolbarPanel ?? '(none)'],
+                  ['Selected Node', taxState.selectedNodeId ?? '(none)'],
+                ],
+              },
+              {
+                title: 'Debate',
+                rows: [
+                  ['ID', debate.id.slice(0, 8) + '...'],
+                  ['Phase', debate.phase],
+                  ['Adaptive Phase', debate.adaptive_staging?.current_phase ?? '(none)'],
+                  ['Transcript', debate.transcript?.length ?? 0],
+                  ['AN Nodes', debate.argument_network?.nodes?.length ?? 0],
+                  ['Convergence Signals', debate.convergence_signals?.length ?? 0],
+                  ['Protocol', debate.protocol ?? '(default)'],
+                ],
+              },
+              {
+                title: 'Taxonomy',
+                rows: [
+                  ['Accelerationist nodes', taxState.accelerationist?.nodes?.length ?? 0],
+                  ['Safetyist nodes', taxState.safetyist?.nodes?.length ?? 0],
+                  ['Skeptic nodes', taxState.skeptic?.nodes?.length ?? 0],
+                  ['Situations nodes', taxState.situations?.nodes?.length ?? 0],
+                  ['Edges', taxState.edgesFile?.edges?.length ?? 0],
+                  ['Dirty files', taxState.dirty?.size ?? 0],
+                  ['Save error', taxState.saveError ?? '(none)'],
+                ],
+              },
+              {
+                title: 'AI',
+                rows: [
+                  ['Backend', taxState.aiBackend],
+                  ['Model', taxState.geminiModel],
+                ],
+              },
+              {
+                title: 'Performance',
+                rows: [
+                  ['Uptime', `${Math.round(performance.now() / 1000)}s`],
+                  ['Heap used', mem ? `${Math.round(mem.usedJSHeapSize / 1048576)} MB` : 'N/A'],
+                  ['Heap total', mem ? `${Math.round(mem.totalJSHeapSize / 1048576)} MB` : 'N/A'],
+                ],
+              },
+            ];
+            return (
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>Flight Recorder Context Snapshot</span>
+                  <button
+                    onClick={() => triggerManualDump()}
+                    style={{ fontSize: '0.65rem', padding: '2px 8px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
+                  >Dump Now</button>
+                </div>
+                {sections.map(s => (
+                  <div key={s.title} style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f59e0b', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.title}</div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.7rem' }}>
+                      <tbody>
+                        {s.rows.map(([label, value]) => (
+                          <tr key={label} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '2px 6px', color: 'var(--text-muted)', width: '40%' }}>{label}</td>
+                            <td style={{ padding: '2px 6px', fontFamily: 'monospace', fontSize: '0.65rem' }}>{String(value ?? '')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Transcript list for selection */}
           {effectiveOverviewTab === 'transcript' && (() => {
             const speakers = Array.from(new Set(debate.transcript.map(e => e.speaker)));
@@ -2617,7 +2751,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               ? debate.transcript.map((e, i) => ({ e, i })).filter(({ e }) => e.speaker === transcriptSpeakerFilter)
               : debate.transcript.map((e, i) => ({ e, i }));
             return (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ flex: selectedEntry ? undefined : 1, minHeight: selectedEntry ? 120 : 0, maxHeight: selectedEntry ? `calc(100% - ${detailHeight + 6}px)` : undefined, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ display: 'flex', gap: 4, padding: '4px 6px', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
                 <button
                   onClick={() => setTranscriptSpeakerFilter(null)}
@@ -2701,6 +2835,28 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           })()}
           </>}
 
+          {/* Resize handle between transcript list and entry detail */}
+          {selectedEntry && entry && effectiveOverviewTab === 'transcript' && (
+            <div
+              style={{ height: 6, cursor: 'row-resize', background: 'var(--border)', flexShrink: 0, borderRadius: 2, margin: '2px 0' }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                detailResizing.current = true;
+                const startY = e.clientY;
+                const startH = detailHeight;
+                const onMove = (ev: MouseEvent) => {
+                  if (!detailResizing.current) return;
+                  const delta = startY - ev.clientY;
+                  setDetailHeight(Math.max(100, Math.min(window.innerHeight - 200, startH + delta)));
+                };
+                const onUp = () => { detailResizing.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+              title="Drag to resize"
+            />
+          )}
+
           {/* Entry detail — shown when a transcript entry is selected */}
           {selectedEntry && entry && (() => {
             const entryIdx = debate.transcript.findIndex(e => e.id === entry.id);
@@ -2720,7 +2876,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               opacity: disabled ? 0.5 : 1,
             });
             return (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ flex: effectiveOverviewTab === 'transcript' ? undefined : 1, height: effectiveOverviewTab === 'transcript' ? detailHeight : undefined, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 {stmtId && (
               <span
@@ -3027,17 +3183,100 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   outline: 'none',
                   userSelect: 'text',
                 }}>
-                  {activeTab === 'tax-refs' && (
-                    taxRefCount > 0 ? (
+                  {activeTab === 'tax-refs' && (() => {
+                    // Build relevance source lookup from metadata
+                    const relevanceSources = (meta?.relevance_sources as { node_id: string; source: 'an' | 'topic'; an_score: number; topic_score: number; best_claim_id?: string; best_claim_text?: string; best_claim_sim?: number }[] | undefined);
+                    const sourceMap = new Map(relevanceSources?.map(s => [s.node_id, s]) ?? []);
+                    const hasSourceData = sourceMap.size > 0;
+
+                    // AN Claim Coverage summary (only when source data available)
+                    const anCoverage = hasSourceData && debate?.argument_network?.nodes ? (() => {
+                      const anNodes = debate.argument_network.nodes;
+                      const claimMaxScores = new Map<string, { maxSim: number; bestNode: string }>();
+                      for (const src of relevanceSources!) {
+                        if (src.best_claim_id && src.best_claim_sim != null) {
+                          const existing = claimMaxScores.get(src.best_claim_id);
+                          if (!existing || src.best_claim_sim > existing.maxSim) {
+                            claimMaxScores.set(src.best_claim_id, { maxSim: src.best_claim_sim, bestNode: src.node_id });
+                          }
+                        }
+                      }
+                      const strong: { id: string; sim: number; text: string }[] = [];
+                      const moderate: { id: string; sim: number; text: string }[] = [];
+                      const weak: { id: string; sim: number; text: string }[] = [];
+                      for (const an of anNodes) {
+                        const match = claimMaxScores.get(an.id);
+                        const sim = match?.maxSim ?? 0;
+                        const item = { id: an.id, sim, text: truncateLabel(an.text, 50) };
+                        if (sim >= 0.5) strong.push(item);
+                        else if (sim >= 0.3) moderate.push(item);
+                        else weak.push(item);
+                      }
+                      const grounded = strong.length + moderate.length;
+                      return { strong, moderate, weak, total: anNodes.length, grounded };
+                    })() : null;
+
+                    return taxRefCount > 0 ? (
                       <div style={{ flex: 1, minHeight: 200, overflowY: 'auto', padding: '8px 10px' }}>
+                        {/* AN Claim Coverage Summary */}
+                        {anCoverage && anCoverage.total > 0 && (
+                          <div style={{ marginBottom: 10, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.75rem' }}>
+                            <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)' }}>AN Claim Coverage</div>
+                            {anCoverage.strong.length > 0 && (
+                              <div style={{ marginBottom: 2 }}>
+                                <span style={{ color: '#16a34a' }}>●</span>{' '}
+                                <span style={{ fontWeight: 600 }}>Strong (≥0.5):</span>{' '}
+                                {anCoverage.strong.map((c, i) => (
+                                  <span key={c.id}>
+                                    {i > 0 && ', '}
+                                    <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }} title={c.text}>{c.id}</button>
+                                  </span>
+                                ))}
+                                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>{anCoverage.strong.length}/{anCoverage.total} claims grounded</span>
+                              </div>
+                            )}
+                            {anCoverage.moderate.length > 0 && (
+                              <div style={{ marginBottom: 2 }}>
+                                <span style={{ color: '#d97706' }}>◐</span>{' '}
+                                <span style={{ fontWeight: 600 }}>Moderate:</span>{' '}
+                                {anCoverage.moderate.map((c, i) => (
+                                  <span key={c.id}>
+                                    {i > 0 && ', '}
+                                    <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }} title={c.text}>{c.id}</button>
+                                  </span>
+                                ))}
+                                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>{anCoverage.moderate.length}/{anCoverage.total} claims</span>
+                              </div>
+                            )}
+                            {anCoverage.weak.length > 0 && (
+                              <div style={{ marginBottom: 2 }}>
+                                <span style={{ color: '#dc2626' }}>○</span>{' '}
+                                <span style={{ fontWeight: 600 }}>Weak ({'<'}0.3):</span>{' '}
+                                {anCoverage.weak.map((c, i) => (
+                                  <span key={c.id}>
+                                    {i > 0 && ', '}
+                                    <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }} title={c.text}>{c.id}</button>
+                                  </span>
+                                ))}
+                                <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>{anCoverage.weak.length}/{anCoverage.total} claims orphaned</span>
+                              </div>
+                            )}
+                            <div style={{ marginTop: 4, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                              {anCoverage.grounded}/{anCoverage.total} AN claims have taxonomy grounding
+                              {anCoverage.weak.length > 0 && ` — ${anCoverage.weak.length} orphaned claim${anCoverage.weak.length > 1 ? 's' : ''} (taxonomy may be missing relevant nodes)`}
+                            </div>
+                          </div>
+                        )}
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', tableLayout: 'fixed' }}>
                           <colgroup>
-                            <col style={{ width: '180px' }} />
+                            <col style={{ width: hasSourceData ? '60px' : '0' }} />
+                            <col style={{ width: '150px' }} />
                             <col style={{ width: '52px' }} />
                             <col />
                           </colgroup>
                           <thead>
                             <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
+                              {hasSourceData && <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Source</th>}
                               <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Id</th>
                               <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'center' }}>Score</th>
                               <th style={{ padding: '4px 6px', fontWeight: 600, color: 'var(--text-muted)' }}>Relevance</th>
@@ -3051,39 +3290,80 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                 : score >= 0.45 ? '#16a34a'
                                 : score >= 0.30 ? '#d97706'
                                 : '#dc2626';
+                              const src = sourceMap.get(r.node_id);
+                              const isAN = src?.source === 'an';
                               return (
-                                <tr
-                                  key={i}
-                                  style={{
-                                    borderBottom: '1px solid var(--border)',
-                                    background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
-                                  }}
-                                >
-                                  <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
-                                    <button
-                                      onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
-                                      style={{
-                                        background: 'none',
-                                        border: 'none',
-                                        padding: 0,
-                                        cursor: 'pointer',
-                                        color: 'var(--accent)',
-                                        fontWeight: isSelected ? 700 : 600,
-                                        textDecoration: 'underline',
-                                        fontFamily: 'inherit',
-                                        fontSize: 'inherit',
-                                        textAlign: 'left',
-                                      }}
-                                      title="Show Perspective details"
-                                    >{r.primary ? '★ ' : ''}{r.node_id}</button>
-                                  </td>
-                                  <td style={{ padding: '4px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: scoreColor, fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                    {score != null ? score.toFixed(2) : '—'}
-                                  </td>
-                                  <td style={{ padding: '4px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                                    {r.relevance}
-                                  </td>
-                                </tr>
+                                <Fragment key={i}>
+                                  <tr
+                                    style={{
+                                      borderBottom: src ? 'none' : '1px solid var(--border)',
+                                      background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                                    }}
+                                  >
+                                    {hasSourceData && (
+                                      <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+                                        {src && (
+                                          <span style={{
+                                            display: 'inline-block',
+                                            padding: '1px 5px',
+                                            borderRadius: 3,
+                                            fontSize: '0.65rem',
+                                            fontWeight: 700,
+                                            background: isAN ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
+                                            color: isAN ? '#22c55e' : '#f59e0b',
+                                          }}>{isAN ? 'AN' : 'TOPIC'}</span>
+                                        )}
+                                      </td>
+                                    )}
+                                    <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+                                      <button
+                                        onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
+                                        style={{
+                                          background: 'none',
+                                          border: 'none',
+                                          padding: 0,
+                                          cursor: 'pointer',
+                                          color: 'var(--accent)',
+                                          fontWeight: isSelected ? 700 : 600,
+                                          textDecoration: 'underline',
+                                          fontFamily: 'inherit',
+                                          fontSize: 'inherit',
+                                          textAlign: 'left',
+                                        }}
+                                        title="Show Perspective details"
+                                      >{r.primary ? '★ ' : ''}{r.node_id}</button>
+                                    </td>
+                                    <td style={{ padding: '4px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: scoreColor, fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                      {score != null ? score.toFixed(2) : '—'}
+                                    </td>
+                                    <td style={{ padding: '4px 6px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                      {r.relevance}
+                                    </td>
+                                  </tr>
+                                  {/* Expandable scoring detail */}
+                                  {src && (
+                                    <tr style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
+                                      <td colSpan={hasSourceData ? 4 : 3} style={{ padding: '0 6px 4px 20px' }}>
+                                        <details style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                          <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Scoring detail</summary>
+                                          <div style={{ padding: '4px 0 2px 12px', lineHeight: 1.5 }}>
+                                            {isAN && src.best_claim_id && (
+                                              <div>
+                                                <strong>Best match:</strong>{' '}
+                                                <button onClick={() => setOverviewTab('argument-network')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'inherit', fontSize: 'inherit' }}>{src.best_claim_id}</button>
+                                                {src.best_claim_text && <> &ldquo;{truncateLabel(src.best_claim_text, 60)}&rdquo;</>}
+                                                {src.best_claim_sim != null && <> (sim: {src.best_claim_sim.toFixed(2)})</>}
+                                              </div>
+                                            )}
+                                            <div><strong>AN score:</strong> {src.an_score.toFixed(3)}</div>
+                                            <div><strong>Topic floor:</strong> {(src.topic_score * 0.5).toFixed(3)} (raw: {src.topic_score.toFixed(3)} × 0.5)</div>
+                                            <div><strong>Winner:</strong> {isAN ? 'AN score used' : 'Topic floor used — no AN match above floor'}</div>
+                                          </div>
+                                        </details>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
                               );
                             })}
                           </tbody>
@@ -3108,8 +3388,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       </div>
                     ) : (
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '8px 10px' }}>No taxonomy refs for this entry.</div>
-                    )
-                  )}
+                    );
+                  })()}
                   {activeTab === 'tax-context' && (
                     taxContext ? (
                       <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={taxContext} /></pre>
@@ -3313,7 +3593,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
                       {turnValTrail && (
                         <Section
-                          title={`Turn Validation — ${turnValTrail.final.outcome} (score ${turnValTrail.final.score.toFixed(2)}, ${turnValTrail.attempts.length} attempt${turnValTrail.attempts.length === 1 ? '' : 's'})`}
+                          title={`Turn Validation — ${turnValTrail.final.outcome} (score ${(turnValTrail.final.score ?? 0).toFixed(2)}, ${turnValTrail.attempts.length} attempt${turnValTrail.attempts.length === 1 ? '' : 's'})`}
                           defaultOpen
                         >
                           <TurnValidationSection trail={turnValTrail} />
@@ -3417,8 +3697,26 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).key_claims_to_address) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Claims to Address</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
-                            {((briefStage.work_product as Record<string, unknown>).key_claims_to_address as { claim: string; speaker: string; an_id?: string }[]).map((c, i) => (
-                              <li key={i}><strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: <Highlight text={c.claim} /></li>
+                            {((briefStage.work_product as Record<string, unknown>).key_claims_to_address as { claim: string; speaker: string; an_id?: string; grounding?: { node_id: string; why: string }[] }[]).map((c, i) => (
+                              <li key={i}>
+                                <strong>{c.speaker}</strong>{c.an_id ? ` (${c.an_id})` : ''}: <Highlight text={c.claim} />
+                                {Array.isArray(c.grounding) && c.grounding.length > 0 && (
+                                  <ul style={{ margin: '2px 0 4px', paddingLeft: 14, listStyle: 'none' }}>
+                                    {c.grounding.map((g, gi) => {
+                                      const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
+                                      const sc = ref?.relevance_score;
+                                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                                      return (
+                                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                          <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
+                                          {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
+                                          {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                )}
+                              </li>
                             ))}
                           </ul>
                         </details>
@@ -3426,8 +3724,26 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).strongest_angles) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Strongest Angles</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
-                            {((briefStage.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string }[]).map((a, i) => (
-                              <li key={i}><strong>{a.angle}</strong>: <Highlight text={a.why} /></li>
+                            {((briefStage.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((a, i) => (
+                              <li key={i}>
+                                <strong>{a.angle}</strong>: <Highlight text={a.why} />
+                                {Array.isArray(a.grounding) && a.grounding.length > 0 && (
+                                  <ul style={{ margin: '2px 0 4px', paddingLeft: 14, listStyle: 'none' }}>
+                                    {a.grounding.map((g, gi) => {
+                                      const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
+                                      const sc = ref?.relevance_score;
+                                      const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                                      return (
+                                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                          <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
+                                          {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
+                                          {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                )}
+                              </li>
                             ))}
                           </ul>
                         </details>
@@ -3441,7 +3757,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
-                      {Array.isArray((briefStage.work_product as Record<string, unknown>).document_claims_to_engage) && ((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string }[]).length > 0 && (
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).document_claims_to_engage) && ((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string; grounding?: { node_id: string; why: string }[] }[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Document Claims to Engage</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
                             <thead>
@@ -3452,24 +3768,51 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               </tr>
                             </thead>
                             <tbody>
-                              {((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string }[]).map((dc, i) => {
+                              {((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((dc, i) => {
                                 const stanceColor = dc.stance === 'accept' ? '#16a34a' : dc.stance === 'challenge' ? '#dc2626' : '#d97706';
                                 return (
-                                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{dc.d_id}</td>
-                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>{dc.stance}</td>
-                                    <td style={{ padding: '3px 6px', verticalAlign: 'top' }}>
-                                      <Highlight text={dc.claim} />
-                                      <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: '0.65rem' }}><Highlight text={dc.why} /></div>
-                                    </td>
-                                  </tr>
+                                  <Fragment key={i}>
+                                    <tr style={{ borderBottom: Array.isArray(dc.grounding) && dc.grounding.length > 0 ? 'none' : '1px solid var(--border)' }}>
+                                      <td style={{ padding: '3px 6px', verticalAlign: 'top', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{dc.d_id}</td>
+                                      <td style={{ padding: '3px 6px', verticalAlign: 'top', fontWeight: 600, color: stanceColor, textTransform: 'uppercase', fontSize: '0.65rem' }}>{dc.stance}</td>
+                                      <td style={{ padding: '3px 6px', verticalAlign: 'top' }}>
+                                        <Highlight text={dc.claim} />
+                                        <div style={{ marginTop: 2, color: 'var(--text-muted)', fontSize: '0.65rem' }}><Highlight text={dc.why} /></div>
+                                      </td>
+                                    </tr>
+                                    {Array.isArray(dc.grounding) && dc.grounding.length > 0 && (
+                                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                        <td colSpan={3} style={{ padding: '0 6px 3px 20px' }}>
+                                          <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                                            {dc.grounding.map((g, gi) => {
+                                              const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
+                                              const sc = ref?.relevance_score;
+                                              const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                                              return (
+                                                <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                                  <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
+                                                  {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
+                                                  {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
+                                                </li>
+                                              );
+                                            })}
+                                          </ul>
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </Fragment>
                                 );
                               })}
                             </tbody>
                           </table>
                         </details>
                       )}
-                      {Array.isArray((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes) && (
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes) && !(() => {
+                        // Hide standalone section when nested grounding exists (new schema)
+                        const wp = briefStage.work_product as Record<string, unknown>;
+                        const hasNested = (arr: unknown) => Array.isArray(arr) && (arr as { grounding?: unknown[] }[]).some(x => Array.isArray(x.grounding) && x.grounding.length > 0);
+                        return hasNested(wp.key_claims_to_address) || hasNested(wp.strongest_angles) || hasNested(wp.document_claims_to_engage);
+                      })() && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Relevant Taxonomy Nodes</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
                             <tbody>
@@ -3499,23 +3842,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               })}
                             </tbody>
                           </table>
-                          {selectedTaxRefId && ((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string }[]).some(n => n.node_id === selectedTaxRefId) && (() => {
-                            const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
-                            const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
-                              : selectedTaxRefId.startsWith('saf-') ? 'safetyist'
-                              : selectedTaxRefId.startsWith('skp-') ? 'skeptic'
-                              : selectedTaxRefId.startsWith('sit-') ? 'situations' : '';
-                            const nodeEdges = allEdges.filter(e => e.source === selectedTaxRefId || e.target === selectedTaxRefId);
-                            return (
-                              <TaxonomyRefDetail
-                                nodeId={selectedTaxRefId}
-                                node={node}
-                                pov={povOfId}
-                                onClose={() => setSelectedTaxRefId(null)}
-                                edges={nodeEdges}
-                              />
-                            );
-                          })()}
                         </details>
                       )}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).edge_tensions) && ((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).length > 0 && (
@@ -3532,6 +3858,24 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           <Highlight text={String((briefStage.work_product as Record<string, unknown>).phase_considerations)} />
                         </div>
                       )}
+                      {/* Shared TaxonomyRefDetail for any clicked grounding node */}
+                      {selectedTaxRefId && (() => {
+                        const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
+                        const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
+                          : selectedTaxRefId.startsWith('saf-') ? 'safetyist'
+                          : selectedTaxRefId.startsWith('skp-') ? 'skeptic'
+                          : selectedTaxRefId.startsWith('sit-') ? 'situations' : '';
+                        const nodeEdges = allEdges.filter(e => e.source === selectedTaxRefId || e.target === selectedTaxRefId);
+                        return (
+                          <TaxonomyRefDetail
+                            nodeId={selectedTaxRefId}
+                            node={node}
+                            pov={povOfId}
+                            onClose={() => setSelectedTaxRefId(null)}
+                            edges={nodeEdges}
+                          />
+                        );
+                      })()}
                       <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={briefStage.prompt} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{briefStage.prompt}</pre>
                       </details>
@@ -3581,8 +3925,35 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {!!(planStage.work_product as Record<string, unknown>).framing_choices && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.72rem' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Framing: </span>
-                          <Highlight text={String((planStage.work_product as Record<string, unknown>).framing_choices)} />
+                          {Array.isArray((planStage.work_product as Record<string, unknown>).framing_choices)
+                            ? ((planStage.work_product as Record<string, unknown>).framing_choices as { frame: string; why: string }[]).map((fc, i) => (
+                              <div key={i} style={{ marginTop: i > 0 ? 6 : 2 }}>
+                                <strong>{fc.frame}</strong>
+                                {fc.why && <span style={{ opacity: 0.7 }}> — {fc.why}</span>}
+                              </div>
+                            ))
+                            : <Highlight text={String((planStage.work_product as Record<string, unknown>).framing_choices)} />
+                          }
                         </div>
+                      )}
+                      {Array.isArray((planStage.work_product as Record<string, unknown>).argument_structure) && ((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).length > 0 && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argumentation Structure</summary>
+                          {((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
+                            <div key={i} style={{ margin: '4px 0', padding: '6px 8px', borderLeft: '2px solid rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.03)', borderRadius: '0 4px 4px 0' }}>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 600 }}><Highlight text={s.point} /></div>
+                              {s.evidence && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={s.evidence} /></div>}
+                              {s.taxonomy_anchor && (
+                                <div style={{ marginTop: 3 }}>
+                                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>Anchor: </span>
+                                  <button
+                                    onClick={() => setSelectedTaxRefId(selectedTaxRefId === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: '0.65rem' }}
+                                  >{s.taxonomy_anchor}</button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </details>
                       )}
                       {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argument Sketch</summary>
@@ -3609,6 +3980,23 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {selectedTaxRefId && (() => {
+                        const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
+                        const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
+                          : selectedTaxRefId.startsWith('saf-') ? 'safetyist'
+                          : selectedTaxRefId.startsWith('skp-') ? 'skeptic'
+                          : selectedTaxRefId.startsWith('sit-') ? 'situations' : '';
+                        const nodeEdges = allEdges.filter(e => e.source === selectedTaxRefId || e.target === selectedTaxRefId);
+                        return (
+                          <TaxonomyRefDetail
+                            nodeId={selectedTaxRefId}
+                            node={node}
+                            pov={povOfId}
+                            onClose={() => setSelectedTaxRefId(null)}
+                            edges={nodeEdges}
+                          />
+                        );
+                      })()}
                       <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={planStage.prompt} /></summary>
                         <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{planStage.prompt}</pre>
                       </details>
@@ -3791,11 +4179,25 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         )}
                       </div>
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (() => {
-                        const briefNodes = new Set(
-                          Array.isArray((briefStage?.work_product as Record<string, unknown> | undefined)?.relevant_taxonomy_nodes)
-                            ? ((briefStage!.work_product as Record<string, unknown>).relevant_taxonomy_nodes as { node_id: string }[]).map(n => n.node_id)
-                            : [],
-                        );
+                        const briefNodes = new Set((() => {
+                          const wp = briefStage?.work_product as Record<string, unknown> | undefined;
+                          if (!wp) return [] as string[];
+                          // Collect from nested grounding arrays (new schema)
+                          const fromGrounding = (arr: unknown): string[] => {
+                            if (!Array.isArray(arr)) return [];
+                            return (arr as { grounding?: { node_id: string }[] }[]).flatMap(x => Array.isArray(x.grounding) ? x.grounding.map(g => g.node_id) : []);
+                          };
+                          const nested = [
+                            ...fromGrounding(wp.key_claims_to_address),
+                            ...fromGrounding(wp.strongest_angles),
+                            ...fromGrounding(wp.document_claims_to_engage),
+                          ];
+                          if (nested.length > 0) return nested;
+                          // Fallback: standalone relevant_taxonomy_nodes (old schema)
+                          return Array.isArray(wp.relevant_taxonomy_nodes)
+                            ? (wp.relevant_taxonomy_nodes as { node_id: string }[]).map(n => n.node_id)
+                            : [];
+                        })());
                         return (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Taxonomy References</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>

@@ -104,7 +104,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
     : '';
 
   const constructiveMoveList = input.phase && input.phase !== 'confrontation'
-    ? '\nConstructive moves also available: INTEGRATE, CONDITIONAL-AGREE, NARROW, STEEL-BUILD'
+    ? '\nConstructive emphasis: INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT'
     : '';
 
   // Build intervention block for plan stage
@@ -134,7 +134,43 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
       moveHistoryBlock,
       flaggedBlock,
       interventionBlock,
-      `=== AVAILABLE DIALECTICAL MOVES ===\nCore moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, GROUND-CHECK, CONDITIONAL-AGREE, IDENTIFY-CRUX, INTEGRATE, STEEL-BUILD, EXPOSE-ASSUMPTION, BURDEN-SHIFT${constructiveMoveList}\n\nEach move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}`,
+      `=== AVAILABLE DIALECTICAL MOVES ===\nThe 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}\n\nEach move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}`,
+      `=== FIELD-AWARE STRATEGY ===
+Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:
+
+EPISTEMIC TYPE — match argument mode to claim type:
+- empirical_claim → argue with evidence, challenge with counter-evidence
+- normative_prescription → argue from coherence/values, challenge via value conflicts
+- strategic_recommendation → challenge feasibility, cite analogous cases
+- predictive → demand specific timelines and falsifiable thresholds
+- definitional → use DISTINGUISH to show the definition is too narrow/broad/loaded
+- interpretive_lens → use REFRAME to offer a competing lens
+CROSS-TYPE MISMATCH: If you and an opponent are arguing different types (you: empirical, them: normative), NAME THE MISMATCH in your plan before engaging.
+
+RHETORICAL STRATEGY — plan HOW to argue based on node strategy:
+- Techno_Optimism → lead with possibility, frame status quo as risk. Pairs: EXTEND, REFRAME
+- Precautionary_Framing → lead with stakes and irreversibility. Pairs: EMPIRICAL CHALLENGE, SPECIFY
+- Appeal_To_Evidence → lead with data, demand evidentiary standards. Pairs: EMPIRICAL CHALLENGE, UNDERCUT
+- Structural_Critique → lead with systems/power/incentives. Pairs: REFRAME, DISTINGUISH
+- Moral_Imperative → lead with obligation and human cost. Pairs: COUNTEREXAMPLE, CONCEDE-AND-PIVOT
+- Cost_Benefit_Analysis → lead with tradeoffs, quantify where possible. Pairs: DISTINGUISH, SPECIFY, INTEGRATE
+- Analogical_Reasoning → lead with precedent, stress-test the analogy. Pairs: COUNTEREXAMPLE, EXTEND
+- Inevitability_Framing → lead with trajectory, name the forces. Pairs: REFRAME, EXTEND
+- Pragmatic_Framing → lead with what works, challenge implementability. Pairs: COUNTEREXAMPLE, INTEGRATE
+When an opponent uses a recognizable strategy, match your counter-move to it.
+
+FALSIFIABILITY — calibrate evidence demands:
+- HIGH → cite concrete evidence, name measurable outcomes and thresholds
+- MEDIUM → separate testable parts (argue on evidence) from judgment calls (argue on coherence)
+- LOW → argue from coherence and value consistency. Challenge via COUNTEREXAMPLE or REFRAME
+Against opponents: demand evidence for HIGH claims, DISTINGUISH testable vs. untestable for MEDIUM, challenge coherence for LOW. Flag category errors (treating values as empirical or vice versa).
+
+ASSUMPTION TARGETING:
+- Your nodes list their assumptions. If an opponent challenges one, plan to DEFEND or CONCEDE it.
+- Opponent nodes' assumptions are pre-identified UNDERCUT targets — plan to attack the foundation, not the superstructure.
+- Shared assumptions = common ground. Plan to name them explicitly.
+
+BRIDGING NODES: If citing a bridging node, plan how the analogy holds under scrutiny.`,
       `Plan your argumentative strategy. Consider:
 1. What is your strategic goal for this turn? What should it accomplish?
 2. Which 1-3 dialectical moves will you use, and in what order?
@@ -152,8 +188,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "target_claims": ["AN-3", "AN-7"],
   "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
-  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"],
-  "evidence_needed": ["acc-beliefs-003 for empirical grounding", "pol-012 for policy connection"]${directiveField}
+  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"]${directiveField}
 }`,
     ].filter(s => s.length > 0).join('\n\n'),
 

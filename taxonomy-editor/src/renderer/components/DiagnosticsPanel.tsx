@@ -188,13 +188,13 @@ function EntryView({ entryId }: { entryId: string }) {
 
       {/* Model & Timing */}
       {diag?.model && (
-        <CollapsibleSection title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? (diag.response_time_ms / 1000).toFixed(1) + 's' : '?'})`} defaultOpen>
+        <CollapsibleSection title={`Model & Timing — ${diag.model} (${diag.response_time_ms ? ((diag.response_time_ms ?? 0) / 1000).toFixed(1) + 's' : '?'})`} defaultOpen>
           <div className="diag-kv">
             <span className="diag-k">Model:</span> <span className="diag-v">{diag.model}</span>
           </div>
           {diag.response_time_ms && (
             <div className="diag-kv">
-              <span className="diag-k">Response time:</span> <span className="diag-v">{(diag.response_time_ms / 1000).toFixed(1)}s</span>
+              <span className="diag-k">Response time:</span> <span className="diag-v">{((diag.response_time_ms ?? 0) / 1000).toFixed(1)}s</span>
             </div>
           )}
         </CollapsibleSection>
@@ -218,7 +218,7 @@ function EntryView({ entryId }: { entryId: string }) {
               <span className="diag-k">Target:</span> <span className="diag-v">{speakerLabel(im.target_debater as SpeakerId)}</span>
             </div>
             <div className="diag-kv">
-              <span className="diag-k">Burden:</span> <span className="diag-v">{im.burden.toFixed(2)}</span>
+              <span className="diag-k">Burden:</span> <span className="diag-v">{(im.burden ?? 0).toFixed(2)}</span>
             </div>
             <div className="diag-kv">
               <span className="diag-k">Trigger:</span> <span className="diag-v">{im.trigger_reason}</span>
@@ -357,7 +357,7 @@ function EntryView({ entryId }: { entryId: string }) {
         return (
           <>
             {stages.map(s => (
-              <CollapsibleSection key={s.stage} title={`${s.stage.toUpperCase()} — ${s.model} (temp=${s.temperature}, ${(s.response_time_ms / 1000).toFixed(1)}s)`}>
+              <CollapsibleSection key={s.stage} title={`${s.stage.toUpperCase()} — ${s.model} (temp=${s.temperature}, ${((s.response_time_ms ?? 0) / 1000).toFixed(1)}s)`}>
                 {s.stage === 'brief' && !!(s.work_product as Record<string, unknown>).situation_assessment && (
                   <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.75rem' }}>
                     {String((s.work_product as Record<string, unknown>).situation_assessment)}
@@ -762,8 +762,8 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
         const lastSnap = timeline.filter(s => s.strengths[hoveredClaim] != null).at(-1);
         const firstSnap = timeline.find(s => s.strengths[hoveredClaim] != null);
         if (!node || !lastSnap || !firstSnap) return null;
-        const startVal = firstSnap.strengths[hoveredClaim];
-        const endVal = lastSnap.strengths[hoveredClaim];
+        const startVal = firstSnap.strengths[hoveredClaim] ?? 0;
+        const endVal = lastSnap.strengths[hoveredClaim] ?? 0;
         const delta = endVal - startVal;
         return (
           <div className="diag-timeline-tooltip">
@@ -996,7 +996,7 @@ function DocumentCoverageSection({ coverageMap, strengthWeighted, onSteerToClaim
               {statusIcon(entry.status)}
               <span className="coverage-claim-id">{entry.claimId}</span>
               {isClickable && <span className="coverage-steer-hint">click to steer</span>}
-              <span className="coverage-claim-score">{(entry.similarity * 100).toFixed(0)}%</span>
+              <span className="coverage-claim-score">{((entry.similarity ?? 0) * 100).toFixed(0)}%</span>
             </div>
             <div className="coverage-claim-text">{claimText}</div>
             {entry.matchedAnNodes.length > 0 && (
@@ -1182,7 +1182,7 @@ function OverviewView() {
                 <div className="diag-kv">
                   <span className="diag-k">Health:</span>
                   <span className="diag-v" style={{ color: latestHealth.value >= 0.7 ? '#22c55e' : latestHealth.value >= 0.4 ? '#f59e0b' : '#ef4444' }}>
-                    {latestHealth.value.toFixed(2)}
+                    {(latestHealth.value ?? 0).toFixed(2)}
                   </span>
                   {ms.consecutive_decline > 0 && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', marginLeft: 4 }}>{ms.consecutive_decline} decline{ms.consecutive_decline > 1 ? 's' : ''}</span>}
                   {ms.consecutive_rise >= 2 && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', marginLeft: 4 }}>{ms.consecutive_rise} rises</span>}
@@ -1192,7 +1192,7 @@ function OverviewView() {
                     <div key={comp} style={{ textAlign: 'center' }}>
                       <div className="diag-k" style={{ fontSize: '0.5rem' }}>{comp.slice(0, 3).toUpperCase()}</div>
                       <div style={{ color: latestHealth.components[comp] >= 0.5 ? '#22c55e' : latestHealth.components[comp] >= 0.25 ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>
-                        {latestHealth.components[comp].toFixed(2)}
+                        {(latestHealth.components[comp] ?? 0).toFixed(2)}
                       </div>
                     </div>
                   ))}
@@ -1203,14 +1203,14 @@ function OverviewView() {
             {/* Burden distribution */}
             {Object.keys(ms.burden_per_debater).length > 0 && (
               <div style={{ marginBottom: 6 }}>
-                <span className="diag-k" style={{ fontSize: '0.6rem' }}>Burden (avg {ms.avg_burden.toFixed(2)}):</span>
+                <span className="diag-k" style={{ fontSize: '0.6rem' }}>Burden (avg {(ms.avg_burden ?? 0).toFixed(2)}):</span>
                 {Object.entries(ms.burden_per_debater).map(([debater, burden]) => (
                   <div key={debater} style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '2px 0' }}>
                     <span style={{ fontSize: '0.6rem', width: 60, textAlign: 'right' }}>{speakerLabel(debater as SpeakerId)}</span>
                     <div style={{ flex: 1, height: 4, background: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ width: `${(burden / maxBurden * 100)}%`, height: '100%', background: burden > ms.avg_burden * 1.5 ? '#ef4444' : '#3b82f6', transition: 'width 0.2s' }} />
                     </div>
-                    <span style={{ fontSize: '0.55rem', width: 30 }}>{burden.toFixed(2)}</span>
+                    <span style={{ fontSize: '0.55rem', width: 30 }}>{(burden ?? 0).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -1232,7 +1232,7 @@ function OverviewView() {
                     <span className="diag-muted" style={{ width: 24 }}>R{h.round}</span>
                     <span className="diag-badge" style={{ fontSize: '0.5rem', background: `${familyColors[h.family] ?? '#6b7280'}30`, color: familyColors[h.family] ?? '#6b7280' }}>{h.move}</span>
                     <span style={{ fontSize: '0.55rem' }}>{'→'} {speakerLabel(h.target as SpeakerId)}</span>
-                    <span className="diag-muted" style={{ fontSize: '0.5rem' }}>({h.burden.toFixed(1)})</span>
+                    <span className="diag-muted" style={{ fontSize: '0.5rem' }}>({(h.burden ?? 0).toFixed(1)})</span>
                   </div>
                 ))}
               </div>
@@ -1361,19 +1361,19 @@ function OverviewView() {
               const speakerDrift = drift.filter(d => d.speaker === speaker);
               const latest = speakerDrift[speakerDrift.length - 1];
               const first = speakerDrift[0];
-              const selfDelta = latest.self_similarity - first.self_similarity;
+              const selfDelta = (latest.self_similarity ?? 0) - (first.self_similarity ?? 0);
               return (
                 <div key={speaker} className="diag-drift-speaker">
                   <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
                     <strong>{speakerLabel(speaker as SpeakerId)}</strong>
-                    <span className="diag-muted">self-sim: {latest.self_similarity.toFixed(3)}</span>
+                    <span className="diag-muted">self-sim: {(latest.self_similarity ?? 0).toFixed(3)}</span>
                     <span className={`diag-badge ${selfDelta < -0.05 ? 'diag-drift-warning' : ''}`} style={{ fontSize: '0.5rem' }}>
                       {selfDelta > 0 ? '+' : ''}{selfDelta.toFixed(3)}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: 8, fontSize: '0.6rem', paddingLeft: 8 }}>
                     {Object.entries(latest.opponent_similarities).map(([opp, sim]) => (
-                      <span key={opp}>→ {speakerLabel(opp as SpeakerId)}: {sim.toFixed(3)}</span>
+                      <span key={opp}>→ {speakerLabel(opp as SpeakerId)}: {(sim ?? 0).toFixed(3)}</span>
                     ))}
                   </div>
                 </div>
@@ -1427,7 +1427,7 @@ function OverviewView() {
       {diag && (
         <CollapsibleSection title="Session Statistics" defaultOpen>
           <div className="diag-kv"><span className="diag-k">AI calls:</span> <span className="diag-v">{diag.overview.total_ai_calls}</span></div>
-          <div className="diag-kv"><span className="diag-k">Total response time:</span> <span className="diag-v">{(diag.overview.total_response_time_ms / 1000).toFixed(1)}s</span></div>
+          <div className="diag-kv"><span className="diag-k">Total response time:</span> <span className="diag-v">{((diag.overview.total_response_time_ms ?? 0) / 1000).toFixed(1)}s</span></div>
           <div className="diag-kv"><span className="diag-k">Claims accepted:</span> <span className="diag-v">{diag.overview.claims_accepted}</span></div>
           <div className="diag-kv"><span className="diag-k">Claims rejected:</span> <span className="diag-v">{diag.overview.claims_rejected}</span></div>
           {Object.keys(diag.overview.move_type_counts).length > 0 && (

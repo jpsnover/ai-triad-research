@@ -462,11 +462,12 @@ export function extractCalibrationData(
   }
 
   // ── Parameter 13: Borderline FIRE claim survival ──
-  // Claims with base_strength near the acceptance threshold — did they survive debate?
+  // Claims with extraction_confidence near the acceptance threshold — did they survive debate?
   let borderlineSurvival: number | null = null;
   if (an && an.nodes.length > 0) {
     const borderline = an.nodes.filter((n: ArgumentNetworkNode) =>
-      (n.base_strength ?? 0.5) >= 0.4 && (n.base_strength ?? 0.5) <= 0.55,
+      n.extraction_confidence != null &&
+      n.extraction_confidence >= 0.5 && n.extraction_confidence <= 0.7,
     );
     if (borderline.length >= 2) {
       const refuted = borderline.filter((n: ArgumentNetworkNode) =>

@@ -359,6 +359,7 @@ async function callGeminiBatchApi(
     model: `models/${GEMINI_MODEL}`,
     content: { parts: [{ text }] },
     taskType,
+    outputDimensionality: EXPECTED_DIMENSION,
   }));
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {

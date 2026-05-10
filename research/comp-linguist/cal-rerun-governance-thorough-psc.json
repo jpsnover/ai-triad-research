@@ -1,0 +1,10 @@
+{
+  "topic": "How should democratic nations govern AI development?",
+  "slug": "cal-rerun-governance-thorough-psc",
+  "model": "gemini-3.1-flash-lite-preview",
+  "pacing": "thorough",
+  "activePovers": ["prometheus", "sentinel", "cassandra"],
+  "useAdaptiveStaging": true,
+  "outputDir": "../ai-triad-data/debates",
+  "outputFormat": "all"
+}

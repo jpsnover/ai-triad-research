@@ -94,6 +94,8 @@
         'Compare-DebateRuns'
         'Invoke-DebateAB'
         'Show-OSSLicenses'
+        'Get-FlightRecorderDump'
+        'Show-FlightRecorder'
     )
 
     # Aliases exported from this module

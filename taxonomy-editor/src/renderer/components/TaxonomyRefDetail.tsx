@@ -44,7 +44,7 @@ export interface TaxRefEdge {
   notes?: string;
 }
 
-type TabId = 'content' | 'related' | 'attributes';
+type TabId = 'content' | 'related' | 'attributes' | 'pov-acc' | 'pov-saf' | 'pov-skp';
 
 interface Props {
   nodeId: string;
@@ -76,6 +76,12 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
     (ga?.policy_actions && ga.policy_actions.length > 0) ||
     (ga?.possible_fallacies && ga.possible_fallacies.length > 0)
   );
+
+  const isSituation = nodeId.startsWith('sit-') || nodeId.startsWith('cc-');
+  const interps = node?.interpretations;
+  const hasAccInterp = !!(interps?.accelerationist);
+  const hasSafInterp = !!(interps?.safetyist);
+  const hasSkpInterp = !!(interps?.skeptic);
 
   return (
     <div
@@ -147,12 +153,36 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
               disabled={!hasAttributes}
               style={{ opacity: hasAttributes ? 1 : 0.4, cursor: hasAttributes ? 'pointer' : 'not-allowed' }}
             >Attributes</button>
+            {isSituation && hasAccInterp && (
+              <button
+                className={`node-detail-tab ${tab === 'pov-acc' ? 'node-detail-tab-active' : ''}`}
+                onClick={() => setTab('pov-acc')}
+                style={{ color: 'var(--color-acc, #f59e0b)' }}
+              >Accelerationist</button>
+            )}
+            {isSituation && hasSafInterp && (
+              <button
+                className={`node-detail-tab ${tab === 'pov-saf' ? 'node-detail-tab-active' : ''}`}
+                onClick={() => setTab('pov-saf')}
+                style={{ color: 'var(--color-saf, #3b82f6)' }}
+              >Safetyist</button>
+            )}
+            {isSituation && hasSkpInterp && (
+              <button
+                className={`node-detail-tab ${tab === 'pov-skp' ? 'node-detail-tab-active' : ''}`}
+                onClick={() => setTab('pov-skp')}
+                style={{ color: 'var(--color-skp, #a855f7)' }}
+              >Skeptic</button>
+            )}
           </div>
 
           <div style={{ paddingTop: 12, fontSize: '0.82rem', lineHeight: 1.55 }}>
             {tab === 'content' && <ContentTab node={node} />}
             {tab === 'related' && <RelatedTab node={node} nodeId={nodeId} edges={edges} />}
             {tab === 'attributes' && <AttributesTab node={node} />}
+            {tab === 'pov-acc' && <PovInterpretationTab interp={interps?.accelerationist} povLabel="Accelerationist" povColor="var(--color-acc, #f59e0b)" />}
+            {tab === 'pov-saf' && <PovInterpretationTab interp={interps?.safetyist} povLabel="Safetyist" povColor="var(--color-saf, #3b82f6)" />}
+            {tab === 'pov-skp' && <PovInterpretationTab interp={interps?.skeptic} povLabel="Skeptic" povColor="var(--color-skp, #a855f7)" />}
           </div>
         </>
       )}
@@ -255,6 +285,35 @@ function ContentTab({ node }: { node: TaxRefNode }) {
           </div>
         </>
       )}
+    </>
+  );
+}
+
+function PovInterpretationTab({ interp, povLabel, povColor }: { interp: unknown; povLabel: string; povColor: string }) {
+  if (!interp) return <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>No {povLabel} interpretation available.</div>;
+
+  if (typeof interp === 'string') {
+    return <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-secondary)', fontSize: '0.82rem' }}>{interp}</div>;
+  }
+
+  const bdi = interp as { belief?: string; desire?: string; intention?: string; summary?: string };
+  const bdiItem = (label: string, text: string | undefined) => text ? (
+    <div style={{ margin: '8px 0', paddingLeft: 12, borderLeft: `2px solid ${povColor}` }}>
+      <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: '0.82rem' }}>{text}</div>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      {bdi.summary && (
+        <div style={{ padding: '10px 12px', border: `1px solid var(--border)`, borderLeft: `3px solid ${povColor}`, borderRadius: 6, background: 'var(--bg-secondary)', fontSize: '0.82rem', marginBottom: 10 }}>
+          {bdi.summary}
+        </div>
+      )}
+      {bdiItem('Belief', bdi.belief)}
+      {bdiItem('Desire', bdi.desire)}
+      {bdiItem('Intention', bdi.intention)}
     </>
   );
 }

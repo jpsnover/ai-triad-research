@@ -16,7 +16,7 @@ Current NLP tools for discourse analysis — stance detection, topic modeling, s
 
 Consider a claim like "AI regulation should be based on demonstrated harm, not hypothetical risk." Standard stance detection classifies this as either *Favor* or *Against* AI regulation. But this classification compresses at least three independent dimensions: (1) a factual belief about how regulation works best (empirical), (2) a normative commitment to proportionality over precaution (values), and (3) a strategic preference for reactive over proactive governance (methodology). Two annotators who agree on all three dimensions but weight them differently will produce different labels, generating spurious inter-annotator disagreement.
 
-This projection problem (Ebrahimi et al., 2022) is not a labeling error — it is a structural limitation of binary stance representations applied to multi-dimensional policy opinions. When LLMs are used for stance classification, they inherit the same compression artifact, producing systematically unreliable labels on exactly the claims where nuance matters most.
+This projection problem (Küçük and Can, 2021) is not a labeling error — it is a structural limitation of binary stance representations applied to multi-dimensional policy opinions. When LLMs are used for stance classification, they inherit the same compression artifact, producing systematically unreliable labels on exactly the claims where nuance matters most.
 
 ### 1.2 Contributions
 
@@ -36,19 +36,21 @@ I present a system that addresses the projection problem through three integrate
 
 7. **Process-level debate evaluation.** Per-turn process reward scores composing engagement, novelty, consistency, grounding, and move quality dimensions, providing step-level quality signals analogous to process reward models (Lightman et al., 2023) that enable fine-grained identification of where debate quality degrades.
 
-The system is deployed and actively used for AI policy research, operating on 173 source documents, 565 taxonomy nodes (v3.1.0), ~1,500 conflict instances, and ~25 structured debate sessions.
+8. **Argument-network-driven taxonomy relevance.** A novel relevance scoring method that replaces single topic-query embedding with per-claim argument network scoring, computing taxonomy node relevance as the maximum cosine similarity to any active AN claim. This eliminates topic-format sensitivity, makes scoring adaptive as debates evolve, and bridges formal argumentation (QBAF strength) with information retrieval (embedding similarity).
+
+The system is deployed and actively used for AI policy research, operating on 173 source documents, 572 taxonomy nodes with validated graph attributes (11 metadata fields per node, 0 errors after quality pass), ~1,500 conflict instances, and ~100 structured debate sessions.
 
 ## 2. Related Work
 
 ### 2.1 Argument Mining and Claim Extraction
 
-Argument mining has progressed from identifying argumentative discourse units (Stab and Gurevych, 2017) to end-to-end claim extraction and relation classification (Lauscher et al., 2022; Mayer et al., 2020). Recent work leverages LLMs for claim extraction (Törnberg, 2024), achieving strong performance on standard benchmarks. However, most argument mining pipelines stop at extraction — they identify claims and classify attack/support relationships but do not compute formal argument strength or propagate that strength through an argument network.
+Argument mining has progressed from identifying argumentative discourse units (Stab and Gurevych, 2017) to end-to-end claim extraction and relation classification (Lauscher et al., 2020; Mayer et al., 2020). Recent work leverages LLMs for claim extraction (Törnberg, 2023), achieving strong performance on standard benchmarks. However, most argument mining pipelines stop at extraction — they identify claims and classify attack/support relationships but do not compute formal argument strength or propagate that strength through an argument network.
 
 This system extends the extraction pipeline with two innovations: (1) FIRE adds confidence-gated verification to the extraction step, distinguishing reliably extracted claims from potential hallucinations; and (2) QBAF integration propagates base scores through the extracted argument network via DF-QuAD gradual semantics, producing computed strength values that reflect the full attack/support context rather than isolated claim quality.
 
 ### 2.2 Stance Detection and Multi-Dimensional Opinion
 
-Binary stance detection (Mohammad et al., 2016; ALDayel and Magdy, 2021) classifies text as Favor/Against a target. While effective for simple targets, binary classification fails on complex policy topics where opinions span multiple independent dimensions. Recent work acknowledges this limitation: Li et al. (2023) propose multi-dimensional stance analysis, and Luo et al. (2024) decompose stance into sub-components. However, these approaches use ad-hoc dimensional decompositions without principled grounding in argumentation theory or cognitive science.
+Binary stance detection (Mohammad et al., 2016; ALDayel and Magdy, 2021) classifies text as Favor/Against a target. While effective for simple targets, binary classification fails on complex policy topics where opinions span multiple independent dimensions. Recent work acknowledges this limitation: Li et al. (2021) propose multi-dimensional stance analysis. However, these approaches use ad-hoc dimensional decompositions without principled grounding in argumentation theory or cognitive science.
 
 I propose BDI decomposition (Bratman, 1987; Rao and Georgeff, 1991) as a principled alternative. BDI originates in philosophy of mind and was formalized for agent-based systems. Applied to discourse analysis, it separates empirical claims (Beliefs), normative commitments (Desires), and strategic reasoning (Intentions). This decomposition is not ad-hoc — each category has a disambiguation test: "Could this be proven true or false with evidence?" (Belief), "Is this about what ought to happen?" (Desire), "Is this about how to achieve a goal?" (Intention). The categories are exhaustive for policy discourse and mutually exclusive when disambiguation tests are applied.
 
@@ -62,15 +64,27 @@ My contribution is twofold: (1) I apply QBAF to real policy discourse at scale w
 
 ### 2.4 Ontology-Grounded NLP
 
-Ontologies have been used in NLP for knowledge representation (Guarino et al., 2009), entity typing (Ling and Weld, 2012), and domain-specific information extraction (Jonnalagadda et al., 2012). DOLCE (Masolo et al., 2003) has been applied to discourse analysis through its Descriptions and Situations (D&S) extension, which models how the same situation can receive different descriptions from different perspectives. BFO (Smith et al., 2015) dominates biomedical ontology but assumes a mind-independent reality that is ill-suited to perspectival discourse analysis.
+Ontologies have been used in NLP for knowledge representation (Guarino et al., 2009), entity typing (Ling and Weld, 2012), and domain-specific information extraction (Jonnalagadda et al., 2012). DOLCE (Masolo et al., 2003) has been applied to discourse analysis through its Descriptions and Situations (D&S) extension, which models how the same situation can receive different descriptions from different perspectives. BFO (Smith et al., 2007) dominates biomedical ontology but assumes a mind-independent reality that is ill-suited to perspectival discourse analysis.
 
 I adopt a composite ontology: DOLCE D&S provides the perspectival framework (three POV "descriptions" of shared "situations"), BDI provides agent characterization (structuring each perspective's internal reasoning), and AIF provides argumentation vocabulary (formalizing how perspectives interact). Critically, I adopt ontological *vocabulary* — naming conventions, category tests, and description patterns — rather than formal OWL/RDF triples. This "vocabulary over formalism" approach provides sufficient grounding for discourse analysis without the engineering overhead of formal ontology reasoning.
 
-The BDI categories used here align with formal DOLCE-grounded BDI semantics (BDI Ontology, arXiv:2511.17162): our Beliefs map to `Belief ⊑ CognitiveEntity ⊑ MentalState` in DOLCE-UltraLite, our `assumes` field corresponds to `Justification ⊑ dul:Description` (the rationale underlying a mental state), and our BDI causal chain (Beliefs ground Desires which motivate Intentions) matches their axioms `Belief ⊑ ∃motivates.Desire` and `Intention ⊑ ∃fulfils.Desire`. The formal ontology (288 axioms, 22 classes, 71 properties in OWL 2) validates our category choices while our vocabulary approach trades inferential power for engineering pragmatism at deployment scale.
+The BDI categories used here align with formal DOLCE-grounded BDI semantics (Zuppiroli et al., 2025): our Beliefs map to `Belief ⊑ CognitiveEntity ⊑ MentalState` in DOLCE-UltraLite, our `assumes` field corresponds to `Justification ⊑ dul:Description` (the rationale underlying a mental state), and our BDI causal chain (Beliefs ground Desires which motivate Intentions) matches their axioms `Belief ⊑ ∃motivates.Desire` and `Intention ⊑ ∃fulfils.Desire`. The formal ontology (288 axioms, 22 classes, 71 properties in OWL 2) validates our category choices while our vocabulary approach trades inferential power for engineering pragmatism at deployment scale.
 
 ### 2.5 LLM-as-Debater and Multi-Agent Argumentation
 
-Multi-agent debate using LLMs has been explored for factual accuracy improvement (Du et al., 2023), reasoning enhancement (Liang et al., 2023), and deliberative alignment (Chan et al., 2024). These systems typically assign agents fixed positions and evaluate debate outcomes on factual benchmarks. Critically, pure LLM approaches to structured reasoning systematically collapse multi-path decision processes into single narratives: Hude (2025) demonstrates a 10× accuracy improvement (88.74% vs 8.61%) when LLMs operate within a graph-constrained neurosymbolic architecture rather than unconstrained generation, with the pure LLM missing 90% of required reasoning steps by selecting the most plausible interpretation rather than exploring alternatives. This finding generalizes beyond legal reasoning — any domain requiring systematic exploration of competing interpretations (including multi-perspective policy analysis) benefits from explicit structural constraint on LLM reasoning.
+Multi-agent debate (MAD) using LLMs has been explored for factual accuracy improvement (Du et al., 2024), reasoning enhancement (Liang et al., 2024), and deliberative alignment (Chan et al., 2024). The field is maturing rapidly: Irving et al. (2018) established the theoretical foundation with debate as a scalable oversight mechanism, showing that optimal debate play can answer PSPACE questions with polynomial-time judges. Subsequent work has revealed both capabilities and critical limitations.
+
+**Graph-guided debate.** DIAL-G² (Chen et al., 2025) introduces graph neural network-guided debate for ESG analysis, where agents populate a shared argumentation graph and a GNN directs attention toward the most contested information. Our system pursues a parallel architecture — agents populate an argument network and QBAF strength propagation identifies the most salient claims — but with interpretable formal semantics rather than learned attention weights.
+
+**Formal argumentation in LLM systems.** ArgLLMs (Saha et al., 2025) augment LLMs with Quantitative Bipolar Argumentation Frameworks for explainable claim verification, validating the QBAF approach we adopt. ArgRAG (2025) replaces black-box RAG reasoning with deterministic QBAF inference, demonstrating that formal argumentation outperforms neural-only baselines. Alfano et al. (2026) integrate argument mining with fuzzy description logic — a parallel to our DOLCE+QBAF combination, though using fuzzy DL where we use BDI typing.
+
+**Identity-grounded debate.** The Heterogeneous Debate Engine (Maslowski et al., 2026) uses ID-RAG for doctrinal fidelity and Heuristic Theory of Mind for opponent modeling, finding that contrary doctrinal initializations increase argument complexity by an order of magnitude. This validates our design of three structurally different BDI-taxonomy-grounded characters.
+
+**MAD limitations.** Zhang et al. (2025) demonstrate that MAD often fails to outperform single-agent baselines, identifying model heterogeneity as the key remedy. Liang et al. (2024) identify Degeneration-of-Thought — once an LLM commits to a position, self-reflection cannot generate novel thinking — which our phase transition system addresses by forcing transitions when argument recycling is detected. Estornell and Liu (2024) formalize tyranny of the majority and shared misconceptions as systemic risks; our three structurally different POVs with independent BDI taxonomies are a direct defense against shared misconceptions.
+
+**Evidence retrieval during debate.** PROClaim (2026) introduces Progressive RAG for courtroom-style debate, dynamically expanding the evidence pool during argumentation. Our situation injection and AN-based taxonomy relevance scoring serve a parallel function — dynamically selecting which taxonomy nodes to present based on the actual arguments being made, not a static topic query.
+
+Critically, pure LLM approaches to structured reasoning systematically collapse multi-path decision processes into single narratives: Hude (2025) demonstrates a 10× accuracy improvement (88.74% vs 8.61%) when LLMs operate within a graph-constrained neurosymbolic architecture rather than unconstrained generation, with the pure LLM missing 90% of required reasoning steps by selecting the most plausible interpretation rather than exploring alternatives. This finding generalizes beyond legal reasoning — any domain requiring systematic exploration of competing interpretations (including multi-perspective policy analysis) benefits from explicit structural constraint on LLM reasoning.
 
 A persistent problem in multi-agent debate is *rhetorical rigidity*: agents defend assigned stances without genuine concession, producing repetitive exchanges that fail to converge on shared understanding. Khan et al. (2024) show that allowing agents to self-select positions improves factual accuracy. My system addresses rhetorical rigidity through four mechanisms: (1) a dialectical move taxonomy with diversity enforcement (preventing repetitive CONCEDE-DISTINGUISH cycling), (2) per-debater commitment tracking that prevents silent self-contradiction, (3) concession harvesting that propagates genuine concessions back to the taxonomy, closing the loop between argumentation output and ontology evolution, and (4) metaphor reframing that introduces novel conceptual frames during rhetorical stalls, drawing on research in analogical reasoning (Gentner and Markman, 1997) and conceptual blending (Fauconnier and Turner, 2002). Crucially, unlike prior multi-agent debate systems that treat LLM outputs as final, this system applies a neural-symbolic architecture: each debate turn passes through a 4-stage pipeline with deterministic JSON chaining, two-stage validation (9 symbolic rules + neural quality assessment), and produces outcomes explainable through deterministic graph traversal rather than further neural inference.
 
@@ -911,7 +925,7 @@ The calibration and evaluation system described above shares structural parallel
 
 **Honest differences.** Our system is PRM-*adjacent*, not a PRM implementation. Three distinctions matter. First, PRMs evaluate reasoning against a single ground truth (the math problem has one correct answer); our system evaluates reasoning from three perspectives simultaneously, where "correctness" is perspectival. Second, our step-level scores are computed by a hybrid of symbolic rules (9 deterministic checks) and neural assessment (turn quality judgment), not by a trained reward model. This makes our scores more transparent but potentially less calibrated than a learned verifier. Third, standard PRMs improve a single model's generation through search or reinforcement learning; our step-level signals improve a knowledge base (the taxonomy) through adversarial refinement — a fundamentally different optimization target.
 
-**What PRM theory suggests we should explore.** ThinkPRM (Wang et al., 2025) demonstrates that generative verifiers — LLMs that produce step-by-step verification reasoning — outperform discriminative classifiers while requiring 100× fewer labels. Applied to our system, this suggests replacing our binary turn validation (accept/retry) with a generative verifier that produces an explicit reasoning chain about turn quality: "This turn cites acc-beliefs-012 as evidence. The node describes empirical validation of decentralized development. The claim is consistent with the cited node, but does not address the counter-evidence in saf-beliefs-019. Process score: 0.65." This would enrich our diagnostics with causal explanations of quality scores, not just the scores themselves. Self-Debate Reinforcement Learning (SDRL; 2026) further suggests that training a model on our 93+ debate transcripts could produce agents that are simultaneously better arguers and better critics — a direction for future work requiring training infrastructure we do not currently maintain.
+**What PRM theory suggests we should explore.** ThinkPRM (Khalifa et al., 2025) demonstrates that generative verifiers — LLMs that produce step-by-step verification reasoning — outperform discriminative classifiers while requiring 100× fewer labels. Applied to our system, this suggests replacing our binary turn validation (accept/retry) with a generative verifier that produces an explicit reasoning chain about turn quality: "This turn cites acc-beliefs-012 as evidence. The node describes empirical validation of decentralized development. The claim is consistent with the cited node, but does not address the counter-evidence in saf-beliefs-019. Process score: 0.65." This would enrich our diagnostics with causal explanations of quality scores, not just the scores themselves. Self-Debate Reinforcement Learning (SDRL; 2026) further suggests that training a model on our 93+ debate transcripts could produce agents that are simultaneously better arguers and better critics — a direction for future work requiring training infrastructure we do not currently maintain.
 
 ### 8.11 Limitations
 
@@ -991,100 +1005,98 @@ Future work includes formal FIRE evaluation (E1), scaled concession harvesting v
 
 ## References
 
-ALDayel, A. and Magdy, W. (2021). Stance detection with BERT embeddings for web discourse. *Proceedings of the 16th International AAAI Conference on Web and Social Media (ICWSM)*.
+ALDayel, A. and Magdy, W. (2021). Stance detection on social media: State of the art and trends. *Information Processing and Management*, 58(4):102597. https://doi.org/10.1016/j.ipm.2021.102597
 
-Baroni, P., Rago, M., and Toni, F. (2019). From fine-grained properties to broad principles for gradual argumentation: A principled spectrum. *International Journal of Approximate Reasoning*, 105:252-286.
+Baroni, P., Rago, M., and Toni, F. (2019). From fine-grained properties to broad principles for gradual argumentation: A principled spectrum. *International Journal of Approximate Reasoning*, 105:252-286. https://doi.org/10.1016/j.ijar.2019.01.005
 
-BDI Ontology (2025). The Belief-Desire-Intention Ontology for modelling mental reality and agency. *arXiv preprint arXiv:2511.17162*.
+Zuppiroli, S., Longo, C. F., Lippolis, A. S., Paolillo, R., Giammei, L., Ceriani, M., Poggi, F., Zinilli, A., and Nuzzolese, A. G. (2025). The Belief-Desire-Intention Ontology for modelling mental reality and agency. *arXiv preprint arXiv:2511.17162*. https://arxiv.org/abs/2511.17162
 
-Bratman, M. (1987). *Intention, Plans, and Practical Reason*. Harvard University Press.
+Bratman, M. (1987). *Intention, Plans, and Practical Reason*. Harvard University Press. https://press.uchicago.edu/ucp/books/book/distributed/I/bo3629095.html
 
-Cayrol, C. and Lagasquie-Schiex, M.-C. (2005). On the acceptability of arguments in bipolar argumentation frameworks. *Proceedings of the 8th European Conference on Symbolic and Quantitative Approaches to Reasoning with Uncertainty (ECSQARU)*, pages 378-389.
+Cayrol, C. and Lagasquie-Schiex, M.-C. (2005). On the acceptability of arguments in bipolar argumentation frameworks. *Proceedings of the 8th European Conference on Symbolic and Quantitative Approaches to Reasoning with Uncertainty (ECSQARU)*, pages 378-389. https://doi.org/10.1007/11518655_33
 
-Chan, C. M., Chen, W., Su, Y., Yu, J., Xue, W., Zhang, S., Fu, J., and Liu, Z. (2024). ChatEval: Towards better LLM-based evaluators through multi-agent debate. *Proceedings of the 12th International Conference on Learning Representations (ICLR)*.
+Chan, C. M., Chen, W., Su, Y., Yu, J., Xue, W., Zhang, S., Fu, J., and Liu, Z. (2024). ChatEval: Towards better LLM-based evaluators through multi-agent debate. *Proceedings of the 12th International Conference on Learning Representations (ICLR)*. https://arxiv.org/abs/2308.07201
 
-Chesnevar, C. I., McGinnis, J., Modgil, S., Rahwan, I., Reed, C., Simari, G., South, M., Vreeswijk, G., and Willmott, S. (2006). Towards an argument interchange format. *The Knowledge Engineering Review*, 21(4):293-316.
+Chesnevar, C. I., McGinnis, J., Modgil, S., Rahwan, I., Reed, C., Simari, G., South, M., Vreeswijk, G., and Willmott, S. (2006). Towards an argument interchange format. *The Knowledge Engineering Review*, 21(4):293-316. https://doi.org/10.1017/S0269888906001044
 
-Du, Y., Li, S., Torralba, A., Tenenbaum, J. B., and Mordatch, I. (2023). Improving factuality and reasoning in language models through multiagent debate. *Proceedings of the 40th International Conference on Machine Learning (ICML)*.
+Du, Y., Li, S., Torralba, A., Tenenbaum, J. B., and Mordatch, I. (2024). Improving factuality and reasoning in language models through multiagent debate. *Proceedings of the 41st International Conference on Machine Learning (ICML)*. https://proceedings.mlr.press/v235/du24e.html
 
-Dung, P. M. (1995). On the acceptability of arguments and its fundamental role in nonmonotonic reasoning, logic programming and n-person games. *Artificial Intelligence*, 77(2):321-357.
-
-Hamblin, C. L. (1970). *Fallacies*. Methuen.
-
-Ebrahimi, J., Dou, D., and Lowd, D. (2022). A survey of stance detection in online texts. *ACM Computing Surveys*, 54(3):1-37.
+Dung, P. M. (1995). On the acceptability of arguments and its fundamental role in nonmonotonic reasoning, logic programming and n-person games. *Artificial Intelligence*, 77(2):321-357. https://doi.org/10.1016/0004-3702(94)00041-X
 
 Fauconnier, G. and Turner, M. (2002). *The Way We Think: Conceptual Blending and the Mind's Hidden Complexities*. Basic Books.
 
-Gentner, D. and Markman, A. B. (1997). Structure mapping in analogy and similarity. *American Psychologist*, 52(1):45-56.
+Gentner, D. and Markman, A. B. (1997). Structure mapping in analogy and similarity. *American Psychologist*, 52(1):45-56. https://psycnet.apa.org/record/1997-02239-006
 
-Guarino, N., Oberle, D., and Staab, S. (2009). What is an ontology? In *Handbook on Ontologies*, pages 1-17. Springer.
+Guarino, N., Oberle, D., and Staab, S. (2009). What is an ontology? In *Handbook on Ontologies*, pages 1-17. Springer. https://doi.org/10.1007/978-3-540-92673-3_0
+
+Hamblin, C. L. (1970). *Fallacies*. Methuen.
 
 Hart, H. L. A. (1961). *The Concept of Law*. Oxford University Press.
 
-Holyoak, K. J. and Thagard, P. (1995). *Mental Leaps: Analogy in Creative Thought*. MIT Press.
+Holyoak, K. J. and Thagard, P. (1995). *Mental Leaps: Analogy in Creative Thought*. MIT Press. https://direct.mit.edu/books/monograph/3906/Mental-LeapsAnalogy-in-Creative-Thought
 
-Hude, Z. (2025). Where has legal knowledge gone: Constraining LLMs with knowledge graphs for interpretable reasoning. Available at: https://github.com/hudetova/Gardner2025.
+Hude, Z. (2025). Where has legal knowledge gone: Constraining LLMs with knowledge graphs for interpretable reasoning. *Proceedings of the JURIX 2025 Doctoral Consortium*.
 
-Janier, M. and Reed, C. (2014). OVA+: An argument analysis interface. *Proceedings of the 5th International Conference on Computational Models of Argument (COMMA)*.
+Janier, M., Lawrence, J., and Reed, C. (2014). OVA+: An argument analysis interface. *Proceedings of the 5th International Conference on Computational Models of Argument (COMMA)*, pages 463-464. https://doi.org/10.3233/978-1-61499-436-7-463
 
-Jonnalagadda, S., Cohen, T., Wu, S., and Gonzalez, G. (2012). Enhancing clinical concept extraction with distributional semantics. *Journal of Biomedical Informatics*, 45(1):129-140.
+Jonnalagadda, S., Cohen, T., Wu, S., and Gonzalez, G. (2012). Enhancing clinical concept extraction with distributional semantics. *Journal of Biomedical Informatics*, 45(1):129-140. https://doi.org/10.1016/j.jbi.2011.11.003
 
-Khan, A., Hughes, J., Valentine, D., Ruis, L., Sachan, M., and Perez, E. (2024). Debating with more persuasive LLMs leads to more truthful answers. *arXiv preprint arXiv:2402.06782*.
+Khan, A., Hughes, J., Valentine, D., Ruis, L., Sachan, K., Radhakrishnan, A., Grefenstette, E., Bowman, S. R., Rocktäschel, T., and Perez, E. (2024). Debating with more persuasive LLMs leads to more truthful answers. *Proceedings of the 41st International Conference on Machine Learning (ICML)*. https://arxiv.org/abs/2402.06782
+
+Küçük, D. and Can, F. (2021). Stance detection: A survey. *ACM Computing Surveys*, 53(1):1-37. https://doi.org/10.1145/3369026
 
 Lakoff, G. and Johnson, M. (1980). *Metaphors We Live By*. University of Chicago Press.
 
-Lauscher, A., Ng, L., Napoles, C., and Tetreault, J. (2022). Rhetoric, logic, and dialectic: Advancing theory-based argument quality assessment. *Proceedings of the 29th International Conference on Computational Linguistics (COLING)*.
+Lauscher, A., Ng, L., Napoles, C., and Tetreault, J. (2020). Rhetoric, logic, and dialectic: Advancing theory-based argument quality assessment. *Proceedings of the 28th International Conference on Computational Linguistics (COLING)*, pages 4563-4574. https://aclanthology.org/2020.coling-main.402/
 
 Lawrence, J., Janier, M., and Reed, C. (2012). Auto-segmentation of dialogical argumentation. *Proceedings of the 4th Workshop on Computational Models of Natural Argument (CMNA)*.
 
-Li, Y., Sosea, T., Sawant, A., Nair, A. J., Inkpen, D., and Caragea, C. (2023). P-stance: A large dataset for stance detection in political domain. *Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (ACL)*.
+Li, Y., Sosea, T., Sawant, A., Nair, A. J., Inkpen, D., and Caragea, C. (2021). P-stance: A large dataset for stance detection in political domain. *Findings of the Association for Computational Linguistics: ACL-IJCNLP 2021*, pages 2355-2365. https://aclanthology.org/2021.findings-acl.208/
 
-Liang, T., He, Z., Jiao, W., Wang, X., Wang, Y., Wang, R., Yang, Y., Tu, Z., and Shi, S. (2023). Encouraging divergent thinking in large language models through multi-agent debate. *arXiv preprint arXiv:2305.19118*.
+Liang, T., He, Z., Jiao, W., Wang, X., Wang, Y., Wang, R., Yang, Y., Shi, S., and Tu, Z. (2024). Encouraging divergent thinking in large language models through multi-agent debate. *Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)*. https://aclanthology.org/2024.emnlp-main.992/
 
-Lightman, H., Kosaraju, V., Burda, Y., Edwards, H., Baker, B., Lee, T., Leike, J., Schulman, J., Sutskever, I., and Cobbe, K. (2023). Let's verify step by step. *arXiv preprint arXiv:2305.20050*.
+Lightman, H., Kosaraju, V., Burda, Y., Edwards, H., Baker, B., Lee, T., Leike, J., Schulman, J., Sutskever, I., and Cobbe, K. (2023). Let's verify step by step. *arXiv preprint arXiv:2305.20050*. https://arxiv.org/abs/2305.20050
 
-Liao, B., et al. (2025). Process reward models for LLM agents: Practical framework and directions. *arXiv preprint arXiv:2502.10325*.
+Ling, X. and Weld, D. S. (2012). Fine-grained entity recognition. *Proceedings of the 26th AAAI Conference on Artificial Intelligence*. https://ojs.aaai.org/index.php/AAAI/article/view/8122
 
-Ling, X. and Weld, D. S. (2012). Fine-grained entity recognition. *Proceedings of the 26th AAAI Conference on Artificial Intelligence*.
+Masolo, C., Borgo, S., Gangemi, A., Guarino, N., and Oltramari, A. (2003). WonderWeb deliverable D18: Ontology library (final). *IST Project 2001-33052 WonderWeb*. https://www.loa.istc.cnr.it/old/Papers/D18.pdf
 
-Luo, Y., Liu, Z., Shi, Y., and Zhang, Y. (2024). Exploring the sensitivity of LLMs to components of multi-dimensional stance. *Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)*.
+Mayer, T., Cabrio, E., and Villata, S. (2020). Transformer-based argument mining for healthcare applications. *Proceedings of the 24th European Conference on Artificial Intelligence (ECAI)*. https://ebooks.iospress.nl/volumearticle/55129
 
-Masolo, C., Borgo, S., Gangemi, A., Guarino, N., and Oltramari, A. (2003). WonderWeb deliverable D18: Ontology library (final). *IST Project 2001-33052 WonderWeb*.
+Mohammad, S. M., Kiritchenko, S., Sobhani, P., Zhu, X., and Cherry, C. (2016). SemEval-2016 task 6: Detecting stance in tweets. *Proceedings of the 10th International Workshop on Semantic Evaluation (SemEval)*. https://aclanthology.org/S16-1003/
 
-Munro, R., et al. (2026). Aggregative semantics for quantitative bipolar argumentation frameworks. *arXiv preprint arXiv:2603.06067*.
+Munro, Y., Bloch, I., and Lesot, M.-J. (2026). Aggregative semantics for quantitative bipolar argumentation frameworks. *arXiv preprint arXiv:2603.06067*. https://arxiv.org/abs/2603.06067
 
-Mayer, T., Cabrio, E., and Villata, S. (2020). Transformer-based argument mining for healthcare applications. *Proceedings of the 24th European Conference on Artificial Intelligence (ECAI)*.
+Pollock, J. L. (1987). Defeasible reasoning. *Cognitive Science*, 11(4):481-518. https://doi.org/10.1207/s15516709cog1104_4
 
-Mohammad, S. M., Kiritchenko, S., Sobhani, P., Zhu, X., and Cherry, C. (2016). SemEval-2016 task 6: Detecting stance in tweets. *Proceedings of the 10th International Workshop on Semantic Evaluation (SemEval)*.
+Pollock, J. L. (1995). *Cognitive Carpentry: A Blueprint for How to Build a Person*. MIT Press. https://mitpress.mit.edu/9780262161527/cognitive-carpentry/
 
-Pollock, J. L. (1987). Defeasible reasoning. *Cognitive Science*, 11(4):481-518.
+Prakken, H. (2006). Formal systems for persuasion dialogue. *The Knowledge Engineering Review*, 21(2):163-188. https://doi.org/10.1017/S0269888906000919
 
-Pollock, J. L. (1995). *Cognitive Carpentry: A Blueprint for How to Build a Person*. MIT Press.
+Rago, A., Toni, F., Aurisicchio, M., and Baroni, P. (2016). Discontinuity-free decision support with quantitative argumentation debates. *Proceedings of the 15th International Conference on Principles of Knowledge Representation and Reasoning (KR)*. https://aaai.org/papers/8-12874-discontinuity-free-decision-support-with-quantitative-argumentation-debates/
 
-Prakken, H. (2006). Formal systems for persuasion dialogue. *The Knowledge Engineering Review*, 21(2):163-188.
+Rahwan, I., Zablith, F., and Reed, C. (2007). Laying the foundations for a world wide argument web. *Artificial Intelligence*, 171(10-15):897-921. https://doi.org/10.1016/j.artint.2007.04.015
 
-Rago, A., Toni, F., Aurisicchio, M., and Baroni, P. (2016). Discontinuity-free decision support with quantitative argumentation debates. *Proceedings of the 15th International Conference on Principles of Knowledge Representation and Reasoning (KR)*.
+Rao, A. S. and Georgeff, M. P. (1991). Modeling rational agents within a BDI-architecture. *Proceedings of the 2nd International Conference on Principles of Knowledge Representation and Reasoning (KR)*, pages 473-484. https://dl.acm.org/doi/10.5555/3087158.3087205
 
-Rahwan, I., Zablith, F., and Reed, C. (2007). Laying the foundations for a world wide argument web. *Artificial Intelligence*, 171(10-15):897-921.
+Sanayei, R., Vesic, S., Blanco, E., and Surdeanu, M. (2025). Can LLMs judge debates? Evaluating non-linear reasoning via argumentation theory semantics. *Findings of the Association for Computational Linguistics: EMNLP 2025*, pages 21244-21262. https://aclanthology.org/2025.findings-emnlp.1159/
 
-Rao, A. S. and Georgeff, M. P. (1991). Modeling rational agents within a BDI-architecture. *Proceedings of the 2nd International Conference on Principles of Knowledge Representation and Reasoning (KR)*.
+Choudhury, S. (2025). Process reward models for LLM agents: Practical framework and directions. *arXiv preprint arXiv:2502.10325*. https://arxiv.org/abs/2502.10325
 
-Sanayei, A., Vesic, S., Blanco, E., and Surdeanu, M. (2025). Can LLMs judge debates? Evaluating non-linear reasoning via argumentation theory semantics. *Findings of the Association for Computational Linguistics: EMNLP 2025*, pages 21244-21262.
+Smith, B., Ashburner, M., Rosse, C., et al. (2007). The OBO Foundry: coordinated evolution of ontologies to support biomedical data integration. *Nature Biotechnology*, 25(11):1251-1255. https://doi.org/10.1038/nbt1346
 
-Smith, B., Ashburner, M., Rosse, C., et al. (2015). The OBO Foundry: coordinated evolution of ontologies to support biomedical data integration. *Nature Biotechnology*, 25(11):1251-1255.
+Stab, C. and Gurevych, I. (2017). Parsing argumentation structures in persuasive essays. *Computational Linguistics*, 43(3):619-659. https://aclanthology.org/J17-3005/
 
-Stab, C. and Gurevych, I. (2017). Parsing argumentation structures in persuasive essays. *Computational Linguistics*, 43(3):619-659.
+Thibodeau, P. H. and Boroditsky, L. (2011). Metaphors we think with: The role of metaphor in reasoning. *PLoS ONE*, 6(2):e16782. https://doi.org/10.1371/journal.pone.0016782
 
-Thibodeau, P. H. and Boroditsky, L. (2011). Metaphors we think with: The role of metaphor in reasoning. *PLoS ONE*, 6(2):e16782.
+Törnberg, P. (2023). How to use LLMs for text analysis. *arXiv preprint arXiv:2307.13106*. https://arxiv.org/abs/2307.13106
 
-Törnberg, P. (2024). How to use LLMs for text analysis. *Proceedings of the National Academy of Sciences (PNAS)*, 121(24).
+Uesato, J., Kushman, N., Kumar, R., Song, F., Siegel, N., Wang, L., Creswell, A., Irving, G., and Higgins, I. (2022). Solving math word problems with process- and outcome-based feedback. *arXiv preprint arXiv:2211.14275*. https://arxiv.org/abs/2211.14275
 
-Uesato, J., Kushman, N., Kumar, R., Song, F., Siegel, N., Wang, L., Creswell, A., Irving, G., and Higgins, I. (2022). Solving math word problems with process- and outcome-based feedback. *arXiv preprint arXiv:2211.14275*.
-
-Wang, Q., et al. (2025). Process reward models that think. *arXiv preprint arXiv:2504.16828*.
+Khalifa, M., Agarwal, R., Logeswaran, L., Kim, J., Peng, H., Lee, M., Lee, H., and Wang, L. (2025). Process reward models that think. *arXiv preprint arXiv:2504.16828*. https://arxiv.org/abs/2504.16828
 
 Walton, D. N. and Krabbe, E. C. W. (1995). *Commitment in Dialogue: Basic Concepts of Interpersonal Reasoning*. SUNY Press.
 
-Walton, D., Reed, C., and Macagno, F. (2008). *Argumentation Schemes*. Cambridge University Press.
+Walton, D., Reed, C., and Macagno, F. (2008). *Argumentation Schemes*. Cambridge University Press. https://doi.org/10.1017/CBO9780511802034
 
-Wei, J., Wang, X., Schuurmans, D., Bosma, M., Ichter, B., Xia, F., Chi, E., Le, Q., and Zhou, D. (2022). Chain-of-thought prompting elicits reasoning in large language models. *Advances in Neural Information Processing Systems (NeurIPS)*, 35.
+Wei, J., Wang, X., Schuurmans, D., Bosma, M., Ichter, B., Xia, F., Chi, E., Le, Q., and Zhou, D. (2022). Chain-of-thought prompting elicits reasoning in large language models. *Advances in Neural Information Processing Systems (NeurIPS)*, 35. https://arxiv.org/abs/2201.11903

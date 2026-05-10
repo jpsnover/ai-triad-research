@@ -514,7 +514,7 @@ describe('FlightRecorder', () => {
     expect(header.events_lost).toBe(7);
   });
 
-  it('setContextProvider() data appears in dump header', () => {
+  it('setContextProvider() data appears as separate context record', () => {
     recorder.setContextProvider(() => ({
       active_debate_id: 'debate-xyz',
       active_debate_phase: 'opening',
@@ -523,12 +523,14 @@ describe('FlightRecorder', () => {
     }));
 
     const { ndjson } = recorder.buildDump('manual');
-    const header = JSON.parse(ndjson.split('\n')[0]);
+    const lines = ndjson.trim().split('\n');
+    const context = JSON.parse(lines[2]);
 
-    expect(header.active_debate_id).toBe('debate-xyz');
-    expect(header.active_debate_phase).toBe('opening');
-    expect(header.active_debate_round).toBe(2);
-    expect(header.memory_usage_mb).toBe(128);
+    expect(context._type).toBe('context');
+    expect(context.active_debate_id).toBe('debate-xyz');
+    expect(context.active_debate_phase).toBe('opening');
+    expect(context.active_debate_round).toBe(2);
+    expect(context.memory_usage_mb).toBe(128);
   });
 
   it('intern() delegates to the dictionary', () => {

@@ -122,6 +122,37 @@ function getConfiguredModel(): string {
   }
 }
 
+/**
+ * Enrich policy_refs with per-policy relevance from the draft stage.
+ * The cite stage produces bare string IDs; the draft stage produces
+ * {policy_id, relevance} objects. Merge to get the best of both.
+ */
+function enrichPolicyRefs(
+  policyRefs: (string | { policy_id: string; relevance: string })[] | undefined,
+  draftWorkProduct: Record<string, unknown> | undefined,
+): (string | { policy_id: string; relevance: string })[] | undefined {
+  if (!policyRefs || policyRefs.length === 0) return policyRefs;
+  const draftPolicyRefs = draftWorkProduct?.policy_refs as { policy_id: string; relevance: string }[] | undefined;
+  if (!Array.isArray(draftPolicyRefs) || draftPolicyRefs.length === 0) return policyRefs;
+
+  // Build lookup from draft's rich policy refs
+  const draftMap = new Map<string, string>();
+  for (const dp of draftPolicyRefs) {
+    if (dp && typeof dp === 'object' && dp.policy_id && dp.relevance) {
+      draftMap.set(dp.policy_id, dp.relevance);
+    }
+  }
+  if (draftMap.size === 0) return policyRefs;
+
+  return policyRefs.map(ref => {
+    if (typeof ref === 'string') {
+      const relevance = draftMap.get(ref);
+      return relevance ? { policy_id: ref, relevance } : ref;
+    }
+    return ref;
+  });
+}
+
 /** Normalize progress from either flat shape (Electron IPC) or nested retry shape (lib DebateProgress). */
 function normalizeProgress(p: Record<string, unknown>): { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } {
   // Lib DebateProgress: { phase: 'retry', retry: { attempt, maxRetries, backoffSeconds }, message }
@@ -699,6 +730,14 @@ async function extractClaimsAndUpdateAN(
       return;
     }
 
+    // Embed new AN nodes for AN-based taxonomy relevance scoring (non-blocking)
+    for (const node of newNodes) {
+      try {
+        const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
+        if (vector && vector.length > 0) node.embedding = vector;
+      } catch { /* embedding failure never blocks extraction */ }
+    }
+
     extractionTrace.status = 'ok';
 
     const commitResult = commitAnNodes(
@@ -814,7 +853,7 @@ async function extractClaimsAndUpdateAN(
             qbafResult.strengths,
           );
           patches.convergence_signals = [...(baseDebate.convergence_signals ?? []), sig];
-          getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_disposition: sig.move_disposition?.ratio, engagement_depth: sig.engagement_depth?.ratio, recycling_rate: sig.recycling_rate?.avg_self_overlap, crux_rate: sig.crux_rate?.cumulative_count } });
+          getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_polarity: sig.move_polarity?.ratio, dialectical_engagement: sig.dialectical_engagement?.ratio, argument_redundancy: sig.argument_redundancy?.avg_self_overlap, crux_engagement_rate: sig.crux_engagement_rate?.cumulative_count } });
 
           // 4b. Process reward — continuous turn quality score (PRM-adjacent signal)
           const turnTrail = get().activeDebate?.turn_validations?.[entryId];
@@ -1207,6 +1246,56 @@ function getTaxonomyContext(pov: string): TaxonomyContext {
   return { povNodes, situationNodes, policyRegistry };
 }
 
+/** Per-node scoring source tracking for diagnostics display. */
+export interface NodeScoringSource {
+  source: 'an' | 'topic';
+  anScore: number;
+  topicScore: number;
+  bestClaimId?: string;
+  bestClaimText?: string;
+  bestClaimSim?: number;
+}
+
+/** Extended TaxonomyContext with per-node scoring source info for diagnostics. */
+interface TaxonomyContextWithSources extends TaxonomyContext {
+  nodeSourceMap?: Map<string, NodeScoringSource>;
+}
+
+/** Serialized per-ref source info for storage on transcript entry metadata. */
+export interface RelevanceSourceEntry {
+  node_id: string;
+  source: 'an' | 'topic';
+  an_score: number;
+  topic_score: number;
+  best_claim_id?: string;
+  best_claim_text?: string;
+  best_claim_sim?: number;
+}
+
+/** Serialize nodeSourceMap to an array for storage on transcript entry metadata. Only includes refs actually used. */
+function serializeNodeSourceMap(
+  sourceMap: Map<string, NodeScoringSource> | undefined,
+  refs: { node_id: string }[],
+): RelevanceSourceEntry[] | undefined {
+  if (!sourceMap || sourceMap.size === 0) return undefined;
+  const result: RelevanceSourceEntry[] = [];
+  for (const ref of refs) {
+    const src = sourceMap.get(ref.node_id);
+    if (src) {
+      result.push({
+        node_id: ref.node_id,
+        source: src.source,
+        an_score: src.anScore,
+        topic_score: src.topicScore,
+        best_claim_id: src.bestClaimId,
+        best_claim_text: src.bestClaimText,
+        best_claim_sim: src.bestClaimSim,
+      });
+    }
+  }
+  return result.length > 0 ? result : undefined;
+}
+
 /**
  * Get taxonomy context filtered by relevance to the debate topic.
  * Falls back to unfiltered if embeddings unavailable.
@@ -1216,7 +1305,7 @@ async function getRelevantTaxonomyContext(
   topic: string,
   recentTranscript: string,
   threshold: number = 0.45,
-): Promise<TaxonomyContext> {
+): Promise<TaxonomyContextWithSources> {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
   const allPovNodes: PovNode[] = povFile?.nodes ?? [];
@@ -1242,21 +1331,53 @@ async function getRelevantTaxonomyContext(
     const debate = useDebateStore.getState().activeDebate;
     const anNodes = debate?.argument_network?.nodes ?? [];
     let scores: Map<string, number>;
+    let nodeSourceMap: Map<string, NodeScoringSource> | undefined;
 
-    if (anNodes.length > 0) {
-      // AN-based scoring: embed each claim, score nodes by max similarity
-      const claimTexts = anNodes.map(n => n.text);
-      const claimIds = anNodes.map(n => n.id);
-      const { vectors: claimVectors } = await api.computeEmbeddings(claimTexts, claimIds);
+    // Use pre-computed embeddings from AN nodes (set by t/442 on extraction)
+    const embeddedAnNodes = anNodes.filter(n => n.embedding && n.embedding.length > 0);
 
-      const claimEmbeddings: ANClaimEmbedding[] = anNodes.map((n, i) => ({
+    if (embeddedAnNodes.length > 0) {
+      // AN-based scoring: use cached embeddings from extraction, score nodes by max similarity
+      const claimEmbeddings: ANClaimEmbedding[] = embeddedAnNodes.map(n => ({
         id: n.id,
-        vector: claimVectors[i],
+        vector: n.embedding!,
         strength: n.computed_strength,
       }));
 
       scores = scoreNodesViaAN(claimEmbeddings, nodeEmbeddings, undefined, true);
-      console.log(`[taxonomy] AN-based scoring: ${claimEmbeddings.length} claims against ${allNodeIds.length} nodes`);
+      console.log(`[taxonomy] AN-based scoring: ${claimEmbeddings.length}/${anNodes.length} claims (with embeddings) against ${allNodeIds.length} nodes`);
+
+      // Also compute topic-only scores for hybrid source tracking
+      const query = buildRelevanceQuery(topic, recentTranscript);
+      const { vector: queryVector } = await api.computeQueryEmbedding(query);
+      const topicScores = scoreNodeRelevance(queryVector, nodeEmbeddings);
+
+      // Build per-node source tracking: which AN claim matched best, AN vs topic comparison
+      nodeSourceMap = new Map<string, NodeScoringSource>();
+      for (const nodeId of allNodeIds) {
+        const anScore = scores.get(nodeId) ?? 0;
+        const topicScore = topicScores.get(nodeId) ?? 0;
+        const entry = nodeEmbeddings[nodeId];
+        if (!entry?.vector) continue;
+
+        // Find best matching AN claim for this node
+        let bestSim = 0;
+        let bestClaim: typeof claimEmbeddings[0] | null = null;
+        for (const claim of claimEmbeddings) {
+          const sim = cosineSimilarity(entry.vector, claim.vector);
+          if (sim > bestSim) { bestSim = sim; bestClaim = claim; }
+        }
+
+        const anNode = bestClaim ? anNodes.find(n => n.id === bestClaim!.id) : null;
+        nodeSourceMap.set(nodeId, {
+          source: anScore >= topicScore * 0.5 ? 'an' : 'topic',
+          anScore,
+          topicScore,
+          bestClaimId: bestClaim?.id,
+          bestClaimText: anNode?.text,
+          bestClaimSim: bestSim,
+        });
+      }
     } else {
       // No AN yet (pre-opening) — fall back to single topic query
       const query = buildRelevanceQuery(topic, recentTranscript);
@@ -1278,7 +1399,7 @@ async function getRelevantTaxonomyContext(
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
-    return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores };
+    return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores, nodeSourceMap };
   } catch (err) {
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
     // Surface warning via store — useDebateStore is defined below but accessible at call time
@@ -2323,6 +2444,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               turn_number: 0,
             }));
 
+            // Embed doc i-nodes for AN-based taxonomy relevance scoring (non-blocking)
+            for (const node of docNodes) {
+              try {
+                const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
+                if (vector && vector.length > 0) node.embedding = vector;
+              } catch { /* embedding failure never blocks seeding */ }
+            }
+
             set({
               activeDebate: {
                 ...debate,
@@ -2542,6 +2671,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         const knownNodeIds = getAllKnownNodeIds();
         const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, knownNodeIds);
 
+        // Enrich policy refs with per-policy relevance from draft stage
+        meta.policy_refs = enrichPolicyRefs(meta.policy_refs, pipelineResult.draft as unknown as Record<string, unknown>);
+
         // Enrich taxonomy refs with relevance scores from context injection
         if (ctx.nodeScores) {
           for (const ref of taxonomyRefs) {
@@ -2549,6 +2681,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             if (score != null) ref.relevance_score = score;
           }
         }
+
+        // Serialize source tracking for diagnostics display
+        const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
 
         addTranscriptEntry({
           type: 'opening',
@@ -2560,6 +2695,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             key_assumptions: meta.key_assumptions,
             my_claims: meta.my_claims,
             turn_symbols: meta.turn_symbols,
+            relevance_sources: relevanceSources,
           },
         });
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
@@ -2792,6 +2928,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
 
+        // Serialize source tracking for diagnostics display
+        const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
+
         addTranscriptEntry({
           type: 'statement',
           speaker: poverId,
@@ -2799,7 +2938,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           taxonomy_refs: taxonomyRefs,
           policy_refs: meta.policy_refs,
           addressing: 'user',
-          metadata: { ...meta },
+          metadata: { ...meta, relevance_sources: relevanceSources },
         });
 
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
@@ -2832,6 +2971,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   crossRespond: async () => {
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
+
+    // Guard: if openings completed but abort guard prevented phase transition, fix it now
+    if (activeDebate.phase === 'opening' && activeDebate.transcript.some(e => e.type === 'opening')) {
+      get().updatePhase('debate');
+    }
 
     _abortController = new AbortController();
     const isStillValid = createDebateGuard(get);
@@ -2873,8 +3017,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           maxTotalRounds: pacingPreset.maxTotalRounds,
           pacing: adaptiveStaging.pacing,
           dialecticalStyle: 'adversarial',
-          explorationExitThreshold: pacingPreset.explorationExit,
-          synthesisExitThreshold: pacingPreset.synthesisExit,
+          argumentationExitThreshold: pacingPreset.argumentationExit,
+          concludingExitThreshold: pacingPreset.concludingExit,
           allowEarlyTermination: true,
         };
         adaptiveStaging.phase_state = initPhaseState(config);
@@ -3175,17 +3319,21 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       }
 
+      // Serialize source tracking for diagnostics display
+      const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
+
       addTranscriptEntry({
         type: 'statement',
         speaker: responderPover,
         content: statement,
         taxonomy_refs: taxonomyRefs,
-        policy_refs: meta.policy_refs,
+        policy_refs: enrichPolicyRefs(meta.policy_refs, pipelineResult.draft as unknown as Record<string, unknown>),
         addressing: 'all',
         metadata: {
           cross_respond: true, round: crossRespondRound,
           focus_point: focusPoint, addressing_label: addressingLabel,
           moderator_trace: moderatorTrace, ...meta,
+          relevance_sources: relevanceSources,
           turn_validation_outcome: validation.outcome,
           turn_validation_score: validation.score,
           turn_validation_attempts: attempts.length,
@@ -3374,8 +3522,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           maxTotalRounds: pacingPreset.maxTotalRounds,
           pacing: postDebate.adaptive_staging.pacing,
           dialecticalStyle: 'adversarial',
-          explorationExitThreshold: asState.exploration_exit_threshold,
-          synthesisExitThreshold: asState.synthesis_exit_threshold,
+          argumentationExitThreshold: asState.argumentation_exit_threshold,
+          concludingExitThreshold: asState.concluding_exit_threshold,
           allowEarlyTermination: true,
         };
 
@@ -3440,9 +3588,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             movingAverage: () => null,
           },
           convergenceSignals: {
-            recycling_rate: { avg_self_overlap: lastConvSignal?.recycling_rate?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.recycling_rate?.semantic_max_similarity },
-            engagement_depth: { ratio: lastConvSignal?.engagement_depth?.ratio ?? 1 },
-            position_delta: { drift: lastConvSignal?.position_delta?.drift ?? 0 },
+            argument_redundancy: { avg_self_overlap: lastConvSignal?.argument_redundancy?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.argument_redundancy?.semantic_max_similarity },
+            dialectical_engagement: { ratio: lastConvSignal?.dialectical_engagement?.ratio ?? 1 },
+            position_drift: { drift: lastConvSignal?.position_drift?.drift ?? 0 },
             concession_opportunity: {
               outcome: lastConvSignal?.concession_opportunity?.outcome ?? 'none',
               strong_attacks_faced: lastConvSignal?.concession_opportunity?.strong_attacks_faced ?? 0,
@@ -3461,8 +3609,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             cruxResolution: (postDebate.crux_tracker ?? []).map(c => ({ id: c.id, state: c.state, support_polarity: c.support_polarity })),
             priorCruxClusters: advanced.prior_crux_clusters,
             regressionCount: advanced.regression_count,
-            explorationExitThreshold: advanced.exploration_exit_threshold,
-            synthesisExitThreshold: advanced.synthesis_exit_threshold,
+            argumentationExitThreshold: advanced.argumentation_exit_threshold,
+            concludingExitThreshold: advanced.concluding_exit_threshold,
           },
           extraction: {
             lastRoundStatus: 'ok',
@@ -3510,9 +3658,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         } else if (result.action === 'regress') {
           addTranscriptEntry({
             type: 'system', speaker: 'system',
-            content: `[Phase regression] synthesis → exploration: ${result.reason}. Threshold ratcheted to ${(newState.exploration_exit_threshold * 100).toFixed(0)}%.`,
+            content: `[Phase regression] concluding → argumentation: ${result.reason}. Threshold ratcheted to ${(newState.argumentation_exit_threshold * 100).toFixed(0)}%.`,
             taxonomy_refs: [],
-            metadata: { adaptive_regression: true, reason: result.reason, new_threshold: newState.exploration_exit_threshold },
+            metadata: { adaptive_regression: true, reason: result.reason, new_threshold: newState.argumentation_exit_threshold },
           });
         } else if (result.action === 'terminate') {
           addTranscriptEntry({
@@ -4318,9 +4466,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const convBlock = convSignals && convSignals.length > 0
         ? convSignals.slice(-5).map(s =>
             `Turn ${s.entry_id} (${POVER_INFO[s.speaker as Exclude<SpeakerId, 'user'>]?.label || s.speaker}): ` +
-            `move_disposition=${s.move_disposition?.ratio?.toFixed(2) ?? 'N/A'}, ` +
-            `engagement_depth=${s.engagement_depth?.ratio?.toFixed(2) ?? 'N/A'}, ` +
-            `recycling_rate=${s.recycling_rate?.max_self_overlap?.toFixed(2) ?? 'N/A'}`
+            `move_polarity=${s.move_polarity?.ratio?.toFixed(2) ?? 'N/A'}, ` +
+            `dialectical_engagement=${s.dialectical_engagement?.ratio?.toFixed(2) ?? 'N/A'}, ` +
+            `argument_redundancy=${s.argument_redundancy?.max_self_overlap?.toFixed(2) ?? 'N/A'}`
           ).join('\n')
         : undefined;
 
@@ -4506,6 +4654,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     });
   },
 }));
+
+// Expose store for flight recorder context provider (avoids circular import)
+((window as unknown as { __ZUSTAND_STORES__?: Record<string, unknown> }).__ZUSTAND_STORES__ ??= {} as Record<string, unknown>).debate = useDebateStore;
 
 /** Helper to get node label for fact check (standalone, no React hooks) */
 function getNodeLabelForFactCheck(nodeId: string): string {

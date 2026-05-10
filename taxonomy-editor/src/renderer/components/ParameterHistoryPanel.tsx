@@ -79,15 +79,15 @@ const SOURCE_LABELS: Record<string, string> = {
 
 function formatValue(v: number | number[] | Record<string, number> | null | undefined): string {
   if (v == null) return '—';
-  if (typeof v === 'number') return v.toFixed(v < 10 ? 2 : 0);
-  if (Array.isArray(v)) return `[${v.map(n => n.toFixed(2)).join(', ')}]`;
-  return Object.entries(v).map(([k, n]) => `${k.replace(/_/g, ' ')}: ${n.toFixed(2)}`).join(', ');
+  if (typeof v === 'number') return (v ?? 0).toFixed(v < 10 ? 2 : 0);
+  if (Array.isArray(v)) return `[${v.map(n => (n ?? 0).toFixed(2)).join(', ')}]`;
+  return Object.entries(v).map(([k, n]) => `${k.replace(/_/g, ' ')}: ${(n ?? 0).toFixed(2)}`).join(', ');
 }
 
 function formatShortValue(v: number | number[] | Record<string, number> | null | undefined): string {
   if (v == null) return '—';
-  if (typeof v === 'number') return v.toFixed(2);
-  if (Array.isArray(v)) return v.map(n => n.toFixed(1)).join('/');
+  if (typeof v === 'number') return (v ?? 0).toFixed(2);
+  if (Array.isArray(v)) return v.map(n => (n ?? 0).toFixed(1)).join('/');
   return `{${Object.keys(v).length}}`;
 }
 

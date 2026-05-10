@@ -34,7 +34,6 @@ function basePipelineResult(): TurnPipelineResult {
       target_claims: [],
       argument_sketch: '',
       anticipated_responses: [],
-      evidence_needed: [],
     },
     draft: {
       statement: 'AI safety requires careful empirical measurement of model capabilities before deployment to production environments.',

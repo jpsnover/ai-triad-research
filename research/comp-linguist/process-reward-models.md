@@ -128,7 +128,7 @@ Most PRM work uses neural verifiers (another LLM scoring each step). Our turn va
 | **Compute continuous turn quality score** as process reward signal | Medium | Small | Enriches calibration, informs phase transitions |
 | **Log turn rewards alongside convergence signals** for correlation analysis | Low | Trivial | Data for future PRM training |
 | **Explore ThinkPRM-style verification** for argument quality assessment | Low | Large | Could improve BDI scoring accuracy |
-| **Frame our existing system as PRM-adjacent** in the academic paper | Medium | Trivial | Positions our work in the PRM literature |
+| **Frame our existing system as PRM-adjacent** in the academic paper (t/400) | Medium | Trivial | Positions our work in the PRM literature. See also `dial-g2-multi-agent-debate-systems.md` §4 for MAD×QBAF×PRM intersection positioning. |
 | **Investigate SDRL for debate-trained models** | Research | Large | Future direction, requires training infra |
 
 ### The Most Actionable Item

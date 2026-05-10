@@ -9,12 +9,13 @@ import type {
   FlightRecorderEvent,
   FlightRecorderConfig,
   DumpHeader,
+  DumpContext,
   DumpTrigger,
   TriggerType,
 } from './types.js';
 import { DEFAULT_CONFIG } from './types.js';
 
-type ContextProvider = () => Partial<DumpHeader>;
+type ContextProvider = () => Record<string, unknown>;
 
 const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
@@ -105,7 +106,14 @@ export class FlightRecorder {
       ...(context && { context }),
     };
 
-    const ndjson = serializeDump(header, this.dictionary, events, trigger);
+    // Context record — captures app state at dump time
+    let dumpContext: DumpContext | undefined;
+    const ctx = this.contextProvider();
+    if (ctx && Object.keys(ctx).length > 0) {
+      dumpContext = { _type: 'context', ...ctx };
+    }
+
+    const ndjson = serializeDump(header, this.dictionary, events, trigger, dumpContext);
     return { ndjson, trigger };
   }
 
@@ -119,7 +127,6 @@ export class FlightRecorder {
 
   private buildHeader(): DumpHeader {
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const dynamicContext = this.contextProvider();
 
     return {
       _type: 'header',
@@ -131,7 +138,6 @@ export class FlightRecorder {
       ring_buffer_events_total: this.buffer.count,
       ring_buffer_events_retained: this.buffer.retained,
       events_lost: Math.max(0, this.buffer.count - this.buffer.capacity),
-      ...dynamicContext,
     };
   }
 }

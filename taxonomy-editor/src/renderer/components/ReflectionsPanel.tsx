@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { ReflectionEdit, ReflectionResult } from '../hooks/useDebateStore';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId } from '../types/debate';
+import { checkDolceCompliance, type ComplianceViolation } from '../utils/dolceCompliance';
 
 /** Scroll the debate transcript to the referenced evidence entry (e.g. "S13" or "Moderator Round 4"). */
 function scrollToEvidence(entry: string) {
@@ -109,6 +110,13 @@ function EditCard({ edit, pover, editIndex }: {
 
   const isModified = editedLabel !== edit.proposed_label
                   || editedDescription !== edit.proposed_description;
+
+  const complianceViolations = useMemo(
+    () => checkDolceCompliance(editing ? editedDescription : edit.proposed_description, edit.node_id || ''),
+    [editing, editedDescription, edit.proposed_description, edit.node_id],
+  );
+  const complianceErrors = complianceViolations.filter(v => v.severity === 'error');
+  const complianceWarnings = complianceViolations.filter(v => v.severity === 'warning');
 
   const handleReset = () => {
     setEditedLabel(edit.proposed_label);
@@ -278,6 +286,38 @@ function EditCard({ edit, pover, editIndex }: {
               {edit.proposed_description}
             </>
           )}
+        </div>
+      )}
+
+      {/* DOLCE compliance */}
+      {complianceViolations.length > 0 && (
+        <div style={{
+          fontSize: '0.65rem', padding: '4px 8px', marginBottom: 6,
+          background: complianceErrors.length > 0 ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.06)',
+          borderRadius: 4,
+          borderLeft: `3px solid ${complianceErrors.length > 0 ? 'rgba(239,68,68,0.4)' : 'rgba(245,158,11,0.4)'}`,
+        }}>
+          <div style={{ fontWeight: 700, fontSize: '0.6rem', color: complianceErrors.length > 0 ? '#ef4444' : '#f59e0b', marginBottom: 3 }}>
+            DOLCE Compliance ({complianceErrors.length} error{complianceErrors.length !== 1 ? 's' : ''}, {complianceWarnings.length} warning{complianceWarnings.length !== 1 ? 's' : ''})
+          </div>
+          {complianceViolations.map((v, i) => (
+            <div key={i} style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginBottom: 1 }}>
+              <span style={{ color: v.severity === 'error' ? '#ef4444' : '#f59e0b', fontWeight: 700, flexShrink: 0 }}>
+                {v.severity === 'error' ? '\u2717' : '\u26A0'}
+              </span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                <strong>{v.rule}</strong>: {v.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {complianceViolations.length === 0 && (
+        <div style={{
+          fontSize: '0.6rem', padding: '3px 8px', marginBottom: 6,
+          color: '#22c55e', fontWeight: 600,
+        }}>
+          {'\u2713'} DOLCE compliant
         </div>
       )}
 

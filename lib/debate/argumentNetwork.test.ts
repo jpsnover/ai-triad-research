@@ -2,7 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { processExtractedClaims, normalizeExtractedClaim } from './argumentNetwork.js';
+import { processExtractedClaims, normalizeExtractedClaim, beliefVerificationToStrength } from './argumentNetwork.js';
+import type { BeliefVerification } from './argumentNetwork.js';
 
 describe('BDI composite scoring', () => {
   const baseInput = {
@@ -73,6 +74,90 @@ describe('BDI composite scoring', () => {
     expect(node.scoring_method).not.toBe('bdi_composite');
   });
 
+  it('applies specificity proxy for Belief claims (t/455 Stage 1)', () => {
+    const cases = [
+      { specificity: 'precise', expected: 0.70 },
+      { specificity: 'general', expected: 0.50 },
+      { specificity: 'abstract', expected: 0.35 },
+    ];
+    for (const { specificity, expected } of cases) {
+      const result = processExtractedClaims({
+        ...baseInput,
+        claims: [{
+          text: `AI governance claim with ${specificity} specificity for belief scoring test`,
+          bdi_category: 'belief',
+          base_strength: 'reasoned',
+          specificity,
+          bdi_sub_scores: { evidence_quality: 'partial', source_reliability: 'partial', falsifiability: 'partial' },
+        }],
+      }, baseOptions);
+      expect(result.newNodes).toHaveLength(1);
+      const node = result.newNodes[0];
+      expect(node.scoring_method).toBe('belief_specificity');
+      expect(node.base_strength).toBe(expected);
+    }
+  });
+
+  it('uses ThinkPRM verification chain for Belief claims (t/455 Stage 3)', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'AI governance should prioritize safety mechanisms backed by clear empirical evidence',
+        bdi_category: 'belief',
+        base_strength: 'grounded',
+        specificity: 'precise',
+        belief_verification: {
+          evidence_cited: 'MIT 2025 audit on AI safety mechanisms',
+          source_located: 'found',
+          evidence_supports: 'strongly',
+          counter_evidence: 'none',
+        },
+      }],
+    }, baseOptions);
+    expect(result.newNodes).toHaveLength(1);
+    const node = result.newNodes[0];
+    // Verification chain takes priority over specificity proxy
+    expect(node.base_strength).toBeGreaterThan(0.7);
+  });
+
+  it('ThinkPRM verification penalizes contradicted claims', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'AI governance safety mechanisms have clear tradeoff acknowledgment with no downsides',
+        bdi_category: 'belief',
+        base_strength: 'grounded',
+        specificity: 'general',
+        belief_verification: {
+          evidence_cited: 'claims broad data support',
+          source_located: 'not_found',
+          evidence_supports: 'weakly',
+          counter_evidence: 'significant',
+        },
+      }],
+    }, baseOptions);
+    expect(result.newNodes).toHaveLength(1);
+    const node = result.newNodes[0];
+    // Low location + weak support + significant counter → low strength
+    expect(node.base_strength).toBeLessThan(0.3);
+  });
+
+  it('falls back to generic scoring for Beliefs without specificity', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'AI governance claim without specificity for belief fallback test',
+        bdi_category: 'belief',
+        base_strength: 'grounded',
+        bdi_sub_scores: { evidence_quality: 'yes', source_reliability: 'yes', falsifiability: 'yes' },
+      }],
+    }, baseOptions);
+    expect(result.newNodes).toHaveLength(1);
+    const node = result.newNodes[0];
+    // No specificity → no proxy, keeps generic scoring
+    expect(node.scoring_method).not.toBe('belief_specificity');
+  });
+
   it('guards against NaN sub-scores in Desire composite', () => {
     const result = processExtractedClaims({
       ...baseInput,
@@ -124,6 +209,63 @@ describe('BDI composite scoring', () => {
     expect(result.newNodes).toHaveLength(1);
     const node = result.newNodes[0];
     expect(node.scoring_method).toBe('bdi_criteria');
+  });
+});
+
+describe('beliefVerificationToStrength (t/455 Stage 3)', () => {
+  it('strong evidence → high strength', () => {
+    const s = beliefVerificationToStrength({
+      evidence_cited: 'MIT 2025 audit',
+      source_located: 'found',
+      evidence_supports: 'strongly',
+      counter_evidence: 'none',
+    });
+    expect(s).toBeGreaterThanOrEqual(0.85);
+    expect(s).toBeLessThanOrEqual(0.95);
+  });
+
+  it('no source cited → low strength', () => {
+    const s = beliefVerificationToStrength({
+      evidence_cited: 'none',
+      source_located: 'no_source',
+      evidence_supports: 'weakly',
+      counter_evidence: 'none',
+    });
+    expect(s).toBeLessThan(0.35);
+  });
+
+  it('significant counter-evidence reduces strength', () => {
+    const strong = beliefVerificationToStrength({
+      evidence_cited: 'source A',
+      source_located: 'found',
+      evidence_supports: 'strongly',
+      counter_evidence: 'none',
+    });
+    const countered = beliefVerificationToStrength({
+      evidence_cited: 'source A',
+      source_located: 'found',
+      evidence_supports: 'strongly',
+      counter_evidence: 'significant',
+    });
+    expect(countered).toBeLessThan(strong);
+    expect(strong - countered).toBeCloseTo(0.30, 1);
+  });
+
+  it('clamps output to [0.1, 0.95]', () => {
+    const worst: BeliefVerification = {
+      evidence_cited: 'none',
+      source_located: 'no_source',
+      evidence_supports: 'contradicts',
+      counter_evidence: 'significant',
+    };
+    const best: BeliefVerification = {
+      evidence_cited: 'strong source',
+      source_located: 'found',
+      evidence_supports: 'strongly',
+      counter_evidence: 'none',
+    };
+    expect(beliefVerificationToStrength(worst)).toBeGreaterThanOrEqual(0.1);
+    expect(beliefVerificationToStrength(best)).toBeLessThanOrEqual(0.95);
   });
 });
 

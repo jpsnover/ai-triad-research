@@ -345,6 +345,11 @@ export class DebateEngine {
       // Neutral evaluator: baseline checkpoint (after openings, before cross-respond)
       await this.runNeutralCheckpoint('baseline');
 
+      // Ensure phase transitions to 'debate' even if openings were partial
+      if (this.session.phase === 'opening') {
+        this.session.phase = 'debate';
+      }
+
       // Phase 3: Cross-respond rounds
       if (this.config.useAdaptiveStaging && this._adaptiveConfig && this._phaseState) {
         await this.runAdaptiveCrossRespond();
@@ -1321,6 +1326,7 @@ export class DebateEngine {
           source_entry_id: entry.id,
           taxonomy_refs: inode.taxonomy_refs,
           turn_number: 0,
+          extraction_confidence: inode.extraction_confidence,
         };
         // Embed doc i-nodes for AN-based taxonomy relevance scoring
         if (adapter.computeQueryEmbedding) {
