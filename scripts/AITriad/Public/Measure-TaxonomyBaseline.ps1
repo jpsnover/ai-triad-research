@@ -316,7 +316,7 @@ function Measure-TaxonomyBaseline {
     $StubDescs = 0     # Description == label (placeholder)
 
     foreach ($Node in $AllNodes.Values) {
-        $Desc = $Node.description
+        $Desc = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
         if (-not $Desc) { $StubDescs++; continue }
         $DescLengths += $Desc.Length
         if ($Desc.Length -lt 50) { $ShortDescs++ }

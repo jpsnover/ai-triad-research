@@ -141,7 +141,7 @@ function Get-ConflictEvolution {
                     id               = $N.id
                     pov              = $NodePovMap[$NId]
                     label            = $N.label
-                    description      = $N.description
+                    description      = if ($N.PSObject.Properties['description']) { $N.description } else { '' }
                     graph_attributes = if ($N.PSObject.Properties['graph_attributes']) { $N.graph_attributes } else { $null }
                 }
             }
@@ -186,7 +186,7 @@ function Get-ConflictEvolution {
         $ConflictContext = [PSCustomObject][ordered]@{
             conflict_id      = $Conflict.claim_id
             claim_label      = $Conflict.claim_label
-            description      = $Conflict.description
+            description      = if ($Conflict.PSObject.Properties['description']) { $Conflict.description } else { '' }
             status           = $Conflict.status
             linked_nodes     = @($LinkedNodes)
             edges            = @($RelevantEdges)

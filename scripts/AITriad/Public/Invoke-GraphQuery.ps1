@@ -99,7 +99,7 @@ function Invoke-GraphQuery {
                 id          = $Node.id
                 pov         = $PovKey
                 label       = $Node.label
-                description = $Node.description
+                description = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
             }
             if ($Node.PSObject.Properties['category']) {
                 $NodeEntry['category'] = $Node.category
@@ -142,7 +142,7 @@ function Invoke-GraphQuery {
                     $ConflictData += [ordered]@{
                         claim_id             = $Conflict.claim_id
                         claim_label          = $Conflict.claim_label
-                        description          = $Conflict.description
+                        description          = if ($Conflict.PSObject.Properties['description']) { $Conflict.description } else { '' }
                         status               = $Conflict.status
                         linked_taxonomy_nodes = $Conflict.linked_taxonomy_nodes
                         instance_count       = @($Conflict.instances).Count

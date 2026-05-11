@@ -104,7 +104,7 @@ function Get-GraphNode {
             id               = $Node.id
             pov              = $NodePovMap[$CurrentId]
             label            = $Node.label
-            description      = $Node.description
+            description      = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
             graph_attributes = if ($Node.PSObject.Properties['graph_attributes']) { $Node.graph_attributes } else { $null }
             depth            = $CurrentDepth
         }

@@ -46,7 +46,7 @@ function Compare-Taxonomy {
                     $Nodes[$Node.id] = [PSCustomObject]@{
                         Id          = $Node.id
                         Label       = $Node.label
-                        Description = $Node.description
+                        Description = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
                         Category    = $Node.category
                         POV         = $Json.pov
                         SourceFile  = $File.Name

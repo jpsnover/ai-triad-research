@@ -392,7 +392,7 @@ Return JSON: {"claim_label": "$ClaimLabel", "verified": true/false, "refined_cla
                 $Entry = $script:TaxonomyData[$PovKey]
                 if ($Entry -and $Entry.PSObject.Properties['nodes'] -and $Entry.nodes) {
                     foreach ($Node in $Entry.nodes) {
-                        $NodeDescriptions[$Node.id] = "$($Node.label). $($Node.description)"
+                        $NodeDescriptions[$Node.id] = "$($Node.label). $(if ($Node.PSObject.Properties['description']) { $Node.description } else { '' })"
                     }
                 }
             }

@@ -354,8 +354,8 @@ function Invoke-EdgeDiscovery {
             id          = $Node.id
             pov         = $PovKey
             label       = $Node.label
-            description = $Node.description
         }
+        if ($Node.PSObject.Properties['description']) { $SourceContext['description'] = $Node.description }
         if ($Node.PSObject.Properties['category'])         { $SourceContext['category']        = $Node.category }
         if ($PovKey -eq 'situations' -and $Node.PSObject.Properties['interpretations']) {
             $SourceContext['interpretations'] = $Node.interpretations

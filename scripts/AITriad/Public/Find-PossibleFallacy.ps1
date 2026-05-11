@@ -215,7 +215,7 @@ function Find-PossibleFallacy {
                     id          = $Node.id
                     pov         = $PovKey
                     label       = $Node.label
-                    description = $Node.description
+                    description = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
                 }
                 if ($Node.PSObject.Properties['category']) {
                     $Entry['category'] = $Node.category
