@@ -13,6 +13,6 @@
     "rootDir": "../",
     "declaration": false
   },
-  "include": ["src/server/**/*", "../lib/ai-client/**/*", "../lib/search/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/server/**/*", "../lib/ai-client/**/*", "../lib/search/**/*", "../lib/flight-recorder/**/*"],
+  "exclude": ["node_modules", "dist", "../lib/**/*.test.ts"]
 }

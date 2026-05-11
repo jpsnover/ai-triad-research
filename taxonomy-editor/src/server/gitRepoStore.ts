@@ -26,6 +26,10 @@ import { getActiveTaxonomyDirName } from './fileIO';
 import { getCurrentUser } from './userContext';
 import { POV_KEYS } from '../../../lib/debate/types';
 import { getCredentials, getRepoSlug, githubFetch } from './githubAppAuth';
+import type { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder';
+
+let _recorder: FlightRecorder | null = null;
+export function setServerRecorder(r: FlightRecorder): void { _recorder = r; }
 
 const execFileP = promisify(execFile);
 
@@ -81,6 +85,8 @@ let lastInitResult: (InitResult | InitError) & { timestamp: string; attempt?: nu
 export function getLastInitResult() { return lastInitResult; }
 
 export async function initDataRepo(): Promise<InitResult | InitError> {
+  const initStart = Date.now();
+  _recorder?.record({ type: 'lifecycle', component: 'git', level: 'info', message: 'initDataRepo.start' });
   if (!isFeatureFlagEnabled()) {
     const r: InitResult = { ok: true, action: 'skipped', message: 'GIT_SYNC_ENABLED is not set.' };
     lastInitResult = { ...r, timestamp: new Date().toISOString() };
@@ -182,12 +188,14 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     await execFileP('git', ['branch', '-M', 'main'], opts);
 
     console.log(`[gitRepoStore] Data repo initialized successfully.`);
+    _recorder?.record({ type: 'lifecycle', component: 'git', level: 'info', message: 'initDataRepo.ok', duration_ms: Date.now() - initStart });
     const r: InitResult = { ok: true, action: 'initialized', message: `Initialized data repo from ${repoSlug}.` };
     lastInitResult = { ...r, timestamp: new Date().toISOString() };
     return r;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[gitRepoStore] initDataRepo failed: ${msg}`);
+    _recorder?.record({ type: 'system.error', component: 'git', level: 'error', message: 'initDataRepo.failed', error: { name: 'Error', message: msg }, duration_ms: Date.now() - initStart });
     const r: InitError = { ok: false, error: msg };
     lastInitResult = { ...r, timestamp: new Date().toISOString() };
     return r;
@@ -223,6 +231,9 @@ export function clearStaleLockFile(root?: string): boolean {
 // ── Low-level git exec ──
 
 async function git(args: string[]): Promise<string> {
+  const cmd = `git ${args.join(' ')}`;
+  const start = Date.now();
+  _recorder?.record({ type: 'lifecycle', component: 'git', level: 'debug', message: cmd });
   try {
     const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
     const { stdout } = await execFileP('git', args, {
@@ -231,13 +242,14 @@ async function git(args: string[]): Promise<string> {
       maxBuffer: 10 * 1024 * 1024, // 10 MB — large diffs
       env: gitEnv,
     });
+    _recorder?.record({ type: 'lifecycle', component: 'git', level: 'info', message: `${cmd} ok`, duration_ms: Date.now() - start });
     return stdout;
   } catch (err) {
     // Retry once after clearing lock files (common in containers
     // where a previous process was killed mid-operation).
     if (err instanceof Error && err.message.includes('index.lock')) {
-      console.warn(`[gitRepoStore] index.lock detected, force-clearing and retrying: git ${args.join(' ')}`);
-      // Force-remove regardless of age — we know no other git process should be running
+      _recorder?.record({ type: 'lifecycle', component: 'git', level: 'warn', message: `${cmd} — index.lock, retrying`, duration_ms: Date.now() - start });
+      console.warn(`[gitRepoStore] index.lock detected, force-clearing and retrying: ${cmd}`);
       const lockPath = path.join(getDataRoot(), '.git', 'index.lock');
       try { fs.unlinkSync(lockPath); } catch { /* already gone */ }
       const { stdout } = await execFileP('git', args, {
@@ -246,8 +258,11 @@ async function git(args: string[]): Promise<string> {
         maxBuffer: 10 * 1024 * 1024,
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
       });
+      _recorder?.record({ type: 'lifecycle', component: 'git', level: 'info', message: `${cmd} ok (retry)`, duration_ms: Date.now() - start });
       return stdout;
     }
+    const errMsg = err instanceof Error ? err.message : String(err);
+    _recorder?.record({ type: 'system.error', component: 'git', level: 'error', message: `${cmd} failed`, error: { name: 'Error', message: errMsg }, duration_ms: Date.now() - start });
     throw err;
   }
 }

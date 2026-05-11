@@ -26,6 +26,49 @@ import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from '
 import * as proxyTiers from './proxyTiers';
 import * as rateLimiter from './rateLimiter';
 import * as analytics from './analytics';
+import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder';
+
+// ── Server-side flight recorder ──
+const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
+serverRecorder.intern('component', 'server');
+serverRecorder.intern('component', 'git');
+serverRecorder.intern('component', 'data-pull');
+serverRecorder.intern('component', 'copy-status');
+serverRecorder.intern('component', 'auth');
+
+function getCopyStatusSync(): Record<string, unknown> {
+  try { return JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8')); }
+  catch { return { state: 'unknown' }; }
+}
+
+serverRecorder.setContextProvider(() => ({
+  server: {
+    version: SERVER_VERSION,
+    started_at: SERVER_START_TIME,
+    uptime_s: Math.round(process.uptime()),
+    node_version: process.version,
+    platform: process.platform,
+    arch: process.arch,
+  },
+  memory: {
+    rss_mb: Math.round(process.memoryUsage().rss / 1048576),
+    heap_used_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
+    heap_total_mb: Math.round(process.memoryUsage().heapTotal / 1048576),
+  },
+  data: {
+    data_root: getDataRoot(),
+    copy_status: getCopyStatusSync(),
+    git_initialized: fs.existsSync(path.join(getDataRoot(), '.git')),
+  },
+  environment: {
+    deploy_tag: process.env.DEPLOY_TAG ?? null,
+    auth_disabled: process.env.AUTH_DISABLED ?? null,
+    git_sync_enabled: process.env.GIT_SYNC_ENABLED ?? null,
+  },
+}));
+
+// Export for use in gitRepoStore
+export { serverRecorder };
 
 // ── Express-like micro-router (zero dependencies) ──
 
@@ -112,6 +155,11 @@ get('/health', (_req, res) => {
     arch: process.arch,
     dataRoot: getDataRoot(),
     memoryMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+    flightRecorder: {
+      eventsTotal: serverRecorder.buffer.count,
+      eventsRetained: serverRecorder.buffer.retained,
+      capacity: serverRecorder.buffer.capacity,
+    },
   });
 });
 
@@ -336,6 +384,7 @@ post('/api/data/pull', async (_req, res) => {
 
   const heartbeat = setInterval(() => { res.write('\n'); }, 15_000);
   const progress = (msg: string) => { res.write(`progress: ${msg}\n`); };
+  const pullStart = Date.now();
 
   try {
     const dataRoot = getDataRoot();
@@ -352,6 +401,7 @@ post('/api/data/pull', async (_req, res) => {
     });
 
     gitStore.clearStaleLockFile(dataRoot);
+    serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.start', data: { dataRoot } });
     console.log('[data-pull] Starting pull in', dataRoot);
     progress('Starting data update...');
 
@@ -386,16 +436,26 @@ post('/api/data/pull', async (_req, res) => {
     await runGit(['clean', '-fd']).catch(() => { /* no untracked files */ });
 
     progress('Fetching updates from GitHub...');
+    serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_start' });
     console.log('[data-pull] Fetching origin...');
+    const fetchStart = Date.now();
     await runGit(['fetch', 'origin'], 600_000);
+    serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_ok', duration_ms: Date.now() - fetchStart });
+
     progress('Applying updates...');
+    serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_start' });
     console.log('[data-pull] Resetting to origin/main...');
+    const resetStart = Date.now();
     await runGit(['reset', '--hard', 'origin/main'], 600_000);
+    serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_ok', duration_ms: Date.now() - resetStart });
+
     console.log('[data-pull] Success');
+    serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.ok', duration_ms: Date.now() - pullStart });
     res.write(JSON.stringify({ success: true, message: 'Data updated.' }) + '\n');
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[data-pull] FAILED:', msg);
+    serverRecorder.record({ type: 'system.error', component: 'data-pull', level: 'error', message: 'pull.failed', error: { name: 'Error', message: msg }, duration_ms: Date.now() - pullStart });
     res.write(JSON.stringify({ success: false, message: msg }) + '\n');
   } finally {
     clearInterval(heartbeat);
@@ -581,11 +641,26 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
   } catch (err) { error(res, String(err)); }
 });
 
+// Server-side flight recorder dump
+post('/api/flight-recorder/server-dump', (_req, res) => {
+  try {
+    const { ndjson } = serverRecorder.buildDump('manual');
+    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    fs.mkdirSync(dumpDir, { recursive: true });
+    const ts = new Date().toISOString().replace(/:/g, '-');
+    const filename = `server-flight-recorder-${ts}.jsonl`;
+    const filePath = path.join(dumpDir, filename);
+    fs.writeFileSync(filePath, ndjson, 'utf-8');
+    console.log(`[flight-recorder] Server dump written: ${filePath}`);
+    json(res, { filePath, filename });
+  } catch (err) { error(res, String(err)); }
+});
+
 get('/api/flight-recorder/download/:filename', (req, res) => {
   try {
     const filename = decodeURIComponent(param(req, 'filename', '/api/flight-recorder/download/:filename'));
-    // Sanitize: only allow flight-recorder-*.jsonl filenames
-    if (!/^flight-recorder-.+\.jsonl$/.test(filename)) {
+    // Sanitize: allow flight-recorder-*.jsonl and server-flight-recorder-*.jsonl
+    if (!/^(server-)?flight-recorder-.+\.jsonl$/.test(filename)) {
       error(res, 'Invalid filename', 400);
       return;
     }
@@ -1684,6 +1759,15 @@ function shutdown(signal: string) {
   isShuttingDown = true;
   console.log(`[server] Received ${signal}, shutting down gracefully...`);
 
+  // Dump server flight recorder on shutdown
+  try {
+    serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: `Shutdown: ${signal}` });
+    const { ndjson } = serverRecorder.buildDump('manual');
+    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    fs.mkdirSync(dumpDir, { recursive: true });
+    fs.writeFileSync(path.join(dumpDir, `server-shutdown-${Date.now()}.jsonl`), ndjson);
+  } catch { /* best effort */ }
+
   // 1. Kill terminal PTY
   if (terminalProcess) {
     console.log('[server] Terminating PTY process');
@@ -1713,9 +1797,31 @@ function shutdown(signal: string) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+// Auto-dump server recorder on uncaught errors
+process.on('uncaughtException', (err) => {
+  try {
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'fatal', message: err.message, error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) } });
+    const { ndjson } = serverRecorder.buildDump('uncaught_error', { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) });
+    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    fs.mkdirSync(dumpDir, { recursive: true });
+    fs.writeFileSync(path.join(dumpDir, `server-crash-${Date.now()}.jsonl`), ndjson);
+  } catch { /* best effort */ }
+  console.error('[server] Uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? reason : new Error(String(reason));
+  serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: err.message, error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) } });
+});
+
 // ── Start ──
 
+// Wire server recorder to gitRepoStore
+gitStore.setServerRecorder(serverRecorder);
+
 server.listen(PORT, () => {
+  serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch } });
   console.log(`[server] Taxonomy Editor running at http://localhost:${PORT}`);
   console.log(`[server] Data root: ${getDataRoot()}`);
 
