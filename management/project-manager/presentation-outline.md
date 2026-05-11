@@ -40,13 +40,13 @@ This creates a very difficult world for three groups:
 - **Journalists** who must explain a debate where the vocabulary itself is weaponized
 - **Academics** who must synthesize across traditions that refuse to share terminology
 
-They needed a psycho-technology — a way of processing information that enables them to comprehend what is truly being said. To see where there is agreement, where there is disagreement, and when there is disagreement, what *type* of disagreement is it?
+They needed epistemic infrastructure — a way of structuring information that enables them to comprehend what is truly being said. To see where there is agreement, where there is disagreement, and when there is disagreement, what *type* of disagreement is it?
 
 - Can it be resolved with **clarity of language**? (definitional)
 - Can it be resolved by **gathering critical data**? (empirical)
 - Or is it a **conflict over values** where tradeoffs are needed? (normative)
 
-I called that psycho-technology the **AI Rosetta Stone**.
+I called that epistemic infrastructure the **AI Rosetta Stone**.
 
 ---
 
@@ -308,7 +308,7 @@ I need your help.
 - **Journalists** — people covering AI policy who are drowning in contradictory expert claims. Can this tool help them identify the real fault lines versus manufactured ones? Can the steelman feature help them represent positions fairly?
 - **Academics** — researchers studying AI governance, computational argumentation, or multi-stakeholder deliberation. Can this tool serve as a research instrument? Can the calibrated, auditable pipeline meet the evidentiary standards of your field?
 
-The hypothesis is that computational dialectics can serve as a psycho-technology — an AI Rosetta Stone — that helps these professionals do their jobs better. But that hypothesis needs testing by the people who would actually use it.
+The hypothesis is that computational dialectics can serve as epistemic infrastructure — an AI Rosetta Stone — that helps these professionals do their jobs better. But that hypothesis needs testing by the people who would actually use it.
 
 If you know someone who should see this, please introduce us.
 

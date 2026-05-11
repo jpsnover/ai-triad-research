@@ -1,10 +1,10 @@
-# The AI Rosetta Stone as Psycho-Technology: Engineering Relevance and Salience to Harvest Wisdom
+# The AI Rosetta Stone as Epistemic Infrastructure: Engineering Relevance and Salience to Harvest Wisdom
 
 ## The Argument
 
-A psycho-technology is a tool that operates on cognition itself — not a device that moves atoms but one that restructures how minds process meaning. Writing, the Socratic method, double-entry bookkeeping, the scientific method, formal logic — these are all psycho-technologies. They don't contain knowledge; they create the conditions under which knowledge becomes wisdom.
+Epistemic infrastructure is the set of structures, conventions, and tools that shape how communities produce, test, and transmit knowledge. Writing systems, the scientific method, double-entry bookkeeping, common law precedent, peer review — these are all epistemic infrastructure. They don't contain knowledge; they create the conditions under which knowledge becomes wisdom.
 
-The AI Rosetta Stone is a psycho-technology. Its purpose is not to store information about AI policy (a database could do that) or to generate arguments (a chatbot could do that). Its purpose is to **engineer the cognitive conditions** — specifically, relevance and salience — under which the wisdom embedded in AI policy discourse becomes accessible, testable, and actionable.
+The AI Rosetta Stone is epistemic infrastructure for multi-perspective policy analysis. Its purpose is not to store information about AI policy (a database could do that) or to generate arguments (a chatbot could do that). Its purpose is to **provide the structural conditions** — specifically, engineered relevance and salience — under which the wisdom embedded in AI policy discourse becomes accessible, testable, and actionable.
 
 ---
 
@@ -14,7 +14,7 @@ The AI Rosetta Stone is a psycho-technology. Its purpose is not to store informa
 
 **Salience** is the answer to "what stands out?" Even among relevant information, only a fraction is salient — worthy of attention at this moment, in this context, for this purpose. Salience is perspectival: what stands out to an accelerationist (scaling potential, capability unlock) is invisible to a skeptic (institutional capture, labor displacement), and vice versa. Without salience engineering, each perspective sees only its own figure against its own ground. The Rosetta Stone makes all three salience frames simultaneously visible.
 
-**Wisdom** is what remains after relevance and salience have done their work. It is not the accumulation of facts (that's information) or the organization of facts into patterns (that's knowledge). Wisdom is understanding which facts matter, why they matter differently to different people, where the irreducible disagreements lie, and what would have to change for those disagreements to resolve. Wisdom is the cognitive residue of structured adversarial inquiry.
+**Wisdom** is what remains after relevance and salience have done their work. It is not the accumulation of facts (that's information) or the organization of facts into patterns (that's knowledge). Wisdom is understanding which facts matter, why they matter differently to different people, where the irreducible disagreements lie, and what would have to change for those disagreements to resolve. Wisdom is the epistemic residue of structured adversarial inquiry.
 
 ---
 
@@ -32,7 +32,7 @@ This matters because different kinds of claims are relevant in different ways. Y
 
 BDI is the coarse decomposition. Within it, each node carries a finer-grained `epistemic_type` — empirical claim, normative prescription, strategic recommendation, predictive, definitional, or interpretive lens — that tells debate agents *how* to argue. An empirical claim demands evidence; a normative prescription demands coherence with stated values; a strategic recommendation demands feasibility analysis; a definitional claim demands terminological precision. Each node also carries its key `assumes` — the unstated premises it depends on — giving opponents pre-identified attack surfaces for UNDERCUT moves. These metadata layers turn each taxonomy node from a static description into an actionable argumentative resource.
 
-This is psycho-technology in its purest form: it restructures how the reader perceives an argument, making visible the *kind* of disagreement that would otherwise be collapsed into "I disagree."
+This is epistemic infrastructure at its most fundamental: it structures how the reader perceives an argument, making visible the *kind* of disagreement that would otherwise be collapsed into "I disagree."
 
 ### Three-POV Structure: Engineering Perspectival Salience
 
@@ -56,7 +56,7 @@ This is relevance engineering through argumentation: the system computes what ma
 
 ### Adversarial Debate: The Socratic Engine
 
-The debate system implements the oldest psycho-technology for wisdom: structured dialectic. Socrates didn't possess wisdom; he created the *conditions* under which wisdom could emerge — by asking questions, testing assumptions, and forcing interlocutors to make their reasoning explicit.
+The debate system implements the oldest epistemic infrastructure for wisdom: structured dialectic. Socrates didn't possess wisdom; he created the *conditions* under which wisdom could emerge — by asking questions, testing assumptions, and forcing interlocutors to make their reasoning explicit.
 
 The AI Rosetta Stone does this computationally. Three agents with genuinely different worldviews — not just different prompts, but different structured taxonomies, different BDI profiles, different salience frames — engage each other under formal rules:
 
@@ -65,7 +65,7 @@ The AI Rosetta Stone does this computationally. Three agents with genuinely diff
 - **Crux identification** surfaces the pivot points — the specific factual or conceptual claims that, if resolved, would change both sides' positions
 - **Sycophancy detection** guards against false consensus — wisdom requires genuine disagreement, not accommodation
 
-The debate is not trying to determine who is "right." It is engineering the conditions under which the *structure* of the disagreement becomes visible. Where do these perspectives genuinely conflict? Where do they agree without realizing it? What would have to be true for one side to update?
+The debate is not trying to determine who is "right." It is providing the epistemic conditions under which the *structure* of the disagreement becomes visible. Where do these perspectives genuinely conflict? Where do they agree without realizing it? What would have to be true for one side to update?
 
 ### Cruxes: Distilled Relevance
 
@@ -113,11 +113,11 @@ The system doesn't resolve which language is "correct." It makes all three legib
 
 ---
 
-## The Psycho-Technology Lineage
+## The Epistemic Infrastructure Lineage
 
-The AI Rosetta Stone inherits from a lineage of cognitive restructuring tools:
+The AI Rosetta Stone inherits from a lineage of epistemic infrastructure:
 
-| Psycho-Technology | What It Engineers | What It Harvests |
+| Infrastructure | What It Engineers | What It Harvests |
 |---|---|---|
 | **Socratic dialectic** | Assumption visibility | Examined beliefs |
 | **Scientific method** | Falsifiability | Reliable empirical knowledge |
@@ -127,13 +127,13 @@ The AI Rosetta Stone inherits from a lineage of cognitive restructuring tools:
 | **Peer review** | Adversarial scrutiny | Validated findings |
 | **AI Rosetta Stone** | Multi-perspectival relevance and salience | Policy wisdom through structured adversarial inquiry |
 
-Each technology in this lineage shares a property: it doesn't contain wisdom but creates the **conditions** under which wisdom can emerge. The scientific method doesn't know any facts — it structures how facts are tested. The Socratic method doesn't hold any truths — it structures how assumptions are examined. The AI Rosetta Stone doesn't hold any policy positions — it structures how competing perspectives are made legible, tested against each other, and refined through adversarial engagement.
+Each entry in this lineage shares a property: it doesn't contain wisdom but creates the **conditions** under which wisdom can emerge. The scientific method doesn't know any facts — it structures how facts are tested. The Socratic method doesn't hold any truths — it structures how assumptions are examined. The AI Rosetta Stone doesn't hold any policy positions — it structures how competing perspectives are made legible, tested against each other, and refined through adversarial engagement.
 
 ---
 
 ## The Claim, Precisely
 
-The AI Rosetta Stone is a psycho-technology that:
+The AI Rosetta Stone is epistemic infrastructure that:
 
 1. **Engineers relevance** by decomposing claims into their epistemic types (BDI), computing argument strength through formal argumentation (QBAF), and distilling discourse into its most consequential points (cruxes)
 
@@ -145,4 +145,4 @@ The result is not a database of AI policy positions (that's information). It's n
 
 ---
 
-*Drafted: 2026-05-06 · Updated: 2026-05-09 · Computational Linguist · AI Triad Research*
+*Drafted: 2026-05-06 · Reframed: 2026-05-11 · Computational Linguist · AI Triad Research*

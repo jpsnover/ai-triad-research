@@ -271,7 +271,7 @@ for i, (t, desc, color) in enumerate(types):
 
 # AI Rosetta Stone
 add_textbox(slide, Inches(0.8), Inches(5.8), Inches(11.5), Inches(1.2),
-            'They needed a psycho-technology — a way of processing information that enables\n'
+            'They needed epistemic infrastructure — a way of structuring information that enables\n'
             'them to comprehend what is truly being said.\n'
             'I called it the AI Rosetta Stone.',
             font_size=20, color=DARK_TEXT, alignment=PP_ALIGN.CENTER)
