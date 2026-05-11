@@ -15,13 +15,15 @@ import {
   getFileDiff,
   discardFile,
   discardAll,
-  createPullRequest,
-  resync,
+  createPullRequestTracked,
+  resyncTracked,
+  discardAllTracked,
   type UnsyncedFile,
   type SyncStatus,
   type ResyncMode,
 } from '../utils/syncApi';
 import { RebaseConflictModal } from './RebaseConflictModal';
+import { GitProgressBanner } from './GitProgressBanner';
 
 interface Props {
   open: boolean;
@@ -116,7 +118,7 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
     if (!confirm(`Discard ALL ${files.length} local changes and reset to main? This cannot be undone.`)) return;
     setBusy('ALL');
     try {
-      await discardAll();
+      await discardAllTracked();
       await refreshFiles();
       onChanged();
     } finally {
@@ -148,6 +150,8 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
           </div>
           <button className="btn btn-ghost" onClick={onClose} aria-label="Close">×</button>
         </div>
+
+        <GitProgressBanner />
 
         <div className="unsynced-drawer-actions">
           <button
@@ -341,7 +345,7 @@ function CreatePrDialog({ files, status, onCancel, onDone, onError }: CreatePrDi
   const submit = async () => {
     setSubmitting(true);
     try {
-      const res = await createPullRequest({ title: title.trim() || undefined, body });
+      const res = await createPullRequestTracked({ title: title.trim() || undefined, body });
       const msg = res.created
         ? `Opened PR #${res.number}. ${res.url}`
         : `Updated PR #${res.number}. ${res.url}`;
@@ -408,7 +412,7 @@ function ResyncDialog({ status, hasLocalChanges, onCancel, onDone, onConflicts, 
   const run = async (mode: ResyncMode) => {
     setSubmitting(mode);
     try {
-      const res = await resync(mode);
+      const res = await resyncTracked(mode);
       if (res.conflicts) { onConflicts(res.message); return; }
       await onDone(res.message);
     } catch (err) {

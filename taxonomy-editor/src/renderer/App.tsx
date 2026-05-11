@@ -27,6 +27,8 @@ import { CruxesTab } from './components/CruxesTab';
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { initAnalytics } from './lib/analyticsEmitter';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { GitProgressBanner } from './components/GitProgressBanner';
+import { pullDataTracked } from './utils/syncApi';
 
 // Build fingerprint — changes every build to verify deployment
 const BUILD_FINGERPRINT = `build-${Date.now()}`;
@@ -202,7 +204,9 @@ function MainApp() {
     setPulling(true);
     setPullResult(null);
     try {
-      const result = await api.pullDataUpdates() as { success: boolean; message: string };
+      const result = await pullDataTracked(
+        () => api.pullDataUpdates() as Promise<{ success: boolean; message: string }>,
+      );
       if (result.success) {
         setPullResult('Updated successfully. Reloading...');
         setDataUpdate(null);
@@ -352,6 +356,7 @@ function MainApp() {
           </span>
         </div>
       )}
+      <GitProgressBanner />
       {/* Data update banner */}
       {dataUpdate && (
         <div

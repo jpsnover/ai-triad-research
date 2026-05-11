@@ -1897,10 +1897,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
   useEffect(() => {
     const unsub = api.onDiagnosticsStateUpdate((state) => {
-      const s = state as { debate: DebateSession | null; selectedEntry: string | null };
+      const s = state as { debate: DebateSession | null; selectedEntry: string | null; forceSelect?: boolean };
       setDebate(s.debate);
-      // Only sync selectedEntry from main window if the user hasn't locally navigated
-      if (!localOverride) {
+      // Force-select overrides local navigation (e.g. "Diagnose" button on a turn card)
+      if (s.forceSelect && s.selectedEntry) {
+        setSelectedEntry(s.selectedEntry);
+        setOverviewTab('transcript');
+        setLocalOverride(false);
+      } else if (!localOverride) {
         setSelectedEntry(s.selectedEntry);
       }
     });

@@ -45,9 +45,11 @@ import {
   missingArgumentsPrompt,
   taxonomyRefinementPrompt,
   reflectionPrompt,
+  dolceComplianceRetryPrompt,
   midDebateGapPrompt,
   crossCuttingNodePrompt,
 } from '../prompts/debate';
+import { checkDolceCompliance } from '../utils/dolceCompliance';
 import {
   generateId,
   nowISO,
@@ -1719,7 +1721,7 @@ interface DebateStore {
   clearWarnings: () => void;
   cancelDebate: () => void;
   toggleDiagnostics: () => void;
-  selectDiagEntry: (entryId: string | null) => void;
+  selectDiagEntry: (entryId: string | null, force?: boolean) => void;
   setDiagPopoutOpen: (open: boolean) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
@@ -1867,12 +1869,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
-  selectDiagEntry: (entryId) => {
+  selectDiagEntry: (entryId, force) => {
     set({ selectedDiagEntry: entryId });
     // Broadcast to popout diagnostics window
     try {
       const debate = get().activeDebate;
-      api.sendDiagnosticsState({ debate, selectedEntry: entryId });
+      api.sendDiagnosticsState({ debate, selectedEntry: entryId, forceSelect: !!force });
     } catch { /* popout may not exist */ }
   },
 
@@ -4519,6 +4521,35 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           evidence_entries: Array.isArray(e.evidence_entries) ? e.evidence_entries : [],
           status: 'pending' as const,
         }));
+
+        // DOLCE compliance retry — fix non-compliant descriptions up to 3 times
+        for (let ei = 0; ei < edits.length; ei++) {
+          const edit = edits[ei];
+          const MAX_DOLCE_RETRIES = 3;
+          for (let attempt = 1; attempt <= MAX_DOLCE_RETRIES; attempt++) {
+            const violations = checkDolceCompliance(edit.proposed_description, edit.node_id || '');
+            const errors = violations.filter(v => v.severity === 'error');
+            if (errors.length === 0) break;
+            if (!isStillValid()) return;
+
+            set({ debateActivity: `${info.label}: fixing DOLCE compliance (attempt ${attempt}/${MAX_DOLCE_RETRIES})…` });
+            try {
+              const retryPrompt = dolceComplianceRetryPrompt(edit, violations, attempt);
+              const { text: retryText } = await api.generateText(retryPrompt, model, 30_000);
+              const fixed = parseAIJson<{
+                proposed_description?: string;
+                proposed_label?: string;
+              }>(retryText);
+              if (fixed?.proposed_description) {
+                edit.proposed_description = fixed.proposed_description;
+                if (fixed.proposed_label) edit.proposed_label = fixed.proposed_label;
+              }
+            } catch (retryErr) {
+              console.warn(`[debate] DOLCE retry ${attempt} failed for edit ${ei}:`, retryErr);
+              break;
+            }
+          }
+        }
 
         results.push({
           pover: povKey,

@@ -272,3 +272,63 @@ export async function setGithubCredentials(repo: string, token: string): Promise
 export async function clearGithubCredentials(): Promise<{ ok: boolean; configured: boolean }> {
   return postJson('/api/sync/credentials', { clear: true });
 }
+
+// ── Progress-tracked wrappers ──
+//
+// These call the same endpoints but drive `useGitProgress` so the
+// `<GitProgressBanner>` renders automatically.
+
+import { useGitProgress } from '../hooks/useGitProgress';
+
+async function tracked<T>(
+  operation: import('../hooks/useGitProgress').GitOperation,
+  fn: (stepOp: (idx: number) => void) => Promise<T>,
+): Promise<T> {
+  const store = useGitProgress.getState();
+  store.startOp(operation);
+  try {
+    const result = await fn(store.stepOp);
+    store.completeOp();
+    return result;
+  } catch (err) {
+    store.failOp(err instanceof Error ? err.message : String(err));
+    throw err;
+  }
+}
+
+export function createPullRequestTracked(opts: { title?: string; body?: string }): Promise<CreatePrSuccess> {
+  return tracked('create-pr', async (step) => {
+    step(0); // Committing changes...
+    step(1); // Pushing branch...
+    // The server does commit+push+PR in a single call — we advance to step 2
+    // immediately since we can't observe the server's internal progress.
+    step(2);
+    return createPullRequest(opts);
+  });
+}
+
+export function resyncTracked(mode: ResyncMode): Promise<ResyncSuccess> {
+  return tracked('resync', async (step) => {
+    step(0); // Fetching from origin...
+    step(1); // Rebasing session branch...
+    const result = await resync(mode);
+    step(2); // Verifying state...
+    return result;
+  });
+}
+
+export function discardAllTracked(): Promise<void> {
+  return tracked('discard', async (step) => {
+    step(0); // Resetting working tree...
+    return discardAll();
+  });
+}
+
+export function pullDataTracked(pullFn: () => Promise<{ success: boolean; message: string }>): Promise<{ success: boolean; message: string }> {
+  return tracked('download', async (step) => {
+    step(0); // Fetching from GitHub...
+    const result = await pullFn();
+    step(1); // Updating local files...
+    return result;
+  });
+}

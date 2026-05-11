@@ -45,8 +45,8 @@ function dataRootHasGit(): boolean {
     const dataRoot = getDataRoot();
     const gitDir = path.join(dataRoot, '.git');
     if (!fs.existsSync(gitDir)) return false;
-    // The entrypoint writes .git-ready after cp -a + mkdir -p completes.
-    // If .git/ exists without .git-ready, the copy is still in progress.
+    // initDataRepo() writes .git-ready after a successful clone + setup.
+    // If .git/ exists without .git-ready, init hasn't completed yet.
     const readyMarker = path.join(dataRoot, '.git-ready');
     if (!fs.existsSync(readyMarker)) return false;
     return true;
@@ -186,6 +186,10 @@ export async function initDataRepo(): Promise<InitResult | InitError> {
     await execFileP('git', ['config', 'core.fileMode', 'false'], opts);
     await execFileP('git', ['checkout', '-f', 'HEAD'], opts);
     await execFileP('git', ['branch', '-M', 'main'], opts);
+
+    // Write the ready marker so dataRootHasGit() / isEnabled() recognise the repo.
+    // (The entrypoint no longer copies .git — initDataRepo owns the full lifecycle.)
+    fs.writeFileSync(path.join(dataRoot, '.git-ready'), new Date().toISOString(), 'utf-8');
 
     console.log(`[gitRepoStore] Data repo initialized successfully.`);
     _recorder?.record({ type: 'lifecycle', component: 'git', level: 'info', message: 'initDataRepo.ok', duration_ms: Date.now() - initStart });

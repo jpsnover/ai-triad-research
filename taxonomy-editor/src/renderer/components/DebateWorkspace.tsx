@@ -663,8 +663,8 @@ function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
   );
 }
 
-function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
-  entry: TranscriptEntry; statementId?: string; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
+function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, findCurrentIndex = -1, entryIndex, totalEntries }: {
+  entry: TranscriptEntry; statementId?: string; findQuery?: string; matchOffset?: number; findCurrentIndex?: number; entryIndex?: number; totalEntries?: number;
 }) {
   const color = speakerColor(entry.speaker);
   const isPover = entry.speaker !== 'system' && entry.speaker !== 'user';
@@ -673,7 +673,12 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   const setEntryDisplayTier = useDebateStore(s => s.setEntryDisplayTier);
   const askQuestion = useDebateStore(s => s.askQuestion);
   const debateGenerating = useDebateStore(s => s.debateGenerating);
+  const diagnosticsEnabled = useDebateStore(s => s.diagnosticsEnabled);
+  const toggleDiagnostics = useDebateStore(s => s.toggleDiagnostics);
+  const selectDiagEntry = useDebateStore(s => s.selectDiagEntry);
+  const deleteTranscriptEntries = useDebateStore(s => s.deleteTranscriptEntries);
   const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
+  const [deleteConfirm, setDeleteConfirm] = useState<'single' | 'after' | null>(null);
   const anNodeId = activeDebate?.argument_network?.nodes?.find(
     n => n.source_entry_id === entry.id
   )?.id ?? null;
@@ -683,10 +688,31 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   // Tier display logic (DT-3)
   const hasSummaries = entry.summaries != null;
   const activeTier = entry.display_tier ?? defaultTier;
-  const displayContent = hasSummaries && activeTier === 'brief' ? entry.summaries!.brief
-    : hasSummaries && activeTier === 'medium' ? entry.summaries!.medium
-    : entry.content;
-  const showTierPills = hasSummaries && ['opening', 'statement', 'fact-check'].includes(entry.type);
+  const isSubstantive = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
+  const showTierPills = isSubstantive;
+  let displayContent: string;
+  let isTruncated = false;
+  if (hasSummaries && activeTier === 'brief') {
+    displayContent = entry.summaries!.brief;
+  } else if (hasSummaries && activeTier === 'medium') {
+    displayContent = entry.summaries!.medium;
+  } else if (!hasSummaries && activeTier === 'brief' && isSubstantive) {
+    // Fallback: truncate to first 2 sentences
+    const sentences = entry.content.split(/(?<=[.!?])\s+/);
+    displayContent = sentences.slice(0, 2).join(' ');
+    isTruncated = sentences.length > 2;
+  } else if (!hasSummaries && activeTier === 'medium' && isSubstantive) {
+    // Fallback: truncate to first paragraph or ~500 chars
+    const paraBreak = entry.content.indexOf('\n\n');
+    if (paraBreak > 0 && paraBreak < 500) {
+      displayContent = entry.content.slice(0, paraBreak);
+    } else {
+      displayContent = entry.content.slice(0, 500);
+    }
+    isTruncated = displayContent.length < entry.content.length;
+  } else {
+    displayContent = entry.content;
+  }
 
   return (
     <div
@@ -733,7 +759,53 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
             {netDelta > 0 ? '▲' : '▼'} {netDelta > 0 ? '+' : ''}{netDelta.toFixed(2)} net
           </span>
         )}
+        {isPover && (
+          <button
+            className="debate-diagnose-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!diagnosticsEnabled) toggleDiagnostics();
+              // Small delay to let the diagnostics window open before selecting
+              setTimeout(() => selectDiagEntry(entry.id, true), diagnosticsEnabled ? 0 : 1200);
+            }}
+            title="Open diagnostics for this turn"
+          >
+            Diagnose
+          </button>
+        )}
+        {entryIndex != null && totalEntries != null && !deleteConfirm && (
+          <span className="debate-entry-delete-actions">
+            <button
+              className="debate-entry-delete-btn"
+              onClick={(e) => { e.stopPropagation(); setDeleteConfirm('single'); }}
+              title="Delete this entry"
+            >&times;</button>
+            {entryIndex < totalEntries - 1 && (
+              <button
+                className="debate-entry-delete-btn"
+                onClick={(e) => { e.stopPropagation(); setDeleteConfirm('after'); }}
+                title="Delete this and all entries after it"
+              >&times;&darr;</button>
+            )}
+          </span>
+        )}
       </div>
+      {deleteConfirm && (
+        <div className="debate-entry-delete-confirm">
+          <span>{deleteConfirm === 'single' ? 'Delete this entry?' : `Delete this and ${totalEntries! - entryIndex! - 1} entries after it?`}</span>
+          <button className="btn btn-sm btn-danger" onClick={async (e) => {
+            e.stopPropagation();
+            if (deleteConfirm === 'single') {
+              await deleteTranscriptEntries([entry.id]);
+            } else if (activeDebate) {
+              const idx = activeDebate.transcript.findIndex(e => e.id === entry.id);
+              if (idx >= 0) await deleteTranscriptEntries(activeDebate.transcript.slice(idx).map(e => e.id));
+            }
+            setDeleteConfirm(null);
+          }}>Yes</button>
+          <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null); }}>No</button>
+        </div>
+      )}
       {turnSymbols && turnSymbols.length > 0 && (
         <div className="debate-turn-symbols">
           {turnSymbols.map((s, i) => (
@@ -747,6 +819,13 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         {findQuery
           ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
           : <Markdown remarkPlugins={[remarkGfm]}>{displayContent}</Markdown>}
+        {isTruncated && (
+          <span
+            className="debate-tier-truncated"
+            onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, 'detailed'); }}
+            title="Click to show full content"
+          >... show full</span>
+        )}
       </div>
       <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={activeTier as DetailTier} />
       <EntryCommentBadge entryId={entry.id} />
@@ -2028,14 +2107,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     activeDebate, debateLoading, debateError, debateGenerating,
     runClarification, runOpeningStatements, saveDebate, compressOldTranscript,
     diagnosticsEnabled, toggleDiagnostics, selectedDiagEntry, selectDiagEntry,
-    diagPopoutOpen, setDiagPopoutOpen, defaultTier,
+    diagPopoutOpen, setDiagPopoutOpen, defaultTier, setDefaultTier,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateLoading: s.debateLoading, debateError: s.debateError, debateGenerating: s.debateGenerating,
       runClarification: s.runClarification, runOpeningStatements: s.runOpeningStatements, saveDebate: s.saveDebate, compressOldTranscript: s.compressOldTranscript,
       diagnosticsEnabled: s.diagnosticsEnabled, toggleDiagnostics: s.toggleDiagnostics, selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry,
       diagPopoutOpen: s.diagPopoutOpen, setDiagPopoutOpen: s.setDiagPopoutOpen,
-      defaultTier: s.responseLength,
+      defaultTier: s.responseLength, setDefaultTier: s.setResponseLength,
     }))
   );
   const { runSemanticSearch, setFindQuery: setStoreFindQuery, setFindMode: setStoreFindMode, setToolbarPanel } = useTaxonomyStore();
@@ -2207,9 +2286,18 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       const entry = activeDebate?.transcript.find(e => e.id === entryId);
       if (entry) {
         tier = (entry as any).display_tier ?? defaultTier ?? 'detailed';
-        const displayContent = entry.summaries && tier === 'brief' ? entry.summaries.brief
-          : entry.summaries && tier === 'medium' ? entry.summaries.medium
-          : entry.content;
+        const hasSums = entry.summaries != null;
+        const isSub = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
+        let displayContent: string;
+        if (hasSums && tier === 'brief') displayContent = entry.summaries!.brief;
+        else if (hasSums && tier === 'medium') displayContent = entry.summaries!.medium;
+        else if (!hasSums && tier === 'brief' && isSub) {
+          const sents = entry.content.split(/(?<=[.!?])\s+/);
+          displayContent = sents.slice(0, 2).join(' ');
+        } else if (!hasSums && tier === 'medium' && isSub) {
+          const pb = entry.content.indexOf('\n\n');
+          displayContent = pb > 0 && pb < 500 ? entry.content.slice(0, pb) : entry.content.slice(0, 500);
+        } else displayContent = entry.content;
         // Find the selectedText within the display content for accurate offsets
         const idx = displayContent.indexOf(selectedText);
         if (idx !== -1) {
@@ -2294,11 +2382,22 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         {onExport && (
           <ExportButtonInline onExport={onExport} />
         )}
+        <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
+          {(['brief', 'medium', 'detailed'] as const).map(tier => (
+            <button
+              key={tier}
+              className={`debate-tier-pill${defaultTier === tier ? ' debate-tier-pill-active' : ''}`}
+              onClick={() => setDefaultTier(tier)}
+              title={`Set all turns to ${tier}${tier === 'brief' ? ' (2-3 sentences)' : tier === 'medium' ? ' (key points)' : ' (full content)'}`}
+            >
+              {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
+            </button>
+          ))}
+        </span>
         <button
           className="btn btn-sm"
           onClick={triggerManualDump}
           title="Dump flight recorder (Ctrl+Alt+D)"
-          style={{ marginLeft: 'auto' }}
         >
           Dump
         </button>
@@ -2405,11 +2504,12 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           // Skip the clarification transcript card — the interactive ClarificationActions panel
           // below the transcript already shows the questions as clickable pills.
           if (entry.type === 'clarification') return null;
+          const isStatement = entry.type !== 'probing' && entry.type !== 'fact-check';
           const card = entry.type === 'probing'
             ? <ProbingCard key={entry.id} entry={entry} statementId={statementId} />
             : entry.type === 'fact-check'
             ? <FactCheckCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />
-            : <StatementCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} />;
+            : <StatementCard key={entry.id} entry={entry} statementId={statementId} findQuery={findQuery} matchOffset={matchOffset} findCurrentIndex={findCurrentIndex} entryIndex={idx} totalEntries={activeDebate.transcript.length} />;
           return (
             <div
               key={entry.id}
@@ -2417,7 +2517,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
               onClick={diagnosticsEnabled ? () => selectDiagEntry(entry.id) : undefined}
             >
               {card}
-              <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />
+              {!isStatement && <EntryDeleteControls entry={entry} totalEntries={activeDebate.transcript.length} entryIndex={idx} />}
             </div>
           );
         })}

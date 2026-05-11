@@ -3,10 +3,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getSyncDiagnostics, getSyncStatus, createPullRequest, resync, initDataRepo,
+  getSyncDiagnostics, getSyncStatus, createPullRequestTracked, resyncTracked, initDataRepo,
   setGithubCredentials, clearGithubCredentials,
   type SyncDiagnostics, type SyncStatus, type DiagnosticsFile, type EditCounts,
 } from '../utils/syncApi';
+import { GitProgressBanner } from './GitProgressBanner';
 
 interface SyncDiagnosticsDialogProps {
   open: boolean;
@@ -144,6 +145,8 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
             <button className="btn btn-ghost btn-sm" onClick={onClose}>&times;</button>
           </div>
         </div>
+
+        <GitProgressBanner />
 
         {fetchError && (
           <div className="sync-diag-error-banner">{fetchError}</div>
@@ -328,7 +331,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                 <button
                   className="btn btn-sm"
                   disabled={action.running || !diag.data_root_has_git}
-                  onClick={() => runAction('Fetch from origin', () => resync('fetch-only'))}
+                  onClick={() => runAction('Fetch from origin', () => resyncTracked('fetch-only'))}
                   title="Fetch latest commits from origin without changing local files"
                 >
                   {action.running && action.label === 'Fetch from origin' ? 'Fetching...' : 'Fetch from Origin'}
@@ -349,7 +352,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                     <button
                       className="btn btn-sm sync-diag-btn-danger"
                       disabled={action.running}
-                      onClick={() => { setConfirmReset(false); void runAction('Reset to origin/main', () => resync('reset-main')); }}
+                      onClick={() => { setConfirmReset(false); void runAction('Reset to origin/main', () => resyncTracked('reset-main')); }}
                     >
                       {action.running && action.label === 'Reset to origin/main' ? 'Resetting...' : 'Confirm Reset'}
                     </button>
@@ -374,7 +377,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                   onSubmit={async (title, body) => {
                     setAction({ running: true, label: 'Create Pull Request', error: null, success: null });
                     try {
-                      const result = await createPullRequest({ title, body });
+                      const result = await createPullRequestTracked({ title, body });
                       setAction({
                         running: false, label: '', error: null,
                         success: `PR #${result.number} ${result.created ? 'created' : 'updated'}: ${result.url}`,

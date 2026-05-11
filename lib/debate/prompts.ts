@@ -2841,6 +2841,63 @@ Confidence levels:
 - "low": A minor refinement based on a single exchange; reasonable people might disagree`;
 }
 
+export function dolceComplianceRetryPrompt(
+  edit: {
+    edit_type: string;
+    node_id: string | null;
+    category: string;
+    proposed_label: string;
+    proposed_description: string;
+    rationale: string;
+    confidence?: string;
+    evidence_entries?: string[];
+  },
+  violations: { rule: string; severity: string; message: string }[],
+  attempt: number,
+): string {
+  const violationLines = violations.map(v =>
+    `- [${v.severity.toUpperCase()}] ${v.rule}: ${v.message}`
+  ).join('\n');
+
+  return `You previously proposed this taxonomy edit:
+
+{
+  "edit_type": "${edit.edit_type}",
+  "node_id": ${edit.node_id ? `"${edit.node_id}"` : 'null'},
+  "category": "${edit.category}",
+  "proposed_label": "${edit.proposed_label}",
+  "proposed_description": ${JSON.stringify(edit.proposed_description)},
+  "rationale": ${JSON.stringify(edit.rationale)},
+  "confidence": "${edit.confidence || 'medium'}",
+  "evidence_entries": ${JSON.stringify(edit.evidence_entries || [])}
+}
+
+The proposed_description FAILED DOLCE genus-differentia compliance (attempt ${attempt} of 3).
+Violations found:
+${violationLines}
+
+FIX the proposed_description to resolve ALL violations above. The required format is exactly:
+  Line 1: "A [Belief|Desire|Intention] within [POV] discourse that [ONE distinguishing concept]."
+  Line 2: "Encompasses: [2-5 sub-themes as comma-separated list]."
+  Line 3: "Excludes: [1-3 neighboring concepts named neutrally]."
+
+Do NOT add "Qualified by:", "Note:", "However:", or any other sections.
+Do NOT use causal connectors (rendering, thereby, thus, therefore, contingent on) in the differentia.
+State WHAT the position IS, not WHY it is correct. ONE concept only in the differentia.
+
+Return ONLY the corrected JSON object for this single edit (no markdown, no code fences):
+{
+  "edit_type": "${edit.edit_type}",
+  "node_id": ${edit.node_id ? `"${edit.node_id}"` : 'null'},
+  "category": "${edit.category}",
+  "proposed_label": "${edit.proposed_label}",
+  "proposed_description": "CORRECTED description here",
+  "rationale": ${JSON.stringify(edit.rationale)},
+  "confidence": "${edit.confidence || 'medium'}",
+  "evidence_entries": ${JSON.stringify(edit.evidence_entries || [])}
+}`;
+}
+
 // ── Active Moderator Prompts ───────────────────────────────
 
 export function moderatorSelectionPrompt(
