@@ -293,6 +293,11 @@ post('/api/data/clone', async (_req, res, body) => {
 
 post('/api/data/check-updates', async (_req, res) => {
   try {
+    // Skip git operations while entrypoint copy is running
+    try {
+      const cs = JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8'));
+      if (cs.state !== 'complete') { json(res, { available: false, error: `Data copy in progress (${cs.copied ?? 0}/${cs.total ?? '?'})` }); return; }
+    } catch { /* no status file — not in container */ }
     const dataRoot = getDataRoot();
     const gitDir = path.join(dataRoot, '.git');
     if (!fs.existsSync(gitDir)) { json(res, { available: false, error: 'Not a git repo' }); return; }
@@ -315,6 +320,12 @@ post('/api/data/check-updates', async (_req, res) => {
 });
 
 post('/api/data/pull', async (_req, res) => {
+  // Skip git operations while entrypoint copy is running
+  try {
+    const cs = JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8'));
+    if (cs.state !== 'complete') { json(res, { ok: false, error: `Data copy in progress (${cs.copied ?? 0}/${cs.total ?? '?'})` }); return; }
+  } catch { /* no status file — not in container */ }
+
   // Stream heartbeats to prevent Azure Container Apps' Envoy proxy from
   // returning 504 "stream timeout" during long-running git operations.
   res.writeHead(200, {
