@@ -223,12 +223,30 @@ export function clearStaleLockFile(root?: string): boolean {
 // ── Low-level git exec ──
 
 async function git(args: string[]): Promise<string> {
-  const { stdout } = await execFileP('git', args, {
-    cwd: getDataRoot(),
-    timeout: GIT_TIMEOUT_MS,
-    maxBuffer: 10 * 1024 * 1024, // 10 MB — large diffs
-  });
-  return stdout;
+  try {
+    const { stdout } = await execFileP('git', args, {
+      cwd: getDataRoot(),
+      timeout: GIT_TIMEOUT_MS,
+      maxBuffer: 10 * 1024 * 1024, // 10 MB — large diffs
+    });
+    return stdout;
+  } catch (err) {
+    // Retry once after clearing lock files (common in containers
+    // where a previous process was killed mid-operation).
+    if (err instanceof Error && err.message.includes('index.lock')) {
+      console.warn(`[gitRepoStore] index.lock detected, force-clearing and retrying: git ${args.join(' ')}`);
+      // Force-remove regardless of age — we know no other git process should be running
+      const lockPath = path.join(getDataRoot(), '.git', 'index.lock');
+      try { fs.unlinkSync(lockPath); } catch { /* already gone */ }
+      const { stdout } = await execFileP('git', args, {
+        cwd: getDataRoot(),
+        timeout: GIT_TIMEOUT_MS,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      return stdout;
+    }
+    throw err;
+  }
 }
 
 async function gitSafe(args: string[]): Promise<{ ok: true; stdout: string } | { ok: false; error: string }> {
