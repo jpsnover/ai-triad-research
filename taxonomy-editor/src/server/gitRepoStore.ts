@@ -224,10 +224,12 @@ export function clearStaleLockFile(root?: string): boolean {
 
 async function git(args: string[]): Promise<string> {
   try {
+    const gitEnv = { ...process.env, GIT_TERMINAL_PROMPT: '0' };
     const { stdout } = await execFileP('git', args, {
       cwd: getDataRoot(),
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: 10 * 1024 * 1024, // 10 MB — large diffs
+      env: gitEnv,
     });
     return stdout;
   } catch (err) {
@@ -242,6 +244,7 @@ async function git(args: string[]): Promise<string> {
         cwd: getDataRoot(),
         timeout: GIT_TIMEOUT_MS,
         maxBuffer: 10 * 1024 * 1024,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
       });
       return stdout;
     }

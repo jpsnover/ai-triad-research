@@ -340,7 +340,7 @@ post('/api/data/pull', async (_req, res) => {
   try {
     const dataRoot = getDataRoot();
     const runGit = (args: string[], timeoutMs = 120_000): Promise<string> => new Promise((resolve, reject) => {
-      execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
+      execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }, (err, stdout, stderr) => {
         if (err) {
           console.error(`[data-pull] git ${args.join(' ')} failed:`, err.message, stderr);
           reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));
