@@ -19,6 +19,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 # System dependencies + build tools for native Node modules (node-pty)
 # Consolidated into a single apt-get to avoid stale package cache on a second invocation.
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     pandoc \
@@ -50,7 +51,8 @@ RUN python3 -m venv /opt/ml-env
 ENV PATH="/opt/ml-env/bin:$PATH"
 # Install typing-extensions from PyPI first — the PyTorch CPU index has
 # metadata inconsistency (underscore vs hyphen) that breaks pip 24+.
-RUN pip install --no-cache-dir typing-extensions>=4.10.0
+# hadolint ignore=DL3013
+RUN pip install --no-cache-dir "typing-extensions>=4.10.0"
 RUN pip install --no-cache-dir \
     torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu
 
