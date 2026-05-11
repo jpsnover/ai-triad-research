@@ -66,7 +66,7 @@ jobs:
           platforms: linux/amd64
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@v0.2.3
+        uses: aquasecurity/setup-trivy@v0.2.6
 
       - name: Scan image with Trivy
         continue-on-error: true
