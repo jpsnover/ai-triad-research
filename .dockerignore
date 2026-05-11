@@ -51,6 +51,10 @@ vitest.config.*
 **/AGENTS.md
 **/CLAUDE.md
 
+# Orca overlay repo (bare git repo — can be 50MB+)
+.orca-git/
+.orca-gitignore
+
 # Logs
 *.log
 npm-debug.log*

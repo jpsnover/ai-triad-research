@@ -96,6 +96,10 @@ GEMINI.local.md
 **/.factory/droids/
 tmp/
 
+# Orca overlay repo (private config tracked separately)
+.orca-git/
+.orca-gitignore
+
 # One-off audit/report artifacts
 judge-audit-report.json
 
