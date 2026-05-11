@@ -11,7 +11,7 @@
 
 import { create } from 'zustand';
 
-export type GitOperation = 'create-pr' | 'resync' | 'discard' | 'download' | 'push';
+export type GitOperation = 'create-pr' | 'resync' | 'discard' | 'download' | 'push' | 'init-repo' | 'fetch-origin' | 'reset-main';
 
 export interface GitProgress {
   active: boolean;
@@ -31,6 +31,9 @@ const STEP_SEQUENCES: Record<GitOperation, string[]> = {
   'discard':   ['Resetting working tree...'],
   'download':  ['Fetching from GitHub...', 'Updating local files...'],
   'push':      ['Pushing to remote...'],
+  'init-repo':    ['Cloning data repository...', 'Configuring working tree...', 'Verifying checkout...'],
+  'fetch-origin': ['Fetching from origin...', 'Updating refs...'],
+  'reset-main':   ['Fetching from origin...', 'Resetting to origin/main...', 'Verifying state...'],
 };
 
 interface GitProgressStore {

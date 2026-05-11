@@ -332,3 +332,32 @@ export function pullDataTracked(pullFn: () => Promise<{ success: boolean; messag
     return result;
   });
 }
+
+export function initDataRepoTracked(): Promise<{ ok: boolean; action?: string; message?: string; error?: string }> {
+  return tracked('init-repo', async (step) => {
+    step(0); // Cloning data repository...
+    step(1); // Configuring working tree...
+    const result = await initDataRepo();
+    step(2); // Verifying checkout...
+    return result;
+  });
+}
+
+export function fetchOriginTracked(): Promise<ResyncSuccess> {
+  return tracked('fetch-origin', async (step) => {
+    step(0); // Fetching from origin...
+    const result = await resync('fetch-only');
+    step(1); // Updating refs...
+    return result;
+  });
+}
+
+export function resetMainTracked(): Promise<ResyncSuccess> {
+  return tracked('reset-main', async (step) => {
+    step(0); // Fetching from origin...
+    step(1); // Resetting to origin/main...
+    const result = await resync('reset-main');
+    step(2); // Verifying state...
+    return result;
+  });
+}

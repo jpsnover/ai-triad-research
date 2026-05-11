@@ -3,7 +3,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getSyncDiagnostics, getSyncStatus, createPullRequestTracked, resyncTracked, initDataRepo,
+  getSyncDiagnostics, getSyncStatus, createPullRequestTracked, initDataRepoTracked,
+  fetchOriginTracked, resetMainTracked,
   setGithubCredentials, clearGithubCredentials,
   type SyncDiagnostics, type SyncStatus, type DiagnosticsFile, type EditCounts,
 } from '../utils/syncApi';
@@ -331,7 +332,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                 <button
                   className="btn btn-sm"
                   disabled={action.running || !diag.data_root_has_git}
-                  onClick={() => runAction('Fetch from origin', () => resyncTracked('fetch-only'))}
+                  onClick={() => runAction('Fetch from origin', () => fetchOriginTracked())}
                   title="Fetch latest commits from origin without changing local files"
                 >
                   {action.running && action.label === 'Fetch from origin' ? 'Fetching...' : 'Fetch from Origin'}
@@ -352,7 +353,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                     <button
                       className="btn btn-sm sync-diag-btn-danger"
                       disabled={action.running}
-                      onClick={() => { setConfirmReset(false); void runAction('Reset to origin/main', () => resyncTracked('reset-main')); }}
+                      onClick={() => { setConfirmReset(false); void runAction('Reset to origin/main', () => resetMainTracked()); }}
                     >
                       {action.running && action.label === 'Reset to origin/main' ? 'Resetting...' : 'Confirm Reset'}
                     </button>
@@ -363,7 +364,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                 <button
                   className="btn btn-sm"
                   disabled={action.running || diag.data_root_has_git}
-                  onClick={() => runAction('Initialize repo', () => initDataRepo())}
+                  onClick={() => runAction('Initialize repo', () => initDataRepoTracked())}
                   title={diag.data_root_has_git ? 'Repo already initialized' : 'Clone data repo from GitHub'}
                 >
                   {action.running && action.label === 'Initialize repo' ? 'Initializing...' : 'Initialize Repo'}
