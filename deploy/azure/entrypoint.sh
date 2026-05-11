@@ -51,22 +51,10 @@ mkdir -p "$DATA_LOCAL"
     if [ -d "$DATA_REMOTE" ] && [ "$(ls -A "$DATA_REMOTE" 2>/dev/null)" ]; then
         log "Background copy starting ($TOTAL_DIRS directories)..."
 
-        # Copy .git FIRST if sync enabled — it's tiny (436K blobless clone)
-        # and initDataRepo retries need it before the full data copy finishes.
-        if [ "$GIT_SYNC_ENABLED" = "1" ] && [ -d "$DATA_REMOTE/.git" ]; then
-            GIT_START=$(date +%s)
-            write_status "copying" ".git" 0 0
-            cp -a "$DATA_REMOTE/.git" "$DATA_LOCAL/.git" 2>/dev/null || true
-            # SMB doesn't copy empty dirs — git needs refs/heads etc.
-            mkdir -p "$DATA_LOCAL/.git/refs/heads" "$DATA_LOCAL/.git/refs/tags" \
-                     "$DATA_LOCAL/.git/refs/remotes/origin" "$DATA_LOCAL/.git/info"
-            # Remove stale lock files from previous container runs
-            rm -f "$DATA_LOCAL/.git/index.lock" "$DATA_LOCAL/.git/HEAD.lock"
-            # Signal that .git is ready for use
-            touch "$DATA_LOCAL/.git-ready"
-            GIT_SIZE=$(du -sh "$DATA_LOCAL/.git" 2>/dev/null | cut -f1)
-            log "Copied .git ($GIT_SIZE, $(($(date +%s) - GIT_START))s) [priority, .git-ready written]"
-        fi
+        # .git is NOT copied here — SMB doesn't preserve git filesystem
+        # semantics (empty dirs, permissions, symlinks), causing corrupted
+        # repos and hanging git operations. initDataRepo() handles git
+        # setup correctly by cloning to /tmp (local fs) then moving .git in.
 
         for dir in $COPY_DIRS; do
             if [ -d "$DATA_REMOTE/$dir" ]; then
@@ -87,7 +75,7 @@ mkdir -p "$DATA_LOCAL"
         log "Copying top-level files..."
         find "$DATA_REMOTE" -maxdepth 1 -type f -exec cp {} "$DATA_LOCAL/" \; 2>/dev/null || true
 
-        # .git already copied at the top (priority copy)
+        # .git handled by initDataRepo() on the server side
 
         COPY_END=$(date +%s)
         TOTAL_SIZE=$(du -sh "$DATA_LOCAL" 2>/dev/null | cut -f1)
