@@ -3159,6 +3159,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       intervention_move: selectionResult?.suggested_move ?? null,
       intervention_validated: engineValidation?.proceed ?? false,
       intervention_suppressed_reason: engineValidation?.suppressed_reason ?? null,
+      intervention_suppression_explanation: engineValidation?.suppression_explanation ?? null,
       intervention_target: selectionResult?.target_debater ?? null,
       trigger_reasoning: selectionResult?.trigger_reasoning ?? null,
       trigger_evidence: selectionResult?.trigger_evidence ?? null,

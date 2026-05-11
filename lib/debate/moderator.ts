@@ -382,12 +382,18 @@ export function validateRecommendation(
       validated_family: MOVE_TO_FAMILY[selection.suggested_move ?? 'PIN'],
       validated_target: selection.target_debater ?? selection.responder,
       suppressed_reason: 'engine_override',
+      suppression_explanation: !selection.intervene
+        ? 'Moderator chose not to intervene this round'
+        : !selection.suggested_move
+          ? 'No move type specified in moderator recommendation'
+          : 'No target debater specified in moderator recommendation',
     };
   }
 
   const move = selection.suggested_move;
   if (!ALL_MOVES.includes(move)) {
-    return suppress(move, selection.target_debater, 'engine_override');
+    return suppress(move, selection.target_debater, 'engine_override',
+      `Unknown move type "${move}" is not in the allowed set`);
   }
 
   const family = MOVE_TO_FAMILY[move];
@@ -404,28 +410,34 @@ export function validateRecommendation(
 
   // Cooldown check (Reconciliation and COMMIT exempt)
   if (family !== 'reconciliation' && move !== 'COMMIT' && state.rounds_since_last_intervention < state.required_gap) {
-    return suppress(move, selection.target_debater, 'cooldown_active');
+    const remaining = state.required_gap - state.rounds_since_last_intervention;
+    return suppress(move, selection.target_debater, 'cooldown_active',
+      `Cooldown active: ${remaining} turn${remaining !== 1 ? 's' : ''} remaining before next intervention (gap: ${state.required_gap})`);
   }
 
   // Phase check
   if (!isPhaseAppropriate(move, state.phase)) {
-    return suppress(move, selection.target_debater, 'phase_mismatch');
+    return suppress(move, selection.target_debater, 'phase_mismatch',
+      `${move} is not appropriate during the ${state.phase} phase`);
   }
 
   // P4: Block CHALLENGE in confrontation before round 4 — positions still being established
   if (move === 'CHALLENGE' && state.phase === 'confrontation' && state.round < 4) {
-    return suppress(move, selection.target_debater, 'phase_mismatch');
+    return suppress(move, selection.target_debater, 'phase_mismatch',
+      `CHALLENGE blocked in confrontation before round 4 — positions still being established (current round: ${state.round})`);
   }
 
   // Same-debater consecutive rule (Reconciliation exempt)
   if (state.last_target === selection.target_debater && family !== 'reconciliation') {
-    return suppress(move, selection.target_debater, 'same_debater_consecutive');
+    return suppress(move, selection.target_debater, 'same_debater_consecutive',
+      `${selection.target_debater} was already the target of the previous intervention — must alternate`);
   }
 
   // Burden cap: debater with cumulative burden > 1.5× average blocks high-burden moves
   const debaterBurden = state.burden_per_debater[selection.target_debater] ?? 0;
   if (state.avg_burden > 0 && debaterBurden > state.avg_burden * 1.5 && FAMILY_BURDEN_WEIGHT[family] > 0.5) {
-    return suppress(move, selection.target_debater, 'burden_cap');
+    return suppress(move, selection.target_debater, 'burden_cap',
+      `${selection.target_debater} burden (${debaterBurden.toFixed(1)}) exceeds 1.5× average (${(state.avg_burden * 1.5).toFixed(1)}) — high-burden ${family} move blocked`);
   }
 
   return {
@@ -436,13 +448,14 @@ export function validateRecommendation(
   };
 }
 
-function suppress(move: InterventionMove, target: SpeakerId, reason: EngineValidationResult['suppressed_reason']): EngineValidationResult {
+function suppress(move: InterventionMove, target: SpeakerId, reason: EngineValidationResult['suppressed_reason'], explanation?: string): EngineValidationResult {
   return {
     proceed: false,
     validated_move: move,
     validated_family: MOVE_TO_FAMILY[move],
     validated_target: target,
     suppressed_reason: reason,
+    suppression_explanation: explanation,
   };
 }
 

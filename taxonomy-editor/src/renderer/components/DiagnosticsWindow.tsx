@@ -124,7 +124,7 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
         <span style={{ color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
         <strong>Attempt {a.attempt}{a.attempt === 0 ? ' (original)' : ''}</strong>
         <OutcomeBadge outcome={v.outcome} />
-        <span style={{ color: 'var(--text-muted)' }}>score {(v.score ?? 0).toFixed(2)}</span>
+        <span style={{ color: 'var(--text-muted)' }}>score {(v.process_reward ?? 0).toFixed(2)}</span>
         <span style={{ color: 'var(--text-muted)' }}>{((a.response_time_ms ?? 0) / 1000).toFixed(1)}s</span>
         {v.judge_used && <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>judge: {v.judge_model}</span>}
       </div>
@@ -172,7 +172,7 @@ function sanitizeTurnValidation(trail: TurnValidationTrail): TurnValidationTrail
   return {
     final: {
       ...trail.final,
-      score: trail.final.score ?? 0,
+      process_reward: trail.final.process_reward ?? 0,
       dimensions: {
         schema: trail.final.dimensions?.schema ?? { pass: true, issues: [] },
         grounding: trail.final.dimensions?.grounding ?? { pass: true, issues: [] },
@@ -192,7 +192,7 @@ function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidationTrail
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <OutcomeBadge outcome={f.outcome} />
-        <span style={{ fontSize: '0.8rem' }}>score <strong>{(f.score ?? 0).toFixed(2)}</strong></span>
+        <span style={{ fontSize: '0.8rem' }}>score <strong>{(f.process_reward ?? 0).toFixed(2)}</strong></span>
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
           {trail.attempts.length} attempt{trail.attempts.length === 1 ? '' : 's'}
         </span>
@@ -988,6 +988,7 @@ interface ModeratorTraceData {
   health_score?: number; health_components?: Record<string, number>; health_trend?: number;
   intervention_recommended?: boolean; intervention_move?: string | null;
   intervention_validated?: boolean; intervention_suppressed_reason?: string | null;
+  intervention_suppression_explanation?: string | null;
   intervention_target?: string | null;
   trigger_reasoning?: string | null; trigger_evidence?: Record<string, unknown> | null;
   budget_remaining?: number; budget_total?: number;
@@ -1377,7 +1378,7 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
               </div>
               {trace.intervention_suppressed_reason && !trace.intervention_validated && (
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  Reason: {trace.intervention_suppressed_reason.replace(/_/g, ' ')}
+                  {trace.intervention_suppression_explanation || trace.intervention_suppressed_reason.replace(/_/g, ' ')}
                 </div>
               )}
               {trace.trigger_reasoning && (
@@ -3078,6 +3079,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               selection_prompt?: string; selection_response?: string;
               intervention_recommended?: boolean; intervention_move?: string | null;
               intervention_validated?: boolean; intervention_suppressed_reason?: string | null;
+              intervention_suppression_explanation?: string | null;
               intervention_target?: string | null; trigger_reasoning?: string | null;
             } | null;
             const suppressedIntervention = modTrace?.intervention_recommended && !modTrace.intervention_validated
@@ -3564,7 +3566,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               fontSize: '0.65rem', color: '#d97706', padding: '3px 8px', borderRadius: 4,
                               background: 'rgba(245, 158, 11, 0.1)', display: 'inline-block',
                             }}>
-                              Reason: {suppressedIntervention.intervention_suppressed_reason.replace(/_/g, ' ')}
+                              {suppressedIntervention.intervention_suppression_explanation || suppressedIntervention.intervention_suppressed_reason.replace(/_/g, ' ')}
                             </div>
                           )}
                           {suppressedIntervention.trigger_reasoning && (
@@ -3597,7 +3599,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
                       {turnValTrail && (
                         <Section
-                          title={`Turn Validation — ${turnValTrail.final.outcome} (score ${(turnValTrail.final.score ?? 0).toFixed(2)}, ${turnValTrail.attempts.length} attempt${turnValTrail.attempts.length === 1 ? '' : 's'})`}
+                          title={`Turn Validation — ${turnValTrail.final.outcome} (score ${(turnValTrail.final.process_reward ?? 0).toFixed(2)}, ${turnValTrail.attempts.length} attempt${turnValTrail.attempts.length === 1 ? '' : 's'})`}
                           defaultOpen
                         >
                           <TurnValidationSection trail={turnValTrail} />

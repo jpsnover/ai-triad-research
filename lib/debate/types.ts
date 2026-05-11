@@ -1493,6 +1493,7 @@ export interface EngineValidationResult {
   suppressed_reason?: 'budget_exhausted' | 'cooldown_active' | 'phase_mismatch'
     | 'same_debater_consecutive' | 'prerequisite_override' | 'burden_cap'
     | 'engine_override';
+  suppression_explanation?: string;
   prerequisite_applied?: string;
 }
 
