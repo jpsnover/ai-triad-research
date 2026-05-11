@@ -85,17 +85,29 @@ export function showDumpToast(opts: {
   toast.appendChild(title);
 
   if (opts.isWeb) {
-    // Web mode: clickable download link
+    // Web mode: fetch blob and trigger download (avoids proxy/auth issues with <a href>)
     const link = document.createElement('a');
     link.textContent = opts.filename;
-    link.href = `/api/flight-recorder/download/${encodeURIComponent(opts.filename)}`;
-    link.download = opts.filename;
     Object.assign(link.style, {
       color: 'var(--accent-color, #89b4fa)',
       textDecoration: 'underline',
       cursor: 'pointer',
       wordBreak: 'break-all',
     });
+    link.onclick = async (e) => {
+      e.preventDefault();
+      try {
+        const resp = await fetch(`/api/flight-recorder/download/${encodeURIComponent(opts.filename)}`);
+        if (!resp.ok) { link.textContent = `Download failed (${resp.status})`; return; }
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = opts.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) { link.textContent = `Download failed: ${err}`; }
+    };
     toast.appendChild(link);
   } else {
     // Electron mode: file path + Copy + Open buttons
