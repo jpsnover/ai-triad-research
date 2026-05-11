@@ -107,7 +107,6 @@ jobs:
         uses: aquasecurity/trivy-action@v0.31.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
-          version: 'v0.62.1'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
