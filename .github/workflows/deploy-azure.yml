@@ -21,11 +21,7 @@ on:
         required: false
         default: false
         type: boolean
-      enable_git_sync:
-        description: 'Enable GitHub data-sync feature (requires GH_* secrets set)'
-        required: false
-        default: true
-        type: boolean
+      # enable_git_sync removed — GitHub API-first mode is always on (STORAGE_MODE=github-api)
 
 permissions:
   contents: read
@@ -86,7 +82,7 @@ jobs:
               githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }} \
               githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }} \
               authDisabled=${{ inputs.enable_auth && '' || '1' }} \
-              gitSyncEnabled=${{ inputs.enable_git_sync && '1' || '' }} \
+              gitSyncEnabled=1 \
               githubRepo=${{ vars.SYNC_GITHUB_REPO }} \
               githubAppId=${{ vars.SYNC_GITHUB_APP_ID }} \
               githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }} \
@@ -115,7 +111,7 @@ jobs:
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
             githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
             authDisabled=${{ inputs.enable_auth && '' || '1' }}
-            gitSyncEnabled=${{ inputs.enable_git_sync && '1' || '' }}
+            gitSyncEnabled=1
             githubRepo=${{ vars.SYNC_GITHUB_REPO }}
             githubAppId=${{ vars.SYNC_GITHUB_APP_ID }}
             githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }}
@@ -285,15 +281,14 @@ jobs:
           echo "::error::Health check failed and no previous revision exists for rollback"
           exit 1
 
-      - name: Trigger data-repo initialization
-        if: inputs.enable_git_sync && steps.health_check.outputs.healthy == 'true'
+      - name: Post-deploy smoke test
+        if: steps.health_check.outputs.healthy == 'true'
         continue-on-error: true
         run: |
           APP_URL="${{ steps.deploy.outputs.appUrl }}"
-          echo "Triggering git data-repo init via ${APP_URL}/api/sync/init..."
-          RESULT=$(curl -s --max-time 15 --connect-timeout 5 -X POST "${APP_URL}/api/sync/init" -H "Content-Type: application/json")
-          echo "$RESULT" | jq . 2>/dev/null || echo "(non-JSON response: $RESULT)"
-          OK=$(echo "$RESULT" | jq -r '.ok // false' 2>/dev/null || echo "false")
-          if [ "$OK" != "true" ]; then
-            echo "::warning::Data-repo init returned ok=$OK — the app will retry on next restart"
-          fi
+          echo "=== Smoke test ==="
+          echo "Health:"
+          curl -s --max-time 10 "${APP_URL}/health" | jq '{status, storage: .storage, github: .github}' 2>/dev/null || echo "(no structured health)"
+          echo "Data available:"
+          curl -s --max-time 10 "${APP_URL}/api/data/available" || echo "false"
+          echo ""
