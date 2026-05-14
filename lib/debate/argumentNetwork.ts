@@ -136,7 +136,8 @@ For each claim, also classify:
   {"evidence_cited": "what specific evidence does this claim cite (1 sentence, or 'none')",
    "source_located": "found" (evidence traceable to the source document) | "not_found" (claim cites evidence not in the source) | "no_source" (claim cites no specific evidence),
    "evidence_supports": "strongly" (evidence directly entails the claim) | "partially" (evidence is relevant but doesn't fully support) | "weakly" (loose connection) | "contradicts" (evidence works against the claim),
-   "counter_evidence": "none" (no contradicting info in the source) | "minor" (some tension but not decisive) | "significant" (source contains strong counter-evidence)}
+   "counter_evidence": "none" (no contradicting info in the source) | "minor" (some tension but not decisive) | "significant" (source contains strong counter-evidence),
+   "ambiguity_resolved": "none" (the source makes a clear, unambiguous claim) | "acknowledged" (the source hedges or presents multiple readings, and this extraction preserves that uncertainty) | "collapsed" (the source hedges or presents multiple readings, but this extraction picks one and states it as settled)}
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
 
@@ -239,7 +240,8 @@ Also classify each claim:
   {"evidence_cited": "what evidence this claim cites (1 sentence, or 'none')",
    "source_located": "found" | "not_found" | "no_source",
    "evidence_supports": "strongly" | "partially" | "weakly" | "contradicts",
-   "counter_evidence": "none" | "minor" | "significant"}
+   "counter_evidence": "none" | "minor" | "significant",
+   "ambiguity_resolved": "none" | "acknowledged" | "collapsed"}
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 
@@ -668,8 +670,14 @@ export function beliefVerificationToStrength(v: BeliefVerification): number {
     : v.counter_evidence === 'minor' ? 0.15
     : 0.30;  // significant
 
-  // Composite: weighted average with counter-evidence penalty
-  const raw = 0.4 * locationScore + 0.6 * supportScore - counterPenalty;
+  // Sub-step 4: ambiguity_resolved — did the extraction collapse an open question?
+  // "collapsed" caps strength at 0.6 — the claim may be accurate but represents
+  // a choice among interpretations the source left open (Gur-Arieh et al., 2026).
+  const ambiguityPenalty = v.ambiguity_resolved === 'collapsed' ? 0.20
+    : 0;  // "none" or "acknowledged" — no penalty
+
+  // Composite: weighted average with counter-evidence and ambiguity penalties
+  const raw = 0.4 * locationScore + 0.6 * supportScore - counterPenalty - ambiguityPenalty;
   return Math.max(0.1, Math.min(0.95, raw));
 }
 
@@ -779,6 +787,8 @@ export interface BeliefVerification {
   evidence_supports: 'strongly' | 'partially' | 'weakly' | 'contradicts';
   /** Does the source contain information contradicting the claim? */
   counter_evidence: 'none' | 'minor' | 'significant';
+  /** Does this extraction resolve an ambiguity the source left open? */
+  ambiguity_resolved?: 'none' | 'acknowledged' | 'collapsed';
 }
 
 export interface RawExtractedClaim {

@@ -1781,8 +1781,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive' | 'pov-progression' | 'fr-context';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
-  const [detailHeight, setDetailHeight] = useState(300);
-  const detailResizing = useRef(false);
+  // Detail pane now takes full height when an entry is selected (no resize needed).
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [policyMap, setPolicyMap] = useState<Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>>(new Map());
@@ -2749,14 +2748,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
-          {/* Transcript list for selection */}
-          {effectiveOverviewTab === 'transcript' && (() => {
+          {/* Transcript list for selection — hidden when an entry is selected (sidebar handles navigation) */}
+          {effectiveOverviewTab === 'transcript' && !selectedEntry && (() => {
             const speakers = Array.from(new Set(debate.transcript.map(e => e.speaker)));
             const filteredTranscript = transcriptSpeakerFilter
               ? debate.transcript.map((e, i) => ({ e, i })).filter(({ e }) => e.speaker === transcriptSpeakerFilter)
               : debate.transcript.map((e, i) => ({ e, i }));
             return (
-            <div style={{ flex: selectedEntry ? undefined : 1, minHeight: selectedEntry ? 120 : 0, maxHeight: selectedEntry ? `calc(100% - ${detailHeight + 6}px)` : undefined, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ display: 'flex', gap: 4, padding: '4px 6px', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
                 <button
                   onClick={() => setTranscriptSpeakerFilter(null)}
@@ -2840,27 +2839,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           })()}
           </>}
 
-          {/* Resize handle between transcript list and entry detail */}
-          {selectedEntry && entry && effectiveOverviewTab === 'transcript' && (
-            <div
-              style={{ height: 6, cursor: 'row-resize', background: 'var(--border)', flexShrink: 0, borderRadius: 2, margin: '2px 0' }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                detailResizing.current = true;
-                const startY = e.clientY;
-                const startH = detailHeight;
-                const onMove = (ev: MouseEvent) => {
-                  if (!detailResizing.current) return;
-                  const delta = startY - ev.clientY;
-                  setDetailHeight(Math.max(100, Math.min(window.innerHeight - 200, startH + delta)));
-                };
-                const onUp = () => { detailResizing.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
-              }}
-              title="Drag to resize"
-            />
-          )}
+          {/* Resize handle — no longer needed; transcript list hides when entry is selected */}
 
           {/* Entry detail — shown when a transcript entry is selected */}
           {selectedEntry && entry && (() => {
@@ -2881,7 +2860,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               opacity: disabled ? 0.5 : 1,
             });
             return (
-            <div style={{ flex: effectiveOverviewTab === 'transcript' ? undefined : 1, height: effectiveOverviewTab === 'transcript' ? detailHeight : undefined, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                 {stmtId && (
               <span
@@ -2897,6 +2876,18 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{entry.type}</span>
             {!diag && !proxiedModeratorTrace && entry.type !== 'intervention' && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
             <span style={{ flex: 1 }} />
+            {effectiveOverviewTab === 'transcript' && (
+              <button
+                onClick={() => { setSelectedEntry(null); setLocalOverride(true); }}
+                title="Back to transcript list"
+                style={{
+                  padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
+                  borderRadius: 4, border: '1px solid var(--border)',
+                  background: 'rgba(249,115,22,0.1)', color: '#f97316',
+                  cursor: 'pointer',
+                }}
+              >▲ Transcript</button>
+            )}
             <button
               onClick={() => goToIdx(entryIdx - 1)}
               disabled={entryIdx <= 0}

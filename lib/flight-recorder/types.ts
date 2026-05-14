@@ -40,11 +40,44 @@ export type EventType =
   | 'ui.toggle'
   // Store state changes
   | 'state.change'
+  // GitHub API operations
+  | 'github.api.request'
+  | 'github.api.response'
+  | 'github.api.error'
+  | 'github.api.rate_limit'
+  | 'github.api.circuit_break'
+  // Cache operations
+  | 'cache.hit'
+  | 'cache.miss'
+  | 'cache.invalidate'
+  | 'cache.manifest.swap'
+  | 'cache.coherency_violation'
+  // Session branch operations
+  | 'branch.create'
+  | 'branch.commit'
+  | 'branch.delete'
+  | 'branch.divergence'
+  // Sync operations
+  | 'sync.pr.create'
+  | 'sync.pr.update'
+  | 'sync.pr.merge'
+  | 'sync.conflict'
+  | 'sync.webhook'
+  // Storage
+  | 'storage.mode'
+  | 'storage.fallback'
+  // Lock instrumentation
+  | 'lock.acquire_attempt'
+  | 'lock.acquired'
+  | 'lock.released'
+  | 'lock.timeout'
+  | 'lock.ttl_eviction'
   // System
   | 'system.error'
   | 'system.warning'
   | 'system.memory'
-  | 'system.perf';
+  | 'system.perf'
+  | 'system.scaling_warning';
 
 export type EventLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
@@ -65,6 +98,7 @@ export interface FlightRecorderEvent {
   debate_id?: string;
   turn_id?: string;
   call_id?: string;
+  request_id?: string;      // X-Request-ID from web bridge for end-to-end tracing
   speaker?: string | number;
 
   // Payload (type-specific)
@@ -151,6 +185,7 @@ export interface DumpEvent {
   debate_id?: string;
   turn_id?: string;
   call_id?: string;
+  request_id?: string;
   speaker?: string;   // Always expanded string in dump
   message?: string;
   data?: Record<string, unknown>;

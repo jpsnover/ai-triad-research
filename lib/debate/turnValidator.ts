@@ -307,13 +307,14 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     }
   }
 
-  // Rule 5: every relevance must be substantive (error)
+  // Rule 5: every relevance must be substantive (warning — cite stage produces this text,
+  // so retrying the draft can't fix it; downgraded from error to prevent unresolvable retries)
   const weakRelevance = taxonomyRefs.filter(
     r => (r.relevance ?? '').trim().length < 40 || isFillerRelevance((r.relevance ?? '').trim()),
   );
   if (weakRelevance.length > 0) {
     const msg = `taxonomy_refs with filler or too-short 'relevance' (≥40 chars, no stock openers): ${weakRelevance.map(r => r.node_id).join(', ')}. Explain the mechanism by which the node supports or complicates your claim.`;
-    errors.push(msg);
+    warnings.push(msg);
     groundingIssues.push(msg);
   }
 
@@ -404,6 +405,19 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     }
   }
 
+  // Rule 12: statement duplication — detect verbatim repetition of large text blocks
+  if (statement.length >= 400) {
+    const half = Math.floor(statement.length / 2);
+    const first300 = statement.slice(0, 300).trim();
+    // Check if the same 300-char block appears again in the second half
+    const secondHalfIdx = statement.indexOf(first300, half - 150);
+    if (secondHalfIdx > 0 && secondHalfIdx >= half - 150) {
+      const msg = 'Statement contains verbatim repeated text — your response appears to duplicate itself. Write each paragraph once.';
+      errors.push(msg);
+      schemaIssues.push(msg);
+    }
+  }
+
   const schemaPass = schemaIssues.length === 0;
   const groundingPass = groundingIssues.length === 0;
   // advancement pass decided later composite with judge signal
@@ -455,6 +469,19 @@ Decide:
    narrow <node_id> | broaden <node_id> | split <node_id> | merge <node_ids> | qualify <node_id> | retire <node_id> | new_node <label>
    Only mark a hint when the turn contains evidence for it — never speculative.
 3. WEAKNESSES — list at most 3, each ≤15 words. Each names a concrete fix the debater could apply on retry.
+4. QUALITY_SCORE — rate overall turn quality 0.0 to 1.0 using this rubric:
+   1.0: Exceptional — specific evidence, falsifiable claims, engages opponent's strongest point, no logical gaps
+   0.8: Strong — substantive argument with minor gaps (missing evidence for one claim, or one unaddressed counterpoint)
+   0.6: Adequate — makes progress but has 2+ identifiable weaknesses (vague claims, ungrounded assertions, ignored objections)
+   0.4: Weak — mostly abstract, recycles prior arguments, or talks past opponents
+   0.2: Poor — fails to engage the debate substance meaningfully
+
+   CRITICAL: Your quality_score MUST be consistent with your weaknesses. If you list 2+ substantive weaknesses, the score MUST be ≤0.7. If you list 0 weaknesses, the score should be ≥0.8. A score of 1.0 with weaknesses is contradictory.
+
+5. RECOMMEND — based on your quality_score:
+   "pass": quality_score ≥ 0.7 and no critical weaknesses
+   "accept_with_flag": quality_score 0.5-0.7, or has weaknesses worth noting but acceptable
+   "retry": quality_score < 0.5, or a single critical flaw that the debater could fix
 
 Return ONLY JSON in this shape (no prose, no code fences):
 {
@@ -462,6 +489,7 @@ Return ONLY JSON in this shape (no prose, no code fences):
   "advancement_reason": "...",
   "clarifies_taxonomy": [ { "action": "narrow|broaden|split|merge|qualify|retire|new_node", "node_id": "...", "node_ids": ["..."], "label": "...", "evidence_claim_id": "...", "rationale": "..." } ],
   "weaknesses": ["..."],
+  "quality_score": 0.8,
   "recommend": "pass" | "retry" | "accept_with_flag"
 }`;
 }
@@ -471,6 +499,7 @@ interface JudgeVerdict {
   advancement_reason: string;
   clarifies_taxonomy: TaxonomyClarificationHint[];
   weaknesses: string[];
+  quality_score: number;
   recommend: 'pass' | 'retry' | 'accept_with_flag';
 }
 
@@ -480,6 +509,7 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
     advancement_reason: 'judge_parse_failure',
     clarifies_taxonomy: [],
     weaknesses: [],
+    quality_score: 0.5,
     recommend: 'accept_with_flag',
   };
   try {
@@ -506,6 +536,9 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
       weaknesses: Array.isArray(parsed.weaknesses)
         ? (parsed.weaknesses as unknown[]).filter(w => typeof w === 'string').map(w => w as string)
         : [],
+      quality_score: typeof parsed.quality_score === 'number'
+        ? Math.max(0, Math.min(1, parsed.quality_score))
+        : 0.5,
       recommend,
     };
   } catch {
@@ -619,11 +652,16 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     outcome = 'pass';
   }
 
-  const process_reward =
+  // Process reward: 60% Stage A structural dimensions + 40% judge quality score.
+  // When no judge ran (deterministic-only or out-of-sample), quality defaults to 0.7
+  // so deterministic-pass turns get 0.88, not a perfect 1.0.
+  const stageAScore =
     0.4 * (dims.schema.pass ? 1 : 0) +
     0.3 * (dims.grounding.pass ? 1 : 0) +
     0.2 * (dims.advancement.pass ? 1 : 0) +
     0.1 * (dims.clarifies.pass ? 1 : 0);
+  const judgeQuality = judge?.quality_score ?? 0.7;
+  const process_reward = 0.6 * stageAScore + 0.4 * judgeQuality;
 
   return {
     outcome,

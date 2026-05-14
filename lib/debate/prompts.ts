@@ -1872,8 +1872,9 @@ ${pi?.isTargeted
 
 OUTPUT CONSTRAINTS:
 - NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
+- CLAIM SPECIFICITY: At least one claim in your statement MUST include a concrete number, named entity, timeline, or threshold (e.g. "by 2028", "≥20%", "the EU AI Act"). Abstract claims without specifics will be rejected.
 - CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
-- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip format: "<core concept> is like a <plain-word description>, it <explain in one sentence>". No emoji in tooltip text.
+- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip format: "<core concept> is like a <plain-word description>, it <explain in one sentence>". No emoji in tooltip text.${input.phase && input.phase !== 'confrontation' && (input.pendingIntervention?.round ?? 0) >= 4 ? `\n- CONSTRUCTIVE MOVE REQUIRED: In this phase you MUST include at least one constructive move (CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY) — pure attack without constructive engagement will be rejected.` : ''}
 
 Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
@@ -1888,12 +1889,25 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
   "key_assumptions": [
     {"assumption": "a key assumption your argument depends on", "if_wrong": "what changes if this assumption fails"}
   ],
-  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)",
-  "challenge_response": {"type": "evolved or consistent or conceded", "explanation": "..."}, // REQUIRED when moderator uses CHALLENGE
-  "probe_response": {"evidence_type": "empirical or precedent or theoretical or conceded_gap", "evidence": "...", "critical_question_addressed": "..."}, // REQUIRED when moderator uses PROBE
-  "clarification": {"term": "...", "definition": "...", "example": "..."}, // REQUIRED when moderator uses CLARIFY
-  "check_response": {"understood_correctly": true, "actual_target": "...", "revised_response": "..."} // REQUIRED when moderator uses CHECK${positionUpdateField}
+  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${_buildInterventionResponseField(pi)}${positionUpdateField}
 }`;
+}
+
+/** Build the JSON field for the specific intervention response required by the pending moderator move. */
+function _buildInterventionResponseField(pi?: StagePromptInput['pendingIntervention']): string {
+  if (!pi?.isTargeted) return '';
+  const RESPONSE_FIELDS: Record<string, string> = {
+    PIN:            ',\n  "pin_response": {"position": "agree | disagree | conditional", "condition": "... (if conditional)", "brief_reason": "1-2 sentences"}',
+    PROBE:          ',\n  "probe_response": {"evidence_type": "empirical | precedent | theoretical | conceded_gap", "evidence": "cite specific data or source", "critical_question_addressed": "which question this answers"}',
+    CHALLENGE:      ',\n  "challenge_response": {"type": "evolved | consistent | conceded", "explanation": "1-2 sentences on how your position has or hasn\'t changed"}',
+    CLARIFY:        ',\n  "clarification": {"term": "the term being clarified", "definition": "your precise definition", "example": "a concrete example"}',
+    CHECK:          ',\n  "check_response": {"understood_correctly": true, "actual_target": "what you actually meant", "revised_response": "corrected statement if misunderstood"}',
+    REVOICE:        ',\n  "revoice_response": {"accurate": true, "correction": "what was misrepresented (if inaccurate)", "nuance": "what the revoicing missed"}',
+    'META-REFLECT': ',\n  "reflection": {"reasoning_pattern": "the pattern you identified in your own reasoning", "assessment": "whether this pattern strengthens or weakens your argument", "adjustment": "how you will adjust going forward"}',
+    COMPRESS:       ',\n  "compressed_thesis": "your core position in 1-2 sentences — no hedging, no qualifiers, just the claim"',
+    COMMIT:         ',\n  "commitment": {"position": "the specific position you are committing to", "conditions": "under what conditions this commitment holds", "falsifiable": "what evidence would make you abandon this position"}',
+  };
+  return RESPONSE_FIELDS[pi.move] ?? '';
 }
 
 export function citeStagePrompt(

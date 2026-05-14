@@ -19,10 +19,14 @@ import type { PoverResponseMeta } from './helpers.js';
 
 /** Build a multi-paragraph statement with the given count of paragraphs. */
 function makeParagraphs(n: number): string {
-  const para = 'This is a substantive paragraph with enough content to be meaningful. '
-    + 'It contains domain-specific terminology about artificial intelligence governance '
-    + 'frameworks and multi-stakeholder regulatory approaches.';
-  return Array.from({ length: n }, () => para).join('\n\n');
+  const paras = [
+    'This is a substantive paragraph about artificial intelligence governance frameworks and multi-stakeholder regulatory approaches that require careful institutional design.',
+    'The second dimension concerns empirical evidence from deployment contexts where algorithmic systems interact with existing legal and social norms in complex jurisdictional environments.',
+    'A third consideration involves the strategic coordination between national regulators and international standards bodies to prevent regulatory arbitrage across borders.',
+    'Furthermore, the economic implications of compliance burdens on smaller developers must be weighed against the public interest in safety and accountability mechanisms.',
+    'Finally, the temporal dynamics of technology evolution outpace legislative processes, creating persistent gaps between capability frontiers and governance frameworks.',
+  ];
+  return Array.from({ length: n }, (_, i) => paras[i % paras.length]).join('\n\n');
 }
 
 /** Build a substantive relevance string (>40 chars, domain-specific). */

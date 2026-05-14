@@ -9,6 +9,7 @@ import type {
   TrackedCrux,
   ContextSummary,
   SpeakerId,
+  UnansweredClaimEntry,
 } from './types.js';
 import { POVER_INFO } from './types.js';
 
@@ -88,6 +89,8 @@ export function buildDistantTierSummary(
   edges: ReadonlyArray<ArgumentNetworkEdge>,
   commitments: Record<string, CommitmentStore>,
   cruxTracker?: TrackedCrux[],
+  unansweredClaims?: UnansweredClaimEntry[],
+  transcript?: ReadonlyArray<TranscriptEntry>,
 ): string {
   const lines: string[] = [];
 
@@ -102,7 +105,7 @@ export function buildDistantTierSummary(
     }
   }
 
-  // Crux resolution status
+  // Crux resolution status with disagreement types
   if (cruxTracker && cruxTracker.length > 0) {
     const resolved = cruxTracker.filter(c => c.state === 'resolved');
     const irreducible = cruxTracker.filter(c => c.state === 'irreducible');
@@ -116,6 +119,14 @@ export function buildDistantTierSummary(
     if (active.length > 0) {
       lines.push(`Active cruxes: ${active.map(c => c.description).join('; ')}`);
     }
+    // Disagreement type distribution
+    const typeCounts: Record<string, number> = {};
+    for (const c of cruxTracker) {
+      const dt = c.disagreement_type ?? 'unclassified';
+      typeCounts[dt] = (typeCounts[dt] ?? 0) + 1;
+    }
+    const typeStr = Object.entries(typeCounts).map(([t, n]) => `${n} ${t}`).join(', ');
+    if (typeStr) lines.push(`Disagreement types: ${typeStr}`);
   }
 
   // Top-strength surviving claims across the whole network
@@ -128,6 +139,64 @@ export function buildDistantTierSummary(
     for (const n of topNodes) {
       const label = POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label ?? n.speaker;
       lines.push(`  - [${label}, ${n.computed_strength?.toFixed(2)}] ${n.text}`);
+    }
+  }
+
+  // Unanswered claims — raised but never responded to
+  if (unansweredClaims && unansweredClaims.length > 0) {
+    const stillOpen = unansweredClaims.filter(c => !c.addressed_round);
+    if (stillOpen.length > 0) {
+      lines.push(`Unanswered claims (${stillOpen.length}):`);
+      for (const c of stillOpen.slice(0, 5)) {
+        const label = POVER_INFO[c.speaker as Exclude<SpeakerId, 'user'>]?.label ?? c.speaker;
+        lines.push(`  - [${label}] ${c.claim_text}`);
+      }
+      if (stillOpen.length > 5) lines.push(`  ... +${stillOpen.length - 5} more`);
+    }
+  }
+
+  // Top cross-POV attack edges with warrants
+  const crossPovAttacks = edges
+    .filter(e => {
+      if (e.type !== 'attacks') return false;
+      const src = nodes.find(n => n.id === e.source);
+      const tgt = nodes.find(n => n.id === e.target);
+      return src && tgt && src.speaker !== tgt.speaker;
+    })
+    .sort((a, b) => (b.weight ?? 0.5) - (a.weight ?? 0.5))
+    .slice(0, 5);
+  if (crossPovAttacks.length > 0) {
+    lines.push('Key cross-perspective attacks:');
+    for (const e of crossPovAttacks) {
+      const src = nodes.find(n => n.id === e.source);
+      const tgt = nodes.find(n => n.id === e.target);
+      if (!src || !tgt) continue;
+      const srcLabel = POVER_INFO[src.speaker as Exclude<SpeakerId, 'user'>]?.label ?? src.speaker;
+      const tgtLabel = POVER_INFO[tgt.speaker as Exclude<SpeakerId, 'user'>]?.label ?? tgt.speaker;
+      const attackType = (e as { attack_type?: string }).attack_type ?? 'attacks';
+      const warrant = (e as { warrant?: string }).warrant;
+      lines.push(`  - ${srcLabel} ${attackType}s ${tgtLabel}: "${src.text.slice(0, 80)}..." → "${tgt.text.slice(0, 80)}..."${warrant ? ` (${warrant})` : ''}`);
+    }
+  }
+
+  // Dialectical move distribution from transcript
+  if (transcript && transcript.length > 0) {
+    const moveCounts: Record<string, number> = {};
+    for (const entry of transcript) {
+      const moveTypes = (entry.metadata as Record<string, unknown>)?.move_types;
+      if (Array.isArray(moveTypes)) {
+        for (const m of moveTypes) {
+          const name = typeof m === 'string' ? m : (m as { move?: string })?.move;
+          if (name) moveCounts[name] = (moveCounts[name] ?? 0) + 1;
+        }
+      }
+    }
+    if (Object.keys(moveCounts).length > 0) {
+      const moveStr = Object.entries(moveCounts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([m, n]) => `${m} (${n})`)
+        .join(', ');
+      lines.push(`Dialectical moves used: ${moveStr}`);
     }
   }
 
@@ -171,6 +240,7 @@ export function buildTieredContext(input: TieredCompressionInput): {
   if (distantEntries.length > 0 || total > MEDIUM_WINDOW) {
     distantSummary = buildDistantTierSummary(
       input.nodes, input.edges, input.commitments, input.cruxTracker,
+      input.unansweredClaims, distantEntries,
     );
   }
 

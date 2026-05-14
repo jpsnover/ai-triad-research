@@ -48,6 +48,7 @@ export default defineConfig({
   test: {
     include: [
       '**/*.test.{ts,tsx}',
+      '../server/__tests__/**/*.test.ts',
       '../../../lib/**/*.test.ts',
     ],
     globals: false,

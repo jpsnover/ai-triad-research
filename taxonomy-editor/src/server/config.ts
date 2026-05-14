@@ -133,6 +133,18 @@ export async function storeApiKey(key: string, backend: AIBackend = 'gemini'): P
   await getKeyStore(getDataRoot).set(backend, getCurrentUserId(), key);
 }
 
+// ── Storage mode ──
+
+export type StorageMode = 'github-api' | 'filesystem';
+
+/** Select backend: explicit STORAGE_MODE env var, or auto-detect from NODE_ENV. */
+export const STORAGE_MODE: StorageMode =
+  (process.env.STORAGE_MODE === 'github-api' || process.env.STORAGE_MODE === 'filesystem')
+    ? process.env.STORAGE_MODE
+    : (process.env.NODE_ENV === 'production' ? 'github-api' : 'filesystem');
+
+export const CACHE_DIR = process.env.TAXONOMY_CACHE_DIR || '/tmp/taxonomy-cache';
+
 // ── Server settings ──
 
 export const PORT = parseInt(process.env.PORT || '7862', 10);

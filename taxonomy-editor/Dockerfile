@@ -49,11 +49,8 @@ LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-rese
 LABEL org.opencontainers.image.description="AI Triad Taxonomy Editor"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# /data is ephemeral local storage — the entrypoint copies from /data-persistent
-# (Azure Files) at startup. Do NOT use VOLUME here; it creates a Docker-managed
-# anonymous volume that the non-root user cannot write to.
-RUN mkdir -p /data && chown aitriad:aitriad /data
-ENV AI_TRIAD_DATA_ROOT=/data
+# Cache dir created at runtime by the app (GitHubAPIBackend)
+ENV AI_TRIAD_DATA_ROOT=/tmp/taxonomy-cache
 ENV PORT=7862
 ENV PYTHONUNBUFFERED=1
 
@@ -86,9 +83,11 @@ COPY --chown=aitriad:aitriad --from=builder /build/taxonomy-editor/THIRD-PARTY-N
 # 5. PTY broker script (Python, not compiled by tsc — copy to where config.ts expects it)
 COPY --chown=aitriad:aitriad taxonomy-editor/src/main/pty-broker.py ./src/main/pty-broker.py
 
-# 6. Entrypoint — copies Azure Files data to local ephemeral storage before starting
-#    the app, eliminating SMB latency for all runtime reads.
-COPY --chown=aitriad:aitriad deploy/azure/entrypoint.sh ./entrypoint.sh
+# 6. Fallback taxonomy snapshot — baked last-known-good data for GitHub outages.
+#    CI fetches from ai-triad-data HEAD; changes on every build — LAST layer.
+#    Contains snapshot-meta.json with generation timestamp for stale-data banner.
+#    For local builds: mkdir -p taxonomy-snapshot && echo '{}' > taxonomy-snapshot/snapshot-meta.json
+COPY --chown=aitriad:aitriad taxonomy-snapshot/ ./fallback-data/
 
 USER aitriad
 
@@ -98,4 +97,4 @@ HEALTHCHECK --interval=10s --timeout=5s --start-period=15s \
   CMD curl -f http://localhost:7862/health || exit 1
 
 ENTRYPOINT ["tini", "--"]
-CMD ["sh", "entrypoint.sh"]
+CMD ["node", "dist/server/taxonomy-editor/src/server/server.js"]

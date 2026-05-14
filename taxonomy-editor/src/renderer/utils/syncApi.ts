@@ -29,6 +29,25 @@ export interface SyncStatus {
   main_updated_available: boolean;
   /** True when a rebase is paused with unresolved conflicts. */
   rebase_in_progress: boolean;
+
+  // ── API-mode fields (present when mode === 'github-api') ──
+
+  /** Storage mode: 'github-api' or 'filesystem'. */
+  mode?: 'github-api' | 'filesystem';
+  /** Main branch HEAD SHA. */
+  main_sha?: string;
+  /** Session branch HEAD SHA. */
+  branch_sha?: string;
+  /** Commits behind main (for divergence warning). */
+  behind_by?: number;
+  /** True when merge API detects conflicts. */
+  has_conflicts?: boolean;
+  /** Cache stats (API mode). */
+  cache?: {
+    hit_rate: number;
+    last_poll: string;
+    age_seconds: number;
+  };
 }
 
 export type ResyncMode = 'rebase' | 'fetch-only' | 'reset-main';
@@ -235,6 +254,19 @@ export interface SyncDiagnostics {
   active_taxonomy_dir: string;
   files: DiagnosticsFile[];
   recent_commits: DiagnosticsCommit[];
+
+  // ── API-mode extras (present when mode === 'github-api') ──
+  mode?: 'github-api' | 'filesystem';
+  cache_hit_rate?: number;
+  cache_file_count?: number;
+  circuit_state?: string;
+  rate_limit_remaining?: number;
+  active_sessions?: Array<{
+    userId: string;
+    branch: string;
+    lastCommitAt: number;
+    prNumber: number | null;
+  }>;
 }
 
 const DISABLED_DIAGNOSTICS: SyncDiagnostics = {
@@ -259,10 +291,6 @@ export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
   } catch {
     return DISABLED_DIAGNOSTICS;
   }
-}
-
-export async function initDataRepo(): Promise<{ ok: boolean; action?: string; message?: string; error?: string }> {
-  return postJson('/api/sync/init', {});
 }
 
 export async function setGithubCredentials(repo: string, token: string): Promise<{ ok: boolean; configured: boolean }> {
@@ -329,16 +357,6 @@ export function pullDataTracked(pullFn: () => Promise<{ success: boolean; messag
     step(0); // Fetching from GitHub...
     const result = await pullFn();
     step(1); // Updating local files...
-    return result;
-  });
-}
-
-export function initDataRepoTracked(): Promise<{ ok: boolean; action?: string; message?: string; error?: string }> {
-  return tracked('init-repo', async (step) => {
-    step(0); // Cloning data repository...
-    step(1); // Configuring working tree...
-    const result = await initDataRepo();
-    step(2); // Verifying checkout...
     return result;
   });
 }

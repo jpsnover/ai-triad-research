@@ -364,6 +364,34 @@ export async function runTurnPipeline(
   };
 }
 
+// ── Statement deduplication ──────────────────────────────
+// LLMs (especially Gemini flash) sometimes produce a statement where the entire
+// content is repeated verbatim — 3 paragraphs followed by the same 3 paragraphs.
+// Detect and truncate before the statement reaches the transcript.
+
+function deduplicateStatement(statement: string): string {
+  if (!statement || statement.length < 200) return statement;
+  const len = statement.length;
+  // Check if the second half is a near-exact copy of the first half.
+  // Try at the midpoint and at nearby paragraph boundaries.
+  for (const offset of [0, -50, 50, -100, 100]) {
+    const mid = Math.floor(len / 2) + offset;
+    if (mid < 100 || mid >= len - 100) continue;
+    const firstHalf = statement.slice(0, mid).trim();
+    const secondHalf = statement.slice(mid).trim();
+    // Check if secondHalf starts with the same opening as the full statement
+    const openLen = Math.min(80, firstHalf.length);
+    if (secondHalf.slice(0, openLen) === firstHalf.slice(0, openLen)) {
+      // Verify substantial overlap (not just a shared opening sentence)
+      const overlapChars = Math.min(firstHalf.length, secondHalf.length, 300);
+      if (firstHalf.slice(0, overlapChars) === secondHalf.slice(0, overlapChars)) {
+        return firstHalf;
+      }
+    }
+  }
+  return statement;
+}
+
 // ── Assembler ───────────────────────────────────────────
 
 export function assemblePipelineResult(
@@ -384,7 +412,7 @@ export function assemblePipelineResult(
     ? rawRefs.filter(r => validNodeIds.has(r.node_id))
     : rawRefs;
 
-  const statement = result.draft.statement ?? '';
+  const statement = deduplicateStatement(result.draft.statement ?? '');
   const rawClaims = result.draft.claim_sketches?.length ? result.draft.claim_sketches : undefined;
   const groundedClaims = rawClaims && statement
     ? rawClaims.filter(c => wordOverlap(c.claim, statement) >= 0.4)
@@ -568,7 +596,7 @@ export function assembleOpeningPipelineResult(
     ? rawRefs.filter(r => validNodeIds.has(r.node_id))
     : rawRefs;
 
-  const statement = result.draft.statement ?? '';
+  const statement = deduplicateStatement(result.draft.statement ?? '');
   const rawClaims = result.draft.claim_sketches?.length ? result.draft.claim_sketches : undefined;
   const groundedClaims = rawClaims && statement
     ? rawClaims.filter(c => wordOverlap(c.claim, statement) >= 0.4)

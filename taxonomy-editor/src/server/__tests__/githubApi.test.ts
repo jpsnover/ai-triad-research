@@ -1,0 +1,1206 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+// @vitest-environment node
+
+/**
+ * Integration + chaos tests for the GitHub API-first backend.
+ *
+ * Tests GitHubAPIBackend and SessionBranchManager against mocked GitHub APIs
+ * to validate: session lifecycle, batch commits, PR creation, cache behavior,
+ * circuit breaker, rate limit handling, and concurrent mutation safety.
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { FlightRecorder, RecordInput } from '../../../../lib/flight-recorder/index';
+
+// ── Mock setup ──────────────────────────────────────────────────────────
+
+// Mock fs/promises — prevent real disk I/O
+vi.mock('fs/promises', () => ({
+  default: {
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    readFile: vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' })),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    rename: vi.fn().mockResolvedValue(undefined),
+    unlink: vi.fn().mockResolvedValue(undefined),
+    rm: vi.fn().mockResolvedValue(undefined),
+    readdir: vi.fn().mockResolvedValue([]),
+    stat: vi.fn().mockRejectedValue(Object.assign(new Error('ENOENT'), { code: 'ENOENT' })),
+  },
+}));
+
+// Mock githubAppAuth — provide predictable test credentials
+vi.mock('../githubAppAuth', () => ({
+  getCredentials: vi.fn().mockResolvedValue({
+    repo: 'testowner/testrepo',
+    token: 'test-token-abc123',
+    mode: 'pat' as const,
+  }),
+  getRepoSlug: vi.fn().mockReturnValue('testowner/testrepo'),
+  getTokenExpiryMs: vi.fn().mockReturnValue(0), // PAT mode — no expiry
+}));
+
+// Track fetch calls for assertions
+const fetchCalls: Array<{ url: string; method: string; body?: unknown }> = [];
+
+// Default GitHub API response handlers — keyed by (method, urlPattern)
+type MockHandler = (url: string, init: RequestInit) => {
+  status: number;
+  headers?: Record<string, string>;
+  body?: unknown;
+};
+
+let apiHandlers: MockHandler[] = [];
+const defaultRateLimitHeaders = {
+  'x-ratelimit-remaining': '4999',
+  'x-ratelimit-limit': '5000',
+  'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 3600),
+};
+
+function mockFetchResponse(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {},
+): Response {
+  const allHeaders = { ...defaultRateLimitHeaders, ...headers };
+  return new Response(
+    status === 204 ? null : JSON.stringify(body),
+    {
+      status,
+      headers: new Headers(allHeaders),
+    },
+  );
+}
+
+// Install global fetch mock
+const originalFetch = globalThis.fetch;
+beforeEach(() => {
+  fetchCalls.length = 0;
+  apiHandlers = [];
+
+  globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const method = init?.method ?? 'GET';
+    const body = init?.body ? JSON.parse(init.body as string) : undefined;
+    fetchCalls.push({ url, method, body });
+
+    // Try custom handlers first
+    for (const handler of apiHandlers) {
+      const result = handler(url, init ?? {});
+      if (result) return mockFetchResponse(result.status, result.body, result.headers);
+    }
+
+    // Default handler based on URL pattern
+    return handleDefaultGithubApi(url, method, body);
+  }) as unknown as typeof fetch;
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  vi.restoreAllMocks();
+});
+
+// ── Default GitHub API mock ──────────────────────────────────────────────
+
+const MAIN_SHA = 'abc123def456789000000000000000000000dead';
+const TREE_SHA = 'tree-sha-000000000000000000000000000dead';
+const COMMIT_SHA = 'commit-sha-00000000000000000000000000dead';
+
+function handleDefaultGithubApi(url: string, method: string, body?: unknown): Response {
+  const path = url.replace('https://api.github.com', '');
+
+  // GET /repos/:owner/:repo/commits/main
+  if (method === 'GET' && path.includes('/commits/main')) {
+    return mockFetchResponse(200, { sha: MAIN_SHA });
+  }
+
+  // GET /repos/:owner/:repo/git/commits/:sha — fetch commit for tree SHA
+  if (method === 'GET' && path.match(/\/git\/commits\/[a-f0-9]/)) {
+    return mockFetchResponse(200, { sha: MAIN_SHA, tree: { sha: TREE_SHA } });
+  }
+
+  // GET /repos/:owner/:repo/git/trees/:sha?recursive=1
+  if (method === 'GET' && path.includes('/git/trees/')) {
+    return mockFetchResponse(200, {
+      sha: TREE_SHA,
+      truncated: false,
+      tree: [
+        { path: 'taxonomy/nodes.json', mode: '100644', type: 'blob', sha: 'blob1', size: 100 },
+        { path: 'taxonomy/edges.json', mode: '100644', type: 'blob', sha: 'blob2', size: 50 },
+        { path: 'sources/index.json', mode: '100644', type: 'blob', sha: 'blob3', size: 200 },
+      ],
+    });
+  }
+
+  // POST /repos/:owner/:repo/git/refs — create branch
+  if (method === 'POST' && path.includes('/git/refs') && !path.includes('/heads/')) {
+    return mockFetchResponse(201, {
+      ref: `refs/heads/${(body as { ref: string })?.ref?.replace('refs/heads/', '')}`,
+      object: { sha: MAIN_SHA },
+    });
+  }
+
+  // GET /repos/:owner/:repo/git/refs/heads/:branch — branch exists check
+  if (method === 'GET' && path.includes('/git/refs/heads/')) {
+    return mockFetchResponse(200, {
+      ref: path.split('/git/refs/')[1],
+      object: { sha: MAIN_SHA },
+    });
+  }
+
+  // POST /repos/:owner/:repo/git/trees — create tree
+  if (method === 'POST' && path.endsWith('/git/trees')) {
+    return mockFetchResponse(201, { sha: TREE_SHA });
+  }
+
+  // POST /repos/:owner/:repo/git/commits — create commit
+  if (method === 'POST' && path.endsWith('/git/commits')) {
+    return mockFetchResponse(201, { sha: COMMIT_SHA });
+  }
+
+  // PATCH /repos/:owner/:repo/git/refs/heads/:branch — update ref
+  if (method === 'PATCH' && path.includes('/git/refs/heads/')) {
+    return mockFetchResponse(200, { object: { sha: COMMIT_SHA } });
+  }
+
+  // GET /repos/:owner/:repo/pulls?... — list PRs
+  if (method === 'GET' && path.includes('/pulls?')) {
+    return mockFetchResponse(200, []);
+  }
+
+  // POST /repos/:owner/:repo/pulls — create PR
+  if (method === 'POST' && path.endsWith('/pulls')) {
+    return mockFetchResponse(201, {
+      number: 42,
+      html_url: 'https://github.com/testowner/testrepo/pull/42',
+    });
+  }
+
+  // PATCH /repos/:owner/:repo/pulls/:number — update PR
+  if (method === 'PATCH' && path.match(/\/pulls\/\d+$/)) {
+    return mockFetchResponse(200, {});
+  }
+
+  // GET /repos/:owner/:repo/compare/... — compare branches
+  if (method === 'GET' && path.includes('/compare/')) {
+    return mockFetchResponse(200, {
+      ahead_by: 3,
+      behind_by: 1,
+      status: 'ahead',
+      files: [
+        { filename: 'taxonomy/nodes.json', status: 'modified', patch: '@@ -1 +1 @@' },
+      ],
+      total_commits: 3,
+    });
+  }
+
+  // POST /repos/:owner/:repo/merges — merge branches
+  if (method === 'POST' && path.endsWith('/merges')) {
+    return mockFetchResponse(201, { sha: COMMIT_SHA });
+  }
+
+  // PUT /repos/:owner/:repo/contents/:path — write file
+  if (method === 'PUT' && path.includes('/contents/')) {
+    return mockFetchResponse(200, { content: { sha: 'new-blob-sha' } });
+  }
+
+  // GET /repos/:owner/:repo/contents/:path — read file
+  if (method === 'GET' && path.includes('/contents/')) {
+    return mockFetchResponse(200, {
+      content: Buffer.from('{"test": true}').toString('base64'),
+      encoding: 'base64',
+      sha: 'blob-sha',
+    });
+  }
+
+  // DELETE /repos/:owner/:repo/git/refs/heads/:branch — delete branch
+  if (method === 'DELETE' && path.includes('/git/refs/heads/')) {
+    return mockFetchResponse(204, null);
+  }
+
+  // Fallback
+  return mockFetchResponse(404, { message: 'Not Found' });
+}
+
+// ── Test recorder ────────────────────────────────────────────────────────
+
+function createTestRecorder(): FlightRecorder & { events: RecordInput[] } {
+  const events: RecordInput[] = [];
+  return {
+    events,
+    record: (input: RecordInput) => { events.push(input); },
+    flush: vi.fn(),
+    toJSON: vi.fn().mockReturnValue([]),
+    intern: vi.fn(),
+  } as unknown as FlightRecorder & { events: RecordInput[] };
+}
+
+// ── Lazy imports (after mocks) ──────────────────────────────────────────
+
+async function createBackend(recorder?: FlightRecorder) {
+  const { GitHubAPIBackend } = await import('../githubAPIBackend');
+  const backend = new GitHubAPIBackend({
+    cacheDir: '/tmp/test-cache',
+    recorder: recorder ?? createTestRecorder(),
+    pollIntervalMs: 999_999_999, // disable polling in tests
+    coherencyProbeRate: 0,        // disable coherency probes
+  });
+  await backend.initialize();
+  return backend;
+}
+
+async function createSessionManager(backend?: Awaited<ReturnType<typeof createBackend>>, recorder?: FlightRecorder) {
+  const { SessionBranchManager } = await import('../sessionBranchManager');
+  const rec = recorder ?? createTestRecorder();
+  const be = backend ?? await createBackend(rec);
+  return { manager: new SessionBranchManager(be, rec), backend: be, recorder: rec };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INTEGRATION TESTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — integration', () => {
+  it('initializes and fetches the repo tree', async () => {
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    expect(backend.getMainSha()).toBe(MAIN_SHA);
+    expect(backend.getCircuitState()).toBe('closed');
+    expect(backend.getRateLimitRemaining()).toBeGreaterThan(0);
+
+    backend.shutdown();
+  });
+
+  it('reads a file from GitHub on cache miss', async () => {
+    const backend = await createBackend();
+
+    // fetchFileFromGitHub is called internally; it uses Contents API
+    const content = await backend.readFile('/taxonomy/nodes.json');
+    // Our mock returns base64-encoded '{"test": true}'
+    expect(content).toBe('{"test": true}');
+
+    backend.shutdown();
+  });
+
+  it('writes a file via Contents API and updates session overlay', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    await backend.writeFile('/taxonomy/nodes.json', '{"updated": true}');
+
+    // Session overlay should contain the written content
+    const overlay = backend.getSessionOverlay('alice');
+    expect(overlay?.get('taxonomy/nodes.json')).toBe('{"updated": true}');
+
+    // Verify the PUT call went to the Contents API
+    const putCall = fetchCalls.find(c => c.method === 'PUT' && c.url.includes('/contents/'));
+    expect(putCall).toBeDefined();
+
+    backend.shutdown();
+  });
+
+  it('rejects writes to main when session context is set', async () => {
+    const backend = await createBackend();
+    // Session context with no branch name → reads from main, writes blocked
+    backend.setSessionContext({ userId: 'alice' });
+
+    await expect(backend.writeFile('/taxonomy/nodes.json', '{}')).rejects.toThrow(
+      /Cannot write directly to main/,
+    );
+
+    backend.shutdown();
+  });
+
+  it('rejects path traversal attempts', async () => {
+    const backend = await createBackend();
+
+    await expect(backend.readFile('/../../../etc/passwd')).rejects.toThrow(/path traversal/i);
+    await expect(backend.readFile('/.git/config')).rejects.toThrow(/.git directory rejected/i);
+
+    backend.shutdown();
+  });
+
+  it('creates a branch from main HEAD', async () => {
+    const backend = await createBackend();
+
+    await backend.createBranch('api-session/test-user');
+
+    const createCall = fetchCalls.find(c =>
+      c.method === 'POST' && c.url.includes('/git/refs'),
+    );
+    expect(createCall).toBeDefined();
+    expect(createCall!.body).toEqual({
+      ref: 'refs/heads/api-session/test-user',
+      sha: MAIN_SHA,
+    });
+
+    backend.shutdown();
+  });
+
+  it('performs a 4-step batch commit via Trees API', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    const sha = await backend.createCommitFromTree(
+      'api-session/alice',
+      [{ path: 'taxonomy/nodes.json', content: '{"v":2}' }],
+      'Test commit',
+    );
+
+    expect(sha).toBe(COMMIT_SHA);
+
+    // Verify all 4 steps: GET ref, POST tree, POST commit, PATCH ref
+    const apiCalls = fetchCalls.filter(c =>
+      c.url.includes('/git/') &&
+      !c.url.includes('/git/trees/' + MAIN_SHA), // exclude init tree fetch
+    );
+
+    const methods = apiCalls.map(c => c.method);
+    expect(methods).toContain('GET');   // Step 1: get branch ref
+    expect(methods).toContain('POST');  // Steps 2 & 3: create tree + commit
+    expect(methods).toContain('PATCH'); // Step 4: update ref
+
+    backend.shutdown();
+  });
+
+  it('creates a new pull request', async () => {
+    const backend = await createBackend();
+
+    const pr = await backend.createOrUpdatePR(
+      'api-session/alice',
+      'My edits',
+      'Description of changes',
+    );
+
+    expect(pr.number).toBe(42);
+    expect(pr.url).toContain('/pull/42');
+
+    backend.shutdown();
+  });
+
+  it('updates an existing PR instead of creating a new one', async () => {
+    // Override to return an existing PR in the list
+    apiHandlers.push((url) => {
+      if (url.includes('/pulls?')) {
+        return {
+          status: 200,
+          body: [{ number: 99, html_url: 'https://github.com/testowner/testrepo/pull/99' }],
+        };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    const pr = await backend.createOrUpdatePR('api-session/alice', 'Updated title', 'Updated body');
+
+    expect(pr.number).toBe(99);
+
+    // Verify PATCH was called on the existing PR
+    const patchCall = fetchCalls.find(c =>
+      c.method === 'PATCH' && c.url.includes('/pulls/99'),
+    );
+    expect(patchCall).toBeDefined();
+
+    backend.shutdown();
+  });
+
+  it('compares branches and returns divergence info', async () => {
+    const backend = await createBackend();
+
+    const result = await backend.compareBranches('main', 'api-session/alice');
+
+    expect(result.ahead_by).toBe(3);
+    expect(result.behind_by).toBe(1);
+    expect(result.status).toBe('ahead');
+    expect(result.files).toHaveLength(1);
+    expect(result.files[0].filename).toBe('taxonomy/nodes.json');
+
+    backend.shutdown();
+  });
+
+  it('merges main into a session branch', async () => {
+    const backend = await createBackend();
+
+    const result = await backend.mergeBranch('api-session/alice');
+
+    expect(result.ok).toBe(true);
+    expect(result.sha).toBe(COMMIT_SHA);
+    expect(result.conflicts).toBe(false);
+
+    backend.shutdown();
+  });
+
+  it('reports merge conflict when API returns 409', async () => {
+    apiHandlers.push((url, init) => {
+      if (url.includes('/merges') && init.method === 'POST') {
+        return { status: 409, body: { message: 'Merge conflict' } };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    const result = await backend.mergeBranch('api-session/alice');
+
+    expect(result.ok).toBe(false);
+    expect(result.conflicts).toBe(true);
+    expect(result.message).toContain('Merge conflict');
+
+    backend.shutdown();
+  });
+
+  it('returns "already up to date" on 204 merge response', async () => {
+    apiHandlers.push((url, init) => {
+      if (url.includes('/merges') && init.method === 'POST') {
+        return { status: 204, body: null };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    const result = await backend.mergeBranch('api-session/alice');
+
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('Already up to date');
+
+    backend.shutdown();
+  });
+
+  it('lists directories from the in-memory tree', async () => {
+    const backend = await createBackend();
+
+    const entries = await backend.listDirectory('/taxonomy');
+    expect(entries).toContain('nodes.json');
+    expect(entries).toContain('edges.json');
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SESSION BRANCH MANAGER — INTEGRATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('SessionBranchManager — integration', () => {
+  it('creates a session branch lazily on ensureBranch', async () => {
+    // Mock branch not found initially, then found after creation
+    const createdBranches = new Set<string>();
+    apiHandlers.push((url, init) => {
+      if (url.includes('/git/refs/heads/api-session/') && init.method === 'GET') {
+        const branchName = url.split('/git/refs/heads/')[1];
+        if (!createdBranches.has(branchName)) {
+          return { status: 404, body: { message: 'Not Found' } };
+        }
+      }
+      if (url.includes('/git/refs') && init.method === 'POST') {
+        const body = JSON.parse(init.body as string);
+        const ref = (body.ref as string).replace('refs/heads/', '');
+        createdBranches.add(ref);
+      }
+      return null!;
+    });
+
+    const { manager, backend } = await createSessionManager();
+
+    const branch = await manager.ensureBranch('alice@example.com');
+    expect(branch).toBe('api-session/alice-example.com');
+
+    // Second call returns cached branch
+    const branch2 = await manager.ensureBranch('alice@example.com');
+    expect(branch2).toBe(branch);
+
+    backend.shutdown();
+  });
+
+  it('resumes an existing branch from GitHub', async () => {
+    // Branch exists on GitHub
+    const { manager, backend } = await createSessionManager();
+
+    const branch = await manager.ensureBranch('bob@example.com');
+    expect(branch).toBe('api-session/bob-example.com');
+
+    // Verify session state is tracked
+    const state = manager.getSessionState('bob@example.com');
+    expect(state).toBeDefined();
+    expect(state!.branchName).toBe('api-session/bob-example.com');
+
+    backend.shutdown();
+  });
+
+  it('batch commits files with mutex serialization', async () => {
+    const { manager, backend } = await createSessionManager();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    // ensureBranch first (branch already exists on GitHub per default mock)
+    await manager.ensureBranch('alice');
+
+    const sha = await manager.commitBatch('alice', [
+      { path: 'taxonomy/nodes.json', content: '{"v":2}' },
+      { path: 'taxonomy/edges.json', content: '{"v":2}' },
+    ]);
+
+    expect(sha).toBe(COMMIT_SHA);
+
+    // Verify session state updated
+    const state = manager.getSessionState('alice');
+    expect(state?.lastCommitSha).toBe(COMMIT_SHA);
+    expect(state?.lastCommitAt).toBeGreaterThan(0);
+
+    backend.shutdown();
+  });
+
+  it('rejects empty batch commits', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    await expect(manager.commitBatch('alice', [])).rejects.toThrow(/No files to commit/);
+
+    backend.shutdown();
+  });
+
+  it('creates a PR from a session branch', async () => {
+    const { manager, backend } = await createSessionManager();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    // ensureBranch + commit first
+    await manager.ensureBranch('alice');
+    await manager.commitBatch('alice', [
+      { path: 'taxonomy/nodes.json', content: '{"v":2}' },
+    ]);
+
+    const pr = await manager.createPR('alice', 'My changes', 'Description');
+    expect(pr.number).toBe(42);
+    expect(pr.url).toContain('/pull/42');
+
+    // Verify state tracks PR
+    const state = manager.getSessionState('alice');
+    expect(state?.prNumber).toBe(42);
+
+    backend.shutdown();
+  });
+
+  it('rejects createPR when no session branch exists', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    await expect(manager.createPR('alice')).rejects.toThrow(/No active session branch/);
+
+    backend.shutdown();
+  });
+
+  it('deletes a session branch and clears state', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    // Create a session first
+    await manager.ensureBranch('charlie@example.com');
+    expect(manager.getActiveBranch('charlie@example.com')).toBeDefined();
+
+    await manager.deleteBranch('charlie@example.com', 'manual');
+
+    expect(manager.getActiveBranch('charlie@example.com')).toBeUndefined();
+    expect(manager.getSessionState('charlie@example.com')).toBeUndefined();
+
+    // Verify DELETE was called on GitHub
+    const deleteCall = fetchCalls.find(c =>
+      c.method === 'DELETE' && c.url.includes('/git/refs/heads/'),
+    );
+    expect(deleteCall).toBeDefined();
+
+    backend.shutdown();
+  });
+
+  it('reports divergence between session and main', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    await manager.ensureBranch('alice@example.com');
+    const div = await manager.getDivergence('alice@example.com');
+
+    expect(div).toBeDefined();
+    expect(div!.ahead_by).toBe(3);
+    expect(div!.behind_by).toBe(1);
+
+    backend.shutdown();
+  });
+
+  it('returns null divergence for unknown user', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    const div = await manager.getDivergence('nobody@example.com');
+    expect(div).toBeNull();
+
+    backend.shutdown();
+  });
+
+  it('tracks active session count', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    expect(manager.getActiveSessionCount()).toBe(0);
+
+    await manager.ensureBranch('alice@example.com');
+    expect(manager.getActiveSessionCount()).toBe(1);
+
+    await manager.ensureBranch('bob@example.com');
+    expect(manager.getActiveSessionCount()).toBe(2);
+
+    await manager.deleteBranch('alice@example.com');
+    expect(manager.getActiveSessionCount()).toBe(1);
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MULTI-USER ISOLATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('SessionBranchManager — multi-user isolation', () => {
+  it('maintains separate branches for different users', async () => {
+    const createdBranches = new Set<string>();
+    apiHandlers.push((url, init) => {
+      if (url.includes('/git/refs/heads/api-session/') && init.method === 'GET') {
+        const branchName = url.split('/git/refs/heads/')[1];
+        if (!createdBranches.has(branchName)) {
+          return { status: 404, body: { message: 'Not Found' } };
+        }
+      }
+      if (url.includes('/git/refs') && init.method === 'POST') {
+        const body = JSON.parse(init.body as string);
+        createdBranches.add((body.ref as string).replace('refs/heads/', ''));
+      }
+      return null!;
+    });
+
+    const { manager, backend } = await createSessionManager();
+
+    const branchA = await manager.ensureBranch('alice@example.com');
+    const branchB = await manager.ensureBranch('bob@example.com');
+
+    expect(branchA).not.toBe(branchB);
+    expect(branchA).toContain('alice');
+    expect(branchB).toContain('bob');
+
+    backend.shutdown();
+  });
+
+  it('session overlay is per-user', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    // Alice writes
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    await backend.writeFile('/taxonomy/nodes.json', '{"alice": true}');
+
+    // Bob writes
+    backend.setSessionContext({ userId: 'bob', branchName: 'api-session/bob' });
+    await backend.writeFile('/taxonomy/nodes.json', '{"bob": true}');
+
+    // Verify separate overlays
+    const aliceOverlay = backend.getSessionOverlay('alice');
+    const bobOverlay = backend.getSessionOverlay('bob');
+
+    expect(aliceOverlay?.get('taxonomy/nodes.json')).toBe('{"alice": true}');
+    expect(bobOverlay?.get('taxonomy/nodes.json')).toBe('{"bob": true}');
+
+    backend.shutdown();
+  });
+
+  it('reads from session overlay reflect user edits, not main', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    // Alice writes, then reads — should see her edit
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    await backend.writeFile('/taxonomy/nodes.json', '{"alice": true}');
+
+    const content = await backend.readFile('/taxonomy/nodes.json');
+    expect(content).toBe('{"alice": true}');
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BRANCH NAME SANITIZATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('sanitizeBranchName', () => {
+  let sanitize: typeof import('../sessionBranchManager').sanitizeBranchName;
+
+  beforeEach(async () => {
+    const mod = await import('../sessionBranchManager');
+    sanitize = mod.sanitizeBranchName;
+  });
+
+  it('lowercases and removes @ from emails', () => {
+    // Note: dots in domain are preserved (not in disallowed git ref chars)
+    expect(sanitize('Alice@Example.COM')).toBe('alice-example.com');
+  });
+
+  it('removes disallowed git ref characters', () => {
+    expect(sanitize('user~with^bad:chars?here*now')).toBe('user-with-bad-chars-here-now');
+  });
+
+  it('collapses consecutive dashes', () => {
+    expect(sanitize('user---name')).toBe('user-name');
+  });
+
+  it('trims leading and trailing dashes', () => {
+    expect(sanitize('-username-')).toBe('username');
+  });
+
+  it('replaces .lock suffix', () => {
+    expect(sanitize('branch.lock')).toBe('branch-lock');
+  });
+
+  it('throws on empty result', () => {
+    expect(() => sanitize('@@@@')).toThrow(/empty branch name/);
+  });
+
+  it('truncates long names', () => {
+    const longName = 'a'.repeat(200);
+    const result = sanitize(longName);
+    // api-session/ prefix is 12 chars, so segment max is 88
+    expect(result.length).toBeLessThanOrEqual(88);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHAOS TESTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — chaos: rate limit exhaustion', () => {
+  it('retries on 429 with Retry-After header', async () => {
+    let callCount = 0;
+    apiHandlers.push((url, init) => {
+      if (url.includes('/contents/') && init.method === 'GET') {
+        callCount++;
+        if (callCount <= 2) {
+          return {
+            status: 429,
+            body: { message: 'rate limit exceeded' },
+            headers: {
+              ...defaultRateLimitHeaders,
+              'retry-after': '0', // 0 seconds for test speed
+              'x-ratelimit-remaining': '0',
+            },
+          };
+        }
+        // Third attempt succeeds
+        return {
+          status: 200,
+          body: { content: Buffer.from('recovered').toString('base64'), encoding: 'base64', sha: 'x' },
+        };
+      }
+      return null!;
+    });
+
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+    const content = await backend.readFile('/taxonomy/nodes.json');
+
+    expect(content).toBe('recovered');
+    expect(callCount).toBe(3);
+
+    // Verify rate limit event was recorded
+    const rateLimitEvents = recorder.events.filter(e => e.type === 'github.api.rate_limit');
+    expect(rateLimitEvents.length).toBeGreaterThan(0);
+
+    backend.shutdown();
+  });
+});
+
+describe('GitHubAPIBackend — chaos: circuit breaker', () => {
+  it('opens after 5 consecutive failures and blocks requests', async () => {
+    let failCount = 0;
+    apiHandlers.push((url, init) => {
+      // Fail all Contents API calls to trigger circuit breaker
+      if (url.includes('/contents/') && init.method === 'GET') {
+        failCount++;
+        return { status: 500, body: { message: 'Internal Server Error' } };
+      }
+      return null!;
+    });
+
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    // Make 5+ failing requests to trip the circuit breaker
+    // Each request retries 3 times internally, but we need 5 consecutive failures
+    // counted by onApiFailure. With MAX_RETRIES=3, each readFile causes 4 attempts.
+    for (let i = 0; i < 2; i++) {
+      await backend.readFile(`/file${i}.json`);
+    }
+
+    // Circuit should be open now
+    expect(backend.getCircuitState()).toBe('open');
+
+    // Further reads should return null without hitting the API
+    const callsBefore = fetchCalls.length;
+    const result = await backend.readFile('/another-file.json');
+    expect(result).toBeNull();
+
+    // Verify circuit breaker event
+    const cbEvents = recorder.events.filter(e => e.type === 'github.api.circuit_break');
+    expect(cbEvents.some(e => e.message?.includes('→ open'))).toBe(true);
+
+    backend.shutdown();
+  });
+
+  it('blocks writes when circuit is open', async () => {
+    // Trip the circuit breaker
+    apiHandlers.push((url, init) => {
+      if (url.includes('/contents/')) {
+        return { status: 500, body: { message: 'Internal Server Error' } };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    // Trip the breaker
+    for (let i = 0; i < 2; i++) {
+      await backend.readFile(`/file${i}.json`);
+    }
+
+    expect(backend.getCircuitState()).toBe('open');
+
+    await expect(backend.writeFile('/taxonomy/nodes.json', '{}')).rejects.toThrow(
+      /circuit breaker open/i,
+    );
+
+    backend.shutdown();
+  });
+});
+
+describe('GitHubAPIBackend — chaos: GitHub outage (5xx)', () => {
+  it('retries on 500 with exponential backoff', async () => {
+    let callCount = 0;
+    apiHandlers.push((url, init) => {
+      if (url.includes('/contents/') && init.method === 'GET') {
+        callCount++;
+        if (callCount <= 2) {
+          return { status: 503, body: { message: 'Service Unavailable' } };
+        }
+        return {
+          status: 200,
+          body: { content: Buffer.from('recovered').toString('base64'), encoding: 'base64', sha: 'x' },
+        };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    const content = await backend.readFile('/taxonomy/nodes.json');
+
+    expect(content).toBe('recovered');
+    expect(callCount).toBe(3);
+
+    backend.shutdown();
+  });
+
+  it('returns null after all retries exhausted on read', async () => {
+    apiHandlers.push((url, init) => {
+      if (url.includes('/contents/') && init.method === 'GET') {
+        return { status: 500, body: { message: 'Internal Server Error' } };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    const content = await backend.readFile('/taxonomy/nodes.json');
+
+    // readFile returns null on failure (does not throw)
+    expect(content).toBeNull();
+
+    backend.shutdown();
+  });
+});
+
+describe('GitHubAPIBackend — chaos: token expiry mid-batch', () => {
+  it('refreshes credentials on 401 and retries', async () => {
+    let attempt = 0;
+    apiHandlers.push((url, init) => {
+      // First call to any Contents API returns 401
+      if (url.includes('/contents/') && init.method === 'GET') {
+        attempt++;
+        if (attempt === 1) {
+          return { status: 401, body: { message: 'Bad credentials' } };
+        }
+        return {
+          status: 200,
+          body: { content: Buffer.from('ok').toString('base64'), encoding: 'base64', sha: 'x' },
+        };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    const content = await backend.readFile('/taxonomy/nodes.json');
+
+    expect(content).toBe('ok');
+    expect(attempt).toBe(2); // first 401, then success
+
+    backend.shutdown();
+  });
+});
+
+describe('GitHubAPIBackend — chaos: force push on main', () => {
+  it('triggers full cache invalidation on 404 compare', async () => {
+    apiHandlers.push((url) => {
+      // Compare returns 404 when cached SHA no longer in history
+      if (url.includes('/compare/')) {
+        return { status: 404, body: { message: 'Not Found' } };
+      }
+      return null!;
+    });
+
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    const changed = await backend.getChangedFiles('old-sha', 'new-sha');
+    expect(changed).toEqual([]); // Returns empty on failure
+
+    // Verify cache invalidation was triggered
+    const invalidateEvents = recorder.events.filter(e => e.type === 'cache.invalidate');
+    expect(invalidateEvents.some(e => e.message?.includes('Force push'))).toBe(true);
+
+    backend.shutdown();
+  });
+
+  it('triggers full cache invalidation on 422 compare', async () => {
+    apiHandlers.push((url) => {
+      if (url.includes('/compare/')) {
+        return { status: 422, body: { message: 'No common ancestor' } };
+      }
+      return null!;
+    });
+
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    await backend.getChangedFiles('old-sha', 'new-sha');
+
+    const invalidateEvents = recorder.events.filter(e => e.type === 'cache.invalidate');
+    expect(invalidateEvents.some(e => e.message?.includes('Force push'))).toBe(true);
+
+    backend.shutdown();
+  });
+});
+
+describe('GitHubAPIBackend — chaos: network errors', () => {
+  it('retries and recovers from transient network errors', async () => {
+    let callCount = 0;
+    apiHandlers.push((url, init) => {
+      if (url.includes('/contents/') && init.method === 'GET') {
+        callCount++;
+        if (callCount <= 2) {
+          throw new TypeError('fetch failed');
+        }
+        return {
+          status: 200,
+          body: { content: Buffer.from('recovered').toString('base64'), encoding: 'base64', sha: 'x' },
+        };
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+    const content = await backend.readFile('/taxonomy/nodes.json');
+
+    expect(content).toBe('recovered');
+    expect(callCount).toBe(3);
+
+    backend.shutdown();
+  });
+});
+
+describe('SessionBranchManager — chaos: multi-tab race', () => {
+  it('serializes concurrent commits from same user via mutex', async () => {
+    const { manager, backend } = await createSessionManager();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    // Pre-create branch
+    await manager.ensureBranch('alice');
+
+    // Fire two concurrent commits
+    const results = await Promise.all([
+      manager.commitBatch('alice', [
+        { path: 'taxonomy/nodes.json', content: '{"tab1": true}' },
+      ]),
+      manager.commitBatch('alice', [
+        { path: 'taxonomy/edges.json', content: '{"tab2": true}' },
+      ]),
+    ]);
+
+    // Both should succeed (serialized, not concurrent)
+    expect(results[0]).toBe(COMMIT_SHA);
+    expect(results[1]).toBe(COMMIT_SHA);
+
+    backend.shutdown();
+  });
+
+  it('different users can commit concurrently (no mutex contention)', async () => {
+    const { manager, backend } = await createSessionManager();
+
+    // Pre-create branches for both users
+    await manager.ensureBranch('alice');
+    await manager.ensureBranch('bob');
+
+    const results = await Promise.all([
+      (async () => {
+        backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+        return manager.commitBatch('alice', [
+          { path: 'taxonomy/nodes.json', content: '{"alice": true}' },
+        ]);
+      })(),
+      (async () => {
+        backend.setSessionContext({ userId: 'bob', branchName: 'api-session/bob' });
+        return manager.commitBatch('bob', [
+          { path: 'taxonomy/nodes.json', content: '{"bob": true}' },
+        ]);
+      })(),
+    ]);
+
+    expect(results[0]).toBe(COMMIT_SHA);
+    expect(results[1]).toBe(COMMIT_SHA);
+
+    backend.shutdown();
+  });
+});
+
+describe('GitHubAPIBackend — chaos: missing credentials', () => {
+  it('initializes in fallback mode with no credentials', async () => {
+    const { getCredentials } = await import('../githubAppAuth');
+    (getCredentials as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
+
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    // Should still init, but in fallback mode
+    const fallbackEvents = recorder.events.filter(e => e.type === 'storage.fallback');
+    expect(fallbackEvents.length).toBeGreaterThan(0);
+
+    backend.shutdown();
+  });
+
+  it('throws noCredsError on write when credentials are missing', async () => {
+    const { getCredentials } = await import('../githubAppAuth');
+    (getCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+    const { GitHubAPIBackend } = await import('../githubAPIBackend');
+    const backend = new GitHubAPIBackend({
+      cacheDir: '/tmp/test-cache-nocreds',
+      pollIntervalMs: 999_999_999,
+      coherencyProbeRate: 0,
+    });
+    await backend.initialize();
+
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    await expect(backend.writeFile('/taxonomy/nodes.json', '{}')).rejects.toThrow(
+      /No GitHub credentials configured/,
+    );
+
+    backend.shutdown();
+
+    // Restore mock
+    (getCredentials as ReturnType<typeof vi.fn>).mockResolvedValue({
+      repo: 'testowner/testrepo',
+      token: 'test-token-abc123',
+      mode: 'pat' as const,
+    });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CACHE BEHAVIOR
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — cache behavior', () => {
+  it('serves from session overlay on cache hit', async () => {
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+
+    // Populate overlay
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    await backend.writeFile('/taxonomy/nodes.json', '{"cached": true}');
+
+    // Reset fetch tracking
+    fetchCalls.length = 0;
+
+    // Read should come from overlay, not GitHub
+    const content = await backend.readFile('/taxonomy/nodes.json');
+    expect(content).toBe('{"cached": true}');
+
+    // No additional fetch calls for the read (overlay hit)
+    const contentsFetches = fetchCalls.filter(c => c.url.includes('/contents/taxonomy/nodes.json'));
+    expect(contentsFetches).toHaveLength(0);
+
+    backend.shutdown();
+  });
+
+  it('tracks cache generation counter', async () => {
+    const backend = await createBackend();
+
+    // Generation should be a positive number after init (manifest was created/loaded)
+    expect(typeof backend.getCacheGeneration()).toBe('number');
+
+    backend.shutdown();
+  });
+
+  it('clears session overlay on clearSessionOverlay', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    await backend.writeFile('/taxonomy/nodes.json', '{"alice": true}');
+
+    expect(backend.getSessionOverlay('alice')?.size).toBeGreaterThan(0);
+
+    backend.clearSessionOverlay('alice');
+    expect(backend.getSessionOverlay('alice')).toBeUndefined();
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DIAGNOSTIC ACCESSORS
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — diagnostic accessors', () => {
+  it('exposes rate limit info', async () => {
+    const backend = await createBackend();
+
+    expect(backend.getRateLimitRemaining()).toBe(4999);
+    expect(backend.getRateLimitResetsAt()).toBeTruthy();
+
+    backend.shutdown();
+  });
+
+  it('exposes circuit breaker state', async () => {
+    const backend = await createBackend();
+
+    expect(backend.getCircuitState()).toBe('closed');
+
+    backend.shutdown();
+  });
+
+  it('exposes error buffer', async () => {
+    const backend = await createBackend();
+
+    // Should be an array (possibly empty)
+    expect(Array.isArray(backend.getErrorBuffer())).toBe(true);
+
+    backend.shutdown();
+  });
+
+  it('counts active branches via session overlays', async () => {
+    const backend = await createBackend();
+
+    expect(backend.getActiveBranchCount()).toBe(0);
+
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    await backend.writeFile('/taxonomy/nodes.json', '{}');
+
+    expect(backend.getActiveBranchCount()).toBe(1);
+
+    backend.shutdown();
+  });
+});

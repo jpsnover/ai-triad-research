@@ -104,7 +104,7 @@ The system implements a five-stage pipeline: **ingest** (document conversion and
 
 ### 3.0 The Determinate-Indeterminate Boundary
 
-Following Hart (1961) and Hude (2025), we decompose reasoning into **determinate operations** — tasks with one correct answer, encoded in the graph — and **interpretive judgments** where the LLM exercises bounded discretion within constraints set by the graph structure. This boundary is not an engineering convenience but a principled design decision grounded in Hart's concept of the "penumbra": where rules run out and context-dependent judgment begins.
+Following Hart (1961) and Hude (2025), we decompose reasoning into **determinate operations** — tasks with one correct answer, encoded in the graph — and **interpretive judgments** where the LLM exercises bounded discretion within constraints set by the graph structure. This boundary is not an engineering convenience but a principled design decision grounded in Hart's concept of the "penumbra": where rules run out and context-dependent judgment begins. The importance of this boundary is underscored by Gur-Arieh et al. (2026), who identify *ambiguity collapse* as a systematic epistemic risk of LLMs: when models encounter terms admitting multiple legitimate interpretations, they produce singular resolutions that bypass the human processes of deliberation, negotiation, and contestation. Our architecture is designed to prevent ambiguity collapse by holding multiple interpretations simultaneously (three-POV situation nodes), making the *type* of disagreement explicit (BDI decomposition), and subjecting interpretations to adversarial testing rather than allowing any single resolution to settle.
 
 | Determinate (symbolic) | Indeterminate (neural) |
 |---|---|
@@ -927,7 +927,22 @@ The calibration and evaluation system described above shares structural parallel
 
 **What PRM theory suggests we should explore.** ThinkPRM (Khalifa et al., 2025) demonstrates that generative verifiers — LLMs that produce step-by-step verification reasoning — outperform discriminative classifiers while requiring 100× fewer labels. Applied to our system, this suggests replacing our binary turn validation (accept/retry) with a generative verifier that produces an explicit reasoning chain about turn quality: "This turn cites acc-beliefs-012 as evidence. The node describes empirical validation of decentralized development. The claim is consistent with the cited node, but does not address the counter-evidence in saf-beliefs-019. Process score: 0.65." This would enrich our diagnostics with causal explanations of quality scores, not just the scores themselves. Self-Debate Reinforcement Learning (SDRL; 2026) further suggests that training a model on our 93+ debate transcripts could produce agents that are simultaneously better arguers and better critics — a direction for future work requiring training infrastructure we do not currently maintain.
 
-### 8.11 Limitations
+### 8.11 Preventing Ambiguity Collapse
+
+Gur-Arieh et al. (2026) identify *ambiguity collapse* — the systematic tendency of LLMs to produce singular resolutions for terms that genuinely admit multiple legitimate interpretations — as a pervasive epistemic risk. Their taxonomy of harms maps directly to architectural decisions in our system:
+
+| Ambiguity Collapse Risk | Our Architectural Mitigation |
+|---|---|
+| **Deliberative closure** — LLMs foreclose inquiry | Three-POV adversarial debate forces sustained engagement across interpretations |
+| **Epistemic narrowing** — only one interpretation surfaces | Situation nodes carry three POV interpretations simultaneously |
+| **Normative smuggling** — hidden value judgments in disambiguation | BDI decomposition makes the type of each claim explicit (empirical vs normative vs strategic) |
+| **Interpretive lock-in** — early resolution becomes default | Adversarial refinement loop (debate → reflect → update → debate) challenges prior interpretations each cycle |
+| **Monoculture** — uniform resolution across models | Three structurally different agents with doctrinal boundaries preventing identity convergence |
+| **Loss of residuals** — borderline cases forced into crisp categories | Crux identification surfaces exactly where reasonable people disagree and why |
+
+The system also addresses ambiguity collapse at the extraction level: the FIRE verification chain includes an `ambiguity_resolved` check that detects when an LLM extraction resolves an ambiguity the source text left open, penalizing the extraction confidence of collapsed claims. This prevents debate agents from building arguments against phantom certainties that the source material does not support.
+
+### 8.12 Limitations
 
 **Taxonomy curation and iteration plateau.** While AI-assisted, the taxonomy requires significant human curation. Automated taxonomy proposal generation plateaus after 3-4 passes on the same health data — the system's token budget limits each pass to ~30 of 400+ unmapped concepts, and the same high-frequency concepts resurface. A full iteration cycle (propose → approve → re-summarize → re-propose) added 14 new nodes but did not significantly reduce the unmapped concept count (431 → 447 after re-summarization), indicating that the gap between automated extraction and taxonomy coverage is partially structural — not all unmapped concepts warrant dedicated nodes. NLI-based semantic deduplication of unmapped concepts (implemented via embedding-based cosine clustering at threshold 0.75) reduced 447 unique unmapped concepts to 354 clusters (21% reduction), addressing the repetition problem but not the structural gap.
 
@@ -951,7 +966,7 @@ The calibration and evaluation system described above shares structural parallel
 
 **SPECIFY move adoption.** The SPECIFY move's effectiveness depends on LLMs' ability to generate genuine falsifiability commitments rather than vague hedges ("I would change my mind if overwhelming evidence..."). Early observations suggest that explicit prompt instruction ("what specific outcome in the next 5 years") is necessary to elicit operationalized predictions, but formal evaluation has not been conducted.
 
-### 8.12 Ethical Considerations
+### 8.13 Ethical Considerations
 
 This system analyzes discourse about AI policy — a politically sensitive domain where computational tools can amplify certain perspectives while marginalizing others. Several ethical considerations apply:
 
@@ -1028,6 +1043,8 @@ Fauconnier, G. and Turner, M. (2002). *The Way We Think: Conceptual Blending and
 Gentner, D. and Markman, A. B. (1997). Structure mapping in analogy and similarity. *American Psychologist*, 52(1):45-56. https://psycnet.apa.org/record/1997-02239-006
 
 Guarino, N., Oberle, D., and Staab, S. (2009). What is an ontology? In *Handbook on Ontologies*, pages 1-17. Springer. https://doi.org/10.1007/978-3-540-92673-3_0
+
+Gur-Arieh, S., Wang, A., and Fazelpour, S. (2026). Ambiguity collapse by LLMs: A taxonomy of epistemic risks. *Proceedings of the ACM Conference on Human-Centered Computing*.
 
 Hamblin, C. L. (1970). *Fallacies*. Methuen.
 

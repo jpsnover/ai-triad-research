@@ -168,6 +168,7 @@ Analyze this document and extract its key claims as information nodes (i-nodes).
    - 0.7-0.89: faithful paraphrase, core meaning intact
    - 0.5-0.69: inferred claim not explicitly stated but implied by the text
    - Below 0.5: do not include — you are editorializing beyond the source
+   AMBIGUITY WARNING: If the source hedges, qualifies, or presents multiple interpretations of a claim, preserve that uncertainty in your extraction. Do NOT collapse "X may lead to Y" into "X leads to Y" or turn "some argue X while others argue Y" into just "X". Cap extraction_confidence at 0.6 for any claim where you resolved an ambiguity the source left open.
 4. Map it to relevant taxonomy node IDs from the list above — only include IDs that actually appear in the taxonomy
 5. Map it to relevant policy item IDs if applicable
 

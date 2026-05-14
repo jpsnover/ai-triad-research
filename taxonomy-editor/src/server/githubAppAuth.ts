@@ -190,6 +190,16 @@ export function getRepoSlug(): string | null {
 }
 
 /**
+ * Returns the epoch-ms when the cached installation token expires,
+ * or 0 if no token is cached (PAT mode or no credentials).
+ * Used by SessionBranchManager to validate >60 s remaining before
+ * starting a multi-step batch commit.
+ */
+export function getTokenExpiryMs(): number {
+  return cachedInstallToken?.expiresAt ?? 0;
+}
+
+/**
  * Returns a usable credential bundle, or null when no credentials are
  * configured. Callers should 503 (or render a disabled UI) on null.
  */

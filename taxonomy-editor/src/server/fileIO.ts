@@ -4,15 +4,40 @@
 /**
  * File I/O service for the web server — mirrors the Electron main/fileIO.ts
  * logic without any Electron imports.
+ *
+ * All public functions are async.  Data-repo I/O is delegated to the pluggable
+ * StorageBackend (default: FilesystemBackend).  Project-root I/O (AI models,
+ * PS prompts) uses fs/promises directly — these files are always local.
  */
 
-import fs from 'fs';
+import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot } from './config';
 import { ActionableError } from '../../../lib/debate/errors';
 import { POV_KEYS } from '../../../lib/debate/types';
+import type { StorageBackend } from './storageBackend';
+import { FilesystemBackend } from './filesystemBackend';
+import type { SessionContext } from './githubAPIBackend';
+
+// ── Backend injection ──
+
+let backend: StorageBackend = new FilesystemBackend();
+
+/** Replace the storage backend (e.g. with GitHubAPIBackend for Azure). */
+export function setBackend(b: StorageBackend): void { backend = b; }
+export function getBackend(): StorageBackend { return backend; }
+
+/**
+ * Set per-request session context. Only effective when the backend is
+ * GitHubAPIBackend (API mode). FilesystemBackend ignores this.
+ */
+export function setSessionContext(ctx: SessionContext | null): void {
+  if ('setSessionContext' in backend && typeof (backend as Record<string, unknown>).setSessionContext === 'function') {
+    (backend as { setSessionContext(ctx: SessionContext | null): void }).setSessionContext(ctx);
+  }
+}
 
 // ── Path safety ──
 
@@ -54,16 +79,20 @@ function assertSafeFilename(value: string, label: string): void {
 
 let activeTaxonomyDir = '';
 
-export function getTaxonomyDirs(): string[] {
+export async function getTaxonomyDirs(): Promise<string[]> {
   const config = loadDataConfig();
   const taxonomyBase = resolveDataPath(path.dirname(config.taxonomy_dir));
   try {
-    return fs.readdirSync(taxonomyBase)
-      .filter(d => {
-        const full = path.join(taxonomyBase, d);
-        return fs.statSync(full).isDirectory()
-          && fs.readdirSync(full).some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
-      });
+    const entries = await backend.listDirectory(taxonomyBase);
+    const dirs: string[] = [];
+    for (const d of entries) {
+      const full = path.join(taxonomyBase, d);
+      const children = await backend.listDirectory(full);
+      if (children.some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json')) {
+        dirs.push(d);
+      }
+    }
+    return dirs;
   } catch {
     return [];
   }
@@ -90,10 +119,10 @@ function getTaxonomyDir(): string {
 
 // ── Data availability ──
 
-export function isDataAvailable(): boolean {
+export async function isDataAvailable(): Promise<boolean> {
   const taxDir = getTaxonomyDir();
   try {
-    const files = fs.readdirSync(taxDir);
+    const files = await backend.listDirectory(taxDir);
     const hasData = files.some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
     console.log(`[isDataAvailable] taxDir=${taxDir} files=${files.length} hasData=${hasData}`);
     return hasData;
@@ -109,31 +138,35 @@ export function getDataRootPath(): string {
 
 // ── Taxonomy CRUD ──
 
-function resolveTaxonomyFilePath(pov: string): string {
+async function resolveTaxonomyFilePath(pov: string): Promise<string> {
   assertSafePov(pov);
   const taxDir = getTaxonomyDir();
   if (pov === 'situations') {
     const sitPath = path.join(taxDir, 'situations.json');
-    if (fs.existsSync(sitPath)) return sitPath;
+    if (await backend.fileExists(sitPath)) return sitPath;
     const ccPath = path.join(taxDir, 'cross-cutting.json');
-    if (fs.existsSync(ccPath)) return ccPath;
+    if (await backend.fileExists(ccPath)) return ccPath;
     return sitPath;
   }
   return path.join(taxDir, `${pov}.json`);
 }
 
-export function readTaxonomyFile(pov: string): unknown {
-  const filePath = resolveTaxonomyFilePath(pov);
+export async function readTaxonomyFile(pov: string): Promise<unknown> {
+  const filePath = await resolveTaxonomyFilePath(pov);
+  const raw = await backend.readFile(filePath);
+  if (raw === null) throw new ActionableError({
+    goal: 'Read taxonomy file',
+    problem: `Taxonomy file not found: ${filePath}`,
+    location: 'server/fileIO.ts → readTaxonomyFile',
+    nextSteps: ['Verify the POV file exists in the active taxonomy directory'],
+  });
   // Strip UTF-8 BOM if present — PowerShell's Set-Content writes BOM by default
-  const raw = fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '');
-  return JSON.parse(raw);
+  return JSON.parse(raw.replace(/^\uFEFF/, ''));
 }
 
-export function writeTaxonomyFile(pov: string, data: unknown): void {
-  const filePath = resolveTaxonomyFilePath(pov);
-  const tmpPath = filePath + '.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmpPath, filePath);
+export async function writeTaxonomyFile(pov: string, data: unknown): Promise<void> {
+  const filePath = await resolveTaxonomyFilePath(pov);
+  await backend.writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
 // ── Conflict CRUD ──
@@ -143,40 +176,37 @@ function getConflictsDir(): string {
   return resolveDataPath(config.conflicts_dir);
 }
 
-export function readAggregatedCruxes(): unknown | null {
+export async function readAggregatedCruxes(): Promise<unknown | null> {
   const filePath = path.join(getTaxonomyDir(), 'aggregated-cruxes.json');
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch { return null; }
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return null;
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
-export function readConflictClusters(): unknown | null {
+export async function readConflictClusters(): Promise<unknown | null> {
   const filePath = path.join(getConflictsDir(), '_conflict-clusters.json');
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch { return null; }
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return null;
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
-export function readAllConflictFiles(): unknown[] {
+export async function readAllConflictFiles(): Promise<unknown[]> {
   const dir = getConflictsDir();
-  if (!fs.existsSync(dir)) return [];
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.json') && !f.startsWith('_'));
+  const entries = await backend.listDirectory(dir);
   const results: unknown[] = [];
-  for (const f of files) {
+  for (const f of entries.filter(f => f.endsWith('.json') && !f.startsWith('_'))) {
     try {
-      const raw = fs.readFileSync(path.join(dir, f), 'utf-8');
-      results.push(JSON.parse(raw));
+      const raw = await backend.readFile(path.join(dir, f));
+      if (raw !== null) results.push(JSON.parse(raw));
     } catch { /* skip corrupt files */ }
   }
   return results;
 }
 
-export function writeConflictFile(claimId: string, data: unknown): void {
+export async function writeConflictFile(claimId: string, data: unknown): Promise<void> {
   assertSafeId(claimId, 'claimId');
   const filePath = path.join(getConflictsDir(), `${claimId}.json`);
-  if (!fs.existsSync(filePath)) throw new ActionableError({
+  if (!await backend.fileExists(filePath)) throw new ActionableError({
     goal: 'Load conflict definition',
     problem: `Conflict file not found: ${claimId}`,
     location: 'server/fileIO.ts → writeConflictFile',
@@ -186,17 +216,13 @@ export function writeConflictFile(claimId: string, data: unknown): void {
       'Call readAllConflictFiles() to list available conflict files',
     ],
   });
-  const tmpPath = filePath + '.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmpPath, filePath);
+  await backend.writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
-export function createConflictFile(claimId: string, data: unknown): void {
+export async function createConflictFile(claimId: string, data: unknown): Promise<void> {
   assertSafeId(claimId, 'claimId');
-  const dir = getConflictsDir();
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `${claimId}.json`);
-  if (fs.existsSync(filePath)) throw new ActionableError({
+  const filePath = path.join(getConflictsDir(), `${claimId}.json`);
+  if (await backend.fileExists(filePath)) throw new ActionableError({
     goal: 'Create conflict definition',
     problem: `Conflict file already exists: ${claimId}`,
     location: 'server/fileIO.ts → createConflictFile',
@@ -205,24 +231,25 @@ export function createConflictFile(claimId: string, data: unknown): void {
       'Delete the existing file first if you intend to replace it',
     ],
   });
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  await backend.writeFile(filePath, JSON.stringify(data, null, 2));
 }
 
-export function deleteConflictFile(claimId: string): void {
+export async function deleteConflictFile(claimId: string): Promise<void> {
   assertSafeId(claimId, 'claimId');
-  const filePath = path.join(getConflictsDir(), `${claimId}.json`);
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  await backend.deleteFile(path.join(getConflictsDir(), `${claimId}.json`));
 }
 
 // ── Policy registry ──
 
-export function readPolicyRegistry(): unknown | null {
+export async function readPolicyRegistry(): Promise<unknown | null> {
   try {
-    // policy_actions.json lives in the active taxonomy directory, not the data root
     const taxDir = getTaxonomyDir();
     const p = path.join(taxDir, 'policy_actions.json');
-    console.log(`[fileIO] readPolicyRegistry: taxDir=${taxDir}, path=${p}, exists=${fs.existsSync(p)}`);
-    const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    const exists = await backend.fileExists(p);
+    console.log(`[fileIO] readPolicyRegistry: taxDir=${taxDir}, path=${p}, exists=${exists}`);
+    const raw = await backend.readFile(p);
+    if (raw === null) return null;
+    const data = JSON.parse(raw);
     const count = (data as { policies?: unknown[] })?.policies?.length ?? 0;
     console.log(`[fileIO] readPolicyRegistry: loaded ${count} policies`);
     return data;
@@ -238,45 +265,44 @@ function getEdgesPath(): string {
   return path.join(getTaxonomyDir(), 'edges.json');
 }
 
-export function readEdgesFile(): unknown | null {
+export async function readEdgesFile(): Promise<unknown | null> {
   try {
-    return JSON.parse(fs.readFileSync(getEdgesPath(), 'utf-8'));
+    const raw = await backend.readFile(getEdgesPath());
+    if (raw === null) return null;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 }
 
-export function writeEdgesFile(data: unknown): void {
-  const p = getEdgesPath();
-  const tmp = p + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmp, p);
+export async function writeEdgesFile(data: unknown): Promise<void> {
+  await backend.writeFile(getEdgesPath(), JSON.stringify(data, null, 2));
 }
 
-export function updateEdgeStatus(edges: unknown, index: number, status: string): unknown {
+export async function updateEdgeStatus(edges: unknown, index: number, status: string): Promise<unknown> {
   const arr = edges as { edges: Record<string, unknown>[] };
   if (arr.edges && arr.edges[index]) {
     arr.edges[index].status = status;
     if (status === 'approved') {
       delete arr.edges[index].direction_flag;
     }
-    writeEdgesFile(arr);
+    await writeEdgesFile(arr);
   }
   return arr;
 }
 
-export function bulkUpdateEdges(edges: unknown, indices: number[], status: string): unknown {
+export async function bulkUpdateEdges(edges: unknown, indices: number[], status: string): Promise<unknown> {
   const arr = edges as { edges: Record<string, unknown>[] };
   if (arr.edges) {
     for (const i of indices) {
       if (arr.edges[i]) arr.edges[i].status = status;
     }
-    writeEdgesFile(arr);
+    await writeEdgesFile(arr);
   }
   return arr;
 }
 
-export function swapEdgeDirection(edges: unknown, index: number): unknown {
+export async function swapEdgeDirection(edges: unknown, index: number): Promise<unknown> {
   const arr = edges as { edges: Record<string, unknown>[] };
   if (arr.edges && arr.edges[index]) {
     const edge = arr.edges[index];
@@ -284,7 +310,7 @@ export function swapEdgeDirection(edges: unknown, index: number): unknown {
     edge.source = edge.target;
     edge.target = tmp;
     delete edge.direction_flag;
-    writeEdgesFile(arr);
+    await writeEdgesFile(arr);
   }
   return arr;
 }
@@ -310,36 +336,37 @@ type NodeSourceIndex = Record<string, SourceReference[]>;
  * Scan all summary JSON files and build a reverse index:
  * nodeId → list of source references that mapped to it.
  */
-export function buildNodeSourceIndex(): NodeSourceIndex {
+export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
   const config = loadDataConfig();
   const summariesDir = resolveDataPath(config.summaries_dir);
   const sourcesDir = resolveDataPath(config.sources_dir);
   const index: NodeSourceIndex = {};
 
-  if (!fs.existsSync(summariesDir)) return index;
+  const summaryFiles = await backend.listDirectory(summariesDir);
+  if (summaryFiles.length === 0) return index;
 
-  // Pre-load source metadata for titles/URLs
+  // Pre-load source metadata for titles/URLs.
+  // Instead of checking isDirectory, we probe for metadata.json in each entry.
   const metaCache: Record<string, { title: string; url: string | null; sourceType: string; datePublished: string }> = {};
-  if (fs.existsSync(sourcesDir)) {
-    for (const entry of fs.readdirSync(sourcesDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const metaPath = path.join(sourcesDir, entry.name, 'metadata.json');
-      try {
-        if (fs.existsSync(metaPath)) {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          metaCache[entry.name] = {
-            title: meta.title || entry.name,
-            url: meta.url || null,
-            sourceType: meta.source_type || 'unknown',
-            datePublished: meta.date_published || meta.source_time || '',
-          };
-        }
-      } catch { /* skip */ }
-    }
+  const sourceEntries = await backend.listDirectory(sourcesDir);
+  for (const name of sourceEntries) {
+    const metaPath = path.join(sourcesDir, name, 'metadata.json');
+    try {
+      const metaRaw = await backend.readFile(metaPath);
+      if (metaRaw !== null) {
+        const meta = JSON.parse(metaRaw);
+        metaCache[name] = {
+          title: meta.title || name,
+          url: meta.url || null,
+          sourceType: meta.source_type || 'unknown',
+          datePublished: meta.date_published || meta.source_time || '',
+        };
+      }
+    } catch { /* skip */ }
   }
 
   // Scan all summary files
-  for (const file of fs.readdirSync(summariesDir)) {
+  for (const file of summaryFiles) {
     if (!file.endsWith('.json')) continue;
     const docId = file.replace(/\.json$/, '');
 
@@ -356,7 +383,9 @@ export function buildNodeSourceIndex(): NodeSourceIndex {
     };
 
     try {
-      summary = JSON.parse(fs.readFileSync(path.join(summariesDir, file), 'utf-8'));
+      const raw = await backend.readFile(path.join(summariesDir, file));
+      if (raw === null) continue;
+      summary = JSON.parse(raw);
     } catch { continue; }
 
     const meta = metaCache[docId] || { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
@@ -403,13 +432,13 @@ type PolicySourceIndex = Record<string, PolicySourceReference[]>;
  * (by scanning policy_actions in POV files), then use the node-source index
  * to find which sources reference those nodes.
  */
-export function buildPolicySourceIndex(): PolicySourceIndex {
+export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
   const result: PolicySourceIndex = {};
   const config = loadDataConfig();
   const sourcesDir = resolveDataPath(config.sources_dir);
 
   // 1. Load policy registry to get all policy IDs
-  const regRaw = readPolicyRegistry() as { policies?: { id: string }[] } | null;
+  const regRaw = await readPolicyRegistry() as { policies?: { id: string }[] } | null;
   if (!regRaw?.policies) return result;
   for (const pol of regRaw.policies) {
     result[pol.id] = [];
@@ -419,7 +448,7 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
   const nodeToPolicies = new Map<string, string[]>();
   for (const pov of POV_KEYS) {
     try {
-      const file = readTaxonomyFile(pov) as { nodes?: Array<{ id: string; graph_attributes?: { policy_actions?: { policy_id?: string }[] } }> };
+      const file = await readTaxonomyFile(pov) as { nodes?: Array<{ id: string; graph_attributes?: { policy_actions?: { policy_id?: string }[] } }> };
       if (!file?.nodes) continue;
       for (const node of file.nodes) {
         const actions = node.graph_attributes?.policy_actions;
@@ -434,24 +463,23 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
   }
 
   // 3. Build node-source index
-  const nodeSourceIdx = buildNodeSourceIndex();
+  const nodeSourceIdx = await buildNodeSourceIndex();
 
   // 4. Pre-load source metadata for dateIngested / sourceTime
   const metaCache: Record<string, { dateIngested: string; sourceTime: string }> = {};
-  if (fs.existsSync(sourcesDir)) {
-    for (const entry of fs.readdirSync(sourcesDir, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue;
-      const metaPath = path.join(sourcesDir, entry.name, 'metadata.json');
-      try {
-        if (fs.existsSync(metaPath)) {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          metaCache[entry.name] = {
-            dateIngested: meta.date_ingested || meta.date_published || '',
-            sourceTime: meta.source_time || '',
-          };
-        }
-      } catch { /* skip */ }
-    }
+  const sourceEntries = await backend.listDirectory(sourcesDir);
+  for (const name of sourceEntries) {
+    const metaPath = path.join(sourcesDir, name, 'metadata.json');
+    try {
+      const metaRaw = await backend.readFile(metaPath);
+      if (metaRaw !== null) {
+        const meta = JSON.parse(metaRaw);
+        metaCache[name] = {
+          dateIngested: meta.date_ingested || meta.date_published || '',
+          sourceTime: meta.source_time || '',
+        };
+      }
+    } catch { /* skip */ }
   }
 
   // 5. For each node that has sources, map those sources to the node's policies
@@ -482,32 +510,32 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
 // ── Debate sessions ──
 
 function getDebatesDir(): string {
-  const dir = resolveDataPath('debates');
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
+  return resolveDataPath('debates');
 }
 
-export function listDebateSessions(): unknown[] {
+export async function listDebateSessions(): Promise<unknown[]> {
   const dir = getDebatesDir();
   const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[] = [];
 
   // Scan root debates dir + cli-runs subdirectory
-  const scanDirs = [dir];
-  const cliRunsDir = path.join(dir, 'cli-runs');
-  if (fs.existsSync(cliRunsDir)) scanDirs.push(cliRunsDir);
+  const scanDirs = [dir, path.join(dir, 'cli-runs')];
 
   for (const scanDir of scanDirs) {
-    const files = fs.readdirSync(scanDir).filter(f => f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json')));
+    const files = (await backend.listDirectory(scanDir))
+      .filter(f => f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json')));
     for (const f of files) {
       try {
-        const raw = JSON.parse(fs.readFileSync(path.join(scanDir, f), 'utf-8'));
+        const rawContent = await backend.readFile(path.join(scanDir, f));
+        if (rawContent === null) continue;
+        const raw = JSON.parse(rawContent);
         // Normalize CLI-generated filenames ({slug}-debate.json → debate-{id}.json)
         // Move cli-runs files up to the root debates dir for consistent access
         const canonical = `debate-${raw.id}.json`;
         const canonicalPath = path.join(dir, canonical);
         const currentPath = path.join(scanDir, f);
         if (currentPath !== canonicalPath) {
-          fs.renameSync(currentPath, canonicalPath);
+          await backend.writeFile(canonicalPath, rawContent);
+          await backend.deleteFile(currentPath);
         }
         summaries.push({
           id: raw.id,
@@ -522,137 +550,157 @@ export function listDebateSessions(): unknown[] {
   return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
-export function loadDebateSession(id: string): unknown {
+export async function loadDebateSession(id: string): Promise<unknown> {
   assertSafeId(id, 'debate id');
   const filePath = path.join(getDebatesDir(), `debate-${id}.json`);
-  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const raw = await backend.readFile(filePath);
+  if (raw === null) throw new ActionableError({
+    goal: 'Load debate session',
+    problem: `Debate session not found: ${id}`,
+    location: 'server/fileIO.ts → loadDebateSession',
+    nextSteps: ['Verify the debate ID exists via listDebateSessions()'],
+  });
+  return JSON.parse(raw);
 }
 
-export function saveDebateSession(session: unknown): void {
+export async function saveDebateSession(session: unknown): Promise<void> {
   const s = session as { id: string };
   assertSafeId(s.id, 'debate id');
-  const filePath = path.join(getDebatesDir(), `debate-${s.id}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(session, null, 2), 'utf-8');
+  await backend.writeFile(
+    path.join(getDebatesDir(), `debate-${s.id}.json`),
+    JSON.stringify(session, null, 2),
+  );
 }
 
-export function deleteDebateSession(id: string): void {
+export async function deleteDebateSession(id: string): Promise<void> {
   assertSafeId(id, 'debate id');
-  const filePath = path.join(getDebatesDir(), `debate-${id}.json`);
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  await backend.deleteFile(path.join(getDebatesDir(), `debate-${id}.json`));
 }
 
-export function loadDebateComments(debateId: string): unknown {
+export async function loadDebateComments(debateId: string): Promise<unknown> {
   assertSafeId(debateId, 'debate id');
   const filePath = path.join(getDebatesDir(), `debate-${debateId}-comments.json`);
-  if (!fs.existsSync(filePath)) {
+  const raw = await backend.readFile(filePath);
+  if (raw === null) {
     return { _schema_version: '1', debateId, comments: [] };
   }
-  return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  return JSON.parse(raw);
 }
 
-export function saveDebateComments(debateId: string, data: unknown): void {
+export async function saveDebateComments(debateId: string, data: unknown): Promise<void> {
   assertSafeId(debateId, 'debate id');
-  const filePath = path.join(getDebatesDir(), `debate-${debateId}-comments.json`);
-  const tmpPath = filePath + '.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmpPath, filePath);
+  await backend.writeFile(
+    path.join(getDebatesDir(), `debate-${debateId}-comments.json`),
+    JSON.stringify(data, null, 2),
+  );
 }
 
 // ── Chat sessions ──
 
 function getChatsDir(): string {
-  const dir = resolveDataPath('chats');
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
+  return resolveDataPath('chats');
 }
 
-export function listChatSessions(): unknown[] {
+export async function listChatSessions(): Promise<unknown[]> {
   const dir = getChatsDir();
-  const files = fs.readdirSync(dir).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
+  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
   const summaries: { id: string; title: string; created_at: string; updated_at: string; mode: string; pover: string }[] = [];
   for (const f of files) {
     try {
-      const raw = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
+      const raw = await backend.readFile(path.join(dir, f));
+      if (raw === null) continue;
+      const parsed = JSON.parse(raw);
       summaries.push({
-        id: raw.id,
-        title: raw.title || 'Untitled',
-        created_at: raw.created_at || '',
-        updated_at: raw.updated_at || raw.created_at || '',
-        mode: raw.mode || '',
-        pover: raw.pover || '',
+        id: parsed.id,
+        title: parsed.title || 'Untitled',
+        created_at: parsed.created_at || '',
+        updated_at: parsed.updated_at || parsed.created_at || '',
+        mode: parsed.mode || '',
+        pover: parsed.pover || '',
       });
     } catch { /* skip */ }
   }
   return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
-export function loadChatSession(id: string): unknown {
+export async function loadChatSession(id: string): Promise<unknown> {
   assertSafeId(id, 'chat id');
-  return JSON.parse(fs.readFileSync(path.join(getChatsDir(), `chat-${id}.json`), 'utf-8'));
+  const raw = await backend.readFile(path.join(getChatsDir(), `chat-${id}.json`));
+  if (raw === null) throw new ActionableError({
+    goal: 'Load chat session',
+    problem: `Chat session not found: ${id}`,
+    location: 'server/fileIO.ts → loadChatSession',
+    nextSteps: ['Verify the chat ID exists via listChatSessions()'],
+  });
+  return JSON.parse(raw);
 }
 
-export function saveChatSession(session: unknown): void {
+export async function saveChatSession(session: unknown): Promise<void> {
   const s = session as { id: string };
   assertSafeId(s.id, 'chat id');
-  fs.writeFileSync(path.join(getChatsDir(), `chat-${s.id}.json`), JSON.stringify(session, null, 2), 'utf-8');
+  await backend.writeFile(
+    path.join(getChatsDir(), `chat-${s.id}.json`),
+    JSON.stringify(session, null, 2),
+  );
 }
 
-export function deleteChatSession(id: string): void {
+export async function deleteChatSession(id: string): Promise<void> {
   assertSafeId(id, 'chat id');
-  const p = path.join(getChatsDir(), `chat-${id}.json`);
-  if (fs.existsSync(p)) fs.unlinkSync(p);
+  await backend.deleteFile(path.join(getChatsDir(), `chat-${id}.json`));
 }
 
 // ── Proposals ──
 
-export function listProposals(): unknown[] {
+export async function listProposals(): Promise<unknown[]> {
   const dir = getDataRoot();
   try {
-    return fs.readdirSync(dir)
-      .filter(f => f.startsWith('taxonomy-proposal') && f.endsWith('.json'))
-      .map(f => {
-        const raw = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'));
-        return { filename: f, ...raw };
-      });
+    const entries = await backend.listDirectory(dir);
+    const proposals: unknown[] = [];
+    for (const f of entries.filter(f => f.startsWith('taxonomy-proposal') && f.endsWith('.json'))) {
+      const raw = await backend.readFile(path.join(dir, f));
+      if (raw !== null) {
+        proposals.push({ filename: f, ...JSON.parse(raw) });
+      }
+    }
+    return proposals;
   } catch {
     return [];
   }
 }
 
-export function saveProposal(filename: string, data: unknown): void {
+export async function saveProposal(filename: string, data: unknown): Promise<void> {
   assertSafeFilename(filename, 'proposal filename');
-  fs.writeFileSync(path.join(getDataRoot(), filename), JSON.stringify(data, null, 2), 'utf-8');
+  await backend.writeFile(path.join(getDataRoot(), filename), JSON.stringify(data, null, 2));
 }
 
 // ── Harvest operations ──
 
-export function harvestCreateConflict(conflict: Record<string, unknown>): boolean {
+export async function harvestCreateConflict(conflict: Record<string, unknown>): Promise<boolean> {
   const id = conflict.claim_id as string || conflict.id as string;
   if (!id) return false;
   assertSafeId(id, 'conflict id');
-  const dir = getConflictsDir();
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `${id}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(conflict, null, 2), 'utf-8');
+  await backend.writeFile(
+    path.join(getConflictsDir(), `${id}.json`),
+    JSON.stringify(conflict, null, 2),
+  );
   return true;
 }
 
-export function harvestAddDebateRef(nodeId: string, debateId: string): boolean {
+export async function harvestAddDebateRef(nodeId: string, debateId: string): Promise<boolean> {
   // Find which POV file contains this node and update it
-  const taxDir = getTaxonomyDir();
   for (const pov of [...POV_KEYS, 'situations']) {
     try {
-      const filePath = resolveTaxonomyFilePath(pov);
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const filePath = await resolveTaxonomyFilePath(pov);
+      const raw = await backend.readFile(filePath);
+      if (raw === null) continue;
+      const data = JSON.parse(raw);
       const nodes = data.nodes || data;
       const node = Array.isArray(nodes) ? nodes.find((n: Record<string, unknown>) => n.id === nodeId) : null;
       if (node) {
         if (!node.debate_refs) node.debate_refs = [];
         if (!node.debate_refs.includes(debateId)) {
           node.debate_refs.push(debateId);
-          const tmp = filePath + '.tmp';
-          fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-          fs.renameSync(tmp, filePath);
+          await backend.writeFile(filePath, JSON.stringify(data, null, 2));
         }
         return true;
       }
@@ -661,11 +709,13 @@ export function harvestAddDebateRef(nodeId: string, debateId: string): boolean {
   return false;
 }
 
-export function harvestUpdateSteelman(nodeId: string, attackerPov: string, newText: string): boolean {
+export async function harvestUpdateSteelman(nodeId: string, attackerPov: string, newText: string): Promise<boolean> {
   for (const pov of [...POV_KEYS, 'situations']) {
     try {
-      const filePath = resolveTaxonomyFilePath(pov);
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const filePath = await resolveTaxonomyFilePath(pov);
+      const raw = await backend.readFile(filePath);
+      if (raw === null) continue;
+      const data = JSON.parse(raw);
       const nodes = data.nodes || data;
       const node = Array.isArray(nodes) ? nodes.find((n: Record<string, unknown>) => n.id === nodeId) : null;
       if (node) {
@@ -676,9 +726,7 @@ export function harvestUpdateSteelman(nodeId: string, attackerPov: string, newTe
         } else {
           node.steelman_vulnerability = { [attackerPov]: newText };
         }
-        const tmp = filePath + '.tmp';
-        fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-        fs.renameSync(tmp, filePath);
+        await backend.writeFile(filePath, JSON.stringify(data, null, 2));
         return true;
       }
     } catch { /* try next */ }
@@ -686,30 +734,31 @@ export function harvestUpdateSteelman(nodeId: string, attackerPov: string, newTe
   return false;
 }
 
-export function harvestAddVerdict(conflictId: string, verdict: Record<string, unknown>): boolean {
+export async function harvestAddVerdict(conflictId: string, verdict: Record<string, unknown>): Promise<boolean> {
   const filePath = path.join(getConflictsDir(), `${conflictId}.json`);
-  if (!fs.existsSync(filePath)) return false;
-  const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return false;
+  const data = JSON.parse(raw);
   data.verdict = verdict;
-  const tmp = filePath + '.tmp';
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
-  fs.renameSync(tmp, filePath);
+  await backend.writeFile(filePath, JSON.stringify(data, null, 2));
   return true;
 }
 
-export function harvestQueueConcept(concept: Record<string, unknown>): boolean {
+export async function harvestQueueConcept(concept: Record<string, unknown>): Promise<boolean> {
   const dir = resolveDataPath('harvests');
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `concept-${Date.now()}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(concept, null, 2), 'utf-8');
+  await backend.writeFile(
+    path.join(dir, `concept-${Date.now()}.json`),
+    JSON.stringify(concept, null, 2),
+  );
   return true;
 }
 
-export function harvestSaveManifest(manifest: Record<string, unknown>): boolean {
+export async function harvestSaveManifest(manifest: Record<string, unknown>): Promise<boolean> {
   const dir = resolveDataPath('harvests');
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `manifest-${Date.now()}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(manifest, null, 2), 'utf-8');
+  await backend.writeFile(
+    path.join(dir, `manifest-${Date.now()}.json`),
+    JSON.stringify(manifest, null, 2),
+  );
   return true;
 }
 
@@ -737,27 +786,29 @@ export interface DiscoveredSource {
   authors: string[];
 }
 
-export function discoverSources(): DiscoveredSource[] {
+export async function discoverSources(): Promise<DiscoveredSource[]> {
   const sourcesDir = getSourcesDir();
   const summariesDir = getSummariesDir();
-  if (!fs.existsSync(sourcesDir)) return [];
+
+  const sourceEntries = await backend.listDirectory(sourcesDir);
+  if (sourceEntries.length === 0) return [];
 
   const sources: DiscoveredSource[] = [];
-  for (const entry of fs.readdirSync(sourcesDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const metaPath = path.join(sourcesDir, entry.name, 'metadata.json');
+  for (const name of sourceEntries) {
+    const metaPath = path.join(sourcesDir, name, 'metadata.json');
     try {
-      if (!fs.existsSync(metaPath)) continue;
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-      const summaryPath = path.join(summariesDir, `${entry.name}.json`);
+      const metaRaw = await backend.readFile(metaPath);
+      if (metaRaw === null) continue; // not a source directory (no metadata)
+      const meta = JSON.parse(metaRaw);
+      const summaryPath = path.join(summariesDir, `${name}.json`);
       sources.push({
-        id: entry.name,
-        title: meta.title || entry.name,
+        id: name,
+        title: meta.title || name,
         url: meta.url || null,
         sourceType: meta.source_type || 'unknown',
         datePublished: meta.date_published || meta.source_time || '',
         dateIngested: meta.date_ingested || '',
-        hasSummary: fs.existsSync(summaryPath),
+        hasSummary: await backend.fileExists(summaryPath),
         tags: meta.pov_tags || [],
         authors: meta.authors || [],
       });
@@ -766,42 +817,36 @@ export function discoverSources(): DiscoveredSource[] {
   return sources.sort((a, b) => a.title.localeCompare(b.title));
 }
 
-export function loadSummary(docId: string): unknown | null {
+export async function loadSummary(docId: string): Promise<unknown | null> {
   assertSafeId(docId, 'document id');
-  const summariesDir = getSummariesDir();
-  const filePath = path.join(summariesDir, `${docId}.json`);
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch { return null; }
+  const filePath = path.join(getSummariesDir(), `${docId}.json`);
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return null;
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
-export function loadSnapshot(sourceId: string): string | null {
+export async function loadSnapshot(sourceId: string): Promise<string | null> {
   assertSafeId(sourceId, 'source id');
-  const sourcesDir = getSourcesDir();
-  const filePath = path.join(sourcesDir, sourceId, 'snapshot.md');
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    return fs.readFileSync(filePath, 'utf-8');
-  } catch { return null; }
+  return backend.readFile(path.join(getSourcesDir(), sourceId, 'snapshot.md'));
 }
 
-// ── PowerShell prompts ──
+// ── PowerShell prompts (project-root I/O — always local) ──
 
-export function readPsPrompt(promptName: string): { text: string | null; error?: string } {
+export async function readPsPrompt(promptName: string): Promise<{ text: string | null; error?: string }> {
   const promptsDir = path.join(getProjectRoot(), 'scripts', 'AITriad', 'Prompts');
   const filePath = path.join(promptsDir, `${promptName}.prompt`);
   try {
-    return { text: fs.readFileSync(filePath, 'utf-8') };
+    return { text: await fs.readFile(filePath, 'utf-8') };
   } catch {
     return { text: null, error: `Prompt not found: ${promptName}` };
   }
 }
 
-export function listPsPrompts(): string[] {
+export async function listPsPrompts(): Promise<string[]> {
   const promptsDir = path.join(getProjectRoot(), 'scripts', 'AITriad', 'Prompts');
   try {
-    return fs.readdirSync(promptsDir)
+    const entries = await fs.readdir(promptsDir);
+    return entries
       .filter(f => f.endsWith('.prompt'))
       .map(f => f.replace('.prompt', ''));
   } catch {
@@ -809,12 +854,12 @@ export function listPsPrompts(): string[] {
   }
 }
 
-// ── AI models config ──
+// ── AI models config (project-root I/O — always local) ──
 
-export function loadAIModels(): unknown {
+export async function loadAIModels(): Promise<unknown> {
   const configPath = path.join(getProjectRoot(), 'ai-models.json');
   try {
-    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    return JSON.parse(await fs.readFile(configPath, 'utf-8'));
   } catch {
     return { backends: [], models: [], defaults: {} };
   }
@@ -879,20 +924,21 @@ export async function fetchUrlContent(url: string): Promise<{ content: string; e
   }
 }
 
-function htmlToMarkdown(html: string): Promise<string> {
+async function htmlToMarkdown(html: string): Promise<string> {
   const tmpFile = path.join(os.tmpdir(), `aitriad-${Date.now()}.html`);
-  fs.writeFileSync(tmpFile, html, 'utf-8');
-  return new Promise((resolve) => {
-    execFile('markitdown', [tmpFile], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout) => {
-      try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
-      if (err) {
-        // Fallback: strip HTML tags
-        resolve(stripHtmlFallback(html));
-      } else {
-        resolve(stdout);
-      }
+  await fs.writeFile(tmpFile, html, 'utf-8');
+  try {
+    const stdout = await new Promise<string>((resolve, reject) => {
+      execFile('markitdown', [tmpFile], { timeout: 30_000, maxBuffer: 10 * 1024 * 1024 }, (err, out) => {
+        if (err) reject(err); else resolve(out);
+      });
     });
-  });
+    return stdout;
+  } catch {
+    return stripHtmlFallback(html);
+  } finally {
+    fs.unlink(tmpFile).catch(() => { /* ignore */ });
+  }
 }
 
 function stripHtmlFallback(html: string): string {

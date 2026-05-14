@@ -70,7 +70,6 @@ import {
   synthMapPrompt,
   synthEvaluatePrompt,
   probingQuestionsPrompt,
-  contextCompressionPrompt,
   entrySummarizationPrompt,
   missingArgumentsPrompt,
   taxonomyRefinementPrompt,
@@ -2344,92 +2343,68 @@ export class DebateEngine {
       });
     }
 
-    // Distant tier: LLM summary for oldest entries + structural overlay
-    if (distantEntries.length >= 4) {
-      const entries = distantEntries.map(e => {
-        const label = e.speaker === 'user' ? 'Moderator'
-          : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label ?? e.speaker;
-        return `${label}: ${e.content}`;
-      }).join('\n\n');
+    // Distant tier: purely structural summary (no LLM call)
+    // Avoids ambiguity collapse risk (Gur-Arieh et al., 2026) — LLM summarization
+    // can flatten deliberative nuance, collapse hedged positions into confident ones,
+    // and smuggle normative judgments into what appears neutral.
+    if (distantEntries.length >= 4 && an) {
+      const distantSummary = buildDistantTierSummary(
+        an.nodes, an.edges, this.session.commitments ?? {}, this.session.crux_tracker,
+        this.session.unanswered_claims_ledger, distantEntries,
+      );
 
-      const prompt = contextCompressionPrompt(entries, this.config.audience);
-      const text = await this.generate(prompt, 'Context compression', 60_000);
+      this.session.context_summaries.push({
+        up_to_entry_id: distantEntries[distantEntries.length - 1].id,
+        summary: distantSummary,
+        tier: 'distant',
+      });
 
-      try {
-        const parsed = parseJsonRobust(text) as { summary?: string };
-        if (parsed.summary) {
-          // Append structural overlay to the LLM summary
-          const structuralOverlay = an
-            ? buildDistantTierSummary(an.nodes, an.edges, this.session.commitments ?? {}, this.session.crux_tracker)
-            : '';
-          const enrichedSummary = structuralOverlay
-            ? `${parsed.summary}\n\n--- Structural context ---\n${structuralOverlay}`
-            : parsed.summary;
-
-          this.session.context_summaries.push({
-            up_to_entry_id: distantEntries[distantEntries.length - 1].id,
-            summary: enrichedSummary,
+      // Context-rot metrics (structural compression)
+      const inChars = distantEntries.reduce((s, e) => s + (typeof e.content === 'string' ? e.content.length : 0), 0);
+      const outChars = distantSummary.length;
+      if (this.session.context_rot) {
+        this.session.context_rot.stages.push({
+          stage: 'transcript_compression',
+          in_units: 'chars', in_count: inChars,
+          out_units: 'chars', out_count: outChars,
+          ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+          flags: {
+            entries_compressed: distantEntries.length,
+            compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+            window_size: keepRecent,
             tier: 'distant',
-          });
-
-          // Context-rot metrics
-          const inChars = entries.length;
-          const outChars = enrichedSummary.length;
-          if (this.session.context_rot) {
-            this.session.context_rot.stages.push({
-              stage: 'transcript_compression',
-              in_units: 'chars', in_count: inChars,
-              out_units: 'chars', out_count: outChars,
-              ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-              flags: {
-                entries_compressed: distantEntries.length,
-                compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-                window_size: keepRecent,
-                tier: 'distant',
-              },
-            });
-          }
-        }
-      } catch (err) {
-        this.warn('Context compression', err, 'Continuing without compression — prompts may be longer than optimal');
+            method: 'structural',
+          },
+        });
       }
-    } else if (toCompress.length >= 4) {
-      // Not enough entries for two tiers — fall back to single LLM summary
-      const entries = toCompress.map(e => {
-        const label = e.speaker === 'user' ? 'Moderator'
-          : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label ?? e.speaker;
-        return `${label}: ${e.content}`;
-      }).join('\n\n');
+    } else if (toCompress.length >= 4 && an) {
+      // Not enough entries for two tiers — use structural summary for all
+      const summary = buildDistantTierSummary(
+        an.nodes, an.edges, this.session.commitments ?? {}, this.session.crux_tracker,
+        this.session.unanswered_claims_ledger, toCompress,
+      );
 
-      const prompt = contextCompressionPrompt(entries, this.config.audience);
-      const text = await this.generate(prompt, 'Context compression', 60_000);
+      this.session.context_summaries.push({
+        up_to_entry_id: toCompress[toCompress.length - 1].id,
+        summary,
+        tier: 'distant',
+      });
 
-      try {
-        const parsed = parseJsonRobust(text) as { summary?: string };
-        if (parsed.summary) {
-          this.session.context_summaries.push({
-            up_to_entry_id: toCompress[toCompress.length - 1].id,
-            summary: parsed.summary,
-          });
-
-          const inChars = entries.length;
-          const outChars = parsed.summary.length;
-          if (this.session.context_rot) {
-            this.session.context_rot.stages.push({
-              stage: 'transcript_compression',
-              in_units: 'chars', in_count: inChars,
-              out_units: 'chars', out_count: outChars,
-              ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-              flags: {
-                entries_compressed: toCompress.length,
-                compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
-                window_size: keepRecent,
-              },
-            });
-          }
-        }
-      } catch (err) {
-        this.warn('Context compression', err, 'Continuing without compression — prompts may be longer than optimal');
+      const inChars = toCompress.reduce((s, e) => s + (typeof e.content === 'string' ? e.content.length : 0), 0);
+      const outChars = summary.length;
+      if (this.session.context_rot) {
+        this.session.context_rot.stages.push({
+          stage: 'transcript_compression',
+          in_units: 'chars', in_count: inChars,
+          out_units: 'chars', out_count: outChars,
+          ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+          flags: {
+            entries_compressed: toCompress.length,
+            compression_ratio: inChars > 0 ? Math.round((outChars / inChars) * 10000) / 10000 : 1,
+            window_size: keepRecent,
+            method: 'structural',
+          },
+        });
       }
     }
   }

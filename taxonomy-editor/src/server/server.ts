@@ -17,11 +17,13 @@ import { WebSocketServer, WebSocket } from 'ws';
 import {
   PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, resolveDataPath,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
+  STORAGE_MODE, CACHE_DIR,
 } from './config';
-import { runWithUser } from './userContext';
+import { GitHubAPIBackend } from './githubAPIBackend';
+import { SessionBranchManager } from './sessionBranchManager';
+import { runWithUser, getCurrentUserId } from './userContext';
 import * as fileIO from './fileIO';
 import * as ai from './aiBackends';
-import * as gitStore from './gitRepoStore';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth';
 import * as proxyTiers from './proxyTiers';
 import * as rateLimiter from './rateLimiter';
@@ -35,40 +37,86 @@ serverRecorder.intern('component', 'git');
 serverRecorder.intern('component', 'data-pull');
 serverRecorder.intern('component', 'copy-status');
 serverRecorder.intern('component', 'auth');
+serverRecorder.intern('component', 'github-api');
+serverRecorder.intern('component', 'cache');
+serverRecorder.intern('component', 'session');
+serverRecorder.intern('component', 'storage');
 
-function getCopyStatusSync(): Record<string, unknown> {
-  try { return JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8')); }
-  catch { return { state: 'unknown' }; }
+serverRecorder.setContextProvider(() => {
+  const ctx: Record<string, unknown> = {
+    server: {
+      version: SERVER_VERSION,
+      started_at: SERVER_START_TIME,
+      uptime_s: Math.round(process.uptime()),
+      node_version: process.version,
+      platform: process.platform,
+      arch: process.arch,
+    },
+    memory: {
+      rss_mb: Math.round(process.memoryUsage().rss / 1048576),
+      heap_used_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
+      heap_total_mb: Math.round(process.memoryUsage().heapTotal / 1048576),
+    },
+    data: {
+      data_root: getDataRoot(),
+    },
+    environment: {
+      deploy_tag: process.env.DEPLOY_TAG ?? null,
+      auth_disabled: process.env.AUTH_DISABLED ?? null,
+      storage_mode: STORAGE_MODE,
+    },
+  };
+
+  // Add GitHub API state when in API mode (githubBackend populated after startup)
+  if (githubBackend) {
+    ctx.storage = {
+      mode: STORAGE_MODE,
+      cache_generation: githubBackend.getCacheGeneration(),
+      cache_file_count: githubBackend.getCachedFileCount(),
+      cache_hit_rate: githubBackend.getCacheHitRate(),
+      main_sha: githubBackend.getMainSha(),
+      last_poll_age_s: githubBackend.getLastPollAge(),
+    };
+    ctx.github = {
+      rate_limit_remaining: githubBackend.getRateLimitRemaining(),
+      rate_limit_resets_at: githubBackend.getRateLimitResetsAt(),
+      circuit_state: githubBackend.getCircuitState(),
+      active_branches: githubBackend.getActiveBranchCount(),
+    };
+  }
+
+  return ctx;
+});
+
+export { serverRecorder };
+
+// ── Storage backend selection ──
+
+let githubBackend: GitHubAPIBackend | null = null;
+let sessionManager: SessionBranchManager | null = null;
+
+if (STORAGE_MODE === 'github-api') {
+  githubBackend = new GitHubAPIBackend({
+    cacheDir: CACHE_DIR,
+    recorder: serverRecorder,
+  });
+  sessionManager = new SessionBranchManager(githubBackend, serverRecorder);
+  fileIO.setBackend(githubBackend);
+  serverRecorder.record({
+    type: 'storage.mode', component: 'storage', level: 'info',
+    message: `Storage mode: github-api (cache: ${CACHE_DIR})`,
+    data: { mode: 'github-api', cacheDir: CACHE_DIR },
+  });
+} else {
+  // FilesystemBackend is the default in fileIO.ts — no action needed
+  serverRecorder.record({
+    type: 'storage.mode', component: 'storage', level: 'info',
+    message: `Storage mode: filesystem (data root: ${getDataRoot()})`,
+    data: { mode: 'filesystem', dataRoot: getDataRoot() },
+  });
 }
 
-serverRecorder.setContextProvider(() => ({
-  server: {
-    version: SERVER_VERSION,
-    started_at: SERVER_START_TIME,
-    uptime_s: Math.round(process.uptime()),
-    node_version: process.version,
-    platform: process.platform,
-    arch: process.arch,
-  },
-  memory: {
-    rss_mb: Math.round(process.memoryUsage().rss / 1048576),
-    heap_used_mb: Math.round(process.memoryUsage().heapUsed / 1048576),
-    heap_total_mb: Math.round(process.memoryUsage().heapTotal / 1048576),
-  },
-  data: {
-    data_root: getDataRoot(),
-    copy_status: getCopyStatusSync(),
-    git_initialized: fs.existsSync(path.join(getDataRoot(), '.git')),
-  },
-  environment: {
-    deploy_tag: process.env.DEPLOY_TAG ?? null,
-    auth_disabled: process.env.AUTH_DISABLED ?? null,
-    git_sync_enabled: process.env.GIT_SYNC_ENABLED ?? null,
-  },
-}));
-
-// Export for use in gitRepoStore
-export { serverRecorder };
+console.log(`[server] Storage mode: ${STORAGE_MODE}`);
 
 // ── Express-like micro-router (zero dependencies) ──
 
@@ -135,8 +183,8 @@ get('/third-party-notices', (_req, res) => {
   }
 });
 
-get('/healthz', (_req, res) => {
-  const dataAvailable = fileIO.isDataAvailable();
+get('/healthz', async (_req, res) => {
+  const dataAvailable = await fileIO.isDataAvailable();
   if (dataAvailable) {
     json(res, { status: 'healthy', dataRoot: fileIO.getDataRootPath() });
   } else {
@@ -145,7 +193,7 @@ get('/healthz', (_req, res) => {
 });
 
 get('/health', (_req, res) => {
-  json(res, {
+  const base: Record<string, unknown> = {
     status: 'ok',
     version: SERVER_VERSION,
     startedAt: SERVER_START_TIME,
@@ -160,23 +208,37 @@ get('/health', (_req, res) => {
       eventsRetained: serverRecorder.buffer.retained,
       capacity: serverRecorder.buffer.capacity,
     },
-  });
-});
+    storage: {
+      mode: STORAGE_MODE,
+    },
+  };
 
-get('/status', (_req, res) => {
-  const statusFile = '/tmp/copy-status.json';
-  try {
-    const raw = fs.readFileSync(statusFile, 'utf-8');
-    json(res, JSON.parse(raw));
-  } catch {
-    json(res, { state: 'unknown' });
+  if (githubBackend) {
+    (base.storage as Record<string, unknown>).mainSha = githubBackend.getMainSha();
+    (base.storage as Record<string, unknown>).cacheFileCount = githubBackend.getCachedFileCount();
+    (base.storage as Record<string, unknown>).cacheGeneration = githubBackend.getCacheGeneration();
+    (base.storage as Record<string, unknown>).fallbackActive = githubBackend.getCircuitState() === 'open';
+
+    base.github = {
+      rateLimit: {
+        remaining: githubBackend.getRateLimitRemaining(),
+        resetsAt: githubBackend.getRateLimitResetsAt(),
+      },
+      cacheHitRate: githubBackend.getCacheHitRate(),
+      circuitState: githubBackend.getCircuitState(),
+      coherencyViolations: githubBackend.getCoherencyViolations(),
+      activeBranches: githubBackend.getActiveBranchCount(),
+      lastPollAgeS: githubBackend.getLastPollAge(),
+    };
   }
+
+  json(res, base);
 });
 
 // ── Taxonomy directories ──
 
-get('/api/taxonomy-dirs', (_req, res) => {
-  json(res, fileIO.getTaxonomyDirs());
+get('/api/taxonomy-dirs', async (_req, res) => {
+  json(res, await fileIO.getTaxonomyDirs());
 });
 
 get('/api/taxonomy-dir/active', (_req, res) => {
@@ -191,109 +253,109 @@ put('/api/taxonomy-dir/active', (_req, res, body) => {
 
 // ── Taxonomy CRUD ──
 
-get('/api/taxonomy/:pov', (req, res) => {
+get('/api/taxonomy/:pov', async (req, res) => {
   try {
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
-    json(res, fileIO.readTaxonomyFile(pov));
+    json(res, await fileIO.readTaxonomyFile(pov));
   } catch (err) { error(res, String(err)); }
 });
 
-put('/api/taxonomy/:pov', (req, res, body) => {
+put('/api/taxonomy/:pov', async (req, res, body) => {
   try {
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
-    fileIO.writeTaxonomyFile(pov, body);
+    await fileIO.writeTaxonomyFile(pov, body);
     json(res, { ok: true });
   } catch (err) { error(res, String(err)); }
 });
 
 // ── Conflicts ──
 
-get('/api/conflicts', (_req, res) => {
-  json(res, fileIO.readAllConflictFiles());
+get('/api/conflicts', async (_req, res) => {
+  json(res, await fileIO.readAllConflictFiles());
 });
 
-get('/api/conflicts/clusters', (_req, res) => {
-  json(res, fileIO.readConflictClusters());
+get('/api/conflicts/clusters', async (_req, res) => {
+  json(res, await fileIO.readConflictClusters());
 });
 
 // ── Cruxes ──
 
-get('/api/cruxes', (_req, res) => {
-  json(res, fileIO.readAggregatedCruxes());
+get('/api/cruxes', async (_req, res) => {
+  json(res, await fileIO.readAggregatedCruxes());
 });
 
-put('/api/conflicts/:id', (req, res, body) => {
+put('/api/conflicts/:id', async (req, res, body) => {
   try {
     const id = param(req, 'id', '/api/conflicts/:id');
-    fileIO.writeConflictFile(id, body);
+    await fileIO.writeConflictFile(id, body);
     json(res, { ok: true });
   } catch (err) { error(res, String(err)); }
 });
 
-post('/api/conflicts/:id', (req, res, body) => {
+post('/api/conflicts/:id', async (req, res, body) => {
   try {
     const id = param(req, 'id', '/api/conflicts/:id');
-    fileIO.createConflictFile(id, body);
+    await fileIO.createConflictFile(id, body);
     json(res, { ok: true });
   } catch (err) { error(res, String(err)); }
 });
 
-del('/api/conflicts/:id', (req, res) => {
+del('/api/conflicts/:id', async (req, res) => {
   const id = param(req, 'id', '/api/conflicts/:id');
-  fileIO.deleteConflictFile(id);
+  await fileIO.deleteConflictFile(id);
   json(res, { ok: true });
 });
 
 // ── Policy registry ──
 
-get('/api/policy-registry', (_req, res) => {
-  json(res, fileIO.readPolicyRegistry());
+get('/api/policy-registry', async (_req, res) => {
+  json(res, await fileIO.readPolicyRegistry());
 });
 
 // ── Edges ──
 
 let edgesCache: unknown = null;
 
-get('/api/edges', (_req, res) => {
-  edgesCache = fileIO.readEdgesFile();
+get('/api/edges', async (_req, res) => {
+  edgesCache = await fileIO.readEdgesFile();
   json(res, edgesCache);
 });
 
-put('/api/edges/status', (_req, res, body) => {
+put('/api/edges/status', async (_req, res, body) => {
   const { index, status: s } = body as { index: number; status: string };
-  if (!edgesCache) edgesCache = fileIO.readEdgesFile();
-  edgesCache = fileIO.updateEdgeStatus(edgesCache, index, s);
+  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
+  edgesCache = await fileIO.updateEdgeStatus(edgesCache, index, s);
   json(res, edgesCache);
 });
 
-put('/api/edges/swap', (_req, res, body) => {
+put('/api/edges/swap', async (_req, res, body) => {
   const { index } = body as { index: number };
-  if (!edgesCache) edgesCache = fileIO.readEdgesFile();
-  edgesCache = fileIO.swapEdgeDirection(edgesCache, index);
+  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
+  edgesCache = await fileIO.swapEdgeDirection(edgesCache, index);
   json(res, edgesCache);
 });
 
-put('/api/edges/bulk-status', (_req, res, body) => {
+put('/api/edges/bulk-status', async (_req, res, body) => {
   const { indices, status: s } = body as { indices: number[]; status: string };
-  if (!edgesCache) edgesCache = fileIO.readEdgesFile();
-  edgesCache = fileIO.bulkUpdateEdges(edgesCache, indices, s);
+  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
+  edgesCache = await fileIO.bulkUpdateEdges(edgesCache, indices, s);
   json(res, edgesCache);
 });
 
 // ── Source indexes ──
 
-get('/api/node-source-index', (_req, res) => {
-  json(res, fileIO.buildNodeSourceIndex());
+get('/api/node-source-index', async (_req, res) => {
+  json(res, await fileIO.buildNodeSourceIndex());
 });
 
-get('/api/policy-source-index', (_req, res) => {
-  json(res, fileIO.buildPolicySourceIndex());
+get('/api/policy-source-index', async (_req, res) => {
+  json(res, await fileIO.buildPolicySourceIndex());
 });
 
 // ── Data management ──
 
-get('/api/data/available', (_req, res) => {
-  json(res, fileIO.isDataAvailable());
+get('/api/data/available', async (_req, res) => {
+  json(res, await fileIO.isDataAvailable());
 });
 
 get('/api/data/root', (_req, res) => {
@@ -341,11 +403,6 @@ post('/api/data/clone', async (_req, res, body) => {
 
 post('/api/data/check-updates', async (_req, res) => {
   try {
-    // Skip git operations while entrypoint copy is running
-    try {
-      const cs = JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8'));
-      if (cs.state !== 'complete') { json(res, { available: false, error: `Data copy in progress (${cs.copied ?? 0}/${cs.total ?? '?'})` }); return; }
-    } catch { /* no status file — not in container */ }
     const dataRoot = getDataRoot();
     const gitDir = path.join(dataRoot, '.git');
     if (!fs.existsSync(gitDir)) { json(res, { available: false, error: 'Not a git repo' }); return; }
@@ -368,12 +425,6 @@ post('/api/data/check-updates', async (_req, res) => {
 });
 
 post('/api/data/pull', async (_req, res) => {
-  // Skip git operations while entrypoint copy is running
-  try {
-    const cs = JSON.parse(fs.readFileSync('/tmp/copy-status.json', 'utf-8'));
-    if (cs.state !== 'complete') { json(res, { ok: false, error: `Data copy in progress (${cs.copied ?? 0}/${cs.total ?? '?'})` }); return; }
-  } catch { /* no status file — not in container */ }
-
   // Stream heartbeats to prevent Azure Container Apps' Envoy proxy from
   // returning 504 "stream timeout" during long-running git operations.
   res.writeHead(200, {
@@ -389,7 +440,7 @@ post('/api/data/pull', async (_req, res) => {
   try {
     const dataRoot = getDataRoot();
     const runGit = (args: string[], timeoutMs = 120_000): Promise<string> => new Promise((resolve, reject) => {
-      execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }, (err, stdout, stderr) => {
+      execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (err) {
           console.error(`[data-pull] git ${args.join(' ')} failed:`, err.message, stderr);
           reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));
@@ -400,7 +451,6 @@ post('/api/data/pull', async (_req, res) => {
       });
     });
 
-    gitStore.clearStaleLockFile(dataRoot);
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.start', data: { dataRoot } });
     console.log('[data-pull] Starting pull in', dataRoot);
     progress('Starting data update...');
@@ -465,8 +515,8 @@ post('/api/data/pull', async (_req, res) => {
 
 // ── AI models & keys ──
 
-get('/api/models', (_req, res) => {
-  json(res, fileIO.loadAIModels());
+get('/api/models', async (_req, res) => {
+  json(res, await fileIO.loadAIModels());
 });
 
 post('/api/models/refresh', async (_req, res) => {
@@ -591,7 +641,7 @@ post('/api/nli/classify', async (_req, res, body) => {
 
 // ── Debate sessions ──
 
-get('/api/debates', (_req, res) => { json(res, fileIO.listDebateSessions()); });
+get('/api/debates', async (_req, res) => { json(res, await fileIO.listDebateSessions()); });
 
 // ── Calibration parameter history ──
 get('/api/calibration/history', (_req, res) => {
@@ -676,14 +726,14 @@ get('/api/flight-recorder/download/:filename', (req, res) => {
   } catch (err) { error(res, String(err)); }
 });
 
-get('/api/debates/:id', (req, res) => {
-  try { json(res, fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
+get('/api/debates/:id', async (req, res) => {
+  try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
   catch (err) { error(res, String(err), 404); }
 });
 
-put('/api/debates', (_req, res, body) => {
+put('/api/debates', async (_req, res, body) => {
   try {
-    fileIO.saveDebateSession(body);
+    await fileIO.saveDebateSession(body);
 
     // Log calibration data if debate has synthesis (completed debate)
     try {
@@ -700,20 +750,20 @@ put('/api/debates', (_req, res, body) => {
   catch (err) { error(res, String(err)); }
 });
 
-del('/api/debates/:id', (req, res) => {
-  fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
+del('/api/debates/:id', async (req, res) => {
+  await fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
   json(res, { ok: true });
 });
 
-get('/api/debates/:id/comments', (req, res) => {
-  try { json(res, fileIO.loadDebateComments(param(req, 'id', '/api/debates/:id/comments'))); }
+get('/api/debates/:id/comments', async (req, res) => {
+  try { json(res, await fileIO.loadDebateComments(param(req, 'id', '/api/debates/:id/comments'))); }
   catch (err) { error(res, String(err), 404); }
 });
 
-put('/api/debates/:id/comments', (req, res, body) => {
+put('/api/debates/:id/comments', async (req, res, body) => {
   try {
     const debateId = param(req, 'id', '/api/debates/:id/comments');
-    fileIO.saveDebateComments(debateId, body);
+    await fileIO.saveDebateComments(debateId, body);
     json(res, { ok: true });
   } catch (err) { error(res, String(err)); }
 });
@@ -726,87 +776,87 @@ post('/api/debates/export', (_req, res, body) => {
 
 // ── Chat sessions ──
 
-get('/api/chats', (_req, res) => { json(res, fileIO.listChatSessions()); });
+get('/api/chats', async (_req, res) => { json(res, await fileIO.listChatSessions()); });
 
-get('/api/chats/:id', (req, res) => {
-  try { json(res, fileIO.loadChatSession(param(req, 'id', '/api/chats/:id'))); }
+get('/api/chats/:id', async (req, res) => {
+  try { json(res, await fileIO.loadChatSession(param(req, 'id', '/api/chats/:id'))); }
   catch (err) { error(res, String(err), 404); }
 });
 
-put('/api/chats', (_req, res, body) => {
-  try { fileIO.saveChatSession(body); json(res, { ok: true }); }
+put('/api/chats', async (_req, res, body) => {
+  try { await fileIO.saveChatSession(body); json(res, { ok: true }); }
   catch (err) { error(res, String(err)); }
 });
 
-del('/api/chats/:id', (req, res) => {
-  fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
+del('/api/chats/:id', async (req, res) => {
+  await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
   json(res, { ok: true });
 });
 
 // ── Harvest ──
 
-post('/api/harvest/conflict', (_req, res, body) => {
-  json(res, { created: fileIO.harvestCreateConflict(body as Record<string, unknown>) });
+post('/api/harvest/conflict', async (_req, res, body) => {
+  json(res, { created: await fileIO.harvestCreateConflict(body as Record<string, unknown>) });
 });
 
-post('/api/harvest/debate-ref', (_req, res, body) => {
+post('/api/harvest/debate-ref', async (_req, res, body) => {
   const { nodeId, debateId } = body as { nodeId: string; debateId: string };
-  json(res, { updated: fileIO.harvestAddDebateRef(nodeId, debateId) });
+  json(res, { updated: await fileIO.harvestAddDebateRef(nodeId, debateId) });
 });
 
-post('/api/harvest/steelman', (_req, res, body) => {
+post('/api/harvest/steelman', async (_req, res, body) => {
   const { nodeId, attackerPov, newText } = body as { nodeId: string; attackerPov: string; newText: string };
-  json(res, { updated: fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
+  json(res, { updated: await fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
 });
 
-post('/api/harvest/verdict', (_req, res, body) => {
+post('/api/harvest/verdict', async (_req, res, body) => {
   const { conflictId, verdict } = body as { conflictId: string; verdict: Record<string, unknown> };
-  json(res, { updated: fileIO.harvestAddVerdict(conflictId, verdict) });
+  json(res, { updated: await fileIO.harvestAddVerdict(conflictId, verdict) });
 });
 
-post('/api/harvest/concept', (_req, res, body) => {
-  json(res, { queued: fileIO.harvestQueueConcept(body as Record<string, unknown>) });
+post('/api/harvest/concept', async (_req, res, body) => {
+  json(res, { queued: await fileIO.harvestQueueConcept(body as Record<string, unknown>) });
 });
 
-post('/api/harvest/manifest', (_req, res, body) => {
-  json(res, { saved: fileIO.harvestSaveManifest(body as Record<string, unknown>) });
+post('/api/harvest/manifest', async (_req, res, body) => {
+  json(res, { saved: await fileIO.harvestSaveManifest(body as Record<string, unknown>) });
 });
 
 // ── Summaries & Sources ──
 
-get('/api/sources', (_req, res) => { json(res, fileIO.discoverSources()); });
+get('/api/sources', async (_req, res) => { json(res, await fileIO.discoverSources()); });
 
-get('/api/summaries/:docId', (req, res) => {
+get('/api/summaries/:docId', async (req, res) => {
   const docId = param(req, 'docId', '/api/summaries/:docId');
-  const data = fileIO.loadSummary(docId);
+  const data = await fileIO.loadSummary(docId);
   if (data === null) { error(res, `Summary not found: ${docId}`, 404); return; }
   json(res, data);
 });
 
-get('/api/snapshots/:sourceId', (req, res) => {
+get('/api/snapshots/:sourceId', async (req, res) => {
   const sourceId = param(req, 'sourceId', '/api/snapshots/:sourceId');
-  const data = fileIO.loadSnapshot(sourceId);
+  const data = await fileIO.loadSnapshot(sourceId);
   if (data === null) { error(res, `Snapshot not found: ${sourceId}`, 404); return; }
   json(res, { content: data });
 });
 
 // ── Proposals ──
 
-get('/api/proposals', (_req, res) => { json(res, fileIO.listProposals()); });
+get('/api/proposals', async (_req, res) => { json(res, await fileIO.listProposals()); });
 
-put('/api/proposals/:filename', (req, res, body) => {
+put('/api/proposals/:filename', async (req, res, body) => {
   try {
-    fileIO.saveProposal(param(req, 'filename', '/api/proposals/:filename'), body);
+    await fileIO.saveProposal(param(req, 'filename', '/api/proposals/:filename'), body);
     json(res, { saved: true });
   } catch (err) { error(res, String(err)); }
 });
 
 // ── PowerShell prompts ──
 
-get('/api/ps-prompts', (_req, res) => { json(res, fileIO.listPsPrompts()); });
+get('/api/ps-prompts', async (_req, res) => { json(res, await fileIO.listPsPrompts()); });
 
-get('/api/ps-prompts/:name', (req, res) => {
-  json(res, fileIO.readPsPrompt(param(req, 'name', '/api/ps-prompts/:name')));
+get('/api/ps-prompts/:name', async (req, res) => {
+  json(res, await fileIO.readPsPrompt(param(req, 'name', '/api/ps-prompts/:name')));
 });
 
 // ── URL content ──
@@ -828,20 +878,7 @@ post('/api/upload-document', async (req, res) => {
   json(res, { cancelled: false, filePath: filename, content });
 });
 
-// ── Git sync (Phase 1: local-only session branch) ──
-//
-// Gated by GIT_SYNC_ENABLED=1. When disabled, status/unsynced/diff return
-// empty/disabled shapes and discard is a no-op so the UI can degrade gracefully.
-
-post('/api/sync/init', async (_req, res) => {
-  try {
-    json(res, await gitStore.initDataRepo());
-  } catch (err) { error(res, String(err)); }
-});
-
-get('/api/sync/init-status', (_req, res) => {
-  json(res, gitStore.getLastInitResult() ?? { message: 'No init attempt yet' });
-});
+// ── Git sync ──
 
 post('/api/sync/credentials', async (_req, res, body) => {
   try {
@@ -870,19 +907,96 @@ post('/api/sync/credentials', async (_req, res, body) => {
 
 get('/api/sync/status', async (_req, res) => {
   try {
-    json(res, await gitStore.getSyncStatus());
+    if (!githubBackend || !sessionManager) {
+      json(res, { enabled: false, unsynced_count: 0, session_branch: null, pr_number: null, pr_url: null, push_pending: false, github_configured: false, main_updated_available: false, rebase_in_progress: false });
+      return;
+    }
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId) ?? null;
+    const state = sessionManager.getSessionState(userId);
+
+    let unsyncedCount = 0;
+    let behindBy = 0;
+    let hasConflicts = false;
+    if (branch) {
+      const cmp = await githubBackend.compareBranches('main', branch);
+      unsyncedCount = cmp.files.length;
+      behindBy = cmp.behind_by;
+      hasConflicts = cmp.status === 'diverged' && cmp.behind_by > 0;
+    }
+
+    json(res, {
+      enabled: true,
+      mode: 'github-api' as const,
+      unsynced_count: unsyncedCount,
+      session_branch: branch,
+      pr_number: state?.prNumber ?? null,
+      pr_url: state?.prUrl ?? null,
+      push_pending: false,
+      github_configured: true,
+      main_updated_available: behindBy > 0,
+      rebase_in_progress: false,
+      main_sha: githubBackend.getMainSha(),
+      behind_by: behindBy,
+      has_conflicts: hasConflicts,
+      cache: {
+        hit_rate: githubBackend.getCacheHitRate(),
+        last_poll: new Date(Date.now() - githubBackend.getLastPollAge() * 1000).toISOString(),
+        age_seconds: githubBackend.getLastPollAge(),
+      },
+    });
   } catch (err) { error(res, String(err)); }
 });
 
 get('/api/sync/diagnostics', async (_req, res) => {
   try {
-    json(res, await gitStore.getDiagnostics());
+    if (!githubBackend || !sessionManager) {
+      json(res, { git_sync_enabled: false, data_root: '', data_root_has_git: false, github_repo: null, github_credentials_valid: false, current_branch: null, head_sha: null, origin_main_sha: null, ahead_of_main: 0, behind_main: 0, active_taxonomy_dir: '', files: [], recent_commits: [] });
+      return;
+    }
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+    const divergence = branch ? await sessionManager.getDivergence(userId) : null;
+
+    json(res, {
+      git_sync_enabled: true,
+      mode: 'github-api',
+      data_root: CACHE_DIR,
+      data_root_has_git: false,
+      github_repo: null,
+      github_credentials_valid: true,
+      current_branch: branch ?? 'main',
+      head_sha: githubBackend.getMainSha(),
+      origin_main_sha: githubBackend.getMainSha(),
+      ahead_of_main: divergence?.ahead_by ?? 0,
+      behind_main: divergence?.behind_by ?? 0,
+      active_taxonomy_dir: '',
+      files: [],
+      recent_commits: [],
+      cache_hit_rate: githubBackend.getCacheHitRate(),
+      cache_file_count: githubBackend.getCachedFileCount(),
+      circuit_state: githubBackend.getCircuitState(),
+      rate_limit_remaining: githubBackend.getRateLimitRemaining(),
+      active_sessions: sessionManager.getActiveBranches(),
+    });
   } catch (err) { error(res, String(err)); }
 });
 
 get('/api/sync/unsynced', async (_req, res) => {
   try {
-    json(res, await gitStore.listUnsynced());
+    if (!githubBackend || !sessionManager) { json(res, []); return; }
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+    if (!branch) { json(res, []); return; }
+
+    const cmp = await githubBackend.compareBranches('main', branch);
+    const statusMap: Record<string, string> = {
+      added: 'A', removed: 'D', modified: 'M', renamed: 'R', changed: 'M',
+    };
+    json(res, cmp.files.map(f => ({
+      path: f.filename,
+      status: statusMap[f.status] || 'M',
+    })));
   } catch (err) { error(res, String(err)); }
 });
 
@@ -890,51 +1004,105 @@ get('/api/sync/diff', async (req, res) => {
   const p = query(req, 'path');
   if (!p) { error(res, 'path query parameter is required', 400); return; }
   try {
-    json(res, { path: p, diff: await gitStore.getFileDiff(p) });
+    if (!githubBackend || !sessionManager) { json(res, { path: p, diff: '' }); return; }
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+    if (!branch) { json(res, { path: p, diff: '' }); return; }
+
+    const cmp = await githubBackend.compareBranches('main', branch);
+    const file = cmp.files.find(f => f.filename === p);
+    json(res, { path: p, diff: file?.patch ?? '' });
   } catch (err) { error(res, String(err), 400); }
 });
 
 post('/api/sync/discard', async (_req, res, body) => {
-  const { path: relPath, all } = (body || {}) as { path?: string; all?: boolean };
+  const { all } = (body || {}) as { path?: string; all?: boolean };
   try {
+    if (!githubBackend || !sessionManager) { error(res, 'Storage backend not initialized', 503); return; }
+    const userId = getCurrentUserId();
     if (all) {
-      await gitStore.discardAll();
+      await sessionManager.deleteBranch(userId, 'manual');
+      githubBackend.setSessionContext(null);
       json(res, { ok: true, scope: 'all' });
       return;
     }
-    if (!relPath) { error(res, 'either path or all=true is required', 400); return; }
-    await gitStore.discardFile(relPath);
-    json(res, { ok: true, scope: 'file', path: relPath });
+    error(res, 'Per-file discard is not supported. Use "Discard All" to reset.', 400);
   } catch (err) { error(res, String(err), 400); }
 });
 
 post('/api/sync/create-pr', async (_req, res, body) => {
   const { title, body: prBody } = (body || {}) as { title?: string; body?: string };
   try {
-    const result = await gitStore.createPullRequest({ title, body: prBody });
-    if (!result.ok) {
-      const status = result.code === 'no-credentials' || result.code === 'disabled' ? 503 : 400;
-      error(res, result.error, status);
+    if (!githubBackend || !sessionManager) {
+      error(res, 'GitHub API backend not configured', 503);
       return;
     }
-    json(res, result);
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+    if (!branch) {
+      error(res, 'No session branch — make edits first', 400);
+      return;
+    }
+    const pr = await sessionManager.createPR(userId, title, prBody);
+    json(res, {
+      ok: true,
+      number: pr.number,
+      url: pr.url,
+      branch,
+      created: true,
+    });
   } catch (err) { error(res, String(err)); }
 });
 
 post('/api/sync/resync', async (_req, res, body) => {
-  const { mode } = (body || {}) as { mode?: gitStore.ResyncMode };
+  const { mode } = (body || {}) as { mode?: 'rebase' | 'fetch-only' | 'reset-main' };
   if (mode !== 'rebase' && mode !== 'fetch-only' && mode !== 'reset-main') {
     error(res, 'mode must be "rebase", "fetch-only", or "reset-main"', 400);
     return;
   }
   try {
-    const result = await gitStore.resync(mode);
-    if (!result.ok) {
-      const status = result.code === 'no-credentials' || result.code === 'disabled' ? 503 : 400;
-      error(res, result.error, status);
+    if (!githubBackend || !sessionManager) {
+      error(res, 'GitHub API backend not configured', 503);
       return;
     }
-    json(res, result);
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+
+    if (mode === 'reset-main') {
+      // Delete session branch → fresh start from main
+      if (branch) await sessionManager.deleteBranch(userId, 'manual');
+      json(res, {
+        ok: true, mode: 'reset-main', session_ahead: 0,
+        main_sha: githubBackend.getMainSha(),
+        conflicts: false, message: 'Session reset to main',
+      });
+      return;
+    }
+
+    if (!branch) {
+      // No session branch — nothing to resync
+      json(res, {
+        ok: true, mode, session_ahead: 0,
+        main_sha: githubBackend.getMainSha(),
+        conflicts: false, message: 'No session branch to resync',
+      });
+      return;
+    }
+
+    // 'rebase' and 'fetch-only' both merge main into session branch in API mode
+    const mergeResult = await githubBackend.mergeBranch(branch);
+    const cmp = mergeResult.ok
+      ? await githubBackend.compareBranches('main', branch)
+      : { ahead_by: 0 };
+
+    json(res, {
+      ok: true, mode,
+      session_ahead: cmp.ahead_by,
+      main_sha: githubBackend.getMainSha(),
+      conflicts: mergeResult.conflicts,
+      conflict_files: mergeResult.conflicts ? [] : undefined,
+      message: mergeResult.message,
+    });
   } catch (err) { error(res, String(err)); }
 });
 
@@ -945,64 +1113,24 @@ post('/api/sync/resync', async (_req, res, body) => {
 // and then continue (or abort) the rebase.
 
 get('/api/sync/rebase-state', async (_req, res) => {
-  try {
-    const state = await gitStore.getRebaseState();
-    json(res, state);
-  } catch (err) { error(res, String(err)); }
+  // Interactive rebase is not available in API mode — conflicts resolve on GitHub
+  json(res, { in_progress: false, conflict_files: [], onto_branch: null });
 });
 
-get('/api/sync/rebase-file', async (req, res) => {
-  const url = new URL(req.url!, 'http://localhost');
-  const p = url.searchParams.get('path') || '';
-  if (!p) { error(res, 'path is required', 400); return; }
-  try {
-    const content = await gitStore.getRebaseFile(p);
-    if (content === null) { error(res, 'file not found or no rebase in progress', 404); return; }
-    json(res, { path: p, content });
-  } catch (err) { error(res, String(err)); }
+get('/api/sync/rebase-file', async (_req, res) => {
+  error(res, 'Interactive rebase is not available in API mode — resolve conflicts on GitHub', 400);
 });
 
-post('/api/sync/rebase/resolve', async (_req, res, body) => {
-  const { path: relPath, content } = (body || {}) as { path?: string; content?: string };
-  if (!relPath || typeof content !== 'string') {
-    error(res, 'path and content are required', 400);
-    return;
-  }
-  try {
-    const result = await gitStore.resolveRebaseFile(relPath, content);
-    if (!result.ok) {
-      const status = result.code === 'not-in-progress' ? 409
-                   : result.code === 'invalid-path' ? 400 : 500;
-      error(res, result.error, status);
-      return;
-    }
-    json(res, result);
-  } catch (err) { error(res, String(err)); }
+post('/api/sync/rebase/resolve', async (_req, res) => {
+  error(res, 'Interactive rebase is not available in API mode — resolve conflicts on GitHub', 400);
 });
 
-post('/api/sync/rebase/continue', async (_req, res, _body) => {
-  try {
-    const result = await gitStore.continueRebase();
-    if (!result.ok) {
-      const status = result.code === 'not-in-progress' ? 409
-                   : result.code === 'unresolved-files' ? 409 : 500;
-      json(res, result, status);
-      return;
-    }
-    json(res, result);
-  } catch (err) { error(res, String(err)); }
+post('/api/sync/rebase/continue', async (_req, res) => {
+  error(res, 'Interactive rebase is not available in API mode — resolve conflicts on GitHub', 400);
 });
 
-post('/api/sync/rebase/abort', async (_req, res, _body) => {
-  try {
-    const result = await gitStore.abortRebase();
-    if (!result.ok) {
-      const status = result.code === 'not-in-progress' ? 409 : 500;
-      error(res, result.error, status);
-      return;
-    }
-    json(res, result);
-  } catch (err) { error(res, String(err)); }
+post('/api/sync/rebase/abort', async (_req, res) => {
+  error(res, 'Interactive rebase is not available in API mode — resolve conflicts on GitHub', 400);
 });
 
 // Phase-3 webhook: GitHub posts pull_request / ping events here. We verify the
@@ -1043,8 +1171,8 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
     const action = parsed.action;
     const pr = parsed.pull_request as { merged?: boolean; base?: { ref?: string } } | undefined;
     if (action === 'closed' && pr?.merged === true && pr.base?.ref === 'main') {
-      gitStore.markMainUpdatedAvailable();
-      console.log('[sync] webhook: main merged; flagged main_updated_available');
+      // In API mode, behind_by is detected dynamically via compareBranches.
+      console.log('[sync] webhook: main merged');
     }
   }
 
@@ -1190,35 +1318,6 @@ function serveStatic(req: http.IncomingMessage, res: http.ServerResponse): boole
 }
 
 // ── Request router ──
-
-/**
- * Returns true when a successful request of this method+path is expected to
- * have produced on-disk changes under AI_TRIAD_DATA_ROOT that should be
- * captured as a git commit on the user's session branch.
- *
- * Conservative allow-list approach: only mutating methods (POST/PUT/DELETE)
- * on /api/* paths that hit fileIO, excluding in-memory endpoints (AI, keys,
- * data-repo git ops themselves, upload buffers).
- */
-function shouldCommitAfter(method: string, pathname: string): boolean {
-  if (!['POST', 'PUT', 'DELETE'].includes(method)) return false;
-  if (!pathname.startsWith('/api/')) return false;
-
-  // Endpoints that don't modify data-repo files.
-  const excludedPrefixes = [
-    '/api/ai/',             // in-memory generation
-    '/api/embeddings/',     // compute helpers
-    '/api/nli/',            // classifier
-    '/api/keys',            // secret store (Key Vault)
-    '/api/models',          // backend registry (no-op write)
-    '/api/data/',           // data-repo git ops (clone/pull/check/set-root)
-    '/api/sync/',           // this feature's own endpoints
-    '/api/debug/',          // trace channel
-    '/api/fetch-url',       // URL content fetcher
-    '/api/upload-document', // client-side buffer, not persisted here
-  ];
-  return !excludedPrefixes.some(p => pathname.startsWith(p));
-}
 
 function matchRoute(method: string, pathname: string): { handler: Handler; routePath: string } | null {
   for (const route of routes) {
@@ -1571,6 +1670,14 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
   // back to '_local' — which keyStore ignores in local-file mode.
   const userCtx = { principalName: principalName || '_local', idp: idp || '_local' };
   await runWithUser(userCtx, async () => {
+    // Inject session context for GitHubAPIBackend ref resolution.
+    // In API mode, reads/writes resolve to the user's session branch.
+    if (githubBackend && sessionManager) {
+      const userId = principalName || '_local';
+      const branchName = sessionManager.getActiveBranch(userId);
+      fileIO.setSessionContext({ userId, branchName });
+    }
+
     const url = new URL(req.url!, 'http://localhost');
     const route = matchRoute(req.method!, url.pathname);
 
@@ -1578,14 +1685,6 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
       try {
         const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);
-        // After a successful write to a data-bearing endpoint, commit any
-        // resulting working-tree changes to the user's session branch.
-        // No-op when GIT_SYNC_ENABLED is off or the data root isn't a git repo.
-        if (shouldCommitAfter(req.method!, url.pathname)) {
-          void gitStore.commitWorkingTreeChanges(
-            `web-edit: ${req.method} ${route.routePath}`,
-          );
-        }
       } catch (err) {
         console.error(`[server] Error handling ${req.method} ${url.pathname}:`, err);
         error(res, String(err));
@@ -1768,6 +1867,11 @@ function shutdown(signal: string) {
     fs.writeFileSync(path.join(dumpDir, `server-shutdown-${Date.now()}.jsonl`), ndjson);
   } catch { /* best effort */ }
 
+  // 1a. Stop GitHubAPIBackend polling
+  if (githubBackend) {
+    githubBackend.shutdown();
+  }
+
   // 1. Kill terminal PTY
   if (terminalProcess) {
     console.log('[server] Terminating PTY process');
@@ -1817,32 +1921,29 @@ process.on('unhandledRejection', (reason) => {
 
 // ── Start ──
 
-// Wire server recorder to gitRepoStore
-gitStore.setServerRecorder(serverRecorder);
-
 server.listen(PORT, () => {
-  serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch } });
+  serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
   console.log(`[server] Taxonomy Editor running at http://localhost:${PORT}`);
   console.log(`[server] Data root: ${getDataRoot()}`);
 
   // Initialize analytics storage (daily NDJSON files + 90-day pruning)
   try { analytics.initAnalytics(getDataRoot()); } catch (e) { console.warn('[server] Analytics init failed:', e); }
 
-  // Git init with retry — the background entrypoint copy may not have
-  // delivered .git/ or data files yet when the server starts.
-  const tryGitInit = async (attempt: number, maxAttempts: number, delayMs: number) => {
-    const r = await gitStore.initDataRepo();
-    if (r.ok) {
-      if (r.action === 'initialized') console.log(`[server] ${r.message}`);
-      else console.log(`[server] Git sync: ${r.message}`);
-      return;
-    }
-    if (attempt < maxAttempts) {
-      console.log(`[server] Git init attempt ${attempt}/${maxAttempts} failed (${r.error}), retrying in ${delayMs / 1000}s...`);
-      setTimeout(() => void tryGitInit(attempt + 1, maxAttempts, delayMs), delayMs);
-    } else {
-      console.error(`[server] Git data-repo init failed after ${maxAttempts} attempts: ${r.error}`);
-    }
-  };
-  void tryGitInit(1, 12, 15_000);
+  if (githubBackend) {
+    // Initialize GitHubAPIBackend (token + cache check) AFTER health check is
+    // ready. Health passes immediately, then async init.
+    console.log('[server] Initializing GitHubAPIBackend...');
+    githubBackend.initialize().then(() => {
+      console.log('[server] GitHubAPIBackend initialized');
+    }).catch((err) => {
+      console.error('[server] GitHubAPIBackend initialization failed:', err);
+      serverRecorder.record({
+        type: 'storage.fallback', component: 'storage', level: 'warn',
+        message: `GitHubAPIBackend init failed: ${err instanceof Error ? err.message : String(err)}`,
+        error: err instanceof Error
+          ? { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) }
+          : { name: 'Error', message: String(err) },
+      });
+    });
+  }
 });

@@ -78,6 +78,69 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Fetch taxonomy snapshot for fallback
+        id: snapshot
+        continue-on-error: true
+        run: |
+          echo "Fetching taxonomy snapshot from ai-triad-data for baked fallback..."
+          SNAP="taxonomy-snapshot/taxonomy/Origin"
+          mkdir -p "$SNAP"
+
+          REPO="jpsnover/ai-triad-data"
+          FAILED=0
+          for f in accelerationist.json safetyist.json skeptic.json cross-cutting.json edges.json policy_actions.json embeddings.json; do
+            gh api "repos/${REPO}/contents/taxonomy/Origin/${f}" \
+              --jq '.content' | base64 -d > "${SNAP}/${f}" 2>/dev/null \
+              || { echo "::warning::Failed to fetch ${f}"; FAILED=$((FAILED+1)); }
+          done
+
+          # Fetch conflict index (single file replaces 1,244 individual files)
+          mkdir -p taxonomy-snapshot/conflicts
+          gh api "repos/${REPO}/contents/conflicts/_conflict-index.json" \
+            --jq '.content' | base64 -d > taxonomy-snapshot/conflicts/_conflict-index.json 2>/dev/null \
+            || echo "::warning::Conflict index not available yet"
+
+          # Fetch conflict clusters
+          gh api "repos/${REPO}/contents/conflicts/_conflict-clusters.json" \
+            --jq '.content' | base64 -d > taxonomy-snapshot/conflicts/_conflict-clusters.json 2>/dev/null \
+            || echo "::warning::Conflict clusters not available yet"
+
+          # Stamp snapshot age for read-only mode banner
+          echo "{\"generated\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"commit\":\"$(gh api repos/${REPO}/commits/main --jq '.sha' 2>/dev/null || echo 'unknown')\"}" \
+            > taxonomy-snapshot/snapshot-meta.json
+
+          # Validate minimum viable snapshot (5 taxonomy POV files + edges + policy registry)
+          REQUIRED="accelerationist.json safetyist.json skeptic.json cross-cutting.json edges.json policy_actions.json"
+          MISSING=0
+          for f in $REQUIRED; do
+            if [ ! -s "${SNAP}/${f}" ]; then
+              echo "::warning::Required file ${f} is missing or empty"
+              MISSING=$((MISSING+1))
+            fi
+          done
+
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::warning::${MISSING} required taxonomy files missing — fallback will be incomplete"
+            echo "valid=false" >> $GITHUB_OUTPUT
+          else
+            TOTAL_SIZE=$(du -sh taxonomy-snapshot/ | cut -f1)
+            echo "Snapshot fetched successfully (${TOTAL_SIZE})"
+            echo "valid=true" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure snapshot directory exists
+        if: always()
+        run: |
+          # Guarantee taxonomy-snapshot/ exists for the Dockerfile COPY layer.
+          # If the fetch step was skipped or failed, create a minimal stub
+          # so the build succeeds (fallback will just be empty).
+          mkdir -p taxonomy-snapshot
+          if [ ! -f taxonomy-snapshot/snapshot-meta.json ]; then
+            echo '{"generated":"none","commit":"none","empty":true}' > taxonomy-snapshot/snapshot-meta.json
+          fi
+
       - name: Determine push mode
         id: push_mode
         run: |

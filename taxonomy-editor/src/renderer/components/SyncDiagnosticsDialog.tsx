@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getSyncDiagnostics, getSyncStatus, createPullRequestTracked, initDataRepoTracked,
+  getSyncDiagnostics, getSyncStatus, createPullRequestTracked,
   fetchOriginTracked, resetMainTracked,
   setGithubCredentials, clearGithubCredentials,
   type SyncDiagnostics, type SyncStatus, type DiagnosticsFile, type EditCounts,
@@ -157,26 +157,33 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
           <div className="sync-diag-body">
             {/* Connection Status */}
             <Section title="Connection Status">
+              <KV label="Storage Mode">{diag.mode === 'github-api' ? 'GitHub API' : 'Filesystem (Git)'}</KV>
               <KV label="Git Sync Enabled"><StatusDot ok={diag.git_sync_enabled} /> {diag.git_sync_enabled ? 'Yes' : 'No'}</KV>
               <KV label="Data Root">{diag.data_root}</KV>
-              <KV label="Git Initialized"><StatusDot ok={diag.data_root_has_git} /> {diag.data_root_has_git ? 'Yes' : 'No'}</KV>
-              <KV label="GitHub Repo">{diag.github_repo ?? <span className="sync-diag-muted">Not configured</span>}</KV>
+              {diag.mode !== 'github-api' && (
+                <>
+                  <KV label="Git Initialized"><StatusDot ok={diag.data_root_has_git} /> {diag.data_root_has_git ? 'Yes' : 'No'}</KV>
+                  <KV label="GitHub Repo">{diag.github_repo ?? <span className="sync-diag-muted">Not configured</span>}</KV>
+                </>
+              )}
               <KV label="Credentials">
                 <StatusDot ok={diag.github_credentials_valid} />{' '}
                 {diag.github_credentials_valid ? (
                   <>
                     Valid
-                    <button
-                      className="btn btn-ghost btn-xs"
-                      style={{ marginLeft: 8, fontSize: '0.65rem' }}
-                      onClick={async () => {
-                        await clearGithubCredentials();
-                        void refresh();
-                      }}
-                      title="Clear stored credentials"
-                    >
-                      Clear
-                    </button>
+                    {diag.mode !== 'github-api' && (
+                      <button
+                        className="btn btn-ghost btn-xs"
+                        style={{ marginLeft: 8, fontSize: '0.65rem' }}
+                        onClick={async () => {
+                          await clearGithubCredentials();
+                          void refresh();
+                        }}
+                        title="Clear stored credentials"
+                      >
+                        Clear
+                      </button>
+                    )}
                   </>
                 ) : (
                   <>
@@ -191,6 +198,17 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                   </>
                 )}
               </KV>
+              {diag.mode === 'github-api' && (
+                <>
+                  <KV label="Cache Hit Rate">{diag.cache_hit_rate != null ? `${(diag.cache_hit_rate * 100).toFixed(1)}%` : '--'}</KV>
+                  <KV label="Cached Files">{diag.cache_file_count ?? '--'}</KV>
+                  <KV label="Circuit Breaker">
+                    <StatusDot ok={diag.circuit_state === 'closed'} />{' '}
+                    {diag.circuit_state ?? '--'}
+                  </KV>
+                  <KV label="API Rate Limit">{diag.rate_limit_remaining != null ? `${diag.rate_limit_remaining} remaining` : '--'}</KV>
+                </>
+              )}
               {credFormOpen && !diag.github_credentials_valid && (
                 <GitHubCredentialsForm
                   defaultRepo={diag.github_repo ?? ''}
@@ -248,8 +266,28 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
               )}
             </Section>
 
+            {/* Active Sessions (API mode only) */}
+            {diag.mode === 'github-api' && diag.active_sessions && diag.active_sessions.length > 0 && (
+              <Section title={`Active Sessions (${diag.active_sessions.length})`}>
+                <div className="sync-diag-commits">
+                  {diag.active_sessions.map((s, i) => (
+                    <div key={i} className="sync-diag-commit">
+                      <span className="sync-diag-commit-msg">{s.userId}</span>
+                      <code className="sync-diag-commit-sha">{s.branch}</code>
+                      {s.prNumber && <span className="sync-diag-pr-status sync-diag-pr-open">PR #{s.prNumber}</span>}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )}
+
             {/* Data File Inventory */}
             <Section title={`Data Files${missingCount > 0 ? ` (${missingCount} missing)` : ''}`}>
+              {diag.mode === 'github-api' && diag.files.length === 0 && (
+                <div className="sync-diag-muted" style={{ padding: '8px 0' }}>
+                  File inventory not available in API mode — data is served from GitHub.
+                </div>
+              )}
               <table className="sync-diag-file-table">
                 <thead>
                   <tr>
@@ -329,27 +367,35 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                   Create Pull Request
                 </button>
 
-                <button
-                  className="btn btn-sm"
-                  disabled={action.running || !diag.data_root_has_git}
-                  onClick={() => runAction('Fetch from origin', () => fetchOriginTracked())}
-                  title="Fetch latest commits from origin without changing local files"
-                >
-                  {action.running && action.label === 'Fetch from origin' ? 'Fetching...' : 'Fetch from Origin'}
-                </button>
+                {diag.mode !== 'github-api' && (
+                  <button
+                    className="btn btn-sm"
+                    disabled={action.running || !diag.data_root_has_git}
+                    onClick={() => runAction('Fetch from origin', () => fetchOriginTracked())}
+                    title="Fetch latest commits from origin without changing local files"
+                  >
+                    {action.running && action.label === 'Fetch from origin' ? 'Fetching...' : 'Fetch from Origin'}
+                  </button>
+                )}
 
                 {!confirmReset ? (
                   <button
                     className="btn btn-sm sync-diag-btn-danger"
-                    disabled={action.running || !diag.data_root_has_git}
+                    disabled={action.running || (!diag.data_root_has_git && diag.mode !== 'github-api')}
                     onClick={() => setConfirmReset(true)}
-                    title="Reset local data to match origin/main — discards all local changes"
+                    title={diag.mode === 'github-api'
+                      ? 'Delete your session branch and reset to main'
+                      : 'Reset local data to match origin/main — discards all local changes'}
                   >
-                    Reset to origin/main
+                    {diag.mode === 'github-api' ? 'Reset session' : 'Reset to origin/main'}
                   </button>
                 ) : (
                   <div className="sync-diag-confirm">
-                    <span className="sync-diag-confirm-text">This will discard all local changes. Continue?</span>
+                    <span className="sync-diag-confirm-text">
+                      {diag.mode === 'github-api'
+                        ? 'This will delete your session branch. Continue?'
+                        : 'This will discard all local changes. Continue?'}
+                    </span>
                     <button
                       className="btn btn-sm sync-diag-btn-danger"
                       disabled={action.running}
@@ -361,14 +407,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                   </div>
                 )}
 
-                <button
-                  className="btn btn-sm"
-                  disabled={action.running || diag.data_root_has_git}
-                  onClick={() => runAction('Initialize repo', () => initDataRepoTracked())}
-                  title={diag.data_root_has_git ? 'Repo already initialized' : 'Clone data repo from GitHub'}
-                >
-                  {action.running && action.label === 'Initialize repo' ? 'Initializing...' : 'Initialize Repo'}
-                </button>
+
               </div>
 
               {prFormOpen && (

@@ -60,6 +60,8 @@ function DiffLines({ diff }: { diff: string }) {
   );
 }
 
+const isApiMode = (s: SyncStatus) => s.mode === 'github-api';
+
 export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Props) {
   const [files, setFiles] = useState<UnsyncedFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -140,11 +142,14 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
             <div className="unsynced-drawer-subtitle">
               {status.session_branch
                 ? <>Branch <code>{status.session_branch}</code> · {files.length} file{files.length === 1 ? '' : 's'}</>
-                : 'Git sync disabled'}
+                : (isApiMode(status) ? 'No session branch — make edits to start' : 'Git sync disabled')}
               {status.pr_number && status.pr_url && (
                 <> · <a href={status.pr_url} target="_blank" rel="noreferrer noopener" className="unsynced-drawer-pr-pill">
                   PR #{status.pr_number}{status.push_pending ? ' ⏳' : ''}
                 </a></>
+              )}
+              {isApiMode(status) && status.behind_by != null && status.behind_by > 0 && (
+                <> · <span className="unsynced-drawer-behind">{status.behind_by} behind main</span></>
               )}
             </div>
           </div>
@@ -197,7 +202,7 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
           </div>
         )}
 
-        {status.rebase_in_progress && (
+        {status.rebase_in_progress && !isApiMode(status) && (
           <div className="unsynced-drawer-alert error">
             <span>
               Rebase paused with unresolved conflicts. Resolve them to finish
@@ -211,6 +216,25 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
             >
               Resolve conflicts
             </button>
+          </div>
+        )}
+
+        {status.has_conflicts && isApiMode(status) && (
+          <div className="unsynced-drawer-alert error">
+            <span>
+              Merge conflicts detected between your session branch and <code>main</code>.
+              Resolve them on GitHub before continuing.
+            </span>
+            {status.pr_url && (
+              <a
+                href={status.pr_url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="btn btn-sm"
+              >
+                View on GitHub
+              </a>
+            )}
           </div>
         )}
 
@@ -240,14 +264,16 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
                 </span>
                 <span className="unsynced-drawer-file-path" title={f.path}>{f.path}</span>
                 <span className="unsynced-drawer-file-label">{statusLabel(f.status)}</span>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={(e) => { e.stopPropagation(); void onDiscardFile(f.path); }}
-                  disabled={busy !== null}
-                  title={`Discard changes to ${f.path}`}
-                >
-                  {busy === f.path ? '…' : 'Discard'}
-                </button>
+                {!isApiMode(status) && (
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={(e) => { e.stopPropagation(); void onDiscardFile(f.path); }}
+                    disabled={busy !== null}
+                    title={`Discard changes to ${f.path}`}
+                  >
+                    {busy === f.path ? '…' : 'Discard'}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -363,8 +389,12 @@ function CreatePrDialog({ files, status, onCancel, onDone, onError }: CreatePrDi
         <h3 className="dialog-title">{existing ? `Update pull request #${status.pr_number}` : 'Create pull request'}</h3>
         <p className="dialog-description">
           {existing
-            ? 'Push the latest commits on your session branch and refresh the PR metadata.'
-            : <>Push <code>{status.session_branch}</code> to GitHub and open a pull request against <code>main</code>.</>}
+            ? (isApiMode(status)
+              ? 'Update the existing pull request metadata.'
+              : 'Push the latest commits on your session branch and refresh the PR metadata.')
+            : (isApiMode(status)
+              ? <>Open a pull request from <code>{status.session_branch}</code> to <code>main</code>.</>
+              : <>Push <code>{status.session_branch}</code> to GitHub and open a pull request against <code>main</code>.</>)}
         </p>
         <label className="sync-dialog-label">
           <span>Title</span>
@@ -408,6 +438,7 @@ interface ResyncDialogProps {
 
 function ResyncDialog({ status, hasLocalChanges, onCancel, onDone, onConflicts, onError }: ResyncDialogProps) {
   const [submitting, setSubmitting] = useState<ResyncMode | null>(null);
+  const apiMode = isApiMode(status);
 
   const run = async (mode: ResyncMode) => {
     setSubmitting(mode);
@@ -428,39 +459,54 @@ function ResyncDialog({ status, hasLocalChanges, onCancel, onDone, onConflicts, 
         <h3 className="dialog-title">Resync with GitHub</h3>
         <p className="dialog-description">
           {hasLocalChanges ? (
-            <>You have unsynced changes on <code>{status.session_branch}</code>. Pick how to reconcile with the latest <code>origin/main</code>.</>
+            apiMode
+              ? <>Your session branch has changes. Merge <code>main</code> into your branch to stay current.</>
+              : <>You have unsynced changes on <code>{status.session_branch}</code>. Pick how to reconcile with the latest <code>origin/main</code>.</>
           ) : (
-            <>No unsynced changes. You can fast-forward <code>main</code> to match <code>origin/main</code>.</>
+            apiMode
+              ? <>No unsynced changes. Reset your session to start fresh from <code>main</code>.</>
+              : <>No unsynced changes. You can fast-forward <code>main</code> to match <code>origin/main</code>.</>
           )}
         </p>
         <div className="sync-dialog-options">
           {hasLocalChanges ? (
-            <>
+            apiMode ? (
               <button
                 className="btn btn-primary"
                 onClick={() => void run('rebase')}
                 disabled={submitting !== null}
-                title="Fetch origin and rebase your session branch onto origin/main. Conflicts will abort the rebase."
+                title="Merge main into your session branch via the GitHub API"
               >
-                {submitting === 'rebase' ? 'Rebasing…' : 'Rebase my session onto main'}
+                {submitting === 'rebase' ? 'Merging…' : 'Merge main into my branch'}
               </button>
-              <button
-                className="btn btn-ghost"
-                onClick={() => void run('fetch-only')}
-                disabled={submitting !== null}
-                title="Fetch origin without moving main or the session branch"
-              >
-                {submitting === 'fetch-only' ? 'Fetching…' : 'Fetch only'}
-              </button>
-            </>
+            ) : (
+              <>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void run('rebase')}
+                  disabled={submitting !== null}
+                  title="Fetch origin and rebase your session branch onto origin/main. Conflicts will abort the rebase."
+                >
+                  {submitting === 'rebase' ? 'Rebasing…' : 'Rebase my session onto main'}
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => void run('fetch-only')}
+                  disabled={submitting !== null}
+                  title="Fetch origin without moving main or the session branch"
+                >
+                  {submitting === 'fetch-only' ? 'Fetching…' : 'Fetch only'}
+                </button>
+              </>
+            )
           ) : (
             <button
               className="btn btn-primary"
               onClick={() => void run('reset-main')}
               disabled={submitting !== null}
-              title="Fast-forward local main to origin/main"
+              title={apiMode ? 'Delete your session branch and start fresh from main' : 'Fast-forward local main to origin/main'}
             >
-              {submitting === 'reset-main' ? 'Resyncing…' : 'Fast-forward main'}
+              {submitting === 'reset-main' ? 'Resyncing…' : (apiMode ? 'Reset to main' : 'Fast-forward main')}
             </button>
           )}
         </div>
