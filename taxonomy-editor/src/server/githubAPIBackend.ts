@@ -1327,7 +1327,7 @@ export class GitHubAPIBackend implements StorageBackend {
   private startPolling(): void {
     if (this.pollTimer) return;
 
-    this.pollTimer = setInterval(async () => {
+    this.pollTimer = setInterval(() => void (async () => {
       try {
         const currentSha = await this.getLatestCommitSha();
         if (!currentSha || currentSha === this.manifest?.lastCommitSha) return;
@@ -1366,7 +1366,7 @@ export class GitHubAPIBackend implements StorageBackend {
           data: { context: 'background-task' },
         });
       }
-    }, this.pollIntervalMs);
+    })(), this.pollIntervalMs);
   }
 
   private async invalidateChangedFiles(fromSha: string, toSha: string): Promise<void> {
