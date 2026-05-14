@@ -6,14 +6,16 @@
 //
 // BYOK (Bring Your Own Key) model: API keys are NOT passed at deployment time.
 // Users enter their own Gemini/Claude/Groq API keys through the app UI.
-// Keys are encrypted (AES-256-GCM) and stored on the Azure Files data volume.
+// Keys stored in Azure Key Vault via managed identity.
+//
+// Data access: GitHub API-first — reads/writes go to jpsnover/ai-triad-data
+// via GitHub Contents/Trees APIs. No Azure Files, no local git clone.
 //
 // Resources created:
-//   - Container Apps Environment (serverless, scale-to-zero)
+//   - Container Apps Environment (serverless)
 //   - Container App (the Taxonomy Editor, system-assigned managed identity)
-//   - Storage Account + Azure Files share (persistent data)
 //   - Log Analytics Workspace (diagnostics)
-//   - Key Vault (per-user BYOK secrets, accessed via managed identity)
+//   - Key Vault (per-user BYOK secrets + GitHub App PEM, accessed via managed identity)
 //
 // Usage:
 //   az deployment group create -g ai-triad -f main.bicep
@@ -127,39 +129,6 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
-// ── Storage Account + File Share ──
-
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
-  name: 'staitriad${uniqueSuffix}'
-  location: location
-  tags: tags
-  kind: 'StorageV2'
-  sku: { name: 'Standard_LRS' }
-  properties: {
-    minimumTlsVersion: 'TLS1_2'
-    allowBlobPublicAccess: false
-  }
-}
-
-resource fileService 'Microsoft.Storage/storageAccounts/fileServices@2023-05-01' = {
-  parent: storageAccount
-  name: 'default'
-  properties: {
-    shareDeleteRetentionPolicy: {
-      enabled: true
-      days: 7
-    }
-  }
-}
-
-resource dataShare 'Microsoft.Storage/storageAccounts/fileServices/shares@2023-05-01' = {
-  parent: fileService
-  name: 'taxonomy-data'
-  properties: {
-    shareQuota: 10 // GB — plenty for taxonomy, debates, summaries
-  }
-}
-
 // ── Key Vault (per-user BYOK secrets) ──
 // Uses RBAC authorization; the container app's system-assigned managed
 // identity is granted 'Key Vault Secrets Officer' on this vault below.
@@ -228,24 +197,10 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// Storage mount on the environment
-resource storageMount 'Microsoft.App/managedEnvironments/storages@2024-03-01' = {
-  parent: containerAppEnv
-  name: 'taxonomy-data'
-  properties: {
-    azureFile: {
-      accountName: storageAccount.name
-      accountKey: storageAccount.listKeys().keys[0].value
-      shareName: dataShare.name
-      accessMode: 'ReadWrite'
-    }
-  }
-}
-
 // ── Container App ──
 
 var baseEnv = [
-  { name: 'AI_TRIAD_DATA_ROOT', value: '/data' }
+  { name: 'AI_TRIAD_DATA_ROOT', value: '/tmp/taxonomy-cache' }
   { name: 'ALLOWED_ORIGINS', value: 'https://taxonomy-editor.${containerAppEnv.properties.defaultDomain}' }
   { name: 'HOME', value: '/home/aitriad' }
   { name: 'NODE_ENV', value: 'production' }
@@ -310,9 +265,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '1Gi'
           }
           env: containerEnv
-          volumeMounts: [
-            { volumeName: 'data', mountPath: '/data-persistent' }
-          ]
           probes: [
             {
               type: 'Liveness'
@@ -333,13 +285,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               failureThreshold: 30
             }
           ]
-        }
-      ]
-      volumes: [
-        {
-          name: 'data'
-          storageName: 'taxonomy-data'
-          storageType: 'AzureFile'
         }
       ]
       scale: {
@@ -396,9 +341,6 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
             memory: '0.5Gi'
           }
           env: containerEnv
-          volumeMounts: [
-            { volumeName: 'data', mountPath: '/data-persistent' }
-          ]
           probes: [
             {
               type: 'Startup'
@@ -407,13 +349,6 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
               failureThreshold: 10
             }
           ]
-        }
-      ]
-      volumes: [
-        {
-          name: 'data'
-          storageName: 'taxonomy-data'
-          storageType: 'AzureFile'
         }
       ]
       scale: {
@@ -585,13 +520,214 @@ resource restartLoopAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pre
   }
 }
 
+// ── GitHub API Alerts ──
+// Alert rules for the GitHub API-first data layer.
+// All use the same action group and Log Analytics workspace as the restart alert.
+
+resource rateLimitWarning 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-github-rate-limit-warning'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'GitHub API Rate Limit Warning'
+    description: 'Rate limit remaining below 1,000 for 5 minutes. At 145 calls/hr typical, this indicates unusual consumption.'
+    severity: 2
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "github.api.rate_limit"
+            | where Log_s contains "remaining"
+            | extend remaining = toint(extract("remaining.:(\\d+)", 1, Log_s))
+            | where remaining < 1000
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+resource rateLimitCritical 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-github-rate-limit-critical'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'GitHub API Rate Limit Critical'
+    description: 'Rate limit below 500 or 429 response received. Polling disabled, serving from cache only.'
+    severity: 1
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT1M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "github.api.error" and Log_s contains "429"
+              or (Log_s contains "github.api.rate_limit" and Log_s contains "degraded")
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+resource apiErrorSpike 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-github-api-error-spike'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'GitHub API Error Spike'
+    description: 'More than 5 GitHub API errors in 5 minutes. May indicate GitHub outage or auth failure.'
+    severity: 1
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "github.api.error"
+            | summarize ErrorCount = count()
+            | where ErrorCount > 5
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+resource cacheDegraded 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-cache-degraded'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Cache Hit Rate Degraded'
+    description: 'Cache hit rate below 85% over 5 minutes. Indicates excessive cache misses — possible invalidation storm or cache corruption.'
+    severity: 2
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "cache.miss"
+            | summarize Misses = count()
+            | where Misses > 50
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+resource fallbackActive 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-fallback-active'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Fallback Data Active'
+    description: 'App serving from baked fallback data for more than 5 minutes. GitHub API is likely unreachable.'
+    severity: 1
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT5M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "storage.fallback"
+            | summarize FallbackCount = count()
+            | where FallbackCount > 0
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
+resource branchDivergence 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: 'alert-branch-divergence'
+  location: location
+  tags: tags
+  properties: {
+    displayName: 'Session Branch Divergence'
+    description: 'A session branch is more than 10 commits behind main. User may encounter merge conflicts.'
+    severity: 3
+    enabled: true
+    scopes: [ logAnalytics.id ]
+    evaluationFrequency: 'PT15M'
+    windowSize: 'PT15M'
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            ContainerAppConsoleLogs_CL
+            | where Log_s contains "branch.divergence"
+            | where Log_s contains "behind_by"
+            | extend behind = toint(extract("behind_by.:(\\d+)", 1, Log_s))
+            | where behind > 10
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+        }
+      ]
+    }
+    actions: {
+      actionGroups: budgetAlertConfigured ? [ restartAlertActionGroup.id ] : []
+    }
+  }
+}
+
 // ── Outputs ──
 
 output appUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
 output appName string = containerApp.name
 output resourceGroup string = resourceGroup().name
-output storageAccountName string = storageAccount.name
-output fileShareName string = dataShare.name
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output stagingUrl string = 'https://${containerAppStaging.properties.configuration.ingress.fqdn}'

@@ -16,17 +16,20 @@ jobs:
   health-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check health endpoint
+      - name: Check health and data endpoints
         id: health
         run: |
           FAILURES=0
           for i in 1 2 3; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${APP_URL}/health" || echo "000")
-            if [ "$STATUS" != "200" ]; then
+            # Check /health
+            H_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${APP_URL}/health" || echo "000")
+            # Check /api/data/available
+            D_STATUS=$(curl -s --max-time 10 "${APP_URL}/api/data/available" || echo "error")
+            if [ "$H_STATUS" != "200" ] || [ "$D_STATUS" != "true" ]; then
               FAILURES=$((FAILURES + 1))
-              echo "Attempt $i failed (status: $STATUS)"
+              echo "Attempt $i failed (health: $H_STATUS, data: $D_STATUS)"
             else
-              echo "Attempt $i passed"
+              echo "Attempt $i passed (health: $H_STATUS, data: available)"
             fi
             [ $i -lt 3 ] && sleep 30
           done
