@@ -21,6 +21,14 @@ jobs:
         with:
           fetch-depth: 2    # Need parent commit to diff taxonomy changes
 
+      - name: Checkout sources repo
+        uses: actions/checkout@v4
+        with:
+          repository: jpsnover/ai-triad-sources
+          path: ai-triad-sources
+          token: ${{ secrets.DATA_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
       - name: Show taxonomy version
         run: |
           echo "Taxonomy version: $(cat TAXONOMY_VERSION)"
@@ -31,6 +39,7 @@ jobs:
         env:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_MODEL:   ${{ vars.AI_MODEL || 'claude-sonnet-4-6' }}
+          AI_TRIAD_SOURCES_ROOT: ${{ github.workspace }}/ai-triad-sources
         run: |
           Import-Module ./scripts/AITriad -Force
           Invoke-BatchSummary -ForceAll
@@ -39,4 +48,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "chore: auto-update summaries to taxonomy $(cat TAXONOMY_VERSION)"
-          file_pattern: 'summaries/*.json sources/*/metadata.json conflicts/*.json'
+          file_pattern: 'summaries/*.json conflicts/*.json'
