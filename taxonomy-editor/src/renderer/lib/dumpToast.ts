@@ -54,6 +54,7 @@ export function showDumpToast(opts: {
   isWeb: boolean;
   onCopy?: () => void;
   onOpen?: () => void;
+  serverFilename?: string;
 }): void {
   const container = getOrCreateContainer();
 
@@ -109,6 +110,36 @@ export function showDumpToast(opts: {
       } catch (err) { link.textContent = `Download failed: ${err}`; }
     };
     toast.appendChild(link);
+
+    // Server dump link (if available)
+    if (opts.serverFilename) {
+      const serverLink = document.createElement('a');
+      serverLink.textContent = `Server: ${opts.serverFilename}`;
+      Object.assign(serverLink.style, {
+        display: 'block',
+        color: 'var(--accent-color, #89b4fa)',
+        textDecoration: 'underline',
+        cursor: 'pointer',
+        wordBreak: 'break-all',
+        fontSize: '0.8em',
+        marginTop: '4px',
+      });
+      serverLink.onclick = async (e) => {
+        e.preventDefault();
+        try {
+          const resp = await fetch(`/api/flight-recorder/download/${encodeURIComponent(opts.serverFilename!)}`);
+          if (!resp.ok) { serverLink.textContent = `Server download failed (${resp.status})`; return; }
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = opts.serverFilename!;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) { serverLink.textContent = `Server download failed: ${err}`; }
+      };
+      toast.appendChild(serverLink);
+    }
   } else {
     // Electron mode: file path + Copy + Open buttons
     const pathEl = document.createElement('div');

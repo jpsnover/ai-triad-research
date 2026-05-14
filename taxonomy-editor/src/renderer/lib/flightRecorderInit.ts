@@ -99,11 +99,12 @@ async function persistDump(
     }
 
     showDumpToast({
-      filename: serverFilename ? `${result.filename} + ${serverFilename}` : result.filename,
+      filename: result.filename,
       filePath: result.filePath,
       isWeb,
       onCopy: () => { void api.clipboardWriteText(result.filePath); },
       onOpen: () => { void api.openFile(result.filePath); },
+      serverFilename,
     });
   } catch (err) {
     console.warn('[flight-recorder] Failed to persist dump:', err);
