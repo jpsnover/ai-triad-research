@@ -20,8 +20,6 @@ import { ActionableError } from '../../../lib/debate/errors';
 import { POV_KEYS } from '../../../lib/debate/types';
 import type { StorageBackend } from './storageBackend';
 import { FilesystemBackend } from './filesystemBackend';
-import type { SessionContext } from './githubAPIBackend';
-
 // ── Backend injection ──
 
 let backend: StorageBackend = new FilesystemBackend();
@@ -29,16 +27,6 @@ let backend: StorageBackend = new FilesystemBackend();
 /** Replace the storage backend (e.g. with GitHubAPIBackend for Azure). */
 export function setBackend(b: StorageBackend): void { backend = b; }
 export function getBackend(): StorageBackend { return backend; }
-
-/**
- * Set per-request session context. Only effective when the backend is
- * GitHubAPIBackend (API mode). FilesystemBackend ignores this.
- */
-export function setSessionContext(ctx: SessionContext | null): void {
-  if ('setSessionContext' in backend && typeof (backend as Record<string, unknown>).setSessionContext === 'function') {
-    (backend as { setSessionContext(ctx: SessionContext | null): void }).setSessionContext(ctx);
-  }
-}
 
 // ── Path safety ──
 

@@ -313,6 +313,54 @@ describe('GitHubAPIBackend — integration', () => {
     backend.shutdown();
   });
 
+  it('retries once on 409 SHA conflict with fresh SHA', async () => {
+    const recorder = createTestRecorder();
+    const backend = await createBackend(recorder);
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    let putCount = 0;
+    apiHandlers.push((url, init) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'PUT' && url.includes('/contents/')) {
+        putCount++;
+        if (putCount === 1) {
+          // First PUT → 409 conflict
+          return { status: 409, body: { message: 'sha does not match' } };
+        }
+        // Second PUT → success
+        return { status: 200, body: { content: { sha: 'new-blob-sha-retry' } } };
+      }
+      return null!;
+    });
+
+    await backend.writeFile('/taxonomy/nodes.json', '{"retry": true}');
+
+    expect(putCount).toBe(2);
+    // Verify flight recorder logged the conflict
+    const conflictEvent = recorder.events.find(e => e.type === 'github.api.conflict');
+    expect(conflictEvent).toBeDefined();
+    expect(conflictEvent!.data).toMatchObject({ path: 'taxonomy/nodes.json' });
+
+    backend.shutdown();
+  });
+
+  it('throws on second 409 (no infinite retry)', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    apiHandlers.push((url, init) => {
+      const method = init?.method ?? 'GET';
+      if (method === 'PUT' && url.includes('/contents/')) {
+        return { status: 409, body: { message: 'sha does not match' } };
+      }
+      return null!;
+    });
+
+    await expect(backend.writeFile('/taxonomy/nodes.json', '{}')).rejects.toThrow(/409/);
+
+    backend.shutdown();
+  });
+
   it('rejects path traversal attempts', async () => {
     const backend = await createBackend();
 

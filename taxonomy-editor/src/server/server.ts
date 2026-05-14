@@ -21,7 +21,7 @@ import {
 } from './config';
 import { GitHubAPIBackend } from './githubAPIBackend';
 import { SessionBranchManager } from './sessionBranchManager';
-import { runWithUser, getCurrentUserId } from './userContext';
+import { runWithUser, getCurrentUserId, setSessionBranchName } from './userContext';
 import * as fileIO from './fileIO';
 import * as ai from './aiBackends';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth';
@@ -122,13 +122,13 @@ console.log(`[server] Storage mode: ${STORAGE_MODE}`);
  * Ensure a session branch exists before any write operation.
  * In API mode, writes cannot target main directly (branch protection).
  * This lazily creates `api-session/{userId}` from main HEAD on first edit
- * and updates the backend session context so writeFile() targets the branch.
+ * and updates the ALS context so GitHubAPIBackend.getEffectiveRef() sees the branch.
  */
 async function ensureSessionBranch(): Promise<void> {
   if (!githubBackend || !sessionManager) return; // filesystem mode — no-op
   const userId = getCurrentUserId();
   const branchName = await sessionManager.ensureBranch(userId);
-  fileIO.setSessionContext({ userId, branchName });
+  setSessionBranchName(branchName);
 }
 
 // ── Express-like micro-router (zero dependencies) ──
@@ -1068,7 +1068,9 @@ post('/api/sync/discard', async (_req, res, body) => {
     const userId = getCurrentUserId();
     if (all) {
       await sessionManager.deleteBranch(userId, 'manual');
-      githubBackend.setSessionContext(null);
+      // ALS context for this request still has the old branch, but the branch
+      // is now deleted. Future requests will get branchName=undefined from
+      // sessionManager.getActiveBranch() → reads fall back to main.
       json(res, { ok: true, scope: 'all' });
       return;
     }
@@ -1714,15 +1716,14 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
   // getCurrentUserId() inside getApiKey()/storeApiKey() sees the caller.
   // Unauthenticated paths (local dev, kill-switch, public endpoints) fall
   // back to '_local' — which keyStore ignores in local-file mode.
-  const userCtx = { principalName: principalName || '_local', idp: idp || '_local' };
+  // Resolve session branch for the ALS context (if any).
+  // Reads start with the active branch (or undefined → 'main').
+  // Writes call ensureSessionBranch() which updates the ALS mid-request.
+  const sessionBranch = (githubBackend && sessionManager)
+    ? sessionManager.getActiveBranch(principalName || '_local') ?? undefined
+    : undefined;
+  const userCtx = { principalName: principalName || '_local', idp: idp || '_local', branchName: sessionBranch };
   await runWithUser(userCtx, async () => {
-    // Inject session context for GitHubAPIBackend ref resolution.
-    // In API mode, reads/writes resolve to the user's session branch.
-    if (githubBackend && sessionManager) {
-      const userId = principalName || '_local';
-      const branchName = sessionManager.getActiveBranch(userId);
-      fileIO.setSessionContext({ userId, branchName });
-    }
 
     const url = new URL(req.url!, 'http://localhost');
     const route = matchRoute(req.method!, url.pathname);

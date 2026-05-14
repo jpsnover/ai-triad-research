@@ -24,6 +24,7 @@ import type { StorageBackend } from './storageBackend';
 import { getCredentials, getRepoSlug, type SyncCredentials } from './githubAppAuth';
 import { ActionableError } from '../../../lib/debate/errors';
 import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index';
+import { getCurrentUserId, getSessionBranchName } from './userContext';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -102,7 +103,9 @@ export class GitHubAPIBackend implements StorageBackend {
   private readonly pollIntervalMs: number;
   private readonly coherencyProbeRate: number;
 
-  // Session context — set per-request by middleware
+  // Session context — legacy instance field used only by tests that call
+  // setSessionContext() directly. Production reads from AsyncLocalStorage
+  // (see userContext.ts). getEffectiveRef/getUserId check ALS first.
   private sessionContext: SessionContext | null = null;
 
   // In-memory repo tree (path→TreeEntry)
@@ -208,16 +211,37 @@ export class GitHubAPIBackend implements StorageBackend {
 
   // ── Session context ────────────────────────────────────────────────────
 
+  /** @deprecated Use ALS (runWithUser) in production. Retained for test compatibility. */
   setSessionContext(ctx: SessionContext | null): void {
     this.sessionContext = ctx;
   }
 
+  /** @deprecated Use ALS (getCurrentUser) in production. Retained for test compatibility. */
   getSessionContext(): SessionContext | null {
     return this.sessionContext;
   }
 
+  /**
+   * Resolve the effective git ref for the current request.
+   * Priority: AsyncLocalStorage (production) → instance field (tests) → 'main'.
+   */
   private getEffectiveRef(): string {
-    return this.sessionContext?.branchName ?? 'main';
+    return getSessionBranchName() ?? this.sessionContext?.branchName ?? 'main';
+  }
+
+  /**
+   * Resolve the effective userId for the current request.
+   * Priority: AsyncLocalStorage (production) → instance field (tests) → undefined.
+   */
+  private getEffectiveUserId(): string | undefined {
+    const alsId = getCurrentUserId();
+    if (alsId !== '_local') return alsId;
+    return this.sessionContext?.userId ?? (alsId === '_local' ? '_local' : undefined);
+  }
+
+  /** Whether a session context (ALS or instance field) is active. */
+  private hasSessionContext(): boolean {
+    return getSessionBranchName() != null || this.sessionContext != null;
   }
 
   // ── StorageBackend interface ───────────────────────────────────────────
@@ -226,15 +250,17 @@ export class GitHubAPIBackend implements StorageBackend {
     const repoPath = this.toRepoPath(filePath);
 
     // Check session overlay first
-    if (this.sessionContext?.branchName) {
-      const overlay = this.sessionOverlays.get(this.sessionContext.userId);
+    const readBranch = this.getEffectiveRef();
+    const readUserId = this.getEffectiveUserId();
+    if (readBranch !== 'main' && readUserId) {
+      const overlay = this.sessionOverlays.get(readUserId);
       if (overlay?.has(repoPath)) {
         this.recordEvent({
           type: 'cache.hit',
           component: 'cache',
           level: 'debug',
           message: `Session overlay hit: ${repoPath}`,
-          data: { path: repoPath, layer: 'session', userId: this.sessionContext.userId },
+          data: { path: repoPath, layer: 'session', userId: readUserId },
         });
         return overlay.get(repoPath)!;
       }
@@ -294,7 +320,7 @@ export class GitHubAPIBackend implements StorageBackend {
     }
 
     const ref = this.getEffectiveRef();
-    if (ref === 'main' && this.sessionContext) {
+    if (ref === 'main' && this.hasSessionContext()) {
       // Writes must go to a session branch — caller should create one first
       throw new ActionableError({
         goal: 'Write file to GitHub',
@@ -305,30 +331,52 @@ export class GitHubAPIBackend implements StorageBackend {
     }
 
     // Get the current file SHA for the update (required by Contents API)
-    const existingSha = await this.getFileSha(repoPath, ref);
+    let fileSha = await this.getFileSha(repoPath, ref);
 
     const creds = await this.getCredsCached();
     if (!creds) throw this.noCredsError('writeFile');
 
     const callId = crypto.randomUUID();
-    const body: Record<string, unknown> = {
-      message: `Update ${repoPath}`,
-      content: Buffer.from(content, 'utf-8').toString('base64'),
-      branch: ref,
+    const encodedContent = Buffer.from(content, 'utf-8').toString('base64');
+
+    const doWrite = async (sha: string | null, attempt: number) => {
+      const body: Record<string, unknown> = {
+        message: `Update ${repoPath}`,
+        content: encodedContent,
+        branch: ref,
+      };
+      if (sha) body.sha = sha;
+
+      const resp = await this.apiRequest(creds, 'PUT',
+        `/repos/${creds.repo}/contents/${repoPath}`, body, callId);
+
+      if (resp.status === 409 && attempt === 0) {
+        // SHA conflict — another write updated this file. Re-fetch and retry once.
+        this.recordEvent({
+          type: 'github.api.conflict',
+          component: 'github-api',
+          level: 'warn',
+          message: `409 SHA conflict on ${repoPath}, retrying with fresh SHA`,
+          call_id: callId,
+          data: { path: repoPath, ref, staleSha: sha },
+        });
+        const freshSha = await this.getFileSha(repoPath, ref);
+        return doWrite(freshSha, 1);
+      }
+
+      if (!resp.ok) {
+        throw new ActionableError({
+          goal: `Write ${repoPath} to GitHub`,
+          problem: `GitHub API returned ${resp.status}: ${resp.error}`,
+          location: `GitHubAPIBackend.writeFile(${repoPath})`,
+          nextSteps: ['Check GitHub API status', 'Retry the operation'],
+        });
+      }
+
+      return resp;
     };
-    if (existingSha) body.sha = existingSha;
 
-    const resp = await this.apiRequest(creds, 'PUT',
-      `/repos/${creds.repo}/contents/${repoPath}`, body, callId);
-
-    if (!resp.ok) {
-      throw new ActionableError({
-        goal: `Write ${repoPath} to GitHub`,
-        problem: `GitHub API returned ${resp.status}: ${resp.error}`,
-        location: `GitHubAPIBackend.writeFile(${repoPath})`,
-        nextSteps: ['Check GitHub API status', 'Retry the operation'],
-      });
-    }
+    const resp = await doWrite(fileSha, 0);
 
     // Write-through: update cache only after confirmed 2xx
     const respData = resp.data as { content?: { sha?: string } };
@@ -336,11 +384,12 @@ export class GitHubAPIBackend implements StorageBackend {
     await this.writeToDiskCache(repoPath, content, newSha, '');
 
     // Update session overlay
-    if (this.sessionContext) {
-      let overlay = this.sessionOverlays.get(this.sessionContext.userId);
+    const writeUserId = this.getEffectiveUserId();
+    if (writeUserId) {
+      let overlay = this.sessionOverlays.get(writeUserId);
       if (!overlay) {
         overlay = new Map();
-        this.sessionOverlays.set(this.sessionContext.userId, overlay);
+        this.sessionOverlays.set(writeUserId, overlay);
       }
       overlay.set(repoPath, content);
     }
@@ -426,8 +475,9 @@ export class GitHubAPIBackend implements StorageBackend {
 
     // Write-through: remove from cache after confirmed deletion
     await this.removeFromDiskCache(repoPath);
-    if (this.sessionContext) {
-      this.sessionOverlays.get(this.sessionContext.userId)?.delete(repoPath);
+    const delUserId = this.getEffectiveUserId();
+    if (delUserId) {
+      this.sessionOverlays.get(delUserId)?.delete(repoPath);
     }
   }
 
@@ -435,8 +485,10 @@ export class GitHubAPIBackend implements StorageBackend {
     const repoPath = this.toRepoPath(filePath);
 
     // Check session overlay
-    if (this.sessionContext?.branchName) {
-      const overlay = this.sessionOverlays.get(this.sessionContext.userId);
+    const existsBranch = this.getEffectiveRef();
+    const existsUserId = this.getEffectiveUserId();
+    if (existsBranch !== 'main' && existsUserId) {
+      const overlay = this.sessionOverlays.get(existsUserId);
       if (overlay?.has(repoPath)) return true;
     }
 
@@ -558,7 +610,7 @@ export class GitHubAPIBackend implements StorageBackend {
       level: 'info',
       message: `Branch created: ${name}`,
       call_id: callId,
-      data: { branch: name, fromSha: sha, userId: this.sessionContext?.userId },
+      data: { branch: name, fromSha: sha, userId: this.getEffectiveUserId() },
     });
   }
 
@@ -652,11 +704,12 @@ export class GitHubAPIBackend implements StorageBackend {
     });
 
     // Write-through: update session overlay for committed files
-    if (this.sessionContext) {
-      let overlay = this.sessionOverlays.get(this.sessionContext.userId);
+    const commitUserId = this.getEffectiveUserId();
+    if (commitUserId) {
+      let overlay = this.sessionOverlays.get(commitUserId);
       if (!overlay) {
         overlay = new Map();
-        this.sessionOverlays.set(this.sessionContext.userId, overlay);
+        this.sessionOverlays.set(commitUserId, overlay);
       }
       for (const f of files) {
         overlay.set(f.path, f.content);
@@ -846,8 +899,9 @@ export class GitHubAPIBackend implements StorageBackend {
     body?: unknown,
     callId?: string,
   ): Promise<{ ok: boolean; status: number; data: unknown; error?: string; etag?: string }> {
-    const requestId = this.sessionContext?.userId
-      ? `${this.sessionContext.userId}-${Date.now()}`
+    const reqUserId = this.getEffectiveUserId();
+    const requestId = reqUserId
+      ? `${reqUserId}-${Date.now()}`
       : undefined;
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

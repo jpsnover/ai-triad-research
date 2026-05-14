@@ -9,7 +9,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext, Fragment } from 'react';
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
-import type { SpeakerId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnAttempt } from '../types/debate';
+import type { SpeakerId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnValidationDimensions, TurnAttempt } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { explainNodeStrength } from '../utils/qbafExplain';
@@ -93,6 +93,85 @@ function TrafficLight({ pass, label, tip }: { pass: boolean; label: string; tip:
   );
 }
 
+/** Stage A dimension weights — must match turnValidator.ts scoring. */
+const DIMENSION_WEIGHTS: Record<string, { weight: number; description: string }> = {
+  schema:      { weight: 0.4, description: 'Structural validity — JSON schema compliance, required fields, format constraints' },
+  grounding:   { weight: 0.3, description: 'Evidence grounding — claims reference taxonomy nodes, sources, or prior turns' },
+  advancement: { weight: 0.2, description: 'Dialectical advancement — turn moves the debate forward, introduces new reasoning' },
+  clarifies:   { weight: 0.1, description: 'Taxonomy clarification — turn suggests refinements to taxonomy nodes or structure' },
+};
+
+function DimensionScoreRow({ name, pass, weight, details }: {
+  name: string; pass: boolean; weight: number; details: string[];
+}) {
+  const score = pass ? 1 : 0;
+  const weighted = weight * score;
+  const desc = DIMENSION_WEIGHTS[name]?.description ?? name;
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.72rem', padding: '3px 0' }}>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 100,
+        color: pass ? '#16a34a' : '#dc2626', fontWeight: 600,
+      }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor', flexShrink: 0 }} />
+        {name}
+      </span>
+      <span style={{ minWidth: 36, color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem' }}>
+        ×{weight.toFixed(1)}
+      </span>
+      <span style={{
+        minWidth: 36, fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem',
+        color: pass ? '#16a34a' : '#dc2626',
+      }}>
+        {weighted.toFixed(2)}
+      </span>
+      <span style={{ color: 'var(--text-muted)', fontSize: '0.66rem', flex: 1 }} title={desc}>
+        {details.length > 0
+          ? details.join('; ')
+          : (pass ? desc : 'FAIL')}
+      </span>
+    </div>
+  );
+}
+
+function ScoreBreakdown({ dims, processReward, judgeUsed }: {
+  dims: TurnValidationDimensions;
+  processReward: number;
+  judgeUsed: boolean;
+}) {
+  const stageAScore =
+    0.4 * (dims.schema.pass ? 1 : 0) +
+    0.3 * (dims.grounding.pass ? 1 : 0) +
+    0.2 * (dims.advancement.pass ? 1 : 0) +
+    0.1 * (dims.clarifies.pass ? 1 : 0);
+  // Back-calculate judge quality: process_reward = 0.6 * stageA + 0.4 * judgeQuality
+  const judgeQuality = stageAScore > 0
+    ? Math.max(0, Math.min(1, (processReward - 0.6 * stageAScore) / 0.4))
+    : 0.7;
+
+  const mono = { fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem' } as const;
+
+  return (
+    <div style={{
+      background: 'var(--bg-subtle)', borderRadius: 4, padding: '6px 10px',
+      fontSize: '0.72rem', marginBottom: 8,
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        Score breakdown
+      </div>
+      <DimensionScoreRow name="schema"      pass={dims.schema.pass}      weight={0.4} details={dims.schema.issues ?? []} />
+      <DimensionScoreRow name="grounding"   pass={dims.grounding.pass}   weight={0.3} details={dims.grounding.issues ?? []} />
+      <DimensionScoreRow name="advancement" pass={dims.advancement.pass} weight={0.2} details={dims.advancement.signals ?? []} />
+      <DimensionScoreRow name="clarifies"   pass={dims.clarifies.pass}   weight={0.1} details={dims.clarifies.signals ?? []} />
+      <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0', paddingTop: 4, display: 'flex', gap: 16 }}>
+        <span>Stage A: <strong style={mono}>{stageAScore.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>× 0.6 = {(0.6 * stageAScore).toFixed(2)}</span></span>
+        <span>Judge: <strong style={mono}>{judgeQuality.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>× 0.4 = {(0.4 * judgeQuality).toFixed(2)}</span></span>
+        <span>Total: <strong style={mono}>{processReward.toFixed(2)}</strong></span>
+      </div>
+    </div>
+  );
+}
+
 function OutcomeBadge({ outcome }: { outcome: TurnValidation['outcome'] }) {
   const palette: Record<TurnValidation['outcome'], { bg: string; fg: string; text: string }> = {
     pass:              { bg: 'rgba(34,197,94,0.15)',  fg: '#16a34a', text: 'PASS' },
@@ -130,6 +209,14 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
       </div>
       {open && (
         <div style={{ padding: '4px 10px 10px', fontSize: '0.72rem' }}>
+          {v.dimensions && (
+            <ScoreBreakdown dims={{
+              schema: v.dimensions.schema ?? { pass: true, issues: [] },
+              grounding: v.dimensions.grounding ?? { pass: true, issues: [] },
+              advancement: v.dimensions.advancement ?? { pass: true, signals: [] },
+              clarifies: v.dimensions.clarifies ?? { pass: true, signals: [] },
+            }} processReward={v.process_reward ?? 0} judgeUsed={v.judge_used} />
+          )}
           {(v.repairHints?.length ?? 0) > 0 && (
             <>
               <div style={{ fontWeight: 600, marginTop: 4 }}>Repair hints</div>
@@ -200,12 +287,7 @@ function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidationTrail
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>judge: {f.judge_model}</span>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        <TrafficLight pass={f.dimensions?.schema?.pass ?? true}      label="schema"      tip={f.dimensions?.schema?.issues?.join('\n') || 'OK'} />
-        <TrafficLight pass={f.dimensions?.grounding?.pass ?? true}   label="grounding"   tip={f.dimensions?.grounding?.issues?.join('\n') || 'OK'} />
-        <TrafficLight pass={f.dimensions?.advancement?.pass ?? true} label="advancement" tip={f.dimensions?.advancement?.signals?.join('\n') || 'OK'} />
-        <TrafficLight pass={f.dimensions?.clarifies?.pass ?? true}   label="clarifies"   tip={f.dimensions?.clarifies?.signals?.join('\n') || 'no taxonomy hints'} />
-      </div>
+      <ScoreBreakdown dims={f.dimensions!} processReward={f.process_reward ?? 0} judgeUsed={f.judge_used} />
       {f.repairHints.length > 0 && (
         <div style={{ fontSize: '0.75rem', marginBottom: 8 }}>
           <strong>Final repair hints</strong>
@@ -3704,7 +3786,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                       const sc = ref?.relevance_score;
                                       const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
                                       return (
-                                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--accent)' }}>
                                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
                                           {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
@@ -3731,7 +3813,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                       const sc = ref?.relevance_score;
                                       const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
                                       return (
-                                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                        <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--accent)' }}>
                                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
                                           {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
