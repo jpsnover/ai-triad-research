@@ -83,8 +83,23 @@ async function persistDump(
     const { ndjson } = recorder.buildDump(triggerType, error, context);
     const result = await api.dumpFlightRecorder(ndjson);
     console.log(`[flight-recorder] Dump saved: ${result.filePath}`);
+
+    // In web/container mode, also dump the server-side flight recorder
+    // so server events (git ops, GitHub API, cache) are captured alongside client events.
+    let serverFilename: string | undefined;
+    if (isWeb) {
+      try {
+        const resp = await fetch('/api/flight-recorder/server-dump', { method: 'POST' });
+        if (resp.ok) {
+          const serverResult = await resp.json() as { filename: string; filePath: string };
+          serverFilename = serverResult.filename;
+          console.log(`[flight-recorder] Server dump saved: ${serverResult.filePath}`);
+        }
+      } catch { /* server dump is best-effort */ }
+    }
+
     showDumpToast({
-      filename: result.filename,
+      filename: serverFilename ? `${result.filename} + ${serverFilename}` : result.filename,
       filePath: result.filePath,
       isWeb,
       onCopy: () => { void api.clipboardWriteText(result.filePath); },
