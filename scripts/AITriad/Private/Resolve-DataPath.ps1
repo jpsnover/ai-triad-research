@@ -173,7 +173,34 @@ function Get-TaxonomyDir {
 }
 
 function Get-SourcesDir {
+    <#
+    .SYNOPSIS
+        Returns the absolute path to the sources directory.
+    .DESCRIPTION
+        Supports the sources repo separation (ai-triad-sources). Resolution order:
+          1. $env:AI_TRIAD_SOURCES_ROOT (explicit override)
+          2. .aitriad.json "sources_root" (separate sources repo path)
+          3. .aitriad.json "sources_dir" relative to data_root (legacy: sources inside data repo)
+    #>
     Initialize-DataConfig
+
+    # Priority 1: env var override
+    $EnvRoot = [Environment]::GetEnvironmentVariable('AI_TRIAD_SOURCES_ROOT')
+    if (-not [string]::IsNullOrWhiteSpace($EnvRoot)) {
+        return [System.IO.Path]::GetFullPath($EnvRoot)
+    }
+
+    # Priority 2: sources_root in config (separate repo)
+    if ($script:DataConfig.PSObject.Properties['sources_root'] -and
+        -not [string]::IsNullOrWhiteSpace($script:DataConfig.sources_root)) {
+        $Root = $script:DataConfig.sources_root
+        if ([System.IO.Path]::IsPathRooted($Root)) { return $Root }
+        # Resolve relative to config file directory (same as data_root resolution)
+        if ($script:DataConfigDir) { return [System.IO.Path]::GetFullPath((Join-Path $script:DataConfigDir $Root)) }
+        return [System.IO.Path]::GetFullPath((Join-Path $script:RepoRoot $Root))
+    }
+
+    # Priority 3: legacy — sources_dir relative to data_root
     $Dir = $script:DataConfig.sources_dir
     if ([System.IO.Path]::IsPathRooted($Dir)) { return $Dir }
     return Join-Path (Get-DataRoot) $Dir

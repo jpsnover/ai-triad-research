@@ -118,6 +118,19 @@ if (STORAGE_MODE === 'github-api') {
 
 console.log(`[server] Storage mode: ${STORAGE_MODE}`);
 
+/**
+ * Ensure a session branch exists before any write operation.
+ * In API mode, writes cannot target main directly (branch protection).
+ * This lazily creates `api-session/{userId}` from main HEAD on first edit
+ * and updates the backend session context so writeFile() targets the branch.
+ */
+async function ensureSessionBranch(): Promise<void> {
+  if (!githubBackend || !sessionManager) return; // filesystem mode — no-op
+  const userId = getCurrentUserId();
+  const branchName = await sessionManager.ensureBranch(userId);
+  fileIO.setSessionContext({ userId, branchName });
+}
+
 // ── Express-like micro-router (zero dependencies) ──
 
 type Handler = (req: http.IncomingMessage, res: http.ServerResponse, body: unknown) => Promise<void> | void;
@@ -262,6 +275,7 @@ get('/api/taxonomy/:pov', async (req, res) => {
 
 put('/api/taxonomy/:pov', async (req, res, body) => {
   try {
+    await ensureSessionBranch();
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
     await fileIO.writeTaxonomyFile(pov, body);
     json(res, { ok: true });
@@ -286,6 +300,7 @@ get('/api/cruxes', async (_req, res) => {
 
 put('/api/conflicts/:id', async (req, res, body) => {
   try {
+    await ensureSessionBranch();
     const id = param(req, 'id', '/api/conflicts/:id');
     await fileIO.writeConflictFile(id, body);
     json(res, { ok: true });
@@ -294,6 +309,7 @@ put('/api/conflicts/:id', async (req, res, body) => {
 
 post('/api/conflicts/:id', async (req, res, body) => {
   try {
+    await ensureSessionBranch();
     const id = param(req, 'id', '/api/conflicts/:id');
     await fileIO.createConflictFile(id, body);
     json(res, { ok: true });
@@ -301,9 +317,12 @@ post('/api/conflicts/:id', async (req, res, body) => {
 });
 
 del('/api/conflicts/:id', async (req, res) => {
-  const id = param(req, 'id', '/api/conflicts/:id');
-  await fileIO.deleteConflictFile(id);
-  json(res, { ok: true });
+  try {
+    await ensureSessionBranch();
+    const id = param(req, 'id', '/api/conflicts/:id');
+    await fileIO.deleteConflictFile(id);
+    json(res, { ok: true });
+  } catch (err) { error(res, String(err)); }
 });
 
 // ── Policy registry ──
@@ -733,6 +752,7 @@ get('/api/debates/:id', async (req, res) => {
 
 put('/api/debates', async (_req, res, body) => {
   try {
+    await ensureSessionBranch();
     await fileIO.saveDebateSession(body);
 
     // Log calibration data if debate has synthesis (completed debate)
@@ -751,8 +771,11 @@ put('/api/debates', async (_req, res, body) => {
 });
 
 del('/api/debates/:id', async (req, res) => {
-  await fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
-  json(res, { ok: true });
+  try {
+    await ensureSessionBranch();
+    await fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
+    json(res, { ok: true });
+  } catch (err) { error(res, String(err)); }
 });
 
 get('/api/debates/:id/comments', async (req, res) => {
@@ -762,6 +785,7 @@ get('/api/debates/:id/comments', async (req, res) => {
 
 put('/api/debates/:id/comments', async (req, res, body) => {
   try {
+    await ensureSessionBranch();
     const debateId = param(req, 'id', '/api/debates/:id/comments');
     await fileIO.saveDebateComments(debateId, body);
     json(res, { ok: true });
@@ -784,29 +808,41 @@ get('/api/chats/:id', async (req, res) => {
 });
 
 put('/api/chats', async (_req, res, body) => {
-  try { await fileIO.saveChatSession(body); json(res, { ok: true }); }
+  try { await ensureSessionBranch(); await fileIO.saveChatSession(body); json(res, { ok: true }); }
   catch (err) { error(res, String(err)); }
 });
 
 del('/api/chats/:id', async (req, res) => {
-  await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
-  json(res, { ok: true });
+  try {
+    await ensureSessionBranch();
+    await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
+    json(res, { ok: true });
+  } catch (err) { error(res, String(err)); }
 });
 
 // ── Harvest ──
 
 post('/api/harvest/conflict', async (_req, res, body) => {
-  json(res, { created: await fileIO.harvestCreateConflict(body as Record<string, unknown>) });
+  try {
+    await ensureSessionBranch();
+    json(res, { created: await fileIO.harvestCreateConflict(body as Record<string, unknown>) });
+  } catch (err) { error(res, String(err)); }
 });
 
 post('/api/harvest/debate-ref', async (_req, res, body) => {
-  const { nodeId, debateId } = body as { nodeId: string; debateId: string };
-  json(res, { updated: await fileIO.harvestAddDebateRef(nodeId, debateId) });
+  try {
+    await ensureSessionBranch();
+    const { nodeId, debateId } = body as { nodeId: string; debateId: string };
+    json(res, { updated: await fileIO.harvestAddDebateRef(nodeId, debateId) });
+  } catch (err) { error(res, String(err)); }
 });
 
 post('/api/harvest/steelman', async (_req, res, body) => {
-  const { nodeId, attackerPov, newText } = body as { nodeId: string; attackerPov: string; newText: string };
-  json(res, { updated: await fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
+  try {
+    await ensureSessionBranch();
+    const { nodeId, attackerPov, newText } = body as { nodeId: string; attackerPov: string; newText: string };
+    json(res, { updated: await fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
+  } catch (err) { error(res, String(err)); }
 });
 
 post('/api/harvest/verdict', async (_req, res, body) => {
@@ -824,7 +860,13 @@ post('/api/harvest/manifest', async (_req, res, body) => {
 
 // ── Summaries & Sources ──
 
-get('/api/sources', async (_req, res) => { json(res, await fileIO.discoverSources()); });
+get('/api/sources', async (_req, res) => {
+  if (STORAGE_MODE === 'github-api') {
+    json(res, { available: false, message: 'Source documents are available in the desktop app only' });
+    return;
+  }
+  json(res, await fileIO.discoverSources());
+});
 
 get('/api/summaries/:docId', async (req, res) => {
   const docId = param(req, 'docId', '/api/summaries/:docId');
@@ -834,6 +876,10 @@ get('/api/summaries/:docId', async (req, res) => {
 });
 
 get('/api/snapshots/:sourceId', async (req, res) => {
+  if (STORAGE_MODE === 'github-api') {
+    error(res, 'Snapshots available in desktop app only', 404);
+    return;
+  }
   const sourceId = param(req, 'sourceId', '/api/snapshots/:sourceId');
   const data = await fileIO.loadSnapshot(sourceId);
   if (data === null) { error(res, `Snapshot not found: ${sourceId}`, 404); return; }

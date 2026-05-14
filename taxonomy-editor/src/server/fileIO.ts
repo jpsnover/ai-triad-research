@@ -11,10 +11,11 @@
  */
 
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
-import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot } from './config';
+import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot } from './config';
 import { ActionableError } from '../../../lib/debate/errors';
 import { POV_KEYS } from '../../../lib/debate/types';
 import type { StorageBackend } from './storageBackend';
@@ -337,9 +338,8 @@ type NodeSourceIndex = Record<string, SourceReference[]>;
  * nodeId → list of source references that mapped to it.
  */
 export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
-  const config = loadDataConfig();
-  const summariesDir = resolveDataPath(config.summaries_dir);
-  const sourcesDir = resolveDataPath(config.sources_dir);
+  const summariesDir = resolveDataPath(loadDataConfig().summaries_dir);
+  const sourcesDir = getSourcesDir();
   const index: NodeSourceIndex = {};
 
   const summaryFiles = await backend.listDirectory(summariesDir);
@@ -348,9 +348,9 @@ export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
   // Pre-load source metadata for titles/URLs.
   // Instead of checking isDirectory, we probe for metadata.json in each entry.
   const metaCache: Record<string, { title: string; url: string | null; sourceType: string; datePublished: string }> = {};
-  const sourceEntries = await backend.listDirectory(sourcesDir);
+  const sourceEntries = sourcesDir ? await backend.listDirectory(sourcesDir) : [];
   for (const name of sourceEntries) {
-    const metaPath = path.join(sourcesDir, name, 'metadata.json');
+    const metaPath = path.join(sourcesDir!, name, 'metadata.json');
     try {
       const metaRaw = await backend.readFile(metaPath);
       if (metaRaw !== null) {
@@ -434,8 +434,7 @@ type PolicySourceIndex = Record<string, PolicySourceReference[]>;
  */
 export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
   const result: PolicySourceIndex = {};
-  const config = loadDataConfig();
-  const sourcesDir = resolveDataPath(config.sources_dir);
+  const sourcesDir = getSourcesDir();
 
   // 1. Load policy registry to get all policy IDs
   const regRaw = await readPolicyRegistry() as { policies?: { id: string }[] } | null;
@@ -467,9 +466,9 @@ export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
 
   // 4. Pre-load source metadata for dateIngested / sourceTime
   const metaCache: Record<string, { dateIngested: string; sourceTime: string }> = {};
-  const sourceEntries = await backend.listDirectory(sourcesDir);
+  const sourceEntries = sourcesDir ? await backend.listDirectory(sourcesDir) : [];
   for (const name of sourceEntries) {
-    const metaPath = path.join(sourcesDir, name, 'metadata.json');
+    const metaPath = path.join(sourcesDir!, name, 'metadata.json');
     try {
       const metaRaw = await backend.readFile(metaPath);
       if (metaRaw !== null) {
@@ -764,9 +763,16 @@ export async function harvestSaveManifest(manifest: Record<string, unknown>): Pr
 
 // ── Summaries & Sources ──
 
-function getSourcesDir(): string {
+function getSourcesDir(): string | null {
+  // Sources may live in a separate repo (ai-triad-sources).
+  // getSourcesRoot() returns null when the path doesn't exist.
+  const sourcesRoot = getSourcesRoot();
+  if (sourcesRoot) return sourcesRoot;
+
+  // Legacy fallback: sources inside data repo (pre-separation layout).
   const config = loadDataConfig();
-  return resolveDataPath(config.sources_dir);
+  const legacy = resolveDataPath(config.sources_dir);
+  return fsSync.existsSync(legacy) ? legacy : null;
 }
 
 function getSummariesDir(): string {
@@ -788,6 +794,7 @@ export interface DiscoveredSource {
 
 export async function discoverSources(): Promise<DiscoveredSource[]> {
   const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return []; // sources unavailable (web mode or repo not cloned)
   const summariesDir = getSummariesDir();
 
   const sourceEntries = await backend.listDirectory(sourcesDir);
@@ -827,7 +834,9 @@ export async function loadSummary(docId: string): Promise<unknown | null> {
 
 export async function loadSnapshot(sourceId: string): Promise<string | null> {
   assertSafeId(sourceId, 'source id');
-  return backend.readFile(path.join(getSourcesDir(), sourceId, 'snapshot.md'));
+  const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return null; // sources unavailable
+  return backend.readFile(path.join(sourcesDir, sourceId, 'snapshot.md'));
 }
 
 // ── PowerShell prompts (project-root I/O — always local) ──

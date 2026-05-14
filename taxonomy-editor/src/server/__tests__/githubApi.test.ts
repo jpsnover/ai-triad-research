@@ -1204,3 +1204,110 @@ describe('GitHubAPIBackend — diagnostic accessors', () => {
     backend.shutdown();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MANIFEST MUTEX (t/479 — RMW race fix)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — manifest mutex', () => {
+  it('concurrent readFile cache misses preserve all manifest entries', async () => {
+    // Simulate the Phase 2 loadAll() pattern: 3 concurrent readFile() calls
+    // that all miss cache, each fetching from GitHub and writing to manifest.
+    // Before the mutex fix, the shared .tmp file would corrupt concurrent saves.
+    const fileContents: Record<string, string> = {
+      'taxonomy/safetyist.json': '{"pov": "safetyist"}',
+      'taxonomy/skeptic.json': '{"pov": "skeptic"}',
+      'taxonomy/situations.json': '{"situations": []}',
+    };
+
+    // Return distinct content per file path
+    apiHandlers.push((url, init) => {
+      if (init.method === 'GET' || !init.method) {
+        for (const [repoPath, content] of Object.entries(fileContents)) {
+          if (url.includes(`/contents/${repoPath}`)) {
+            return {
+              status: 200,
+              body: {
+                content: Buffer.from(content).toString('base64'),
+                encoding: 'base64',
+                sha: `sha-${repoPath.replace(/[/.]/g, '-')}`,
+              },
+              headers: { etag: `"etag-${repoPath}"` },
+            };
+          }
+        }
+      }
+      return null!;
+    });
+
+    const backend = await createBackend();
+
+    // Fire 3 concurrent reads — all cache misses
+    const paths = Object.keys(fileContents);
+    const results = await Promise.all(
+      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+    );
+
+    // All reads should succeed
+    expect(results[0]).toBe(fileContents[paths[0]]);
+    expect(results[1]).toBe(fileContents[paths[1]]);
+    expect(results[2]).toBe(fileContents[paths[2]]);
+
+    // The manifest should contain ALL 3 entries (the old race would lose some)
+    expect(backend.getCachedFileCount()).toBeGreaterThanOrEqual(3);
+
+    backend.shutdown();
+  });
+
+  it('concurrent writes do not corrupt manifest on disk', async () => {
+    // Verify that saveManifest calls are serialized: the fs.writeFile mock
+    // should never be called with a .tmp path while a prior .tmp write is
+    // still in flight. We track overlapping writes.
+    const fsPromises = await import('fs/promises');
+    const mockWriteFile = vi.mocked(fsPromises.default.writeFile);
+
+    let activeWrites = 0;
+    let maxConcurrentWrites = 0;
+    mockWriteFile.mockImplementation(async (filePath) => {
+      const fp = typeof filePath === 'string' ? filePath : String(filePath);
+      if (fp.endsWith('manifest.json.tmp')) {
+        activeWrites++;
+        maxConcurrentWrites = Math.max(maxConcurrentWrites, activeWrites);
+        // Simulate I/O delay to widen the race window
+        await new Promise(r => setTimeout(r, 10));
+        activeWrites--;
+      }
+    });
+
+    const backend = await createBackend();
+
+    // Fire 5 concurrent readFile cache misses
+    const paths = Array.from({ length: 5 }, (_, i) => `taxonomy/file${i}.json`);
+    apiHandlers.push((url, init) => {
+      if (init.method === 'GET' || !init.method) {
+        for (const p of paths) {
+          if (url.includes(`/contents/${p}`)) {
+            return {
+              status: 200,
+              body: {
+                content: Buffer.from(`{"i": ${p}}`).toString('base64'),
+                encoding: 'base64',
+                sha: `sha-${p}`,
+              },
+            };
+          }
+        }
+      }
+      return null!;
+    });
+
+    await Promise.all(
+      paths.map(p => backend.readFile(`/tmp/test-cache/${p}`)),
+    );
+
+    // With the manifest mutex, writes should be serialized (max 1 at a time)
+    expect(maxConcurrentWrites).toBe(1);
+
+    backend.shutdown();
+  });
+});

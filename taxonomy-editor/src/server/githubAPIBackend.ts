@@ -133,6 +133,12 @@ export class GitHubAPIBackend implements StorageBackend {
   // Coherency probe stats
   private coherencyViolations = 0;
 
+  // Manifest write mutex — serializes all manifest mutations to prevent
+  // concurrent read-modify-write races (see t/479). Without this, parallel
+  // readFile() cache misses each call writeToDiskCache() → saveManifest()
+  // concurrently, corrupting the shared .tmp file and losing entries.
+  private manifestLock: Promise<void> = Promise.resolve();
+
   // Cached credentials
   private cachedCreds: SyncCredentials | null = null;
   private credsExpiresAt = 0;
@@ -1102,6 +1108,27 @@ export class GitHubAPIBackend implements StorageBackend {
     }
   }
 
+  // ── Manifest mutex ───────────────────────────────────────────────────
+
+  /**
+   * Serialize manifest mutations. Callers queue behind the previous holder;
+   * the promise chain guarantees FIFO ordering and prevents concurrent
+   * saveManifest() calls from stomping each other's .tmp file.
+   */
+  private async withManifestLock<T>(fn: () => Promise<T>): Promise<T> {
+    let release!: () => void;
+    const next = new Promise<void>(resolve => { release = resolve; });
+    const prev = this.manifestLock;
+    this.manifestLock = next;
+
+    await prev;
+    try {
+      return await fn();
+    } finally {
+      release();
+    }
+  }
+
   // ── Disk cache ─────────────────────────────────────────────────────────
 
   private async loadManifest(): Promise<void> {
@@ -1175,24 +1202,26 @@ export class GitHubAPIBackend implements StorageBackend {
     await fs.writeFile(tmpPath, content, 'utf-8');
     await fs.rename(tmpPath, diskPath);
 
-    if (!this.manifest) {
-      this.manifest = {
-        version: 1,
-        generation: 1,
-        lastCommitSha: '',
-        lastUpdated: new Date().toISOString(),
-        files: {},
-      };
-    }
+    await this.withManifestLock(async () => {
+      if (!this.manifest) {
+        this.manifest = {
+          version: 1,
+          generation: 1,
+          lastCommitSha: '',
+          lastUpdated: new Date().toISOString(),
+          files: {},
+        };
+      }
 
-    this.manifest.files[repoPath] = {
-      sha,
-      etag,
-      cachedAt: new Date().toISOString(),
-    };
-    this.manifest.generation++;
-    this.manifest.lastUpdated = new Date().toISOString();
-    await this.saveManifest();
+      this.manifest.files[repoPath] = {
+        sha,
+        etag,
+        cachedAt: new Date().toISOString(),
+      };
+      this.manifest.generation++;
+      this.manifest.lastUpdated = new Date().toISOString();
+      await this.saveManifest();
+    });
   }
 
   private async removeFromDiskCache(repoPath: string): Promise<void> {
@@ -1203,12 +1232,14 @@ export class GitHubAPIBackend implements StorageBackend {
       // Ignore missing file
     }
 
-    if (this.manifest?.files[repoPath]) {
-      delete this.manifest.files[repoPath];
-      this.manifest.generation++;
-      this.manifest.lastUpdated = new Date().toISOString();
-      await this.saveManifest();
-    }
+    await this.withManifestLock(async () => {
+      if (this.manifest?.files[repoPath]) {
+        delete this.manifest.files[repoPath];
+        this.manifest.generation++;
+        this.manifest.lastUpdated = new Date().toISOString();
+        await this.saveManifest();
+      }
+    });
   }
 
   private getCachedEtag(pathAndQuery: string): string | null {
@@ -1345,12 +1376,14 @@ export class GitHubAPIBackend implements StorageBackend {
             data: { paths: changed.slice(0, 20), trigger: 'poll', sha: currentSha },
           });
 
-          // Invalidate changed files from disk cache
-          for (const filePath of changed) {
-            if (this.manifest?.files[filePath]) {
-              delete this.manifest.files[filePath];
+          // Invalidate changed files from disk cache (under manifest lock)
+          await this.withManifestLock(async () => {
+            for (const filePath of changed) {
+              if (this.manifest?.files[filePath]) {
+                delete this.manifest.files[filePath];
+              }
             }
-          }
+          });
         }
 
         // Update tree
@@ -1373,11 +1406,13 @@ export class GitHubAPIBackend implements StorageBackend {
     const changed = await this.getChangedFiles(fromSha, toSha);
     if (changed.length === 0) return;
 
-    for (const filePath of changed) {
-      if (this.manifest?.files[filePath]) {
-        delete this.manifest.files[filePath];
+    await this.withManifestLock(async () => {
+      for (const filePath of changed) {
+        if (this.manifest?.files[filePath]) {
+          delete this.manifest.files[filePath];
+        }
       }
-    }
+    });
 
     this.recordEvent({
       type: 'cache.invalidate',
@@ -1389,31 +1424,35 @@ export class GitHubAPIBackend implements StorageBackend {
   }
 
   private async fullCacheInvalidation(): Promise<void> {
-    if (this.manifest) {
-      this.manifest.files = {};
-      this.manifest.generation++;
-      this.manifest.lastCommitSha = '';
-      await this.saveManifest();
-    }
+    await this.withManifestLock(async () => {
+      if (this.manifest) {
+        this.manifest.files = {};
+        this.manifest.generation++;
+        this.manifest.lastCommitSha = '';
+        await this.saveManifest();
+      }
+    });
     this.repoTree.clear();
     this.treeSha = null;
   }
 
   private async updateManifestSha(sha: string): Promise<void> {
-    if (!this.manifest) {
-      this.manifest = {
-        version: 1,
-        generation: 1,
-        lastCommitSha: sha,
-        lastUpdated: new Date().toISOString(),
-        files: {},
-      };
-    } else {
-      this.manifest.lastCommitSha = sha;
-      this.manifest.generation++;
-      this.manifest.lastUpdated = new Date().toISOString();
-    }
-    await this.saveManifest();
+    await this.withManifestLock(async () => {
+      if (!this.manifest) {
+        this.manifest = {
+          version: 1,
+          generation: 1,
+          lastCommitSha: sha,
+          lastUpdated: new Date().toISOString(),
+          files: {},
+        };
+      } else {
+        this.manifest.lastCommitSha = sha;
+        this.manifest.generation++;
+        this.manifest.lastUpdated = new Date().toISOString();
+      }
+      await this.saveManifest();
+    });
   }
 
   // ── Coherency probe ────────────────────────────────────────────────────

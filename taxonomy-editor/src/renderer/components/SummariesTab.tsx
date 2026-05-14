@@ -536,7 +536,16 @@ export function SummariesTab() {
                   {snapshotLoading ? (
                     <div className="panel-empty">Loading document...</div>
                   ) : !snapshot ? (
-                    <div className="panel-empty">No document snapshot available.</div>
+                    import.meta.env.VITE_TARGET === 'web' ? (
+                      <div className="panel-empty" style={{ maxWidth: 480, margin: '2rem auto', textAlign: 'center' }}>
+                        <strong>Document snapshots are available in the desktop app.</strong>
+                        <p style={{ marginTop: '0.5rem', opacity: 0.8 }}>
+                          Key points and claims from this source are shown in the other tabs.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="panel-empty">No document snapshot available.</div>
+                    )
                   ) : (
                     <pre style={{
                       whiteSpace: 'pre-wrap', wordWrap: 'break-word',

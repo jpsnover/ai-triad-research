@@ -1,5 +1,6 @@
 {
   "data_root": "../ai-triad-data",
+  "sources_root": "../ai-triad-sources",
   "taxonomy_dir": "taxonomy/Origin",
   "sources_dir": "sources",
   "summaries_dir": "summaries",

@@ -13,6 +13,7 @@ import path from 'path';
 
 interface AiTriadConfig {
   data_root: string;
+  sources_root?: string;
   taxonomy_dir: string;
   sources_dir: string;
   summaries_dir: string;
@@ -80,6 +81,29 @@ export function getDataRoot(): string {
 export function resolveDataPath(subPath: string): string {
   const dataRoot = getDataRoot();
   return path.isAbsolute(subPath) ? subPath : path.resolve(dataRoot, subPath);
+}
+
+/**
+ * Resolve sources root independently from data root.
+ * Priority: AI_TRIAD_SOURCES_ROOT env var > .aitriad.json sources_root > null.
+ * Returns null when sources are unavailable (web/container mode, or repo not cloned).
+ */
+export function getSourcesRoot(): string | null {
+  const envRoot = process.env.AI_TRIAD_SOURCES_ROOT;
+  if (envRoot) {
+    const resolved = path.resolve(envRoot);
+    return fs.existsSync(resolved) ? resolved : null;
+  }
+
+  const config = loadDataConfig();
+  if (config.sources_root) {
+    const resolved = path.isAbsolute(config.sources_root)
+      ? config.sources_root
+      : path.resolve(PROJECT_ROOT, config.sources_root);
+    return fs.existsSync(resolved) ? resolved : null;
+  }
+
+  return null;
 }
 
 export function getProjectRoot(): string {
