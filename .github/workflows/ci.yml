@@ -91,6 +91,11 @@ jobs:
           dockerfile: deploy/azure/Dockerfile.base
           failure-threshold: error
 
+      - name: Create taxonomy-snapshot stub for Dockerfile COPY layer
+        run: |
+          mkdir -p taxonomy-snapshot
+          echo '{"generated":"none","commit":"none","empty":true}' > taxonomy-snapshot/snapshot-meta.json
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
