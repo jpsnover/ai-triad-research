@@ -167,6 +167,10 @@ export interface AppAPI {
   isMaximized: () => Promise<boolean>;
   openExternal: (url: string) => Promise<void>;
 
+  // --- Sync ---
+  /** Flush overlay writes to GitHub via Trees API batch commit. No-op in filesystem/Electron mode. */
+  syncCommit: (message?: string) => Promise<{ ok: boolean; commitSha: string | null; filesCommitted: number }>;
+
   // --- Flight recorder ---
   dumpFlightRecorder: (ndjson: string) => Promise<{ filePath: string; filename: string }>;
   openFile: (filePath: string) => Promise<void>;

@@ -188,6 +188,57 @@ function OutcomeBadge({ outcome }: { outcome: TurnValidation['outcome'] }) {
   );
 }
 
+/** Show raw prompt/response for each attempt of a pipeline stage. */
+function StageAttemptRaws({ attempts }: { attempts: { prompt: string; raw_response: string; response_time_ms: number; stage_validation?: unknown }[] }) {
+  if (attempts.length === 0) return null;
+  if (attempts.length === 1) {
+    const a = attempts[0];
+    return (<>
+      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={a.prompt} /></summary>
+        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.prompt}</pre>
+      </details>
+      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={a.raw_response} /></summary>
+        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.raw_response}</pre>
+      </details>
+    </>);
+  }
+  return (
+    <details style={{ marginTop: 8 }}>
+      <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+        Raw Prompts &amp; Responses ({attempts.length} attempts)
+      </summary>
+      {attempts.map((a, i) => {
+        const isFinal = i === attempts.length - 1;
+        const valData = (a as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[] } | undefined;
+        return (
+          <div key={i} style={{
+            marginTop: 6, paddingLeft: 8,
+            borderLeft: `2px solid ${isFinal ? '#22c55e' : '#ef4444'}`,
+          }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: isFinal ? '#22c55e' : '#ef4444', marginBottom: 2 }}>
+              Attempt {i + 1}{isFinal ? ' (accepted)' : ' (rejected)'}
+              <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
+                {(a.response_time_ms / 1000).toFixed(1)}s
+              </span>
+              {valData && !valData.pass && valData.hints.length > 0 && (
+                <span style={{ fontWeight: 400, color: '#f59e0b', marginLeft: 6 }}>
+                  — {valData.hints[0]}{valData.hints.length > 1 ? ` (+${valData.hints.length - 1} more)` : ''}
+                </span>
+              )}
+            </div>
+            <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Prompt <CopyButton text={a.prompt} /></summary>
+              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.prompt}</pre>
+            </details>
+            <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Response <CopyButton text={a.raw_response} /></summary>
+              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.raw_response}</pre>
+            </details>
+          </div>
+        );
+      })}
+    </details>
+  );
+}
+
 const CITE_HINT_RE = /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i;
 function classifyHintTarget(hint: string): 'draft' | 'cite' | 'judge' {
   if (CITE_HINT_RE.test(hint)) return 'cite';
@@ -3220,10 +3271,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               ...((meta?.my_claims as { claim: string; targets: string[] }[])?.map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`) ?? []),
             ].join('\n');
             const stages = diag?.stage_diagnostics;
-            const briefStage = stages?.find(s => s.stage === 'brief');
-            const planStage = stages?.find(s => s.stage === 'plan');
-            const draftStage = stages?.find(s => s.stage === 'draft');
-            const citeStage = stages?.find(s => s.stage === 'cite');
+            const briefAttempts = stages?.filter(s => s.stage === 'brief') ?? [];
+            const planAttempts = stages?.filter(s => s.stage === 'plan') ?? [];
+            const draftAttempts = stages?.filter(s => s.stage === 'draft') ?? [];
+            const citeAttempts = stages?.filter(s => s.stage === 'cite') ?? [];
+            const briefStage = briefAttempts.length > 0 ? briefAttempts[briefAttempts.length - 1] : undefined;
+            const planStage = planAttempts.length > 0 ? planAttempts[planAttempts.length - 1] : undefined;
+            const draftStage = draftAttempts.length > 0 ? draftAttempts[draftAttempts.length - 1] : undefined;
+            const citeStage = citeAttempts.length > 0 ? citeAttempts[citeAttempts.length - 1] : undefined;
 
             // Find preceding moderator intervention for this entry
             const precedingIntervention = (() => {
@@ -4067,12 +4122,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           />
                         );
                       })()}
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={briefStage.prompt} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{briefStage.prompt}</pre>
-                      </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={briefStage.raw_response} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{briefStage.raw_response}</pre>
-                      </details>
+                      <StageAttemptRaws attempts={briefAttempts} />
                     </div>
                   )}
                   {activeTab === 'plan' && planStage && (
@@ -4171,6 +4221,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {(() => {
+                        const dr = (planStage.work_product as Record<string, unknown>).directive_response as { directive: string; how_addressed: string } | undefined;
+                        if (!dr) return null;
+                        return (
+                          <details open style={{ marginTop: 6 }}>
+                            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Moderator Directive Response</summary>
+                            <div style={{ fontSize: '0.72rem', padding: 6, background: 'rgba(251,146,60,0.08)', borderRadius: 4, borderLeft: '3px solid #fb923c', marginTop: 4 }}>
+                              <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                              <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
+                            </div>
+                          </details>
+                        );
+                      })()}
                       {selectedTaxRefId && (() => {
                         const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
                         const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
@@ -4188,12 +4251,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           />
                         );
                       })()}
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={planStage.prompt} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{planStage.prompt}</pre>
-                      </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={planStage.raw_response} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{planStage.raw_response}</pre>
-                      </details>
+                      <StageAttemptRaws attempts={planAttempts} />
                     </div>
                   )}
                   {activeTab === 'draft' && (draftStage || entry.content) && (
@@ -4207,6 +4265,31 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </div>
                       )}
                       <StageValidationHints trail={turnValTrail} stage="draft" stageDiag={draftStage as Record<string, unknown> | undefined} />
+                      {(() => {
+                        const sv = (draftStage as Record<string, unknown> | undefined)?.stage_validation as {
+                          directive_compliance?: { compliant: boolean; repair_hint: string; directive_terms: string[]; matched_terms: number };
+                        } | undefined;
+                        const dc = sv?.directive_compliance;
+                        if (!dc) return null;
+                        return (
+                          <div style={{
+                            margin: '6px 0', padding: '5px 8px', borderRadius: 4, fontSize: '0.7rem',
+                            borderLeft: `3px solid ${dc.compliant ? '#22c55e' : '#ef4444'}`,
+                            background: dc.compliant ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                          }}>
+                            <div style={{ fontWeight: 600, color: dc.compliant ? '#22c55e' : '#ef4444', marginBottom: 2 }}>
+                              {dc.compliant ? '✓ Directive addressed' : '✗ Directive not addressed'}
+                            </div>
+                            {!dc.compliant && <div style={{ color: 'var(--text-secondary)' }}>{dc.repair_hint}</div>}
+                            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                              {dc.matched_terms}/{dc.directive_terms.length} directive terms matched
+                              {dc.directive_terms.length > 0 && (
+                                <span style={{ marginLeft: 4 }}>({dc.directive_terms.join(', ')})</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {!draftStage && diag && (
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                           <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>STATEMENT</span>
@@ -4347,14 +4430,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </div>
                         </details>
                       )}
-                      {draftStage && (<>
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={draftStage.prompt} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.prompt}</pre>
-                      </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={draftStage.raw_response} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{draftStage.raw_response}</pre>
-                      </details>
-                      </>)}
+                      <StageAttemptRaws attempts={draftAttempts} />
                     </div>
                   )}
                   {activeTab === 'cite' && citeStage && (
@@ -4393,7 +4469,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         })());
                         return (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Taxonomy References</summary>
-                          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+                          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                            <colgroup>
+                              <col style={{ width: '15%' }} />
+                              <col style={{ width: '10%' }} />
+                              <col style={{ width: '75%' }} />
+                            </colgroup>
                             <tbody>
                               {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string; relevance_score?: number; primary?: boolean }[]).map((r, i) => {
                                 const isSelected = selectedTaxRefId === r.node_id;
@@ -4405,7 +4486,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                   : '#dc2626';
                                 return (
                                   <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
-                                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                       <button
                                         onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
                                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
@@ -4415,7 +4496,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
                                       )}
                                     </td>
-                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: citeScoreColor, fontFamily: 'monospace', width: '40px' }}>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: citeScoreColor, fontFamily: 'monospace' }}>
                                       {citeScore != null ? citeScore.toFixed(2) : '—'}
                                     </td>
                                     <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={r.relevance} /></td>
@@ -4492,12 +4573,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           })()}
                         </details>
                       )}
-                      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={citeStage.prompt} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{citeStage.prompt}</pre>
-                      </details>
-                      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={citeStage.raw_response} /></summary>
-                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{citeStage.raw_response}</pre>
-                      </details>
+                      <StageAttemptRaws attempts={citeAttempts} />
                     </div>
                   )}
                   {activeTab === 'claims' && (

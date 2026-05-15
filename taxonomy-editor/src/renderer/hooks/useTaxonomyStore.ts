@@ -1334,7 +1334,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
 
       await Promise.all(promises);
-      getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart) } });
+
+      // Flush overlay to GitHub (no-op in Electron/filesystem mode)
+      const commitResult = await api.syncCommit();
+      getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart), commitSha: commitResult.commitSha, filesCommitted: commitResult.filesCommitted } });
       set({ dirty: new Set() });
 
       // Fire-and-forget: re-embed changed nodes and update embeddings.json

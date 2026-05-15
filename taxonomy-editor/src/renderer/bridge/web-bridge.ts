@@ -356,6 +356,9 @@ const rawApi: AppAPI = {
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
   getCalibrationLog: () => get('/api/calibration/log').catch(() => ({ entries: [], validationReport: null })),
 
+  // Sync
+  syncCommit: (message) => post('/api/sync/commit', message ? { message } : undefined),
+
   // Flight recorder
   dumpFlightRecorder: (ndjson) => post('/api/flight-recorder/dump', { ndjson }),
   openFile: async () => {}, // No local file access in web mode

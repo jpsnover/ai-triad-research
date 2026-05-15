@@ -116,6 +116,8 @@ export class GitHubAPIBackend implements StorageBackend {
   private manifest: CacheManifest | null = null;
 
   // Per-user session overlays: userId → (repoPath → content)
+  // Tombstone sentinel: overlay entry with this value means "delete this file"
+  static readonly TOMBSTONE = '\0__DELETED__\0';
   private sessionOverlays: Map<string, Map<string, string>> = new Map();
 
   // Rate limit tracking
@@ -255,6 +257,7 @@ export class GitHubAPIBackend implements StorageBackend {
     if (readBranch !== 'main' && readUserId) {
       const overlay = this.sessionOverlays.get(readUserId);
       if (overlay?.has(repoPath)) {
+        const val = overlay.get(repoPath)!;
         this.recordEvent({
           type: 'cache.hit',
           component: 'cache',
@@ -262,7 +265,7 @@ export class GitHubAPIBackend implements StorageBackend {
           message: `Session overlay hit: ${repoPath}`,
           data: { path: repoPath, layer: 'session', userId: readUserId },
         });
-        return overlay.get(repoPath)!;
+        return val === GitHubAPIBackend.TOMBSTONE ? null : val;
       }
     }
 
@@ -309,6 +312,24 @@ export class GitHubAPIBackend implements StorageBackend {
 
   async writeFile(filePath: string, content: string): Promise<void> {
     const repoPath = this.toRepoPath(filePath);
+    const ref = this.getEffectiveRef();
+
+    // When on a session branch, write to overlay only — no API call.
+    // The overlay is flushed to GitHub via commitOverlay() (Trees API batch).
+    if (ref !== 'main' && this.hasSessionContext()) {
+      this.writeToOverlay(filePath, content);
+      return;
+    }
+
+    // Writes must go to a session branch — caller should create one first
+    if (ref === 'main' && this.hasSessionContext()) {
+      throw new ActionableError({
+        goal: 'Write file to GitHub',
+        problem: 'Cannot write directly to main. Create a session branch first.',
+        location: `GitHubAPIBackend.writeFile(${repoPath})`,
+        nextSteps: ['Create a session branch via the Session Branch Manager'],
+      });
+    }
 
     if (this.circuitState === 'open' && !this.shouldProbe()) {
       throw new ActionableError({
@@ -319,19 +340,8 @@ export class GitHubAPIBackend implements StorageBackend {
       });
     }
 
-    const ref = this.getEffectiveRef();
-    if (ref === 'main' && this.hasSessionContext()) {
-      // Writes must go to a session branch — caller should create one first
-      throw new ActionableError({
-        goal: 'Write file to GitHub',
-        problem: 'Cannot write directly to main. Create a session branch first.',
-        location: `GitHubAPIBackend.writeFile(${repoPath})`,
-        nextSteps: ['Create a session branch via the Session Branch Manager'],
-      });
-    }
-
     // Get the current file SHA for the update (required by Contents API)
-    let fileSha = await this.getFileSha(repoPath, ref);
+    const fileSha = await this.getFileSha(repoPath, ref);
 
     const creds = await this.getCredsCached();
     if (!creds) throw this.noCredsError('writeFile');
@@ -351,7 +361,6 @@ export class GitHubAPIBackend implements StorageBackend {
         `/repos/${creds.repo}/contents/${repoPath}`, body, callId);
 
       if (resp.status === 409 && attempt === 0) {
-        // SHA conflict — another write updated this file. Re-fetch and retry once.
         this.recordEvent({
           type: 'github.api.conflict',
           component: 'github-api',
@@ -382,17 +391,6 @@ export class GitHubAPIBackend implements StorageBackend {
     const respData = resp.data as { content?: { sha?: string } };
     const newSha = respData?.content?.sha ?? '';
     await this.writeToDiskCache(repoPath, content, newSha, '');
-
-    // Update session overlay
-    const writeUserId = this.getEffectiveUserId();
-    if (writeUserId) {
-      let overlay = this.sessionOverlays.get(writeUserId);
-      if (!overlay) {
-        overlay = new Map();
-        this.sessionOverlays.set(writeUserId, overlay);
-      }
-      overlay.set(repoPath, content);
-    }
   }
 
   async listDirectory(dirPath: string): Promise<string[]> {
@@ -440,6 +438,13 @@ export class GitHubAPIBackend implements StorageBackend {
 
   async deleteFile(filePath: string): Promise<void> {
     const repoPath = this.toRepoPath(filePath);
+    const ref = this.getEffectiveRef();
+
+    // When on a session branch, tombstone in overlay — no API call.
+    if (ref !== 'main' && this.hasSessionContext()) {
+      this.deleteFromOverlay(filePath);
+      return;
+    }
 
     if (this.circuitState === 'open' && !this.shouldProbe()) {
       throw new ActionableError({
@@ -450,7 +455,6 @@ export class GitHubAPIBackend implements StorageBackend {
       });
     }
 
-    const ref = this.getEffectiveRef();
     const existingSha = await this.getFileSha(repoPath, ref);
     if (!existingSha) return; // File doesn't exist — no-op per StorageBackend contract
 
@@ -475,10 +479,6 @@ export class GitHubAPIBackend implements StorageBackend {
 
     // Write-through: remove from cache after confirmed deletion
     await this.removeFromDiskCache(repoPath);
-    const delUserId = this.getEffectiveUserId();
-    if (delUserId) {
-      this.sessionOverlays.get(delUserId)?.delete(repoPath);
-    }
   }
 
   async fileExists(filePath: string): Promise<boolean> {
@@ -489,7 +489,7 @@ export class GitHubAPIBackend implements StorageBackend {
     const existsUserId = this.getEffectiveUserId();
     if (existsBranch !== 'main' && existsUserId) {
       const overlay = this.sessionOverlays.get(existsUserId);
-      if (overlay?.has(repoPath)) return true;
+      if (overlay?.has(repoPath)) return overlay.get(repoPath) !== GitHubAPIBackend.TOMBSTONE;
     }
 
     // Check disk cache manifest
@@ -703,20 +703,128 @@ export class GitHubAPIBackend implements StorageBackend {
       data: { branch, fileCount: files.length, commitSha, durationMs },
     });
 
-    // Write-through: update session overlay for committed files
-    const commitUserId = this.getEffectiveUserId();
-    if (commitUserId) {
-      let overlay = this.sessionOverlays.get(commitUserId);
-      if (!overlay) {
-        overlay = new Map();
-        this.sessionOverlays.set(commitUserId, overlay);
-      }
-      for (const f of files) {
-        overlay.set(f.path, f.content);
-      }
+    return commitSha;
+  }
+
+  /**
+   * Flush all pending overlay entries for a user to GitHub via Trees API batch commit.
+   * Handles both writes and deletes (tombstones). Clears the overlay only on success.
+   * Returns { commitSha, filesCommitted } or null if no pending changes.
+   */
+  async commitOverlay(userId: string, message?: string): Promise<{ commitSha: string; filesCommitted: number } | null> {
+    const entries = this.getOverlayEntries(userId);
+    if (!entries) return null;
+
+    const branch = this.getEffectiveRef();
+    if (branch === 'main') {
+      throw new ActionableError({
+        goal: 'Commit overlay to GitHub',
+        problem: 'Cannot commit overlay to main branch.',
+        location: 'GitHubAPIBackend.commitOverlay',
+        nextSteps: ['Ensure a session branch is active'],
+      });
     }
 
-    return commitSha;
+    const creds = await this.getCredsCached();
+    if (!creds) throw this.noCredsError('commitOverlay');
+
+    const callId = crypto.randomUUID();
+    const startMs = Date.now();
+
+    // Step 1: Get current branch ref
+    const refResp = await this.apiRequest(creds, 'GET',
+      `/repos/${creds.repo}/git/refs/heads/${branch}`, undefined, callId);
+    if (!refResp.ok) {
+      throw new ActionableError({
+        goal: `Commit overlay to ${branch}`,
+        problem: `Failed to get branch ref: ${refResp.status} ${refResp.error}`,
+        location: 'GitHubAPIBackend.commitOverlay step 1',
+        nextSteps: ['Verify branch exists', 'Check GitHub App permissions'],
+      });
+    }
+    const currentSha = ((refResp.data as { object: { sha: string } }).object).sha;
+
+    // Step 2: Create tree with writes + deletes
+    const treeEntries: Record<string, unknown>[] = [
+      ...entries.writes.map(f => ({
+        path: f.path,
+        mode: '100644',
+        type: 'blob',
+        content: f.content,
+      })),
+      ...entries.deletes.map(path => ({
+        path,
+        mode: '100644',
+        type: 'blob',
+        sha: null, // null SHA = delete from tree
+      })),
+    ];
+
+    const commitMsg = message || `Update ${entries.writes.length} file(s)${entries.deletes.length > 0 ? `, delete ${entries.deletes.length}` : ''}`;
+
+    const treeResp = await this.apiRequest(creds, 'POST',
+      `/repos/${creds.repo}/git/trees`, {
+        base_tree: currentSha,
+        tree: treeEntries,
+      }, callId);
+    if (!treeResp.ok) {
+      throw new ActionableError({
+        goal: `Commit overlay to ${branch}`,
+        problem: `Failed to create tree: ${treeResp.status} ${treeResp.error}`,
+        location: 'GitHubAPIBackend.commitOverlay step 2',
+        nextSteps: ['Check file paths and content', 'Verify GitHub App permissions'],
+      });
+    }
+    const newTreeSha = (treeResp.data as { sha: string }).sha;
+
+    // Step 3: Create commit
+    const commitResp = await this.apiRequest(creds, 'POST',
+      `/repos/${creds.repo}/git/commits`, {
+        message: commitMsg,
+        tree: newTreeSha,
+        parents: [currentSha],
+      }, callId);
+    if (!commitResp.ok) {
+      throw new ActionableError({
+        goal: `Commit overlay to ${branch}`,
+        problem: `Failed to create commit: ${commitResp.status} ${commitResp.error}`,
+        location: 'GitHubAPIBackend.commitOverlay step 3',
+        nextSteps: ['Retry — dangling tree is harmless'],
+      });
+    }
+    const commitSha = (commitResp.data as { sha: string }).sha;
+
+    // Step 4: Update branch ref
+    const updateResp = await this.apiRequest(creds, 'PATCH',
+      `/repos/${creds.repo}/git/refs/heads/${branch}`, {
+        sha: commitSha,
+        force: false,
+      }, callId);
+    if (!updateResp.ok) {
+      throw new ActionableError({
+        goal: `Commit overlay to ${branch}`,
+        problem: `Failed to update branch ref: ${updateResp.status} ${updateResp.error}`,
+        location: 'GitHubAPIBackend.commitOverlay step 4',
+        nextSteps: ['Retry — tree and commit are already created'],
+      });
+    }
+
+    const filesCommitted = entries.writes.length + entries.deletes.length;
+    const durationMs = Date.now() - startMs;
+    this.recordEvent({
+      type: 'overlay.commit',
+      component: 'session',
+      level: 'info',
+      message: `Overlay committed to ${branch}: ${entries.writes.length} writes, ${entries.deletes.length} deletes`,
+      call_id: callId,
+      duration_ms: durationMs,
+      data: { branch, writes: entries.writes.length, deletes: entries.deletes.length, commitSha, durationMs },
+    });
+
+    // Clear overlay only on success (Tech Lead note #2)
+    this.clearSessionOverlay(userId);
+
+    return { commitSha, filesCommitted };
   }
 
   async createOrUpdatePR(
@@ -1619,6 +1727,59 @@ export class GitHubAPIBackend implements StorageBackend {
     if (this.repoTree.size === 0) return 0;
     const cachedCount = this.manifest ? Object.keys(this.manifest.files).length : 0;
     return Math.min(1, cachedCount / Math.max(1, this.repoTree.size));
+  }
+
+  /**
+   * Write content to the in-memory overlay without making any GitHub API call.
+   * The content is visible to subsequent readFile() calls and will be flushed
+   * to GitHub when commitOverlay() is called.
+   */
+  writeToOverlay(filePath: string, content: string): void {
+    const repoPath = this.toRepoPath(filePath);
+    const userId = this.getEffectiveUserId();
+    if (!userId) return;
+    let overlay = this.sessionOverlays.get(userId);
+    if (!overlay) {
+      overlay = new Map();
+      this.sessionOverlays.set(userId, overlay);
+    }
+    overlay.set(repoPath, content);
+  }
+
+  /**
+   * Mark a file as deleted in the overlay (tombstone).
+   * readFile() returns null, fileExists() returns false, and commitOverlay()
+   * will remove the file from the Git tree.
+   */
+  deleteFromOverlay(filePath: string): void {
+    const repoPath = this.toRepoPath(filePath);
+    const userId = this.getEffectiveUserId();
+    if (!userId) return;
+    let overlay = this.sessionOverlays.get(userId);
+    if (!overlay) {
+      overlay = new Map();
+      this.sessionOverlays.set(userId, overlay);
+    }
+    overlay.set(repoPath, GitHubAPIBackend.TOMBSTONE);
+  }
+
+  /**
+   * Get all overlay entries for a user, split into writes and deletes.
+   * Returns null if there are no pending changes.
+   */
+  getOverlayEntries(userId: string): { writes: { path: string; content: string }[]; deletes: string[] } | null {
+    const overlay = this.sessionOverlays.get(userId);
+    if (!overlay || overlay.size === 0) return null;
+    const writes: { path: string; content: string }[] = [];
+    const deletes: string[] = [];
+    for (const [path, content] of overlay) {
+      if (content === GitHubAPIBackend.TOMBSTONE) {
+        deletes.push(path);
+      } else {
+        writes.push({ path, content });
+      }
+    }
+    return writes.length > 0 || deletes.length > 0 ? { writes, deletes } : null;
   }
 
   getSessionOverlay(userId: string): Map<string, string> | undefined {

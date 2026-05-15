@@ -284,7 +284,7 @@ describe('GitHubAPIBackend — integration', () => {
     backend.shutdown();
   });
 
-  it('writes a file via Contents API and updates session overlay', async () => {
+  it('writes to overlay only when session branch is active (no API call)', async () => {
     const backend = await createBackend();
     backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
 
@@ -294,9 +294,9 @@ describe('GitHubAPIBackend — integration', () => {
     const overlay = backend.getSessionOverlay('alice');
     expect(overlay?.get('taxonomy/nodes.json')).toBe('{"updated": true}');
 
-    // Verify the PUT call went to the Contents API
+    // No PUT call to Contents API — overlay-only write
     const putCall = fetchCalls.find(c => c.method === 'PUT' && c.url.includes('/contents/'));
-    expect(putCall).toBeDefined();
+    expect(putCall).toBeUndefined();
 
     backend.shutdown();
   });
@@ -313,10 +313,10 @@ describe('GitHubAPIBackend — integration', () => {
     backend.shutdown();
   });
 
-  it('retries once on 409 SHA conflict with fresh SHA', async () => {
+  it('retries once on 409 SHA conflict with fresh SHA (direct write mode)', async () => {
     const recorder = createTestRecorder();
     const backend = await createBackend(recorder);
-    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    // No session context → writeFile uses Contents API directly
 
     let putCount = 0;
     apiHandlers.push((url, init) => {
@@ -344,9 +344,9 @@ describe('GitHubAPIBackend — integration', () => {
     backend.shutdown();
   });
 
-  it('throws on second 409 (no infinite retry)', async () => {
+  it('throws on second 409 (no infinite retry, direct write mode)', async () => {
     const backend = await createBackend();
-    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    // No session context → writeFile uses Contents API directly
 
     apiHandlers.push((url, init) => {
       const method = init?.method ?? 'GET';
@@ -891,7 +891,7 @@ describe('GitHubAPIBackend — chaos: circuit breaker', () => {
     backend.shutdown();
   });
 
-  it('blocks writes when circuit is open', async () => {
+  it('blocks writes when circuit is open (direct write mode)', async () => {
     // Trip the circuit breaker
     apiHandlers.push((url, init) => {
       if (url.includes('/contents/')) {
@@ -901,7 +901,7 @@ describe('GitHubAPIBackend — chaos: circuit breaker', () => {
     });
 
     const backend = await createBackend();
-    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    // No session context → writeFile uses Contents API directly (overlay skipped)
 
     // Trip the breaker
     for (let i = 0; i < 2; i++) {
@@ -1129,7 +1129,7 @@ describe('GitHubAPIBackend — chaos: missing credentials', () => {
     backend.shutdown();
   });
 
-  it('throws noCredsError on write when credentials are missing', async () => {
+  it('throws noCredsError on write when credentials are missing (direct write mode)', async () => {
     const { getCredentials } = await import('../githubAppAuth');
     (getCredentials as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
@@ -1140,8 +1140,7 @@ describe('GitHubAPIBackend — chaos: missing credentials', () => {
       coherencyProbeRate: 0,
     });
     await backend.initialize();
-
-    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    // No session context → writeFile uses Contents API directly (overlay skipped)
 
     await expect(backend.writeFile('/taxonomy/nodes.json', '{}')).rejects.toThrow(
       /No GitHub credentials configured/,

@@ -106,6 +106,9 @@ export const api: AppAPI = {
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),
 
+  // Sync — no-op in Electron (writes go directly to filesystem)
+  syncCommit: async () => ({ ok: true, commitSha: null, filesCommitted: 0 }),
+
   // Flight recorder
   dumpFlightRecorder: (ndjson) => window.electronAPI.dumpFlightRecorder(ndjson),
   openFile: (filePath) => window.electronAPI.openFile(filePath),

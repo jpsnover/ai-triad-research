@@ -1078,6 +1078,24 @@ post('/api/sync/discard', async (_req, res, body) => {
   } catch (err) { error(res, String(err), 400); }
 });
 
+post('/api/sync/commit', async (_req, res, body) => {
+  try {
+    if (!githubBackend) {
+      // Filesystem mode — writes go directly to disk, commit is a no-op
+      json(res, { ok: true, commitSha: null, filesCommitted: 0, mode: 'filesystem' });
+      return;
+    }
+    const userId = getCurrentUserId();
+    const { message } = (body || {}) as { message?: string };
+    const result = await githubBackend.commitOverlay(userId, message);
+    if (!result) {
+      json(res, { ok: true, commitSha: null, filesCommitted: 0, message: 'No pending changes' });
+      return;
+    }
+    json(res, { ok: true, commitSha: result.commitSha, filesCommitted: result.filesCommitted });
+  } catch (err) { error(res, String(err)); }
+});
+
 post('/api/sync/create-pr', async (_req, res, body) => {
   const { title, body: prBody } = (body || {}) as { title?: string; body?: string };
   try {
