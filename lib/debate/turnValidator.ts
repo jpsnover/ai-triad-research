@@ -166,7 +166,9 @@ const MOVE_CATALOG = new Set<string>(MOVE_CATALOG_RAW.map(normalizeMoveName));
 
 const DISAGREEMENT_TYPES = new Set(['EMPIRICAL', 'VALUES', 'DEFINITIONAL']);
 
-const FILLER_RELEVANCE = /^(supports|relevant|important|my view|this is)/i;
+// Only reject prefix openers when the ENTIRE string is short and generic.
+// "Supports my position" (filler) vs "Supports the pivot toward empirical telemetry..." (substantive).
+const FILLER_RELEVANCE = /^(supports|relevant|important|my view|this is)\s[\w\s]{0,30}$/i;
 
 const RELEVANCE_STOP_WORDS = new Set([
   'this', 'that', 'with', 'from', 'have', 'been', 'very', 'much',
@@ -476,12 +478,18 @@ Decide:
    0.4: Weak — mostly abstract, recycles prior arguments, or talks past opponents
    0.2: Poor — fails to engage the debate substance meaningfully
 
-   CRITICAL: Your quality_score MUST be consistent with your weaknesses. If you list 2+ substantive weaknesses, the score MUST be ≤0.7. If you list 0 weaknesses, the score should be ≥0.8. A score of 1.0 with weaknesses is contradictory.
+   CRITICAL CALIBRATION RULES:
+   - 0 weaknesses → score ≥ 0.8
+   - 1 weakness → score 0.65-0.80
+   - 2 weaknesses → score 0.50-0.65
+   - 3 weaknesses → score 0.40-0.55
+   - Any weakness containing "lacks evidence", "no data", "unsubstantiated", or "missing citation" → subtract 0.10 from what you would otherwise give
+   - A score of 1.0 with any weaknesses is contradictory and MUST NOT occur
 
 5. RECOMMEND — based on your quality_score:
    "pass": quality_score ≥ 0.7 and no critical weaknesses
    "accept_with_flag": quality_score 0.5-0.7, or has weaknesses worth noting but acceptable
-   "retry": quality_score < 0.5, or a single critical flaw that the debater could fix
+   "retry": quality_score < 0.5, or a single critical flaw that the debater could fix (missing evidence, unaddressed direct challenge, factual error)
 
 Return ONLY JSON in this shape (no prose, no code fences):
 {
@@ -635,14 +643,23 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     ...(judge?.weaknesses ?? []),
   ];
 
-  // Outcome
+  // Outcome — retry triggers (in priority order):
+  // 1. Stage A structural error
+  // 2. Judge explicitly recommends retry
+  // 3. Judge quality_score below threshold (substantive weaknesses warrant retry)
   const retryBudget = p.config.maxRetries;
+  const JUDGE_RETRY_THRESHOLD = 0.55; // quality_score below this triggers retry
+  const judgeQualityLow = judge != null && judge.quality_score < JUDGE_RETRY_THRESHOLD;
   let outcome: TurnValidation['outcome'];
   if (hasStageAError && retryBudget > 0) {
     outcome = 'retry';
   } else if (judge && judge.recommend === 'retry' && retryBudget > 0) {
     outcome = 'retry';
+  } else if (judgeQualityLow && retryBudget > 0) {
+    outcome = 'retry';
   } else if (judge && judge.recommend === 'retry' && retryBudget === 0) {
+    outcome = 'accept_with_flag';
+  } else if (judgeQualityLow && retryBudget === 0) {
     outcome = 'accept_with_flag';
   } else if (judge && judge.recommend === 'accept_with_flag') {
     outcome = 'accept_with_flag';
@@ -772,4 +789,256 @@ function getHedgeThreshold(phase: DebatePhase, audience?: DebateAudience): numbe
     return (byPhase[phase] ?? 0.30) - 0.05;
   }
   return byPhase[phase] ?? 0.30;
+}
+
+// ── Per-stage validation ────────────────────────────────────
+// Split validation into draft-specific and cite-specific checks.
+// Each returns a lightweight result that can trigger a stage-scoped retry.
+
+export interface StageValidationResult {
+  pass: boolean;
+  repairHints: string[];
+  /** Dimension that failed (for diagnostics). */
+  failedDimension?: 'schema' | 'grounding' | 'plan';
+}
+
+/**
+ * Validate the draft stage output. Checks statement content, moves, claims,
+ * intervention compliance, and structural rules (Rules 1,2,6,8,9,10,11,12).
+ */
+export function validateDraftStage(p: {
+  statement: string;
+  meta: PoverResponseMeta;
+  phase: DebatePhase;
+  round: number;
+  priorTurns: readonly TranscriptEntry[];
+  audience?: DebateAudience;
+  pendingIntervention?: import('./types').ModeratorIntervention;
+}): StageValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const { statement, meta, phase, round, priorTurns, audience } = p;
+
+  // Rule 1: move_types — only validate if present (move_types comes from cite stage,
+  // so it may not exist on the draft output; the full validateTurn checks it post-assembly)
+  if (meta.move_types && meta.move_types.length > 0) {
+    for (const mt of meta.move_types) {
+      const name = getMoveName(mt);
+      const resolved = resolveMoveName(name);
+      if (!resolved) {
+        errors.push(`Unknown move_types: "${name}". Use ONLY: ${MOVE_CATALOG_RAW.join(', ')}.`);
+      }
+    }
+  }
+
+  // Rule 2: disagreement_type — only validate if present
+  if (meta.disagreement_type && !DISAGREEMENT_TYPES.has(meta.disagreement_type.toUpperCase())) {
+    errors.push(`Unknown disagreement_type "${meta.disagreement_type}". Use: EMPIRICAL, VALUES, or DEFINITIONAL.`);
+  }
+
+  // Rule 6: paragraph count
+  const paragraphs = statement.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+  if (paragraphs.length === 1) {
+    errors.push('Statement is a single paragraph — split into 3–5 double-newline-separated blocks.');
+  } else if (paragraphs.length === 2 || paragraphs.length > 5) {
+    warnings.push(`Statement has ${paragraphs.length} paragraphs — target 3–5.`);
+  }
+
+  // Rule 8: move repetition
+  if (meta.move_types && meta.move_types.length > 0 && priorTurns.length > 0) {
+    const lastEntry = priorTurns[priorTurns.length - 1];
+    const lastMeta = lastEntry?.metadata as Record<string, unknown> | undefined;
+    const lastMoveTypes = lastMeta?.move_types as (string | { move: string })[] | undefined;
+    if (lastMoveTypes && lastMoveTypes.length > 0) {
+      const lastMoves = lastMoveTypes.map(m => resolveMoveName(getMoveName(m))).filter(Boolean);
+      const currentMoves = meta.move_types.map(m => resolveMoveName(getMoveName(m))).filter(Boolean);
+      if (lastMoves.length === currentMoves.length &&
+          lastMoves.every((m, i) => m === currentMoves[i])) {
+        warnings.push(`move_types repeat your previous turn exactly (${lastMoves.join(', ')}). Vary your dialectical move.`);
+      }
+    }
+  }
+
+  // Rule 9: claim specificity
+  if (round >= 3) {
+    const claims = meta.my_claims ?? [];
+    const specific = claims.some(c =>
+      /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/.test(c.claim),
+    );
+    if (claims.length === 0) {
+      errors.push('my_claims is empty — add at least one claim with a number, timeline, or named entity.');
+    } else if (!specific && round >= 4) {
+      errors.push('my_claims are all abstract — include a number, named entity, or timeline (e.g. "by 2028", "within 12 months", "≥20%").');
+    } else if (!specific) {
+      warnings.push('my_claims are all abstract — include a number, named entity, or timeline.');
+    }
+  }
+
+  // Rule 10: hedge density
+  const hedgeDensity = computeHedgeDensity(statement);
+  const hedgeThreshold = getHedgeThreshold(phase, audience);
+  if (hedgeDensity > hedgeThreshold) {
+    warnings.push(`Hedge density ${(hedgeDensity * 100).toFixed(0)}% exceeds ${(hedgeThreshold * 100).toFixed(0)}% threshold.`);
+  }
+
+  // Rule 11: constructive move
+  if (phase !== 'confrontation' && round >= 4 && meta.move_types && meta.move_types.length > 0) {
+    const resolved = meta.move_types.map(m => resolveMoveName(getMoveName(m)));
+    if (!resolved.some(m => m && SUPPORT_MOVES.has(m))) {
+      const msg = 'No constructive move found — include at least one of: CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, SPECIFY.';
+      if (phase === 'concluding' || round >= 6) errors.push(msg);
+      else warnings.push(msg);
+    }
+  }
+
+  // Rule 12: statement duplication
+  if (statement.length >= 400) {
+    const half = Math.floor(statement.length / 2);
+    const first300 = statement.slice(0, 300).trim();
+    const secondHalfIdx = statement.indexOf(first300, half - 150);
+    if (secondHalfIdx > 0 && secondHalfIdx >= half - 150) {
+      errors.push('Statement contains verbatim repeated text — your response appears to duplicate itself.');
+    }
+  }
+
+  // Intervention compliance
+  if (p.pendingIntervention) {
+    const rawMeta = (meta as Record<string, unknown>) ?? {};
+    const compliance = checkInterventionCompliance(p.pendingIntervention.move, rawMeta);
+    if (!compliance.compliant && compliance.repair_hint) {
+      errors.push(compliance.repair_hint);
+    }
+  }
+
+  return {
+    pass: errors.length === 0,
+    repairHints: [...errors, ...warnings],
+    failedDimension: errors.length > 0 ? 'schema' : undefined,
+  };
+}
+
+/**
+ * Validate the cite stage output. Checks taxonomy_refs quality, node_id validity,
+ * policy_refs, and relevance text (Rules 3,4,5,7).
+ */
+export function validateCiteStage(p: {
+  taxonomyRefs: TaxonomyRef[];
+  policyRefs?: string[];
+  knownNodeIds: Set<string>;
+  policyIds: Set<string>;
+  priorTurns: readonly TranscriptEntry[];
+  speaker: SpeakerId | string;
+}): StageValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const { taxonomyRefs, knownNodeIds, policyIds, priorTurns, speaker } = p;
+
+  // Rule 3: taxonomy_refs node_id exists
+  const unknownRefs = taxonomyRefs.filter(r => !knownNodeIds.has(r.node_id));
+  if (unknownRefs.length > 0) {
+    errors.push(`Unknown taxonomy node_id: ${unknownRefs.map(r => r.node_id).join(', ')}. Use only nodes from your taxonomy context.`);
+  }
+
+  // Rule 4: policy_refs exist (skip if no registry loaded)
+  const policyRefs = p.policyRefs ?? [];
+  if (policyIds.size > 0) {
+    const unknownPolicies = policyRefs.filter(pid => !policyIds.has(pid));
+    if (unknownPolicies.length > 0) {
+      warnings.push(`Unknown policy_refs: ${unknownPolicies.join(', ')}.`);
+    }
+  }
+
+  // Rule 5: relevance text quality (warning only)
+  const weakRelevance = taxonomyRefs.filter(
+    r => (r.relevance ?? '').trim().length < 40 || isFillerRelevance((r.relevance ?? '').trim()),
+  );
+  if (weakRelevance.length > 0) {
+    warnings.push(`taxonomy_refs with filler or too-short 'relevance' (≥40 chars): ${weakRelevance.map(r => r.node_id).join(', ')}. Explain the mechanism by which the node supports or complicates your claim.`);
+  }
+
+  // Rule 7: novelty — at least one new taxonomy_ref not used in prior same-speaker turns
+  const priorSpeakerRefs = new Set(
+    priorTurns
+      .filter(t => t.speaker === speaker)
+      .slice(-2)
+      .flatMap(t => (t.taxonomy_refs ?? []).map(r => r.node_id)),
+  );
+  if (priorSpeakerRefs.size > 0 && taxonomyRefs.length > 0) {
+    const hasNew = taxonomyRefs.some(r => !priorSpeakerRefs.has(r.node_id));
+    if (!hasNew) {
+      warnings.push('No new taxonomy_refs — cite at least one node not used in your last 2 turns.');
+    }
+  }
+
+  return {
+    pass: errors.length === 0,
+    repairHints: [...errors, ...warnings],
+    failedDimension: errors.length > 0 ? 'grounding' : undefined,
+  };
+}
+
+/**
+ * Validate the plan stage output. Checks strategic_goal, planned_moves (canonical moves,
+ * substantive detail, count), argument_sketch, anticipated_responses, and target_claims.
+ */
+export function validatePlanStage(p: {
+  plan: import('./types').PlanWorkProduct;
+  isFirstRound: boolean;
+}): StageValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const { plan, isFirstRound } = p;
+
+  // Rule 1: strategic_goal is substantive (≥30 chars)
+  if (!plan.strategic_goal || plan.strategic_goal.trim().length < 30) {
+    errors.push('strategic_goal is missing or too short (≥30 chars). Provide a clear one-liner that guides the entire turn.');
+  }
+
+  // Rule 2: planned_moves use canonical moves
+  const moves = plan.planned_moves ?? [];
+  for (const pm of moves) {
+    const resolved = resolveMoveName(pm.move);
+    if (!MOVE_CATALOG.has(resolved)) {
+      warnings.push(`Unknown planned move "${pm.move}". Use ONLY: ${MOVE_CATALOG_RAW.join(', ')}.`);
+    }
+  }
+
+  // Rule 3: planned_moves have substantive detail (≥20 chars each)
+  for (const pm of moves) {
+    if (!pm.detail || pm.detail.trim().length < 20) {
+      errors.push(`Planned move "${pm.move}" has missing or too-short detail (≥20 chars). Explain what you will argue.`);
+    }
+  }
+
+  // Rule 4: planned_moves count (at least 1, warn if >5)
+  if (moves.length === 0) {
+    errors.push('planned_moves is empty — plan at least one dialectical move.');
+  } else if (moves.length > 5) {
+    warnings.push(`${moves.length} planned moves is over-ambitious — target 1–5 moves per turn.`);
+  }
+
+  // Rule 5: argument_sketch is substantive (≥50 chars)
+  if (!plan.argument_sketch || plan.argument_sketch.trim().length < 50) {
+    errors.push('argument_sketch is missing or too short (≥50 chars). Outline your core argumentative strategy.');
+  }
+
+  // Rule 6: anticipated_responses present
+  const responses = plan.anticipated_responses ?? [];
+  if (responses.length === 0) {
+    warnings.push('anticipated_responses is empty — anticipate at least one counterargument.');
+  }
+
+  // Rule 7: target_claims present (warning only, skip round 1)
+  if (!isFirstRound) {
+    const targets = plan.target_claims ?? [];
+    if (targets.length === 0) {
+      warnings.push('target_claims is empty — identify at least one prior claim to address.');
+    }
+  }
+
+  return {
+    pass: errors.length === 0,
+    repairHints: [...errors, ...warnings],
+    failedDimension: errors.length > 0 ? 'plan' : undefined,
+  };
 }

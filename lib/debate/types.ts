@@ -221,6 +221,8 @@ export type ArgumentationScheme =
 
 export interface TaxonomyRef {
   node_id: string;
+  /** Human-readable node label. Populated by enrichTaxonomyRefs from the taxonomy. */
+  label?: string;
   relevance: string;
   /** Cosine similarity score [0,1] from context injection. Absent in pre-scoring debates. */
   relevance_score?: number;

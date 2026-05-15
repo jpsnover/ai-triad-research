@@ -11,6 +11,7 @@ import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { computeFactCheckStrength } from './qbaf.js';
 import type { WebEvidenceItem } from './qbaf.js';
+import { detectAmbiguityCollapse, findSourcePassage } from './ambiguityDetector.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -932,6 +933,19 @@ export function processExtractedClaims(
         ? claim.extraction_confidence : undefined,
     };
 
+    // FIRE cross-check: cap self-reported extraction_confidence at overlap-derived maximum.
+    // The LLM may overestimate how faithfully it extracted a claim. Word overlap with
+    // the source statement provides a structural sanity check.
+    if (node.extraction_confidence != null) {
+      const overlapCap = overlap >= 0.7 ? 1.0
+        : overlap >= 0.5 ? 0.8
+        : overlap >= 0.3 ? 0.6
+        : 0.5;
+      if (node.extraction_confidence > overlapCap) {
+        node.extraction_confidence = overlapCap;
+      }
+    }
+
     // BDI composite scoring: for Desires and Intentions with sub-scores,
     // use the mean of the 3 calibrated criteria as base_strength (Q-0: r=0.65/0.71).
     if (node.bdi_category === 'desire' && node.bdi_sub_scores) {
@@ -964,6 +978,12 @@ export function processExtractedClaims(
       if (claim.belief_verification
         && claim.belief_verification.source_located
         && claim.belief_verification.evidence_supports) {
+        // Override LLM self-reported ambiguity_resolved with structural detector.
+        // The model that collapsed an ambiguity can't reliably detect its own collapse.
+        const sourcePassage = findSourcePassage(statement, claim.text);
+        const ambiguityResult = detectAmbiguityCollapse(sourcePassage, claim.text);
+        claim.belief_verification.ambiguity_resolved = ambiguityResult.resolution;
+
         node.base_strength = beliefVerificationToStrength(claim.belief_verification);
         node.scoring_method = 'belief_verification';
         beliefScored = true;

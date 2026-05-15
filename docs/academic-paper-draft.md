@@ -962,6 +962,26 @@ The system also addresses ambiguity collapse at the extraction level: the FIRE v
 
 **Neutral evaluator independence.** The neutral evaluator uses the same underlying LLM as the debate agents. While persona stripping removes explicit identity cues, the LLM may still recognize argument patterns associated with particular perspectives (e.g., scaling-focused arguments as "accelerationist"), partially undermining the blinding. True independence would require a different model family or human evaluators.
 
+**LLM-on-LLM evaluation dependencies.** The system contains evaluation points where LLMs grade LLM-generated content, creating correlated error risks. The following table classifies each evaluation point:
+
+| Evaluation point | Method | LLM-on-LLM risk |
+|---|---|---|
+| QBAF propagation | DF-QuAD gradual semantics | None (pure math) |
+| Turn validation Stage A (12 rules) | Deterministic (regex, counts, overlap) | None |
+| Phase transitions | 6-signal composite | None |
+| Convergence diagnostics (7 metrics) | Word overlap, edge counts | None |
+| Debate health score | 5-component weighted composite | None |
+| Context compression | Structural summary from AN | None (LLM removed) |
+| Ambiguity collapse detection | Structural hedging comparison | None (LLM overridden) |
+| FIRE extraction confidence | Self-reported, capped by word overlap | Mitigated (structural cross-check) |
+| Turn validation Stage B (judge) | Cross-vendor LLM (default: Claude Haiku) | Mitigated (different model family) |
+| Neutral evaluator | LLM with persona stripping | Partially mitigated (cross-vendor when configured) |
+| Claim extraction | LLM extracts claims from LLM text | Present (same model) |
+| BDI classification | LLM classifies claim type | Present (same model) |
+| Moderator selection | LLM selects speaker and focus | Present (same model) |
+
+Three mitigations are in place: (1) the turn validator judge defaults to a different model vendor (Claude Haiku when debating on Gemini), (2) ambiguity collapse detection uses a deterministic hedging-language comparison rather than LLM self-report (Gur-Arieh et al., 2026), and (3) extraction confidence is cross-checked against word overlap with the source text. Three evaluation points remain unmitigated: claim extraction, BDI classification, and moderator selection all use the same model as the debaters. Per-debater model diversity (running each character on a different model family) would further reduce correlated errors but introduces prompt-tuning and reproducibility challenges.
+
 **Intervention threshold sensitivity.** The LLM failure mode interventions use thresholds: base_strength > 0.4 for ledger inclusion, entailment < 0.6 for steelman rejection, 3 turns for sycophancy detection. The relevance threshold now self-tunes via adaptive post-debate write-back (Section 8.9): after each debate, the optimizer proposes a revised threshold subject to 4 safety rails (5-debate minimum sample, medium+ confidence, bounds [0.35, 0.60], manual override). Other intervention thresholds have been validated against the updated embedding distributions but remain manually set pending sufficient calibration data.
 
 **SPECIFY move adoption.** The SPECIFY move's effectiveness depends on LLMs' ability to generate genuine falsifiability commitments rather than vague hedges ("I would change my mind if overwhelming evidence..."). Early observations suggest that explicit prompt instruction ("what specific outcome in the next 5 years") is necessary to elicit operationalized predictions, but formal evaluation has not been conducted.

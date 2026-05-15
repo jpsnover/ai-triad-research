@@ -188,6 +188,86 @@ function OutcomeBadge({ outcome }: { outcome: TurnValidation['outcome'] }) {
   );
 }
 
+const CITE_HINT_RE = /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i;
+function classifyHintTarget(hint: string): 'draft' | 'cite' | 'judge' {
+  if (CITE_HINT_RE.test(hint)) return 'cite';
+  // Judge weaknesses tend to be short observations without field names
+  if (!/move_types|my_claims|paragraph|statement|hedge|constructive|pin_response|probe_response|challenge_response|clarification|check_response|revoice|reflection|compressed_thesis|commitment/i.test(hint)) return 'judge';
+  return 'draft';
+}
+
+/** Show validation hints relevant to a specific pipeline stage.
+ *  Uses per-stage validation data from stageDiag when available (new debates),
+ *  falls back to filtered overall validation hints (old debates). */
+function StageValidationHints({ trail, stage, stageDiag }: {
+  trail: TurnValidationTrail | undefined;
+  stage: 'draft' | 'cite';
+  stageDiag?: Record<string, unknown>;
+}) {
+  // Prefer per-stage validation data (written by the pipeline's per-stage validator)
+  const stageVal = stageDiag?.stage_validation as { pass: boolean; hints: string[] } | undefined;
+  let hints: string[];
+  let stageAttempts: number | undefined;
+
+  if (stageVal) {
+    hints = stageVal.hints ?? [];
+    // Count how many diagnostics for this stage exist (each attempt adds one)
+  } else if (trail) {
+    // Fallback: filter the overall validation hints by stage
+    const allHints = trail.final.repairHints ?? [];
+    const stageHints = allHints.filter(h => classifyHintTarget(h) === stage);
+    const judgeHints = stage === 'draft' ? allHints.filter(h => classifyHintTarget(h) === 'judge') : [];
+    hints = [...stageHints, ...judgeHints];
+  } else {
+    return null;
+  }
+
+  if (hints.length === 0) return null;
+
+  const attempts = trail?.attempts?.length ?? 1;
+  const hadRetry = attempts > 1;
+  const outcome = trail?.final.outcome ?? (stageVal?.pass ? 'pass' : 'accept_with_flag');
+
+  return (
+    <details open style={{ margin: '8px 0', fontSize: '0.72rem' }}>
+      <summary style={{ cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+        Validation Feedback
+        {hadRetry && (
+          <span style={{
+            fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+            color: outcome === 'pass' ? '#16a34a' : outcome === 'retry' ? '#dc2626' : '#d97706',
+            background: outcome === 'pass' ? 'rgba(22,163,74,0.1)' : outcome === 'retry' ? 'rgba(220,38,38,0.1)' : 'rgba(217,119,6,0.1)',
+          }}>{attempts} attempt{attempts > 1 ? 's' : ''}</span>
+        )}
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+          score {(trail.final.process_reward ?? 0).toFixed(2)}
+        </span>
+      </summary>
+      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+        {hints.map((h, i) => {
+          const target = classifyHintTarget(h);
+          const ts = HINT_TARGET_STYLE[target];
+          return (
+            <li key={i} style={{ marginBottom: 3 }}>
+              <span style={{
+                display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                color: ts.color, background: ts.bg, padding: '1px 5px',
+                borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+              }}>{ts.label}</span>
+              {h}
+            </li>
+          );
+        })}
+      </ul>
+    </details>
+  );
+}
+const HINT_TARGET_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  draft: { label: 'DRAFT', color: '#d97706', bg: 'rgba(217, 119, 6, 0.08)' },
+  cite: { label: 'CITE', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.08)' },
+  judge: { label: 'QUALITY', color: '#7c3aed', bg: 'rgba(124, 58, 237, 0.08)' },
+};
+
 function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
   const [open, setOpen] = useState(false);
   const v = a.validation;
@@ -221,7 +301,20 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
             <>
               <div style={{ fontWeight: 600, marginTop: 4 }}>Repair hints</div>
               <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
-                {v.repairHints.map((h, i) => <li key={i}>{h}</li>)}
+                {v.repairHints.map((h, i) => {
+                  const target = classifyHintTarget(h);
+                  const ts = HINT_TARGET_STYLE[target];
+                  return (
+                    <li key={i} style={{ marginBottom: 3 }}>
+                      <span style={{
+                        display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                        color: ts.color, background: ts.bg, padding: '1px 5px',
+                        borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+                      }}>{ts.label}</span>
+                      {h}
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}
@@ -292,7 +385,20 @@ function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidationTrail
         <div style={{ fontSize: '0.75rem', marginBottom: 8 }}>
           <strong>Final repair hints</strong>
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-            {f.repairHints.map((h, i) => <li key={i}>{h}</li>)}
+            {f.repairHints.map((h, i) => {
+              const target = classifyHintTarget(h);
+              const ts = HINT_TARGET_STYLE[target];
+              return (
+                <li key={i} style={{ marginBottom: 3 }}>
+                  <span style={{
+                    display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                    color: ts.color, background: ts.bg, padding: '1px 5px',
+                    borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+                  }}>{ts.label}</span>
+                  {h}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -3634,14 +3740,18 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             )}
                             , but it was blocked by the engine.
                           </div>
-                          {suppressedIntervention.intervention_suppressed_reason && (
-                            <div style={{
-                              fontSize: '0.65rem', color: '#d97706', padding: '3px 8px', borderRadius: 4,
-                              background: 'rgba(245, 158, 11, 0.1)', display: 'inline-block',
-                            }}>
-                              {suppressedIntervention.intervention_suppression_explanation || suppressedIntervention.intervention_suppressed_reason.replace(/_/g, ' ')}
-                            </div>
-                          )}
+                          <div style={{
+                            fontSize: '0.7rem', color: '#92400e', padding: '5px 10px', borderRadius: 4,
+                            background: 'rgba(245, 158, 11, 0.12)', marginBottom: 4,
+                            borderLeft: '3px solid #d97706',
+                          }}>
+                            <strong style={{ color: '#d97706' }}>Reason: </strong>
+                            {suppressedIntervention.intervention_suppression_explanation
+                              || (suppressedIntervention.intervention_suppressed_reason
+                                ? suppressedIntervention.intervention_suppressed_reason.replace(/_/g, ' ')
+                                : 'No reason recorded')
+                            }
+                          </div>
                           {suppressedIntervention.trigger_reasoning && (
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
                               {suppressedIntervention.trigger_reasoning}
@@ -4094,6 +4204,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           <span>{(draftStage.response_time_ms / 1000).toFixed(1)}s</span>
                         </div>
                       )}
+                      <StageValidationHints trail={turnValTrail} stage="draft" stageDiag={draftStage as Record<string, unknown> | undefined} />
                       {!draftStage && diag && (
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                           <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>STATEMENT</span>
@@ -4257,6 +4368,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </span>
                         )}
                       </div>
+                      <StageValidationHints trail={turnValTrail} stage="cite" stageDiag={citeStage as Record<string, unknown> | undefined} />
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (() => {
                         const briefNodes = new Set((() => {
                           const wp = briefStage?.work_product as Record<string, unknown> | undefined;

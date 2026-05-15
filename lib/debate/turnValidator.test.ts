@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { resolveTurnValidationConfig, validateTurn } from './turnValidator.js';
+import { resolveTurnValidationConfig, validateTurn, validatePlanStage } from './turnValidator.js';
 import type { ValidateTurnParams } from './turnValidator.js';
 import type {
   TaxonomyRef,
@@ -1147,5 +1147,95 @@ describe('repair hints ordering', () => {
     if (paragraphIdx >= 0 && judgeIdx >= 0) {
       expect(paragraphIdx).toBeLessThan(judgeIdx);
     }
+  });
+});
+
+// ── validatePlanStage ─────────────────────────────────────
+
+function makeValidPlan() {
+  return {
+    strategic_goal: 'Challenge the empirical basis of rapid deployment timelines with regulatory data',
+    planned_moves: [
+      { move: 'COUNTEREXAMPLE', target: 'prometheus', detail: 'Present EU AI Act compliance costs that contradict cost-neutrality claims' },
+      { move: 'EXTEND', detail: 'Build on prior evidence about institutional capacity requirements' },
+    ],
+    target_claims: ['AI deployment will be cost-neutral by 2028'],
+    argument_sketch: 'Begin by challenging the empirical assumptions behind rapid deployment timelines, then pivot to institutional capacity evidence showing regulatory infrastructure is insufficient for the proposed pace.',
+    anticipated_responses: ['Prometheus will cite private sector efficiency gains'],
+  };
+}
+
+describe('validatePlanStage', () => {
+  it('passes with a valid plan', () => {
+    const r = validatePlanStage({ plan: makeValidPlan(), isFirstRound: false });
+    expect(r.pass).toBe(true);
+    expect(r.repairHints.filter(h => !h.startsWith('Warning'))).toHaveLength(0);
+  });
+
+  it('errors when strategic_goal is too short', () => {
+    const plan = { ...makeValidPlan(), strategic_goal: 'short' };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.pass).toBe(false);
+    expect(r.repairHints.some(h => h.includes('strategic_goal'))).toBe(true);
+  });
+
+  it('warns on unknown planned move names', () => {
+    const plan = { ...makeValidPlan(), planned_moves: [{ move: 'BOGUS_MOVE', detail: 'This is a substantive detail about something' }] };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.repairHints.some(h => h.includes('Unknown planned move'))).toBe(true);
+  });
+
+  it('errors when planned_moves detail is too short', () => {
+    const plan = { ...makeValidPlan(), planned_moves: [{ move: 'EXTEND', detail: 'short' }] };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.pass).toBe(false);
+    expect(r.repairHints.some(h => h.includes('too-short detail'))).toBe(true);
+  });
+
+  it('errors when planned_moves is empty', () => {
+    const plan = { ...makeValidPlan(), planned_moves: [] };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.pass).toBe(false);
+    expect(r.repairHints.some(h => h.includes('planned_moves is empty'))).toBe(true);
+  });
+
+  it('warns when planned_moves count exceeds 5', () => {
+    const moves = Array.from({ length: 6 }, (_, i) => ({
+      move: 'EXTEND', detail: `Substantive detail for move ${i} with enough characters`,
+    }));
+    const plan = { ...makeValidPlan(), planned_moves: moves };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.repairHints.some(h => h.includes('over-ambitious'))).toBe(true);
+  });
+
+  it('errors when argument_sketch is too short', () => {
+    const plan = { ...makeValidPlan(), argument_sketch: 'too short' };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.pass).toBe(false);
+    expect(r.repairHints.some(h => h.includes('argument_sketch'))).toBe(true);
+  });
+
+  it('warns when anticipated_responses is empty', () => {
+    const plan = { ...makeValidPlan(), anticipated_responses: [] };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.repairHints.some(h => h.includes('anticipated_responses'))).toBe(true);
+  });
+
+  it('warns when target_claims is empty on non-first round', () => {
+    const plan = { ...makeValidPlan(), target_claims: [] };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.repairHints.some(h => h.includes('target_claims'))).toBe(true);
+  });
+
+  it('skips target_claims warning on first round', () => {
+    const plan = { ...makeValidPlan(), target_claims: [] };
+    const r = validatePlanStage({ plan, isFirstRound: true });
+    expect(r.repairHints.some(h => h.includes('target_claims'))).toBe(false);
+  });
+
+  it('sets failedDimension to plan when errors present', () => {
+    const plan = { ...makeValidPlan(), strategic_goal: '' };
+    const r = validatePlanStage({ plan, isFirstRound: false });
+    expect(r.failedDimension).toBe('plan');
   });
 });

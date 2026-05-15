@@ -19,6 +19,7 @@ import type {
 } from './types.js';
 import type { DocumentAnalysis } from './types.js';
 import { ActionableError } from './errors.js';
+import { validateDraftStage, validateCiteStage, validatePlanStage } from './turnValidator.js';
 import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
 import type { GenerateOptions } from './aiAdapter.js';
 import { parseJsonRobust, wordOverlap } from './helpers.js';
@@ -112,6 +113,7 @@ export interface TurnPipelineInput {
   turnsSinceLastConcession: number;
   priorRefs: string[];
   availablePovNodeIds: string[];
+  availablePolicyIds?: string[];
   crossPovNodeIds?: string[];
   priorFlaggedHints?: string[];
   sourceContent?: string;
@@ -266,93 +268,190 @@ export async function runTurnPipeline(
   const brief = briefParsed.product;
   const briefJson = JSON.stringify(brief, null, 2);
 
-  // ── Stage 2: PLAN ──
-  onProgress?.('plan', `${input.label} is planning...`);
-  let planPromptText: string;
-  let planRaw: string;
-  t0 = Date.now();
-  if (envelopeGenerate) {
-    const env = planStageEnvelope(stageInput, briefJson);
-    planPromptText = flattenEnvelope(env);
-    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
-    planRaw = resp.text;
-  } else {
-    planPromptText = planStagePrompt(stageInput, briefJson);
-    planRaw = await generate(planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} plan`);
-  }
-  elapsed = Date.now() - t0;
-  const planParsed = parseStageResponse<PlanWorkProduct>(planRaw, 'plan');
-  stageDiags.push({
-    stage: 'plan', prompt: planPromptText, raw_response: planRaw,
-    model: input.model, temperature: temps.plan_temperature,
-    response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
-    parse_error: planParsed.error,
-  });
-  if (planParsed.error) {
-    throw new ActionableError({
-      goal: 'Run debate turn pipeline',
-      problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
-      location: 'turnPipeline.runPipeline',
-      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+  // ── Stage 2: PLAN (with per-stage validation + retry) ──
+  const MAX_STAGE_RETRIES = 1; // max 1 retry per stage (2 attempts total)
+  const isFirstRound = (input.priorMoves ?? []).length === 0;
+  let planRepairHints: string[] = [];
+  let plan: PlanWorkProduct | undefined;
+  let planJson = '';
+
+  for (let planAttempt = 0; planAttempt <= MAX_STAGE_RETRIES; planAttempt++) {
+    onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
+    let planPromptText: string;
+    let planRaw: string;
+    t0 = Date.now();
+    if (envelopeGenerate) {
+      const env = planStageEnvelope(stageInput, briefJson);
+      if (planRepairHints.length > 0) {
+        env.layer4_variable += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
+      }
+      planPromptText = flattenEnvelope(env);
+      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
+      planRaw = resp.text;
+    } else {
+      planPromptText = planStagePrompt(stageInput, briefJson);
+      if (planRepairHints.length > 0) {
+        planPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
+      }
+      planRaw = await generate(planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} plan`);
+    }
+    elapsed = Date.now() - t0;
+    const planParsed = parseStageResponse<PlanWorkProduct>(planRaw, 'plan');
+    stageDiags.push({
+      stage: 'plan', prompt: planPromptText, raw_response: planRaw,
+      model: input.model, temperature: temps.plan_temperature,
+      response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
+      parse_error: planParsed.error,
     });
-  }
-  const plan = planParsed.product;
-  const planJson = JSON.stringify(plan, null, 2);
-
-  // ── Stage 3: DRAFT ──
-  onProgress?.('draft', `${input.label} is drafting...`);
-  let draftPromptText: string;
-  let draftRaw: string;
-  t0 = Date.now();
-  if (envelopeGenerate) {
-    const env = draftStageEnvelope(stageInput, briefJson, planJson);
-    if (input.repairHints && input.repairHints.length > 0) {
-      env.layer4_variable += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${input.repairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised statement.`;
+    if (planParsed.error) {
+      throw new ActionableError({
+        goal: 'Run debate turn pipeline',
+        problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
+        location: 'turnPipeline.runPipeline',
+        nextSteps: ['Check the AI model response quality', 'Try a different model'],
+      });
     }
-    draftPromptText = flattenEnvelope(env);
-    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft`);
-    draftRaw = resp.text;
-  } else {
-    draftPromptText = draftStagePrompt(stageInput, briefJson, planJson);
-    if (input.repairHints && input.repairHints.length > 0) {
-      draftPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${input.repairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised statement.`;
-    }
-    draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
-  }
-  elapsed = Date.now() - t0;
-  const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
-  stageDiags.push({
-    stage: 'draft', prompt: draftPromptText, raw_response: draftRaw,
-    model: input.model, temperature: temps.draft_temperature,
-    response_time_ms: elapsed, work_product: draftParsed.product as unknown as Record<string, unknown>,
-    parse_error: draftParsed.error,
-  });
-  const draft = draftParsed.product;
-  const draftJson = JSON.stringify(draft, null, 2);
 
-  // ── Stage 4: CITE ──
-  onProgress?.('cite', `${input.label} is citing...`);
-  let citePromptText: string;
-  let citeRaw: string;
-  t0 = Date.now();
-  if (envelopeGenerate) {
-    const env = citeStageEnvelope(stageInput, briefJson, planJson, draftJson);
-    citePromptText = flattenEnvelope(env);
-    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.cite_temperature } }, `${input.label} cite`);
-    citeRaw = resp.text;
-  } else {
-    citePromptText = citeStagePrompt(stageInput, briefJson, planJson, draftJson);
-    citeRaw = await generate(citePromptText, input.model, { temperature: temps.cite_temperature }, `${input.label} cite`);
+    // Validate plan
+    const planVal = validatePlanStage({ plan: planParsed.product, isFirstRound });
+    const lastPlanDiag = stageDiags[stageDiags.length - 1];
+    (lastPlanDiag as Record<string, unknown>).stage_validation = { pass: planVal.pass, hints: planVal.repairHints };
+
+    if (!planVal.pass && planAttempt < MAX_STAGE_RETRIES) {
+      planRepairHints = planVal.repairHints.filter(h => !h.startsWith('Warning'));
+      console.log(`[pipeline] Plan validation failed (attempt ${planAttempt}), retrying: ${planVal.repairHints.join('; ')}`);
+      continue;
+    }
+
+    plan = planParsed.product;
+    planJson = JSON.stringify(plan, null, 2);
+    break;
   }
-  elapsed = Date.now() - t0;
-  const citeParsed = parseStageResponse<CiteWorkProduct>(citeRaw, 'cite');
-  stageDiags.push({
-    stage: 'cite', prompt: citePromptText, raw_response: citeRaw,
-    model: input.model, temperature: temps.cite_temperature,
-    response_time_ms: elapsed, work_product: citeParsed.product as unknown as Record<string, unknown>,
-    parse_error: citeParsed.error,
-  });
-  const cite = citeParsed.product;
+  if (!plan) {
+    plan = {} as PlanWorkProduct;
+    planJson = '{}';
+  }
+
+  // ── Stage 3: DRAFT (with per-stage validation + retry) ──
+  let draftRepairHints: string[] = input.repairHints?.filter(h =>
+    !/taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i.test(h)
+  ) ?? [];
+  let draft: DraftWorkProduct | undefined;
+  let draftJson = '';
+
+  for (let draftAttempt = 0; draftAttempt <= MAX_STAGE_RETRIES; draftAttempt++) {
+    onProgress?.('draft', `${input.label} is drafting${draftAttempt > 0 ? ` (retry ${draftAttempt})` : ''}...`);
+    let draftPromptText: string;
+    let draftRaw: string;
+    t0 = Date.now();
+    if (envelopeGenerate) {
+      const env = draftStageEnvelope(stageInput, briefJson, planJson);
+      if (draftRepairHints.length > 0) {
+        env.layer4_variable += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${draftRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised statement.`;
+      }
+      draftPromptText = flattenEnvelope(env);
+      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft`);
+      draftRaw = resp.text;
+    } else {
+      draftPromptText = draftStagePrompt(stageInput, briefJson, planJson);
+      if (draftRepairHints.length > 0) {
+        draftPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${draftRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised statement.`;
+      }
+      draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
+    }
+    elapsed = Date.now() - t0;
+    const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
+    stageDiags.push({
+      stage: 'draft', prompt: draftPromptText, raw_response: draftRaw,
+      model: input.model, temperature: temps.draft_temperature,
+      response_time_ms: elapsed, work_product: draftParsed.product as unknown as Record<string, unknown>,
+      parse_error: draftParsed.error,
+    });
+    draft = draftParsed.product;
+
+    // Per-stage draft validation
+    if (draft) {
+      const meta = extractDraftMeta(draft);
+      const draftVal = validateDraftStage({
+        statement: draft.statement ?? '',
+        meta,
+        phase: stageInput.phase ?? 'argumentation',
+        round: typeof (stageInput as Record<string, unknown>).round === 'number' ? (stageInput as Record<string, unknown>).round as number : 3,
+        priorTurns: (input as Record<string, unknown>).priorTurns as import('./types.js').TranscriptEntry[] ?? [],
+        audience: stageInput.audience,
+        pendingIntervention: stageInput.pendingIntervention as import('./types.js').ModeratorIntervention | undefined,
+      });
+      // Record validation result on the stage diagnostic
+      const lastDiag = stageDiags[stageDiags.length - 1];
+      (lastDiag as Record<string, unknown>).stage_validation = { pass: draftVal.pass, hints: draftVal.repairHints };
+
+      if (!draftVal.pass && draftAttempt < MAX_STAGE_RETRIES) {
+        draftRepairHints = draftVal.repairHints.filter(h => !h.startsWith('Warning'));
+        console.log(`[pipeline] Draft validation failed (attempt ${draftAttempt}), retrying: ${draftVal.repairHints.join('; ')}`);
+        continue;
+      }
+    }
+    break;
+  }
+  draftJson = JSON.stringify(draft, null, 2);
+
+  // ── Stage 4: CITE (with per-stage validation + retry) ──
+  let citeRepairHints: string[] = input.repairHints?.filter(h =>
+    /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i.test(h)
+  ) ?? [];
+  let citeParsed: ReturnType<typeof parseStageResponse<CiteWorkProduct>>;
+
+  for (let citeAttempt = 0; citeAttempt <= MAX_STAGE_RETRIES; citeAttempt++) {
+    onProgress?.('cite', `${input.label} is citing${citeAttempt > 0 ? ` (retry ${citeAttempt})` : ''}...`);
+    let citePromptText: string;
+    let citeRaw: string;
+    t0 = Date.now();
+    if (envelopeGenerate) {
+      const env = citeStageEnvelope(stageInput, briefJson, planJson, draftJson);
+      if (citeRepairHints.length > 0) {
+        env.layer4_variable += `\n\n=== CITATION REPAIR HINTS (from prior failed attempt) ===\n${citeRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your taxonomy references.`;
+      }
+      citePromptText = flattenEnvelope(env);
+      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.cite_temperature } }, `${input.label} cite`);
+      citeRaw = resp.text;
+    } else {
+      citePromptText = citeStagePrompt(stageInput, briefJson, planJson, draftJson);
+      if (citeRepairHints.length > 0) {
+        citePromptText += `\n\n=== CITATION REPAIR HINTS (from prior failed attempt) ===\n${citeRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your taxonomy references.`;
+      }
+      citeRaw = await generate(citePromptText, input.model, { temperature: temps.cite_temperature }, `${input.label} cite`);
+    }
+    elapsed = Date.now() - t0;
+    citeParsed = parseStageResponse<CiteWorkProduct>(citeRaw, 'cite');
+    stageDiags.push({
+      stage: 'cite', prompt: citePromptText, raw_response: citeRaw,
+      model: input.model, temperature: temps.cite_temperature,
+      response_time_ms: elapsed, work_product: citeParsed.product as unknown as Record<string, unknown>,
+      parse_error: citeParsed.error,
+    });
+
+    // Per-stage cite validation
+    if (citeParsed.product) {
+      const citeVal = validateCiteStage({
+        taxonomyRefs: (citeParsed.product.taxonomy_refs ?? []) as import('./types.js').TaxonomyRef[],
+        policyRefs: citeParsed.product.policy_refs as string[] | undefined,
+        knownNodeIds: new Set(input.availablePovNodeIds ?? []),
+        policyIds: new Set(input.availablePolicyIds ?? []),
+        priorTurns: (input as Record<string, unknown>).priorTurns as import('./types.js').TranscriptEntry[] ?? [],
+        speaker: input.label,
+      });
+      const lastDiag = stageDiags[stageDiags.length - 1];
+      (lastDiag as Record<string, unknown>).stage_validation = { pass: citeVal.pass, hints: citeVal.repairHints };
+
+      if (!citeVal.pass && citeAttempt < MAX_STAGE_RETRIES) {
+        citeRepairHints = citeVal.repairHints.filter(h => !h.startsWith('Warning'));
+        console.log(`[pipeline] Cite validation failed (attempt ${citeAttempt}), retrying: ${citeVal.repairHints.join('; ')}`);
+        continue;
+      }
+    }
+    break;
+  }
+  const cite = citeParsed!.product;
 
   return {
     brief,
@@ -362,6 +461,28 @@ export async function runTurnPipeline(
     stage_diagnostics: stageDiags,
     total_time_ms: Date.now() - pipelineStart,
   };
+}
+
+/** Extract PoverResponseMeta-compatible object from DraftWorkProduct for validation. */
+function extractDraftMeta(draft: DraftWorkProduct): PoverResponseMeta {
+  return {
+    move_types: draft.move_types as MoveAnnotation[] | undefined,
+    my_claims: draft.claim_sketches?.map(c => ({
+      claim: typeof c === 'string' ? c : (c as Record<string, unknown>).claim as string ?? '',
+    })) ?? [],
+    disagreement_type: draft.disagreement_type as string | undefined,
+    key_assumptions: draft.key_assumptions as { assumption: string; if_wrong: string }[] | undefined,
+    // Pass through intervention response fields
+    ...(draft as Record<string, unknown>).pin_response != null ? { pin_response: (draft as Record<string, unknown>).pin_response } : {},
+    ...(draft as Record<string, unknown>).probe_response != null ? { probe_response: (draft as Record<string, unknown>).probe_response } : {},
+    ...(draft as Record<string, unknown>).challenge_response != null ? { challenge_response: (draft as Record<string, unknown>).challenge_response } : {},
+    ...(draft as Record<string, unknown>).clarification != null ? { clarification: (draft as Record<string, unknown>).clarification } : {},
+    ...(draft as Record<string, unknown>).check_response != null ? { check_response: (draft as Record<string, unknown>).check_response } : {},
+    ...(draft as Record<string, unknown>).revoice_response != null ? { revoice_response: (draft as Record<string, unknown>).revoice_response } : {},
+    ...(draft as Record<string, unknown>).reflection != null ? { reflection: (draft as Record<string, unknown>).reflection } : {},
+    ...(draft as Record<string, unknown>).compressed_thesis != null ? { compressed_thesis: (draft as Record<string, unknown>).compressed_thesis } : {},
+    ...(draft as Record<string, unknown>).commitment != null ? { commitment: (draft as Record<string, unknown>).commitment } : {},
+  } as PoverResponseMeta;
 }
 
 // ── Statement deduplication ──────────────────────────────

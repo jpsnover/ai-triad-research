@@ -594,6 +594,19 @@ export class DebateEngine {
   }
 
   /** Enrich taxonomy refs with relevance scores and primary flags from the last injection manifest. */
+  private _nodeLabelMap?: Map<string, string>;
+
+  private getNodeLabelMap(): Map<string, string> {
+    if (this._nodeLabelMap) return this._nodeLabelMap;
+    const m = new Map<string, string>();
+    for (const pov of [this.taxonomy.accelerationist, this.taxonomy.safetyist, this.taxonomy.skeptic]) {
+      for (const n of pov.nodes) m.set(n.id, n.label);
+    }
+    for (const n of this.taxonomy.situations?.nodes ?? []) m.set(n.id, n.label);
+    this._nodeLabelMap = m;
+    return m;
+  }
+
   private enrichTaxonomyRefs(refs: TaxonomyRef[]): void {
     const manifest = this._lastInjectionManifest;
     if (!manifest) return;
@@ -609,11 +622,14 @@ export class DebateEngine {
       }
     }
     const primarySet = new Set(manifest.povPrimaryIds);
+    const labelMap = this.getNodeLabelMap();
 
     for (const ref of refs) {
       const score = scoreMap.get(ref.node_id);
       if (score != null) ref.relevance_score = score;
       if (primarySet.has(ref.node_id)) ref.primary = true;
+      const label = labelMap.get(ref.node_id);
+      if (label) ref.label = label;
     }
   }
 
@@ -1977,6 +1993,7 @@ export class DebateEngine {
       turnsSinceLastConcession,
       priorRefs,
       availablePovNodeIds,
+      availablePolicyIds: [...this.getPolicyIds()],
       crossPovNodeIds,
       priorFlaggedHints,
       doctrinalBoundaries: info.doctrinal_boundaries,
