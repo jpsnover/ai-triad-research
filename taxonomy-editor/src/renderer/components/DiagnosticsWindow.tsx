@@ -209,15 +209,17 @@ function StageValidationHints({ trail, stage, stageDiag }: {
   let hints: string[];
   let stageAttempts: number | undefined;
 
-  if (stageVal) {
-    hints = stageVal.hints ?? [];
-    // Count how many diagnostics for this stage exist (each attempt adds one)
-  } else if (trail) {
-    // Fallback: filter the overall validation hints by stage
-    const allHints = trail.final.repairHints ?? [];
-    const stageHints = allHints.filter(h => classifyHintTarget(h) === stage);
-    const judgeHints = stage === 'draft' ? allHints.filter(h => classifyHintTarget(h) === 'judge') : [];
-    hints = [...stageHints, ...judgeHints];
+  // Collect stage-relevant hints from overall validation (always available)
+  const allHints = trail?.final.repairHints ?? [];
+  const overallStageHints = allHints.filter(h => classifyHintTarget(h) === stage);
+  const judgeHints = stage === 'draft' ? allHints.filter(h => classifyHintTarget(h) === 'judge') : [];
+
+  if (stageVal && stageVal.hints.length > 0) {
+    // Per-stage validation has hints — use them, plus any judge hints for the draft tab
+    hints = [...stageVal.hints, ...judgeHints];
+  } else if (overallStageHints.length > 0 || judgeHints.length > 0) {
+    // Fall back to (or supplement with) filtered overall validation hints
+    hints = [...overallStageHints, ...judgeHints];
   } else {
     return null;
   }
@@ -3516,7 +3518,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                           textAlign: 'left',
                                         }}
                                         title="Show Perspective details"
-                                      >{r.primary ? '★ ' : ''}{r.node_id}</button>
+                                      >{r.primary ? '★ ' : ''}{r.node_id}{(r as {label?: string}).label ? `: ${(r as {label?: string}).label}` : ''}</button>
                                     </td>
                                     <td style={{ padding: '4px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: scoreColor, fontFamily: 'monospace', fontSize: '0.75rem' }}>
                                       {score != null ? score.toFixed(2) : '—'}
@@ -4408,7 +4410,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
                                         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
                                         title="Show node details"
-                                      >{r.primary ? '★ ' : ''}{r.node_id}</button>
+                                      >{r.primary ? '★ ' : ''}{r.node_id}{(r as {label?: string}).label ? `: ${(r as {label?: string}).label}` : ''}</button>
                                       {isNew && (
                                         <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
                                       )}
@@ -4554,6 +4556,60 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                     })}
                                   </div>
                                 )}
+                                {/* Evidence graph inline (t/495) */}
+                                {(() => {
+                                  const anNode = an?.nodes.find(n => n.id === c.id);
+                                  const eg = anNode?.evidence_graph as { evidence_items: { id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }[]; computed_strength: number; qbaf_iterations: number } | undefined;
+                                  if (!eg || eg.evidence_items.length === 0) return null;
+                                  const barPct = Math.round(eg.computed_strength * 100);
+                                  const barColor = eg.computed_strength >= 0.7 ? '#22c55e' : eg.computed_strength >= 0.4 ? '#f59e0b' : '#ef4444';
+                                  const supports = eg.evidence_items.filter(e => e.relation === 'support');
+                                  const contradicts = eg.evidence_items.filter(e => e.relation === 'contradict');
+                                  return (
+                                    <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4 }}>
+                                      <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
+                                        Evidence ({supports.length} support, {contradicts.length} contradict)
+                                      </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                        <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--bg-primary)' }}>
+                                          <div style={{ width: `${barPct}%`, height: '100%', borderRadius: 3, background: barColor }} />
+                                        </div>
+                                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: barColor, minWidth: 36 }}>
+                                          {eg.computed_strength.toFixed(2)}
+                                        </span>
+                                        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                                          {eg.qbaf_iterations} iter
+                                        </span>
+                                      </div>
+                                      {eg.evidence_items
+                                        .sort((a, b) => a.relation !== b.relation ? (a.relation === 'contradict' ? -1 : 1) : b.similarity - a.similarity)
+                                        .map(item => (
+                                        <div key={item.id} style={{
+                                          marginBottom: 3, padding: '3px 6px', borderRadius: 4, fontSize: '0.65rem',
+                                          borderLeft: `2px solid ${item.relation === 'support' ? '#22c55e' : '#ef4444'}`,
+                                          background: item.relation === 'support' ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                                        }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <span style={{
+                                              fontSize: '0.55rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                                              background: item.relation === 'support' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                                              color: item.relation === 'support' ? '#22c55e' : '#ef4444',
+                                            }}>
+                                              {item.relation === 'support' ? 'SUP' : 'CON'}
+                                            </span>
+                                            <span style={{ color: 'var(--text-muted)' }}>{(item.similarity * 100).toFixed(0)}%</span>
+                                            <span style={{ color: 'var(--text-muted)', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                              {item.source_doc_id}
+                                            </span>
+                                          </div>
+                                          <div style={{ lineHeight: 1.3, color: 'var(--text-primary)', marginTop: 1 }}>
+                                            {item.text.length > 120 ? item.text.slice(0, 120) + '…' : item.text}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                })()}
                               </details>
                             );
                           })}
@@ -4567,6 +4623,39 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       )}
                     </div>
                   )}
+
+                  {/* Quality Feedback footer — visible on all tabs */}
+                  {(() => {
+                    const qualityHints = (turnValTrail?.final.repairHints ?? []).filter(h => classifyHintTarget(h) === 'judge');
+                    if (qualityHints.length === 0) return null;
+                    return (
+                      <details style={{
+                        marginTop: 8,
+                        borderTop: '1px solid var(--border)',
+                        paddingTop: 6,
+                      }}>
+                        <summary style={{
+                          cursor: 'pointer',
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          color: '#f59e0b',
+                          userSelect: 'none',
+                        }}>
+                          Quality Feedback ({qualityHints.length})
+                        </summary>
+                        <ul style={{
+                          margin: '4px 0 0 0',
+                          paddingLeft: 18,
+                          fontSize: '0.7rem',
+                          color: 'var(--text-secondary)',
+                        }}>
+                          {qualityHints.map((h, i) => (
+                            <li key={i} style={{ marginBottom: 2 }}>{h}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    );
+                  })()}
                 </div>
                 {textCopyMenu && (
                   <div
