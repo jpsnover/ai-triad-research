@@ -185,6 +185,15 @@ export function checkEdgeDomainRange(
             `Verify this is intentional; consider CONTRADICTS for intra-POV conflicts`));
         }
         break;
+
+      case 'CONVERGES_WITH':
+        // CONVERGES_WITH should target a situation node (consensus point)
+        if (!isSitTarget) {
+          issues.push(issue('warning', 'CONVERGES_NON_SITUATION', `${e.source}->${e.target}`,
+            `CONVERGES_WITH edge targets '${e.target}' which is not a situation node`,
+            `CONVERGES_WITH indicates a POV node aligns with a consensus situation node`));
+        }
+        break;
     }
   }
 

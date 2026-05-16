@@ -1706,6 +1706,24 @@ export interface ReflectionResult {
   edits: ReflectionEdit[];
 }
 
+// ── Consensus detection types ────────────────────────────
+
+export interface ConsensusProposal {
+  pov: string;
+  editIndex: number;
+  proposed_label: string;
+  proposed_description: string;
+  rationale: string;
+  evidence_entries: string[];
+}
+
+export interface ConsensusCluster {
+  id: string;
+  proposals: ConsensusProposal[];
+  similarityScores: Record<string, number>; // e.g. "acc-saf": 0.82
+  status: 'pending' | 'accepted' | 'rejected';
+}
+
 // ── Store interface ──────────────────────────────────────
 
 interface DebateStore {
@@ -1793,9 +1811,12 @@ interface DebateStore {
 
   // Phase 6: Reflections
   reflections: ReflectionResult[];
+  consensusClusters: ConsensusCluster[];
   requestReflections: () => Promise<void>;
   applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }) => Promise<{ ok: boolean; error?: string }>;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
+  acceptConsensus: (clusterId: string) => Promise<{ ok: boolean; error?: string }>;
+  rejectConsensus: (clusterId: string) => void;
 
   // AN node editing
   updateAnNodeSubScore: (nodeId: string, key: string, value: number) => void;
@@ -1844,6 +1865,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   crossCuttingProposals: [],
   taxonomyGapAnalysis: null,
   reflections: [],
+  consensusClusters: [],
   inspectedNodeId: null,
   debateModel: null,
   debateTemperature: null,
@@ -4474,7 +4496,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
 
     const isStillValid = createDebateGuard(get);
-    set({ debateError: null, debateWarnings: [], reflections: [] });
+    set({ debateError: null, debateWarnings: [], reflections: [], consensusClusters: [] });
 
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
@@ -4618,10 +4640,102 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
     }
 
+    // ── Consensus detection: find overlapping ADD proposals across POVs ──
+    const addProposals: ConsensusProposal[] = [];
+    for (const result of results) {
+      for (let i = 0; i < result.edits.length; i++) {
+        const edit = result.edits[i];
+        if (edit.edit_type === 'add') {
+          addProposals.push({
+            pov: result.pover,
+            editIndex: i,
+            proposed_label: edit.proposed_label,
+            proposed_description: edit.proposed_description,
+            rationale: edit.rationale,
+            evidence_entries: edit.evidence_entries,
+          });
+        }
+      }
+    }
+
+    const clusters: ConsensusCluster[] = [];
+    if (addProposals.length >= 2) {
+      try {
+        // Compute embeddings for all ADD proposals
+        const embeddings: { pov: string; editIndex: number; vector: number[] }[] = [];
+        for (const p of addProposals) {
+          const { vector } = await api.computeQueryEmbedding(p.proposed_description.slice(0, 500));
+          embeddings.push({ pov: p.pov, editIndex: p.editIndex, vector });
+        }
+
+        // Pairwise similarity (only across different POVs)
+        const pairs: { a: number; b: number; sim: number }[] = [];
+        for (let i = 0; i < embeddings.length; i++) {
+          for (let j = i + 1; j < embeddings.length; j++) {
+            if (embeddings[i].pov === embeddings[j].pov) continue;
+            const sim = cosineSimilarity(embeddings[i].vector, embeddings[j].vector);
+            if (sim > 0.70) pairs.push({ a: i, b: j, sim });
+          }
+        }
+
+        // Cluster overlapping pairs using union-find
+        if (pairs.length > 0) {
+          const parent = new Map<number, number>();
+          const find = (x: number): number => {
+            if (!parent.has(x)) parent.set(x, x);
+            if (parent.get(x) !== x) parent.set(x, find(parent.get(x)!));
+            return parent.get(x)!;
+          };
+          const union = (a: number, b: number) => { parent.set(find(a), find(b)); };
+
+          for (const { a, b } of pairs) { union(a, b); }
+
+          // Group by root
+          const groups = new Map<number, number[]>();
+          for (const idx of new Set([...pairs.map(p => p.a), ...pairs.map(p => p.b)])) {
+            const root = find(idx);
+            if (!groups.has(root)) groups.set(root, []);
+            groups.get(root)!.push(idx);
+          }
+
+          for (const members of groups.values()) {
+            // Only create cluster if at least 2 different POVs
+            const povSet = new Set(members.map(m => embeddings[m].pov));
+            if (povSet.size < 2) continue;
+
+            const clusterProposals = members.map(m => addProposals[m]);
+            const scores: Record<string, number> = {};
+            for (const { a, b, sim } of pairs) {
+              if (members.includes(a) && members.includes(b)) {
+                const key = [embeddings[a].pov.slice(0, 3), embeddings[b].pov.slice(0, 3)].sort().join('-');
+                scores[key] = Math.max(scores[key] || 0, sim);
+              }
+            }
+
+            clusters.push({
+              id: generateId(),
+              proposals: clusterProposals,
+              similarityScores: scores,
+              status: 'pending',
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[reflections] Consensus detection failed (non-fatal):', err);
+      }
+    }
+
+    if (clusters.length > 0) {
+      set({ consensusClusters: clusters });
+    }
+
     // Add a transcript entry for the reflection
     const summaryLines = results.map(r =>
       `**${r.label}:** ${r.reflection_summary} (${r.edits.length} edit${r.edits.length !== 1 ? 's' : ''} proposed)`
     );
+    if (clusters.length > 0) {
+      summaryLines.push(`\n**Consensus detected:** ${clusters.length} convergence cluster${clusters.length !== 1 ? 's' : ''} found across POV proposals.`);
+    }
     const reflEntry: TranscriptEntry = {
       id: generateId(),
       speaker: 'system',
@@ -4629,7 +4743,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       content: `## Reflections\n\n${summaryLines.join('\n\n')}`,
       timestamp: nowISO(),
       taxonomy_refs: [],
-      metadata: { reflection_results: results },
+      metadata: { reflection_results: results, consensus_clusters: clusters.length > 0 ? clusters : undefined },
     };
     set({
       debateGenerating: null,
@@ -4713,6 +4827,119 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       };
     });
     set({ reflections: updated });
+  },
+
+  acceptConsensus: async (clusterId: string) => {
+    const { consensusClusters, activeDebateId } = get();
+    const cluster = consensusClusters.find(c => c.id === clusterId);
+    if (!cluster || cluster.status !== 'pending') return { ok: false, error: 'Cluster not found or already resolved' };
+
+    try {
+      // Build proposals for the prompt
+      const { consensusSituationPrompt } = await import('@lib/debate/prompts');
+      type CP = import('@lib/debate/prompts').ConvergenceProposal;
+      const promptProposals: CP[] = cluster.proposals.map(p => ({
+        pov: p.pov,
+        proposed_label: p.proposed_label,
+        proposed_description: p.proposed_description,
+        rationale: p.rationale,
+        evidence_entries: p.evidence_entries,
+      }));
+
+      const prompt = consensusSituationPrompt(promptProposals, cluster.similarityScores, activeDebateId || '');
+      const model = getConfiguredModel();
+      const { text } = await api.generateText(prompt, model);
+
+      // Parse the situation node response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return { ok: false, error: 'Failed to parse situation node response' };
+      const parsed = JSON.parse(jsonMatch[0]) as {
+        label: string;
+        description: string;
+        interpretations: Record<string, string>;
+        convergence_type: 'full' | 'partial' | 'conditional';
+      };
+
+      // Create the situation node
+      const taxStore = useTaxonomyStore.getState();
+      const newId = taxStore.createSituationNode();
+      if (!newId) return { ok: false, error: 'Failed to create situation node' };
+
+      taxStore.updateSituationNode(newId, {
+        label: parsed.label,
+        description: parsed.description,
+        interpretations: {
+          accelerationist: parsed.interpretations.accelerationist || '',
+          safetyist: parsed.interpretations.safetyist || '',
+          skeptic: parsed.interpretations.skeptic || '',
+        },
+        debate_refs: activeDebateId ? [activeDebateId] : [],
+        convergence_source: {
+          debate_id: activeDebateId || '',
+          convergence_type: parsed.convergence_type || 'partial',
+          original_proposals: Object.fromEntries(
+            cluster.proposals.map(p => [p.pov, { proposed_label: p.proposed_label, evidence_entries: p.evidence_entries }])
+          ),
+          similarity_scores: cluster.similarityScores,
+        },
+      });
+
+      // Create CONVERGES_WITH edges from each converging POV to the situation node
+      const currentEdgesFile = useTaxonomyStore.getState().edgesFile;
+      if (currentEdgesFile) {
+        const convergenceEdges = cluster.proposals.map(p => ({
+          source: `${p.pov.slice(0, 3)}-convergence`, // symbolic source — links POV to situation
+          target: newId,
+          type: 'CONVERGES_WITH' as const,
+          bidirectional: false,
+          confidence: 0.8,
+          weight: 0.8,
+          rationale: `Consensus detected via embedding similarity (debate: ${activeDebateId})`,
+          status: 'proposed' as const,
+          discovered_at: nowISO(),
+          model: 'consensus-detection',
+        }));
+        const updatedEdgesFile = {
+          ...currentEdgesFile,
+          last_modified: nowISO(),
+          edges: [...currentEdgesFile.edges, ...convergenceEdges],
+        };
+        const dirty = new Set(useTaxonomyStore.getState().dirty);
+        dirty.add('edges');
+        useTaxonomyStore.setState({ edgesFile: updatedEdgesFile, dirty });
+      }
+
+      await taxStore.save();
+      const saveError = useTaxonomyStore.getState().saveError;
+      if (saveError) return { ok: false, error: saveError };
+
+      // Mark cluster as accepted and dismiss the individual edits
+      const updatedClusters = consensusClusters.map(c =>
+        c.id === clusterId ? { ...c, status: 'accepted' as const } : c
+      );
+      // Dismiss the per-POV ADD edits that are now covered by the situation node
+      const { reflections } = get();
+      const updatedReflections = reflections.map(r => {
+        const matchingProposal = cluster.proposals.find(p => p.pov === r.pover);
+        if (!matchingProposal) return r;
+        return {
+          ...r,
+          edits: r.edits.map((e, i) => i === matchingProposal.editIndex ? { ...e, status: 'dismissed' as const } : e),
+        };
+      });
+      set({ consensusClusters: updatedClusters, reflections: updatedReflections });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+
+  rejectConsensus: (clusterId: string) => {
+    const { consensusClusters } = get();
+    const updated = consensusClusters.map(c =>
+      c.id === clusterId ? { ...c, status: 'rejected' as const } : c
+    );
+    set({ consensusClusters: updated });
   },
 
   updateAnNodeSubScore: (nodeId: string, key: string, value: number) => {

@@ -101,6 +101,13 @@ export interface SituationNode {
   parent_relationship?: 'is_a' | 'part_of' | 'specializes' | null;
   /** Rationale for the parent relationship. */
   parent_rationale?: string | null;
+  /** Tracks origin when this node was created via consensus detection. */
+  convergence_source?: {
+    debate_id: string;
+    convergence_type: 'full' | 'partial' | 'conditional';
+    original_proposals: Record<string, { proposed_label: string; evidence_entries: string[] }>;
+    similarity_scores: Record<string, number>;
+  };
 }
 
 /** @deprecated Use SituationNode */

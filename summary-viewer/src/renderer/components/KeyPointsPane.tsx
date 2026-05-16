@@ -7,6 +7,22 @@ import type { KeyPoint, PipelineSummary, GraphAttributes, TaxonomyNode } from '.
 import { rankBySimilarity } from '../utils/similarity';
 import type { SemanticResult } from '../utils/similarity';
 
+// ── Lightweight DOLCE compliance check ──
+function checkDolce(desc: string, pov?: string): { pass: boolean; issues: string[] } {
+  if (!desc) return { pass: false, issues: ['No description'] };
+  const issues: string[] = [];
+  const isSituation = pov === 'situations';
+  const genusRe = isSituation
+    ? /^A\s+situation\s+(within|that|concept|in|where)\s+/i
+    : /^An?\s+(Belief|Desire|Intention)\s+within\s+/i;
+  if (!genusRe.test(desc.split('\n')[0]?.trim() ?? '')) {
+    issues.push(isSituation ? 'Missing genus: "A situation that..."' : 'Missing genus: "A [B/D/I] within..."');
+  }
+  if (!/encompasses:/i.test(desc)) issues.push('Missing Encompasses clause');
+  if (!/excludes:/i.test(desc)) issues.push('Missing Excludes clause');
+  return { pass: issues.length === 0, issues };
+}
+
 const POV_CONFIG: Record<string, { label: string; colorVar: string; bgVar: string }> = {
   accelerationist: { label: 'Accelerationist', colorVar: 'var(--color-acc)', bgVar: 'var(--bg-acc)' },
   safetyist: { label: 'Safetyist', colorVar: 'var(--color-saf)', bgVar: 'var(--bg-saf)' },
@@ -286,6 +302,61 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
   const [similarExpanded, setSimilarExpanded] = useState(false);
   const [similarItems, setSimilarItems] = useState<(SemanticResult & { node: TaxonomyNode })[] | null>(null);
   const [similarLoading, setSimilarLoading] = useState(false);
+  const [fixingDolce, setFixingDolce] = useState(false);
+  const [fixedDescription, setFixedDescription] = useState<string | null>(null);
+  const aiModel = useStore(s => s.aiModel);
+
+  const handleFixDolce = useCallback(async () => {
+    const desc = fixedDescription ?? uc.suggested_description;
+    if (!desc) return;
+    setFixingDolce(true);
+    try {
+      const isSituation = uc.suggested_pov === 'situations';
+      const category = uc.suggested_category || 'Beliefs';
+      const pov = uc.suggested_pov || 'skeptic';
+      const prompt = `Rewrite this taxonomy node description into DOLCE genus-differentia format.
+
+CURRENT DESCRIPTION:
+"${desc}"
+
+LABEL: "${uc.suggested_label || ''}"
+CATEGORY: ${category}
+POV: ${pov}
+
+REQUIRED FORMAT — exactly 3 parts:
+${isSituation
+  ? 'Line 1: "A situation that [ONE distinguishing concept]."'
+  : `Line 1: "A ${category.replace(/s$/, '')} within ${pov} discourse that [ONE distinguishing concept]."`}
+Line 2: "Encompasses: [3-5 concrete sub-themes as comma-separated list]."
+Line 3: "Excludes: [2-3 neighboring concepts this node is NOT about]."
+
+RULES:
+- The differentia states WHAT the position IS, not WHY it is correct
+- No causal connectors: do NOT use "rendering", "thereby", "thus", "therefore"
+- Encompasses items should be at the same abstraction level
+- Excludes items should be named neutrally without editorial
+
+Return ONLY the rewritten description text (no JSON, no markdown, no explanation).`;
+
+      const raw = await window.electronAPI.generateContent(
+        'You are a taxonomy editor specializing in DOLCE-compliant ontological descriptions.',
+        prompt,
+        aiModel,
+      );
+      const cleaned = raw.replace(/^["']|["']$/g, '').replace(/^```[\s\S]*?```$/gm, '').trim();
+      if (cleaned && /encompasses:/i.test(cleaned) && /excludes:/i.test(cleaned)) {
+        setFixedDescription(cleaned);
+        // Update the actual data
+        uc.suggested_description = cleaned;
+      } else {
+        setFixedDescription(cleaned || 'Fix failed — response did not include Encompasses/Excludes');
+      }
+    } catch (err) {
+      console.error('DOLCE fix failed:', err);
+    } finally {
+      setFixingDolce(false);
+    }
+  }, [uc, fixedDescription, aiModel]);
 
   const loadSimilar = useCallback(async () => {
     if (similarItems) { setSimilarExpanded(v => !v); return; }
@@ -418,9 +489,38 @@ function UnmappedCard({ uc, index, onSelect }: { uc: AggregatedUnmapped; index: 
         </div>
       </div>
       <div className="unmapped-concept">{uc.concept}</div>
-      {uc.suggested_description && (
-        <div className="unmapped-description">{uc.suggested_description}</div>
-      )}
+      {(fixedDescription ?? uc.suggested_description) && (() => {
+        const desc = fixedDescription ?? uc.suggested_description ?? '';
+        const dolce = checkDolce(desc, uc.suggested_pov);
+        return (
+          <div className="unmapped-description">
+            {desc}
+            <div style={{ marginTop: 4, fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                display: 'inline-block', padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.6rem',
+                color: dolce.pass ? '#16a34a' : '#dc2626',
+                background: dolce.pass ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
+              }}>{dolce.pass ? '✓ DOLCE' : '✗ DOLCE'}</span>
+              {!dolce.pass && (
+                <span style={{ color: '#dc2626', fontSize: '0.65rem' }}>
+                  {dolce.issues.join(' · ')}
+                </span>
+              )}
+              {!dolce.pass && (
+                <button
+                  onClick={handleFixDolce}
+                  disabled={fixingDolce}
+                  style={{
+                    padding: '1px 8px', borderRadius: 3, border: '1px solid #f59e0b',
+                    background: 'rgba(245,158,11,0.1)', color: '#f59e0b',
+                    fontSize: '0.6rem', fontWeight: 600, cursor: fixingDolce ? 'wait' : 'pointer',
+                  }}
+                >{fixingDolce ? 'Fixing...' : 'Fix DOLCE'}</button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
       {uc.suggested_pov === 'situations' && (
         <div className="unmapped-interpretations">
           {uc['Accelerationist Interpretation'] && (

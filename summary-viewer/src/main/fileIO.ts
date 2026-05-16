@@ -7,7 +7,20 @@ import path from 'path';
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+// Walk up from __dirname to find repo root (contains .aitriad.json or package.json with name "summary-viewer")
+function findProjectRoot(): string {
+  let dir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    if (fs.existsSync(path.join(dir, '.aitriad.json'))) return dir;
+    if (fs.existsSync(path.join(dir, 'summary-viewer', 'package.json'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  // Fallback: assume 3 levels up from source (pre-rootDir change)
+  return path.resolve(__dirname, '../../..');
+}
+export const PROJECT_ROOT = findProjectRoot();
 const IS_PACKAGED = app?.isPackaged ?? false;
 
 // ── Platform-specific default data directory ──
@@ -25,6 +38,7 @@ function getPlatformDataDir(): string {
 // ── Data path resolution from .aitriad.json ──
 interface AiTriadConfig {
   data_root: string;
+  sources_root?: string;
   taxonomy_dir: string;
   sources_dir: string;
   summaries_dir: string;
@@ -126,7 +140,24 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
 }
 
 const _config = loadDataConfig();
-const SOURCES_DIR = resolveDataPath(_config.sources_dir);
+
+function resolveSourcesDir(): string {
+  // Priority: env var > sources_root in .aitriad.json > data_root/sources_dir
+  // Note: sources_root points directly to the directory containing source folders
+  // (not a parent that contains a sources/ subdirectory)
+  const envRoot = process.env.AI_TRIAD_SOURCES_ROOT;
+  if (envRoot) {
+    return path.isAbsolute(envRoot) ? envRoot : path.resolve(PROJECT_ROOT, envRoot);
+  }
+  if (_config.sources_root) {
+    return path.isAbsolute(_config.sources_root) ? _config.sources_root : path.resolve(PROJECT_ROOT, _config.sources_root);
+  }
+  return resolveDataPath(_config.sources_dir);
+}
+
+const SOURCES_DIR = resolveSourcesDir();
+console.log(`[fileIO] SOURCES_DIR resolved to: ${SOURCES_DIR} (exists: ${fs.existsSync(SOURCES_DIR)})`);
+console.log(`[fileIO] sources_root config: ${_config.sources_root ?? 'undefined'}, sources_dir config: ${_config.sources_dir}`);
 const SUMMARIES_DIR = resolveDataPath(_config.summaries_dir);
 const TAXONOMY_BASE = path.dirname(resolveDataPath(_config.taxonomy_dir));
 let activeTaxonomyDir = resolveDataPath(_config.taxonomy_dir);

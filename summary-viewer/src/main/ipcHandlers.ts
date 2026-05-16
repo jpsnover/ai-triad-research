@@ -110,7 +110,8 @@ export function registerIpcHandlers(): void {
     storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | 'openai' | undefined);
   });
 
-  validatedHandle('get-nodes-by-pov-category', stringAndOptionalString, (_event, pov, category?) => {
+  validatedHandle('get-nodes-by-pov-category', optionalString, (_event, pov?, category?) => {
+    if (!pov) return [];
     return getNodesByPovCategory(pov, category);
   });
 

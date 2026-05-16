@@ -12,7 +12,26 @@ const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
 
 const TAXONOMY_BASE = path.join(PROJECT_ROOT, 'taxonomy');
 let activeTaxonomyDir = path.join(TAXONOMY_BASE, 'Origin');
-const SOURCES_DIR = path.join(PROJECT_ROOT, 'sources');
+function resolveSourcesDir(): string {
+  // Priority: env var > sources_root in .aitriad.json > PROJECT_ROOT/sources
+  // Note: sources_root points directly to the directory containing source folders
+  // (not a parent that contains a sources/ subdirectory)
+  const envRoot = process.env.AI_TRIAD_SOURCES_ROOT;
+  if (envRoot) {
+    return path.isAbsolute(envRoot) ? envRoot : path.resolve(PROJECT_ROOT, envRoot);
+  }
+  try {
+    const configPath = path.join(PROJECT_ROOT, '.aitriad.json');
+    if (fs.existsSync(configPath)) {
+      const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
+      if (raw.sources_root) {
+        return path.isAbsolute(raw.sources_root) ? raw.sources_root : path.resolve(PROJECT_ROOT, raw.sources_root);
+      }
+    }
+  } catch { /* fall through */ }
+  return path.join(PROJECT_ROOT, 'sources');
+}
+const SOURCES_DIR = resolveSourcesDir();
 const SETTINGS_PATH = path.join(PROJECT_ROOT, 'poviewer', 'settings.json');
 const AI_SETTINGS_PATH = path.join(CONFIG_DIR, 'ai-settings.json');
 const PROMPTS_PATH = path.join(CONFIG_DIR, 'prompts.json');

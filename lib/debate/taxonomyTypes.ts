@@ -111,6 +111,16 @@ export interface SituationNode {
   /** Cross-POV disagreement classification — added in dolce-phase-4. Absent in older nodes. */
   disagreement_type?: 'definitional' | 'interpretive' | 'structural';
   debate_refs?: string[];
+  /** Present when this situation node was created from debate consensus detection (t/510). */
+  convergence_source?: {
+    debate_id: string;
+    convergence_type: 'full' | 'partial' | 'conditional';
+    original_proposals: Record<string, {
+      proposed_label: string;
+      evidence_entries: string[];
+    }>;
+    similarity_scores: Record<string, number>;
+  };
 }
 
 /** @deprecated Use SituationNode. Kept for backward compatibility. */
@@ -128,7 +138,8 @@ export type CanonicalEdgeType =
   | 'WEAKENS'
   | 'RESPONDS_TO'
   | 'TENSION_WITH'
-  | 'INTERPRETS';
+  | 'INTERPRETS'
+  | 'CONVERGES_WITH';
 
 /** Accept both canonical and legacy edge types — backward-compat handler (kept permanently). */
 export type EdgeType = CanonicalEdgeType | (string & {});

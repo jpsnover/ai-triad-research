@@ -4,7 +4,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { ReflectionEdit, ReflectionResult } from '../hooks/useDebateStore';
+import type { ReflectionEdit, ReflectionResult, ConsensusCluster } from '../hooks/useDebateStore';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId } from '../types/debate';
 import { checkDolceCompliance, type ComplianceViolation } from '../utils/dolceCompliance';
@@ -453,9 +453,108 @@ function PoverReflection({ result }: { result: ReflectionResult }) {
   );
 }
 
+// ── Consensus cluster card ──────────────────────────────
+
+function ConsensusCard({ cluster }: { cluster: ConsensusCluster }) {
+  const { acceptConsensus, rejectConsensus } = useDebateStore(
+    useShallow(s => ({ acceptConsensus: s.acceptConsensus, rejectConsensus: s.rejectConsensus }))
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAccept = async () => {
+    setLoading(true);
+    setError(null);
+    const result = await acceptConsensus(cluster.id);
+    setLoading(false);
+    if (!result.ok) setError(result.error || 'Failed');
+  };
+
+  if (cluster.status !== 'pending') {
+    return (
+      <div style={{
+        padding: '12px 16px', marginBottom: 12, borderRadius: 8,
+        background: cluster.status === 'accepted' ? 'rgba(34,197,94,0.08)' : 'rgba(156,163,175,0.08)',
+        border: `1px solid ${cluster.status === 'accepted' ? '#22c55e' : '#9ca3af'}`,
+        fontSize: '0.75rem', color: 'var(--text-muted)',
+      }}>
+        Consensus {cluster.status === 'accepted' ? 'accepted — situation node created' : 'rejected — proposals shown individually'}
+      </div>
+    );
+  }
+
+  const scores = Object.entries(cluster.similarityScores)
+    .map(([k, v]) => `${k}: ${(v as number).toFixed(2)}`)
+    .join(', ');
+
+  return (
+    <div style={{
+      padding: '14px 16px', marginBottom: 16, borderRadius: 10,
+      background: 'rgba(99,102,241,0.06)',
+      border: '1px solid rgba(99,102,241,0.3)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#6366f1' }}>
+          Consensus Detected
+        </span>
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 4 }}>
+          {cluster.proposals.length} POVs converge
+        </span>
+        <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>
+          similarity: {scores}
+        </span>
+      </div>
+
+      {/* Side-by-side proposals */}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cluster.proposals.length}, 1fr)`, gap: 10, marginBottom: 12 }}>
+        {cluster.proposals.map((p, i) => {
+          const info = POVER_INFO[p.pov as Exclude<SpeakerId, 'user'>];
+          return (
+            <div key={i} style={{
+              padding: '8px 10px', borderRadius: 6,
+              background: 'var(--bg-primary)',
+              border: `1px solid ${info?.color || '#888'}40`,
+            }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: info?.color || '#888', marginBottom: 4 }}>
+                {info?.label || p.pov}
+              </div>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, marginBottom: 3 }}>
+                {p.proposed_label}
+              </div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                {p.proposed_description.slice(0, 200)}{p.proposed_description.length > 200 ? '…' : ''}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          className="btn btn-primary"
+          style={{ fontSize: '0.7rem', padding: '4px 14px' }}
+          onClick={handleAccept}
+          disabled={loading}
+        >
+          {loading ? 'Creating...' : 'Create Situation Node'}
+        </button>
+        <button
+          className="btn"
+          style={{ fontSize: '0.7rem', padding: '4px 14px' }}
+          onClick={() => rejectConsensus(cluster.id)}
+          disabled={loading}
+        >
+          Keep Separate
+        </button>
+        {error && <span style={{ fontSize: '0.65rem', color: '#ef4444' }}>{error}</span>}
+      </div>
+    </div>
+  );
+}
+
 export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
-  const { reflections, debateGenerating, requestReflections, applyReflectionEdit, dismissReflectionEdit } = useDebateStore(
-    useShallow(s => ({ reflections: s.reflections, debateGenerating: s.debateGenerating, requestReflections: s.requestReflections, applyReflectionEdit: s.applyReflectionEdit, dismissReflectionEdit: s.dismissReflectionEdit }))
+  const { reflections, consensusClusters, debateGenerating, requestReflections, applyReflectionEdit, dismissReflectionEdit } = useDebateStore(
+    useShallow(s => ({ reflections: s.reflections, consensusClusters: s.consensusClusters, debateGenerating: s.debateGenerating, requestReflections: s.requestReflections, applyReflectionEdit: s.applyReflectionEdit, dismissReflectionEdit: s.dismissReflectionEdit }))
   );
   const isGenerating = debateGenerating != null;
 
@@ -575,6 +674,14 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
           {isGenerating && reflections.length === 0 && (
             <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
               Waiting for reflections...
+            </div>
+          )}
+
+          {consensusClusters.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              {consensusClusters.map(c => (
+                <ConsensusCard key={c.id} cluster={c} />
+              ))}
             </div>
           )}
 

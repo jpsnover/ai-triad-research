@@ -34,7 +34,7 @@ export const EdgeStatusSchema = z.enum(['proposed', 'approved', 'rejected']);
 
 export const CanonicalEdgeTypeSchema = z.enum([
   'SUPPORTS', 'CONTRADICTS', 'ASSUMES', 'WEAKENS',
-  'RESPONDS_TO', 'TENSION_WITH', 'INTERPRETS',
+  'RESPONDS_TO', 'TENSION_WITH', 'INTERPRETS', 'CONVERGES_WITH',
 ]);
 
 export const ParentRelationshipSchema = z.enum(['is_a', 'part_of', 'specializes']);

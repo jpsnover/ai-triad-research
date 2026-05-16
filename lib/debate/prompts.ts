@@ -2114,9 +2114,12 @@ ${cruxBlock}
 === FULL TRANSCRIPT ===
 ${transcript}
 
+CRITICAL — CONCESSION AWARENESS:
+Before classifying any point as a "disagreement," check whether a debater WITHDREW, CONCEDED, or REVISED their position during the debate. If a debater initially proposed X but later abandoned it and endorsed an opponent's alternative, that is NOT a disagreement — it is a RESOLVED point that belongs in areas_of_agreement. The FINAL positions matter, not the initial ones.
+
 Identify:
-1. Areas where the debaters agree (and which debaters)
-2. Areas where they genuinely disagree (with each debater's specific stance)
+1. Areas where the debaters agree — include both initial agreements AND points where debaters CONVERGED during the debate (initially disagreed but one side conceded). For converged points, note who conceded and what changed their mind.
+2. Areas where they genuinely STILL disagree at the END of the debate (with each debater's FINAL stance, not their opening position)
 3. For each disagreement, classify:
    a. "type": EMPIRICAL, VALUES, or DEFINITIONAL
    b. "bdi_layer": "belief" (empirical disagreement), "desire" (value priorities differ), or "intention" (key terms defined differently)
@@ -2126,7 +2129,7 @@ Identify:
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
+  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
   "cruxes": [
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
@@ -2266,9 +2269,23 @@ ${getReadingLevel(audience)}
 === FULL TRANSCRIPT ===
 ${transcript}
 
+CRITICAL — CONCESSION AWARENESS:
+Before classifying any point as a "disagreement," check whether a debater WITHDREW,
+CONCEDED, or REVISED their position during the debate. If a debater initially proposed
+X but later abandoned it and endorsed an opponent's alternative, that is NOT a
+disagreement — it is a RESOLVED point that belongs in areas_of_agreement. Look for
+explicit concession language ("I withdraw," "I accept," "I endorse [opponent]'s
+approach instead," "fair point — I'll drop that") and for positions that evolved
+across turns. The FINAL positions matter, not the initial ones. A debate that starts
+with disagreement and ends with convergence has FEWER disagreements than the opening
+statements suggest.
+
 Identify:
-1. Areas where the debaters agree (and which debaters)
-2. Areas where they genuinely disagree (with each debater's specific stance)
+1. Areas where the debaters agree — include both initial agreements AND points where
+   debaters CONVERGED during the debate (initially disagreed but one side conceded).
+   For converged points, note who conceded and what changed their mind.
+2. Areas where they genuinely STILL disagree at the end of the debate (with each
+   debater's FINAL stance, not their opening position)
 3. For each disagreement, classify:
    a. "type": EMPIRICAL, VALUES, or DEFINITIONAL (as before)
    b. "bdi_layer": which layer of the debaters' worldview this disagreement lives in:
@@ -2306,7 +2323,7 @@ Identify:
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"]}],
+  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"], "converged": false, "conceded_by": null, "original_disagreement": null}],
   "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
   "cruxes": [
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
@@ -2976,6 +2993,59 @@ Confidence levels:
 - "high": Multiple debate moments clearly support this change; concessions were made or arguments failed visibly
 - "medium": Debate evidence is suggestive but not conclusive; the change would improve the taxonomy but is debatable
 - "low": A minor refinement based on a single exchange; reasonable people might disagree`;
+}
+
+// ── Consensus situation node generation ─────────────────
+
+export interface ConvergenceProposal {
+  pov: string;
+  proposed_label: string;
+  proposed_description: string;
+  rationale: string;
+  evidence_entries: string[];
+}
+
+export function consensusSituationPrompt(
+  proposals: ConvergenceProposal[],
+  similarityScores: Record<string, number>,
+  debateId: string,
+): string {
+  const proposalBlocks = proposals.map(p =>
+    `${p.pov.charAt(0).toUpperCase() + p.pov.slice(1)} proposes:\n  Label: "${p.proposed_label}"\n  Description: "${p.proposed_description}"\n  Rationale: "${p.rationale}"`
+  ).join('\n\n');
+
+  return `You are a neutral taxonomy editor. Multiple debate perspectives have independently proposed new taxonomy nodes that converge on the same concept. Create ONE situation node that captures the shared concept with each perspective's interpretation.
+
+=== CONVERGING PROPOSALS ===
+
+${proposalBlocks}
+
+=== TASK ===
+
+Create a situation node that:
+1. Captures the SHARED concept all perspectives are converging on
+2. Provides each perspective's interpretation as a sub-entry
+3. Uses neutral, non-partisan language for the main description
+
+DESCRIPTION FORMAT:
+  Line 1: "A situation [that/where/in which] [neutral differentia — ONE concept]."
+  Line 2: "Encompasses: [3-5 shared scope items]."
+  Line 3: "Excludes: [2-3 boundaries]."
+
+convergence_type:
+- "full": All perspectives endorse the same core concept with minor framing differences
+- "partial": Some perspectives converge; others have a substantively different position
+- "conditional": Perspectives agree on the concept but attach incompatible conditions
+
+Return ONLY JSON (no markdown, no code fences):
+{
+  "label": "Neutral label for the shared concept",
+  "description": "A situation that [differentia]. Encompasses: [...]. Excludes: [...].",
+  "interpretations": {
+    ${proposals.map(p => `"${p.pov}": "How the ${p.pov} frames this convergence point"`).join(',\n    ')}
+  },
+  "convergence_type": "full or partial or conditional"
+}`;
 }
 
 export function dolceComplianceRetryPrompt(

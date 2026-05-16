@@ -4,9 +4,8 @@
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
-import { resolveDataPath } from './fileIO';
+import { resolveDataPath, PROJECT_ROOT } from './fileIO';
 
-const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const EMBED_SCRIPT = path.join(PROJECT_ROOT, 'scripts', 'embed_taxonomy.py');
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 

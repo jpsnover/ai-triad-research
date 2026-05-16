@@ -93,7 +93,7 @@
   "unmapped_concepts": [
     {
       "suggested_label": "<concise 5-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
-      "suggested_description": "<2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences): what this concept is, why it matters, and how it connects to the document's argument>",
+      "suggested_description": "A [Belief|Desire|Intention] within [POV] discourse that [ONE distinguishing concept]. Encompasses: [3-5 sub-themes]. Excludes: [2-3 neighboring concepts].",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "accelerationist",
       "suggested_category": "Desires",
@@ -101,7 +101,7 @@
     },
     {
       "suggested_label": "<concise 5-10 word plain-language label, e.g. 'Companies End Up Controlling Their Regulators'>",
-      "suggested_description": "<2-5 sentences in plain language (write for a policy reporter — active voice, concrete examples, quotable sentences): what this concept is, why it matters, and how it connects to the document's argument>",
+      "suggested_description": "A [Belief|Desire|Intention] within [POV] discourse that [ONE distinguishing concept]. Encompasses: [3-5 sub-themes]. Excludes: [2-3 neighboring concepts].",
       "concept": "<2-5 sentences: describe the concept as it appears in THIS document — ground it in the source>",
       "suggested_pov": "safetyist",
       "suggested_category": "Intentions",

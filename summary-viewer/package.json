@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Three-pane summary browser for BKC AI Triad research documents",
-  "main": "dist/main/main.js",
+  "main": "dist/main/summary-viewer/src/main/main.js",
   "scripts": {
     "dev": "npm run build:main && concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",

@@ -416,6 +416,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
     // ── Step 1: Parent placement ─────────────────────────────────────────
     updateStep(1, 'running');
     try {
+      if (!pov) { updateStep(1, 'skipped'); } else {
       const isCrossCutting = pov === 'situations';
       const siblingNodes = await window.electronAPI.getNodesByPovCategory(pov, isCrossCutting ? undefined : category) as FullTaxonomyNode[];
 
@@ -461,6 +462,7 @@ export const useStore = create<SummaryViewerState>((set, get) => ({
         }
         updateStep(1, 'done');
       }
+      } // end else (!pov guard)
     } catch (err) {
       console.error('[Enrichment] Parent placement failed:', err);
       updateStep(1, 'failed', mapErrorToUserMessage(err));
