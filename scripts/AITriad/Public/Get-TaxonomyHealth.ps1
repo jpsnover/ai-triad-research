@@ -226,6 +226,7 @@ function Get-TaxonomyHealth {
         if ($GH.EdgeOrphanCount -gt 0) {
             Write-Host "`n  Edge Orphans ($($GH.EdgeOrphanCount) nodes with zero edges):" -ForegroundColor Yellow
             foreach ($OId in $GH.EdgeOrphans | Select-Object -First 10) {
+                if ($null -eq $OId) { continue }
                 if ($NodeLabelMap.ContainsKey($OId)) { $OLabel = $NodeLabelMap[$OId] } else { $OLabel = $OId }
                 Write-Host "    $OId — $OLabel" -ForegroundColor DarkGray
             }
@@ -259,6 +260,7 @@ function Get-TaxonomyHealth {
         if ($GH.EchoChamberNodeCount -gt 0) {
             Write-Host "`n  Echo Chamber Nodes ($($GH.EchoChamberNodeCount) with 3+ SUPPORTS, 0 cross-POV CONTRADICTS):" -ForegroundColor Yellow
             foreach ($ECId in $GH.EchoChamberNodes | Select-Object -First 10) {
+                if ($null -eq $ECId) { continue }
                 if ($NodeLabelMap.ContainsKey($ECId)) { $ECLabel = $NodeLabelMap[$ECId] } else { $ECLabel = $ECId }
                 Write-Host "    $ECId — $ECLabel" -ForegroundColor DarkGray
             }
@@ -341,6 +343,7 @@ function Get-TaxonomyHealth {
                 foreach ($Claim in $Latest.claims) {
                     if ($Claim.PSObject.Properties['linked_nodes']) {
                         foreach ($NodeId in @($Claim.linked_nodes)) {
+                            if ($null -eq $NodeId) { continue }
                             if (-not $NodeStrengths.ContainsKey($NodeId)) {
                                 $NodeStrengths[$NodeId] = [System.Collections.Generic.List[double]]::new()
                             }

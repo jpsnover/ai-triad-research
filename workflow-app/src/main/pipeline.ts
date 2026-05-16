@@ -93,6 +93,14 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     requiresConfig: false,
   },
   {
+    id: 'lineage',
+    name: 'Update Lineage',
+    description: 'Populate, normalize, and enrich intellectual lineage with descriptions and validated URLs',
+    phase: 'Enrich',
+    canSkip: true,
+    requiresConfig: false,
+  },
+  {
     id: 'git-commit',
     name: 'Commit Changes',
     description: 'Stage and commit all data changes to the local git repository',
@@ -185,6 +193,8 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
       return `${moduleImport}; Invoke-EdgeDiscovery -Verbose`;
     case 'attributes':
       return `${moduleImport}; Invoke-AttributeExtraction -Verbose`;
+    case 'lineage':
+      return `${moduleImport}; Repair-PovLineage -Verbose`;
     case 'git-commit': {
       const dataRoot = getDataRoot().replace(/\\/g, '/');
       const message = (config.commitMessage as string) || 'chore: pipeline update';

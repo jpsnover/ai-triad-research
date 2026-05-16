@@ -13,6 +13,7 @@ import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
 import type { DebateSession } from '../types/debate';
+import { POVER_INFO } from '@lib/debate/types';
 import { ParameterHistoryPanel } from './ParameterHistoryPanel';
 import { api } from '@bridge';
 
@@ -32,9 +33,9 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
 };
 
 const POVER_LABELS: Record<string, { label: string; color: string }> = {
-  prometheus: { label: 'Prometheus', color: 'var(--color-acc)' },
-  sentinel: { label: 'Sentinel', color: 'var(--color-saf)' },
-  cassandra: { label: 'Cassandra', color: 'var(--color-skp)' },
+  prometheus: { label: POVER_INFO.prometheus.label, color: POVER_INFO.prometheus.color },
+  sentinel: { label: POVER_INFO.sentinel.label, color: POVER_INFO.sentinel.color },
+  cassandra: { label: POVER_INFO.cassandra.label, color: POVER_INFO.cassandra.color },
   user: { label: 'You', color: 'var(--text-muted)' },
 };
 

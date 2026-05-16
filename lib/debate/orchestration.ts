@@ -628,6 +628,13 @@ export async function executeTurnWithRetry(
   const vConfig = resolveTurnValidationConfig(input.validationConfig);
   const attempts: TurnAttempt[] = [];
   let attemptIdx = 0;
+  // Track best attempt by score to avoid regression on retry
+  let bestScore = -1;
+  let bestStatement = '';
+  let bestTaxonomyRefs: typeof taxonomyRefs = [];
+  let bestMeta: typeof meta = {} as typeof meta;
+  let bestValidation: TurnValidation | null = null;
+  let bestPipelineResult: typeof pipelineResult | null = null;
 
   // Pipeline can throw on JSON parse failures (e.g., Brief stage malformed JSON).
   // Retry up to maxRetries times before propagating the error.
@@ -687,6 +694,17 @@ export async function executeTurnWithRetry(
       stage_diagnostics: pipelineResult.stage_diagnostics,
     });
 
+    // Track best attempt — retries can regress if the LLM introduces new problems
+    const currentScore = validation.orchestrationScore ?? 0;
+    if (currentScore > bestScore) {
+      bestScore = currentScore;
+      bestStatement = statement;
+      bestTaxonomyRefs = taxonomyRefs;
+      bestMeta = meta;
+      bestValidation = validation;
+      bestPipelineResult = pipelineResult;
+    }
+
     // First attempt: any quality feedback triggers a retry — give the debater
     // a chance to incorporate the judge's weaknesses before applying score thresholds.
     // Subsequent attempts: use the normal score-based retry logic.
@@ -695,7 +713,7 @@ export async function executeTurnWithRetry(
       ? hasQualityFeedback                    // first draft: any feedback → retry
       : validation.outcome === 'retry';        // retry draft: score must warrant it
 
-    console.log(`[orchestration] *** RETRY CHECK: attempt=${attemptIdx}, feedback=${hasQualityFeedback}, hints=${validation.repairHints?.length ?? 0}, outcome=${validation.outcome}, retry=${shouldRetry}, max=${vConfig.maxRetries} ***`);
+    console.log(`[orchestration] *** RETRY CHECK: attempt=${attemptIdx}, score=${currentScore.toFixed(2)}, bestScore=${bestScore.toFixed(2)}, feedback=${hasQualityFeedback}, hints=${validation.repairHints?.length ?? 0}, outcome=${validation.outcome}, retry=${shouldRetry}, max=${vConfig.maxRetries} ***`);
 
     if (!shouldRetry || attemptIdx >= vConfig.maxRetries) break;
 
@@ -717,6 +735,11 @@ export async function executeTurnWithRetry(
     ({ statement, taxonomyRefs, meta } = assembled);
   }
 
+  // Use the best-scoring attempt, not the last one — retries can regress
+  if (bestValidation && bestScore > (validation.orchestrationScore ?? 0)) {
+    console.log(`[orchestration] Using best attempt (score ${bestScore.toFixed(2)}) instead of last attempt (score ${(validation.orchestrationScore ?? 0).toFixed(2)})`);
+    return { statement: bestStatement, taxonomyRefs: bestTaxonomyRefs, meta: bestMeta, validation: bestValidation, attempts, pipelineResult: bestPipelineResult ?? pipelineResult, aborted: false };
+  }
   return { statement, taxonomyRefs, meta, validation, attempts, pipelineResult, aborted: false };
 }
 

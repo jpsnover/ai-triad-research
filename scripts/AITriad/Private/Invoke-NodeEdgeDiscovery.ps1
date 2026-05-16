@@ -43,22 +43,35 @@ function Invoke-NodeEdgeDiscovery {
     }
 
     $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-    try {
-        $AIParams = @{
-            Prompt      = $FullPrompt
-            Model       = $Model
-            ApiKey      = $ApiKey
-            Temperature = $Temperature
-            MaxTokens   = 16384
-            TimeoutSec  = 120
-            JsonMode    = $true
+    $Response = $null
+    $MaxRetries = 3
+    for ($Attempt = 0; $Attempt -le $MaxRetries; $Attempt++) {
+        try {
+            $AIParams = @{
+                Prompt      = $FullPrompt
+                Model       = $Model
+                ApiKey      = $ApiKey
+                Temperature = $Temperature
+                MaxTokens   = 16384
+                TimeoutSec  = 120
+                JsonMode    = $true
+            }
+            if ($ResponseSchema) { $AIParams['ResponseSchema'] = $ResponseSchema }
+            $Response = Invoke-AIApi @AIParams
+            break  # success
+        } catch {
+            $ErrMsg = "$_"
+            $Is429 = $ErrMsg -match '429|rate.limit|too.many.requests|quota|RESOURCE_EXHAUSTED'
+            if ($Is429 -and $Attempt -lt $MaxRetries) {
+                $BackoffSec = [Math]::Pow(2, $Attempt + 1) + (Get-Random -Minimum 0.5 -Maximum 2.0)
+                Write-Warning "[edge-discovery] Rate limited on attempt $($Attempt + 1) — backing off $([Math]::Round($BackoffSec, 1))s"
+                Start-Sleep -Seconds $BackoffSec
+                continue
+            }
+            $Result.Error      = "API call failed: $ErrMsg"
+            $Result.ElapsedSec = [Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1)
+            return $Result
         }
-        if ($ResponseSchema) { $AIParams['ResponseSchema'] = $ResponseSchema }
-        $Response = Invoke-AIApi @AIParams
-    } catch {
-        $Result.Error      = "API call failed: $_"
-        $Result.ElapsedSec = [Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1)
-        return $Result
     }
     $Stopwatch.Stop()
     $Result.ElapsedSec = [Math]::Round($Stopwatch.Elapsed.TotalSeconds, 1)

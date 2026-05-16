@@ -25,6 +25,7 @@ export type EventType =
   | 'debate.round'
   | 'debate.signal'
   | 'debate.moderate'
+  | 'debate.news_report'
   // Adaptive staging
   | 'adaptive.eval'
   | 'adaptive.transition'

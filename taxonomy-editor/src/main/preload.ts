@@ -291,6 +291,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Source evidence (main process filesystem access)
   loadSourceEvidenceIndex: (): Promise<unknown> =>
     ipcRenderer.invoke('load-source-evidence-index'),
+  loadDocTitles: (): Promise<Record<string, string> | null> =>
+    ipcRenderer.invoke('load-doc-titles'),
   getSourceEvidence: (nodeIds: string[], pov: string): Promise<unknown> =>
     ipcRenderer.invoke('get-source-evidence', nodeIds, pov),
 
@@ -315,6 +317,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   saveDebateComments: (debateId: string, data: unknown): Promise<void> =>
     ipcRenderer.invoke('save-debate-comments', debateId, data),
+
+  generateNewsReport: (debateId: string): Promise<{ article: string }> =>
+    ipcRenderer.invoke('generate-news-report', debateId),
 
   // URL fetch (from main process to avoid CSP)
   fetchUrlContent: (url: string): Promise<{ content: string; error?: string }> =>

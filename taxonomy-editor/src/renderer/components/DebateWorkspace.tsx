@@ -12,6 +12,7 @@ import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
 import { ReflectionsPanel } from './ReflectionsPanel';
+import { NewsReportModal } from './NewsReportModal';
 // DiagnosticsPanel removed — diagnostics always uses popup window
 import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
 import { ParameterHistoryPanel } from './ParameterHistoryPanel';
@@ -1739,9 +1740,9 @@ function OpeningActions() {
 
 /** Main debate phase action bar */
 const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
-  { id: 'prometheus', label: 'Prometheus', color: POVER_INFO.prometheus.color },
-  { id: 'sentinel', label: 'Sentinel', color: POVER_INFO.sentinel.color },
-  { id: 'cassandra', label: 'Cassandra', color: POVER_INFO.cassandra.color },
+  { id: 'prometheus', label: POVER_INFO.prometheus.label, color: POVER_INFO.prometheus.color },
+  { id: 'sentinel', label: POVER_INFO.sentinel.label, color: POVER_INFO.sentinel.color },
+  { id: 'cassandra', label: POVER_INFO.cassandra.label, color: POVER_INFO.cassandra.color },
 ];
 
 function DebaterToggles() {
@@ -1788,6 +1789,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
   const [mentionIndex, setMentionIndex] = useState(0);
   const [showHarvest, setShowHarvest] = useState(false);
   const [showReflections, setShowReflections] = useState(false);
+  const [showNewsReport, setShowNewsReport] = useState(false);
   const [crossRespondTurns, setCrossRespondTurns] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'concluding') || false;
@@ -2009,6 +2011,14 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
           Post-Debate Reflections
         </button>
         <button
+          className="btn"
+          onClick={() => setShowNewsReport(true)}
+          disabled={disabled || !hasSynthesis}
+          title={hasSynthesis ? 'Generate a news-style article from this debate' : 'Synthesis required before generating news report'}
+        >
+          News Report
+        </button>
+        <button
           className={`btn${showEvaluation ? ' active' : ''}`}
           onClick={() => setShowEvaluation(!showEvaluation)}
           disabled={!activeDebate?.neutral_evaluations?.length}
@@ -2044,6 +2054,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
       )}
       {showHarvest && <HarvestDialog onClose={() => setShowHarvest(false)} />}
       {showReflections && <ReflectionsPanel onClose={() => setShowReflections(false)} />}
+      {showNewsReport && <NewsReportModal onClose={() => setShowNewsReport(false)} />}
     </div>
   );
 }

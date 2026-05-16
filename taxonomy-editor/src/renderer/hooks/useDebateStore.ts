@@ -1232,6 +1232,21 @@ async function getSourceEvidenceIndex(): Promise<Record<string, unknown> | undef
   }
 }
 
+let _cachedDocTitles: Record<string, string> | null | undefined;
+async function getDocTitles(): Promise<Record<string, string> | undefined> {
+  if (_cachedDocTitles !== undefined) return _cachedDocTitles ?? undefined;
+  try {
+    const bridge = api as unknown as { loadDocTitles?: () => Promise<Record<string, string> | null> };
+    if (!bridge.loadDocTitles) { _cachedDocTitles = null; return undefined; }
+    const result = await bridge.loadDocTitles();
+    _cachedDocTitles = result;
+    return result ?? undefined;
+  } catch {
+    _cachedDocTitles = null;
+    return undefined;
+  }
+}
+
 // ── Stage generate factory (shared by opening + cross-respond) ──
 
 function makeStageGenerate(
@@ -1818,6 +1833,12 @@ interface DebateStore {
   acceptConsensus: (clusterId: string) => Promise<{ ok: boolean; error?: string }>;
   rejectConsensus: (clusterId: string) => void;
 
+  // News Report
+  newsReport: string | null;
+  newsReportLoading: boolean;
+  newsReportError: string | null;
+  generateNewsReport: () => Promise<void>;
+
   // AN node editing
   updateAnNodeSubScore: (nodeId: string, key: string, value: number) => void;
 
@@ -1866,6 +1887,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   taxonomyGapAnalysis: null,
   reflections: [],
   consensusClusters: [],
+  newsReport: null,
+  newsReportLoading: false,
+  newsReportError: null,
   inspectedNodeId: null,
   debateModel: null,
   debateTemperature: null,
@@ -2083,7 +2107,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   loadDebate: async (id) => {
-    set({ debateLoading: true, debateError: null, debateWarnings: [] });
+    set({ debateLoading: true, debateError: null, debateWarnings: [], newsReport: null, newsReportLoading: false, newsReportError: null });
     try {
       const raw = await api.loadDebateSession(id);
       const session = raw as DebateSession;
@@ -2855,7 +2879,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           if (!d) break;
           // Stop if phase reached termination
           if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') break;
+          const preLen = d.transcript.length;
           await get().crossRespond();
+          // If crossRespond returned without adding a debater statement (e.g. agreement
+          // detected), break to avoid re-running moderator selection in a loop.
+          const post = get().activeDebate;
+          if (!post || post.transcript.length === preLen || !post.transcript.slice(preLen).some(e => e.type === 'statement')) break;
         }
         // Auto-trigger synthesis when adaptive debate terminates
         const finalDebate = get().activeDebate;
@@ -2864,8 +2893,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } else if (initialCrossRespondRounds > 0) {
         for (let i = 0; i < initialCrossRespondRounds; i++) {
-          if (!get().activeDebate) break;
+          const d = get().activeDebate;
+          if (!d) break;
+          const preLen = d.transcript.length;
           await get().crossRespond();
+          const post = get().activeDebate;
+          if (!post || post.transcript.length === preLen || !post.transcript.slice(preLen).some(e => e.type === 'statement')) break;
         }
       }
     }
@@ -3311,8 +3344,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       };
     })() : undefined;
 
-    // Load source evidence index (cached after first call)
-    const evidenceIndex = await getSourceEvidenceIndex();
+    // Load source evidence index and document titles (cached after first call)
+    const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
 
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
@@ -3337,6 +3370,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       audience: activeDebate.audience,
       model,
       sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
+      docTitles: docTitles as TurnPipelineInput['docTitles'],
     };
 
     const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
@@ -4491,6 +4525,23 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
   },
 
+  generateNewsReport: async () => {
+    const { activeDebate } = get();
+    if (!activeDebate) return;
+    const hasSynthesis = activeDebate.transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
+    if (!hasSynthesis) {
+      set({ newsReportError: 'A synthesis must exist before generating a news report.' });
+      return;
+    }
+    set({ newsReportLoading: true, newsReportError: null, newsReport: null });
+    try {
+      const result = await api.generateNewsReport(activeDebate.id);
+      set({ newsReport: result.article, newsReportLoading: false });
+    } catch (err) {
+      set({ newsReportError: `News report generation failed: ${err instanceof Error ? err.message : String(err)}`, newsReportLoading: false });
+    }
+  },
+
   requestReflections: async () => {
     const { activeDebate, saveDebate } = get();
     if (!activeDebate) return;
@@ -4797,12 +4848,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     await taxStore.save();
 
-    // Only mark as approved if save succeeded
-    const saveError = useTaxonomyStore.getState().saveError;
+    // Only mark as approved if save succeeded — include specific validation errors
+    const { saveError, validationErrors } = useTaxonomyStore.getState();
     const duration = Math.round(performance.now() - startTime);
     if (saveError) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: saveError, pover, editIndex, duration_ms: duration } });
-      return { ok: false, error: saveError };
+      const errorDetails = Object.entries(validationErrors ?? {});
+      const detailedError = errorDetails.length > 0
+        ? `${saveError}\n${errorDetails.map(([field, msg]) => `• ${field}: ${msg}`).join('\n')}`
+        : saveError;
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: saveError, validationErrors, pover, editIndex, duration_ms: duration } });
+      return { ok: false, error: detailedError };
     }
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, duration_ms: duration } });

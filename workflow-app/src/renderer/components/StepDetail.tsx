@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePipelineStore } from '../store';
 import { ImportConfig } from './ImportConfig';
 import { GitCommitConfig } from './GitCommitConfig';
@@ -19,6 +19,7 @@ function LogArea({ stepId }: { stepId: string }) {
   const { steps } = usePipelineStore();
   const step = steps[stepId];
   const ref = useRef<HTMLDivElement>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (ref.current) {
@@ -41,15 +42,37 @@ function LogArea({ stepId }: { stepId: string }) {
 
   const lines = combined.split('\n');
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(combined).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
   return (
-    <div className="log-area" ref={ref}>
-      {lines.map((line, i) => {
-        let className = '';
-        if (line.startsWith('> ') || line.startsWith('PS ')) className = 'command-line';
-        else if (line.startsWith('VERBOSE:')) className = 'verbose-line';
-        else if (line.startsWith('ERROR:') || line.startsWith('Exception') || line.includes('error')) className = 'error-line';
-        return <div key={i} className={className}>{line}</div>;
-      })}
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={handleCopy}
+        style={{
+          position: 'absolute', top: 6, right: 6, zIndex: 1,
+          background: copied ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.08)',
+          color: copied ? '#22c55e' : 'var(--text-muted)',
+          border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4,
+          padding: '3px 10px', fontSize: '0.7rem', cursor: 'pointer',
+          fontFamily: 'inherit', fontWeight: 600,
+        }}
+      >
+        {copied ? 'Copied!' : 'Copy'}
+      </button>
+      <div className="log-area" ref={ref} style={{ userSelect: 'text' }}>
+        {lines.map((line, i) => {
+          let className = '';
+          if (line.startsWith('> ') || line.startsWith('PS ')) className = 'command-line';
+          else if (line.startsWith('VERBOSE:')) className = 'verbose-line';
+          else if (line.startsWith('ERROR:') || line.startsWith('Exception') || line.includes('error')) className = 'error-line';
+          return <div key={i} className={className}>{line}</div>;
+        })}
+      </div>
     </div>
   );
 }

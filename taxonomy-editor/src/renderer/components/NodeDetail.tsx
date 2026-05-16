@@ -547,21 +547,28 @@ const CRUX_TYPE_COLORS: Record<string, string> = {
 
 function RelatedCruxes({ nodeId }: { nodeId: string }) {
   const { aggregatedCruxes, navigateToNode } = useTaxonomyStore();
-  if (!aggregatedCruxes) return null;
+  const related = aggregatedCruxes?.filter(c => c.linked_node_ids.includes(nodeId)) ?? [];
+  const [expanded, setExpanded] = useState(related.length <= 5);
 
-  const related = aggregatedCruxes.filter(c => c.linked_node_ids.includes(nodeId));
-  if (related.length === 0) return null;
+  if (!aggregatedCruxes || related.length === 0) return null;
 
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 6, color: 'var(--text-primary)' }}>
+      <div
+        style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: expanded ? 6 : 0, color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none' }}
+        onClick={() => setExpanded(!expanded)}
+        title={expanded ? 'Collapse' : 'Expand'}
+      >
+        <span style={{ display: 'inline-block', width: 14, fontSize: '0.7rem' }}>{expanded ? '▾' : '▸'}</span>
         Related Cruxes ({related.length})
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {related.map(crux => (
-          <CruxChip key={crux.id} crux={crux} onClick={() => navigateToNode('cruxes', crux.id)} />
-        ))}
-      </div>
+      {expanded && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {related.map(crux => (
+            <CruxChip key={crux.id} crux={crux} onClick={() => navigateToNode('cruxes', crux.id)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -653,9 +653,41 @@ export function registerIpcHandlers(): void {
     saveDebateComments(debateId, data);
   });
 
+  ipcMain.handle('generate-news-report', async (_event, debateId: string) => {
+    const session = loadDebateSession(debateId) as Record<string, unknown>;
+    const transcript = (session.transcript ?? []) as Array<{ type: string; content: string; speaker: string }>;
+    const hasSynthesis = transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
+    if (!hasSynthesis) {
+      throw new ActionableError({
+        goal: 'Generate news report from debate',
+        problem: 'No synthesis entry found in the debate transcript',
+        location: 'ipcHandlers.generateNewsReport',
+        nextSteps: ['Run synthesis before generating the news report'],
+      });
+    }
+
+    const { extractTranscriptHighlights, summarizeArgumentNetwork } = await import('../../../lib/debate/newsReport.js');
+    const { newsReportPrompt } = await import('../../../lib/debate/prompts.js');
+
+    const anNodes = ((session.argument_network as Record<string, unknown>)?.nodes ?? []) as unknown[];
+    const anEdges = ((session.argument_network as Record<string, unknown>)?.edges ?? []) as unknown[];
+    const highlights = extractTranscriptHighlights(transcript as never[], anNodes as never[]);
+    const argSummary = summarizeArgumentNetwork(anNodes as never[], anEdges as never[]);
+    const synthesisEntry = transcript.find(e => e.type === 'synthesis' || e.type === 'concluding');
+    const synthesisJson = synthesisEntry?.content ?? '';
+    const docAnalysis = (session.document_analysis as string | undefined) ?? undefined;
+    const topic = ((session.topic as Record<string, unknown>)?.refined ?? (session.topic as Record<string, unknown>)?.original ?? '') as string;
+
+    const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis);
+    const text = await generateText(prompt);
+    return { article: text };
+  });
+
   // ── Source evidence (runs in main process for filesystem access) ──
   type SourceEvidenceIndex = import('../../../lib/debate/evidenceFromSummaries.js').SourceEvidenceIndex;
+  type DocTitleMap = import('../../../lib/debate/evidenceFromSummaries.js').DocTitleMap;
   let _evidenceIndex: SourceEvidenceIndex | null = null;
+  let _docTitles: DocTitleMap | undefined;
   function loadEvidenceIndex(): SourceEvidenceIndex | null {
     if (_evidenceIndex) return _evidenceIndex;
     try {
@@ -668,7 +700,34 @@ export function registerIpcHandlers(): void {
     } catch { return null; }
   }
 
+  /** Build doc_id → title map from source metadata.json files (best-effort). */
+  function loadDocTitles(): DocTitleMap | undefined {
+    if (_docTitles) return _docTitles;
+    try {
+      const config = loadDataConfig();
+      const sourcesRoot = config.sources_root
+        ? path.resolve(PROJECT_ROOT, config.sources_root)
+        : null;
+      if (!sourcesRoot || !fs.existsSync(sourcesRoot)) return undefined;
+      const titles: DocTitleMap = {};
+      const dirs = fs.readdirSync(sourcesRoot, { withFileTypes: true });
+      for (const entry of dirs) {
+        if (!entry.isDirectory()) continue;
+        const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
+        if (!fs.existsSync(metaPath)) continue;
+        try {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          if (meta.title) titles[entry.name] = meta.title;
+        } catch { /* skip malformed metadata */ }
+      }
+      _docTitles = Object.keys(titles).length > 0 ? titles : undefined;
+      if (_docTitles) console.log(`[evidence] Loaded ${Object.keys(titles).length} document titles`);
+      return _docTitles;
+    } catch { return undefined; }
+  }
+
   ipcMain.handle('load-source-evidence-index', () => loadEvidenceIndex());
+  ipcMain.handle('load-doc-titles', () => loadDocTitles());
 
   ipcMain.handle('get-source-evidence', async (_event, nodeIds: string[], pov: string) => {
     const emptyResult = { facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 };
@@ -676,7 +735,8 @@ export function registerIpcHandlers(): void {
     if (!index) return emptyResult;
     try {
       const { retrieveSourceEvidence } = await import('../../../lib/debate/evidenceFromSummaries.js');
-      return retrieveSourceEvidence(nodeIds, pov, index);
+      const docTitles = loadDocTitles();
+      return retrieveSourceEvidence(nodeIds, pov, index, 3, 2, docTitles);
     } catch (err) {
       console.warn(`[ipc] get-source-evidence failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
       return emptyResult;

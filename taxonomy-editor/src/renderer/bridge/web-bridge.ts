@@ -262,6 +262,7 @@ const rawApi: AppAPI = {
 
   // Source evidence
   loadSourceEvidenceIndex: () => get<Record<string, unknown> | null>('/api/source-evidence-index').catch(() => null),
+  loadDocTitles: () => get<Record<string, string> | null>('/api/doc-titles').catch(() => null),
   getSourceEvidence: (nodeIds, pov) => post('/api/source-evidence', { nodeIds, pov }),
 
   // Debate sessions
@@ -331,6 +332,9 @@ const rawApi: AppAPI = {
     URL.revokeObjectURL(a.href);
     return { cancelled: false, filePath: filename };
   },
+
+  // News Report
+  generateNewsReport: (debateId) => post(`/api/debates/${encodeURIComponent(debateId)}/news-report`, {}),
 
   // Chat sessions
   listChatSessions: () => get('/api/chats'),

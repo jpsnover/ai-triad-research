@@ -43,6 +43,9 @@ export interface EvidenceBrief {
   totalCandidates: number;
 }
 
+/** Map of doc_id → human-readable document title */
+export type DocTitleMap = Record<string, string>;
+
 // ── Evidence retrieval ────────────────────────────────────
 
 const SPECIFICITY_RANK: Record<string, number> = {
@@ -67,6 +70,7 @@ export function retrieveSourceEvidence(
   index: SourceEvidenceIndex,
   maxFacts: number = 3,
   maxKeyPoints: number = 2,
+  docTitles?: DocTitleMap,
 ): EvidenceBrief {
   const nodeSet = new Set(targetNodeIds);
 
@@ -124,18 +128,23 @@ export function retrieveSourceEvidence(
   const totalCandidates = uniqueFacts.length + uniqueKPs.length;
   const nodesCovered = [...nodeSet].filter(n => index[n]?.facts?.length || index[n]?.keyPoints?.length);
 
-  const formattedBlock = formatEvidenceBrief(selectedFacts, selectedKPs);
+  const formattedBlock = formatEvidenceBrief(selectedFacts, selectedKPs, docTitles);
 
   return { facts: selectedFacts, keyPoints: selectedKPs, formattedBlock, nodesCovered, totalCandidates };
 }
 
 // ── Formatting ────────────────────────────────────────────
 
-function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[]): string {
+function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], docTitles?: DocTitleMap): string {
   if (facts.length === 0 && keyPoints.length === 0) return '';
 
+  const resolveTitle = (docId: string): string => {
+    if (docTitles?.[docId]) return docTitles[docId];
+    return docId;
+  };
+
   const lines: string[] = ['=== AVAILABLE SOURCE EVIDENCE ==='];
-  lines.push('Cite 1-2 of these in your statement. Reference the source by name. Do NOT list-cite all — weave the strongest into your argument.');
+  lines.push('Cite 1-2 of these in your statement. Reference the source by its title. Do NOT list-cite all — weave the strongest into your argument.');
   lines.push('');
 
   if (facts.length > 0) {
@@ -143,8 +152,9 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[]): 
     for (let i = 0; i < facts.length; i++) {
       const f = facts[i];
       const temporal = f.temporal_bound ? ` (${f.temporal_bound})` : '';
+      const title = resolveTitle(f.doc_id);
       lines.push(`  [${i + 1}] "${f.claim}"`);
-      lines.push(`      — ${f.doc_id}${temporal}`);
+      lines.push(`      — "${title}"${temporal}`);
     }
     lines.push('');
   }
@@ -153,11 +163,12 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[]): 
     lines.push('Source document analysis:');
     for (let i = 0; i < keyPoints.length; i++) {
       const kp = keyPoints[i];
+      const title = resolveTitle(kp.doc_id);
       lines.push(`  [${facts.length + i + 1}] ${kp.point}`);
       if (kp.verbatim) {
         lines.push(`      Quote: "${kp.verbatim}"`);
       }
-      lines.push(`      — ${kp.doc_id} (${kp.pov}, ${kp.stance})`);
+      lines.push(`      — "${title}" (${kp.pov}, ${kp.stance})`);
     }
   }
 

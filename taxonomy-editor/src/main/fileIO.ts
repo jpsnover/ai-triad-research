@@ -39,6 +39,7 @@ function getPlatformDataDir(): string {
 // ── Data path resolution from .aitriad.json ──
 interface AiTriadConfig {
   data_root: string;
+  sources_root?: string;
   taxonomy_dir: string;
   sources_dir: string;
   summaries_dir: string;

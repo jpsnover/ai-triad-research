@@ -148,6 +148,8 @@ export interface TurnPipelineInput {
   skipPreCheck?: boolean;
   /** Pre-loaded source evidence index (from source_evidence_index.json). */
   sourceEvidenceIndex?: import('./evidenceFromSummaries.js').SourceEvidenceIndex;
+  /** Map of doc_id → human-readable document title for evidence citations. */
+  docTitles?: import('./evidenceFromSummaries.js').DocTitleMap;
 }
 
 export type StageGenerateFn = (
@@ -361,6 +363,7 @@ export async function runTurnPipeline(
         input.sourceEvidenceIndex,
         3, // max facts
         2, // max key points
+        input.docTitles,
       );
       console.log(`[pipeline] EVIDENCE retrieved: ${evidenceBrief.facts.length} facts, ${evidenceBrief.keyPoints.length} keyPoints, block=${evidenceBrief.formattedBlock.length} chars`);
       if (evidenceBrief.formattedBlock) {
@@ -472,6 +475,7 @@ export async function runTurnPipeline(
       (lastDiag as Record<string, unknown>).stage_validation = {
         pass: draftVal.pass,
         hints: draftVal.repairHints,
+        details: draftVal.details,
         directive_compliance: draftVal.directive_compliance,
       };
 
@@ -503,11 +507,29 @@ export async function runTurnPipeline(
       const keyPoints = (wp?.keyPoints as Array<{ doc_id?: string }>) ?? [];
       const allDocIds = [...new Set([...facts.map(f => f.doc_id), ...keyPoints.map(kp => kp.doc_id)].filter(Boolean))] as string[];
       const statementLower = draft.statement.toLowerCase();
-      const citedDocs = allDocIds.filter(docId => {
-        // Check if the doc_id slug (or a recognizable portion) appears in the statement
+      const docTitles = input.docTitles;
+      const citedDocs: Array<{ doc_id: string; title?: string; match_type: string }> = [];
+      for (const docId of allDocIds) {
         const slug = docId.replace(/-\d{4}(-\d+)?$/, '').replace(/-/g, ' ');
-        return statementLower.includes(slug) || statementLower.includes(docId);
-      });
+        const title = docTitles?.[docId];
+        const titleLower = title?.toLowerCase();
+        if (statementLower.includes(docId)) {
+          citedDocs.push({ doc_id: docId, title, match_type: 'exact_id' });
+        } else if (statementLower.includes(slug)) {
+          citedDocs.push({ doc_id: docId, title, match_type: 'slug' });
+        } else if (titleLower && statementLower.includes(titleLower)) {
+          citedDocs.push({ doc_id: docId, title, match_type: 'title_exact' });
+        } else if (titleLower) {
+          // Partial title match: check if 3+ consecutive words from the title appear
+          const titleWords = titleLower.split(/\s+/).filter(w => w.length > 3);
+          if (titleWords.length >= 3) {
+            const trigram = titleWords.slice(0, 4).join(' ');
+            if (statementLower.includes(trigram)) {
+              citedDocs.push({ doc_id: docId, title, match_type: 'title_partial' });
+            }
+          }
+        }
+      }
       const utilizationRate = allDocIds.length > 0 ? citedDocs.length / allDocIds.length : 0;
       (wp as Record<string, unknown>).evidence_utilization = {
         total_docs: allDocIds.length,

@@ -1,0 +1,36 @@
+OUTPUT SCHEMA:
+
+Return a JSON object with the following structure:
+
+{
+  "edges": [
+    {
+      "source": "acc-beliefs-012",
+      "target": "saf-desires-003",
+      "type": "TENSION_WITH",
+      "bidirectional": true,
+      "confidence": 0.85,
+      "weight": 0.7,
+      "rationale": "The scaling-laws belief undermines the rationale for a pause — predictable gains weaken the 'dangerous surprise' justification.",
+      "strength": "strong"
+    },
+    {
+      "source": "acc-beliefs-012",
+      "target": "acc-intentions-005",
+      "type": "SUPPORTS",
+      "bidirectional": false,
+      "confidence": 0.85,
+      "weight": 0.6,
+      "rationale": "If scaling laws hold, then investing in compute is the rational strategy.",
+      "strength": "moderate"
+    }
+  ],
+  "new_edge_types": []
+}
+
+CONSTRAINTS:
+  - Each edge "source" and "target" MUST be valid node IDs from the input group.
+  - "type" must be from the vocabulary above or declared in "new_edge_types".
+  - "bidirectional" must be true for CONTRADICTS and TENSION_WITH, false for others.
+  - "confidence" must be between 0.5 and 1.0. Do not propose edges below 0.5.
+  - Return ONLY the JSON object. No markdown, no commentary.

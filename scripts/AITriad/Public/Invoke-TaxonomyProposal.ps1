@@ -636,13 +636,13 @@ $QueueBlock
                 } else { $RatSnippet = $P.rationale }
                 Write-Host "      Rationale: $RatSnippet" -ForegroundColor DarkGray
             }
-            if ($P.PSObject.Properties['children'] -and $P.children.Count -gt 0) {
+            if ($P.PSObject.Properties['children'] -and $null -ne $P.children -and @($P.children).Count -gt 0) {
                 Write-Host "      Children:" -ForegroundColor Gray
                 foreach ($Child in $P.children) {
                     Write-Host "        [$($Child.suggested_id)] $($Child.label)" -ForegroundColor Gray
                 }
             }
-            if ($P.PSObject.Properties['merge_node_ids'] -and $P.merge_node_ids.Count -gt 0) {
+            if ($P.PSObject.Properties['merge_node_ids'] -and $null -ne $P.merge_node_ids -and @($P.merge_node_ids).Count -gt 0) {
                 Write-Host "      Merging: $($P.merge_node_ids -join ', ') → $($P.surviving_node_id)" -ForegroundColor Gray
             }
         }

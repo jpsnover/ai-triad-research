@@ -105,6 +105,7 @@ function buildRecapSection(taxonomyContext: string, phase?: DebatePhase): string
       'confrontation': 'Stake out your position; challenge opponents\' core claims.',
       'argumentation': 'Find cruxes, test edge cases, name agreements.',
       'concluding': 'Converge where possible; narrow remaining disagreements.',
+      'terminated': '',
     };
     lines.push(`Phase priority: ${priorities[phase]}`);
   }
@@ -232,6 +233,8 @@ Your goal this phase is to CONVERGE where possible and NARROW remaining disagree
 - Identify what specific evidence or developments would resolve each remaining disagreement.
 Do NOT introduce new arguments or reopen settled points. Focus on crystallizing what this debate has established.
 You MUST include a "position_update" field in your JSON output summarizing how your position has evolved.`,
+
+  'terminated': '',
 };
 
 // ── Constructive moves (available in argumentation + concluding phases) ──
@@ -1321,7 +1324,7 @@ Re-citing a node is fine when it carries new weight, but repeating the same set 
   }
 
   const constructiveMoveList = phase && phase !== 'confrontation'
-    ? '\nConstructive emphasis: INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT' : '';
+    ? '\nConstructive emphasis: INTEGRATE, SPECIFY, EXTEND, CONCEDE-AND-PIVOT, CONDITIONAL-AGREE' : '';
 
   const positionUpdateField = phase === 'concluding'
     ? `\n  "position_update": "1-3 sentences: how has your position evolved during this debate?"` : '';
@@ -1639,6 +1642,7 @@ export interface StagePromptInput {
     responseSchema?: string;
     directResponsePattern?: string;
     isTargeted: boolean;
+    round?: number;
   };
   phaseContext?: {
     rationale: string;
@@ -3289,6 +3293,96 @@ function getMoveSpecificInstructions(move: InterventionMove, target: string, sou
     case 'COMMIT':
       return `Ask ${target} for their final position. They must state: (1) what they conceded during the debate, (2) what conditions would change their remaining position, (3) their sharpest remaining disagreement with each opponent.`;
   }
+}
+
+// ── News Report prompt (post-synthesis) ──────────────────
+
+/**
+ * Generates a journalistic policy-explainer article from a completed debate.
+ * Called after synthesis completes. Uses pre-processed inputs from
+ * extractTranscriptHighlights() and summarizeArgumentNetwork() in newsReport.ts.
+ *
+ * @param topic - The debate topic/question
+ * @param synthesisJson - JSON string of the synthesis entry (areas of agreement, disagreement, cruxes)
+ * @param argumentSummary - Top claims with attack/support relationships (from summarizeArgumentNetwork)
+ * @param transcriptHighlights - Selected transcript excerpts (from extractTranscriptHighlights)
+ * @param documentAnalysis - Optional source document summary (for URL/document-based debates)
+ */
+export function newsReportPrompt(
+  topic: string,
+  synthesisJson: string,
+  argumentSummary: string,
+  transcriptHighlights: string,
+  documentAnalysis?: string,
+): string {
+  const docBlock = documentAnalysis
+    ? `\n=== SOURCE DOCUMENT ===\n${documentAnalysis}\n`
+    : '';
+
+  return `You are a policy journalist writing for an informed general audience.
+Your task: transform a structured three-perspective debate into a
+news-style explainer article.
+
+VOICE: Write like a senior policy reporter — active voice, specific
+examples, quotable sentences. Attribute every claim to its source.
+No hedging phrases ("some argue", "it could be said"). No academic
+jargon. No bullet points — this is prose.
+
+PERSPECTIVE LABELS: Use these labels when attributing positions:
+- "Accelerationist advocates" (not "Prometheus")
+- "Safety researchers" (not "Sentinel")
+- "AI skeptics" (not "Cassandra")
+
+BALANCE: Present each perspective at its strongest. Do not editorialize
+or take sides. The reader should finish understanding WHY smart people
+disagree, not thinking one side is obviously right.
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== SYNTHESIS ===
+${synthesisJson}
+
+=== KEY ARGUMENTS ===
+${argumentSummary}
+${docBlock}
+=== TRANSCRIPT HIGHLIGHTS ===
+${transcriptHighlights}
+
+ARTICLE STRUCTURE:
+
+1. HEADLINE: Active voice, specific, frames the policy question.
+   Max 12 words. No colons or em-dashes.
+
+2. SUBHEAD: One sentence — the stakes. What is at risk or in play.
+
+3. LEDE (2-3 sentences): What's at stake and why it matters now.
+   Ground in a concrete fact, statistic, or recent event from the debate.
+
+4. THE DEBATE (2-3 paragraphs): Interleave the three perspectives as
+   a narrative. Each position should RESPOND to the previous one —
+   not sit in isolated sections. Use 2-4 direct quotes from the
+   transcript (attributed as "Accelerationist advocates argue...",
+   "Safety researchers counter...", "AI skeptics note..."). Pick
+   quotes that are specific and vivid, not generic.
+
+5. ## Common Ground (1 paragraph): Where the debaters converged.
+   Lead with the most surprising agreement. If the synthesis shows
+   concessions, name who conceded what.
+
+6. ## The Crux (1-2 paragraphs): The specific question that divides
+   them. Classify it for the reader: Is this a factual dispute (could
+   be resolved by evidence), a values conflict (different priorities),
+   or a definitional disagreement (talking past each other)? What
+   evidence or event would resolve it?
+
+7. ## Bottom Line (1-2 sentences): What a policymaker should take away.
+   Not a recommendation — a framing of what to watch for.
+
+OUTPUT: Return the article as plain text. Headline on line 1, subhead
+on line 2 (italic), then body paragraphs separated by blank lines.
+Use "## " markdown headers for Common Ground, The Crux, and Bottom Line.
+Target 600-800 words total. No JSON, no code fences.`;
 }
 
 // Exported for envelope builders (lib/debate/envelopes.ts)

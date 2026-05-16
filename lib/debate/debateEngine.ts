@@ -599,6 +599,7 @@ export class DebateEngine {
 
   /** Pre-loaded source evidence index (lazy). */
   private _sourceEvidenceIndex?: import('./evidenceFromSummaries.js').SourceEvidenceIndex;
+  private _docTitles?: import('./evidenceFromSummaries.js').DocTitleMap;
 
   private get sourceEvidenceIndex(): import('./evidenceFromSummaries.js').SourceEvidenceIndex | undefined {
     if (this._sourceEvidenceIndex !== undefined) return this._sourceEvidenceIndex;
@@ -614,6 +615,32 @@ export class DebateEngine {
     } catch { /* index unavailable — no evidence */ }
     this._sourceEvidenceIndex = undefined as unknown as import('./evidenceFromSummaries.js').SourceEvidenceIndex;
     return undefined;
+  }
+
+  /** Map of doc_id → human-readable title from source metadata (lazy). */
+  private get docTitles(): import('./evidenceFromSummaries.js').DocTitleMap | undefined {
+    if (this._docTitles !== undefined) return this._docTitles;
+    try {
+      const __dir = path.dirname(fileURLToPath(import.meta.url));
+      const root = resolveRepoRoot(__dir);
+      const configPath = path.join(root, '.aitriad.json');
+      if (!fs.existsSync(configPath)) return undefined;
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      const sourcesRoot = config.sources_root ? path.resolve(root, config.sources_root) : null;
+      if (!sourcesRoot || !fs.existsSync(sourcesRoot)) return undefined;
+      const titles: Record<string, string> = {};
+      for (const entry of fs.readdirSync(sourcesRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
+        if (!fs.existsSync(metaPath)) continue;
+        try {
+          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+          if (meta.title) titles[entry.name] = meta.title;
+        } catch { /* skip */ }
+      }
+      this._docTitles = Object.keys(titles).length > 0 ? titles : undefined;
+      return this._docTitles;
+    } catch { return undefined; }
   }
 
   private getNodeLabelMap(): Map<string, string> {
@@ -2048,6 +2075,7 @@ export class DebateEngine {
       model: this.config.model,
       lastOpponentStatement,
       sourceEvidenceIndex: this.sourceEvidenceIndex,
+      docTitles: this.docTitles,
       ...(this.config.temperature != null ? {
         stageTemperatures: {
           brief_temperature: this.config.temperature,

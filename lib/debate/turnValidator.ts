@@ -199,7 +199,7 @@ export function resolveTurnValidationConfig(
 ): Required<TurnValidationConfig> {
   const src = c ?? {};
   const rawRetries = src.maxRetries ?? 2;
-  const clamped = Math.max(0, Math.min(2, rawRetries)) as 0 | 1 | 2;
+  const clamped = Math.max(0, Math.min(2, rawRetries));
   return {
     enabled: src.enabled ?? true,
     maxRetries: clamped,
@@ -1002,27 +1002,37 @@ export function validateDraftStage(p: {
 }): StageValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const details: StageValidationDetail[] = [];
   const { statement, meta, phase, round, priorTurns, audience } = p;
 
   // Rule 1: move_types — only validate if present (move_types comes from cite stage,
   // so it may not exist on the draft output; the full validateTurn checks it post-assembly)
   if (meta.move_types && meta.move_types.length > 0) {
+    let movePass = true;
     for (const mt of meta.move_types) {
       const name = getMoveName(mt);
       const resolved = resolveMoveName(name);
       if (!resolved) {
         errors.push(`Unknown move_types: "${name}". Use ONLY: ${MOVE_CATALOG_RAW.join(', ')}.`);
+        movePass = false;
       }
     }
+    details.push({ rule: 'move_types valid', pass: movePass, value: meta.move_types.map(m => getMoveName(m)).join(', ') });
   }
 
   // Rule 2: disagreement_type — only validate if present
-  if (meta.disagreement_type && !DISAGREEMENT_TYPES.has(meta.disagreement_type.toUpperCase())) {
-    errors.push(`Unknown disagreement_type "${meta.disagreement_type}". Use: EMPIRICAL, VALUES, or DEFINITIONAL.`);
+  if (meta.disagreement_type) {
+    const dtPass = DISAGREEMENT_TYPES.has(meta.disagreement_type.toUpperCase());
+    if (!dtPass) {
+      errors.push(`Unknown disagreement_type "${meta.disagreement_type}". Use: EMPIRICAL, VALUES, or DEFINITIONAL.`);
+    }
+    details.push({ rule: 'disagreement_type valid', pass: dtPass, value: meta.disagreement_type });
   }
 
   // Rule 6: paragraph count
   const paragraphs = statement.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+  const paraPass = paragraphs.length >= 3 && paragraphs.length <= 5;
+  details.push({ rule: 'paragraph count 3–5', pass: paraPass, value: `${paragraphs.length}` });
   if (paragraphs.length === 1) {
     errors.push('Statement is a single paragraph — split into 3–5 double-newline-separated blocks.');
   } else if (paragraphs.length === 2 || paragraphs.length > 5) {
@@ -1037,8 +1047,10 @@ export function validateDraftStage(p: {
     if (lastMoveTypes && lastMoveTypes.length > 0) {
       const lastMoves = lastMoveTypes.map(m => resolveMoveName(getMoveName(m))).filter(Boolean);
       const currentMoves = meta.move_types.map(m => resolveMoveName(getMoveName(m))).filter(Boolean);
-      if (lastMoves.length === currentMoves.length &&
-          lastMoves.every((m, i) => m === currentMoves[i])) {
+      const repeated = lastMoves.length === currentMoves.length &&
+          lastMoves.every((m, i) => m === currentMoves[i]);
+      details.push({ rule: 'move not repeated', pass: !repeated, value: currentMoves.join(', ') });
+      if (repeated) {
         warnings.push(`move_types repeat your previous turn exactly (${lastMoves.join(', ')}). Vary your dialectical move.`);
       }
     }
@@ -1050,6 +1062,10 @@ export function validateDraftStage(p: {
     const specific = claims.some(c =>
       /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/.test(c.claim),
     );
+    // Pass = has claims AND (specific OR not yet round 4). But mark as warning if abstract.
+    const claimPass = claims.length > 0 && specific;
+    const claimWarn = claims.length > 0 && !specific && round < 4;
+    details.push({ rule: 'claim specificity', pass: claimPass || claimWarn, value: `${claims.length} claims${specific ? ', has specifics' : ', abstract only'}${claimWarn ? ' (warn)' : ''}` });
     if (claims.length === 0) {
       errors.push('my_claims is empty — add at least one claim with a number, timeline, or named entity.');
     } else if (!specific && round >= 4) {
@@ -1062,14 +1078,18 @@ export function validateDraftStage(p: {
   // Rule 10: hedge density
   const hedgeDensity = computeHedgeDensity(statement);
   const hedgeThreshold = getHedgeThreshold(phase, audience);
-  if (hedgeDensity > hedgeThreshold) {
+  const hedgePass = hedgeDensity <= hedgeThreshold;
+  details.push({ rule: `hedge density ≤${(hedgeThreshold * 100).toFixed(0)}%`, pass: hedgePass, value: `${(hedgeDensity * 100).toFixed(1)}%` });
+  if (!hedgePass) {
     warnings.push(`Hedge density ${(hedgeDensity * 100).toFixed(0)}% exceeds ${(hedgeThreshold * 100).toFixed(0)}% threshold.`);
   }
 
   // Rule 11: constructive move
   if (phase !== 'confrontation' && round >= 4 && meta.move_types && meta.move_types.length > 0) {
     const resolved = meta.move_types.map(m => resolveMoveName(getMoveName(m)));
-    if (!resolved.some(m => m && SUPPORT_MOVES.has(m))) {
+    const hasConstructive = resolved.some(m => m && SUPPORT_MOVES.has(m));
+    details.push({ rule: 'constructive move present', pass: hasConstructive, value: resolved.filter(Boolean).join(', ') });
+    if (!hasConstructive) {
       const msg = 'No constructive move found — include at least one of: CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, SPECIFY.';
       if (phase === 'concluding' || round >= 6) errors.push(msg);
       else warnings.push(msg);
@@ -1077,19 +1097,23 @@ export function validateDraftStage(p: {
   }
 
   // Rule 12: statement duplication
+  let dupPass = true;
   if (statement.length >= 400) {
     const half = Math.floor(statement.length / 2);
     const first300 = statement.slice(0, 300).trim();
     const secondHalfIdx = statement.indexOf(first300, half - 150);
     if (secondHalfIdx > 0 && secondHalfIdx >= half - 150) {
       errors.push('Statement contains verbatim repeated text — your response appears to duplicate itself.');
+      dupPass = false;
     }
   }
+  details.push({ rule: 'no duplication', pass: dupPass, value: `${statement.length} chars` });
 
   // Intervention compliance — structured response field check
   if (p.pendingIntervention) {
     const rawMeta = (meta as Record<string, unknown>) ?? {};
     const compliance = checkInterventionCompliance(p.pendingIntervention.move, rawMeta);
+    details.push({ rule: 'intervention compliance', pass: compliance.compliant, value: p.pendingIntervention.move });
     if (!compliance.compliant && compliance.repair_hint) {
       errors.push(compliance.repair_hint);
     }
@@ -1102,6 +1126,7 @@ export function validateDraftStage(p: {
       statement,
       p.pendingIntervention,
     );
+    details.push({ rule: 'directive content compliance', pass: directiveResult.compliant, value: `${directiveResult.matched_terms}/${directiveResult.directive_terms.length} terms` });
     if (!directiveResult.compliant) {
       errors.push(directiveResult.repair_hint);
     }
@@ -1111,6 +1136,7 @@ export function validateDraftStage(p: {
     pass: errors.length === 0,
     repairHints: [...errors, ...warnings],
     errorHints: errors,
+    details,
     failedDimension: errors.length > 0
       ? (directiveResult && !directiveResult.compliant ? 'directive' : 'schema')
       : undefined,

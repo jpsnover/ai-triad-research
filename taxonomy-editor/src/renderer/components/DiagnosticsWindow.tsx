@@ -70,7 +70,8 @@ function AifBadge({ type, label }: { type: 'I-node' | 'CA-node' | 'RA-node' | 'P
 }
 
 function speakerLabel(speaker: string): string {
-  if (speaker === 'system') return 'Moderator';
+  if (speaker === 'system') return 'System';
+  if (speaker === 'moderator') return 'Moderator';
   if (speaker === 'user') return 'You';
   return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 }
@@ -4632,7 +4633,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           const isLastInRun = retryIdx === retryCount - 1;
                           const hasStageRetries = retryCount > 1;
                           const isFinal = ai === effectiveDraftAttempts.length - 1;
-                          const valData = (attempt as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[] } | undefined;
+                          const valData = (attempt as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[]; details?: { rule: string; pass: boolean; value?: string }[] } | undefined;
                           const allHints = valData?.hints ?? [];
                           // Pull judge-quality hints from overall validation for the final attempt only
                           const judgeHints = isFinal ? (turnValTrail?.final.repairHints ?? []).filter(h => classifyHintTarget(h) === 'judge') : [];
@@ -4799,14 +4800,27 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                 }
                                 // Fallback: no dimensions available (rejected turn or no trail)
                                 return (
-                                  <div style={{ marginTop: 6, fontSize: '0.72rem', fontWeight: 600 }}>
-                                    Per-stage Validation:{' '}
-                                    {valData ? (
-                                      <span style={{ color: valData.pass ? '#16a34a' : '#dc2626' }}>
-                                        {valData.pass ? 'Pass' : 'Fail'}
-                                      </span>
-                                    ) : (
-                                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                  <div style={{ marginTop: 6, fontSize: '0.72rem' }}>
+                                    <div style={{ fontWeight: 600 }}>
+                                      Per-stage Validation:{' '}
+                                      {valData ? (
+                                        <span style={{ color: valData.pass ? '#16a34a' : '#dc2626' }}>
+                                          {valData.pass ? 'Pass' : 'Fail'}
+                                        </span>
+                                      ) : (
+                                        <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                      )}
+                                    </div>
+                                    {valData?.details && valData.details.length > 0 && (
+                                      <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.66rem' }}>
+                                        {valData.details.map((d, di) => (
+                                          <div key={di} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <span style={{ color: d.pass ? '#16a34a' : '#dc2626', fontSize: '0.7rem' }}>{d.pass ? '✓' : '✗'}</span>
+                                            <span style={{ color: 'var(--text-primary)' }}>{d.rule}</span>
+                                            {d.value && <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.62rem' }}>{d.value}</span>}
+                                          </div>
+                                        ))}
+                                      </div>
                                     )}
                                   </div>
                                 );
@@ -5414,6 +5428,35 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{evidenceStage.raw_response}</pre>
                           </details>
                         )}
+                        {/* ── 5. Cited Evidence (what the debater actually referenced) ── */}
+                        {(() => {
+                          const eu = (evidenceWP as Record<string, unknown>)?.evidence_utilization as {
+                            total_docs?: number; cited_docs?: Array<{ doc_id: string; title?: string; match_type: string }>; utilization_rate?: number;
+                          } | undefined;
+                          if (!eu?.cited_docs || eu.total_docs === 0) return null;
+                          const matchColors: Record<string, string> = { exact_id: '#16a34a', slug: '#3b82f6', title_exact: '#8b5cf6', title_partial: '#d97706' };
+                          return (
+                            <details open style={{ marginTop: 8 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
+                                Cited Evidence ({eu.cited_docs.length}/{eu.total_docs} sources, {eu.utilization_rate}%)
+                              </summary>
+                              {eu.cited_docs.length === 0 ? (
+                                <div style={{ fontSize: '0.66rem', color: '#dc2626', padding: '4px 6px', background: 'rgba(220,38,38,0.08)', borderRadius: 3 }}>
+                                  Debater did not cite any source documents from the evidence brief.
+                                </div>
+                              ) : (
+                                eu.cited_docs.map((cd, i) => (
+                                  <div key={i} style={{ marginBottom: 4, padding: '4px 8px', borderRadius: 4, borderLeft: `3px solid ${matchColors[cd.match_type] ?? '#6b7280'}`, background: 'var(--bg-subtle)', fontSize: '0.66rem' }}>
+                                    <span style={{ fontWeight: 600 }}>{cd.title ?? cd.doc_id}</span>
+                                    <span style={{ fontSize: '0.55rem', marginLeft: 6, padding: '0 4px', borderRadius: 3, color: matchColors[cd.match_type] ?? '#6b7280', background: `${matchColors[cd.match_type] ?? '#6b7280'}18` }}>
+                                      {cd.match_type.replace('_', ' ')}
+                                    </span>
+                                  </div>
+                                ))
+                              )}
+                            </details>
+                          );
+                        })()}
                         {/* ── Extraction Funnel (post-turn) ── */}
                         {extTrace && extTrace.candidates_proposed > 0 && (
                           <details open style={{ marginTop: 8 }}>

@@ -44,11 +44,36 @@ function Invoke-EdgeDiscovery {
     .PARAMETER Force
         Re-discover edges for all nodes, even those that already have edges and are not STALE.
     .PARAMETER MaxConcurrent
-        Number of parallel API workers. Default: 1 (sequential). Values > 1 enable
+        Number of parallel API workers. Default: 4. Values > 1 enable
         ForEach-Object -Parallel. Checkpointing is only active in sequential mode.
+        Recommended settings by backend:
+          Gemini free tier: 3 (avoids 429 rate limits)
+          Gemini paid:      8
+          Claude:           4
+          Groq:             6 (generous free tier)
+        Rate-limited (429) calls are automatically retried with exponential backoff.
     .PARAMETER TopKCandidates
-        Maximum number of embedding-filtered candidates per source node. Default: 40.
+        Maximum number of embedding-filtered candidates per source node. Default: 30.
         Has no effect when -SkipEmbeddingFilter is set or embeddings.json is absent.
+    .PARAMETER TwoPhase
+        Enables two-phase discovery: Phase 1 uses a fast/cheap model to screen which
+        candidates have ANY relationship with the source. Phase 2 runs full classification
+        only on screened-in candidates. Reduces total tokens by ~50-60% when most candidates
+        have no relationship.
+    .PARAMETER ScreenModel
+        Model for Phase 1 screening when -TwoPhase is set. Should be a fast/cheap model.
+        Default: 'gemini-2.0-flash-lite' (falls back to main -Model if not set).
+    .PARAMETER BatchSize
+        When > 0, enables batch mode: groups nodes into clusters of this size and asks
+        the LLM to propose edges between ANY pair in the group. Reduces total API calls
+        from N to N/BatchSize. Default: 0 (disabled, uses per-node mode).
+        Recommended: 8-12. Nodes are clustered by embedding similarity to maximize edge
+        discovery within each batch.
+    .PARAMETER MinSimilarity
+        Minimum embedding cosine similarity for candidate inclusion. Candidates below
+        this threshold are excluded from top-K selection (cross-POV floor still applies).
+        Default: 0.20. Analysis shows only 0.5% of real edges fall below 0.20 similarity.
+        Set to 0.0 to disable.
     .PARAMETER MinPerOtherPov
         Minimum candidates from each non-source POV, added after top-K ranking to
         ensure cross-cutting edge discovery. Default: 4.
@@ -71,7 +96,7 @@ function Invoke-EdgeDiscovery {
     .EXAMPLE
         Invoke-EdgeDiscovery -MaxConcurrent 6
     .EXAMPLE
-        Invoke-EdgeDiscovery -TopKCandidates 30 -MinPerOtherPov 6
+        Invoke-EdgeDiscovery -TopKCandidates 25 -MinSimilarity 0.25 -MinPerOtherPov 6
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -96,13 +121,25 @@ function Invoke-EdgeDiscovery {
         [switch]$Force,
 
         [ValidateRange(1, 32)]
-        [int]$MaxConcurrent = 1,
+        [int]$MaxConcurrent = 4,
 
         [ValidateRange(5, 500)]
-        [int]$TopKCandidates = 40,
+        [int]$TopKCandidates = 30,
+
+        [ValidateRange(0.0, 1.0)]
+        [double]$MinSimilarity = 0.20,
 
         [ValidateRange(0, 20)]
         [int]$MinPerOtherPov = 4,
+
+        [ValidateRange(0, 20)]
+        [int]$BatchSize = 0,
+
+        [switch]$TwoPhase,
+
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
+        [string]$ScreenModel = '',
 
         [switch]$SkipEmbeddingFilter,
 
@@ -223,8 +260,20 @@ function Invoke-EdgeDiscovery {
     $NodesToProcess = [System.Collections.Generic.List[PSObject]]::new()
 
     $DiscoveredNodeIds = [System.Collections.Generic.HashSet[string]]::new()
+    # Build evaluated_pairs set: "nodeA|nodeB" (sorted) — skip these in incremental runs
+    $EvaluatedPairs = [System.Collections.Generic.HashSet[string]]::new()
     foreach ($Entry in $EdgesData.discovery_log) {
         [void]$DiscoveredNodeIds.Add($Entry.node_id)
+        # Each discovery_log entry now tracks which candidates were evaluated
+        if ($Entry.PSObject.Properties['candidates_evaluated']) {
+            foreach ($CandId in $Entry.candidates_evaluated) {
+                $PairKey = if ($Entry.node_id -lt $CandId) { "$($Entry.node_id)|$CandId" } else { "$CandId|$($Entry.node_id)" }
+                [void]$EvaluatedPairs.Add($PairKey)
+            }
+        }
+    }
+    if ($EvaluatedPairs.Count -gt 0) {
+        Write-OK "Loaded $($EvaluatedPairs.Count) previously evaluated pairs (will skip in incremental mode)"
     }
 
     foreach ($Node in $AllNodes) {
@@ -257,7 +306,7 @@ function Invoke-EdgeDiscovery {
                 foreach ($Prop in $EmbJson.nodes.PSObject.Properties) {
                     $Embeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
                 }
-                Write-OK "Loaded embeddings for $($Embeddings.Count) nodes (TopK=$TopKCandidates, MinPerPov=$MinPerOtherPov)"
+                Write-OK "Loaded embeddings for $($Embeddings.Count) nodes (TopK=$TopKCandidates, MinSim=$MinSimilarity, MinPerPov=$MinPerOtherPov)"
             } catch {
                 Write-Warn "Failed to parse embeddings from '$EmbeddingsPath': $($_.Exception.Message)"
                 Write-Info 'Falling back to full candidate list. To fix, regenerate embeddings with Update-TaxonomyEmbeddings.'
@@ -272,6 +321,28 @@ function Invoke-EdgeDiscovery {
     # ── Step 6: Load prompts ──
     $SystemPrompt = Get-Prompt -Name 'edge-discovery'
     $SchemaPrompt = Get-Prompt -Name 'edge-discovery-schema'
+
+    # Two-phase: resolve screen model and load screen prompt
+    if ($TwoPhase) {
+        $ScreenPrompt = Get-Prompt -Name 'edge-screen'
+        if ([string]::IsNullOrWhiteSpace($ScreenModel)) { $ScreenModel = 'gemini-2.0-flash-lite' }
+        # Resolve screen model API key (may differ from main model)
+        if     ($ScreenModel -match '^gemini') { $ScreenBackend = 'gemini' }
+        elseif ($ScreenModel -match '^claude') { $ScreenBackend = 'claude' }
+        elseif ($ScreenModel -match '^groq')   { $ScreenBackend = 'groq'   }
+        else                                   { $ScreenBackend = 'gemini'  }
+        $ScreenKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $ScreenBackend
+        Write-Info "Two-phase mode: screen=$ScreenModel, classify=$Model"
+
+        $ScreenSchema = @{
+            type       = 'object'
+            properties = @{
+                source_id   = @{ type = 'string' }
+                related_ids = @{ type = 'array'; items = @{ type = 'string' } }
+            }
+            required   = @('source_id', 'related_ids')
+        }
+    }
 
     $EdgeSchema = @{
         type       = 'object'
@@ -310,10 +381,247 @@ function Invoke-EdgeDiscovery {
         required   = @('edges')
     }
 
-    # ── Step 7: Build per-node filtered candidate list and full prompt ──
+    # ── Step 7: Build prompts (per-node or batch mode) ──
+
+    if ($BatchSize -gt 0 -and $Embeddings.Count -gt 0) {
+        # ═══════════════════════════════════════════════════════════════════
+        # BATCH MODE: cluster nodes and discover edges between all pairs in each batch
+        # ═══════════════════════════════════════════════════════════════════
+        $BatchSystemPrompt = Get-Prompt -Name 'edge-discovery-batch'
+        $BatchSchemaPrompt = Get-Prompt -Name 'edge-discovery-batch-schema'
+
+        $BatchEdgeSchema = @{
+            type       = 'object'
+            properties = @{
+                edges = @{
+                    type  = 'array'
+                    items = @{
+                        type       = 'object'
+                        properties = @{
+                            source        = @{ type = 'string' }
+                            target        = @{ type = 'string' }
+                            type          = @{ type = 'string' }
+                            bidirectional = @{ type = 'boolean' }
+                            confidence    = @{ type = 'number' }
+                            weight        = @{ type = 'number' }
+                            rationale     = @{ type = 'string' }
+                            strength      = @{ type = 'string'; enum = @('strong', 'moderate', 'weak') }
+                            notes         = @{ type = 'string' }
+                        }
+                        required   = @('source', 'target', 'type', 'confidence', 'rationale')
+                    }
+                }
+                new_edge_types = @{
+                    type  = 'array'
+                    items = @{
+                        type       = 'object'
+                        properties = @{
+                            type          = @{ type = 'string' }
+                            definition    = @{ type = 'string' }
+                            bidirectional = @{ type = 'boolean' }
+                        }
+                        required   = @('type', 'definition')
+                    }
+                }
+            }
+            required   = @('edges')
+        }
+
+        Write-Step "Clustering $($NodesToProcess.Count) nodes into batches of $BatchSize"
+        $NodesToProcessArray = @($NodesToProcess.ToArray())
+        $Batches = Get-NodeBatches `
+            -Nodes      $NodesToProcessArray `
+            -Embeddings $Embeddings `
+            -NodePovMap $NodePovMap `
+            -BatchSize  $BatchSize
+
+        Write-OK "$($Batches.Count) batches created (avg $([Math]::Round($NodesToProcessArray.Count / $Batches.Count, 1)) nodes/batch)"
+
+        if ($DryRun -and $Batches.Count -gt 0) {
+            $FirstBatch = $Batches[0]
+            $NodeListJson = @($FirstBatch | ForEach-Object {
+                $Entry = [ordered]@{ id = $_.id; pov = $NodePovMap[$_.id]; label = $_.label }
+                if ($_.PSObject.Properties['category'])    { $Entry['category']    = $_.category }
+                if ($_.PSObject.Properties['description']) {
+                    $Desc = $_.description
+                    if ($Desc.Length -gt 200) { $Desc = $Desc.Substring(0, 197) + '...' }
+                    $Entry['description'] = $Desc
+                }
+                $Entry
+            }) | ConvertTo-Json -Depth 5
+            $PreviewPrompt = "$BatchSystemPrompt`n`n--- NODE GROUP ($($FirstBatch.Count) nodes) ---`n$NodeListJson`n`n$BatchSchemaPrompt"
+            Write-Host ''
+            Write-Host '=== BATCH PROMPT PREVIEW (first batch) ===' -ForegroundColor Cyan
+            Write-Host "Batch contains: $($FirstBatch | ForEach-Object { $_.id } | Join-String -Separator ', ')" -ForegroundColor Yellow
+            Write-Host "Total prompt length: ~$($PreviewPrompt.Length) chars (~$([Math]::Round($PreviewPrompt.Length / 4)) tokens est.)" -ForegroundColor Cyan
+            Write-Host "Batches: $($Batches.Count), API calls saved: $($NodesToProcessArray.Count - $Batches.Count)" -ForegroundColor Green
+            return
+        }
+
+        # Execute batch discovery
+        $TotalProcessed = 0
+        $TotalEdges     = 0
+        $TotalFailed    = 0
+        $NewEdgeTypes   = [System.Collections.Generic.List[PSObject]]::new()
+
+        $BatchNum = 0
+        foreach ($Batch in $Batches) {
+            $BatchNum++
+            $BatchNodeIds = @($Batch | ForEach-Object { $_.id })
+            Write-Step "[$BatchNum/$($Batches.Count)] Batch: $($BatchNodeIds.Count) nodes"
+
+            # Build node group JSON (full detail for batch)
+            $NodeListJson = @($Batch | ForEach-Object {
+                $N = $_
+                $Entry = [ordered]@{ id = $N.id; pov = $NodePovMap[$N.id]; label = $N.label }
+                if ($N.PSObject.Properties['category'])    { $Entry['category']    = $N.category }
+                if ($N.PSObject.Properties['description']) {
+                    $Desc = $N.description
+                    if ($Desc.Length -gt 300) { $Desc = $Desc.Substring(0, 297) + '...' }
+                    $Entry['description'] = $Desc
+                }
+                if ($NodePovMap[$N.id] -eq 'situations' -and $N.PSObject.Properties['interpretations']) {
+                    $Entry['interpretations'] = $N.interpretations
+                }
+                $Entry
+            }) | ConvertTo-Json -Depth 10
+
+            $BatchPrompt = @"
+$BatchSystemPrompt
+
+--- NODE GROUP ($($BatchNodeIds.Count) nodes) ---
+$NodeListJson
+
+$BatchSchemaPrompt
+"@
+
+            # Create a pseudo-node for Invoke-NodeEdgeDiscovery (reuse existing infrastructure)
+            $PseudoNode = [PSCustomObject]@{ id = "batch-$BatchNum" }
+            $Disc = Invoke-NodeEdgeDiscovery `
+                -Node            $PseudoNode `
+                -FullPrompt      $BatchPrompt `
+                -Model           $Model `
+                -ApiKey          $ResolvedKey `
+                -Temperature     $Temperature `
+                -ResponseSchema  $BatchEdgeSchema
+
+            if ($Disc.Error) {
+                Write-Fail "Batch ${BatchNum}: $($Disc.Error)"
+                $TotalFailed++
+                continue
+            }
+
+            Write-Info "Batch ${BatchNum}: API response in $($Disc.ElapsedSec)s"
+
+            $BatchEdgeCount = 0
+            foreach ($Edge in @($Disc.RawEdges)) {
+                # Batch mode: edges have 'source' field instead of inheriting from source node
+                $SourceId = if ($Edge.PSObject.Properties['source']) { $Edge.source } else { $null }
+                $TargetId = if ($Edge.PSObject.Properties['target']) { $Edge.target } else { $null }
+                if (-not $SourceId -or -not $TargetId -or
+                    -not $Edge.PSObject.Properties['type'] -or
+                    -not $Edge.PSObject.Properties['confidence']) {
+                    Write-Warn "Batch ${BatchNum}: malformed edge (missing source/target/type/confidence), skipping"
+                    continue
+                }
+                if (-not $ValidNodeIds.Contains($SourceId)) {
+                    Write-Warn "Batch ${BatchNum}: source '$SourceId' not in taxonomy, skipping"
+                    continue
+                }
+                if (-not $ValidNodeIds.Contains($TargetId)) {
+                    Write-Warn "Batch ${BatchNum}: target '$TargetId' not in taxonomy, skipping"
+                    continue
+                }
+                if ($SourceId -eq $TargetId) { continue }
+                if (-not $ValidEdgeTypes.Contains($Edge.type)) {
+                    Write-Warn "Batch ${BatchNum}: unknown edge type '$($Edge.type)', skipping"
+                    continue
+                }
+                $Confidence = [double]$Edge.confidence
+                if ($Confidence -lt 0.5) { continue }
+                $EdgeKey = "$SourceId|$($Edge.type)|$TargetId"
+                if ($ExistingEdgeKeys.Contains($EdgeKey)) { continue }
+
+                if ($Edge.PSObject.Properties['bidirectional']) { $Bidir = [bool]$Edge.bidirectional } else { $Bidir = $false }
+                if ($Edge.PSObject.Properties['rationale'])    { $Rationale = $Edge.rationale }           else { $Rationale = '' }
+                $EdgeObj = [ordered]@{
+                    source        = $SourceId
+                    target        = $TargetId
+                    type          = $Edge.type
+                    bidirectional = $Bidir
+                    confidence    = $Confidence
+                    rationale     = $Rationale
+                    status        = 'proposed'
+                    discovered_at = (Get-Date).ToString('yyyy-MM-dd')
+                    model         = $Model
+                }
+                if ($Edge.PSObject.Properties['weight'] -and $null -ne $Edge.weight) {
+                    $W = [double]$Edge.weight
+                    if ($W -ge 0.0 -and $W -le 1.0) { $EdgeObj['weight'] = $W }
+                }
+                if ($Edge.PSObject.Properties['strength'] -and $Edge.strength) { $EdgeObj['strength'] = $Edge.strength }
+                if ($Edge.PSObject.Properties['notes']    -and $Edge.notes)    { $EdgeObj['notes']    = $Edge.notes    }
+
+                $EdgesList.Add([PSCustomObject]$EdgeObj)
+                [void]$ExistingEdgeKeys.Add($EdgeKey)
+                if ($Bidir) { [void]$ExistingEdgeKeys.Add("$TargetId|$($Edge.type)|$SourceId") }
+                $BatchEdgeCount++
+                $TotalEdges++
+            }
+
+            foreach ($NewType in @($Disc.NewEdgeTypes)) {
+                Write-Info "New edge type proposed: $($NewType.type) — $($NewType.definition)"
+                $NewEdgeTypes.Add($NewType)
+            }
+
+            Write-OK "Batch ${BatchNum}: $BatchEdgeCount edge(s) proposed"
+
+            # Log all pairs in this batch as evaluated
+            $EdgesData.discovery_log += [PSCustomObject][ordered]@{
+                node_id              = "batch-$BatchNum"
+                discovered_at        = (Get-Date).ToString('yyyy-MM-dd')
+                model                = $Model
+                edge_count           = $BatchEdgeCount
+                candidates_evaluated = $BatchNodeIds
+                batch_mode           = $true
+            }
+
+            # Update evaluated_pairs for all pairs in this batch
+            for ($i = 0; $i -lt $BatchNodeIds.Count; $i++) {
+                for ($j = $i + 1; $j -lt $BatchNodeIds.Count; $j++) {
+                    $A = $BatchNodeIds[$i]; $B = $BatchNodeIds[$j]
+                    $PairKey = if ($A -lt $B) { "$A|$B" } else { "$B|$A" }
+                    [void]$EvaluatedPairs.Add($PairKey)
+                }
+            }
+
+            $TotalProcessed += $BatchNodeIds.Count
+
+            # Checkpoint every 5 batches
+            if ($CheckpointEvery -gt 0 -and $BatchNum % 5 -eq 0) {
+                if ($PSCmdlet.ShouldProcess($EdgesPath, "Write checkpoint after batch $BatchNum")) {
+                    try {
+                        $EdgesData.edges         = $EdgesList.ToArray()
+                        $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
+                        $Json = $EdgesData | ConvertTo-Json -Depth 20
+                        Write-Utf8NoBom -Path $EdgesPath -Value $Json
+                        Write-Info "Checkpoint saved ($($EdgesList.Count) edges)"
+                    } catch {
+                        Write-Warn "Checkpoint write failed: $($_.Exception.Message)"
+                    }
+                }
+            }
+        }
+
+    } else {
+    # ═══════════════════════════════════════════════════════════════════
+    # PER-NODE MODE (original behavior)
+    # ═══════════════════════════════════════════════════════════════════
+
     Write-Step 'Building per-node prompts'
 
     $NodePrompts = @{}   # node ID → full prompt string
+    $NodeCandidateIds = @{}   # node ID → [string[]] candidate IDs (for evaluated_pairs tracking)
     $AllNodeArray = $AllNodes.ToArray()
 
     foreach ($Node in $NodesToProcess) {
@@ -322,14 +630,77 @@ function Invoke-EdgeDiscovery {
         # Filter candidates for this source node
         if ($Embeddings.Count -gt 0) {
             $Candidates = Get-FilteredCandidates `
-                -SourceId      $Node.id `
-                -Embeddings    $Embeddings `
-                -AllNodes      $AllNodeArray `
-                -NodePovMap    $NodePovMap `
-                -TopK          $TopKCandidates `
-                -MinPerOtherPov $MinPerOtherPov
+                -SourceId       $Node.id `
+                -Embeddings     $Embeddings `
+                -AllNodes       $AllNodeArray `
+                -NodePovMap     $NodePovMap `
+                -TopK           $TopKCandidates `
+                -MinPerOtherPov $MinPerOtherPov `
+                -MinSimilarity  $MinSimilarity
         } else {
             $Candidates = @($AllNodes | Where-Object { $_.id -ne $Node.id })
+        }
+
+        # Skip already-evaluated pairs (incremental optimization)
+        # Only active when not using -Force (full re-evaluation ignores evaluated pairs)
+        if (-not $Force -and $EvaluatedPairs.Count -gt 0) {
+            $PreFilterCount = $Candidates.Count
+            $Candidates = @($Candidates | Where-Object {
+                $CandId = $_.id
+                $PairKey = if ($Node.id -lt $CandId) { "$($Node.id)|$CandId" } else { "$CandId|$($Node.id)" }
+                -not $EvaluatedPairs.Contains($PairKey)
+            })
+            $SkippedCount = $PreFilterCount - $Candidates.Count
+            if ($SkippedCount -gt 0) {
+                Write-Verbose "$($Node.id): skipped $SkippedCount already-evaluated candidates ($($Candidates.Count) remaining)"
+            }
+            # If all candidates were already evaluated, skip this node entirely
+            if ($Candidates.Count -eq 0) {
+                Write-Verbose "$($Node.id): all candidates already evaluated — skipping"
+                continue
+            }
+        }
+
+        # Two-phase screen: use cheap model to filter candidates before full classification
+        if ($TwoPhase -and -not $DryRun) {
+            $ScreenCandJson = @($Candidates | ForEach-Object {
+                $E = [ordered]@{ id = $_.id; pov = $NodePovMap[$_.id]; label = $_.label }
+                if ($_.PSObject.Properties['description']) {
+                    $D = $_.description; if ($D.Length -gt 120) { $D = $D.Substring(0, 117) + '...' }
+                    $E['description'] = $D
+                }
+                $E
+            }) | ConvertTo-Json -Depth 3
+
+            $ScreenSourceJson = (@{ id = $Node.id; label = $Node.label; description = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' } }) | ConvertTo-Json -Depth 2
+
+            $ScreenFullPrompt = @"
+$ScreenPrompt
+
+--- SOURCE NODE ---
+$ScreenSourceJson
+
+--- CANDIDATES ---
+$ScreenCandJson
+"@
+
+            try {
+                $ScreenResult = Invoke-AIApi -Prompt $ScreenFullPrompt -Model $ScreenModel -ApiKey $ScreenKey -Temperature 0.1 -MaxTokens 4096 -TimeoutSec 30 -JsonMode $true -ResponseSchema $ScreenSchema
+                $ScreenText = $ScreenResult.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
+                $ScreenParsed = $ScreenText | ConvertFrom-Json
+                if ($ScreenParsed.PSObject.Properties['related_ids'] -and $ScreenParsed.related_ids.Count -gt 0) {
+                    $ScreenedIds = [System.Collections.Generic.HashSet[string]]::new([string[]]@($ScreenParsed.related_ids))
+                    $PreScreenCount = $Candidates.Count
+                    $Candidates = @($Candidates | Where-Object { $ScreenedIds.Contains($_.id) })
+                    Write-Verbose "$($Node.id): screen passed $($Candidates.Count)/$PreScreenCount candidates"
+                    if ($Candidates.Count -eq 0) {
+                        Write-Verbose "$($Node.id): screen returned 0 candidates — skipping full classification"
+                        continue
+                    }
+                }
+            } catch {
+                Write-Warn "$($Node.id): screen failed ($($_.Exception.Message)) — proceeding with full candidate list"
+            }
         }
 
         # Build compact candidate JSON
@@ -405,9 +776,10 @@ $SchemaPrompt
         }
 
         $NodePrompts[$Node.id] = $FullPrompt
+        $NodeCandidateIds[$Node.id] = @($Candidates | ForEach-Object { $_.id })
     }
 
-    # ── Step 8: Execute edge discovery ──
+    # ── Step 8: Execute per-node edge discovery ──
     $TotalProcessed = 0
     $TotalEdges     = 0
     $TotalFailed    = 0
@@ -513,11 +885,21 @@ $SchemaPrompt
 
             Write-OK "$($Disc.NodeId): $NodeEdgeCount edge(s) proposed"
 
+            $CandIds = $NodeCandidateIds[$Disc.NodeId]
             $EdgesData.discovery_log += [PSCustomObject][ordered]@{
-                node_id       = $Disc.NodeId
-                discovered_at = (Get-Date).ToString('yyyy-MM-dd')
-                model         = $Model
-                edge_count    = $NodeEdgeCount
+                node_id                = $Disc.NodeId
+                discovered_at          = (Get-Date).ToString('yyyy-MM-dd')
+                model                  = $Model
+                edge_count             = $NodeEdgeCount
+                candidates_evaluated   = if ($CandIds) { $CandIds } else { @() }
+            }
+
+            # Update evaluated_pairs set for subsequent nodes in this run
+            if ($CandIds) {
+                foreach ($CandId in $CandIds) {
+                    $PairKey = if ($Disc.NodeId -lt $CandId) { "$($Disc.NodeId)|$CandId" } else { "$CandId|$($Disc.NodeId)" }
+                    [void]$EvaluatedPairs.Add($PairKey)
+                }
             }
 
             $TotalProcessed++
@@ -627,16 +1009,20 @@ $SchemaPrompt
 
             Write-OK "$($Disc.NodeId): $NodeEdgeCount edge(s)"
 
+            $CandIds2 = $NodeCandidateIds[$Disc.NodeId]
             $EdgesData.discovery_log += [PSCustomObject][ordered]@{
-                node_id       = $Disc.NodeId
-                discovered_at = (Get-Date).ToString('yyyy-MM-dd')
-                model         = $Model
-                edge_count    = $NodeEdgeCount
+                node_id                = $Disc.NodeId
+                discovered_at          = (Get-Date).ToString('yyyy-MM-dd')
+                model                  = $Model
+                edge_count             = $NodeEdgeCount
+                candidates_evaluated   = if ($CandIds2) { $CandIds2 } else { @() }
             }
 
             $TotalProcessed++
         }
     }
+
+    } # end per-node mode else block
 
     # ── Step 9: Add any new edge types to the schema ──
     if ($NewEdgeTypes.Count -gt 0) {

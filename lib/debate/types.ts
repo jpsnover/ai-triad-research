@@ -611,8 +611,8 @@ export interface ProcessRewardEntry {
 export interface TurnValidationConfig {
   /** Master switch. Default: true. */
   enabled?: boolean;
-  /** Max retries per turn. Hard-capped at 2 (higher values clamped). Default: 2. */
-  maxRetries?: 0 | 1 | 2;
+  /** Max retries per turn. Hard-capped at 3 (higher values clamped). Default: 3. */
+  maxRetries?: 0 | 1 | 2 | 3;
   /** Skip the LLM judge (Stage B) and use only deterministic checks. Default: false. */
   deterministicOnly?: boolean;
   /** Model override for the Stage-B judge. */
@@ -1250,7 +1250,7 @@ export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
   doctrinal_boundaries: string[];
 }> = {
   prometheus: {
-    label: 'Prometheus',
+    label: 'Accelerationist',
     pov: 'accelerationist',
     color: 'var(--color-acc)',
     personality: 'Confident, forward-looking, frames risk as cost-of-inaction',
@@ -1262,7 +1262,7 @@ export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
     ],
   },
   sentinel: {
-    label: 'Sentinel',
+    label: 'Safetyist',
     pov: 'safetyist',
     color: 'var(--color-saf)',
     personality: 'Methodical, evidence-driven, frames progress as conditional-on-safeguards',
@@ -1274,7 +1274,7 @@ export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
     ],
   },
   cassandra: {
-    label: 'Cassandra',
+    label: 'Skeptic',
     pov: 'skeptic',
     color: 'var(--color-skp)',
     personality: 'Wry, pragmatic, challenges assumptions from both sides',

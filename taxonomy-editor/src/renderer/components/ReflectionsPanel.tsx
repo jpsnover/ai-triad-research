@@ -400,7 +400,7 @@ function EditCard({ edit, pover, editIndex }: {
         </div>
       )}
       {applyError && (
-        <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: 4, padding: '4px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4 }}>
+        <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: 4, padding: '6px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4, whiteSpace: 'pre-line' }}>
           {applyError}
         </div>
       )}

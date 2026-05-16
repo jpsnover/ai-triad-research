@@ -56,7 +56,7 @@ describe('buildMediumTierSummary', () => {
       makeNode({ id: 'AN-2', speaker: 'prometheus', source_entry_id: 'e1', computed_strength: 0.4, text: 'Weak claim' }),
     ];
     const result = buildMediumTierSummary(entries, nodes, [], {});
-    expect(result).toContain("Prometheus's key claims:");
+    expect(result).toContain("Accelerationist's key claims:");
     expect(result).toContain('Strong claim');
     expect(result).toContain('Weak claim');
     expect(result.indexOf('Strong claim')).toBeLessThan(result.indexOf('Weak claim'));
@@ -68,7 +68,7 @@ describe('buildMediumTierSummary', () => {
       sentinel: { asserted: [], conceded: ['AI risk is real'], challenged: [] },
     };
     const result = buildMediumTierSummary(entries, [], [], commitments);
-    expect(result).toContain('Sentinel conceded: AI risk is real');
+    expect(result).toContain('Safetyist conceded: AI risk is real');
   });
 
   it('includes cross-POV edge counts', () => {
@@ -105,8 +105,8 @@ describe('buildDistantTierSummary', () => {
       prometheus: { asserted: [], conceded: ['point A', 'point B'], challenged: ['point C'] },
     };
     const result = buildDistantTierSummary([], [], commitments);
-    expect(result).toContain('Prometheus has conceded 2 point(s)');
-    expect(result).toContain('Prometheus has challenged 1 point(s)');
+    expect(result).toContain('Accelerationist has conceded 2 point(s)');
+    expect(result).toContain('Accelerationist has challenged 1 point(s)');
   });
 
   it('includes top-strength claims', () => {

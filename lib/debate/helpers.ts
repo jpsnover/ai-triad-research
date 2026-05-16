@@ -461,6 +461,7 @@ export const MOVE_EDGE_MAP: Record<string, MoveEdgeInfo> = {
 
   // Support moves — create RA-nodes / "supports" edges
   'CONCEDE AND PIVOT':    { edgeType: 'support', dual: true },
+  'CONCEDE':              { edgeType: 'support' },
   'INTEGRATE':            { edgeType: 'support' },
   'EXTEND':               { edgeType: 'support' },
 

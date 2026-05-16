@@ -50,6 +50,7 @@ export * from './dialecticTrace.js';
 export * from './envelopes.js';
 export * from './cacheTypes.js';
 export * from './situationRefs.js';
+export * from './newsReport.js';
 // schemas.ts deliberately excluded from barrel — it imports zod.
 // cli.ts deliberately excluded from barrel — it is the CLI entry point.
 // phaseTransitions.ts excluded — imports fs/path (Node.js only).

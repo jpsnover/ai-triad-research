@@ -799,6 +799,32 @@ post('/api/debates/export', (_req, res, body) => {
   json(res, { content: JSON.stringify(session, null, 2), filename: `debate-${session.id || 'export'}.json` });
 });
 
+post('/api/debates/:id/news-report', async (req, res) => {
+  try {
+    const debateId = param(req, 'id', '/api/debates/:id/news-report');
+    const session = await fileIO.loadDebateSession(debateId) as Record<string, unknown>;
+    const transcript = (session.transcript ?? []) as Array<{ type: string; content: string; speaker: string }>;
+    const hasSynthesis = transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
+    if (!hasSynthesis) { error(res, 'A synthesis must exist before generating a news report.', 400); return; }
+
+    const { extractTranscriptHighlights, summarizeArgumentNetwork } = await import('../../lib/debate/newsReport.js');
+    const { newsReportPrompt } = await import('../../lib/debate/prompts.js');
+
+    const anNodes = ((session.argument_network as Record<string, unknown>)?.nodes ?? []) as unknown[];
+    const anEdges = ((session.argument_network as Record<string, unknown>)?.edges ?? []) as unknown[];
+    const highlights = extractTranscriptHighlights(transcript as never[], anNodes as never[]);
+    const argSummary = summarizeArgumentNetwork(anNodes as never[], anEdges as never[]);
+    const synthesisEntry = transcript.find(e => e.type === 'synthesis' || e.type === 'concluding');
+    const synthesisJson = synthesisEntry?.content ?? '';
+    const docAnalysis = (session.document_analysis as string | undefined) ?? undefined;
+    const topic = ((session.topic as Record<string, unknown>)?.refined ?? (session.topic as Record<string, unknown>)?.original ?? '') as string;
+
+    const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis);
+    const result = await ai.generateText(prompt);
+    json(res, { article: result.text });
+  } catch (err) { error(res, String(err)); }
+});
+
 // ── Chat sessions ──
 
 get('/api/chats', async (_req, res) => { json(res, await fileIO.listChatSessions()); });
@@ -902,8 +928,47 @@ function loadEvidenceIndex(): SourceEvidenceIndex | null {
   } catch { return null; }
 }
 
+type DocTitleMap = import('../../../lib/debate/evidenceFromSummaries.js').DocTitleMap;
+let _docTitles: DocTitleMap | null | undefined;
+function loadDocTitles(): DocTitleMap | null {
+  if (_docTitles !== undefined) return _docTitles;
+  try {
+    // Resolve sources root from .aitriad.json (project root)
+    // Walk up from __dirname to find the repo root containing .aitriad.json
+    let searchDir = path.resolve(__dirname, '..', '..', '..');
+    let aitriadPath = '';
+    for (let i = 0; i < 5; i++) {
+      const candidate = path.join(searchDir, '.aitriad.json');
+      if (fs.existsSync(candidate)) { aitriadPath = candidate; break; }
+      searchDir = path.dirname(searchDir);
+    }
+    if (!aitriadPath) { _docTitles = null; return null; }
+    const aitriadConfig = JSON.parse(fs.readFileSync(aitriadPath, 'utf-8'));
+    const sourcesRoot = aitriadConfig.sources_root
+      ? path.resolve(path.dirname(aitriadPath), aitriadConfig.sources_root)
+      : null;
+    if (!sourcesRoot || !fs.existsSync(sourcesRoot)) { _docTitles = null; return null; }
+    const titles: Record<string, string> = {};
+    for (const entry of fs.readdirSync(sourcesRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
+      if (!fs.existsSync(metaPath)) continue;
+      try {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+        if (meta.title) titles[entry.name] = meta.title;
+      } catch { /* skip */ }
+    }
+    _docTitles = Object.keys(titles).length > 0 ? titles : null;
+    return _docTitles;
+  } catch { _docTitles = null; return null; }
+}
+
 get('/api/source-evidence-index', (_req, res) => {
   json(res, loadEvidenceIndex());
+});
+
+get('/api/doc-titles', (_req, res) => {
+  json(res, loadDocTitles());
 });
 
 post('/api/source-evidence', async (_req, res, body) => {
@@ -913,7 +978,8 @@ post('/api/source-evidence', async (_req, res, body) => {
   if (!index) { json(res, emptyResult); return; }
   try {
     const { retrieveSourceEvidence } = await import('../../../lib/debate/evidenceFromSummaries.js');
-    json(res, retrieveSourceEvidence(nodeIds, pov, index));
+    const docTitles = loadDocTitles() ?? undefined;
+    json(res, retrieveSourceEvidence(nodeIds, pov, index, 3, 2, docTitles));
   } catch (err) {
     console.warn(`[api] source-evidence failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
     json(res, emptyResult);

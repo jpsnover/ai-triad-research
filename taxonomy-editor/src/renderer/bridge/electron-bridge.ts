@@ -37,6 +37,7 @@ export const api: AppAPI = {
   loadSummary: (docId) => window.electronAPI.loadSummary(docId),
   loadSnapshot: (sourceId) => window.electronAPI.loadSnapshot(sourceId),
   loadSourceEvidenceIndex: () => window.electronAPI.loadSourceEvidenceIndex(),
+  loadDocTitles: () => window.electronAPI.loadDocTitles(),
   getSourceEvidence: (nodeIds, pov) => window.electronAPI.getSourceEvidence(nodeIds, pov),
 
   // Data management
@@ -79,6 +80,9 @@ export const api: AppAPI = {
   exportDebateToFile: (s, format) => window.electronAPI.exportDebateToFile(s, format),
   loadDebateComments: (id) => window.electronAPI.loadDebateComments(id),
   saveDebateComments: (id, data) => window.electronAPI.saveDebateComments(id, data),
+
+  // News Report
+  generateNewsReport: (debateId) => window.electronAPI.generateNewsReport(debateId),
 
   // Chat sessions
   listChatSessions: () => window.electronAPI.listChatSessions(),

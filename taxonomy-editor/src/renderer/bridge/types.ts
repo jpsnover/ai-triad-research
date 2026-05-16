@@ -103,6 +103,7 @@ export interface AppAPI {
 
   // --- Source evidence ---
   loadSourceEvidenceIndex: () => Promise<Record<string, unknown> | null>;
+  loadDocTitles: () => Promise<Record<string, string> | null>;
   getSourceEvidence: (nodeIds: string[], pov: string) => Promise<{
     facts: unknown[]; keyPoints: unknown[]; formattedBlock: string;
     nodesCovered: string[]; totalCandidates: number;
@@ -117,6 +118,9 @@ export interface AppAPI {
   exportDebateToFile: (session: unknown, format?: 'json' | 'markdown' | 'text' | 'pdf' | 'package') => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
+
+  // --- News Report ---
+  generateNewsReport: (debateId: string) => Promise<{ article: string }>;
 
   // --- Chat sessions ---
   listChatSessions: () => Promise<unknown[]>;

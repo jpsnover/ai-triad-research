@@ -35,6 +35,10 @@ function Get-FilteredCandidates {
     .PARAMETER MinPerOtherPov
         Minimum candidates from each non-source POV, regardless of similarity rank.
         Ensures cross-POV coverage. Default: 4.
+    .PARAMETER MinSimilarity
+        Minimum cosine similarity threshold. Candidates below this are excluded from
+        the top-K selection (but may still be included via the cross-POV floor).
+        Default: 0.20. Set to 0.0 to disable.
     .NOTES
         If the source node has no embedding, returns all non-source nodes (fallback).
         Nodes without embeddings are included last (similarity = -1.0) to fill gaps.
@@ -46,7 +50,8 @@ function Get-FilteredCandidates {
         [Parameter(Mandatory)][PSObject[]]$AllNodes,
         [Parameter(Mandatory)][hashtable]$NodePovMap,
         [int]$TopK            = 40,
-        [int]$MinPerOtherPov  = 4
+        [int]$MinPerOtherPov  = 4,
+        [double]$MinSimilarity = 0.20
     )
 
     Set-StrictMode -Version Latest
@@ -75,16 +80,26 @@ function Get-FilteredCandidates {
     # Sort descending by similarity
     $Sorted = @($Scored | Sort-Object -Property Sim -Descending)
 
-    # Greedy top-K selection
+    # Greedy top-K selection with minimum similarity threshold
     $Selected    = [System.Collections.Generic.List[PSObject]]::new()
     $SelectedIds = [System.Collections.Generic.HashSet[string]]::new()
     $PovCounts   = @{}
+    $FilteredOut = 0
 
     foreach ($Entry in $Sorted) {
         if ($Selected.Count -ge $TopK) { break }
+        # Skip candidates below the minimum similarity threshold
+        if ($MinSimilarity -gt 0 -and $Entry.Sim -lt $MinSimilarity -and $Entry.Sim -ge 0) {
+            $FilteredOut++
+            continue
+        }
         [void]$Selected.Add($Entry.Node)
         [void]$SelectedIds.Add($Entry.Node.id)
         if ($null -ne $PovCounts[$Entry.Pov]) { $PovCounts[$Entry.Pov] = $PovCounts[$Entry.Pov] + 1 } else { $PovCounts[$Entry.Pov] = 1 }
+    }
+
+    if ($FilteredOut -gt 0) {
+        Write-Verbose "${SourceId}: $FilteredOut candidates below MinSimilarity $MinSimilarity threshold"
     }
 
     # Cross-POV diversity floor: guarantee MinPerOtherPov from every non-source POV
