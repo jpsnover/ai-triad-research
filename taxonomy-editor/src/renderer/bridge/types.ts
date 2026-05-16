@@ -101,8 +101,16 @@ export interface AppAPI {
     }>;
   }>;
 
+  // --- Source evidence ---
+  loadSourceEvidenceIndex: () => Promise<Record<string, unknown> | null>;
+  getSourceEvidence: (nodeIds: string[], pov: string) => Promise<{
+    facts: unknown[]; keyPoints: unknown[]; formattedBlock: string;
+    nodesCovered: string[]; totalCandidates: number;
+  }>;
+
   // --- Debate sessions ---
   listDebateSessions: () => Promise<unknown[]>;
+  listDebateSessionsMeta: () => Promise<unknown[]>;
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;

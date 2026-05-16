@@ -97,7 +97,7 @@ import {
 } from '@lib/debate/phaseTransitions';
 import type { PhaseState, PhaseTransitionConfig, SignalContext, Signal, DebatePhase } from '@lib/debate/types';
 import { computeDebateHealthScore } from '@lib/debate/moderator';
-import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from '@lib/debate/turnPipeline';
+import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from '@lib/debate/turnPipeline';
 import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
@@ -1213,6 +1213,25 @@ function routeTurnValidatorHintsIntoSuggestions(
   return out;
 }
 
+// ── Source evidence index (lazy-loaded once per session via IPC) ──
+let _cachedEvidenceIndex: Record<string, unknown> | null | undefined;
+async function getSourceEvidenceIndex(): Promise<Record<string, unknown> | undefined> {
+  if (_cachedEvidenceIndex !== undefined) return _cachedEvidenceIndex ?? undefined;
+  try {
+    const bridge = api as unknown as { loadSourceEvidenceIndex?: () => Promise<Record<string, unknown> | null> };
+    console.log(`[debate-store] getSourceEvidenceIndex: bridge.loadSourceEvidenceIndex exists = ${!!bridge.loadSourceEvidenceIndex}`);
+    if (!bridge.loadSourceEvidenceIndex) { _cachedEvidenceIndex = null; return undefined; }
+    const result = await bridge.loadSourceEvidenceIndex();
+    console.log(`[debate-store] getSourceEvidenceIndex: result = ${result ? `object with ${Object.keys(result).length} keys` : String(result)}`);
+    _cachedEvidenceIndex = result;
+    return result ?? undefined;
+  } catch (err) {
+    console.error(`[debate-store] getSourceEvidenceIndex ERROR:`, err);
+    _cachedEvidenceIndex = null;
+    return undefined;
+  }
+}
+
 // ── Stage generate factory (shared by opening + cross-respond) ──
 
 function makeStageGenerate(
@@ -1883,7 +1902,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   loadSessions: async () => {
     set({ sessionsLoading: true });
     try {
-      const raw = await api.listDebateSessions();
+      const raw = await api.listDebateSessionsMeta();
       set({ sessions: raw as DebateSessionSummary[], sessionsLoading: false });
     } catch {
       set({ sessionsLoading: false });
@@ -2661,14 +2680,32 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           audience: activeDebate.audience,
           model,
           userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
+          availablePovNodeIds: [...getAllKnownNodeIds()],
         };
 
-        const pipelineResult = await runOpeningPipeline(
+        let pipelineResult = await runOpeningPipeline(
           pipelineInput,
           stageGenerate,
           (_stage, label) => set({ debateActivity: label }),
         );
         if (!isStillValid()) return;
+
+        // Opening retry: if per-stage validation found errors, retry once with repair hints.
+        const openingRepairHints = getOpeningRepairHints(pipelineResult);
+        if (openingRepairHints.length > 0) {
+          console.log(`[debate-store] Opening retry for ${info.label}: ${openingRepairHints.length} issue(s)`);
+          set({ debateActivity: `${info.label} retrying (${openingRepairHints.length} issue${openingRepairHints.length > 1 ? 's' : ''})` });
+          try {
+            pipelineResult = await runOpeningPipeline(
+              { ...pipelineInput, repairHints: openingRepairHints },
+              stageGenerate,
+              (_stage, label) => set({ debateActivity: label }),
+            );
+          } catch (err) {
+            console.warn(`[debate-store] Opening retry failed for ${info.label}:`, err);
+          }
+          if (!isStillValid()) return;
+        }
 
         const knownNodeIds = getAllKnownNodeIds();
         const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, knownNodeIds);
@@ -2731,6 +2768,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           void extractClaimsAndUpdateAN(statement, poverId, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
         }
       } catch (err) {
+        console.error(`[debate] ${info.label} opening statement failed:`, err);
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'error', message: `Opening statement failed: ${info.label}`, error: { name: (err as Error).name, message: (err as Error).message, stack: (err as Error).stack?.slice(0, 500) } });
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
@@ -2971,6 +3010,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   crossRespond: async () => {
+    console.warn('%c[DEBATE-STORE] crossRespond ENTERED', 'color: red; font-weight: bold; font-size: 14px');
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
 
@@ -3249,6 +3289,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       };
     })() : undefined;
 
+    // Load source evidence index (cached after first call)
+    const evidenceIndex = await getSourceEvidenceIndex();
+
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -3271,11 +3314,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       documentAnalysis: crDocAnalysis,
       audience: activeDebate.audience,
       model,
+      sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
     };
 
     const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
 
     try {
+      console.warn('%c[DEBATE-STORE] Inside try block — about to build retryCallbacks', 'color: cyan; font-weight: bold; font-size: 12px');
       // ── Per-turn validation + retry loop ──
       const activeSnapshot = get().activeDebate;
       const vConfig = resolveTurnValidationConfig(undefined);
@@ -3310,7 +3355,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         pendingIntervention: intervention,
       };
 
+      console.warn('%c[DEBATE-STORE] About to call executeTurnWithRetry', 'color: lime; font-weight: bold; font-size: 14px');
       const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
+      console.warn('%c[DEBATE-STORE] executeTurnWithRetry returned', 'color: lime; font-weight: bold; font-size: 14px', { attempts: turnResult.attempts.length, outcome: turnResult.validation.outcome });
       if (turnResult.aborted) return;
       const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
 

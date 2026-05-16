@@ -36,6 +36,8 @@ export const api: AppAPI = {
   discoverSources: () => window.electronAPI.discoverSources(),
   loadSummary: (docId) => window.electronAPI.loadSummary(docId),
   loadSnapshot: (sourceId) => window.electronAPI.loadSnapshot(sourceId),
+  loadSourceEvidenceIndex: () => window.electronAPI.loadSourceEvidenceIndex(),
+  getSourceEvidence: (nodeIds, pov) => window.electronAPI.getSourceEvidence(nodeIds, pov),
 
   // Data management
   isDataAvailable: () => window.electronAPI.isDataAvailable(),
@@ -70,6 +72,7 @@ export const api: AppAPI = {
 
   // Debate sessions
   listDebateSessions: () => window.electronAPI.listDebateSessions(),
+  listDebateSessionsMeta: () => window.electronAPI.listDebateSessions(), // Electron mode: local fs is fast, reuse full list
   loadDebateSession: (id) => window.electronAPI.loadDebateSession(id),
   saveDebateSession: (s) => window.electronAPI.saveDebateSession(s),
   deleteDebateSession: (id) => window.electronAPI.deleteDebateSession(id),

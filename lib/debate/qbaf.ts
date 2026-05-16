@@ -27,8 +27,14 @@ export interface QbafOptions {
   maxIterations?: number;
   /** Convergence threshold — max delta between iterations. Default: 0.001. */
   convergenceThreshold?: number;
-  /** Weight multipliers by attack type. Default: rebut=1.0, undercut=1.1, undermine=1.2. */
+  /** Weight multipliers by attack type. Default: rebut=1.0, undercut=1.05, undermine=1.1. */
   attackWeights?: Partial<Record<'rebut' | 'undercut' | 'undermine', number>>;
+  /** Aggregate attack influences into a single value. Default: sum-and-clamp to [0,1]. */
+  aggregateAttacks?: (attackInfluences: number[]) => number;
+  /** Aggregate support influences into a single value. Default: sum-and-clamp to [0,1]. */
+  aggregateSupports?: (supportInfluences: number[]) => number;
+  /** Combine base strength with aggregated attack/support. Default: DF-QuAD formula. */
+  combine?: (base: number, aggAtt: number, aggSup: number) => number;
 }
 
 export interface QbafResult {
@@ -45,6 +51,18 @@ const DEFAULT_ATTACK_WEIGHTS: Record<string, number> = {
   undercut: 1.05,
   undermine: 1.1,
 };
+
+// ── Default aggregation functions ─────────────────────────
+
+function defaultAggregate(influences: number[]): number {
+  let sum = 0;
+  for (const v of influences) sum += v;
+  return clamp(sum);
+}
+
+function defaultCombine(base: number, aggAtt: number, aggSup: number): number {
+  return clamp(base * (1 - aggAtt) * (1 + aggSup));
+}
 
 // ── DF-QuAD Engine ────────────────────────────────────────
 
@@ -70,6 +88,9 @@ export function computeQbafStrengths(
   const maxIter = options?.maxIterations ?? 100;
   const threshold = options?.convergenceThreshold ?? 0.001;
   const atkWeights = { ...DEFAULT_ATTACK_WEIGHTS, ...options?.attackWeights };
+  const aggAttFn = options?.aggregateAttacks ?? defaultAggregate;
+  const aggSupFn = options?.aggregateSupports ?? defaultAggregate;
+  const combineFn = options?.combine ?? defaultCombine;
 
   if (nodes.length === 0) {
     return { strengths: new Map(), iterations: 0, converged: true };
@@ -115,22 +136,16 @@ export function computeQbafStrengths(
 
       // Aggregate attack influence (reads from previous iteration)
       const attackEdges = attacks.get(n.id) ?? [];
-      let aggAtt = 0;
-      for (const a of attackEdges) {
-        aggAtt += (strengths.get(a.sourceId) ?? 0) * a.weight;
-      }
-      aggAtt = clamp(aggAtt);
+      const attackInfluences = attackEdges.map(a => (strengths.get(a.sourceId) ?? 0) * a.weight);
+      const aggAtt = aggAttFn(attackInfluences);
 
       // Aggregate support influence (reads from previous iteration)
       const supportEdges = supports.get(n.id) ?? [];
-      let aggSup = 0;
-      for (const s of supportEdges) {
-        aggSup += (strengths.get(s.sourceId) ?? 0) * s.weight;
-      }
-      aggSup = clamp(aggSup);
+      const supportInfluences = supportEdges.map(s => (strengths.get(s.sourceId) ?? 0) * s.weight);
+      const aggSup = aggSupFn(supportInfluences);
 
-      // DF-QuAD update rule
-      let newStrength = clamp(base * (1 - aggAtt) * (1 + aggSup));
+      // Combine base strength with aggregated attack/support
+      let newStrength = combineFn(base, aggAtt, aggSup);
 
       // Apply damping if oscillation detected
       if (damping > 0) {

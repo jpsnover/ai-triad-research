@@ -288,6 +288,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteChatSession: (id: string): Promise<void> =>
     ipcRenderer.invoke('delete-chat-session', id),
 
+  // Source evidence (main process filesystem access)
+  loadSourceEvidenceIndex: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-source-evidence-index'),
+  getSourceEvidence: (nodeIds: string[], pov: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-source-evidence', nodeIds, pov),
+
   // Debate sessions
   listDebateSessions: (): Promise<unknown[]> =>
     ipcRenderer.invoke('list-debate-sessions'),

@@ -144,9 +144,9 @@ function ScoreBreakdown({ dims, processReward, judgeUsed }: {
     0.3 * (dims.grounding.pass ? 1 : 0) +
     0.2 * (dims.advancement.pass ? 1 : 0) +
     0.1 * (dims.clarifies.pass ? 1 : 0);
-  // Back-calculate judge quality: process_reward = 0.6 * stageA + 0.4 * judgeQuality
+  // Back-calculate judge quality: process_reward = 0.4 * stageA + 0.6 * judgeQuality
   const judgeQuality = stageAScore > 0
-    ? Math.max(0, Math.min(1, (processReward - 0.6 * stageAScore) / 0.4))
+    ? Math.max(0, Math.min(1, (processReward - 0.4 * stageAScore) / 0.6))
     : 0.7;
 
   const mono = { fontFamily: 'var(--font-mono, monospace)', fontSize: '0.68rem' } as const;
@@ -164,8 +164,8 @@ function ScoreBreakdown({ dims, processReward, judgeUsed }: {
       <DimensionScoreRow name="advancement" pass={dims.advancement.pass} weight={0.2} details={dims.advancement.signals ?? []} />
       <DimensionScoreRow name="clarifies"   pass={dims.clarifies.pass}   weight={0.1} details={dims.clarifies.signals ?? []} />
       <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0', paddingTop: 4, display: 'flex', gap: 16 }}>
-        <span>Stage A: <strong style={mono}>{stageAScore.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>× 0.6 = {(0.6 * stageAScore).toFixed(2)}</span></span>
-        <span>Judge: <strong style={mono}>{judgeQuality.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>× 0.4 = {(0.4 * judgeQuality).toFixed(2)}</span></span>
+        <span>Stage A: <strong style={mono}>{stageAScore.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>× 0.4 = {(0.4 * stageAScore).toFixed(2)}</span></span>
+        <span>Judge: <strong style={mono}>{judgeQuality.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>× 0.6 = {(0.6 * judgeQuality).toFixed(2)}</span></span>
         <span>Total: <strong style={mono}>{processReward.toFixed(2)}</strong></span>
       </div>
     </div>
@@ -189,56 +189,6 @@ function OutcomeBadge({ outcome }: { outcome: TurnValidation['outcome'] }) {
 }
 
 /** Show raw prompt/response for each attempt of a pipeline stage. */
-function StageAttemptRaws({ attempts }: { attempts: { prompt: string; raw_response: string; response_time_ms: number; stage_validation?: unknown }[] }) {
-  if (attempts.length === 0) return null;
-  if (attempts.length === 1) {
-    const a = attempts[0];
-    return (<>
-      <details style={{ marginTop: 8 }}><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Prompt <CopyButton text={a.prompt} /></summary>
-        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.prompt}</pre>
-      </details>
-      <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Raw Response <CopyButton text={a.raw_response} /></summary>
-        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.raw_response}</pre>
-      </details>
-    </>);
-  }
-  return (
-    <details style={{ marginTop: 8 }}>
-      <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-        Raw Prompts &amp; Responses ({attempts.length} attempts)
-      </summary>
-      {attempts.map((a, i) => {
-        const isFinal = i === attempts.length - 1;
-        const valData = (a as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[] } | undefined;
-        return (
-          <div key={i} style={{
-            marginTop: 6, paddingLeft: 8,
-            borderLeft: `2px solid ${isFinal ? '#22c55e' : '#ef4444'}`,
-          }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: isFinal ? '#22c55e' : '#ef4444', marginBottom: 2 }}>
-              Attempt {i + 1}{isFinal ? ' (accepted)' : ' (rejected)'}
-              <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6 }}>
-                {(a.response_time_ms / 1000).toFixed(1)}s
-              </span>
-              {valData && !valData.pass && valData.hints.length > 0 && (
-                <span style={{ fontWeight: 400, color: '#f59e0b', marginLeft: 6 }}>
-                  — {valData.hints[0]}{valData.hints.length > 1 ? ` (+${valData.hints.length - 1} more)` : ''}
-                </span>
-              )}
-            </div>
-            <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Prompt <CopyButton text={a.prompt} /></summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.prompt}</pre>
-            </details>
-            <details><summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>Response <CopyButton text={a.raw_response} /></summary>
-              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{a.raw_response}</pre>
-            </details>
-          </div>
-        );
-      })}
-    </details>
-  );
-}
-
 const CITE_HINT_RE = /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i;
 function classifyHintTarget(hint: string): 'draft' | 'cite' | 'judge' {
   if (CITE_HINT_RE.test(hint)) return 'cite';
@@ -247,74 +197,7 @@ function classifyHintTarget(hint: string): 'draft' | 'cite' | 'judge' {
   return 'draft';
 }
 
-/** Show validation hints relevant to a specific pipeline stage.
- *  Uses per-stage validation data from stageDiag when available (new debates),
- *  falls back to filtered overall validation hints (old debates). */
-function StageValidationHints({ trail, stage, stageDiag }: {
-  trail: TurnValidationTrail | undefined;
-  stage: 'draft' | 'cite';
-  stageDiag?: Record<string, unknown>;
-}) {
-  // Prefer per-stage validation data (written by the pipeline's per-stage validator)
-  const stageVal = stageDiag?.stage_validation as { pass: boolean; hints: string[] } | undefined;
-  let hints: string[];
-  let stageAttempts: number | undefined;
 
-  // Collect stage-relevant hints from overall validation (always available)
-  const allHints = trail?.final.repairHints ?? [];
-  const overallStageHints = allHints.filter(h => classifyHintTarget(h) === stage);
-  const judgeHints = stage === 'draft' ? allHints.filter(h => classifyHintTarget(h) === 'judge') : [];
-
-  if (stageVal && stageVal.hints.length > 0) {
-    // Per-stage validation has hints — use them, plus any judge hints for the draft tab
-    hints = [...stageVal.hints, ...judgeHints];
-  } else if (overallStageHints.length > 0 || judgeHints.length > 0) {
-    // Fall back to (or supplement with) filtered overall validation hints
-    hints = [...overallStageHints, ...judgeHints];
-  } else {
-    return null;
-  }
-
-  if (hints.length === 0) return null;
-
-  const attempts = trail?.attempts?.length ?? 1;
-  const hadRetry = attempts > 1;
-  const outcome = trail?.final.outcome ?? (stageVal?.pass ? 'pass' : 'accept_with_flag');
-
-  return (
-    <details open style={{ margin: '8px 0', fontSize: '0.72rem' }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-        Validation Feedback
-        {hadRetry && (
-          <span style={{
-            fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-            color: outcome === 'pass' ? '#16a34a' : outcome === 'retry' ? '#dc2626' : '#d97706',
-            background: outcome === 'pass' ? 'rgba(22,163,74,0.1)' : outcome === 'retry' ? 'rgba(220,38,38,0.1)' : 'rgba(217,119,6,0.1)',
-          }}>{attempts} attempt{attempts > 1 ? 's' : ''}</span>
-        )}
-        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-          score {(trail.final.process_reward ?? 0).toFixed(2)}
-        </span>
-      </summary>
-      <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-        {hints.map((h, i) => {
-          const target = classifyHintTarget(h);
-          const ts = HINT_TARGET_STYLE[target];
-          return (
-            <li key={i} style={{ marginBottom: 3 }}>
-              <span style={{
-                display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
-                color: ts.color, background: ts.bg, padding: '1px 5px',
-                borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
-              }}>{ts.label}</span>
-              {h}
-            </li>
-          );
-        })}
-      </ul>
-    </details>
-  );
-}
 const HINT_TARGET_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   draft: { label: 'DRAFT', color: '#d97706', bg: 'rgba(217, 119, 6, 0.08)' },
   cite: { label: 'CITE', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.08)' },
@@ -2014,7 +1897,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'brief' | 'plan' | 'draft' | 'cite' | 'moderator';
+  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'evidence' | 'brief' | 'plan' | 'draft' | 'cite' | 'moderator';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -3243,6 +3126,22 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               diag?.extracted_claims ||
               (meta?.my_claims && (meta.my_claims as unknown[]).length > 0)
             );
+            // Evidence tab data — Stage 2.5 evidence retrieval + post-turn extraction trace
+            const evidenceStage = diag?.stage_diagnostics?.find(s => s.stage === 'evidence');
+            const evidenceWP = evidenceStage?.work_product as {
+              facts?: { claim: string; claim_label: string; doc_id: string; specificity: string; temporal_bound?: string | null; linked_taxonomy_nodes: string[] }[];
+              keyPoints?: { stance: string; point: string; doc_id: string; pov: string; verbatim?: string }[];
+              nodesCovered?: string[];
+              totalCandidates?: number;
+            } | undefined;
+            const extTrace = diag?.extraction_trace as {
+              candidates_proposed: number; candidates_accepted: number; candidates_rejected: number;
+              rejection_reasons: Record<string, number>;
+              an_node_count_before: number; an_node_count_after: number;
+              an_nodes_added_ids: string[];
+            } | undefined;
+            const evidenceFactCount = (evidenceWP?.facts?.length ?? 0) + (evidenceWP?.keyPoints?.length ?? 0);
+            const hasEvidence = !!evidenceStage || !!extTrace;
             const hasPrecedingIntervention = (() => {
               if (!debate?.transcript || entryIdx <= 0) return false;
               for (let i = entryIdx - 1; i >= 0; i--) {
@@ -3275,10 +3174,39 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const planAttempts = stages?.filter(s => s.stage === 'plan') ?? [];
             const draftAttempts = stages?.filter(s => s.stage === 'draft') ?? [];
             const citeAttempts = stages?.filter(s => s.stage === 'cite') ?? [];
+            const draftQualityStage = stages?.find(s => s.stage === 'draft_quality');
             const briefStage = briefAttempts.length > 0 ? briefAttempts[briefAttempts.length - 1] : undefined;
             const planStage = planAttempts.length > 0 ? planAttempts[planAttempts.length - 1] : undefined;
             const draftStage = draftAttempts.length > 0 ? draftAttempts[draftAttempts.length - 1] : undefined;
             const citeStage = citeAttempts.length > 0 ? citeAttempts[citeAttempts.length - 1] : undefined;
+
+            // Build all draft stages across ALL orchestration attempts (t/504).
+            // turnValTrail.attempts[N].stage_diagnostics preserves full pipeline per retry.
+            // Falls back to draftAttempts (final pipeline run only) for old debates.
+            type DraftAttemptEntry = typeof draftAttempts[number] & {
+              orchestrationRun: number;
+              stageRetryIndex: number;
+              stageRetryCount: number;
+            };
+            const orchAttempts = turnValTrail?.attempts ?? [];
+            const allDraftAttempts: DraftAttemptEntry[] = orchAttempts.length > 0
+              ? orchAttempts.flatMap((a, runIdx) => {
+                  const drafts = (a.stage_diagnostics ?? []).filter(s => s.stage === 'draft');
+                  return drafts.map((s, di) => ({
+                    ...s, orchestrationRun: runIdx, stageRetryIndex: di, stageRetryCount: drafts.length,
+                  }));
+                })
+              : [];
+            const hasMultipleOrchRuns = orchAttempts.length > 1;
+            // Prefer per-attempt diagnostics; fall back to final-only for old debates
+            const effectiveDraftAttempts: (typeof draftAttempts[number] & {
+              orchestrationRun?: number; stageRetryIndex?: number; stageRetryCount?: number;
+            })[] =
+              allDraftAttempts.length > 0
+                ? allDraftAttempts
+                : draftAttempts.map((s, i, arr) => ({
+                    ...s, orchestrationRun: undefined, stageRetryIndex: i, stageRetryCount: arr.length,
+                  }));
 
             // Find preceding moderator intervention for this entry
             const precedingIntervention = (() => {
@@ -3327,6 +3255,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'details', label: 'Overview', has: hasDetails, copy: '' },
               { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
               { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
+              { id: 'evidence', label: 'Evidence', count: evidenceFactCount || undefined, has: hasEvidence, copy: evidenceStage?.raw_response ?? '' },
               { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : (typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content, null, 2)) },
               { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
               { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
@@ -3511,7 +3440,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         )}
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', tableLayout: 'fixed' }}>
                           <colgroup>
-                            <col style={{ width: hasSourceData ? '60px' : '0' }} />
+                            <col style={{ width: hasSourceData ? '70px' : '0' }} />
                             <col style={{ width: '150px' }} />
                             <col style={{ width: '52px' }} />
                             <col />
@@ -3553,7 +3482,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                             fontWeight: 700,
                                             background: isAN ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
                                             color: isAN ? '#22c55e' : '#f59e0b',
-                                          }}>{isAN ? 'AN' : 'TOPIC'}</span>
+                                          }}>{isAN ? (src.best_claim_id ?? 'AN') : 'TOPIC'}</span>
                                         )}
                                       </td>
                                     )}
@@ -3828,7 +3757,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${catColor}44` }}>
                                 <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
                                 <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: '0.6rem', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
-                                {ann?.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>}
+                                {ann?.target && (() => {
+                                  const targetNode = an?.nodes.find(n => n.id === ann.target);
+                                  return (<>
+                                    <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>
+                                    {targetNode && <span style={{ marginLeft: 4, fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>"{targetNode.text.length > 100 ? targetNode.text.slice(0, 100) + '…' : targetNode.text}"</span>}
+                                  </>);
+                                })()}
                                 {ann?.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{ann.detail}</div>}
                               </div>
                             );
@@ -3929,17 +3864,46 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                   {activeTab === 'brief' && briefStage && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {/* ── Top section: header + content from final brief ── */}
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontWeight: 600 }}>BRIEF</span>
                         <span>{briefStage.model}</span>
                         <span>temp={briefStage.temperature}</span>
                         <span>{(briefStage.response_time_ms / 1000).toFixed(1)}s</span>
                       </div>
+                      {briefStage.parse_error && (
+                        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 4, fontSize: '0.72rem', color: '#dc2626' }}>
+                          <strong>Parse error:</strong> {briefStage.parse_error}
+                        </div>
+                      )}
+                      {/* Moderator Directive (if present) */}
+                      {(() => {
+                        const wp = briefStage.work_product as Record<string, unknown>;
+                        const drp = wp.directive_response_plan as string | undefined;
+                        const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
+                        if (!drp && !dr) return null;
+                        return (
+                          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
+                            </div>
+                            {dr && (
+                              <>
+                                <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                                <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
+                              </>
+                            )}
+                            {drp && !dr && <Highlight text={String(drp)} />}
+                          </div>
+                        );
+                      })()}
+                      {/* Core BRIEF statement (situation assessment) */}
                       {!!(briefStage.work_product as Record<string, unknown>).situation_assessment && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(59,130,246,0.4)', background: 'rgba(59,130,246,0.05)', fontSize: '0.78rem' }}>
                           <Highlight text={String((briefStage.work_product as Record<string, unknown>).situation_assessment)} />
                         </div>
                       )}
+                      {/* Key Claims to Address */}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).key_claims_to_address) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Claims to Address</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
@@ -3967,6 +3931,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {/* Strongest Angles */}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).strongest_angles) && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Strongest Angles</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
@@ -3994,6 +3959,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {/* Edge Tensions */}
+                      {Array.isArray((briefStage.work_product as Record<string, unknown>).edge_tensions) && ((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).length > 0 && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Edge Tensions</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).map((t, i) => (
+                              <li key={i}><strong>{t.edge}</strong>: <Highlight text={t.relevance} /></li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {/* Key Tensions */}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).key_tensions) && ((briefStage.work_product as Record<string, unknown>).key_tensions as { tension: string; opportunity: string }[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Tensions</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
@@ -4003,6 +3979,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {/* Document Claims to Engage */}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).document_claims_to_engage) && ((briefStage.work_product as Record<string, unknown>).document_claims_to_engage as { d_id: string; claim: string; stance: string; why: string; grounding?: { node_id: string; why: string }[] }[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Document Claims to Engage</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
@@ -4053,8 +4030,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </table>
                         </details>
                       )}
+                      {/* Relevant Taxonomy Nodes (old schema fallback) */}
                       {Array.isArray((briefStage.work_product as Record<string, unknown>).relevant_taxonomy_nodes) && !(() => {
-                        // Hide standalone section when nested grounding exists (new schema)
                         const wp = briefStage.work_product as Record<string, unknown>;
                         const hasNested = (arr: unknown) => Array.isArray(arr) && (arr as { grounding?: unknown[] }[]).some(x => Array.isArray(x.grounding) && x.grounding.length > 0);
                         return hasNested(wp.key_claims_to_address) || hasNested(wp.strongest_angles) || hasNested(wp.document_claims_to_engage);
@@ -4090,21 +4067,122 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </table>
                         </details>
                       )}
-                      {Array.isArray((briefStage.work_product as Record<string, unknown>).edge_tensions) && ((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).length > 0 && (
-                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Edge Tensions</summary>
-                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
-                            {((briefStage.work_product as Record<string, unknown>).edge_tensions as { edge: string; relevance: string }[]).map((t, i) => (
-                              <li key={i}><strong>{t.edge}</strong>: <Highlight text={t.relevance} /></li>
-                            ))}
-                          </ul>
-                        </details>
-                      )}
+                      {/* Phase Considerations */}
                       {!!(briefStage.work_product as Record<string, unknown>).phase_considerations && (
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6, fontStyle: 'italic' }}>
                           <Highlight text={String((briefStage.work_product as Record<string, unknown>).phase_considerations)} />
                         </div>
                       )}
-                      {/* Shared TaxonomyRefDetail for any clicked grounding node */}
+                      {/* ── Per-turn sections ── */}
+                      {briefAttempts.length > 0 && briefAttempts.map((attempt, ai) => {
+                        const isFinal = ai === briefAttempts.length - 1;
+                        const valData = (attempt as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[] } | undefined;
+                        const hints = valData?.hints ?? [];
+                        const turnScore = isFinal ? turnValTrail?.final.process_reward : undefined;
+                        const dims = isFinal ? turnValTrail?.final.dimensions : undefined;
+                        const judgeUsed = isFinal ? turnValTrail?.final.judge_used ?? false : false;
+                        return (
+                          <div key={ai}>
+                            {/* Turn header — always shown */}
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
+                              fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+                            }}>
+                              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                              <span>Turn {ai + 1}</span>
+                              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                            </div>
+                            {/* Raw Prompt */}
+                            <details>
+                              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                Raw Prompt <CopyButton text={attempt.prompt} />
+                              </summary>
+                              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+                            </details>
+                            {/* Raw Response */}
+                            <details>
+                              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                Raw Response <CopyButton text={attempt.raw_response} />
+                              </summary>
+                              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+                            </details>
+                            {/* Validation Score — show the work on final turn */}
+                            {(() => {
+                              if (turnScore != null && dims) {
+                                const stageA =
+                                  0.4 * (dims.schema.pass ? 1 : 0) +
+                                  0.3 * (dims.grounding.pass ? 1 : 0) +
+                                  0.2 * (dims.advancement.pass ? 1 : 0) +
+                                  0.1 * (dims.clarifies.pass ? 1 : 0);
+                                const judgeQ = stageA > 0
+                                  ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
+                                  : 0.7;
+                                const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                                const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
+                                return (
+                                  <div style={{
+                                    marginTop: 6, background: 'var(--bg-subtle)', borderRadius: 4,
+                                    padding: '5px 8px', fontSize: '0.7rem',
+                                  }}>
+                                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                                      Validation Score:{' '}
+                                      <span style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>
+                                        {turnScore.toFixed(2)}
+                                      </span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                                      <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                    </div>
+                                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                                      <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                                      <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                                      <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>{turnScore.toFixed(2)}</strong></span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div style={{ marginTop: 6, fontSize: '0.72rem', fontWeight: 600 }}>
+                                  Validation Score:{' '}
+                                  {valData ? (
+                                    <span style={{ color: valData.pass ? '#16a34a' : '#dc2626' }}>
+                                      {valData.pass ? 'Pass' : 'Fail'}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            {/* Validation Feedback */}
+                            {hints.length > 0 && (
+                              <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
+                                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+                                  {hints.map((h, hi) => {
+                                    const target = classifyHintTarget(h);
+                                    const ts = HINT_TARGET_STYLE[target];
+                                    return (
+                                      <li key={hi} style={{ marginBottom: 3 }}>
+                                        <span style={{
+                                          display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                                          color: ts.color, background: ts.bg, padding: '1px 5px',
+                                          borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+                                        }}>{ts.label}</span>
+                                        {h}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </details>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {/* TaxonomyRefDetail — stays at the bottom */}
                       {selectedTaxRefId && (() => {
                         const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
                         const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
@@ -4122,47 +4200,64 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           />
                         );
                       })()}
-                      <StageAttemptRaws attempts={briefAttempts} />
                     </div>
                   )}
                   {activeTab === 'plan' && planStage && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {/* ── Top section: header + content from final plan ── */}
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontWeight: 600 }}>PLAN</span>
                         <span>{planStage.model}</span>
                         <span>temp={planStage.temperature}</span>
                         <span>{(planStage.response_time_ms / 1000).toFixed(1)}s</span>
                       </div>
+                      {/* Parse error banner */}
+                      {planStage.parse_error && (
+                        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 4, fontSize: '0.72rem', color: '#dc2626' }}>
+                          <strong>Parse error:</strong> {planStage.parse_error}
+                        </div>
+                      )}
+                      {/* Empty work_product fallback — all content sections will be hidden */}
+                      {!planStage.parse_error && planStage.work_product && Object.keys(planStage.work_product).length === 0 && (
+                        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(245,158,11,0.1)', borderLeft: '3px solid #f59e0b', borderRadius: 4, fontSize: '0.72rem', color: '#d97706' }}>
+                          No structured plan data — expand Raw Response below to inspect the model output.
+                        </div>
+                      )}
+                      {/* Moderator Directive Response (both formats — moved to position 2) */}
+                      {(() => {
+                        const wp = planStage.work_product as Record<string, unknown>;
+                        const drp = wp.directive_response_plan as string | undefined;
+                        const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
+                        if (!drp && !dr) return null;
+                        return (
+                          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
+                            </div>
+                            {dr && (
+                              <>
+                                <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                                <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
+                              </>
+                            )}
+                            {drp && !dr && <Highlight text={String(drp)} />}
+                          </div>
+                        );
+                      })()}
+                      {/* Strategic Goal */}
                       {!!(planStage.work_product as Record<string, unknown>).strategic_goal && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem', fontWeight: 600 }}>
                           <Highlight text={String((planStage.work_product as Record<string, unknown>).strategic_goal)} />
                         </div>
                       )}
-                      {!!(planStage.work_product as Record<string, unknown>).directive_response_plan && (
-                        <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
-                          </div>
-                          <Highlight text={String((planStage.work_product as Record<string, unknown>).directive_response_plan)} />
-                        </div>
-                      )}
-                      {Array.isArray((planStage.work_product as Record<string, unknown>).planned_moves) && (
-                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Planned Moves</summary>
-                          {((planStage.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
-                            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
-                              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
-                              {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
-                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
-                            </div>
-                          ))}
-                        </details>
-                      )}
+                      {/* Core Thesis */}
                       {!!(planStage.work_product as Record<string, unknown>).core_thesis && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.78rem' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Core Thesis: </span>
                           <Highlight text={String((planStage.work_product as Record<string, unknown>).core_thesis)} />
                         </div>
                       )}
+                      {/* Framing Choices */}
                       {!!(planStage.work_product as Record<string, unknown>).framing_choices && (
                         <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.72rem' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.7rem' }}>Framing: </span>
@@ -4177,6 +4272,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           }
                         </div>
                       )}
+                      {/* Planned Moves */}
+                      {Array.isArray((planStage.work_product as Record<string, unknown>).planned_moves) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Planned Moves</summary>
+                          {((planStage.work_product as Record<string, unknown>).planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
+                            <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
+                              <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.7rem', fontWeight: 600 }}>{m.move}</span>
+                              {m.target && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>{'\u2192'} {m.target}</span>}
+                              {m.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}><Highlight text={m.detail} /></div>}
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {/* Argumentation Structure */}
                       {Array.isArray((planStage.work_product as Record<string, unknown>).argument_structure) && ((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argumentation Structure</summary>
                           {((planStage.work_product as Record<string, unknown>).argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
@@ -4196,6 +4304,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           ))}
                         </details>
                       )}
+                      {/* Argument Sketch */}
                       {!!(planStage.work_product as Record<string, unknown>).argument_sketch && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Argument Sketch</summary>
                           <div style={{ fontSize: '0.72rem', padding: 6, background: 'rgba(128,128,128,0.05)', borderRadius: 4 }}>
@@ -4203,6 +4312,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </div>
                         </details>
                       )}
+                      {/* Anticipated Responses */}
                       {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_responses) && ((planStage.work_product as Record<string, unknown>).anticipated_responses as string[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Responses</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
@@ -4212,6 +4322,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
+                      {/* Anticipated Challenges */}
                       {Array.isArray((planStage.work_product as Record<string, unknown>).anticipated_challenges) && ((planStage.work_product as Record<string, unknown>).anticipated_challenges as string[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Anticipated Challenges</summary>
                           <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
@@ -4221,19 +4332,90 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </ul>
                         </details>
                       )}
-                      {(() => {
-                        const dr = (planStage.work_product as Record<string, unknown>).directive_response as { directive: string; how_addressed: string } | undefined;
-                        if (!dr) return null;
+                      {/* ── Per-attempt sections ── */}
+                      {planAttempts.length > 0 && planAttempts.map((attempt, ai) => {
+                        const isSingle = planAttempts.length === 1;
+                        const isFinal = ai === planAttempts.length - 1;
+                        const valData = (attempt as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[] } | undefined;
+                        const hints = valData?.hints ?? [];
                         return (
-                          <details open style={{ marginTop: 6 }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Moderator Directive Response</summary>
-                            <div style={{ fontSize: '0.72rem', padding: 6, background: 'rgba(251,146,60,0.08)', borderRadius: 4, borderLeft: '3px solid #fb923c', marginTop: 4 }}>
-                              <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
-                              <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
-                            </div>
-                          </details>
+                          <div key={ai}>
+                            {/* Attempt separator — omit for single attempt */}
+                            {!isSingle && (
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
+                                fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+                              }}>
+                                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                                <span>Attempt {ai + 1}{isFinal ? ' (accepted)' : ' (rejected)'}</span>
+                                <span style={{ fontWeight: 400 }}>{(attempt.response_time_ms / 1000).toFixed(1)}s</span>
+                                <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                              </div>
+                            )}
+                            {/* Raw Prompt */}
+                            <details style={{ marginTop: isSingle ? 8 : 4 }}>
+                              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                Raw Prompt <CopyButton text={attempt.prompt} />
+                              </summary>
+                              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+                            </details>
+                            {/* Raw Response */}
+                            <details>
+                              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                Raw Response <CopyButton text={attempt.raw_response} />
+                              </summary>
+                              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+                            </details>
+                            {/* Validation pass/fail + per-rule details */}
+                            {valData && (
+                              <div style={{ marginTop: 4, fontSize: '0.7rem' }}>
+                                <span style={{
+                                  display: 'inline-block', fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px',
+                                  borderRadius: 3, marginRight: 6,
+                                  color: valData.pass ? '#16a34a' : '#dc2626',
+                                  background: valData.pass ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
+                                }}>{valData.pass ? '✓ Pass' : '✗ Fail'}</span>
+                                {/* Per-rule details (Plan stage) */}
+                                {(valData as { details?: { rule: string; pass: boolean; value?: string }[] }).details && (
+                                  <table style={{ marginTop: 4, fontSize: '0.68rem', borderCollapse: 'collapse' }}>
+                                    <tbody>
+                                      {(valData as { details: { rule: string; pass: boolean; value?: string }[] }).details.map((d, di) => (
+                                        <tr key={di}>
+                                          <td style={{ padding: '1px 4px 1px 0', color: d.pass ? '#16a34a' : '#dc2626', width: 14 }}>{d.pass ? '✓' : '✗'}</td>
+                                          <td style={{ padding: '1px 6px 1px 0', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>{d.rule}</td>
+                                          <td style={{ padding: '1px 0', color: 'var(--text-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.63rem', whiteSpace: 'nowrap' }}>{d.value ?? ''}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            )}
+                            {hints.length > 0 && (
+                              <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
+                                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+                                  {hints.map((h, hi) => {
+                                    const target = classifyHintTarget(h);
+                                    const ts = HINT_TARGET_STYLE[target];
+                                    return (
+                                      <li key={hi} style={{ marginBottom: 3 }}>
+                                        <span style={{
+                                          display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                                          color: ts.color, background: ts.bg, padding: '1px 5px',
+                                          borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+                                        }}>{ts.label}</span>
+                                        {h}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </details>
+                            )}
+                          </div>
                         );
-                      })()}
+                      })}
+                      {/* TaxonomyRefDetail — stays at the bottom */}
                       {selectedTaxRefId && (() => {
                         const node = taxNodeMap.get(selectedTaxRefId) as TaxRefNode | undefined;
                         const povOfId = selectedTaxRefId.startsWith('acc-') ? 'accelerationist'
@@ -4251,11 +4433,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           />
                         );
                       })()}
-                      <StageAttemptRaws attempts={planAttempts} />
                     </div>
                   )}
                   {activeTab === 'draft' && (draftStage || entry.content) && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {/* ── Top section: header + content from final draft ── */}
                       {draftStage && (
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                           <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>DRAFT</span>
@@ -4264,7 +4446,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           <span>{(draftStage.response_time_ms / 1000).toFixed(1)}s</span>
                         </div>
                       )}
-                      <StageValidationHints trail={turnValTrail} stage="draft" stageDiag={draftStage as Record<string, unknown> | undefined} />
+                      {draftStage?.parse_error && (
+                        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 4, fontSize: '0.72rem', color: '#dc2626' }}>
+                          <strong>Parse error:</strong> {draftStage.parse_error}
+                        </div>
+                      )}
+                      {/* Directive compliance (from final draft) */}
                       {(() => {
                         const sv = (draftStage as Record<string, unknown> | undefined)?.stage_validation as {
                           directive_compliance?: { compliant: boolean; repair_hint: string; directive_terms: string[]; matched_terms: number };
@@ -4290,6 +4477,42 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </div>
                         );
                       })()}
+                      {/* Claim Sketches */}
+                      {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).claim_sketches) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Claim Sketches</summary>
+                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
+                            {((draftStage.work_product as Record<string, unknown>).claim_sketches as { claim: string; targets: string[] }[]).map((c, i) => (
+                              <li key={i}>{c.claim}{c.targets?.length > 0 ? ` \u2192 ${c.targets.join(', ')}` : ''}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {/* Key Assumptions */}
+                      {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions) && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Assumptions</summary>
+                          {((draftStage.work_product as Record<string, unknown>).key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
+                            <div key={i} style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
+                              <div><strong>Assumption:</strong> {a.assumption}</div>
+                              <div style={{ color: 'var(--text-muted)' }}><strong>If wrong:</strong> {a.if_wrong}</div>
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {/* Disagreement type */}
+                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).disagreement_type && (
+                        <div style={{ fontSize: '0.72rem', marginTop: 6 }}>
+                          <strong>Disagreement type:</strong> <Highlight text={String((draftStage.work_product as Record<string, unknown>).disagreement_type)} />
+                        </div>
+                      )}
+                      {/* Statement (from final draft) */}
+                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).statement && (
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
+                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                            <Highlight text={String((draftStage.work_product as Record<string, unknown>).statement)} />
+                          </div>
+                        </details>
+                      )}
+                      {/* Fallback: non-pipeline statement (old debates without stage_diagnostics) */}
                       {!draftStage && diag && (
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                           <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.2)', color: '#22c55e', fontWeight: 600 }}>STATEMENT</span>
@@ -4399,42 +4622,274 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           )}
                         </>);
                       })()}
-                      {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).claim_sketches) && (
-                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Claim Sketches</summary>
-                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16 }}>
-                            {((draftStage.work_product as Record<string, unknown>).claim_sketches as { claim: string; targets: string[] }[]).map((c, i) => (
-                              <li key={i}>{c.claim}{c.targets?.length > 0 ? ` \u2192 ${c.targets.join(', ')}` : ''}</li>
-                            ))}
-                          </ul>
-                        </details>
-                      )}
-                      {draftStage && Array.isArray((draftStage.work_product as Record<string, unknown>).key_assumptions) && (
-                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Key Assumptions</summary>
-                          {((draftStage.work_product as Record<string, unknown>).key_assumptions as { assumption: string; if_wrong: string }[]).map((a, i) => (
-                            <div key={i} style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
-                              <div><strong>Assumption:</strong> {a.assumption}</div>
-                              <div style={{ color: 'var(--text-muted)' }}><strong>If wrong:</strong> {a.if_wrong}</div>
-                            </div>
-                          ))}
-                        </details>
-                      )}
-                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).disagreement_type && (
-                        <div style={{ fontSize: '0.72rem', marginTop: 6 }}>
-                          <strong>Disagreement type:</strong> <Highlight text={String((draftStage.work_product as Record<string, unknown>).disagreement_type)} />
-                        </div>
-                      )}
-                      {draftStage && !!(draftStage.work_product as Record<string, unknown>).statement && (
-                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Statement</summary>
-                          <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                            <Highlight text={String((draftStage.work_product as Record<string, unknown>).statement)} />
+                      {/* ── Per-turn sections (from all orchestration attempts) ── */}
+                      {effectiveDraftAttempts.length > 0 && (() => {
+                        let prevOrchRun: number | undefined;
+                        return effectiveDraftAttempts.map((attempt, ai) => {
+                          const orchRun = (attempt as { orchestrationRun?: number }).orchestrationRun;
+                          const retryIdx = (attempt as { stageRetryIndex?: number }).stageRetryIndex ?? 0;
+                          const retryCount = (attempt as { stageRetryCount?: number }).stageRetryCount ?? 1;
+                          const isLastInRun = retryIdx === retryCount - 1;
+                          const hasStageRetries = retryCount > 1;
+                          const isFinal = ai === effectiveDraftAttempts.length - 1;
+                          const valData = (attempt as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[] } | undefined;
+                          const allHints = valData?.hints ?? [];
+                          // Pull judge-quality hints from overall validation for the final attempt only
+                          const judgeHints = isFinal ? (turnValTrail?.final.repairHints ?? []).filter(h => classifyHintTarget(h) === 'judge') : [];
+                          const combinedHints = [...allHints, ...judgeHints];
+                          // Validation score: full breakdown on final turn, pass/fail on others
+                          const turnScore = isFinal ? turnValTrail?.final.process_reward : undefined;
+
+                          // Orchestration run header — show when multiple runs and entering a new run
+                          const showOrchHeader = hasMultipleOrchRuns && orchRun !== prevOrchRun && orchRun != null;
+                          const orchAttemptData = orchRun != null ? orchAttempts[orchRun] : undefined;
+                          const orchOutcome = orchAttemptData?.validation?.outcome;
+                          const orchAccepted = orchOutcome === 'pass' || orchOutcome === 'accept_with_flag';
+                          prevOrchRun = orchRun;
+
+                          return (
+                            <div key={ai}>
+                              {/* Orchestration run header */}
+                              {showOrchHeader && (
+                                <div style={{
+                                  display: 'flex', alignItems: 'center', gap: 8, margin: '14px 0 4px',
+                                  fontSize: '0.62rem', fontWeight: 700, color: orchAccepted ? '#16a34a' : '#dc2626',
+                                }}>
+                                  <div style={{ flex: 1, height: 2, background: orchAccepted ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)' }} />
+                                  <span>Orchestration Run {orchRun! + 1}{orchAccepted ? ' (accepted)' : ' (rejected by judge)'}</span>
+                                  <div style={{ flex: 1, height: 2, background: orchAccepted ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)' }} />
+                                </div>
+                              )}
+                              {/* Orchestration-level validation — why this run was accepted/rejected */}
+                              {showOrchHeader && orchAttemptData?.validation && (() => {
+                                const ov = orchAttemptData.validation;
+                                const dims = ov.dimensions;
+                                const score = ov.process_reward;
+                                const stageA =
+                                  0.4 * (dims.schema.pass ? 1 : 0) +
+                                  0.3 * (dims.grounding.pass ? 1 : 0) +
+                                  0.2 * (dims.advancement.pass ? 1 : 0) +
+                                  0.1 * (dims.clarifies.pass ? 1 : 0);
+                                const judgeQ = stageA > 0
+                                  ? Math.max(0, Math.min(1, (score - 0.4 * stageA) / 0.6))
+                                  : 0.7;
+                                const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                                const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
+                                const qualityHints = ov.repairHints.filter(h => classifyHintTarget(h) === 'judge');
+                                return (
+                                  <div style={{
+                                    margin: '4px 0 8px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
+                                    background: orchAccepted ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
+                                    border: `1px solid ${orchAccepted ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
+                                  }}>
+                                    <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <span>Orchestration Score:{' '}
+                                        <span style={{ ...mono, color: score >= 0.7 ? '#16a34a' : score >= 0.5 ? '#d97706' : '#dc2626' }}>
+                                          {score.toFixed(2)}
+                                        </span>
+                                      </span>
+                                      <span style={{
+                                        fontSize: '0.6rem', fontWeight: 700, padding: '1px 6px', borderRadius: 3,
+                                        color: orchAccepted ? '#16a34a' : '#dc2626',
+                                        background: orchAccepted ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.15)',
+                                      }}>
+                                        {orchAccepted ? 'ACCEPTED' : 'REJECTED BY JUDGE'}
+                                      </span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                                      <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                    </div>
+                                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                                      <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                                      <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!ov.judge_used && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                                      <span>Total: <strong style={{ ...mono, color: score >= 0.7 ? '#16a34a' : score >= 0.5 ? '#d97706' : '#dc2626' }}>{score.toFixed(2)}</strong></span>
+                                    </div>
+                                    {qualityHints.length > 0 && (
+                                      <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
+                                        <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2 }}>Judge Weaknesses</div>
+                                        <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
+                                          {qualityHints.map((h, hi) => (
+                                            <li key={hi} style={{ marginBottom: 2 }}>{h}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              {/* Draft attempt header */}
+                              {(hasStageRetries || hasMultipleOrchRuns || effectiveDraftAttempts.length > 1) && (
+                                <div style={{
+                                  display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
+                                  fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+                                }}>
+                                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                                  <span>
+                                    Draft Attempt {retryIdx + 1}
+                                    {hasStageRetries && (
+                                      <span style={{
+                                        marginLeft: 4, fontSize: '0.58rem', fontWeight: 700, padding: '1px 5px',
+                                        borderRadius: 3, verticalAlign: 'middle',
+                                        color: isLastInRun ? '#16a34a' : '#d97706',
+                                        background: isLastInRun ? 'rgba(22,163,74,0.12)' : 'rgba(217,119,6,0.12)',
+                                      }}>
+                                        {isLastInRun ? 'final' : 'refined'}
+                                      </span>
+                                    )}
+                                  </span>
+                                  <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                                </div>
+                              )}
+                              {/* Raw Prompt */}
+                              <details>
+                                <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  Raw Prompt <CopyButton text={attempt.prompt} />
+                                </summary>
+                                <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+                              </details>
+                              {/* Raw Response */}
+                              <details>
+                                <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  Raw Response <CopyButton text={attempt.raw_response} />
+                                </summary>
+                                <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+                              </details>
+                              {/* Validation Score — show the work */}
+                              {(() => {
+                                const dims = isFinal ? turnValTrail?.final.dimensions : undefined;
+                                const judgeUsed = isFinal ? turnValTrail?.final.judge_used ?? false : false;
+                                if (turnScore != null && dims) {
+                                  const stageA =
+                                    0.4 * (dims.schema.pass ? 1 : 0) +
+                                    0.3 * (dims.grounding.pass ? 1 : 0) +
+                                    0.2 * (dims.advancement.pass ? 1 : 0) +
+                                    0.1 * (dims.clarifies.pass ? 1 : 0);
+                                  const judgeQ = stageA > 0
+                                    ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
+                                    : 0.7;
+                                  const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                                  const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
+                                  return (
+                                    <div style={{
+                                      marginTop: 6, background: 'var(--bg-subtle)', borderRadius: 4,
+                                      padding: '5px 8px', fontSize: '0.7rem',
+                                    }}>
+                                      <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                                        Validation Score:{' '}
+                                        <span style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>
+                                          {turnScore.toFixed(2)}
+                                        </span>
+                                      </div>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                                        <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                        <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                        <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                        <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      </div>
+                                      <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                                        <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                                        <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                                        <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>{turnScore.toFixed(2)}</strong></span>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                // Fallback: no dimensions available (rejected turn or no trail)
+                                return (
+                                  <div style={{ marginTop: 6, fontSize: '0.72rem', fontWeight: 600 }}>
+                                    Per-stage Validation:{' '}
+                                    {valData ? (
+                                      <span style={{ color: valData.pass ? '#16a34a' : '#dc2626' }}>
+                                        {valData.pass ? 'Pass' : 'Fail'}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                              {/* Validation Feedback */}
+                              {combinedHints.length > 0 && (
+                                <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
+                                  <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
+                                  <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+                                    {combinedHints.map((h, hi) => {
+                                      const target = classifyHintTarget(h);
+                                      const ts = HINT_TARGET_STYLE[target];
+                                      return (
+                                        <li key={hi} style={{ marginBottom: 3 }}>
+                                          <span style={{
+                                            display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                                            color: ts.color, background: ts.bg, padding: '1px 5px',
+                                            borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+                                          }}>{ts.label}</span>
+                                          {h}
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                              </details>
+                            )}
                           </div>
-                        </details>
-                      )}
-                      <StageAttemptRaws attempts={draftAttempts} />
+                        );
+                      });
+                    })()}
+                    {/* ── Quality Pre-Check (draft_quality stage) ── */}
+                    {draftQualityStage && (() => {
+                      const wp = draftQualityStage.work_product as {
+                        grounded?: boolean; falsifiable?: boolean; engages?: boolean; weaknesses?: string[];
+                      };
+                      const indicators: [string, boolean | undefined][] = [
+                        ['Grounded', wp.grounded],
+                        ['Falsifiable', wp.falsifiable],
+                        ['Engages', wp.engages],
+                      ];
+                      const allPass = indicators.every(([, v]) => v === true);
+                      return (
+                        <div style={{
+                          margin: '10px 0 4px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
+                          background: allPass ? 'rgba(22,163,74,0.06)' : 'rgba(245,158,11,0.06)',
+                          border: `1px solid ${allPass ? 'rgba(22,163,74,0.2)' : 'rgba(245,158,11,0.2)'}`,
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.66rem' }}>Quality Pre-Check</span>
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{draftQualityStage.model}</span>
+                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
+                          </div>
+                          <div style={{ display: 'flex', gap: 12, fontSize: '0.68rem' }}>
+                            {indicators.map(([label, pass]) => (
+                              <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                                <span style={{ color: pass ? '#16a34a' : '#dc2626', fontWeight: 700 }}>{pass ? '✓' : '✗'}</span>
+                                <span>{label}</span>
+                              </span>
+                            ))}
+                          </div>
+                          {wp.weaknesses && wp.weaknesses.length > 0 && (
+                            <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
+                              <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2, color: '#d97706' }}>Weaknesses</div>
+                              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
+                                {wp.weaknesses.map((w, wi) => (
+                                  <li key={wi} style={{ marginBottom: 2 }}>{w}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {draftQualityStage.parse_error && (
+                            <div style={{ padding: '4px 6px', marginTop: 4, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: '0.66rem', color: '#dc2626' }}>
+                              <strong>Parse error:</strong> {draftQualityStage.parse_error}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     </div>
                   )}
                   {activeTab === 'cite' && citeStage && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {/* ── Top section: header + content from final cite ── */}
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                         <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(251,146,60,0.2)', color: '#fb923c', fontWeight: 600 }}>CITE</span>
                         <span>{citeStage.model}</span>
@@ -4446,7 +4901,33 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </span>
                         )}
                       </div>
-                      <StageValidationHints trail={turnValTrail} stage="cite" stageDiag={citeStage as Record<string, unknown> | undefined} />
+                      {citeStage.parse_error && (
+                        <div style={{ padding: '6px 8px', margin: '6px 0', background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 4, fontSize: '0.72rem', color: '#dc2626' }}>
+                          <strong>Parse error:</strong> {citeStage.parse_error}
+                        </div>
+                      )}
+                      {/* Moderator Directive (if present) */}
+                      {(() => {
+                        const wp = citeStage.work_product as Record<string, unknown>;
+                        const drp = wp.directive_response_plan as string | undefined;
+                        const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
+                        if (!drp && !dr) return null;
+                        return (
+                          <div style={{ padding: 8, margin: '6px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>MODERATOR DIRECTIVE</span>
+                            </div>
+                            {dr && (
+                              <>
+                                <div style={{ marginBottom: 4 }}><strong>Directive:</strong> <Highlight text={dr.directive} /></div>
+                                <div><strong>How addressed:</strong> <Highlight text={dr.how_addressed} /></div>
+                              </>
+                            )}
+                            {drp && !dr && <Highlight text={String(drp)} />}
+                          </div>
+                        );
+                      })()}
+                      {/* Taxonomy References */}
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (() => {
                         const briefNodes = new Set((() => {
                           const wp = briefStage?.work_product as Record<string, unknown> | undefined;
@@ -4573,7 +5054,115 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           })()}
                         </details>
                       )}
-                      <StageAttemptRaws attempts={citeAttempts} />
+                      {/* ── Per-turn sections ── */}
+                      {citeAttempts.length > 0 && citeAttempts.map((attempt, ai) => {
+                        const isFinal = ai === citeAttempts.length - 1;
+                        const valData = (attempt as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[] } | undefined;
+                        const hints = valData?.hints ?? [];
+                        const turnScore = isFinal ? turnValTrail?.final.process_reward : undefined;
+                        const dims = isFinal ? turnValTrail?.final.dimensions : undefined;
+                        const judgeUsed = isFinal ? turnValTrail?.final.judge_used ?? false : false;
+                        return (
+                          <div key={ai}>
+                            {/* Turn header — always shown */}
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0 6px',
+                              fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600,
+                            }}>
+                              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                              <span>Turn {ai + 1}</span>
+                              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                            </div>
+                            {/* Raw Prompt */}
+                            <details>
+                              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                Raw Prompt <CopyButton text={attempt.prompt} />
+                              </summary>
+                              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.prompt}</pre>
+                            </details>
+                            {/* Raw Response */}
+                            <details>
+                              <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                Raw Response <CopyButton text={attempt.raw_response} />
+                              </summary>
+                              <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{attempt.raw_response}</pre>
+                            </details>
+                            {/* Validation Score — show the work on final turn */}
+                            {(() => {
+                              if (turnScore != null && dims) {
+                                const stageA =
+                                  0.4 * (dims.schema.pass ? 1 : 0) +
+                                  0.3 * (dims.grounding.pass ? 1 : 0) +
+                                  0.2 * (dims.advancement.pass ? 1 : 0) +
+                                  0.1 * (dims.clarifies.pass ? 1 : 0);
+                                const judgeQ = stageA > 0
+                                  ? Math.max(0, Math.min(1, (turnScore - 0.4 * stageA) / 0.6))
+                                  : 0.7;
+                                const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
+                                const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
+                                return (
+                                  <div style={{
+                                    marginTop: 6, background: 'var(--bg-subtle)', borderRadius: 4,
+                                    padding: '5px 8px', fontSize: '0.7rem',
+                                  }}>
+                                    <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                                      Validation Score:{' '}
+                                      <span style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>
+                                        {turnScore.toFixed(2)}
+                                      </span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 12px', fontSize: '0.66rem' }}>
+                                      <span><span style={{ color: dimColor(dims.schema.pass) }}>●</span> schema ×0.4 = <strong style={mono}>{(0.4 * (dims.schema.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.grounding.pass) }}>●</span> grounding ×0.3 = <strong style={mono}>{(0.3 * (dims.grounding.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.advancement.pass) }}>●</span> advancement ×0.2 = <strong style={mono}>{(0.2 * (dims.advancement.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                      <span><span style={{ color: dimColor(dims.clarifies.pass) }}>●</span> clarifies ×0.1 = <strong style={mono}>{(0.1 * (dims.clarifies.pass ? 1 : 0)).toFixed(2)}</strong></span>
+                                    </div>
+                                    <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3, fontSize: '0.66rem', display: 'flex', gap: 12 }}>
+                                      <span>Stage A: <strong style={mono}>{stageA.toFixed(2)}</strong> <span style={{ color: 'var(--text-muted)' }}>×0.4 = {(0.4 * stageA).toFixed(2)}</span></span>
+                                      <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!judgeUsed && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
+                                      <span>Total: <strong style={{ ...mono, color: turnScore >= 0.7 ? '#16a34a' : turnScore >= 0.5 ? '#d97706' : '#dc2626' }}>{turnScore.toFixed(2)}</strong></span>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div style={{ marginTop: 6, fontSize: '0.72rem', fontWeight: 600 }}>
+                                  Validation Score:{' '}
+                                  {valData ? (
+                                    <span style={{ color: valData.pass ? '#16a34a' : '#dc2626' }}>
+                                      {valData.pass ? 'Pass' : 'Fail'}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)' }}>—</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            {/* Validation Feedback */}
+                            {hints.length > 0 && (
+                              <details open style={{ marginTop: 4, fontSize: '0.72rem' }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Validation Feedback</summary>
+                                <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '0.7rem' }}>
+                                  {hints.map((h, hi) => {
+                                    const target = classifyHintTarget(h);
+                                    const ts = HINT_TARGET_STYLE[target];
+                                    return (
+                                      <li key={hi} style={{ marginBottom: 3 }}>
+                                        <span style={{
+                                          display: 'inline-block', fontSize: '0.6rem', fontWeight: 700,
+                                          color: ts.color, background: ts.bg, padding: '1px 5px',
+                                          borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
+                                        }}>{ts.label}</span>
+                                        {h}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </details>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   {activeTab === 'claims' && (
@@ -4699,39 +5288,220 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       )}
                     </div>
                   )}
+                  {activeTab === 'evidence' && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {!evidenceStage && !extTrace ? (
+                        <div style={{ padding: '12px 8px', color: 'var(--text-muted)', fontSize: '0.72rem', textAlign: 'center' }}>
+                          {entry.type === 'opening'
+                            ? 'Evidence retrieval does not run for opening statements — openings establish positions without source grounding.'
+                            : 'No evidence data available for this turn.'}
+                        </div>
+                      ) : (<>
+                        {/* ── 1. Evidence Summary ── */}
+                        {evidenceStage && (
+                          <details open>
+                            <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>Source Evidence Retrieved</summary>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                              <span>{evidenceStage.model}</span>
+                              <span>{(evidenceStage.response_time_ms / 1000).toFixed(1)}s</span>
+                              {evidenceWP?.nodesCovered && <span>Nodes covered: {evidenceWP.nodesCovered.join(', ')}</span>}
+                              {evidenceWP?.totalCandidates != null && <span>({evidenceWP.totalCandidates} candidates screened)</span>}
+                            </div>
+                            {evidenceStage.parse_error && (
+                              <div style={{ padding: '4px 6px', marginBottom: 6, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: '0.66rem', color: '#dc2626' }}>
+                                <strong>Parse error:</strong> {evidenceStage.parse_error}
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                              {[
+                                { label: 'Facts', value: String(evidenceWP?.facts?.length ?? 0) },
+                                { label: 'Key Points', value: String(evidenceWP?.keyPoints?.length ?? 0) },
+                                { label: 'Nodes Covered', value: String(evidenceWP?.nodesCovered?.length ?? 0) },
+                                { label: 'Total Candidates', value: String(evidenceWP?.totalCandidates ?? 0) },
+                                ...((evidenceWP as Record<string, unknown>)?.evidence_utilization ? [{
+                                  label: 'Citation Rate',
+                                  value: `${((evidenceWP as Record<string, unknown>).evidence_utilization as { utilization_rate: number }).utilization_rate}%`,
+                                }] : []),
+                              ].map(card => (
+                                <div key={card.label} style={{
+                                  flex: '1 1 90px', padding: '6px 10px', borderRadius: 4,
+                                  background: 'var(--bg-subtle)', border: '1px solid var(--border)', textAlign: 'center',
+                                }}>
+                                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginBottom: 2 }}>{card.label}</div>
+                                  <div style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'monospace' }}>{card.value}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </details>
+                        )}
+                        {/* ── 2. Source Facts ── */}
+                        {evidenceWP?.facts && evidenceWP.facts.length > 0 && (
+                          <details open style={{ marginTop: 8 }}>
+                            <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
+                              Source Facts ({evidenceWP.facts.length})
+                            </summary>
+                            {evidenceWP.facts.map((fact, fi) => {
+                              const specColor = fact.specificity === 'precise' ? '#16a34a' : fact.specificity === 'qualified' ? '#d97706' : '#6b7280';
+                              return (
+                                <div key={fi} style={{
+                                  marginBottom: 6, padding: '6px 8px', borderRadius: 4,
+                                  borderLeft: '3px solid #3b82f6', background: 'var(--bg-subtle)',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                    <span style={{
+                                      fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                                      color: specColor, background: `${specColor}18`,
+                                    }}>{fact.specificity?.toUpperCase() ?? 'FACT'}</span>
+                                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {fact.doc_id}
+                                    </span>
+                                    {fact.temporal_bound && (
+                                      <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>{fact.temporal_bound}</span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: '0.68rem', lineHeight: 1.35 }}>{fact.claim}</div>
+                                  {fact.linked_taxonomy_nodes?.length > 0 && (
+                                    <div style={{ fontSize: '0.58rem', color: '#3b82f6', marginTop: 2 }}>
+                                      {fact.linked_taxonomy_nodes.join(', ')}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </details>
+                        )}
+                        {/* ── 3. Key Points ── */}
+                        {evidenceWP?.keyPoints && evidenceWP.keyPoints.length > 0 && (
+                          <details open style={{ marginTop: 8 }}>
+                            <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
+                              Key Points ({evidenceWP.keyPoints.length})
+                            </summary>
+                            {evidenceWP.keyPoints.map((kp, ki) => {
+                              const stanceColor = kp.stance === 'support' || kp.stance === 'agree' ? '#22c55e'
+                                : kp.stance === 'oppose' || kp.stance === 'disagree' ? '#ef4444' : '#d97706';
+                              return (
+                                <div key={ki} style={{
+                                  marginBottom: 6, padding: '6px 8px', borderRadius: 4,
+                                  borderLeft: `3px solid ${stanceColor}`, background: 'var(--bg-subtle)',
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                    <span style={{
+                                      fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
+                                      color: stanceColor, background: `${stanceColor}18`,
+                                    }}>{kp.stance?.toUpperCase() ?? 'POINT'}</span>
+                                    <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>{kp.pov}</span>
+                                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {kp.doc_id}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: '0.68rem', lineHeight: 1.35 }}>{kp.point}</div>
+                                  {kp.verbatim && (
+                                    <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2, borderLeft: '2px solid var(--border)', paddingLeft: 6 }}>
+                                      &ldquo;{kp.verbatim}&rdquo;
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </details>
+                        )}
+                        {/* ── 4. Raw Evidence Block ── */}
+                        {evidenceStage && (
+                          <details style={{ marginTop: 8 }}>
+                            <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                              Raw Evidence Block <CopyButton text={evidenceStage.raw_response} />
+                            </summary>
+                            <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{evidenceStage.raw_response}</pre>
+                          </details>
+                        )}
+                        {/* ── Extraction Funnel (post-turn) ── */}
+                        {extTrace && extTrace.candidates_proposed > 0 && (
+                          <details open style={{ marginTop: 8 }}>
+                            <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>Extraction Funnel</summary>
+                            {(() => {
+                              const max = extTrace.candidates_proposed;
+                              const bars: [string, number, string][] = [
+                                ['Candidates', extTrace.candidates_proposed, '#3b82f6'],
+                                ['Accepted', extTrace.candidates_accepted, '#22c55e'],
+                                ['Rejected', extTrace.candidates_rejected, '#ef4444'],
+                              ];
+                              return (
+                                <div style={{ marginBottom: 6 }}>
+                                  {bars.map(([label, count, color]) => (
+                                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, fontSize: '0.68rem' }}>
+                                      <span style={{ width: 70, textAlign: 'right', color: 'var(--text-muted)' }}>{label}</span>
+                                      <div style={{ flex: 1, height: 12, borderRadius: 3, background: 'var(--bg-primary)' }}>
+                                        <div style={{
+                                          width: `${max > 0 ? Math.round(count / max * 100) : 0}%`,
+                                          height: '100%', borderRadius: 3, background: color,
+                                          minWidth: count > 0 ? 4 : 0,
+                                        }} />
+                                      </div>
+                                      <span style={{ fontFamily: 'monospace', fontWeight: 600, minWidth: 30 }}>{count}</span>
+                                      <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>
+                                        {max > 0 ? `${Math.round(count / max * 100)}%` : ''}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {extTrace.rejection_reasons && Object.keys(extTrace.rejection_reasons).length > 0 && (
+                                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 4, paddingLeft: 78 }}>
+                                      {Object.entries(extTrace.rejection_reasons).map(([reason, count]) => (
+                                        <span key={reason} style={{
+                                          fontSize: '0.58rem', padding: '1px 6px', borderRadius: 10,
+                                          background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontWeight: 600,
+                                        }}>{reason} ({count})</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </details>
+                        )}
+                        {/* ── AN Delta (post-turn) ── */}
+                        {extTrace && (
+                          <details open style={{ marginTop: 8 }}>
+                            <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>AN Delta</summary>
+                            {(() => {
+                              const addedEdges = an?.edges.filter(e =>
+                                extTrace.an_nodes_added_ids.includes(e.source) || extTrace.an_nodes_added_ids.includes(e.target)
+                              ) ?? [];
+                              const attackEdges = addedEdges.filter(e => (e as { type?: string }).type === 'attack').length;
+                              const supportEdges = addedEdges.length - attackEdges;
+                              return (
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.68rem' }}>
+                                  <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Nodes Added</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{extTrace.an_nodes_added_ids.length}</div>
+                                    {extTrace.an_nodes_added_ids.length > 0 && (
+                                      <div style={{ fontSize: '0.58rem', color: '#3b82f6', marginTop: 2, wordBreak: 'break-all' }}>
+                                        {extTrace.an_nodes_added_ids.join(', ')}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Edges Added</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{addedEdges.length}</div>
+                                    <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                      <span style={{ color: '#22c55e' }}>{supportEdges} support</span>{' / '}
+                                      <span style={{ color: '#ef4444' }}>{attackEdges} attack</span>
+                                    </div>
+                                  </div>
+                                  <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
+                                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Network Size</div>
+                                    <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>
+                                      {extTrace.an_node_count_before} → {extTrace.an_node_count_after}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </details>
+                        )}
+                      </>)}
+                    </div>
+                  )}
 
-                  {/* Quality Feedback footer — visible on all tabs */}
-                  {(() => {
-                    const qualityHints = (turnValTrail?.final.repairHints ?? []).filter(h => classifyHintTarget(h) === 'judge');
-                    if (qualityHints.length === 0) return null;
-                    return (
-                      <details style={{
-                        marginTop: 8,
-                        borderTop: '1px solid var(--border)',
-                        paddingTop: 6,
-                      }}>
-                        <summary style={{
-                          cursor: 'pointer',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          color: '#f59e0b',
-                          userSelect: 'none',
-                        }}>
-                          Quality Feedback ({qualityHints.length})
-                        </summary>
-                        <ul style={{
-                          margin: '4px 0 0 0',
-                          paddingLeft: 18,
-                          fontSize: '0.7rem',
-                          color: 'var(--text-secondary)',
-                        }}>
-                          {qualityHints.map((h, i) => (
-                            <li key={i} style={{ marginBottom: 2 }}>{h}</li>
-                          ))}
-                        </ul>
-                      </details>
-                    );
-                  })()}
                 </div>
                 {textCopyMenu && (
                   <div

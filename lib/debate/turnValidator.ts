@@ -181,7 +181,7 @@ const RELEVANCE_STOP_WORDS = new Set([
   'these', 'those', 'other', 'each', 'both', 'many', 'well',
 ]);
 
-function isFillerRelevance(text: string): boolean {
+export function isFillerRelevance(text: string): boolean {
   if (FILLER_RELEVANCE.test(text)) return true;
   const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
   if (words.length === 0) return true;
@@ -210,6 +210,8 @@ export function resolveTurnValidationConfig(
       argumentation: src.sampleRate?.argumentation ?? 1,
       concluding: src.sampleRate?.concluding ?? 1,
     },
+    preCheckModel: src.preCheckModel ?? 'gemini-2.0-flash-lite',
+    skipPreCheck: src.skipPreCheck ?? false,
   };
 }
 
@@ -290,13 +292,15 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     schemaIssues.push(msg);
   }
 
-  // Rule 3: every taxonomy_refs[i].node_id exists (error)
-  const unknownRefs = taxonomyRefs.filter(r => !knownNodeIds.has(r.node_id));
-  if (unknownRefs.length > 0) {
-    const msg = `Unknown taxonomy node_id(s): ${unknownRefs.map(r => r.node_id).join(', ')}. Cite only nodes that exist in the loaded taxonomy.`;
-    errors.push(msg);
-    schemaIssues.push(msg);
-    groundingIssues.push(msg);
+  // Rule 3: every taxonomy_refs[i].node_id exists (error) — skip when no known set
+  if (knownNodeIds.size > 0) {
+    const unknownRefs = taxonomyRefs.filter(r => !knownNodeIds.has(r.node_id));
+    if (unknownRefs.length > 0) {
+      const msg = `Unknown taxonomy node_id(s): ${unknownRefs.map(r => r.node_id).join(', ')}. Cite only nodes that exist in the loaded taxonomy.`;
+      errors.push(msg);
+      schemaIssues.push(msg);
+      groundingIssues.push(msg);
+    }
   }
 
   // Rule 4: policy_refs exist (warning only)
@@ -517,7 +521,7 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
     advancement_reason: 'judge_parse_failure',
     clarifies_taxonomy: [],
     weaknesses: [],
-    quality_score: 0.5,
+    quality_score: 0.6, // above retry threshold — judge failure shouldn't penalize the turn
     recommend: 'accept_with_flag',
   };
   try {
@@ -537,7 +541,7 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
         evidence_claim_id: typeof h.evidence_claim_id === 'string' ? h.evidence_claim_id : undefined,
         rationale: typeof h.rationale === 'string' ? h.rationale : '',
       }));
-    return {
+    const result: JudgeVerdict = {
       advances: parsed.advances !== false,
       advancement_reason: typeof parsed.advancement_reason === 'string' ? parsed.advancement_reason : '',
       clarifies_taxonomy: hints,
@@ -549,6 +553,31 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
         : 0.5,
       recommend,
     };
+
+    // Enforce calibration rules deterministically — LLMs (especially flash-lite)
+    // systematically inflate quality_score regardless of the rubric in the prompt.
+    // The rubric says: 3 weaknesses → 0.40-0.55, but the model often returns 0.80+.
+    const wc = result.weaknesses.length;
+    const caps: [number, number][] = [[0, 0.90], [1, 0.80], [2, 0.65], [3, 0.55]];
+    const cap = wc >= caps.length ? 0.45 : caps[wc][1];
+    if (result.quality_score > cap) result.quality_score = cap;
+
+    // Evidence-gap penalty: if any weakness mentions missing evidence, subtract 0.10
+    const hasEvidenceGap = result.weaknesses.some(w =>
+      /lacks? evidence|no data|unsubstantiated|missing citation/i.test(w),
+    );
+    if (hasEvidenceGap) {
+      result.quality_score = Math.max(0.1, result.quality_score - 0.10);
+    }
+
+    // Reconcile recommend with enforced quality_score
+    if (result.quality_score < 0.5 && result.recommend === 'pass') {
+      result.recommend = 'retry';
+    } else if (result.quality_score < 0.7 && result.recommend === 'pass') {
+      result.recommend = 'accept_with_flag';
+    }
+
+    return result;
   } catch {
     return fallback;
   }
@@ -669,16 +698,18 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     outcome = 'pass';
   }
 
-  // Process reward: 60% Stage A structural dimensions + 40% judge quality score.
+  // Process reward: 40% Stage A structural dimensions + 60% judge quality score.
   // When no judge ran (deterministic-only or out-of-sample), quality defaults to 0.7
-  // so deterministic-pass turns get 0.88, not a perfect 1.0.
+  // so deterministic-pass turns get 0.78, not a perfect 1.0.
+  // The 40/60 split lets the calibration-enforced judge score actually differentiate
+  // turns rather than being dominated by binary Stage A pass/fail.
   const stageAScore =
     0.4 * (dims.schema.pass ? 1 : 0) +
     0.3 * (dims.grounding.pass ? 1 : 0) +
     0.2 * (dims.advancement.pass ? 1 : 0) +
     0.1 * (dims.clarifies.pass ? 1 : 0);
   const judgeQuality = judge?.quality_score ?? 0.7;
-  const process_reward = 0.6 * stageAScore + 0.4 * judgeQuality;
+  const process_reward = 0.4 * stageAScore + 0.6 * judgeQuality;
 
   return {
     outcome,
@@ -791,15 +822,169 @@ function getHedgeThreshold(phase: DebatePhase, audience?: DebateAudience): numbe
   return byPhase[phase] ?? 0.30;
 }
 
+// ── Directive content compliance ─────────────────────────────
+// Checks that the first paragraph of a statement actually engages
+// the moderator directive — not just that the structured field exists.
+
+export interface DirectiveComplianceResult {
+  compliant: boolean;
+  repair_hint: string;
+  /** Key terms from the directive that were checked. */
+  directive_terms: string[];
+  /** How many directive terms appeared in the first paragraph. */
+  matched_terms: number;
+}
+
+const DIRECTIVE_STOP_WORDS = new Set([
+  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for',
+  'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'between',
+  'through', 'during', 'before', 'after', 'above', 'below', 'and', 'but',
+  'or', 'nor', 'not', 'so', 'yet', 'both', 'either', 'neither', 'each',
+  'every', 'all', 'any', 'few', 'more', 'most', 'other', 'some', 'such',
+  'no', 'only', 'own', 'same', 'than', 'too', 'very', 'just', 'because',
+  'if', 'when', 'where', 'how', 'what', 'which', 'who', 'whom', 'this',
+  'that', 'these', 'those', 'it', 'its', 'my', 'your', 'his', 'her',
+  'our', 'their', 'i', 'you', 'he', 'she', 'we', 'they', 'me', 'him',
+  'us', 'them',
+]);
+
+/**
+ * Extract content words from a directive text — words likely to indicate
+ * substantive engagement when present in the debater's response.
+ */
+function extractDirectiveTerms(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !DIRECTIVE_STOP_WORDS.has(w));
+}
+
+/**
+ * Check that the first paragraph of a statement engages a moderator directive.
+ * Uses term overlap between the directive text and the first paragraph.
+ * Targeted directives require ≥2 matching terms; non-targeted require ≥1.
+ */
+export function checkDirectiveContentCompliance(
+  statement: string,
+  intervention: { move: string; text?: string; directResponsePattern?: string; isTargeted?: boolean },
+): DirectiveComplianceResult {
+  const firstParagraph = (statement.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean)[0] ?? '').toLowerCase();
+
+  // PIN/CHALLENGE/COMMIT have specific structural patterns — check those directly
+  // instead of relying on keyword overlap with the instruction text.
+  if (intervention.move === 'PIN') {
+    const hasAgree = /\bi\s+(dis)?agree\b|\bi\s+conditionally\s+agree\b/.test(firstParagraph);
+    return hasAgree
+      ? { compliant: true, repair_hint: '', directive_terms: ['agree', 'disagree', 'conditionally'], matched_terms: 1 }
+      : { compliant: false, repair_hint: 'Your first paragraph must begin with "I agree that...", "I disagree that...", or "I conditionally agree:...". State your position on the specific claim before proceeding to your argument.', directive_terms: ['agree', 'disagree'], matched_terms: 0 };
+  }
+
+  if (intervention.move === 'CHALLENGE') {
+    const hasEvolved = /\bposition has evolved\b|\bposition is consistent\b|\bi concede\b/.test(firstParagraph);
+    return hasEvolved
+      ? { compliant: true, repair_hint: '', directive_terms: ['position', 'evolved', 'concede'], matched_terms: 1 }
+      : { compliant: false, repair_hint: 'Your first paragraph must begin with "My position has evolved...", "My position is consistent...", or "I concede... because...". Address how your position has changed or held.', directive_terms: ['position', 'evolved'], matched_terms: 0 };
+  }
+
+  if (intervention.move === 'PROBE') {
+    const hasEvidence = /\bthe evidence\b|\bevidence is\b|\bdata\b|\bcitation\b|\bstudy\b|\bfindings?\b/.test(firstParagraph);
+    return hasEvidence
+      ? { compliant: true, repair_hint: '', directive_terms: ['evidence', 'data', 'citation'], matched_terms: 1 }
+      : { compliant: false, repair_hint: 'Your first paragraph must present specific evidence — cite a data point, study, or concrete example. Begin with "The evidence is..." or lead with your citation.', directive_terms: ['evidence', 'data'], matched_terms: 0 };
+  }
+
+  // Fallback: keyword overlap for other intervention types
+  // Prefer the moderator's actual question (text) over the response format instruction
+  const directiveText = intervention.text
+    ?? intervention.directResponsePattern;
+
+  // No substantive directive text to check against — skip content compliance
+  if (!directiveText) {
+    return { compliant: true, repair_hint: '', directive_terms: [], matched_terms: 0 };
+  }
+
+  const directiveTerms = extractDirectiveTerms(directiveText);
+  if (directiveTerms.length === 0) {
+    return { compliant: true, repair_hint: '', directive_terms: [], matched_terms: 0 };
+  }
+
+  const termSet = new Set(directiveTerms);
+  const firstParaWords = new Set(firstParagraph.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, '')));
+  const matched = [...termSet].filter(t => firstParaWords.has(t));
+
+  const isTargeted = intervention.isTargeted !== false;
+  const threshold = isTargeted ? 2 : 1;
+
+  if (matched.length >= threshold) {
+    return { compliant: true, repair_hint: '', directive_terms: directiveTerms, matched_terms: matched.length };
+  }
+
+  const hint = isTargeted
+    ? `Your first paragraph does not address the moderator's ${intervention.move} directive. Rewrite paragraph 1 to directly respond to the moderator's request before continuing with your argument. The directive asked about: ${directiveTerms.slice(0, 5).join(', ')}.`
+    : `Your opening does not acknowledge the moderator's ${intervention.move} directive. Add a brief acknowledgment in your first sentence.`;
+
+  return { compliant: false, repair_hint: hint, directive_terms: directiveTerms, matched_terms: matched.length };
+}
+
+// ── Draft quality pre-check ─────────────────────────────────
+// Lightweight 3-question LLM evaluation between draft and cite stages.
+// Catches grounding, falsifiability, and engagement defects early.
+
+export interface DraftQualityResult {
+  grounded: boolean;
+  falsifiable: boolean;
+  engages: boolean;
+  weaknesses: string[];
+}
+
+export interface DraftQualityCheckOutput {
+  result: DraftQualityResult;
+  prompt: string;
+  raw: string;
+  time_ms: number;
+}
+
+export function parseDraftQualityResult(raw: string): DraftQualityResult {
+  const fallback: DraftQualityResult = { grounded: false, falsifiable: false, engages: false, weaknesses: ['Draft quality check parse failure — treating as failed'] };
+  try {
+    const parsed = parseJsonRobust(raw) as Record<string, unknown>;
+    return {
+      grounded: parsed.grounded === true,
+      falsifiable: parsed.falsifiable === true,
+      engages: parsed.engages === true,
+      weaknesses: Array.isArray(parsed.weaknesses)
+        ? (parsed.weaknesses as unknown[]).filter(w => typeof w === 'string').map(w => w as string).slice(0, 3)
+        : [],
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 // ── Per-stage validation ────────────────────────────────────
 // Split validation into draft-specific and cite-specific checks.
 // Each returns a lightweight result that can trigger a stage-scoped retry.
 
+export interface StageValidationDetail {
+  rule: string;
+  pass: boolean;
+  value?: string;
+}
+
 export interface StageValidationResult {
   pass: boolean;
   repairHints: string[];
+  /** Error-only hints (excludes warnings). Use for retry decisions — only errors warrant a retry. */
+  errorHints: string[];
+  /** Per-rule check details for diagnostics display. */
+  details?: StageValidationDetail[];
   /** Dimension that failed (for diagnostics). */
-  failedDimension?: 'schema' | 'grounding' | 'plan';
+  failedDimension?: 'schema' | 'grounding' | 'plan' | 'directive';
+  /** Directive compliance details — present when a moderator directive exists. */
+  directive_compliance?: DirectiveComplianceResult;
 }
 
 /**
@@ -901,7 +1086,7 @@ export function validateDraftStage(p: {
     }
   }
 
-  // Intervention compliance
+  // Intervention compliance — structured response field check
   if (p.pendingIntervention) {
     const rawMeta = (meta as Record<string, unknown>) ?? {};
     const compliance = checkInterventionCompliance(p.pendingIntervention.move, rawMeta);
@@ -910,10 +1095,26 @@ export function validateDraftStage(p: {
     }
   }
 
+  // Directive content compliance — first paragraph must engage the directive
+  let directiveResult: DirectiveComplianceResult | undefined;
+  if (p.pendingIntervention) {
+    directiveResult = checkDirectiveContentCompliance(
+      statement,
+      p.pendingIntervention,
+    );
+    if (!directiveResult.compliant) {
+      errors.push(directiveResult.repair_hint);
+    }
+  }
+
   return {
     pass: errors.length === 0,
     repairHints: [...errors, ...warnings],
-    failedDimension: errors.length > 0 ? 'schema' : undefined,
+    errorHints: errors,
+    failedDimension: errors.length > 0
+      ? (directiveResult && !directiveResult.compliant ? 'directive' : 'schema')
+      : undefined,
+    directive_compliance: directiveResult,
   };
 }
 
@@ -928,15 +1129,18 @@ export function validateCiteStage(p: {
   policyIds: Set<string>;
   priorTurns: readonly TranscriptEntry[];
   speaker: SpeakerId | string;
+  targetNodes?: string[];
 }): StageValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   const { taxonomyRefs, knownNodeIds, policyIds, priorTurns, speaker } = p;
 
-  // Rule 3: taxonomy_refs node_id exists
-  const unknownRefs = taxonomyRefs.filter(r => !knownNodeIds.has(r.node_id));
-  if (unknownRefs.length > 0) {
-    errors.push(`Unknown taxonomy node_id: ${unknownRefs.map(r => r.node_id).join(', ')}. Use only nodes from your taxonomy context.`);
+  // Rule 3: taxonomy_refs node_id exists (skip when no known set provided)
+  if (knownNodeIds.size > 0) {
+    const unknownRefs = taxonomyRefs.filter(r => !knownNodeIds.has(r.node_id));
+    if (unknownRefs.length > 0) {
+      errors.push(`Unknown taxonomy node_id: ${unknownRefs.map(r => r.node_id).join(', ')}. Use only nodes from your taxonomy context.`);
+    }
   }
 
   // Rule 4: policy_refs exist (skip if no registry loaded)
@@ -970,9 +1174,19 @@ export function validateCiteStage(p: {
     }
   }
 
+  // Rule 8: target_nodes coverage — planned nodes should appear in final taxonomy_refs
+  if (p.targetNodes && p.targetNodes.length > 0) {
+    const citedIds = new Set(taxonomyRefs.map(r => r.node_id));
+    const missing = p.targetNodes.filter(id => !citedIds.has(id));
+    if (missing.length > 0) {
+      warnings.push(`Planned target_nodes missing from taxonomy_refs: ${missing.join(', ')}. The plan committed to engaging these nodes.`);
+    }
+  }
+
   return {
     pass: errors.length === 0,
     repairHints: [...errors, ...warnings],
+    errorHints: errors,
     failedDimension: errors.length > 0 ? 'grounding' : undefined,
   };
 }
@@ -987,30 +1201,37 @@ export function validatePlanStage(p: {
 }): StageValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const details: StageValidationDetail[] = [];
   const { plan, isFirstRound } = p;
 
   // Rule 1: strategic_goal is substantive (≥30 chars)
-  if (!plan.strategic_goal || plan.strategic_goal.trim().length < 30) {
+  const goalLen = (plan.strategic_goal ?? '').trim().length;
+  const goalPass = goalLen >= 30;
+  details.push({ rule: 'strategic_goal ≥30 chars', pass: goalPass, value: `${goalLen} chars` });
+  if (!goalPass) {
     errors.push('strategic_goal is missing or too short (≥30 chars). Provide a clear one-liner that guides the entire turn.');
   }
 
   // Rule 2: planned_moves use canonical moves
   const moves = plan.planned_moves ?? [];
-  for (const pm of moves) {
-    const resolved = resolveMoveName(pm.move);
-    if (!MOVE_CATALOG.has(resolved)) {
-      warnings.push(`Unknown planned move "${pm.move}". Use ONLY: ${MOVE_CATALOG_RAW.join(', ')}.`);
-    }
+  const nonCanonical = moves.filter(pm => !MOVE_CATALOG.has(resolveMoveName(pm.move)));
+  const movesCanonicalPass = nonCanonical.length === 0;
+  details.push({ rule: 'planned_moves canonical', pass: movesCanonicalPass, value: `${moves.length} move(s)${nonCanonical.length > 0 ? `, ${nonCanonical.length} non-canonical` : ''}` });
+  for (const pm of nonCanonical) {
+    warnings.push(`Unknown planned move "${pm.move}". Use ONLY: ${MOVE_CATALOG_RAW.join(', ')}.`);
   }
 
   // Rule 3: planned_moves have substantive detail (≥20 chars each)
-  for (const pm of moves) {
-    if (!pm.detail || pm.detail.trim().length < 20) {
-      errors.push(`Planned move "${pm.move}" has missing or too-short detail (≥20 chars). Explain what you will argue.`);
-    }
+  const shortMoves = moves.filter(pm => !pm.detail || pm.detail.trim().length < 20);
+  const detailPass = shortMoves.length === 0;
+  details.push({ rule: 'move details ≥20 chars', pass: detailPass, value: detailPass ? 'all substantive' : `${shortMoves.length} too short` });
+  for (const pm of shortMoves) {
+    errors.push(`Planned move "${pm.move}" has missing or too-short detail (≥20 chars). Explain what you will argue.`);
   }
 
   // Rule 4: planned_moves count (at least 1, warn if >5)
+  const countPass = moves.length >= 1 && moves.length <= 5;
+  details.push({ rule: 'move count 1-5', pass: countPass, value: `${moves.length}` });
   if (moves.length === 0) {
     errors.push('planned_moves is empty — plan at least one dialectical move.');
   } else if (moves.length > 5) {
@@ -1018,27 +1239,38 @@ export function validatePlanStage(p: {
   }
 
   // Rule 5: argument_sketch is substantive (≥50 chars)
-  if (!plan.argument_sketch || plan.argument_sketch.trim().length < 50) {
+  const sketchLen = (plan.argument_sketch ?? '').trim().length;
+  const sketchPass = sketchLen >= 50;
+  details.push({ rule: 'argument_sketch ≥50 chars', pass: sketchPass, value: `${sketchLen} chars` });
+  if (!sketchPass) {
     errors.push('argument_sketch is missing or too short (≥50 chars). Outline your core argumentative strategy.');
   }
 
   // Rule 6: anticipated_responses present
   const responses = plan.anticipated_responses ?? [];
-  if (responses.length === 0) {
+  const responsesPass = responses.length > 0;
+  details.push({ rule: 'anticipated_responses', pass: responsesPass, value: `${responses.length} response(s)` });
+  if (!responsesPass) {
     warnings.push('anticipated_responses is empty — anticipate at least one counterargument.');
   }
 
   // Rule 7: target_claims present (warning only, skip round 1)
   if (!isFirstRound) {
     const targets = plan.target_claims ?? [];
-    if (targets.length === 0) {
+    const targetsPass = targets.length > 0;
+    details.push({ rule: 'target_claims', pass: targetsPass, value: targets.length > 0 ? targets.join(', ') : '(none)' });
+    if (!targetsPass) {
       warnings.push('target_claims is empty — identify at least one prior claim to address.');
     }
+  } else {
+    details.push({ rule: 'target_claims', pass: true, value: 'skipped (first round)' });
   }
 
   return {
     pass: errors.length === 0,
     repairHints: [...errors, ...warnings],
+    errorHints: errors,
+    details,
     failedDimension: errors.length > 0 ? 'plan' : undefined,
   };
 }

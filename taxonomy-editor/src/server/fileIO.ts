@@ -99,7 +99,7 @@ export function setActiveTaxonomyDir(dirName: string): void {
   activeTaxonomyDir = dirName;
 }
 
-function getTaxonomyDir(): string {
+export function getTaxonomyDir(): string {
   const config = loadDataConfig();
   const base = resolveDataPath(path.dirname(config.taxonomy_dir));
   const active = getActiveTaxonomyDirName();
@@ -500,6 +500,74 @@ function getDebatesDir(): string {
   return resolveDataPath('debates');
 }
 
+const DEBATE_INDEX_FILE = '_index.json';
+
+/** Read the lightweight debate index (one file read).  Returns null if the index doesn't exist. */
+async function readDebateIndex(): Promise<{ id: string; title: string; created_at: string; updated_at: string; phase: string }[] | null> {
+  const raw = await backend.readFile(path.join(getDebatesDir(), DEBATE_INDEX_FILE));
+  if (raw === null) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
+/** Write the debate index to disk. */
+async function writeDebateIndex(entries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[]): Promise<void> {
+  await backend.writeFile(
+    path.join(getDebatesDir(), DEBATE_INDEX_FILE),
+    JSON.stringify(entries, null, 2),
+  );
+}
+
+/** Upsert a single debate entry in the index. */
+async function upsertDebateIndex(summary: { id: string; title: string; created_at: string; updated_at: string; phase: string }): Promise<void> {
+  const entries = (await readDebateIndex()) ?? [];
+  const idx = entries.findIndex(e => e.id === summary.id);
+  if (idx >= 0) entries[idx] = summary;
+  else entries.push(summary);
+  await writeDebateIndex(entries);
+}
+
+/** Remove a debate entry from the index by ID. */
+async function removeFromDebateIndex(id: string): Promise<void> {
+  const entries = await readDebateIndex();
+  if (!entries) return;
+  const filtered = entries.filter(e => e.id !== id);
+  if (filtered.length !== entries.length) await writeDebateIndex(filtered);
+}
+
+/**
+ * Fast debate listing — reads a single index file instead of every debate JSON.
+ * Falls back to full scan (listDebateSessions) and rebuilds the index on first call
+ * or when the file count in the tree doesn't match the index (staleness check).
+ */
+export async function listDebateSessionsMeta(): Promise<unknown[]> {
+  const dir = getDebatesDir();
+  const cached = await readDebateIndex();
+  if (cached !== null && cached.length > 0) {
+    // Lightweight staleness check: compare file count from tree with index size.
+    // listDirectory() uses the in-memory repoTree — zero API calls.
+    try {
+      const files = (await backend.listDirectory(dir))
+        .filter(f => f.endsWith('.json') && f.startsWith('debate-'));
+      if (files.length === cached.length) return cached;
+      // Count mismatch — rebuild in background, return stale data now for speed
+      void rebuildDebateIndex().catch(() => {});
+      return cached;
+    } catch {
+      return cached; // tree unavailable — trust the index
+    }
+  }
+  // Cold start: full scan to build the index
+  return rebuildDebateIndex();
+}
+
+/** Full-scan rebuild of the debate index. */
+async function rebuildDebateIndex(): Promise<unknown[]> {
+  const summaries = await listDebateSessions();
+  const typed = summaries as { id: string; title: string; created_at: string; updated_at: string; phase: string }[];
+  await writeDebateIndex(typed).catch(() => {}); // best-effort
+  return typed;
+}
+
 export async function listDebateSessions(): Promise<unknown[]> {
   const dir = getDebatesDir();
   const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[] = [];
@@ -551,17 +619,26 @@ export async function loadDebateSession(id: string): Promise<unknown> {
 }
 
 export async function saveDebateSession(session: unknown): Promise<void> {
-  const s = session as { id: string };
+  const s = session as { id: string; title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
   assertSafeId(s.id, 'debate id');
   await backend.writeFile(
     path.join(getDebatesDir(), `debate-${s.id}.json`),
     JSON.stringify(session, null, 2),
   );
+  // Maintain the lightweight index
+  void upsertDebateIndex({
+    id: s.id,
+    title: s.title || s.topic?.final || s.topic?.original || 'Untitled',
+    created_at: s.created_at || '',
+    updated_at: s.updated_at || s.created_at || '',
+    phase: s.phase || 'unknown',
+  }).catch(() => {}); // best-effort — never fail a save because of index
 }
 
 export async function deleteDebateSession(id: string): Promise<void> {
   assertSafeId(id, 'debate id');
   await backend.deleteFile(path.join(getDebatesDir(), `debate-${id}.json`));
+  void removeFromDebateIndex(id).catch(() => {}); // best-effort
 }
 
 export async function loadDebateComments(debateId: string): Promise<unknown> {

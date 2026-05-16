@@ -661,6 +661,7 @@ post('/api/nli/classify', async (_req, res, body) => {
 // ── Debate sessions ──
 
 get('/api/debates', async (_req, res) => { json(res, await fileIO.listDebateSessions()); });
+get('/api/debates/list', async (_req, res) => { json(res, await fileIO.listDebateSessionsMeta()); });
 
 // ── Calibration parameter history ──
 get('/api/calibration/history', (_req, res) => {
@@ -884,6 +885,38 @@ get('/api/snapshots/:sourceId', async (req, res) => {
   const data = await fileIO.loadSnapshot(sourceId);
   if (data === null) { error(res, `Snapshot not found: ${sourceId}`, 404); return; }
   json(res, { content: data });
+});
+
+// ── Source evidence ──
+
+let _evidenceIndex: Record<string, unknown> | null = null;
+function loadEvidenceIndex(): Record<string, unknown> | null {
+  if (_evidenceIndex) return _evidenceIndex;
+  try {
+    const taxDir = fileIO.getTaxonomyDir();
+    const indexPath = path.join(taxDir, 'source_evidence_index.json');
+    if (!fs.existsSync(indexPath)) return null;
+    _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+    return _evidenceIndex;
+  } catch { return null; }
+}
+
+get('/api/source-evidence-index', (_req, res) => {
+  json(res, loadEvidenceIndex());
+});
+
+post('/api/source-evidence', async (_req, res, body) => {
+  const { nodeIds, pov } = body as { nodeIds: string[]; pov: string };
+  const emptyResult = { facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 };
+  const index = loadEvidenceIndex();
+  if (!index) { json(res, emptyResult); return; }
+  try {
+    const { retrieveSourceEvidence } = await import('../../../lib/debate/evidenceFromSummaries.js');
+    json(res, retrieveSourceEvidence(nodeIds, pov, index));
+  } catch (err) {
+    console.warn(`[api] source-evidence failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
+    json(res, emptyResult);
+  }
 });
 
 // ── Proposals ──

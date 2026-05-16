@@ -24,6 +24,7 @@ import {
   discoverSources,
   loadSummary,
   loadSnapshot,
+  getSummariesDir,
 } from './fileIO';
 import {
   listDebateSessions,
@@ -650,6 +651,36 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('save-debate-comments', (_event, debateId: string, data: unknown) => {
     saveDebateComments(debateId, data);
+  });
+
+  // ── Source evidence (runs in main process for filesystem access) ──
+  type SourceEvidenceIndex = import('../../../lib/debate/evidenceFromSummaries.js').SourceEvidenceIndex;
+  let _evidenceIndex: SourceEvidenceIndex | null = null;
+  function loadEvidenceIndex(): SourceEvidenceIndex | null {
+    if (_evidenceIndex) return _evidenceIndex;
+    try {
+      const config = loadDataConfig();
+      const taxDir = path.join(getDataRootPath(), config.taxonomy_dir);
+      const indexPath = path.join(taxDir, 'source_evidence_index.json');
+      if (!fs.existsSync(indexPath)) return null;
+      _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+      return _evidenceIndex;
+    } catch { return null; }
+  }
+
+  ipcMain.handle('load-source-evidence-index', () => loadEvidenceIndex());
+
+  ipcMain.handle('get-source-evidence', async (_event, nodeIds: string[], pov: string) => {
+    const emptyResult = { facts: [], keyPoints: [], formattedBlock: '', nodesCovered: [], totalCandidates: 0 };
+    const index = loadEvidenceIndex();
+    if (!index) return emptyResult;
+    try {
+      const { retrieveSourceEvidence } = await import('../../../lib/debate/evidenceFromSummaries.js');
+      return retrieveSourceEvidence(nodeIds, pov, index);
+    } catch (err) {
+      console.warn(`[ipc] get-source-evidence failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
+      return emptyResult;
+    }
   });
 
   // ── Chat session handlers ─���───────────────────────────

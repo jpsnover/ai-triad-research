@@ -695,7 +695,7 @@ openings:
 - "Let me challenge that directly..."
 - "Consider what happens if we apply your logic consistently..."
 
-Include a "move_types" array in your response (select 1-3 per response). Each entry is an object:
+Include a "move_types" array in your response (select 1-5 per response). Each entry is an object:
   {"move": "DISTINGUISH", "target": "AN-3", "detail": "Narrowed 'all regulation' to Section 230 liability specifically"}
 - "move" MUST be one of the 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT. No other values are accepted.
 - "target" (optional) is the AN-ID of the prior claim this move responds to.
@@ -1026,7 +1026,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. sit-005", "relevance": "The debate around this contested concept is where the real disagreement lives — my reframe targets the definitional divergence here."},
     {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
-  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-3 from the 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT; each with optional "target" (AN-ID) and required "detail"
+  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-5 from the 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT; each with optional "target" (AN-ID) and required "detail"
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
@@ -1362,7 +1362,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe and anticipates the counterargument."},
     {"node_id": "e.g. acc-desires-009", "relevance": "The value commitment motivates why this distinction matters beyond abstract theorizing."}
   ],
-  "move_types": [{"move": "COUNTEREXAMPLE", "target": "AN-1", "detail": "brief description"}, {"move": "REFRAME", "detail": "brief description"}],  // select 1-3 from the 10 canonical moves; each with optional "target" (AN-ID) and required "detail"${constructiveMoveList}
+  "move_types": [{"move": "COUNTEREXAMPLE", "target": "AN-1", "detail": "brief description"}, {"move": "REFRAME", "detail": "brief description"}],  // select 1-5 from the 10 canonical moves; each with optional "target" (AN-ID) and required "detail"${constructiveMoveList}
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-1"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
@@ -1677,12 +1677,13 @@ Analyze the debate state and produce a structured brief. Focus on:
 3. What commitments have been made that constrain or enable ${input.label}'s response?
 4. What structural tensions exist that ${input.label} could exploit or must navigate?
 5. What does the current debate phase demand?
+${input.pendingIntervention ? `6. MODERATOR DIRECTIVE: A moderator ${input.pendingIntervention.move} intervention is active${input.pendingIntervention.isTargeted ? ' and directed at YOU' : ` (directed at ${input.pendingIntervention.targetDebater})`}. Your situation_assessment MUST identify this directive and note what compliance requires.` : ''}
 
 GROUNDING DEPTH: Each claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "situation_assessment": "2-4 sentences describing the current debate state and what just happened",
+  "situation_assessment": "2-4 sentences describing the current debate state and what just happened${input.pendingIntervention ? '. Include the moderator directive and what it requires' : ''}",
   "key_claims_to_address": [
     {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "why": "primary — anchors the response"}, {"node_id": "acc-intentions-012", "label": "Node Label Here", "why": "supporting — strategic counter"}]}
   ],
@@ -1732,7 +1733,7 @@ Consider how the moderator's point relates to your own position and plan a brief
   }
 
   const directiveField = pi
-    ? `,\n  "directive_response_plan": "${pi.isTargeted ? '1-3 sentences: how you will directly respond to the moderator directive in your opening paragraph' : '1 sentence: brief acknowledgment of the moderator directive as it relates to your position'}"`
+    ? `,\n  "directive_response": {"directive": "restate the moderator's directive in one sentence", "how_addressed": "${pi.isTargeted ? '1-3 sentences: how you will directly respond to the moderator directive in your opening paragraph' : '1 sentence: brief acknowledgment of the moderator directive as it relates to your position'}"}`
     : '';
 
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
@@ -1749,7 +1750,7 @@ Each move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)
 
 Plan your argumentative strategy. Consider:
 1. What is your strategic goal for this turn? What should it accomplish?
-2. Which 1-3 dialectical moves will you use, and in what order?
+2. Which 1-5 dialectical moves will you use, and in what order?
 3. Which prior claims (by AN-ID) will you engage with?
 4. What is the structure of your argument — how will you open, develop, and close?
 5. How might opponents respond, and how does your plan account for that?
@@ -1801,8 +1802,37 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "target_claims": ["AN-3", "AN-7"],
   "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
-  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"]${directiveField}
-}`;
+  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"],
+  "target_nodes": ["acc-beliefs-003", "saf-desires-007", "skp-intentions-002"]${directiveField}
+}
+
+target_nodes: Select 3-5 taxonomy nodes your strategy will explicitly engage. Choose nodes whose content you will directly reference, build on, or challenge in your argument. These will be threaded to the draft and cite stages for intentional grounding.`;
+}
+
+/**
+ * Extract target_nodes from a plan JSON string and build an injection block
+ * so the draft explicitly engages planned taxonomy nodes.
+ */
+function buildTargetNodesBlock(planJson: string, taxonomyContext: string): string {
+  try {
+    const plan = JSON.parse(planJson);
+    const nodes: string[] = plan?.target_nodes;
+    if (!nodes || nodes.length === 0) return '';
+    // Extract node summaries from taxonomy context if available
+    const summaries = nodes.map(id => {
+      const pattern = new RegExp(`${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[:\\s]+(.{0,80})`, 'i');
+      const match = taxonomyContext.match(pattern);
+      return match ? `- ${id}: ${match[1].trim()}` : `- ${id}`;
+    });
+    return `
+=== TARGET TAXONOMY NODES ===
+Your argument MUST explicitly engage these nodes from your plan:
+${summaries.join('\n')}
+Write claims that directly reference, build on, or challenge these nodes' content. The cite stage will verify each appears in your taxonomy_refs.
+`;
+  } catch {
+    return '';
+  }
 }
 
 export function draftStagePrompt(input: StagePromptInput, brief: string, plan: string): string {
@@ -1827,6 +1857,8 @@ The moderator issued a ${pi.move} intervention directed at you.
 ${pi.directResponsePattern}
 
 CRITICAL: Your first paragraph IS your response to the moderator. It must be unambiguous — a reader should know your answer from those 2-3 sentences alone, without reading further. Do not bury your answer in qualifications. Do not hedge across multiple paragraphs. State your position, give one reason, stop. Your substantive argument goes in paragraphs 2-4.
+
+VALIDATION WARNING: Draft validation will check that your first paragraph explicitly addresses the moderator's directive. Statements that ignore the directive will be rejected and retried.
 `;
     } else if (!pi.isTargeted) {
       interventionBlock = `
@@ -1854,7 +1886,7 @@ ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-${interventionBlock}
+${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}
 === YOUR ASSIGNMENT ===
 Address ${input.addressing === 'general' ? 'the panel' : input.addressing} on this point: ${input.focusPoint}
 
@@ -1910,6 +1942,25 @@ function _buildInterventionResponseField(pi?: StagePromptInput['pendingIntervent
   return RESPONSE_FIELDS[pi.move] ?? '';
 }
 
+/**
+ * Extract target_nodes from a plan JSON string and build a block for the cite stage
+ * so it verifies intentional connections.
+ */
+function buildPlannedNodesBlock(planJson: string): string {
+  try {
+    const plan = JSON.parse(planJson);
+    const nodes: string[] = plan?.target_nodes;
+    if (!nodes || nodes.length === 0) return '';
+    return `
+=== PLANNED NODES ===
+The argument was written to engage these nodes: ${nodes.join(', ')}.
+Verify each appears in taxonomy_refs with a substantive relevance explanation. You may add additional discovered connections beyond these.
+`;
+  } catch {
+    return '';
+  }
+}
+
 export function citeStagePrompt(
   input: StagePromptInput,
   brief: string,
@@ -1946,7 +1997,7 @@ ${draft}
 
 === TAXONOMY CONTEXT ===
 ${input.taxonomyContext}
-${refsHistoryBlock}
+${refsHistoryBlock}${buildPlannedNodesBlock(plan)}
 Ground the draft statement in the taxonomy. For each connection:
 1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1 sentence how the node informed the argument.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.
@@ -1966,6 +2017,78 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"move": "EXTEND", "detail": "Built on innovation metrics with new evidence"}
   ],
   "grounding_confidence": 0.85
+}`;
+}
+
+/**
+ * Re-call the cite stage for refs flagged as filler.
+ * Asks the model to either strengthen the relevance with a specific mechanism or drop the ref.
+ */
+export function citeRetryPrompt(
+  weakRefs: { node_id: string; relevance: string }[],
+  draft: string,
+  taxonomyContext: string,
+): string {
+  const refsList = weakRefs.map(r =>
+    `- ${r.node_id}: "${r.relevance}"`
+  ).join('\n');
+
+  return `You are a grounding analyst. The following taxonomy_refs were flagged as having filler or too-generic relevance explanations. For each ref, either:
+(A) STRENGTHEN — rewrite the relevance with a specific mechanism: what claim in the statement does this node support or complicate, and how? (≥40 chars, mention a concrete concept from the node)
+(B) DROP — if the connection is too tenuous to explain with a specific mechanism, omit it from your output.
+
+=== FLAGGED REFS ===
+${refsList}
+
+=== DRAFT STATEMENT ===
+${draft}
+
+=== TAXONOMY CONTEXT ===
+${taxonomyContext}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "taxonomy_refs": [
+    {"node_id": "...", "relevance": "Strengthened relevance explaining the specific mechanism..."}
+  ]
+}
+
+Only include refs you can genuinely strengthen. Drop any ref where the connection is too vague to explain concretely.`;
+}
+
+// ── Draft quality pre-check prompt ──────────────────────
+
+export function draftQualityCheckPrompt(
+  statement: string,
+  lastOpponentStatement: string,
+  speaker: string,
+  pov: string,
+  phase: DebatePhase,
+  round: number,
+): string {
+  return `You are a debate-draft quality gate. Answer 3 yes/no questions about this draft statement. Do NOT judge overall quality — only flag structural defects that the debater should fix before grounding citations.
+
+Phase: ${phase}
+Speaker: ${speaker} (${pov})
+Round: ${round}
+
+Prior turn (last opponent):
+${lastOpponentStatement.slice(0, 600)}
+
+Draft statement:
+${statement}
+
+Questions:
+1. GROUNDED — Does the draft make at least one claim backed by a specific fact, number, named entity, or data point? (Not: "AI could be dangerous" — Yes: "GPT-4 scores 86th percentile on the bar exam")
+2. FALSIFIABLE — Does the draft contain at least one prediction or claim that could be proven wrong with evidence? (Not: "AI might cause problems someday" — Yes: "By 2028, ≥3 major democracies will have mandatory AI audit requirements")
+3. ENGAGES — Does the draft's first paragraph respond to the opponent's most recent core argument, rather than introducing an unrelated point?
+
+Return ONLY JSON, no prose:
+{
+  "grounded": true,
+  "falsifiable": true,
+  "engages": true,
+  "weaknesses": ["≤15 words each, only for failed questions, max 3"]
 }`;
 }
 

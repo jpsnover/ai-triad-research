@@ -260,8 +260,13 @@ const rawApi: AppAPI = {
   computeQueryEmbedding: (text) => post('/api/embeddings/query', { text }),
   nliClassify: (pairs) => post('/api/nli/classify', { pairs }),
 
+  // Source evidence
+  loadSourceEvidenceIndex: () => get<Record<string, unknown> | null>('/api/source-evidence-index').catch(() => null),
+  getSourceEvidence: (nodeIds, pov) => post('/api/source-evidence', { nodeIds, pov }),
+
   // Debate sessions
   listDebateSessions: () => get('/api/debates'),
+  listDebateSessionsMeta: () => get('/api/debates/list'),
   loadDebateSession: (id) => get(`/api/debates/${encodeURIComponent(id)}`),
   saveDebateSession: (session) => put('/api/debates', session).then(() => {}),
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),

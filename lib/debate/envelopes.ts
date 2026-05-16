@@ -173,7 +173,7 @@ ASSUMPTION TARGETING:
 BRIDGING NODES: If citing a bridging node, plan how the analogy holds under scrutiny.`,
       `Plan your argumentative strategy. Consider:
 1. What is your strategic goal for this turn? What should it accomplish?
-2. Which 1-3 dialectical moves will you use, and in what order?
+2. Which 1-5 dialectical moves will you use, and in what order?
 3. Which prior claims (by AN-ID) will you engage with?
 4. What is the structure of your argument — how will you open, develop, and close?
 5. How might opponents respond, and how does your plan account for that?

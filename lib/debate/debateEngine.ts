@@ -6,6 +6,7 @@
  * Runs a full structured debate using the AIAdapter interface.
  */
 
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { AIAdapter, ExtendedAIAdapter } from './aiAdapter.js';
@@ -143,7 +144,7 @@ import {
 import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js';
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
-import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult } from './turnPipeline.js';
+import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from './turnPipeline.js';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline.js';
 import {
   findUnengagedHighRelevanceNodes,
@@ -595,6 +596,25 @@ export class DebateEngine {
 
   /** Enrich taxonomy refs with relevance scores and primary flags from the last injection manifest. */
   private _nodeLabelMap?: Map<string, string>;
+
+  /** Pre-loaded source evidence index (lazy). */
+  private _sourceEvidenceIndex?: import('./evidenceFromSummaries.js').SourceEvidenceIndex;
+
+  private get sourceEvidenceIndex(): import('./evidenceFromSummaries.js').SourceEvidenceIndex | undefined {
+    if (this._sourceEvidenceIndex !== undefined) return this._sourceEvidenceIndex;
+    try {
+      const __dir = path.dirname(fileURLToPath(import.meta.url));
+      const root = resolveRepoRoot(__dir);
+      const dataRoot = resolveDataRoot(root);
+      const indexPath = path.join(dataRoot, 'taxonomy', 'source_evidence_index.json');
+      if (fs.existsSync(indexPath)) {
+        this._sourceEvidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
+        return this._sourceEvidenceIndex;
+      }
+    } catch { /* index unavailable — no evidence */ }
+    this._sourceEvidenceIndex = undefined as unknown as import('./evidenceFromSummaries.js').SourceEvidenceIndex;
+    return undefined;
+  }
 
   private getNodeLabelMap(): Map<string, string> {
     if (this._nodeLabelMap) return this._nodeLabelMap;
@@ -1444,6 +1464,7 @@ export class DebateEngine {
         model: this.config.model,
         userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
         doctrinalBoundaries: info.doctrinal_boundaries,
+        availablePovNodeIds: [...this.getKnownNodeIds()],
         ...(this.config.temperature != null ? {
           stageTemperatures: {
             brief_temperature: this.config.temperature,
@@ -1454,11 +1475,27 @@ export class DebateEngine {
         } : {}),
       };
 
-      const pipelineResult = await runOpeningPipeline(
+      let pipelineResult = await runOpeningPipeline(
         pipelineInput,
         stageGenerate,
         (_stage, label) => this.progress('opening', poverId, label),
       );
+
+      // Opening retry: if per-stage validation found errors, retry once with repair hints.
+      const repairHints = getOpeningRepairHints(pipelineResult);
+      if (repairHints.length > 0) {
+        this.progress('opening', poverId, `${info.label} retrying (${repairHints.length} issue${repairHints.length > 1 ? 's' : ''})`);
+        try {
+          pipelineResult = await runOpeningPipeline(
+            { ...pipelineInput, repairHints },
+            stageGenerate,
+            (_stage, label) => this.progress('opening', poverId, label),
+          );
+        } catch (err) {
+          this.warn('Opening retry', err, 'Using first attempt');
+        }
+      }
+
       const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, this.getKnownNodeIds());
       this.enrichTaxonomyRefs(taxonomyRefs);
 
@@ -1975,6 +2012,14 @@ export class DebateEngine {
     const interventionInjection = activeIntervention
       ? buildInterventionBriefInjection(activeIntervention)
       : '';
+    // Extract last opponent statement for the draft quality pre-check
+    const lastOpponentEntry = this.session.transcript
+      .filter(e => e.speaker !== responder && e.speaker !== 'system' && e.speaker !== 'user' && e.type !== 'opening')
+      .slice(-1)[0];
+    const lastOpponentStatement = lastOpponentEntry
+      ? (typeof lastOpponentEntry.content === 'string' ? lastOpponentEntry.content : JSON.stringify(lastOpponentEntry.content))
+      : undefined;
+
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -2001,6 +2046,8 @@ export class DebateEngine {
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
       model: this.config.model,
+      lastOpponentStatement,
+      sourceEvidenceIndex: this.sourceEvidenceIndex,
       ...(this.config.temperature != null ? {
         stageTemperatures: {
           brief_temperature: this.config.temperature,
@@ -2051,11 +2098,21 @@ export class DebateEngine {
     const knownIds = this.getKnownNodeIds();
     const vConfig = resolveTurnValidationConfig(this.config.turnValidation);
 
+    // Pre-check generate uses the same adapter but with the pre-check model
+    const preCheckGenerate = !vConfig.skipPreCheck
+      ? stageGenerate  // same function — model is passed per-call
+      : undefined;
+
+    // Inject pre-check config into pipeline input
+    pipelineInput.preCheckModel = vConfig.preCheckModel;
+    pipelineInput.skipPreCheck = vConfig.skipPreCheck;
+
     const retryCallbacks: TurnRetryCallbacks = {
       runPipeline: (input) => runTurnPipeline(
         input, stageGenerate,
         (_stage, label) => this.progress('generating', responder, label),
         envelopeGenerate,
+        preCheckGenerate,
       ),
       assembleResult: (result) => assemblePipelineResult(result, knownIds),
       callJudge: (p, l) => this.generateWithModel(p, l, vConfig.judgeModel, 20000),

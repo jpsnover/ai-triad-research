@@ -817,7 +817,7 @@ export function checkInterventionCompliance(
       return {
         compliant: false,
         missing_field: field,
-        repair_hint: 'Your commitment must include "concessions", "conditions_for_change", and "sharpest_disagreements" sub-fields.',
+        repair_hint: 'Your commitment must include "concessions" (array of specific points you concede), "conditions_for_change" (array of "If X, then I would Y" statements), and "sharpest_disagreements" (object mapping opponent names to one-sentence irreducible disagreements). All three must be non-empty.',
       };
     }
   }

@@ -623,6 +623,10 @@ export interface TurnValidationConfig {
     argumentation?: number;
     concluding?: number;
   };
+  /** Model for the draft quality pre-check. Default: gemini-2.0-flash-lite. */
+  preCheckModel?: string;
+  /** Disable the draft quality pre-check. Default: false. */
+  skipPreCheck?: boolean;
 }
 
 export type TurnValidationOutcome = 'pass' | 'retry' | 'accept_with_flag' | 'skipped';
@@ -662,6 +666,8 @@ export interface TurnAttempt {
   raw_response: string;
   response_time_ms: number;
   validation: TurnValidation;
+  /** Full pipeline stage diagnostics for this attempt — preserved across orchestration retries. */
+  stage_diagnostics?: StageDiagnostics[];
 }
 
 export interface TurnValidationTrail {
@@ -878,7 +884,7 @@ export interface EntryDiagnostics {
 
 // ── Turn pipeline types ──────────────────────────────
 
-export type TurnStageId = 'brief' | 'plan' | 'draft' | 'cite';
+export type TurnStageId = 'brief' | 'plan' | 'draft' | 'draft_quality' | 'evidence' | 'cite';
 
 export interface TurnStageConfig {
   brief_temperature?: number;
@@ -912,6 +918,9 @@ export interface PlanWorkProduct {
   target_claims: string[];
   argument_sketch: string;
   anticipated_responses: string[];
+  target_nodes?: string[];
+  /** When a moderator directive preceded this turn, how the debater plans to address it. */
+  directive_response?: { directive: string; how_addressed: string };
 }
 
 export interface TurnSymbol {
@@ -969,6 +978,7 @@ export interface OpeningPlanWorkProduct {
   argument_structure: { point: string; evidence: string; taxonomy_anchor: string }[];
   framing_choices: string;
   anticipated_challenges: string[];
+  target_nodes?: string[];
 }
 
 export interface OpeningCiteWorkProduct {

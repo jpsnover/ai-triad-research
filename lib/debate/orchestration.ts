@@ -624,6 +624,7 @@ export async function executeTurnWithRetry(
   input: TurnRetryInput,
   callbacks: TurnRetryCallbacks,
 ): Promise<TurnRetryResult> {
+  console.log(`[orchestration] *** executeTurnWithRetry ENTERED for ${input.speaker} round ${input.round} ***`);
   const vConfig = resolveTurnValidationConfig(input.validationConfig);
   const attempts: TurnAttempt[] = [];
   let attemptIdx = 0;
@@ -683,9 +684,20 @@ export async function executeTurnWithRetry(
       raw_response: draftDiag?.raw_response ?? '',
       response_time_ms: pipelineResult.total_time_ms,
       validation,
+      stage_diagnostics: pipelineResult.stage_diagnostics,
     });
 
-    if (validation.outcome !== 'retry' || attemptIdx >= vConfig.maxRetries) break;
+    // First attempt: any quality feedback triggers a retry — give the debater
+    // a chance to incorporate the judge's weaknesses before applying score thresholds.
+    // Subsequent attempts: use the normal score-based retry logic.
+    const hasQualityFeedback = (validation.repairHints?.length ?? 0) > 0;
+    const shouldRetry = attemptIdx === 0
+      ? hasQualityFeedback                    // first draft: any feedback → retry
+      : validation.outcome === 'retry';        // retry draft: score must warrant it
+
+    console.log(`[orchestration] *** RETRY CHECK: attempt=${attemptIdx}, feedback=${hasQualityFeedback}, hints=${validation.repairHints?.length ?? 0}, outcome=${validation.outcome}, retry=${shouldRetry}, max=${vConfig.maxRetries} ***`);
+
+    if (!shouldRetry || attemptIdx >= vConfig.maxRetries) break;
 
     attemptIdx += 1;
     try {

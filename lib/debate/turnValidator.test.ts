@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { resolveTurnValidationConfig, validateTurn, validatePlanStage } from './turnValidator.js';
+import { resolveTurnValidationConfig, validateTurn, validatePlanStage, validateCiteStage, validateDraftStage, checkDirectiveContentCompliance, isFillerRelevance, parseDraftQualityResult } from './turnValidator.js';
 import type { ValidateTurnParams } from './turnValidator.js';
 import type {
   TaxonomyRef,
@@ -40,6 +40,7 @@ const mockJudge = async () =>
     advancement_reason: 'test',
     clarifies_taxonomy: [],
     weaknesses: [],
+    quality_score: 0.85,
     recommend: 'pass',
   });
 
@@ -850,6 +851,7 @@ describe('validateTurn orchestrator', () => {
           advancement_reason: 'good progress',
           clarifies_taxonomy: [],
           weaknesses: [],
+          quality_score: 0.85,
           recommend: 'pass',
         });
       },
@@ -933,6 +935,7 @@ describe('validateTurn orchestrator', () => {
           advancement_reason: 'marginal',
           clarifies_taxonomy: [],
           weaknesses: ['borderline'],
+          quality_score: 0.65,
           recommend: 'accept_with_flag',
         }),
     });
@@ -967,6 +970,7 @@ describe('judge parse failures', () => {
           advancement_reason: 'fallback worked',
           clarifies_taxonomy: [],
           weaknesses: [],
+          quality_score: 0.85,
           recommend: 'pass',
         });
       },
@@ -1050,6 +1054,7 @@ describe('intervention compliance', () => {
 describe('score calculation', () => {
   it('returns perfect score when all dimensions pass', async () => {
     // Need judge for clarifies to pass
+    // quality_score 0.90 (cap for 0 weaknesses) with 40/60 split → 0.4*1.0 + 0.6*0.90 = 0.94
     const p = makeParams({
       config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false }),
       callJudge: async () =>
@@ -1058,23 +1063,26 @@ describe('score calculation', () => {
           advancement_reason: 'great',
           clarifies_taxonomy: [{ action: 'narrow', node_id: 'acc-B-001', rationale: 'test' }],
           weaknesses: [],
+          quality_score: 0.90,
           recommend: 'pass',
         }),
     });
     const r = await validateTurn(p);
-    expect(r.process_reward).toBeCloseTo(1.0, 5);
+    // 0.4 * stageA(1.0) + 0.6 * judge(0.90) = 0.94
+    expect(r.process_reward).toBeCloseTo(0.94, 2);
     expect(r.dimensions.schema.pass).toBe(true);
     expect(r.dimensions.grounding.pass).toBe(true);
     expect(r.dimensions.advancement.pass).toBe(true);
     expect(r.dimensions.clarifies.pass).toBe(true);
   });
 
-  it('returns 0.9 when clarifies dimension fails', async () => {
+  it('returns 0.78 when clarifies dimension fails (deterministic-only)', async () => {
     // deterministic-only: clarifies always false, everything else passes
+    // judgeQuality defaults to 0.7 when no judge runs
     const p = makeParams();
     const r = await validateTurn(p);
-    // schema=1*0.4 + grounding=1*0.3 + advancement=1*0.2 + clarifies=0*0.1 = 0.9
-    expect(r.process_reward).toBeCloseTo(0.9, 5);
+    // 0.4 * stageA(0.90) + 0.6 * default(0.70) = 0.36 + 0.42 = 0.78
+    expect(r.process_reward).toBeCloseTo(0.78, 2);
   });
 
   it('returns lower process_reward with schema failure', async () => {
@@ -1086,6 +1094,48 @@ describe('score calculation', () => {
     // schema fails: process_reward should be < 0.9
     expect(r.process_reward).toBeLessThan(0.9);
     expect(r.dimensions.schema.pass).toBe(false);
+  });
+
+  it('caps inflated quality_score based on weakness count', async () => {
+    // Judge returns 0.80 with 3 weaknesses — calibration cap should enforce max 0.55
+    const p = makeParams({
+      config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false }),
+      callJudge: async () =>
+        JSON.stringify({
+          advances: true,
+          advancement_reason: 'decent',
+          clarifies_taxonomy: [],
+          weaknesses: ['vague claims', 'lacks evidence for central thesis', 'ignores counterpoint'],
+          quality_score: 0.80,
+          recommend: 'pass',
+        }),
+    });
+    const r = await validateTurn(p);
+    // 3 weaknesses → cap 0.55, "no evidence" → -0.10 → 0.45
+    // score < 0.5 → recommend reconciled to 'retry'
+    // process_reward = 0.4 * stageA + 0.6 * 0.45
+    expect(r.process_reward).toBeLessThan(0.7);
+    expect(r.outcome).toBe('retry');
+  });
+
+  it('applies evidence-gap penalty on top of weakness cap', async () => {
+    // 2 weaknesses including "lacks evidence" — cap 0.65, then -0.10 → 0.55
+    const p = makeParams({
+      config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false }),
+      callJudge: async () =>
+        JSON.stringify({
+          advances: true,
+          advancement_reason: 'some progress',
+          clarifies_taxonomy: [],
+          weaknesses: ['lacks evidence for central claim', 'repetitive framing'],
+          quality_score: 0.75,
+          recommend: 'pass',
+        }),
+    });
+    const r = await validateTurn(p);
+    // 2 weaknesses → cap 0.65, "lacks evidence" → -0.10 → 0.55
+    // 0.55 < 0.7 → recommend reconciled to 'accept_with_flag'
+    expect(r.outcome).toBe('accept_with_flag');
   });
 });
 
@@ -1237,5 +1287,290 @@ describe('validatePlanStage', () => {
     const plan = { ...makeValidPlan(), strategic_goal: '' };
     const r = validatePlanStage({ plan, isFirstRound: false });
     expect(r.failedDimension).toBe('plan');
+  });
+});
+
+// ── isFillerRelevance ─────────────────────────────────────
+
+describe('isFillerRelevance', () => {
+  it('detects stock opener filler', () => {
+    expect(isFillerRelevance('supports our position')).toBe(true);
+    expect(isFillerRelevance('relevant to the debate')).toBe(true);
+  });
+
+  it('accepts substantive relevance', () => {
+    expect(isFillerRelevance('Supports the pivot toward empirical telemetry by providing concrete deployment timelines from the EU regulatory framework')).toBe(false);
+  });
+
+  it('detects stop-word saturated text', () => {
+    expect(isFillerRelevance('this is about what would have been there with those that were clearly being made')).toBe(true);
+  });
+
+  it('accepts text with domain terms', () => {
+    expect(isFillerRelevance('algorithmic accountability frameworks require institutional capacity building before deployment timelines')).toBe(false);
+  });
+});
+
+// ── validateCiteStage target_nodes ────────────────────────
+
+describe('validateCiteStage target_nodes', () => {
+  const baseCiteParams = {
+    taxonomyRefs: [
+      { node_id: 'acc-B-001', relevance: 'Provides empirical evidence for accelerated deployment timelines in regulated industries' },
+      { node_id: 'saf-D-002', relevance: 'Highlights safety concerns around algorithmic accountability framework gaps in deployment' },
+    ],
+    knownNodeIds: new Set(['acc-B-001', 'saf-D-002', 'skp-I-003']),
+    policyIds: new Set(['pol-001']),
+    priorTurns: [] as import('./types.js').TranscriptEntry[],
+    speaker: 'prometheus',
+  };
+
+  it('passes when all target_nodes are cited', () => {
+    const r = validateCiteStage({
+      ...baseCiteParams,
+      targetNodes: ['acc-B-001', 'saf-D-002'],
+    });
+    expect(r.repairHints.some(h => h.includes('target_nodes'))).toBe(false);
+  });
+
+  it('warns when target_nodes are missing from taxonomy_refs', () => {
+    const r = validateCiteStage({
+      ...baseCiteParams,
+      targetNodes: ['acc-B-001', 'skp-I-003'],
+    });
+    expect(r.repairHints.some(h => h.includes('target_nodes') && h.includes('skp-I-003'))).toBe(true);
+  });
+
+  it('skips target_nodes check when not provided', () => {
+    const r = validateCiteStage(baseCiteParams);
+    expect(r.repairHints.some(h => h.includes('target_nodes'))).toBe(false);
+  });
+
+  it('skips target_nodes check when empty array', () => {
+    const r = validateCiteStage({ ...baseCiteParams, targetNodes: [] });
+    expect(r.repairHints.some(h => h.includes('target_nodes'))).toBe(false);
+  });
+});
+
+// ── Directive content compliance ─────────────────────────────
+
+describe('checkDirectiveContentCompliance', () => {
+  it('passes when first paragraph addresses the directive terms', () => {
+    const statement = 'I acknowledge the moderator\'s challenge about evidence quality and empirical grounding.\n\nMy substantive argument follows here with additional detail.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      text: 'Present evidence for your empirical claims about evidence quality.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+    expect(result.matched_terms).toBeGreaterThanOrEqual(2);
+  });
+
+  it('fails when first paragraph ignores directive content', () => {
+    const statement = 'Let me continue my argument about governance frameworks.\n\nThe regulatory landscape requires careful analysis of institutional design.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      text: 'State whether you agree or disagree with the precautionary principle.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.repair_hint).toContain('REDIRECT');
+    expect(result.repair_hint).toContain('first paragraph');
+  });
+
+  it('requires only 1 matching term for non-targeted directives', () => {
+    const statement = 'The precautionary framing raised by the moderator touches on my view.\n\nMoving on to the substance...';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      text: 'Explain the precautionary principle in more detail.',
+      isTargeted: false,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('passes when directive text is empty', () => {
+    const result = checkDirectiveContentCompliance('Some statement.', {
+      move: 'REDIRECT',
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('PIN uses structural agree/disagree check', () => {
+    const statement = 'I disagree with the precautionary principle as stated.\n\nHere is my reasoning.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'PIN',
+      text: 'State whether you agree with the precautionary principle.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('PIN fails when first paragraph lacks agree/disagree', () => {
+    const statement = 'The precautionary principle is an important topic.\n\nHere is my reasoning.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'PIN',
+      text: 'State whether you agree with the precautionary principle.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.repair_hint).toContain('agree');
+  });
+
+  it('prefers text over directResponsePattern for keyword overlap', () => {
+    const statement = 'The general moderator text deserves a direct response.\n\nHere is my reasoning.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      text: 'General moderator text.',
+      directResponsePattern: 'State whether the safety threshold is too conservative.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+    expect(result.directive_terms).toContain('general');
+    expect(result.directive_terms).toContain('moderator');
+  });
+
+  it('falls back to directResponsePattern when text is absent', () => {
+    const statement = 'The safety threshold debate requires careful consideration of conservative approaches.\n\nHere is my reasoning.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      directResponsePattern: 'State whether the safety threshold is too conservative.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+    expect(result.directive_terms).toContain('safety');
+    expect(result.directive_terms).toContain('threshold');
+  });
+});
+
+describe('validateDraftStage directive compliance', () => {
+  const baseDraftParams = {
+    statement: makeParagraphs(3),
+    meta: {
+      move_types: [{ move: 'DISTINGUISH', detail: 'test' }],
+      disagreement_type: 'EMPIRICAL',
+      my_claims: [{ claim: 'By 2028, regulatory frameworks will cover 80% of AI deployments.' }],
+    } as PoverResponseMeta,
+    phase: 'argumentation' as DebatePhase,
+    round: 4,
+    priorTurns: [] as TranscriptEntry[],
+  };
+
+  it('passes without intervention', () => {
+    const r = validateDraftStage(baseDraftParams);
+    expect(r.directive_compliance).toBeUndefined();
+  });
+
+  it('fails when statement ignores a targeted directive', () => {
+    const intervention: ModeratorIntervention = {
+      family: 'elicitation',
+      move: 'PIN',
+      force: 'interrogative',
+      burden: 3,
+      target_debater: 'prometheus',
+      text: 'Do you accept the precautionary principle as a default regulatory stance?',
+      trigger_reason: 'vague position',
+      source_evidence: { round: 3 },
+    };
+    const r = validateDraftStage({
+      ...baseDraftParams,
+      pendingIntervention: intervention,
+    });
+    expect(r.pass).toBe(false);
+    expect(r.directive_compliance?.compliant).toBe(false);
+    expect(r.failedDimension).toBe('directive');
+  });
+
+  it('passes when statement addresses the directive in first paragraph', () => {
+    const intervention: ModeratorIntervention = {
+      family: 'elicitation',
+      move: 'PIN',
+      force: 'interrogative',
+      burden: 3,
+      target_debater: 'prometheus',
+      text: 'Do you accept the precautionary principle as a default regulatory stance?',
+      trigger_reason: 'vague position',
+      source_evidence: { round: 3 },
+    };
+    const statement = 'I disagree with the precautionary principle as a default regulatory stance because it systematically underweights innovation benefits.\n\n' + makeParagraphs(2);
+    const r = validateDraftStage({
+      ...baseDraftParams,
+      statement,
+      pendingIntervention: intervention,
+    });
+    expect(r.directive_compliance?.compliant).toBe(true);
+    expect(r.directive_compliance?.matched_terms).toBeGreaterThanOrEqual(1);
+  });
+
+  it('mandatory retry on directive failure — error not warning', () => {
+    const intervention: ModeratorIntervention = {
+      family: 'repair',
+      move: 'CLARIFY',
+      force: 'interrogative',
+      burden: 2,
+      target_debater: 'sentinel',
+      text: 'Clarify your definition of alignment failure and what threshold constitutes catastrophic risk.',
+      trigger_reason: 'ambiguous terminology',
+      source_evidence: { round: 2 },
+    };
+    const r = validateDraftStage({
+      ...baseDraftParams,
+      pendingIntervention: intervention,
+    });
+    // Directive non-compliance is an error (not a warning), so pass=false
+    expect(r.pass).toBe(false);
+    // The repair hint should explain what the directive asked about
+    expect(r.repairHints.some(h => h.includes('CLARIFY') && h.includes('directive'))).toBe(true);
+  });
+});
+
+// ── Draft quality pre-check parsing ────────────────────────
+
+describe('parseDraftQualityResult', () => {
+  it('parses a valid all-pass response', () => {
+    const raw = JSON.stringify({ grounded: true, falsifiable: true, engages: true, weaknesses: [] });
+    const result = parseDraftQualityResult(raw);
+    expect(result.grounded).toBe(true);
+    expect(result.falsifiable).toBe(true);
+    expect(result.engages).toBe(true);
+    expect(result.weaknesses).toHaveLength(0);
+  });
+
+  it('parses a response with failures and weaknesses', () => {
+    const raw = JSON.stringify({
+      grounded: false,
+      falsifiable: true,
+      engages: false,
+      weaknesses: ['No specific data points cited', 'First paragraph ignores opponent'],
+    });
+    const result = parseDraftQualityResult(raw);
+    expect(result.grounded).toBe(false);
+    expect(result.falsifiable).toBe(true);
+    expect(result.engages).toBe(false);
+    expect(result.weaknesses).toHaveLength(2);
+  });
+
+  it('caps weaknesses at 3', () => {
+    const raw = JSON.stringify({
+      grounded: false, falsifiable: false, engages: false,
+      weaknesses: ['a', 'b', 'c', 'd', 'e'],
+    });
+    const result = parseDraftQualityResult(raw);
+    expect(result.weaknesses).toHaveLength(3);
+  });
+
+  it('returns fallback on malformed JSON', () => {
+    const result = parseDraftQualityResult('not json at all');
+    expect(result.grounded).toBe(false);
+    expect(result.falsifiable).toBe(false);
+    expect(result.engages).toBe(false);
+    expect(result.weaknesses.length).toBeGreaterThan(0);
+  });
+
+  it('treats missing boolean fields as false', () => {
+    const raw = JSON.stringify({ weaknesses: [] });
+    const result = parseDraftQualityResult(raw);
+    expect(result.grounded).toBe(false);
+    expect(result.falsifiable).toBe(false);
+    expect(result.engages).toBe(false);
   });
 });

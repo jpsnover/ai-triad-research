@@ -11,6 +11,7 @@ const { mockApi, mockTaxonomyState } = vi.hoisted(() => {
     generateTextWithSearch: vi.fn().mockResolvedValue({ text: '', searchQueries: [], citations: [] }),
     onGenerateTextProgress: vi.fn().mockReturnValue(() => {}),
     listDebateSessions: vi.fn().mockResolvedValue([]),
+    listDebateSessionsMeta: vi.fn().mockResolvedValue([]),
     loadDebateSession: vi.fn().mockResolvedValue({}),
     saveDebateSession: vi.fn().mockResolvedValue(undefined),
     deleteDebateSession: vi.fn().mockResolvedValue(undefined),
@@ -446,7 +447,7 @@ describe('createDebate', () => {
 
   it('calls loadSessions after creation', async () => {
     await useDebateStore.getState().createDebate('Topic', ['prometheus'], false);
-    expect(mockApi.listDebateSessions).toHaveBeenCalled();
+    expect(mockApi.listDebateSessionsMeta).toHaveBeenCalled();
   });
 });
 
@@ -728,7 +729,7 @@ describe('Error handling', () => {
 
   describe('loadSessions error handling', () => {
     it('sets sessionsLoading false on error (does not throw)', async () => {
-      mockApi.listDebateSessions.mockRejectedValueOnce(new Error('Network error'));
+      mockApi.listDebateSessionsMeta.mockRejectedValueOnce(new Error('Network error'));
 
       await useDebateStore.getState().loadSessions();
 
@@ -1346,7 +1347,7 @@ describe('loadSessions', () => {
       { id: 's1', title: 'Debate 1', created_at: '2026-01-01', updated_at: '2026-01-01', phase: 'setup' },
       { id: 's2', title: 'Debate 2', created_at: '2026-01-02', updated_at: '2026-01-02', phase: 'debate' },
     ];
-    mockApi.listDebateSessions.mockResolvedValueOnce(mockSessions);
+    mockApi.listDebateSessionsMeta.mockResolvedValueOnce(mockSessions);
 
     await useDebateStore.getState().loadSessions();
 
@@ -1357,7 +1358,7 @@ describe('loadSessions', () => {
   it('sets sessionsLoading to true while loading', async () => {
     let resolvePromise: (v: unknown[]) => void;
     const pending = new Promise<unknown[]>((resolve) => { resolvePromise = resolve; });
-    mockApi.listDebateSessions.mockReturnValueOnce(pending);
+    mockApi.listDebateSessionsMeta.mockReturnValueOnce(pending);
 
     const loadPromise = useDebateStore.getState().loadSessions();
 
