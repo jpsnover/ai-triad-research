@@ -46,6 +46,7 @@ export type EventType =
   | 'github.api.error'
   | 'github.api.rate_limit'
   | 'github.api.circuit_break'
+  | 'github.api.conflict'
   // Cache operations
   | 'cache.hit'
   | 'cache.miss'
@@ -63,6 +64,8 @@ export type EventType =
   | 'sync.pr.merge'
   | 'sync.conflict'
   | 'sync.webhook'
+  // Overlay operations
+  | 'overlay.commit'
   // Storage
   | 'storage.mode'
   | 'storage.fallback'

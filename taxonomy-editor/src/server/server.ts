@@ -889,8 +889,9 @@ get('/api/snapshots/:sourceId', async (req, res) => {
 
 // ── Source evidence ──
 
-let _evidenceIndex: Record<string, unknown> | null = null;
-function loadEvidenceIndex(): Record<string, unknown> | null {
+type SourceEvidenceIndex = import('../../../lib/debate/evidenceFromSummaries.js').SourceEvidenceIndex;
+let _evidenceIndex: SourceEvidenceIndex | null = null;
+function loadEvidenceIndex(): SourceEvidenceIndex | null {
   if (_evidenceIndex) return _evidenceIndex;
   try {
     const taxDir = fileIO.getTaxonomyDir();
