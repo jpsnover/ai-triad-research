@@ -90,7 +90,7 @@ export interface ElectronAPI {
   loadDebateSession: (id: string) => Promise<unknown>;
   saveDebateSession: (session: unknown) => Promise<void>;
   deleteDebateSession: (id: string) => Promise<void>;
-  exportDebateToFile: (session: unknown, format?: string) => Promise<{ cancelled: boolean; filePath?: string }>;
+  exportDebateToFile: (session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }) => Promise<{ cancelled: boolean; filePath?: string }>;
   loadDebateComments: (debateId: string) => Promise<unknown>;
   saveDebateComments: (debateId: string, data: unknown) => Promise<void>;
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;

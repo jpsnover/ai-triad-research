@@ -9,15 +9,16 @@
 import { BrowserWindow } from 'electron';
 import {
   debateToHtml,
+  type DebateExportOptions,
   type ExportableDebateSession,
 } from '../../../lib/debate/debateExport';
 
 // Re-export shared converters so existing imports keep working
 export { debateToText, debateToMarkdown, debateToPackage, debateExportFilename } from '../../../lib/debate/debateExport';
-export type { ExportableDebateSession, DebateExportFormat } from '../../../lib/debate/debateExport';
+export type { DebateExportOptions, ExportableDebateSession, DebateExportFormat } from '../../../lib/debate/debateExport';
 
-export async function debateToPdf(session: ExportableDebateSession): Promise<Buffer> {
-  const fullHtml = debateToHtml(session);
+export async function debateToPdf(session: ExportableDebateSession, options?: DebateExportOptions): Promise<Buffer> {
+  const fullHtml = debateToHtml(session, options);
 
   const pdfWindow = new BrowserWindow({
     show: false,

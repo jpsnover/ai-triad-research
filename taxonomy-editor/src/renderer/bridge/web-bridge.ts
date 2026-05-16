@@ -275,7 +275,7 @@ const rawApi: AppAPI = {
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
   getCalibrationHistory: () => get('/api/calibration/history'),
   getCalibrationLog: () => get('/api/calibration/log'),
-  exportDebateToFile: async (session, format = 'json') => {
+  exportDebateToFile: async (session, format = 'json', exportOptions) => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };
     let content: string;
@@ -284,18 +284,18 @@ const rawApi: AppAPI = {
 
     switch (format) {
       case 'markdown':
-        content = debateToMarkdown(debate);
+        content = debateToMarkdown(debate, exportOptions);
         mimeType = 'text/markdown';
         ext = 'md';
         break;
       case 'text':
-        content = debateToText(debate);
+        content = debateToText(debate, exportOptions);
         mimeType = 'text/plain';
         ext = 'txt';
         break;
       case 'pdf': {
         // Open styled HTML in a new tab and trigger browser print dialog
-        const html = debateToHtml(debate);
+        const html = debateToHtml(debate, exportOptions);
         const printWindow = window.open('', '_blank');
         if (printWindow) {
           printWindow.document.write(html);
@@ -306,7 +306,7 @@ const rawApi: AppAPI = {
       }
       case 'package': {
         // ZIP package — no PDF generator in browser, so HTML fallback is included
-        const zipBytes = await debateToPackage(debate);
+        const zipBytes = await debateToPackage(debate, exportOptions);
         const filename = debateExportFilename(debate.title, 'zip');
         const blob = new Blob([zipBytes.buffer as ArrayBuffer], { type: 'application/zip' });
         const a = document.createElement('a');

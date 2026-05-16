@@ -760,7 +760,7 @@ export function registerIpcHandlers(): void {
     deleteChatSession(id);
   });
 
-  ipcMain.handle('export-debate-to-file', async (event, session: unknown, format?: string) => {
+  ipcMain.handle('export-debate-to-file', async (event, session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return { cancelled: true };
 
@@ -806,24 +806,25 @@ export function registerIpcHandlers(): void {
 
     switch (ext) {
       case 'md': {
-        const md = debateToMarkdown(debate);
+        const md = debateToMarkdown(debate, exportOptions);
         fs.writeFileSync(filePath, md, 'utf-8');
         break;
       }
       case 'txt': {
-        const txt = debateToText(debate);
+        const txt = debateToText(debate, exportOptions);
         fs.writeFileSync(filePath, txt, 'utf-8');
         break;
       }
       case 'pdf': {
-        const pdfBuffer = await debateToPdf(debate);
+        const pdfBuffer = await debateToPdf(debate, exportOptions);
         fs.writeFileSync(filePath, pdfBuffer);
         break;
       }
       case 'zip': {
         const zipBytes = await debateToPackage(debate, {
+          ...exportOptions,
           generatePdf: async (s) => {
-            const buf = await debateToPdf(s);
+            const buf = await debateToPdf(s, exportOptions);
             return new Uint8Array(buf);
           },
         });

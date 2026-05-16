@@ -63,6 +63,7 @@ export function DebateTab() {
     }))
   );
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [pendingExportFormat, setPendingExportFormat] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { toolbarPanel } = useTaxonomyStore();
@@ -131,10 +132,17 @@ export function DebateTab() {
     }
   };
 
-  const handleExport = async (format: string = 'json') => {
+  const runExport = useCallback(async (
+    format: string,
+    exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean },
+  ) => {
     if (!activeDebate) return;
     try {
-      const result = await api.exportDebateToFile(activeDebate, format as 'json' | 'markdown' | 'text' | 'pdf' | 'package');
+      const result = await api.exportDebateToFile(
+        activeDebate,
+        format as 'json' | 'markdown' | 'text' | 'pdf' | 'package',
+        exportOptions,
+      );
       if (!result.cancelled && result.filePath) {
         setExportStatus(`Exported to ${result.filePath}`);
         setTimeout(() => setExportStatus(null), 4000);
@@ -143,6 +151,15 @@ export function DebateTab() {
       setExportStatus(`Export failed: ${err}`);
       setTimeout(() => setExportStatus(null), 4000);
     }
+  }, [activeDebate]);
+
+  const handleExport = (format: string = 'json') => {
+    if (!activeDebate) return;
+    if (format === 'markdown' || format === 'pdf') {
+      setPendingExportFormat(format);
+      return;
+    }
+    void runExport(format);
   };
 
   return (
@@ -360,6 +377,17 @@ export function DebateTab() {
       {showNewDialog && (
         <NewDebateDialog onClose={() => setShowNewDialog(false)} />
       )}
+      {pendingExportFormat && (
+        <ExportOptionsDialog
+          format={pendingExportFormat}
+          onCancel={() => setPendingExportFormat(null)}
+          onConfirm={(opts) => {
+            const fmt = pendingExportFormat;
+            setPendingExportFormat(null);
+            void runExport(fmt, opts);
+          }}
+        />
+      )}
       {showBulkDeleteConfirm && (
         <div className="dialog-overlay" onClick={() => setShowBulkDeleteConfirm(false)}>
           <div className="dialog bulk-delete-dialog" onClick={e => e.stopPropagation()}>
@@ -435,6 +463,7 @@ function DebateDetailSummary({
         </button>
         <button className="btn" onClick={() => onExport('json')}>Export JSON</button>
         <button className="btn" onClick={() => onExport('markdown')}>Export Markdown</button>
+        <button className="btn" onClick={() => onExport('pdf')}>Export PDF</button>
         <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
           Calibration
         </button>
@@ -571,6 +600,85 @@ function DebateDetailSummary({
             <span className="debate-detail-label">Updated:</span>
             <span>{formatDateLong(debate.updated_at)}</span>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Export Options Dialog ──
+
+const EXPORT_OPTIONS_STORAGE_KEY = 'debate-export-options';
+
+interface ExportOptions {
+  includeTaxonomyRefs: boolean;
+  includeReasoning: boolean;
+}
+
+function loadExportOptions(): ExportOptions {
+  try {
+    const raw = localStorage.getItem(EXPORT_OPTIONS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        includeTaxonomyRefs: parsed.includeTaxonomyRefs ?? true,
+        includeReasoning: parsed.includeReasoning ?? true,
+      };
+    }
+  } catch { /* fall through */ }
+  return { includeTaxonomyRefs: true, includeReasoning: true };
+}
+
+function ExportOptionsDialog({
+  format,
+  onCancel,
+  onConfirm,
+}: {
+  format: string;
+  onCancel: () => void;
+  onConfirm: (options: ExportOptions) => void;
+}) {
+  const [options, setOptions] = useState<ExportOptions>(loadExportOptions);
+  const formatLabel = format === 'markdown' ? 'Markdown' : format === 'pdf' ? 'PDF' : format;
+
+  const handleConfirm = () => {
+    try {
+      localStorage.setItem(EXPORT_OPTIONS_STORAGE_KEY, JSON.stringify(options));
+    } catch { /* ignore quota errors */ }
+    onConfirm(options);
+  };
+
+  return (
+    <div className="dialog-overlay" onClick={onCancel}>
+      <div className="dialog" onClick={(e) => e.stopPropagation()}>
+        <h3>Export {formatLabel} Options</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '12px 0' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={options.includeTaxonomyRefs}
+              onChange={(e) => setOptions(o => ({ ...o, includeTaxonomyRefs: e.target.checked }))}
+            />
+            <span>Include taxonomy references</span>
+          </label>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            cursor: options.includeTaxonomyRefs ? 'pointer' : 'not-allowed',
+            opacity: options.includeTaxonomyRefs ? 1 : 0.5,
+            paddingLeft: 20,
+          }}>
+            <input
+              type="checkbox"
+              checked={options.includeReasoning}
+              disabled={!options.includeTaxonomyRefs}
+              onChange={(e) => setOptions(o => ({ ...o, includeReasoning: e.target.checked }))}
+            />
+            <span>Include reasoning (relevance text)</span>
+          </label>
+        </div>
+        <div className="dialog-actions">
+          <button className="btn" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleConfirm}>Export</button>
         </div>
       </div>
     </div>

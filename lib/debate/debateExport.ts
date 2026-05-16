@@ -44,6 +44,21 @@ export interface ExportableDebateSession {
 
 export type DebateExportFormat = 'json' | 'markdown' | 'text' | 'pdf' | 'package';
 
+export interface DebateExportOptions {
+  /** Include the per-turn taxonomy refs list. Default: true. */
+  includeTaxonomyRefs?: boolean;
+  /** Include the relevance/reasoning text alongside each taxonomy ref. Default: true.
+   *  Has no effect when includeTaxonomyRefs is false. */
+  includeReasoning?: boolean;
+}
+
+function resolveOptions(options?: DebateExportOptions): Required<DebateExportOptions> {
+  return {
+    includeTaxonomyRefs: options?.includeTaxonomyRefs ?? true,
+    includeReasoning: options?.includeReasoning ?? true,
+  };
+}
+
 // ── Speaker labels ──
 
 const SPEAKER_LABELS: Record<string, string> = {
@@ -85,7 +100,8 @@ function entryTypeLabel(type: string): string {
 // Plain Text
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function debateToText(session: ExportableDebateSession): string {
+export function debateToText(session: ExportableDebateSession, options?: DebateExportOptions): string {
+  const opts = resolveOptions(options);
   const lines: string[] = [];
   const sep = '='.repeat(72);
   const thinSep = '-'.repeat(72);
@@ -109,11 +125,11 @@ export function debateToText(session: ExportableDebateSession): string {
     lines.push('');
     lines.push(entry.content);
 
-    if (entry.taxonomy_refs && entry.taxonomy_refs.length > 0) {
+    if (opts.includeTaxonomyRefs && entry.taxonomy_refs && entry.taxonomy_refs.length > 0) {
       lines.push('');
       lines.push('  Taxonomy refs:');
       for (const ref of entry.taxonomy_refs) {
-        const rel = ref.relevance ? ` — ${ref.relevance}` : '';
+        const rel = opts.includeReasoning && ref.relevance ? ` — ${ref.relevance}` : '';
         lines.push(`    [${ref.node_id}]${rel}`);
       }
     }
@@ -166,7 +182,8 @@ export function debateToText(session: ExportableDebateSession): string {
 // Markdown
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function debateToMarkdown(session: ExportableDebateSession): string {
+export function debateToMarkdown(session: ExportableDebateSession, options?: DebateExportOptions): string {
+  const opts = resolveOptions(options);
   const lines: string[] = [];
 
   lines.push(`# ${session.title}`);
@@ -198,10 +215,10 @@ export function debateToMarkdown(session: ExportableDebateSession): string {
       lines.push(entry.content);
     }
 
-    if (entry.taxonomy_refs && entry.taxonomy_refs.length > 0) {
+    if (opts.includeTaxonomyRefs && entry.taxonomy_refs && entry.taxonomy_refs.length > 0) {
       lines.push('');
       const refs = entry.taxonomy_refs.map(r => {
-        const rel = r.relevance ? `: ${r.relevance}` : '';
+        const rel = opts.includeReasoning && r.relevance ? `: ${r.relevance}` : '';
         return `\`${r.node_id}\`${rel}`;
       });
       lines.push(`> **Taxonomy refs:** ${refs.join(' | ')}`);
@@ -327,8 +344,8 @@ const PDF_STYLES = `
 `;
 
 /** Build a full HTML document from a debate session (for PDF rendering). */
-export function debateToHtml(session: ExportableDebateSession): string {
-  const md = debateToMarkdown(session);
+export function debateToHtml(session: ExportableDebateSession, options?: DebateExportOptions): string {
+  const md = debateToMarkdown(session, options);
   const bodyHtml = markdownToHtml(md);
   return `<!DOCTYPE html>
 <html>
@@ -356,7 +373,7 @@ export function debateExportFilename(title: string, ext: string): string {
 // Package (ZIP containing JSON + Markdown + PDF + Diagnostics)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export interface PackageOptions {
+export interface PackageOptions extends DebateExportOptions {
   /** Generate PDF buffer — platform-specific, provided by caller. */
   generatePdf?: (session: ExportableDebateSession) => Promise<Uint8Array>;
 }
@@ -379,7 +396,7 @@ export async function debateToPackage(
   zip.file(`${slug}.json`, JSON.stringify(session, null, 2) + '\n');
 
   // Markdown
-  zip.file(`${slug}.md`, debateToMarkdown(session));
+  zip.file(`${slug}.md`, debateToMarkdown(session, options));
 
   // PDF (if platform provides a generator)
   if (options?.generatePdf) {
@@ -388,11 +405,11 @@ export async function debateToPackage(
       zip.file(`${slug}.pdf`, pdfBytes);
     } catch {
       // PDF generation failed — include HTML fallback instead
-      zip.file(`${slug}.html`, debateToHtml(session));
+      zip.file(`${slug}.html`, debateToHtml(session, options));
     }
   } else {
     // No PDF generator available — include printable HTML
-    zip.file(`${slug}.html`, debateToHtml(session));
+    zip.file(`${slug}.html`, debateToHtml(session, options));
   }
 
   // Diagnostics — comprehensive: merge all diagnostic-relevant session fields

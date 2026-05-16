@@ -309,8 +309,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteDebateSession: (id: string): Promise<void> =>
     ipcRenderer.invoke('delete-debate-session', id),
 
-  exportDebateToFile: (session: unknown, format?: string): Promise<{ cancelled: boolean; filePath?: string }> =>
-    ipcRenderer.invoke('export-debate-to-file', session, format),
+  exportDebateToFile: (session: unknown, format?: string, exportOptions?: { includeTaxonomyRefs?: boolean; includeReasoning?: boolean }): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('export-debate-to-file', session, format, exportOptions),
 
   loadDebateComments: (debateId: string): Promise<unknown> =>
     ipcRenderer.invoke('load-debate-comments', debateId),

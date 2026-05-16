@@ -132,8 +132,8 @@ function Get-AITDebate {
         }
 
         # Extract metadata
-        $DebateId    = $Raw.id
-        $Title       = $Raw.title
+        $DebateId    = if ($Raw.PSObject.Properties['id']) { $Raw.id } else { $File.BaseName -replace '^debate-', '' }
+        $Title       = if ($Raw.PSObject.Properties['title']) { $Raw.title } else { '' }
         $TopicText   = if ($Raw.PSObject.Properties['topic'] -and $Raw.topic.PSObject.Properties['original']) { $Raw.topic.original } elseif ($Raw.PSObject.Properties['topic'] -and $Raw.topic -is [string]) { $Raw.topic } else { '' }
         $CreatedAt   = if ($Raw.PSObject.Properties['created_at']) { [DateTime]$Raw.created_at } else { $File.CreationTime }
         $UpdatedAt   = if ($Raw.PSObject.Properties['updated_at']) { [DateTime]$Raw.updated_at } else { $File.LastWriteTime }
@@ -142,7 +142,10 @@ function Get-AITDebate {
         $Proto       = if ($Raw.PSObject.Properties['protocol_id']) { $Raw.protocol_id } else { '' }
         $SrcType     = if ($Raw.PSObject.Properties['source_type']) { $Raw.source_type } else { '' }
         $SrcRef      = if ($Raw.PSObject.Properties['source_ref']) { $Raw.source_ref } else { '' }
-        $Debaters    = if ($Raw.PSObject.Properties['active_povers']) { @($Raw.active_povers) } else { @() }
+        $Debaters    = @()
+        if ($Raw.PSObject.Properties['active_povers'] -and $null -ne $Raw.active_povers) {
+            $Debaters = @($Raw.active_povers)
+        }
         $Temp        = if ($Raw.PSObject.Properties['debate_temperature']) { $Raw.debate_temperature } else { 0.0 }
 
         # Origin and model
@@ -162,13 +165,17 @@ function Get-AITDebate {
         }
 
         # Transcript stats
-        $Transcript = if ($Raw.PSObject.Properties['transcript']) { @($Raw.transcript) } else { @() }
+        $Transcript = @()
+        if ($Raw.PSObject.Properties['transcript'] -and $null -ne $Raw.transcript) {
+            $Transcript = @($Raw.transcript)
+        }
         $StmtCount  = @($Transcript | Where-Object { $_.type -eq 'statement' }).Count
         $IntCount   = @($Transcript | Where-Object { $_.type -eq 'intervention' }).Count
         $HasSynth   = @($Transcript | Where-Object { $_.type -eq 'concluding' -or $_.type -eq 'synthesis' }).Count -gt 0
 
         # Round count: count distinct rounds from statements (3 speakers per round)
-        $RoundCount = if ($Debaters.Count -gt 0 -and $StmtCount -gt 0) { [Math]::Ceiling($StmtCount / $Debaters.Count) } else { 0 }
+        $DebatersCount = @($Debaters).Count
+        $RoundCount = if ($DebatersCount -gt 0 -and $StmtCount -gt 0) { [Math]::Ceiling($StmtCount / $DebatersCount) } else { 0 }
 
         # Companion files
         $BaseName = $File.BaseName -replace '^debate-', ''
@@ -212,7 +219,7 @@ function Get-AITDebate {
         $Obj.Origin           = $OriginMode
         $Obj.AdaptiveStaging  = $IsAdaptive
         $Obj.Pacing           = $PacingVal
-        $Obj.TranscriptCount  = $Transcript.Count
+        $Obj.TranscriptCount  = @($Transcript).Count
         $Obj.Rounds           = $RoundCount
         $Obj.Statements       = $StmtCount
         $Obj.Interventions    = $IntCount
