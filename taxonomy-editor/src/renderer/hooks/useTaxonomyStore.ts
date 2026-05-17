@@ -914,7 +914,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     // Situations: only those referenced by this node
     const situationsJson = state.situations
       ? JSON.stringify(state.situations.nodes
-          .filter(n => node.situation_refs.includes(n.id))
+          .filter(n => (node.situation_refs ?? []).includes(n.id))
           .map(n => ({
             id: n.id, label: n.label, description: n.description,
           })), null, 2)
@@ -1471,8 +1471,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           updatedParent = newId;
           changed = true;
         }
-        if (n.children.includes(oldId)) {
-          updatedChildren = n.children.map(replaceId);
+        if ((n.children ?? []).includes(oldId)) {
+          updatedChildren = (n.children ?? []).map(replaceId);
           changed = true;
         }
         return changed ? { ...n, parent_id: updatedParent, children: updatedChildren } : n;
@@ -1491,9 +1491,9 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       if (newSituations) {
         let ccChanged = false;
         const ccNodes = newSituations.nodes.map(n => {
-          if (n.linked_nodes.includes(oldId)) {
+          if ((n.linked_nodes ?? []).includes(oldId)) {
             ccChanged = true;
-            return { ...n, linked_nodes: n.linked_nodes.map(replaceId) };
+            return { ...n, linked_nodes: (n.linked_nodes ?? []).map(replaceId) };
           }
           return n;
         });
@@ -1507,10 +1507,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       let newConflicts = state.conflicts;
       let conflictsChanged = false;
       newConflicts = newConflicts.map(c => {
-        if (c.linked_taxonomy_nodes.includes(oldId)) {
+        if ((c.linked_taxonomy_nodes ?? []).includes(oldId)) {
           conflictsChanged = true;
           newDirty.add(c.claim_id);
-          return { ...c, linked_taxonomy_nodes: c.linked_taxonomy_nodes.map(replaceId) };
+          return { ...c, linked_taxonomy_nodes: (c.linked_taxonomy_nodes ?? []).map(replaceId) };
         }
         return c;
       });
@@ -1559,7 +1559,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         .filter(n => n.id !== oldId)
         .map(n => {
           if (n.parent_id === oldId) return { ...n, parent_id: null };
-          if (n.children.includes(oldId)) return { ...n, children: n.children.filter(c => c !== oldId) };
+          if ((n.children ?? []).includes(oldId)) return { ...n, children: (n.children ?? []).filter(c => c !== oldId) };
           return n;
         });
 
@@ -1576,9 +1576,9 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       if (newSituations) {
         let ccChanged = false;
         const ccNodes = newSituations.nodes.map(n => {
-          if (n.linked_nodes.includes(oldId)) {
+          if ((n.linked_nodes ?? []).includes(oldId)) {
             ccChanged = true;
-            return { ...n, linked_nodes: n.linked_nodes.map(replaceId) };
+            return { ...n, linked_nodes: (n.linked_nodes ?? []).map(replaceId) };
           }
           return n;
         });
@@ -1592,10 +1592,10 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       let newConflicts = state.conflicts;
       let conflictsChanged = false;
       newConflicts = newConflicts.map(c => {
-        if (c.linked_taxonomy_nodes.includes(oldId)) {
+        if ((c.linked_taxonomy_nodes ?? []).includes(oldId)) {
           conflictsChanged = true;
           newDirty.add(c.claim_id);
-          return { ...c, linked_taxonomy_nodes: c.linked_taxonomy_nodes.map(replaceId) };
+          return { ...c, linked_taxonomy_nodes: (c.linked_taxonomy_nodes ?? []).map(replaceId) };
         }
         return c;
       });
