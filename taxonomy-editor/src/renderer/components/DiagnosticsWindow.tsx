@@ -30,6 +30,16 @@ declare const __COMPONENT_VERSIONS__: Record<string, string>;
 
 const DiagSearchContext = createContext('');
 
+const SUPPRESSION_REASON_TOOLTIPS: Record<string, string> = {
+  budget_exhausted: 'The intervention budget for this debate has been fully consumed. No more interventions can fire.',
+  cooldown_active: 'A recent intervention is still in its cooldown window. The engine enforces a gap between interventions to avoid overwhelming debaters.',
+  phase_mismatch: 'This intervention type is not appropriate for the current debate phase (e.g., CHALLENGE blocked in early confrontation, COMMIT blocked outside concluding phase).',
+  same_debater_consecutive: 'The same debater was targeted by the previous intervention. The engine alternates targets to prevent repeatedly pressuring one debater.',
+  prerequisite_override: 'A prerequisite condition for this intervention type was not met (e.g., a required prior move was not observed).',
+  burden_cap: 'This debater\'s cumulative intervention burden exceeds 1.5× the average. High-burden moves are blocked to prevent disproportionate targeting.',
+  engine_override: 'The engine overrode the moderator\'s recommendation. This can happen when the moderator chose not to intervene, suggested an unknown move, or other engine-level validation failed.',
+};
+
 const AIF_TOOLTIPS: Record<string, string> = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
   'CA-node': 'CA-node (Conflict Application) — an attack relationship. Three types: rebut (contradicts conclusion), undercut (denies the inference), undermine (attacks premise credibility).',
@@ -1502,8 +1512,17 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
                 {trace.intervention_target && ` → ${trace.intervention_target}`}
               </div>
               {trace.intervention_suppressed_reason && !trace.intervention_validated && (
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  {trace.intervention_suppression_explanation || trace.intervention_suppressed_reason.replace(/_/g, ' ')}
+                <div style={{ fontSize: '0.7rem', color: '#d97706', marginTop: 3 }}>
+                  <strong>Reason:</strong>{' '}
+                  <span
+                    title={SUPPRESSION_REASON_TOOLTIPS[trace.intervention_suppressed_reason] ?? ''}
+                    style={{ cursor: 'default', borderBottom: '1px dotted #d97706' }}
+                  >
+                    {trace.intervention_suppressed_reason.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </span>
+                  {trace.intervention_suppression_explanation && (
+                    <span> — {trace.intervention_suppression_explanation}</span>
+                  )}
                 </div>
               )}
               {trace.trigger_reasoning && (
@@ -1513,7 +1532,10 @@ function ModeratorTab({ trace }: { trace: ModeratorTraceData }) {
               )}
               {trace.trigger_evidence && (
                 <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                  Signal: {String((trace.trigger_evidence as Record<string, unknown>).signal_name ?? 'unknown')}
+                  <span
+                    title="Signal name — the moderator AI's label for the debate behavior that triggered this intervention recommendation. Common signals include: evasion (debater dodging a question), term_ambiguity (key term used with conflicting meanings), stagnation_crux (debate stuck on a crux point), unsupported_claim (assertion without evidence), scope_creep (discussion drifting from source material), contradiction (debater contradicting a prior position)."
+                    style={{ cursor: 'default', borderBottom: '1px dotted var(--text-muted)' }}
+                  >Signal:</span> {String((trace.trigger_evidence as Record<string, unknown>).signal_name ?? 'unknown')}
                   {!!(trace.trigger_evidence as Record<string, unknown>).observed_behavior && (
                     <span> — {String((trace.trigger_evidence as Record<string, unknown>).observed_behavior)}</span>
                   )}
@@ -2143,7 +2165,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
         if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['details', 'moderator', 'brief', 'plan', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
+          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
           const idx = ENTRY_TABS.indexOf(entryTab);
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
@@ -3224,7 +3246,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               position?: string; condition?: string; brief_reason?: string;
             } | undefined;
             const interventionResponseField = (() => {
-              if (!precedingIntervention || !citeWorkProduct) return null;
+              if (!precedingIntervention) return null;
               const intMove = (precedingIntervention.intervention_metadata as { move?: string } | undefined)?.move;
               const fieldMap: Record<string, string> = {
                 PIN: 'pin_response', PROBE: 'probe_response', CHALLENGE: 'challenge_response',
@@ -3232,7 +3254,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 'META-REFLECT': 'reflection', COMPRESS: 'compressed_thesis', COMMIT: 'commitment',
               };
               const field = intMove ? fieldMap[intMove] : undefined;
-              return field ? (citeWorkProduct[field] as Record<string, unknown> | string | undefined) : null;
+              // Check cite work product first, then fall back to draft work product
+              if (field) {
+                const citeVal = citeWorkProduct?.[field] as Record<string, unknown> | string | undefined;
+                if (citeVal) return citeVal;
+                const draftWP = draftStage?.work_product as Record<string, unknown> | undefined;
+                const draftVal = draftWP?.[field] as Record<string, unknown> | string | undefined;
+                if (draftVal) return draftVal;
+              }
+              // Final fallback: plan directive_response shows the debater planned to respond
+              const planWP = planStage?.work_product as Record<string, unknown> | undefined;
+              const dr = planWP?.directive_response as { directive?: string; how_addressed?: string } | undefined;
+              if (dr?.how_addressed) return { from_plan: true, how_addressed: dr.how_addressed, directive: dr.directive } as unknown as Record<string, unknown>;
+              return null;
             })();
 
             const modTrace = (meta?.moderator_trace ?? proxiedModeratorTrace) as {
@@ -3441,10 +3475,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         )}
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', tableLayout: 'fixed' }}>
                           <colgroup>
-                            <col style={{ width: hasSourceData ? '70px' : '0' }} />
-                            <col style={{ width: '150px' }} />
-                            <col style={{ width: '52px' }} />
-                            <col />
+                            {hasSourceData && <col style={{ width: '10%' }} />}
+                            <col style={{ width: '20%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: hasSourceData ? '62%' : '72%' }} />
                           </colgroup>
                           <thead>
                             <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left' }}>
@@ -3606,17 +3640,21 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         const hasResponse = !!interventionResponseField;
                         const responseObj = typeof interventionResponseField === 'object' ? interventionResponseField as Record<string, unknown> : null;
                         const responseStr = typeof interventionResponseField === 'string' ? interventionResponseField : null;
+                        const isFromPlan = !!responseObj?.from_plan;
 
-                        const complianceColor = hasResponse ? '#22c55e'
+                        const complianceColor = hasResponse && !isFromPlan ? '#22c55e'
+                          : hasResponse && isFromPlan ? '#f59e0b'
                           : !speakerIsTarget ? '#6366f1'
                           : '#ef4444';
-                        const complianceIcon = hasResponse ? '✓'
+                        const complianceIcon = hasResponse && !isFromPlan ? '✓'
+                          : hasResponse && isFromPlan ? '◐'
                           : !speakerIsTarget ? '→'
                           : '✗';
 
                         const formatResponseSummary = () => {
                           if (responseStr) return responseStr;
                           if (!responseObj) return null;
+                          if (responseObj.from_plan) return responseObj.how_addressed as string;
                           const pos = responseObj.position as string | undefined;
                           const reason = responseObj.brief_reason as string ?? responseObj.explanation as string ?? responseObj.conclusion as string ?? '';
                           const cond = responseObj.condition as string | undefined;
@@ -3669,8 +3707,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                 {hasResponse && (
                                   <>
                                     <span style={{ fontWeight: 700, fontSize: '0.72rem', color: complianceColor }}>
-                                      {complianceIcon} Responded
+                                      {complianceIcon} {isFromPlan ? 'Addressed in plan' : 'Responded'}
                                     </span>
+                                    {isFromPlan && (
+                                      <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                                        Structured response field missing — showing plan intent
+                                      </div>
+                                    )}
                                     <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>
                                       {formatResponseSummary()}
                                     </div>
@@ -3733,10 +3776,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             borderLeft: '3px solid #d97706',
                           }}>
                             <strong style={{ color: '#d97706' }}>Reason: </strong>
+                            {suppressedIntervention.intervention_suppressed_reason && (
+                              <span
+                                title={SUPPRESSION_REASON_TOOLTIPS[suppressedIntervention.intervention_suppressed_reason] ?? ''}
+                                style={{ cursor: 'default', borderBottom: '1px dotted #92400e' }}
+                              >
+                                {suppressedIntervention.intervention_suppressed_reason.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                              </span>
+                            )}
                             {suppressedIntervention.intervention_suppression_explanation
-                              || (suppressedIntervention.intervention_suppressed_reason
-                                ? suppressedIntervention.intervention_suppressed_reason.replace(/_/g, ' ')
-                                : 'No reason recorded')
+                              ? (suppressedIntervention.intervention_suppressed_reason ? ' — ' : '') + suppressedIntervention.intervention_suppression_explanation
+                              : (!suppressedIntervention.intervention_suppressed_reason ? 'No reason recorded' : '')
                             }
                           </div>
                           {suppressedIntervention.trigger_reasoning && (
@@ -4299,6 +4349,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                     onClick={() => setSelectedTaxRefId(selectedTaxRefId === s.taxonomy_anchor ? null : s.taxonomy_anchor)}
                                     style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: '0.65rem' }}
                                   >{s.taxonomy_anchor}</button>
+                                  {(() => { const lbl = (taxNodeMap.get(s.taxonomy_anchor!) as TaxRefNode | undefined)?.label; return lbl ? <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}> — {lbl}</span> : null; })()}
                                 </div>
                               )}
                             </div>
@@ -4966,33 +5017,32 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Taxonomy References</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                             <colgroup>
-                              <col style={{ width: '15%' }} />
-                              <col style={{ width: '10%' }} />
-                              <col style={{ width: '75%' }} />
+                              <col style={{ width: 180 }} />
+                              <col />
                             </colgroup>
                             <tbody>
                               {((citeStage.work_product as Record<string, unknown>).taxonomy_refs as { node_id: string; relevance: string; relevance_score?: number; primary?: boolean }[]).map((r, i) => {
                                 const isSelected = selectedTaxRefId === r.node_id;
                                 const isNew = !briefNodes.has(r.node_id);
-                                const citeScore = r.relevance_score;
-                                const citeScoreColor = citeScore == null ? 'var(--text-muted)'
-                                  : citeScore >= 0.45 ? '#16a34a'
-                                  : citeScore >= 0.30 ? '#d97706'
-                                  : '#dc2626';
+                                const nodeLabel = (taxNodeMap.get(r.node_id) as TaxRefNode | undefined)?.label;
                                 return (
                                   <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(245, 158, 11, 0.08)' : 'transparent' }}>
-                                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      <button
-                                        onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
-                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
-                                        title="Show node details"
-                                      >{r.primary ? '★ ' : ''}{r.node_id}{(r as {label?: string}).label ? `: ${(r as {label?: string}).label}` : ''}</button>
-                                      {isNew && (
-                                        <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', overflow: 'hidden' }}>
+                                      <div>
+                                        <button
+                                          onClick={() => setSelectedTaxRefId(isSelected ? null : r.node_id)}
+                                          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
+                                          title="Show node details"
+                                        >{r.primary ? '★ ' : ''}{r.node_id}</button>
+                                        {isNew && (
+                                          <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
+                                        )}
+                                      </div>
+                                      {nodeLabel && (
+                                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }} title={nodeLabel}>
+                                          {nodeLabel}
+                                        </div>
                                       )}
-                                    </td>
-                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: citeScoreColor, fontFamily: 'monospace' }}>
-                                      {citeScore != null ? citeScore.toFixed(2) : '—'}
                                     </td>
                                     <td style={{ padding: '3px 6px', verticalAlign: 'top' }}><Highlight text={r.relevance} /></td>
                                   </tr>
@@ -5033,20 +5083,32 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       )}
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).policy_refs) && ((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).length > 0 && (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Policy References</summary>
-                          <ul style={{ fontSize: '0.72rem', margin: '4px 0', paddingLeft: 16, listStyle: 'none' }}>
-                            {((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).map((p, i) => {
-                              const isSelected = selectedPolicyId === p;
-                              return (
-                                <li key={i} style={{ margin: '2px 0' }}>
-                                  <button
-                                    onClick={() => setSelectedPolicyId(isSelected ? null : p)}
-                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#8b5cf6', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}
-                                    title="Show policy details"
-                                  >{p}</button>
-                                </li>
-                              );
-                            })}
-                          </ul>
+                          <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                            <colgroup>
+                              <col style={{ width: 120 }} />
+                              <col />
+                            </colgroup>
+                            <tbody>
+                              {((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).map((p, i) => {
+                                const isSelected = selectedPolicyId === p;
+                                const pol = policyMap.get(p);
+                                return (
+                                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: isSelected ? 'rgba(139,92,246,0.08)' : 'transparent' }}>
+                                    <td style={{ padding: '3px 6px', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                                      <button
+                                        onClick={() => setSelectedPolicyId(isSelected ? null : p)}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#8b5cf6', fontWeight: isSelected ? 700 : 600, textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit', textAlign: 'left' }}
+                                        title="Show policy details"
+                                      >{p}</button>
+                                    </td>
+                                    <td style={{ padding: '3px 6px', verticalAlign: 'top', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {pol?.action ?? <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>—</span>}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                           {selectedPolicyId && (() => {
                             const pol = policyMap.get(selectedPolicyId);
                             return (

@@ -928,13 +928,12 @@ function loadEvidenceIndex(): SourceEvidenceIndex | null {
   } catch { return null; }
 }
 
-type DocTitleMap = import('../../../lib/debate/evidenceFromSummaries.js').DocTitleMap;
-let _docTitles: DocTitleMap | null | undefined;
-function loadDocTitles(): DocTitleMap | null {
+type DocMetaMap = import('../../../lib/debate/evidenceFromSummaries.js').DocMetaMap;
+let _docTitles: DocMetaMap | null | undefined;
+function loadDocTitles(): DocMetaMap | null {
   if (_docTitles !== undefined) return _docTitles;
   try {
     // Resolve sources root from .aitriad.json (project root)
-    // Walk up from __dirname to find the repo root containing .aitriad.json
     let searchDir = path.resolve(__dirname, '..', '..', '..');
     let aitriadPath = '';
     for (let i = 0; i < 5; i++) {
@@ -948,17 +947,23 @@ function loadDocTitles(): DocTitleMap | null {
       ? path.resolve(path.dirname(aitriadPath), aitriadConfig.sources_root)
       : null;
     if (!sourcesRoot || !fs.existsSync(sourcesRoot)) { _docTitles = null; return null; }
-    const titles: Record<string, string> = {};
+    const metaMap: DocMetaMap = {};
     for (const entry of fs.readdirSync(sourcesRoot, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
       const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
       if (!fs.existsSync(metaPath)) continue;
       try {
         const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-        if (meta.title) titles[entry.name] = meta.title;
+        if (meta.title) {
+          const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
+          if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
+          if (meta.provenance?.length > 0 && meta.provenance[0].id) docMeta.provenance_label = meta.provenance[0].id;
+          if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
+          metaMap[entry.name] = docMeta;
+        }
       } catch { /* skip */ }
     }
-    _docTitles = Object.keys(titles).length > 0 ? titles : null;
+    _docTitles = Object.keys(metaMap).length > 0 ? metaMap : null;
     return _docTitles;
   } catch { _docTitles = null; return null; }
 }

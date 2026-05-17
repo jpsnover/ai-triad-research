@@ -50,7 +50,7 @@ function LogArea({ stepId }: { stepId: string }) {
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <button
         onClick={handleCopy}
         style={{

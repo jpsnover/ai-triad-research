@@ -570,7 +570,7 @@ $BatchSchemaPrompt
             }
 
             foreach ($NewType in @($Disc.NewEdgeTypes)) {
-                Write-Info "New edge type proposed: $($NewType.type) — $($NewType.definition)"
+                Write-Info "New edge type proposed: $($NewType.type) — $(if ($NewType.PSObject.Properties['definition']) { $NewType.definition } elseif ($NewType.PSObject.Properties['description']) { $NewType.description } else { '(no definition)' })"
                 $NewEdgeTypes.Add($NewType)
             }
 
@@ -879,7 +879,7 @@ $SchemaPrompt
             }
 
             foreach ($NewType in @($Disc.NewEdgeTypes)) {
-                Write-Info "New edge type proposed: $($NewType.type) — $($NewType.definition)"
+                Write-Info "New edge type proposed: $($NewType.type) — $(if ($NewType.PSObject.Properties['definition']) { $NewType.definition } elseif ($NewType.PSObject.Properties['description']) { $NewType.description } else { '(no definition)' })"
                 $NewEdgeTypes.Add($NewType)
             }
 
@@ -1003,7 +1003,7 @@ $SchemaPrompt
             }
 
             foreach ($NewType in @($Disc.NewEdgeTypes)) {
-                Write-Info "New edge type proposed: $($NewType.type) — $($NewType.definition)"
+                Write-Info "New edge type proposed: $($NewType.type) — $(if ($NewType.PSObject.Properties['definition']) { $NewType.definition } elseif ($NewType.PSObject.Properties['description']) { $NewType.description } else { '(no definition)' })"
                 $NewEdgeTypes.Add($NewType)
             }
 
@@ -1032,7 +1032,7 @@ $SchemaPrompt
                 $EdgesData.edge_types += [PSCustomObject][ordered]@{
                     type          = $NewType.type
                     bidirectional = if ($NewType.PSObject.Properties['bidirectional']) { [bool]$NewType.bidirectional } else { $false }
-                    definition    = $NewType.definition
+                    definition    = if ($NewType.PSObject.Properties['definition']) { $NewType.definition } elseif ($NewType.PSObject.Properties['description']) { $NewType.description } else { '' }
                     llm_proposed  = $true
                 }
                 Write-OK "Added new edge type: $($NewType.type)"

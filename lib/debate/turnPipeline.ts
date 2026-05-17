@@ -409,13 +409,7 @@ export async function runTurnPipeline(
 
     if (envelopeGenerate) {
       const env = draftStageEnvelope(stageInput, briefJson, planJson);
-      // Inject source evidence block (deterministic retrieval from summaries)
-      if (evidenceBlock) {
-        env.layer4_variable = env.layer4_variable.replace(
-          /Respond ONLY with a JSON/,
-          `${evidenceBlock}\n\nRespond ONLY with a JSON`,
-        );
-      }
+      // Inject repair block first (corrections from prior attempt)
       if (repairBlock) {
         env.layer4_variable = env.layer4_variable.replace(
           /Respond ONLY with a JSON/,
@@ -425,18 +419,19 @@ export async function runTurnPipeline(
           env.layer4_variable += repairBlock;
         }
       }
+      // Inject source evidence LAST — right before the output schema (Lost-in-the-Middle mitigation)
+      if (evidenceBlock) {
+        env.layer4_variable = env.layer4_variable.replace(
+          /Respond ONLY with a JSON/,
+          `${evidenceBlock}\n\nYou MUST cite at least one source from the evidence above by title in your statement.\n\nRespond ONLY with a JSON`,
+        );
+      }
       draftPromptText = flattenEnvelope(env);
       const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft`);
       draftRaw = resp.text;
     } else {
       draftPromptText = draftStagePrompt(stageInput, briefJson, planJson);
-      // Inject source evidence block
-      if (evidenceBlock) {
-        draftPromptText = draftPromptText.replace(
-          /Respond ONLY with a JSON/,
-          `${evidenceBlock}\n\nRespond ONLY with a JSON`,
-        );
-      }
+      // Inject repair block first
       if (repairBlock) {
         draftPromptText = draftPromptText.replace(
           /Respond ONLY with a JSON/,
@@ -445,6 +440,13 @@ export async function runTurnPipeline(
         if (!draftPromptText.includes('CORRECTIONS REQUIRED') && !draftPromptText.includes('MANDATORY CORRECTION')) {
           draftPromptText += repairBlock;
         }
+      }
+      // Inject source evidence LAST — right before the output schema
+      if (evidenceBlock) {
+        draftPromptText = draftPromptText.replace(
+          /Respond ONLY with a JSON/,
+          `${evidenceBlock}\n\nYou MUST cite at least one source from the evidence above by title in your statement.\n\nRespond ONLY with a JSON`,
+        );
       }
       draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
     }
@@ -497,6 +499,12 @@ export async function runTurnPipeline(
   }
   draftJson = JSON.stringify(draft, null, 2);
 
+  // ── Post-draft linkification: replace title mentions with clickable links ──
+  if (draft?.statement && input.docTitles) {
+    const { linkifyEvidenceCitations } = await import('./evidenceFromSummaries.js');
+    draft.statement = linkifyEvidenceCitations(draft.statement, input.docTitles);
+  }
+
   // ── Evidence citation verification ──
   // Check if the debater actually cited any source documents from the evidence brief.
   if (evidenceBlock && draft?.statement) {
@@ -507,20 +515,24 @@ export async function runTurnPipeline(
       const keyPoints = (wp?.keyPoints as Array<{ doc_id?: string }>) ?? [];
       const allDocIds = [...new Set([...facts.map(f => f.doc_id), ...keyPoints.map(kp => kp.doc_id)].filter(Boolean))] as string[];
       const statementLower = draft.statement.toLowerCase();
-      const docTitles = input.docTitles;
+      const docMeta = input.docTitles;
       const citedDocs: Array<{ doc_id: string; title?: string; match_type: string }> = [];
       for (const docId of allDocIds) {
         const slug = docId.replace(/-\d{4}(-\d+)?$/, '').replace(/-/g, ' ');
-        const title = docTitles?.[docId];
+        const entry = docMeta?.[docId];
+        const title = typeof entry === 'string' ? entry : entry?.title;
         const titleLower = title?.toLowerCase();
-        if (statementLower.includes(docId)) {
+        const resolvedUrl = typeof entry === 'object' ? entry?.resolved_url : undefined;
+        // Check for markdown link pattern: [Title](url)
+        if (resolvedUrl && draft.statement.includes(`](${resolvedUrl})`)) {
+          citedDocs.push({ doc_id: docId, title, match_type: 'markdown_link' });
+        } else if (statementLower.includes(docId)) {
           citedDocs.push({ doc_id: docId, title, match_type: 'exact_id' });
         } else if (statementLower.includes(slug)) {
           citedDocs.push({ doc_id: docId, title, match_type: 'slug' });
         } else if (titleLower && statementLower.includes(titleLower)) {
           citedDocs.push({ doc_id: docId, title, match_type: 'title_exact' });
         } else if (titleLower) {
-          // Partial title match: check if 3+ consecutive words from the title appear
           const titleWords = titleLower.split(/\s+/).filter(w => w.length > 3);
           if (titleWords.length >= 3) {
             const trigram = titleWords.slice(0, 4).join(' ');
@@ -951,6 +963,7 @@ export function assemblePipelineResult(
       reflection: result.draft.reflection,
       compressed_thesis: result.draft.compressed_thesis,
       commitment: result.draft.commitment,
+      directive_response: result.plan?.directive_response,
     },
   };
 }
