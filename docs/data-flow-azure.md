@@ -1,5 +1,7 @@
 # Data Flow: ai-triad-data ↔ Taxonomy Editor (Azure)
 
+> **SUPERSEDED (May 2026):** This document describes the legacy Azure Files SMB + git clone data flow. The current architecture uses **GitHub API-first** — data is read/written via the GitHub REST API with a local SSD cache. No Azure Files mount, no entrypoint.sh, no background copy, no `.git` directory. See `docs/github-api-first-implementation.md` for the current design.
+
 ## 1. Data Elements
 
 The `ai-triad-data` repo contains 7 distinct data types, each with different storage paths, load timing, and sync behavior:

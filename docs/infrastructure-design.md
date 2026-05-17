@@ -1,7 +1,7 @@
 # Infrastructure & Deployment — High-Level Design
 
 **Status:** Living document  
-**Last updated:** 2026-05-01  
+**Last updated:** 2026-05-17  
 **Author:** Jeffrey Snover  
 **Audience:** Engineers and operators who need to understand the platform's CI/CD, containerization, cloud deployment, and operational model.
 
@@ -21,7 +21,7 @@ The infrastructure must support all three without forcing contributors to unders
 - **G2:** One-command release for all platforms (macOS, Windows, Linux desktop + container image)
 - **G3:** Cloud deployment with zero infrastructure management (serverless containers)
 - **G4:** BYOK model — platform never holds shared API keys
-- **G5:** Data persistence across container restarts (Azure Files volume)
+- **G5:** Data access via GitHub REST API with local SSD cache (no persistent volume needed)
 - **G6:** Optional authentication (anonymous, Google OAuth, GitHub OAuth)
 
 ### Non-Goals
@@ -85,7 +85,7 @@ The data repo checkout is necessary because tests exercise taxonomy queries, sum
 **test-electron** job:
 
 ```
-1. Setup Node 20
+1. Setup Node 22
 2. cd taxonomy-editor && npm ci
 3. npx tsc --noEmit -p tsconfig.main.json
 4. npm run build
@@ -154,12 +154,14 @@ Building the base image separately (via `base-image.yml`) means application buil
 
 | Environment Variable | Purpose | Default |
 |---|---|---|
-| `AI_TRIAD_DATA_ROOT` | Data directory path | `/data` |
+| `AI_TRIAD_DATA_ROOT` | Cache directory path | `/tmp/taxonomy-cache` |
+| `STORAGE_MODE` | Data backend (`github-api` or `filesystem`) | `github-api` in container, `filesystem` in Electron |
 | `ALLOWED_ORIGINS` | CORS origins | Deployment FQDN |
 | `DEPLOY_SHA` | Git commit for traceability | Set at deploy time |
-| `GIT_SYNC_ENABLED` | Enable GitHub data sync | `false` |
-| `GITHUB_REPO` | Data repo for git sync | — |
-| `GITHUB_APP_ID` | GitHub App for data sync | — |
+| `GITHUB_REPO` | Data repo (owner/name) | `jpsnover/ai-triad-data` |
+| `GITHUB_APP_ID` | GitHub App for API auth | — |
+| `GITHUB_APP_INSTALLATION_ID` | GitHub App installation | — |
+| `GITHUB_APP_PRIVATE_KEY_SECRET_NAME` | Key Vault secret name for PEM | — |
 
 ## 5. Azure Deployment
 
@@ -168,35 +170,38 @@ Building the base image separately (via `base-image.yml`) means application buil
 `deploy/azure/main.bicep` defines the complete infrastructure:
 
 ```
-┌────────────────────────────────────────────────────────┐
-│ Resource Group                                          │
-│                                                         │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ Container Apps Environment                        │  │
-│  │  ┌────────────────────────────────────────────┐  │  │
-│  │  │ Container App                              │  │  │
-│  │  │  ├─ Image: ghcr.io/jpsnover/ai-triad:tag  │  │  │
-│  │  │  ├─ Port: 7862                             │  │  │
-│  │  │  ├─ Managed Identity → Key Vault access    │  │  │
-│  │  │  ├─ Volume mount: Azure Files → /data      │  │  │
-│  │  │  └─ Scale: 0-1 replicas (scale-to-zero)    │  │  │
-│  │  └────────────────────────────────────────────┘  │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                         │
-│  ┌─────────────────┐  ┌───────────────────────────┐   │
-│  │ Storage Account │  │ Key Vault                 │   │
-│  │  └─ Azure Files │  │  ├─ OAuth client secrets  │   │
-│  │     └─ /data    │  │  ├─ GitHub App key        │   │
-│  │       volume    │  │  └─ GHCR password         │   │
-│  └─────────────────┘  └───────────────────────────┘   │
-│                                                         │
-│  ┌────────────────────────┐                            │
-│  │ Log Analytics Workspace│                            │
-│  └────────────────────────┘                            │
-└────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Resource Group                                              │
+│                                                             │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Container Apps Environment                            │  │
+│  │  ┌────────────────────────────────────────────────┐  │  │
+│  │  │ Container App (production)                     │  │  │
+│  │  │  ├─ Image: ghcr.io/jpsnover/taxonomy-editor   │  │  │
+│  │  │  ├─ Port: 7862                                 │  │  │
+│  │  │  ├─ Managed Identity → Key Vault access        │  │  │
+│  │  │  ├─ Data: GitHub REST API → /tmp cache         │  │  │
+│  │  │  └─ Scale: 1-5 replicas                        │  │  │
+│  │  ├────────────────────────────────────────────────┤  │  │
+│  │  │ Container App (staging)                        │  │  │
+│  │  │  └─ Scale: 0-1 replicas (scale-to-zero)       │  │  │
+│  │  └────────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                             │
+│  ┌───────────────────────────┐  ┌──────────────────────┐  │
+│  │ Key Vault                 │  │ Log Analytics        │  │
+│  │  ├─ GitHub App PEM key    │  │  ├─ Container logs   │  │
+│  │  ├─ OAuth client secrets  │  │  ├─ KV audit logs    │  │
+│  │  ├─ BYOK user API keys    │  │  └─ Alert rules (7)  │  │
+│  │  └─ GHCR password         │  └──────────────────────┘  │
+│  └───────────────────────────┘                             │
+│                                                             │
+│  GitHub REST API (jpsnover/ai-triad-data)                   │
+│  └─ Contents/Trees/Blobs APIs via GitHub App auth           │
+└────────────────────────────────────────────────────────────┘
 ```
 
-**Scale-to-zero:** The container app scales to 0 replicas when idle (no incoming requests), eliminating compute costs during inactive periods. First request after idle triggers a cold start (~10–15 seconds).
+**Data architecture (GitHub API-first):** The container has no persistent volume. Data is read from and written to `jpsnover/ai-triad-data` via the GitHub REST API, authenticated with a GitHub App (PEM in Key Vault). A local SSD cache (`/tmp/taxonomy-cache/`) accelerates reads. On GitHub outage, the app serves from a baked taxonomy snapshot in the container image (read-only mode). Startup time: 3-5 seconds.
 
 ### 5.2 BYOK (Bring Your Own Key) Model
 
