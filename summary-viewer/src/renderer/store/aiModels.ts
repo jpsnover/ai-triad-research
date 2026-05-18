@@ -18,7 +18,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
   gemini: [
     { value: 'gemini-2.5-flash', label: '2.5 Flash' },
-    { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview' },
+    { value: 'gemini-flash-lite-latest', label: '3.1 Flash Lite Preview' },
   ],
   claude: [
     { value: 'claude-sonnet-4-5', label: 'Sonnet 4.5' },

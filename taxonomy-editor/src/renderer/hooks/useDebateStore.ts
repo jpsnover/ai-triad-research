@@ -116,11 +116,11 @@ function getConfiguredModel(): string {
     return debateModel;
   }
   try {
-    const globalModel = localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+    const globalModel = localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
     console.log(`[model] Using global model: ${globalModel}`);
     return globalModel;
   } catch {
-    return 'gemini-3.1-flash-lite-preview';
+    return 'gemini-flash-lite-latest';
   }
 }
 

@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
@@ -49,7 +49,7 @@ Import-Module (Join-Path $ScriptDir 'AIEnrich.psm1') -Force -ErrorAction Stop
 . (Join-Path $ScriptDir 'AITriad' 'Private' 'Write-Utf8NoBom.ps1')
 
 if (-not $Model) {
-    if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite-preview' }
+    if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-flash-lite-latest' }
 }
 
 $DataRoot = (Resolve-Path $DataRoot).Path

@@ -231,7 +231,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     setGeneratingConflicts(true);
 
     const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
 
     for (const item of checked) {
       try {
@@ -289,7 +289,7 @@ IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxono
     setGeneratingSteelmans(true);
 
     const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
 
     for (const item of checked) {
       try {
@@ -323,7 +323,7 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
     if (checked.length === 0) return;
 
     const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
 
     for (const item of checked) {
       try {

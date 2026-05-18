@@ -10,14 +10,14 @@
     Each debate runs via the CLI with adaptive staging enabled, producing
     calibration data points for the parameter optimizer.
 
-    Uses the project default model (gemini-3.1-flash-lite-preview) to calibrate
+    Uses the project default model (gemini-flash-lite-latest) to calibrate
     parameters at the floor — stronger models degrade gracefully upward.
 .PARAMETER SmokeTest
     Run only 2 debates (one moderate, one thorough) to verify the pipeline.
 .PARAMETER DryRun
     Show the matrix without running any debates.
 .PARAMETER Model
-    Override the model (default: gemini-3.1-flash-lite-preview).
+    Override the model (default: gemini-flash-lite-latest).
 .PARAMETER OutputDir
     Debate output directory (default: ../ai-triad-data/debates).
 .EXAMPLE
@@ -31,7 +31,7 @@
 param(
     [switch]$SmokeTest,
     [switch]$DryRun,
-    [string]$Model = 'gemini-3.1-flash-lite-preview',
+    [string]$Model = 'gemini-flash-lite-latest',
     [string]$OutputDir = ''
 )
 

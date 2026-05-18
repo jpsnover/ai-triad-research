@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-POVSummary {
@@ -23,7 +23,7 @@ function Invoke-POVSummary {
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Model
-        AI model to use. Defaults to "gemini-3.1-flash-lite-preview".
+        AI model to use. Defaults to "gemini-flash-lite-latest".
         Supports Gemini, Claude, and Groq backends.
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.1
@@ -55,7 +55,7 @@ function Invoke-POVSummary {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model       = "gemini-3.1-flash-lite-preview",
+        [string]$Model       = "gemini-flash-lite-latest",
 
         [ValidateRange(0.0, 1.0)]
         [double]$Temperature = 0.1,

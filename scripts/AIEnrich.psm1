@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 #Requires -Version 5.1
@@ -61,7 +61,7 @@ if (Test-Path $_aiModelsPath) {
 # Fallback if ai-models.json missing or empty
 if ($script:ModelRegistry.Count -eq 0) {
     $script:ModelRegistry = @{
-        'gemini-3.1-flash-lite-preview' = @{ Backend = 'gemini';  ApiModelId = 'gemini-3.1-flash-lite-preview' }
+        'gemini-flash-lite-latest' = @{ Backend = 'gemini';  ApiModelId = 'gemini-flash-lite-latest' }
         'gemini-2.5-flash'      = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash' }
         'gemini-2.5-flash-lite' = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-flash-lite' }
         'gemini-2.5-pro'        = @{ Backend = 'gemini';  ApiModelId = 'gemini-2.5-pro' }

@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 <#
 .SYNOPSIS
     Migrates situation node interpretations from plain strings to BDI-decomposed objects.
@@ -15,7 +15,7 @@ param(
     [int]$BatchSize = 5,
     [switch]$DryRun,
     [int]$StartIndex = 0,
-    [string]$Model = 'gemini-3.1-flash-lite-preview'
+    [string]$Model = 'gemini-flash-lite-latest'
 )
 
 Set-StrictMode -Version Latest

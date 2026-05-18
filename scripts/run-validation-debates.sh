@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Phase 5a: Validate calibrated parameters on held-out topics.
-# Model: gemini-3.1-flash-lite-preview (same as Phase 3 calibration)
+# Model: gemini-flash-lite-latest (same as Phase 3 calibration)
 # Design: 4 held-out topics x 2 debater orders x 2 pacings = 16 debates
 # None of these topics were used during Phase 3 parameter calibration.
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$REPO_ROOT/lib/debate/cli.ts"
-MODEL="gemini-3.1-flash-lite-preview"
+MODEL="gemini-flash-lite-latest"
 OUTPUT_DIR="$REPO_ROOT/../ai-triad-data/debates"
 CAL_LOG="$REPO_ROOT/../ai-triad-data/calibration/calibration-log.json"
 REPORT_DIR="$REPO_ROOT/../ai-triad-data/calibration"
@@ -169,7 +169,7 @@ for fp in glob.glob(os.path.join(debates_dir, 'debate-*.json')):
 
 # Separate entries: validation = IDs matching validation debate files
 val_entries = [e for e in log if e.get('debate_id') in validation_ids]
-cal_entries = [e for e in log if e.get('debate_id') not in validation_ids and e.get('model') == 'gemini-3.1-flash-lite-preview']
+cal_entries = [e for e in log if e.get('debate_id') not in validation_ids and e.get('model') == 'gemini-flash-lite-latest']
 
 # Quality metrics to compare
 METRICS = {

@@ -203,7 +203,7 @@ export async function runAnalysis(
     });
 
     const settings = loadAiSettings();
-    const model = settings.model || 'gemini-3.1-flash-lite-preview';
+    const model = settings.model || 'gemini-flash-lite-latest';
 
     const promptOverrides = loadPromptOverrides();
     const defaults = getDefaultTemplates();

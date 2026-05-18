@@ -269,7 +269,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     generate: process.env.DEBATE_ENVELOPE !== '0' ? doGenerate : undefined,
 
     async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> {
-      const resolved = model || 'gemini-3.1-flash-lite-preview';
+      const resolved = model || 'gemini-flash-lite-latest';
       const { backend, apiModelId } = resolveModel(registry, resolved);
 
       if (backend === 'gemini') {

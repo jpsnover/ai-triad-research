@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 # CHESS pre-classification: lightweight LLM call to identify which POVs a document touches.
@@ -19,7 +19,7 @@ function Get-DocumentPovClassification {
     .PARAMETER QueryText
         Document excerpt for classification (title + first 500 words).
     .PARAMETER Model
-        AI model. Default: gemini-3.1-flash-lite-preview (fast, cheap).
+        AI model. Default: gemini-flash-lite-latest (fast, cheap).
     .PARAMETER ApiKey
         API key.
     #>
@@ -28,7 +28,7 @@ function Get-DocumentPovClassification {
         [Parameter(Mandatory)]
         [string]$QueryText,
 
-        [string]$Model = 'gemini-3.1-flash-lite-preview',
+        [string]$Model = 'gemini-flash-lite-latest',
 
         [string]$ApiKey = ''
     )

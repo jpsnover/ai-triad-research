@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Phase 3 calibration debates — 20 debates with controlled variation.
-# Model: gemini-3.1-flash-lite-preview (project default, floor-calibrated)
+# Model: gemini-flash-lite-latest (project default, floor-calibrated)
 # Design: 5 topics x 2 debater orders x 2 pacings = 20 debates
 #
 # Usage:
@@ -13,7 +13,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$REPO_ROOT/lib/debate/cli.ts"
-MODEL="gemini-3.1-flash-lite-preview"
+MODEL="gemini-flash-lite-latest"
 OUTPUT_DIR="$REPO_ROOT/../ai-triad-data/debates"
 LOG_FILE="$REPO_ROOT/../ai-triad-data/calibration/calibration-log.json"
 

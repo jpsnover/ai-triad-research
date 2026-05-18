@@ -566,7 +566,7 @@ post('/api/ai/generate', async (req, res, body) => {
     const userId = principalName || '_anonymous';
 
     // Check backend is allowed
-    const backend = ai.resolveBackend(model || 'gemini-3.1-flash-lite-preview');
+    const backend = ai.resolveBackend(model || 'gemini-flash-lite-latest');
     if (!tier.allowedBackends.includes(backend)) {
       res.writeHead(403); res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier` })); return;
     }

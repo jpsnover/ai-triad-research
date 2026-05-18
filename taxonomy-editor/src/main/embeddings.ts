@@ -529,7 +529,7 @@ export async function generateText(
   timeoutMs?: number,
   temperature?: number,
 ): Promise<string> {
-  const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
+  const DEFAULT_GENERATE_MODEL = 'gemini-flash-lite-latest';
   const friendlyModel = model || DEFAULT_GENERATE_MODEL;
   const backend = resolveBackend(friendlyModel);
   const resolvedModel = resolveApiModelId(friendlyModel);
@@ -601,7 +601,7 @@ export async function generateChatStream(
   model?: string,
   temperature?: number,
 ): Promise<string> {
-  const DEFAULT_MODEL = 'gemini-3.1-flash-lite-preview';
+  const DEFAULT_MODEL = 'gemini-flash-lite-latest';
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
   const resolvedModel = resolveApiModelId(friendlyModel);
@@ -783,7 +783,7 @@ export async function generateTextWithSearch(
   prompt: string,
   model?: string,
 ): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {
-  const DEFAULT_GENERATE_MODEL = 'gemini-3.1-flash-lite-preview';
+  const DEFAULT_GENERATE_MODEL = 'gemini-flash-lite-latest';
   const resolvedModel = model || DEFAULT_GENERATE_MODEL;
   const backend = resolveBackend(resolvedModel);
 

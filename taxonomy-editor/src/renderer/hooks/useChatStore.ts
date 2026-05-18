@@ -35,9 +35,9 @@ function getConfiguredModel(): string {
   const chatModel = useChatStore.getState().chatModel;
   if (chatModel) return chatModel;
   try {
-    return localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-3.1-flash-lite-preview';
+    return localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
   } catch {
-    return 'gemini-3.1-flash-lite-preview';
+    return 'gemini-flash-lite-latest';
   }
 }
 

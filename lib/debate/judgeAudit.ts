@@ -167,9 +167,9 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
 const MODEL_ALIASES: Record<string, string> = {
   haiku: 'claude-haiku-4-5',
   sonnet: 'claude-sonnet-4',
-  gemini: 'gemini-3.1-flash-lite-preview',
+  gemini: 'gemini-flash-lite-latest',
   'gemini-flash': 'gemini-2.5-flash',
-  'gemini-lite': 'gemini-3.1-flash-lite-preview',
+  'gemini-lite': 'gemini-flash-lite-latest',
   groq: 'groq-llama-3.3-70b-versatile',
   llama: 'groq-llama-3.3-70b-versatile',
 };

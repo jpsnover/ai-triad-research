@@ -14,7 +14,7 @@
  * Options:
  *   --dry-run         Log what would change without writing (default: true)
  *   --write           Actually write changes to disk
- *   --model <id>      Model for LLM classification (default: gemini-3.1-flash-lite-preview)
+ *   --model <id>      Model for LLM classification (default: gemini-flash-lite-latest)
  *   --throttle <ms>   Delay between LLM calls in ms (default: 500)
  *   --limit <n>       Max debates to process (default: all)
  *   --top-k <n>       Evidence items per claim (default: 10)
@@ -44,7 +44,7 @@ function parseArgs(): BackfillOptions {
   const args = process.argv.slice(2);
   const opts: BackfillOptions = {
     dryRun: !args.includes('--write'),
-    model: 'gemini-3.1-flash-lite-preview',
+    model: 'gemini-flash-lite-latest',
     throttleMs: 500,
     limit: Infinity,
     topK: 10,

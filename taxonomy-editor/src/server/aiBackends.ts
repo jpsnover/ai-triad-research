@@ -122,7 +122,7 @@ export async function generateText(
   timeoutMs?: number,
   explicitApiKey?: string,
 ): Promise<GenerateResult> {
-  const resolved = model || 'gemini-3.1-flash-lite-preview';
+  const resolved = model || 'gemini-flash-lite-latest';
   const backend = resolveBackend(resolved);
   const apiKey = explicitApiKey ?? await getApiKey(backend);
   if (!apiKey) {
@@ -172,7 +172,7 @@ export type { GroundingSegment } from '../../../lib/ai-client/providers/gemini-s
 export async function generateTextWithSearch(
   prompt: string, model?: string,
 ): Promise<{ text: string; searchQueries?: string[]; citations?: SharedGroundingCitation[] }> {
-  const resolved = model || 'gemini-3.1-flash-lite-preview';
+  const resolved = model || 'gemini-flash-lite-latest';
   const backend = resolveBackend(resolved);
 
   if (backend !== 'gemini') {

@@ -15,7 +15,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$REPO_ROOT/lib/debate/cli.ts"
-MODEL="gemini-3.1-flash-lite-preview"
+MODEL="gemini-flash-lite-latest"
 OUTPUT_DIR="$REPO_ROOT/../ai-triad-data/debates"
 
 ORDER_A='["prometheus","sentinel","cassandra"]'

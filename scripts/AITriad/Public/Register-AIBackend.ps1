@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Register-AIBackend {
@@ -72,7 +72,7 @@ function Register-AIBackend {
 
     # ── Model list ────────────────────────────────────────────────────────────
     $Models = @(
-        @{ id = 'gemini-3.1-flash-lite-preview'; label = 'Gemini 3.1 Flash Lite (default)'; backend = 'gemini' }
+        @{ id = 'gemini-flash-lite-latest'; label = 'Gemini 3.1 Flash Lite (default)'; backend = 'gemini' }
         @{ id = 'gemini-2.5-flash';              label = 'Gemini 2.5 Flash';                backend = 'gemini' }
         @{ id = 'gemini-2.5-flash-lite';          label = 'Gemini 2.5 Flash Lite';           backend = 'gemini' }
         @{ id = 'gemini-2.5-pro';                 label = 'Gemini 2.5 Pro';                  backend = 'gemini' }
@@ -199,7 +199,7 @@ function Register-AIBackend {
       <li>Copy the generated key and paste it above</li>
     </ol>
     <p>The free tier includes generous rate limits for <code>gemini-2.5-flash</code> and
-       <code>gemini-3.1-flash-lite-preview</code>. The <code>gemini-2.5-pro</code> model
+       <code>gemini-flash-lite-latest</code>. The <code>gemini-2.5-pro</code> model
        requires a paid plan for higher usage.</p>
     <p><strong>Models available:</strong> Gemini 3.1 Flash Lite (fastest, cheapest),
        Gemini 2.5 Flash (balanced), Gemini 2.5 Flash Lite, Gemini 2.5 Pro (most capable).</p>
@@ -294,7 +294,7 @@ function Register-AIBackend {
   <div class="field">
     <label>Used when no -Model parameter is specified</label>
     <select id="ai-model"></select>
-    <div class="env-hint">AI_MODEL (leave blank for gemini-3.1-flash-lite-preview)</div>
+    <div class="env-hint">AI_MODEL (leave blank for gemini-flash-lite-latest)</div>
   </div>
 </div>
 
@@ -325,7 +325,7 @@ function init() {
   });
 
   const sel = document.getElementById('ai-model');
-  sel.innerHTML = '<option value="">(default: gemini-3.1-flash-lite-preview)</option>';
+  sel.innerHTML = '<option value="">(default: gemini-flash-lite-latest)</option>';
   models.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m.id;

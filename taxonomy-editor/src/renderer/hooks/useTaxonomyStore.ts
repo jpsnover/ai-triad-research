@@ -56,7 +56,7 @@ export type ColorScheme = 'light' | 'dark' | 'bkc' | 'system';
 export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
 
 export type GeminiModel =
-  | 'gemini-3.1-flash-lite-preview'
+  | 'gemini-flash-lite-latest'
   | 'gemini-2.5-flash'
   | 'gemini-2.5-pro'
   | 'gemini-2.0-flash'
@@ -89,7 +89,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
   gemini: [
-    { value: 'gemini-3.1-flash-lite-preview', label: '3.1 Flash Lite Preview (default)' },
+    { value: 'gemini-flash-lite-latest', label: '3.1 Flash Lite Preview (default)' },
     { value: 'gemini-3-flash-preview', label: '3 Flash Preview' },
     { value: 'gemini-3.1-pro-preview', label: '3.1 Pro Preview (best quality)' },
     { value: 'gemini-2.5-flash', label: '2.5 Flash' },
@@ -120,7 +120,7 @@ const ALL_MODEL_IDS: Set<string> = new Set(
 );
 
 const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
-  gemini: 'gemini-3.1-flash-lite-preview',
+  gemini: 'gemini-flash-lite-latest',
   claude: 'claude-sonnet-4-6',
   groq: 'groq-llama-4-scout-17b-16e',
   openai: 'openai-gpt-5.5',
