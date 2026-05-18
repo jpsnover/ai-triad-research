@@ -18,6 +18,7 @@ import type {
   DebatePhase,
 } from './types.js';
 import type { DocumentAnalysis } from './types.js';
+import { POVER_INFO } from './types.js';
 import { ActionableError } from './errors.js';
 import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult } from './turnValidator.js';
 import type { DraftQualityCheckOutput } from './turnValidator.js';
@@ -693,7 +694,7 @@ export async function runTurnPipeline(
     if (citeParsed.product) {
       const citeVal = validateCiteStage({
         taxonomyRefs: (citeParsed.product.taxonomy_refs ?? []) as import('./types.js').TaxonomyRef[],
-        policyRefs: citeParsed.product.policy_refs as string[] | undefined,
+        policyRefs: citeParsed.product.policy_refs as (string | { policy_id: string; relevance?: string })[] | undefined,
         knownNodeIds: new Set(input.availablePovNodeIds ?? []),
         policyIds: new Set(input.availablePolicyIds ?? []),
         priorTurns: (input as Record<string, unknown>).priorTurns as import('./types.js').TranscriptEntry[] ?? [],
@@ -787,8 +788,28 @@ function extractDraftMeta(draft: DraftWorkProduct): PoverResponseMeta {
 // the LLM can't see), translate each failure type into a specific prompt modification
 // placed in the recency window just before the JSON schema.
 
+/** Cached codename→label regex pairs, built once from POVER_INFO. The
+ *  pre-check / validator LLMs sometimes refer to speakers by internal codename
+ *  (prometheus / sentinel / cassandra) instead of the public label
+ *  (Accelerationist / Safetyist / Skeptic) the debater sees everywhere else.
+ *  Normalize so corrections are always in the speaker's own vocabulary. */
+const SPEAKER_RENAME_PATTERNS: { pattern: RegExp; label: string }[] = Object.entries(POVER_INFO)
+  .map(([codename, info]) => ({
+    pattern: new RegExp(`\\b${codename}\\b`, 'gi'),
+    label: info.label,
+  }));
+
+function normalizeSpeakerNames(text: string): string {
+  let out = text;
+  for (const { pattern, label } of SPEAKER_RENAME_PATTERNS) {
+    out = out.replace(pattern, label);
+  }
+  return out;
+}
+
 function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.length === 0) return '';
+  hints = hints.map(normalizeSpeakerNames);
   const sections: string[] = [];
 
   // Directive non-compliance — include the failed first paragraph so the LLM can see what it wrote
@@ -885,7 +906,9 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   }
 
   return sections.length > 0
-    ? `\n\n=== CORRECTIONS REQUIRED (prior attempt was rejected) ===\n${sections.join('\n\n')}\n`
+    ? `\n\n=== CORRECTIONS REQUIRED (prior attempt was rejected) ===\n` +
+      `Apply these corrections WHILE executing YOUR ARGUMENT PLAN above. When a correction appears to conflict with a planned move (e.g., a correction faults you for "reframing" but the plan calls for REFRAME), THE PLAN TAKES PRECEDENCE — execute the planned move and treat the correction as guidance on HOW to execute it better, not as a directive to abandon it.\n\n` +
+      `${sections.join('\n\n')}\n`
     : '';
 }
 
@@ -1142,7 +1165,7 @@ export async function runOpeningPipeline(
     const knownIds = new Set(input.availablePovNodeIds ?? []);
     const citeVal = validateCiteStage({
       taxonomyRefs: (cite.taxonomy_refs ?? []) as import('./types.js').TaxonomyRef[],
-      policyRefs: cite.policy_refs as string[] | undefined,
+      policyRefs: cite.policy_refs as (string | { policy_id: string; relevance?: string })[] | undefined,
       knownNodeIds: knownIds,
       policyIds: new Set<string>(),
       priorTurns: [],

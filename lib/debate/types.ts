@@ -392,6 +392,18 @@ export interface DebateSession {
     original: string;
     refined: string | null;
     final: string;
+    /** Decomposition of `final` into N atomic clauses. Set by runClarification.
+     *  Used by the moderator prompt to keep interventions anchored to the
+     *  resolution's specific clauses rather than drifting to abstractions. */
+    clauses?: string[];
+    /** Embedding of `final`. Computed once at debate setup and reused for
+     *  per-turn ArCo (Argument Coherence) drift detection in
+     *  computeConvergenceSignals. */
+    embedding?: number[];
+    /** Embeddings of `clauses`, parallel-indexed. Used for per-turn
+     *  clause-coverage signal — which clause of the resolution each turn
+     *  most closely engages with. */
+    clause_embeddings?: number[][];
   };
   source_type: DebateSourceType;
   /** For document: file path; for url: the URL; for topic: empty */
@@ -585,6 +597,17 @@ export interface ConvergenceSignals {
     turn_similarity: number;
     phase_mean: number;
     drift_warning: boolean;
+  };
+  /** Clause-coverage signal — which clause of the decomposed resolution this
+   *  turn most closely engages with. best_clause_id is the index into
+   *  topic.clauses (0-based) of the highest-similarity clause; null when no
+   *  clause similarity exceeds the floor. Absent when clause embeddings
+   *  unavailable. */
+  clause_coverage?: {
+    best_clause_id: number | null;
+    best_similarity: number;
+    /** True when best_similarity falls below the no-clause-engaged floor. */
+    no_clause_engaged: boolean;
   };
 }
 

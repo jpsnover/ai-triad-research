@@ -94,6 +94,28 @@ export interface ModeratorSelectionInput {
   model: string;
   audience?: DebateAudience;
   sourceDocSummary?: string;
+  /** Final resolution text — used to anchor the moderator's interventions
+   *  to the resolution's specific subjects rather than abstractions. */
+  resolution?: string;
+  /** Decomposition of the resolution into atomic clauses, set by
+   *  runClarification. The moderator labels each intervention with the
+   *  clause number it concerns. */
+  resolutionClauses?: string[];
+  /** Topic-drift state derived from recent convergence_signals. Surfaced to
+   *  the moderator's selection prompt to bias toward REDIRECT when the
+   *  debate has drifted from the resolution. */
+  topicDriftState?: {
+    /** Latest ArCo phase_mean across same-phase turns (0..1). */
+    phaseMeanSimilarity?: number;
+    /** True when phase_mean is below ARCO_DRIFT_THRESHOLD. */
+    driftWarning: boolean;
+    /** 1-based clause indices that have been engaged with in the last N turns. */
+    coveredClauses: number[];
+    /** 1-based clause indices that have NOT yet been engaged. */
+    uncoveredClauses: number[];
+    /** Count of recent consecutive turns with no_clause_engaged === true. */
+    consecutiveOffClause: number;
+  };
   transcript: ReadonlyArray<TranscriptEntry>;
   contextSummaries?: ReadonlyArray<unknown>;
   argumentNetwork?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] };
@@ -198,6 +220,33 @@ function checkMetaphorReframe(
   return selectReframingMetaphor(usedSources, round);
 }
 
+/** Build the moderator's topic-anchoring context block. Emits a section
+ *  describing the resolution, its clauses, current ArCo phase mean, and which
+ *  clauses are covered vs. uncovered — so the moderator can prefer REDIRECT
+ *  to an unaddressed clause when the debate has drifted. */
+function buildTopicAnchoringBlock(
+  resolution: string | undefined,
+  clauses: string[] | undefined,
+  drift: ModeratorSelectionInput['topicDriftState'],
+): string {
+  if (!resolution) return '';
+  const clauseLines = (clauses && clauses.length > 0)
+    ? `\nClauses:\n${clauses.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}`
+    : '';
+  let driftLine = '';
+  if (drift) {
+    const phaseMean = drift.phaseMeanSimilarity != null ? drift.phaseMeanSimilarity.toFixed(2) : 'n/a';
+    const warn = drift.driftWarning ? ' [DRIFT WARNING]' : '';
+    const covered = drift.coveredClauses.length > 0 ? drift.coveredClauses.join(', ') : 'none';
+    const uncovered = drift.uncoveredClauses.length > 0 ? drift.uncoveredClauses.join(', ') : 'none';
+    driftLine = `\nDrift state: phase_mean_similarity=${phaseMean}${warn}; clauses covered=[${covered}]; clauses uncovered=[${uncovered}]; consecutive_off_clause_turns=${drift.consecutiveOffClause}`;
+  }
+  const directive = drift && (drift.driftWarning || drift.consecutiveOffClause >= 2) && drift.uncoveredClauses.length > 0
+    ? `\n\nDIRECTIVE: The debate has drifted from the resolution. Strongly prefer a REDIRECT intervention targeting an uncovered clause (specifically: clause ${drift.uncoveredClauses[0]}). Do NOT simply summarize the current off-clause discussion as the new topic.`
+    : '';
+  return `\n=== TOPIC ANCHORING STATE ===\nResolution: "${resolution}"${clauseLines}${driftLine}${directive}\n`;
+}
+
 // ── Main Orchestration Function ─────────────────────────
 
 export async function runModeratorSelection(
@@ -206,7 +255,8 @@ export async function runModeratorSelection(
 ): Promise<ModeratorSelectionResult> {
   const {
     round, phase, activePovers, totalRounds, model,
-    audience, sourceDocSummary, transcript, contextSummaries,
+    audience, sourceDocSummary, resolution, resolutionClauses,
+    topicDriftState, transcript, contextSummaries,
     argumentNetwork: an, convergenceSignals, unansweredLedger,
     gapInjections, commitments, existingModState, poverInfo,
   } = input;
@@ -315,6 +365,8 @@ export async function runModeratorSelection(
           formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries),
           audience,
           sourceDocSummary,
+          resolution,
+          resolutionClauses,
         );
         const stage2Text = await callbacks.generate(
           stage2Prompt, model, { temperature: 0.7, timeoutMs: 60_000 },
@@ -356,12 +408,14 @@ export async function runModeratorSelection(
     }
   } else {
     // ── Stage 1: Enhanced moderator selection ──
+    const topicAnchoringBlock = buildTopicAnchoringBlock(resolution, resolutionClauses, topicDriftState);
     selectionPrompt = moderatorSelectionPrompt(
       recentTranscript, activeLabels,
       edgeContext + anContext + qbafContext + ledgerHint + specifyHint + gapHint,
       triggerBlock,
       recentScheme ?? undefined, metaphorReframe, phase, audience,
       sourceDocSummary,
+      topicAnchoringBlock,
     );
 
     const selectionStart = Date.now();
@@ -450,6 +504,8 @@ export async function runModeratorSelection(
               formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries),
               audience,
               sourceDocSummary,
+              resolution,
+              resolutionClauses,
             );
 
             const stage2Text = await callbacks.generate(

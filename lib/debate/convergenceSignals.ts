@@ -19,6 +19,9 @@ import { cosineSimilarity } from './taxonomyRelevance.js';
 
 export const SEMANTIC_RECYCLING_THRESHOLD = 0.85;
 export const ARCO_DRIFT_THRESHOLD = 0.5;
+/** Below this max-clause-similarity, the turn is considered to engage with
+ *  no clause of the resolution — i.e., a candidate for redirect. */
+export const CLAUSE_ENGAGEMENT_FLOOR = 0.45;
 
 export function computeConvergenceSignals(
   entryId: string,
@@ -30,6 +33,7 @@ export function computeConvergenceSignals(
   turnEmbeddings?: Map<string, number[]>,
   precomputedStrengths?: Map<string, number>,
   topicEmbedding?: number[],
+  clauseEmbeddings?: number[][],
 ): ConvergenceSignals {
   const entryIdx = transcript.findIndex(e => e.id === entryId);
   const entry = transcript[entryIdx];
@@ -194,6 +198,29 @@ export function computeConvergenceSignals(
     }
   }
 
+  // 9. Clause coverage — which decomposed clause this turn most closely engages.
+  let clauseCoverage: ConvergenceSignals['clause_coverage'];
+  if (clauseEmbeddings && clauseEmbeddings.length > 0 && turnEmbeddings) {
+    const currentEmbed = turnEmbeddings.get(entryId);
+    if (currentEmbed) {
+      let bestId: number | null = null;
+      let bestSim = -Infinity;
+      for (let i = 0; i < clauseEmbeddings.length; i++) {
+        const sim = cosineSimilarity(currentEmbed, clauseEmbeddings[i]);
+        if (sim > bestSim) {
+          bestSim = sim;
+          bestId = i;
+        }
+      }
+      const noClauseEngaged = bestSim < CLAUSE_ENGAGEMENT_FLOOR;
+      clauseCoverage = {
+        best_clause_id: noClauseEngaged ? null : bestId,
+        best_similarity: bestSim,
+        no_clause_engaged: noClauseEngaged,
+      };
+    }
+  }
+
   return {
     entry_id: entryId,
     round,
@@ -206,6 +233,7 @@ export function computeConvergenceSignals(
     position_drift: { overlap_with_opening: overlapWithOpening, drift },
     crux_engagement_rate: { used_this_turn: cruxUsedThisTurn, cumulative_count: cumulativeCruxCount, cumulative_follow_through: cumulativeFollowThrough },
     arco,
+    clause_coverage: clauseCoverage,
   };
 }
 

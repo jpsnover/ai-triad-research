@@ -3127,6 +3127,7 @@ export function moderatorSelectionPrompt(
   phase?: DebatePhase,
   audience?: DebateAudience,
   sourceDocumentSummary?: string,
+  topicAnchoringBlock?: string,
 ): string {
   const cqBlock = recentScheme ? formatCriticalQuestions(recentScheme) : '';
   const schemeSection = cqBlock
@@ -3176,7 +3177,7 @@ Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
   return `You are a debate moderator analyzing the current state of a structured debate.
 
 ROLE: You are procedurally authoritative but not substantively neutral. You evaluate PROCESS (who is evading, what claims are unaddressed, which arguments lack evidence) but not SUBSTANCE (who is right). Your choices about what to highlight are inherently selective — be transparent about WHY you are directing attention to a particular point. When describing the debate state, use observable facts ("Sentinel has not responded to AN-5") rather than evaluative judgments ("Sentinel's argument is weak").
-${audienceLine}${phaseObjective}${sourceAnchorSection}${driftDetectionBlock}
+${audienceLine}${phaseObjective}${sourceAnchorSection}${topicAnchoringBlock ?? ''}${driftDetectionBlock}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
 
@@ -3228,6 +3229,41 @@ Example (with intervention):
 {"responder":"Prometheus","addressing":"general","focus_point":"All three debaters have used 'alignment' with different definitions for 4 rounds","agreement_detected":false,"metaphor_reframe":false,"drift_detected":false,"intervene":true,"suggested_move":"CLARIFY","target_debater":"Prometheus","trigger_reasoning":"'Alignment' has been used to mean technical value alignment (Sentinel), market alignment (Prometheus), and social alignment (Cassandra) without acknowledgment. This definitional divergence prevents substantive engagement.","trigger_evidence":{"signal_name":"term_ambiguity","observed_behavior":"Three distinct uses of 'alignment' across rounds 2-5 with no disambiguation","source_claim":"alignment","source_round":2}}`;
 }
 
+/**
+ * Decomposes a debate resolution into N atomic clauses.
+ * Called once at debate setup, after the topic has been clarified/refined.
+ * Result is persisted to `debate.topic.clauses` and used by the moderator
+ * prompt on every intervention to keep the debate anchored to the resolution's
+ * specific claims rather than drifting into general abstractions.
+ */
+export function decomposeResolutionPrompt(resolution: string): string {
+  return `You are decomposing a debate resolution into its atomic clauses.
+
+A clause is a single, independently-debatable claim. A compound resolution
+joined by commas, "and", or "or" should be split. A resolution that makes
+one unified claim should remain a single clause.
+
+=== RESOLUTION ===
+"${resolution}"
+
+=== INSTRUCTIONS ===
+1. Identify each independently-debatable claim in the resolution.
+2. For each clause, write a short imperative or declarative statement that
+   captures the specific population, practice, or mechanism being claimed.
+   Do NOT generalize — preserve concrete nouns (e.g., "minors", "push alerts",
+   "users under 18") verbatim.
+3. Return at least 1 and at most 6 clauses. If the resolution is genuinely
+   a single claim, return one clause.
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
+  "clauses": [
+    "Short statement of clause 1, preserving concrete nouns",
+    "Short statement of clause 2, preserving concrete nouns"
+  ]
+}`;
+}
+
 export function moderatorInterventionPrompt(
   move: InterventionMove,
   family: InterventionFamily,
@@ -3237,11 +3273,21 @@ export function moderatorInterventionPrompt(
   recentTranscript: string,
   audience?: DebateAudience,
   sourceDocumentSummary?: string,
+  resolution?: string,
+  resolutionClauses?: string[],
 ): string {
   const moveSpecificInstructions = getMoveSpecificInstructions(move, targetDebater, sourceClaim);
 
   const sourceAnchor = sourceDocumentSummary
     ? `\n=== SOURCE DOCUMENT ANCHOR ===\n${sourceDocumentSummary}\n\nYour intervention must anchor the debate back to concepts in the source material. If a debater has drifted into implementation details or literalized a metaphor, reference specific source-document language in your intervention.\n`
+    : '';
+
+  const resolutionAnchor = resolution
+    ? `\n=== RESOLUTION (anchor) ===\n"${resolution}"\n${
+        resolutionClauses && resolutionClauses.length > 0
+          ? `\nThe resolution decomposes into these clauses:\n${resolutionClauses.map((c, i) => `  ${i + 1}. ${c}`).join('\n')}\n`
+          : ''
+      }\nANCHOR RULES — these constrain your intervention text:\n- Every intervention MUST name at least one specific subject from the resolution (a population, practice, or mechanism it mentions by name — e.g., a noun the debaters cannot replace with a synonym without losing meaning).\n- Do NOT introduce new conceptual framings of your own ("epistemic asymmetry", "performance-gated sunsetting", "Goodhart's Law", etc.) that abstract away from the resolution's named subjects. Use only language the resolution or a debater has already used.\n- If the debate has drifted to a general topic not covered by any clause, your intervention's job is to redirect to an unaddressed clause — NOT to summarize the drift as the new debate.\n- In your JSON output, set "clause_in_scope" to the number of the clause this intervention concerns. If the intervention is a deliberate redirect to bring the debate back to the resolution, set it to "redirect". Use "none" only if no clause applies and a redirect is not possible.\n`
     : '';
 
   return `You are composing a moderator intervention for a structured debate.
@@ -3250,7 +3296,7 @@ ${getReadingLevel(audience)}
 Move: ${move} (family: ${family})
 Target: ${targetDebater}
 Trigger: ${triggerReason}
-${sourceClaim ? `Original claim: "${sourceClaim}"` : ''}${sourceAnchor}
+${sourceClaim ? `Original claim: "${sourceClaim}"` : ''}${sourceAnchor}${resolutionAnchor}
 
 === RECENT TRANSCRIPT ===
 ${recentTranscript}
@@ -3265,7 +3311,7 @@ ${move === 'CHECK' ? 'For CHECK: use a DIRECT QUOTE from the target debater\'s t
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "text": "the intervention text"${move === 'REVOICE' ? ',\n  "original_claim_text": "the verbatim original claim being revoiced"' : ''}
+  "text": "the intervention text"${resolution ? ',\n  "clause_in_scope": "1" | "2" | ... | "redirect" | "none"' : ''}${move === 'REVOICE' ? ',\n  "original_claim_text": "the verbatim original claim being revoiced"' : ''}
 }`;
 }
 

@@ -78,6 +78,7 @@ import {
   crossCuttingNodePrompt,
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
+  decomposeResolutionPrompt,
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
@@ -1332,6 +1333,109 @@ export class DebateEngine {
       content: `[Automated clarification] Refined topic: ${this.session.topic.final}`,
       taxonomy_refs: [],
     });
+
+    await this.decomposeResolutionIntoClauses();
+    await this.embedResolutionAnchors();
+  }
+
+  /** Decomposes `topic.final` into atomic clauses and persists them on
+   *  `topic.clauses`. Used by the moderator prompt to keep interventions
+   *  anchored. Non-fatal: if decomposition fails, clauses remain undefined
+   *  and the moderator falls back to resolution-only anchoring. */
+  private async decomposeResolutionIntoClauses(): Promise<void> {
+    const resolution = this.session.topic.final;
+    if (!resolution || resolution.trim().length === 0) return;
+
+    try {
+      const prompt = decomposeResolutionPrompt(resolution);
+      const text = await this.generate(prompt, 'Resolution clause decomposition', 30_000);
+      const parsed = parseJsonRobust(text) as { clauses?: unknown };
+      if (Array.isArray(parsed.clauses)) {
+        const clauses = parsed.clauses
+          .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+          .map(c => c.trim());
+        if (clauses.length > 0) {
+          this.session.topic.clauses = clauses;
+        }
+      }
+    } catch (err) {
+      this.warn('Resolution clause decomposition', err, 'Moderator will anchor to resolution text only');
+    }
+  }
+
+  /** Embeds the resolution and each clause for per-turn ArCo and
+   *  clause-coverage signals. Persists to `topic.embedding` and
+   *  `topic.clause_embeddings`. Non-fatal — if the adapter doesn't expose
+   *  computeQueryEmbedding or the call fails, drift signals downgrade to
+   *  the deterministic fallbacks. */
+  private async embedResolutionAnchors(): Promise<void> {
+    const adapter = this.adapter as ExtendedAIAdapter;
+    if (!adapter.computeQueryEmbedding) return;
+    const resolution = this.session.topic.final;
+    if (!resolution || resolution.trim().length === 0) return;
+
+    try {
+      const { vector } = await adapter.computeQueryEmbedding(resolution.slice(0, 1000));
+      if (vector && vector.length > 0) {
+        this.session.topic.embedding = vector;
+      }
+    } catch (err) {
+      this.warn('Resolution embedding', err, 'ArCo drift signal will be unavailable');
+    }
+
+    const clauses = this.session.topic.clauses;
+    if (!clauses || clauses.length === 0) return;
+    const clauseVectors: number[][] = [];
+    for (const clause of clauses) {
+      try {
+        const { vector } = await adapter.computeQueryEmbedding(clause.slice(0, 500));
+        if (vector && vector.length > 0) clauseVectors.push(vector);
+      } catch {
+        // One clause's embedding failure is non-fatal — skip it.
+      }
+    }
+    if (clauseVectors.length === clauses.length) {
+      this.session.topic.clause_embeddings = clauseVectors;
+    }
+  }
+
+  /** Aggregate recent convergence_signals into the topic-drift summary
+   *  consumed by the moderator's selection prompt. Returns undefined when
+   *  no signals yet exist (e.g., before the first turn). */
+  private computeTopicDriftState(): ModeratorSelectionInput['topicDriftState'] {
+    const signals = this.session.convergence_signals ?? [];
+    if (signals.length === 0) return undefined;
+
+    const RECENT_WINDOW = 6;
+    const recent = signals.slice(-RECENT_WINDOW);
+    const latest = signals[signals.length - 1];
+
+    const totalClauses = this.session.topic.clauses?.length ?? 0;
+    const coveredSet = new Set<number>();
+    let consecutiveOffClause = 0;
+    for (let i = signals.length - 1; i >= 0; i--) {
+      const c = signals[i].clause_coverage;
+      if (!c) break;
+      if (c.no_clause_engaged) consecutiveOffClause++;
+      else break;
+    }
+    for (const s of recent) {
+      const c = s.clause_coverage;
+      if (c && c.best_clause_id != null) coveredSet.add(c.best_clause_id + 1);
+    }
+    const covered = Array.from(coveredSet).sort((a, b) => a - b);
+    const uncovered: number[] = [];
+    for (let i = 1; i <= totalClauses; i++) {
+      if (!coveredSet.has(i)) uncovered.push(i);
+    }
+
+    return {
+      phaseMeanSimilarity: latest.arco?.phase_mean,
+      driftWarning: latest.arco?.drift_warning ?? false,
+      coveredClauses: covered,
+      uncoveredClauses: uncovered,
+      consecutiveOffClause,
+    };
   }
 
   // ── Phase: Document pre-analysis ───────────────────────────
@@ -1888,6 +1992,9 @@ export class DebateEngine {
       model: this.config.model,
       audience: this.config.audience,
       sourceDocSummary,
+      resolution: this.session.topic.final,
+      resolutionClauses: this.session.topic.clauses,
+      topicDriftState: this.computeTopicDriftState(),
       transcript: this.session.transcript,
       contextSummaries: this.session.context_summaries,
       argumentNetwork: this.session.argument_network ?? undefined,

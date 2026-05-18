@@ -174,6 +174,9 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], d
       const meta = resolveMeta(f.doc_id, docTitles);
       lines.push(`  [${i + 1}] "${f.claim}"`);
       lines.push(`      — ${formatSourceAttribution(meta)}${temporal}`);
+      if (meta.resolved_url) {
+        lines.push(`      Source URL: ${meta.resolved_url}`);
+      }
     }
     lines.push('');
   }
@@ -188,6 +191,9 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], d
         lines.push(`      Quote: "${kp.verbatim}"`);
       }
       lines.push(`      — ${formatSourceAttribution(meta)} (${kp.pov}, ${kp.stance})`);
+      if (meta.resolved_url) {
+        lines.push(`      Source URL: ${meta.resolved_url}`);
+      }
     }
   }
 

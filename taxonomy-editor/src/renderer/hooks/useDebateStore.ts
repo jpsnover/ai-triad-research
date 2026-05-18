@@ -853,6 +853,8 @@ async function extractClaimsAndUpdateAN(
             baseDebate.convergence_signals ?? [],
             turnEmbeddings,
             qbafResult.strengths,
+            baseDebate.topic?.embedding,
+            baseDebate.topic?.clause_embeddings,
           );
           patches.convergence_signals = [...(baseDebate.convergence_signals ?? []), sig];
           getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_polarity: sig.move_polarity?.ratio, dialectical_engagement: sig.dialectical_engagement?.ratio, argument_redundancy: sig.argument_redundancy?.avg_self_overlap, crux_engagement_rate: sig.crux_engagement_rate?.cumulative_count } });
