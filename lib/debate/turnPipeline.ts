@@ -908,6 +908,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   return sections.length > 0
     ? `\n\n=== CORRECTIONS REQUIRED (prior attempt was rejected) ===\n` +
       `Apply these corrections WHILE executing YOUR ARGUMENT PLAN above. When a correction appears to conflict with a planned move (e.g., a correction faults you for "reframing" but the plan calls for REFRAME), THE PLAN TAKES PRECEDENCE — execute the planned move and treat the correction as guidance on HOW to execute it better, not as a directive to abandon it.\n\n` +
+      `PRESERVE WHAT WORKED: Preserve the claims, citations, structure, and dialectical moves from your prior attempt that were NOT flagged below. Address ONLY the specific issues listed. Do NOT swap an unflagged claim for a new claim just because you are rewriting — that pattern produces lateral motion (new problems replacing old ones), not improvement. If a flagged claim cannot be strengthened with available evidence, prefer narrowing its scope or removing it cleanly over substituting an unrelated claim.\n\n` +
       `${sections.join('\n\n')}\n`
     : '';
 }

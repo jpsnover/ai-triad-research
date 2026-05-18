@@ -571,6 +571,23 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
       result.quality_score = Math.max(0.1, result.quality_score - 0.10);
     }
 
+    // Advancement floor: when the judge writes that the turn meaningfully
+    // advances the debate (advances=true) AND backs it with a substantive
+    // qualitative reason (>120 chars suggests real description, not boilerplate),
+    // the quality_score should reflect that. A turn that does genuine
+    // dialectical work shouldn't be punished into the 0.40-0.55 "weak" band
+    // by weakness-count caps alone. Floors at 0.60 — comfortably in the
+    // "adequate" rubric tier, still penalizable below the "strong" tier.
+    const ADVANCEMENT_FLOOR = 0.60;
+    const SUBSTANTIVE_REASON_THRESHOLD = 120;
+    if (
+      result.advances &&
+      result.advancement_reason.length >= SUBSTANTIVE_REASON_THRESHOLD &&
+      result.quality_score < ADVANCEMENT_FLOOR
+    ) {
+      result.quality_score = ADVANCEMENT_FLOOR;
+    }
+
     // Reconcile recommend with enforced quality_score
     if (result.quality_score < 0.5 && result.recommend === 'pass') {
       result.recommend = 'retry';

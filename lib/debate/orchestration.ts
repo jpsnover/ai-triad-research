@@ -750,8 +750,11 @@ export async function executeTurnWithRetry(
       stage_diagnostics: pipelineResult.stage_diagnostics,
     });
 
-    // Track best attempt — retries can regress if the LLM introduces new problems
-    const currentScore = validation.orchestrationScore ?? 0;
+    // Track best attempt — retries can regress if the LLM introduces new problems.
+    // The score field on TurnValidation is `process_reward`; the previous
+    // `orchestrationScore` lookup silently returned undefined and left bestScore
+    // permanently at -1, defeating best-of-N selection.
+    const currentScore = validation.process_reward ?? 0;
     if (currentScore > bestScore) {
       bestScore = currentScore;
       bestStatement = statement;
@@ -761,15 +764,19 @@ export async function executeTurnWithRetry(
       bestPipelineResult = pipelineResult;
     }
 
-    // First attempt: any quality feedback triggers a retry — give the debater
-    // a chance to incorporate the judge's weaknesses before applying score thresholds.
-    // Subsequent attempts: use the normal score-based retry logic.
-    const hasQualityFeedback = (validation.repairHints?.length ?? 0) > 0;
+    // Filter hints to those a debater can plausibly act on. Hints that demand
+    // empirical evidence the corpus is unlikely to contain (cost-benefit data,
+    // retrospective program-evaluation, feasibility studies) cause whack-a-mole
+    // retries — the LLM swaps one unsourced claim for another with the same
+    // gap. Filter those out of the retry gate; they remain on the displayed
+    // validation.repairHints for transparency.
+    const actionableHints = filterActionableHints(validation.repairHints ?? []);
+    const hasActionableFeedback = actionableHints.length > 0;
     const shouldRetry = attemptIdx === 0
-      ? hasQualityFeedback                    // first draft: any feedback → retry
-      : validation.outcome === 'retry';        // retry draft: score must warrant it
+      ? hasActionableFeedback                  // first draft: any actionable feedback → retry
+      : validation.outcome === 'retry' && hasActionableFeedback; // retry draft: outcome + actionable
 
-    console.log(`[orchestration] *** RETRY CHECK: attempt=${attemptIdx}, score=${currentScore.toFixed(2)}, bestScore=${bestScore.toFixed(2)}, feedback=${hasQualityFeedback}, hints=${validation.repairHints?.length ?? 0}, outcome=${validation.outcome}, retry=${shouldRetry}, max=${vConfig.maxRetries} ***`);
+    console.log(`[orchestration] *** RETRY CHECK: attempt=${attemptIdx}, score=${currentScore.toFixed(2)}, bestScore=${bestScore.toFixed(2)}, totalHints=${validation.repairHints?.length ?? 0}, actionableHints=${actionableHints.length}, outcome=${validation.outcome}, retry=${shouldRetry}, max=${vConfig.maxRetries} ***`);
 
     if (!shouldRetry || attemptIdx >= vConfig.maxRetries) break;
 
@@ -777,7 +784,7 @@ export async function executeTurnWithRetry(
     try {
       pipelineResult = await callbacks.runPipeline({
         ...input.pipelineInput,
-        repairHints: validation.repairHints,
+        repairHints: actionableHints,
       });
     } catch (err) {
       // Pipeline parse failure on retry — treat as failed attempt, break with current validation
@@ -792,11 +799,33 @@ export async function executeTurnWithRetry(
   }
 
   // Use the best-scoring attempt, not the last one — retries can regress
-  if (bestValidation && bestScore > (validation.orchestrationScore ?? 0)) {
-    console.log(`[orchestration] Using best attempt (score ${bestScore.toFixed(2)}) instead of last attempt (score ${(validation.orchestrationScore ?? 0).toFixed(2)})`);
+  if (bestValidation && bestScore > (validation.process_reward ?? 0)) {
+    console.log(`[orchestration] Using best attempt (score ${bestScore.toFixed(2)}) instead of last attempt (score ${(validation.process_reward ?? 0).toFixed(2)})`);
     return { statement: bestStatement, taxonomyRefs: bestTaxonomyRefs, meta: bestMeta, validation: bestValidation, attempts, pipelineResult: bestPipelineResult ?? pipelineResult, aborted: false };
   }
   return { statement, taxonomyRefs, meta, validation, attempts, pipelineResult, aborted: false };
+}
+
+/** Patterns identifying hints the debater cannot plausibly act on with the
+ *  available evidence corpus. These typically demand empirical research the
+ *  debater can't manufacture — cost-benefit data, retrospective program
+ *  evaluations, technical feasibility studies, false-positive rates. Keep this
+ *  list conservative: false positives (filtering an actually-actionable hint)
+ *  are worse than false negatives (running an extra retry). */
+const UNANSWERABLE_HINT_PATTERNS: RegExp[] = [
+  /lacks?\s+empirical\s+evidence/i,
+  /no\s+(?:empirical\s+)?(?:data|evidence)\s+(?:that|on|for|supporting)/i,
+  /no\s+analysis\s+of\s+whether.*(?:achieved|reached|delivered)/i,
+  /(?:false[- ]positive|false[- ]negative)\s+rates?/i,
+  /(?:no\s+)?cost[- ]benefit\s+(?:data|analysis|evidence)/i,
+  /scale\s+economics/i,
+  /technical(?:ly)?\s+(?:vague|feasibility)\b.*\bwithout\s+(?:degrading|sacrificing|breaking)/i,
+  /unclear\s+how.*without\s+degrading/i,
+  /precedent\s+(?:validity|effectiveness)\s+unsubstantiated/i,
+];
+
+function filterActionableHints(hints: string[]): string[] {
+  return hints.filter(h => !UNANSWERABLE_HINT_PATTERNS.some(re => re.test(h)));
 }
 
 const SKIPPED_VALIDATION: TurnValidation = {
