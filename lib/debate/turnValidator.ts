@@ -305,8 +305,12 @@ function runStageA(p: ValidateTurnParams): StageAResult {
   }
 
   // Rule 4: policy_refs exist (warning only)
+  // Post-CQ cite stage emits {policy_id, relevance} objects; pre-CQ emits bare strings.
   if (meta.policy_refs && policyIds.size > 0) {
-    const unknownPolicies = meta.policy_refs.filter(pid => !policyIds.has(pid));
+    const policyIdList = (meta.policy_refs as (string | { policy_id: string })[])
+      .map(p => typeof p === 'string' ? p : p?.policy_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    const unknownPolicies = policyIdList.filter(pid => !policyIds.has(pid));
     if (unknownPolicies.length > 0) {
       const msg = `Unknown policy_refs: ${unknownPolicies.join(', ')}.`;
       warnings.push(msg);
@@ -1174,7 +1178,7 @@ export function validateDraftStage(p: {
  */
 export function validateCiteStage(p: {
   taxonomyRefs: TaxonomyRef[];
-  policyRefs?: string[];
+  policyRefs?: (string | { policy_id: string; relevance?: string })[];
   knownNodeIds: Set<string>;
   policyIds: Set<string>;
   priorTurns: readonly TranscriptEntry[];
@@ -1194,9 +1198,13 @@ export function validateCiteStage(p: {
   }
 
   // Rule 4: policy_refs exist (skip if no registry loaded)
+  // Cite stage emits {policy_id, relevance} objects (post-CQ) or bare strings (pre-CQ).
   const policyRefs = p.policyRefs ?? [];
   if (policyIds.size > 0) {
-    const unknownPolicies = policyRefs.filter(pid => !policyIds.has(pid));
+    const policyIdList = policyRefs
+      .map(p => typeof p === 'string' ? p : p?.policy_id)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0);
+    const unknownPolicies = policyIdList.filter(pid => !policyIds.has(pid));
     if (unknownPolicies.length > 0) {
       warnings.push(`Unknown policy_refs: ${unknownPolicies.join(', ')}.`);
     }

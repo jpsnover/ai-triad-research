@@ -630,15 +630,20 @@ function EntryView({ entryId }: { entryId: string }) {
       )}
 
       {/* Policy Refs */}
-      {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
-        <CollapsibleSection title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`}>
-          <div className="diag-badges">
-            {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => (
-              <span key={i} className="diag-badge" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>{p}</span>
-            ))}
-          </div>
-        </CollapsibleSection>
-      )}
+      {(() => {
+        const rawPolRefs = (meta?.policy_refs as (string | { policy_id: string; relevance?: string })[] | undefined) || entry.policy_refs || [];
+        const polIds = rawPolRefs.map(p => typeof p === 'string' ? p : p.policy_id);
+        if (polIds.length === 0) return null;
+        return (
+          <CollapsibleSection title={`Policy Refs (${polIds.length})`}>
+            <div className="diag-badges">
+              {polIds.map((id, i) => (
+                <span key={i} className="diag-badge" style={{ background: 'rgba(139,92,246,0.15)', color: '#8b5cf6' }}>{id}</span>
+              ))}
+            </div>
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* Full Prompt */}
       {diag?.prompt && (

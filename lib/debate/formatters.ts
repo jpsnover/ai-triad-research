@@ -143,7 +143,7 @@ export function formatDebateMarkdown(session: DebateSession): string {
         lines.push('');
       }
       if (entry.policy_refs && entry.policy_refs.length > 0) {
-        lines.push(`*Policy refs:* ${entry.policy_refs.map(r => `\`${r}\``).join(', ')}`);
+        lines.push(`*Policy refs:* ${entry.policy_refs.map(r => `\`${typeof r === 'string' ? r : r.policy_id}\``).join(', ')}`);
         lines.push('');
       }
     }

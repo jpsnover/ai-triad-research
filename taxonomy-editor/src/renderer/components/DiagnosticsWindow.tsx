@@ -3855,10 +3855,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </Section>
                       )}
 
-                      {((meta?.policy_refs as string[])?.length > 0 || (entry.policy_refs?.length ?? 0) > 0) && (
-                        <Section title={`Policy Refs (${((meta?.policy_refs as string[]) || entry.policy_refs || []).length})`} defaultOpen copyText={((meta?.policy_refs as string[]) || entry.policy_refs || []).join(', ')}>
+                      {(() => {
+                        const rawPolRefs = (meta?.policy_refs as (string | { policy_id: string; relevance?: string })[] | undefined) || entry.policy_refs || [];
+                        const polIds = rawPolRefs.map(p => typeof p === 'string' ? p : p.policy_id);
+                        if (polIds.length === 0) return null;
+                        return (
+                        <Section title={`Policy Refs (${polIds.length})`} defaultOpen copyText={polIds.join(', ')}>
                           <ul style={{ margin: '4px 0', paddingLeft: 0, listStyle: 'none' }}>
-                            {((meta?.policy_refs as string[]) || entry.policy_refs || []).map((p, i) => {
+                            {polIds.map((p, i) => {
                               const pol = policyMap.get(p);
                               return (
                                 <li key={i} style={{ margin: '3px 0', display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -3878,7 +3882,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             })}
                           </ul>
                         </Section>
-                      )}
+                        );
+                      })()}
 
                       {diag?.edge_tensions && (
                         <Section title="Edge Tensions" defaultOpen copyText={diag.edge_tensions}>
@@ -5081,7 +5086,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           ))}
                         </details>
                       )}
-                      {Array.isArray((citeStage.work_product as Record<string, unknown>).policy_refs) && ((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).length > 0 && (
+                      {(() => {
+                        const rawCitePolRefs = (citeStage.work_product as Record<string, unknown>).policy_refs;
+                        if (!Array.isArray(rawCitePolRefs) || rawCitePolRefs.length === 0) return null;
+                        const citePolIds = (rawCitePolRefs as (string | { policy_id: string; relevance?: string })[]).map(p => typeof p === 'string' ? p : p.policy_id);
+                        return (
                         <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Policy References</summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                             <colgroup>
@@ -5089,7 +5098,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <col />
                             </colgroup>
                             <tbody>
-                              {((citeStage.work_product as Record<string, unknown>).policy_refs as string[]).map((p, i) => {
+                              {citePolIds.map((p, i) => {
                                 const isSelected = selectedPolicyId === p;
                                 const pol = policyMap.get(p);
                                 return (
@@ -5129,7 +5138,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             );
                           })()}
                         </details>
-                      )}
+                        );
+                      })()}
                       {/* ── Per-turn sections ── */}
                       {citeAttempts.length > 0 && citeAttempts.map((attempt, ai) => {
                         const isFinal = ai === citeAttempts.length - 1;

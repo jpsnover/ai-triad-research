@@ -219,7 +219,8 @@ export interface PoverResponseMeta {
   disagreement_type?: string;
   key_assumptions?: { assumption: string; if_wrong: string }[];
   my_claims?: { claim: string; targets: string[] }[];
-  policy_refs?: string[];
+  /** Pre-CQ: bare string IDs. Post-CQ: objects with relevance. Consumers must check typeof. */
+  policy_refs?: (string | { policy_id: string; relevance: string })[];
   position_update?: string;
   turn_symbols?: { symbol: string; tooltip: string }[];
   pin_response?: Record<string, unknown>;
@@ -527,7 +528,7 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
         (c: Record<string, unknown>) => typeof c.claim === 'string' && Array.isArray(c.targets),
       ) : undefined,
       policy_refs: Array.isArray(parsed.policy_refs) ? parsed.policy_refs.filter(
-        (r: unknown) => typeof r === 'string',
+        (r: unknown) => typeof r === 'string' || (r != null && typeof r === 'object' && typeof (r as { policy_id?: unknown }).policy_id === 'string'),
       ) : undefined,
       position_update: typeof parsed.position_update === 'string' ? parsed.position_update : undefined,
       turn_symbols: Array.isArray(parsed.turn_symbols) ? parsed.turn_symbols.filter(
