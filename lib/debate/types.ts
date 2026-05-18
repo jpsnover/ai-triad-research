@@ -611,8 +611,10 @@ export interface ProcessRewardEntry {
 export interface TurnValidationConfig {
   /** Master switch. Default: true. */
   enabled?: boolean;
-  /** Max retries per turn. Hard-capped at 3 (higher values clamped). Default: 3. */
-  maxRetries?: 0 | 1 | 2 | 3;
+  /** Max retries per turn. Hard-capped at 4 (higher values clamped). Default: 4. */
+  maxRetries?: 0 | 1 | 2 | 3 | 4;
+  /** Minimum orchestration score to accept a turn without retry. Default: 0.75. */
+  scoreThreshold?: number;
   /** Skip the LLM judge (Stage B) and use only deterministic checks. Default: false. */
   deterministicOnly?: boolean;
   /** Model override for the Stage-B judge. */
@@ -1408,6 +1410,7 @@ export type InterventionMove =
   | 'PIN' | 'PROBE' | 'CHALLENGE'
   | 'CLARIFY' | 'CHECK' | 'SUMMARIZE'
   | 'ACKNOWLEDGE' | 'REVOICE'
+  | 'POLICY_CHALLENGE'
   | 'META-REFLECT'
   | 'COMPRESS' | 'COMMIT';
 
@@ -1422,6 +1425,7 @@ export const MOVE_TO_FAMILY: Record<InterventionMove, InterventionFamily> = {
   PIN: 'elicitation', PROBE: 'elicitation', CHALLENGE: 'elicitation',
   CLARIFY: 'repair', CHECK: 'repair', SUMMARIZE: 'repair',
   ACKNOWLEDGE: 'reconciliation', REVOICE: 'reconciliation',
+  POLICY_CHALLENGE: 'elicitation',
   'META-REFLECT': 'reflection',
   COMPRESS: 'synthesis', COMMIT: 'synthesis',
 };
@@ -1431,6 +1435,7 @@ export const MOVE_TO_FORCE: Record<InterventionMove, InteractionalForce> = {
   PIN: 'interrogative', PROBE: 'interrogative', CHALLENGE: 'interrogative',
   CLARIFY: 'interrogative', CHECK: 'reflective', SUMMARIZE: 'declarative',
   ACKNOWLEDGE: 'declarative', REVOICE: 'reflective',
+  POLICY_CHALLENGE: 'interrogative',
   'META-REFLECT': 'reflective',
   COMPRESS: 'reflective', COMMIT: 'reflective',
 };

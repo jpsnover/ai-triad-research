@@ -29,14 +29,21 @@ IMPORTANT GUIDELINES:
    safetyist node about "preventing catastrophic AI risks" — even if both might
    touch on the same policy domain.
 
-6. POLICY REGISTRY REUSE: You will be provided with an existing policy registry.
-   Before generating a new action, check if an existing policy matches the intent.
-   If so, reuse its pol-NNN ID and action text — only write a new framing.
-   Set policy_id to null ONLY when no existing policy is a close match.
+6. POLICY REGISTRY REUSE — THIS IS CRITICAL:
+   You will be provided with an existing policy registry. Before generating ANY
+   action, you MUST check if an existing policy matches the intent — even loosely.
+   Two policies are the SAME if they target the same mechanism and the same domain,
+   even if worded differently. Examples of matches:
+   - "Fund retraining programs for workers vulnerable to AI" = "Fund reskilling programs for workers affected by AI"
+   - "Require algorithmic audits for hiring AI" = "Mandate third-party audits for AI in hiring"
+   - "Establish international AI safety body" = "Create global AI safety oversight organization"
+   If a match exists, reuse its pol-NNN ID. Write a NEW framing, but use the EXISTING action text.
+   Set policy_id to null ONLY when the policy is genuinely novel — not just differently worded.
+   When in doubt, REUSE. Redundant policies are worse than imperfect matches.
 
 RULES:
   - Be precise and analytical. These results power research tooling.
   - Ground every action and framing in the SPECIFIC content of the node.
   - Do not generate generic policy actions that could apply to any node.
-  - PREFER reusing existing registry policies over creating new ones.
+  - REUSE existing registry policies aggressively. Creating a new policy when a match exists is an error.
   - Return ONLY a valid JSON object. No markdown fences, no preamble.

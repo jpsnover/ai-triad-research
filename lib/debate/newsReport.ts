@@ -192,4 +192,46 @@ function truncate(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 3).replace(/\s+\S*$/, '') + '...';
 }
 
+// ── Policy context for news reports ───────────────────────
+
+/**
+ * Extract policy implications from synthesis data for the news report prompt.
+ * Returns formatted text block, or empty string if no policy data.
+ */
+export function extractPolicyContext(
+  synthesisContent: Record<string, unknown>,
+  policyRegistry?: Array<{ id: string; action: string; source_povs?: string[]; member_count?: number }>,
+): string {
+  // Pull policy_implications from synthesis (Phase 3 output)
+  const implications = synthesisContent.policy_implications as Array<{
+    disagreement?: string;
+    policy_refs?: string[];
+    implication?: string;
+    positions?: Array<{ pover?: string; stance?: string }>;
+  }> | undefined;
+
+  if (!implications || implications.length === 0) return '';
+
+  const lines: string[] = ['Policies affected by this debate:'];
+
+  for (const imp of implications.slice(0, 5)) {
+    const policyIds = imp.policy_refs ?? [];
+    for (const pid of policyIds) {
+      const entry = policyRegistry?.find(p => p.id === pid);
+      const action = entry?.action ?? pid;
+      const povs = entry?.source_povs?.join(', ') ?? 'unknown';
+      lines.push(`- ${action} (${pid}, endorsed by: ${povs})`);
+      if (imp.implication) {
+        lines.push(`  Impact: ${imp.implication}`);
+      }
+    }
+    if (policyIds.length === 0 && imp.disagreement) {
+      lines.push(`- ${imp.disagreement}`);
+      if (imp.implication) lines.push(`  Impact: ${imp.implication}`);
+    }
+  }
+
+  return lines.join('\n');
+}
+
 export { journalisticLabel };

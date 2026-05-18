@@ -599,7 +599,7 @@ export class DebateEngine {
 
   /** Pre-loaded source evidence index (lazy). */
   private _sourceEvidenceIndex?: import('./evidenceFromSummaries.js').SourceEvidenceIndex;
-  private _docTitles?: import('./evidenceFromSummaries.js').DocTitleMap;
+  private _docTitles?: import('./evidenceFromSummaries.js').DocMetaMap;
 
   private get sourceEvidenceIndex(): import('./evidenceFromSummaries.js').SourceEvidenceIndex | undefined {
     if (this._sourceEvidenceIndex !== undefined) return this._sourceEvidenceIndex;
@@ -617,8 +617,8 @@ export class DebateEngine {
     return undefined;
   }
 
-  /** Map of doc_id → human-readable title from source metadata (lazy). */
-  private get docTitles(): import('./evidenceFromSummaries.js').DocTitleMap | undefined {
+  /** Map of doc_id → source metadata with title, URL, provenance (lazy). */
+  private get docTitles(): import('./evidenceFromSummaries.js').DocMetaMap | undefined {
     if (this._docTitles !== undefined) return this._docTitles;
     try {
       const __dir = path.dirname(fileURLToPath(import.meta.url));
@@ -628,17 +628,23 @@ export class DebateEngine {
       const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       const sourcesRoot = config.sources_root ? path.resolve(root, config.sources_root) : null;
       if (!sourcesRoot || !fs.existsSync(sourcesRoot)) return undefined;
-      const titles: Record<string, string> = {};
+      const metaMap: Record<string, { title: string; resolved_url?: string; provenance_label?: string }> = {};
       for (const entry of fs.readdirSync(sourcesRoot, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
         const metaPath = path.join(sourcesRoot, entry.name, 'metadata.json');
         if (!fs.existsSync(metaPath)) continue;
         try {
           const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          if (meta.title) titles[entry.name] = meta.title;
+          if (meta.title) {
+            const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
+            if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
+            if (meta.provenance?.length > 0 && meta.provenance[0].id) docMeta.provenance_label = meta.provenance[0].id;
+            if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
+            metaMap[entry.name] = docMeta;
+          }
         } catch { /* skip */ }
       }
-      this._docTitles = Object.keys(titles).length > 0 ? titles : undefined;
+      this._docTitles = Object.keys(metaMap).length > 0 ? metaMap : undefined;
       return this._docTitles;
     } catch { return undefined; }
   }

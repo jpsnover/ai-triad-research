@@ -85,7 +85,7 @@ function Get-AITSource {
     }
 
     $SummariesDir = Get-SummariesDir
-    $Results = [System.Collections.Generic.List[AITSource]]::new()
+    $Results = [System.Collections.Generic.List[object]]::new()
 
     foreach ($Folder in $Folders) {
         $MetaPath = Join-Path $Folder.FullName 'metadata.json'
@@ -152,7 +152,7 @@ function Get-AITSource {
 
         # Load summary statistics — prefer cached values in metadata, fall back to summary file
         $TotalClaims      = 0
-        $ClaimsPov        = [ClaimsByPov]::new()
+        $ClaimsPov        = [PSCustomObject]@{ Accelerationist = 0; Safetyist = 0; Skeptic = 0; Situations = 0 }
         $TotalFacts       = 0
         $UnmappedConcepts = 0
 
@@ -203,7 +203,11 @@ function Get-AITSource {
         # Hydrate ModelInfo from summary's model_info or legacy ai_model field
         $MInfo = $null
         if ($null -ne $Summary) {
-            $MInfo = [AITModelInfo]::new()
+            $MInfo = [PSCustomObject]@{
+                Model = $null; Temperature = 0; MaxTokens = 0; ExtractionMode = $null
+                TaxonomyFilter = $null; TaxonomyNodes = 0; FireConfidenceThreshold = 0
+                Chunked = $false; ChunkCount = 0; FireStats = $null
+            }
             $SP = $Summary.PSObject.Properties
             if ($SP['model_info']) {
                 $Mi = $Summary.model_info
@@ -226,31 +230,36 @@ function Get-AITSource {
             }
         }
 
-        $Src                   = [AITSource]::new()
-        $Src.Id                = $Meta.id
-        $Src.Title             = if ($Props['title'])            { $Meta.title }            else { $null }
-        $Src.Url               = if ($Props['url'])              { $Meta.url }              else { $null }
-        $Src.Authors           = if ($Props['authors'])          { $Meta.authors }          else { @() }
-        $Src.DatePublished     = if ($Props['date_published'])   { $Meta.date_published }   else { $null }
-        $Src.DateIngested      = if ($Props['date_ingested'])    { $Meta.date_ingested }    else { $null }
-        $Src.ImportTime        = if ($Props['import_time'])      { $Meta.import_time }      else { $null }
-        $Src.SourceTime        = if ($Props['source_time'])      { $Meta.source_time }      else { $null }
-        $Src.SourceType        = if ($Props['source_type'])      { $Meta.source_type }      else { $null }
-        $Src.PovTags           = if ($Props['pov_tags'])         { $Meta.pov_tags }         else { @() }
-        $Src.TopicTags         = if ($Props['topic_tags'])       { $Meta.topic_tags }       else { @() }
-        $Src.RolodexAuthorIds  = if ($Props['rolodex_author_ids']) { $Meta.rolodex_author_ids } else { @() }
-        $Src.ArchiveStatus     = if ($Props['archive_status'])   { $Meta.archive_status }   else { $null }
-        $Src.SummaryVersion    = if ($Props['summary_version'])  { $Meta.summary_version }  else { $null }
-        $Src.SummaryStatus     = if ($Props['summary_status'])   { $Meta.summary_status }   else { $null }
-        $Src.SummaryUpdated    = if ($Props['summary_updated'])  { $Meta.summary_updated }  else { $null }
-        $Src.OneLiner          = if ($Props['one_liner'])        { $Meta.one_liner }        else { $null }
-        $Src.MDPath            = $MDPath
-        $Src.Directory         = $Folder.FullName
-        $Src.TotalClaims       = $TotalClaims
-        $Src.ClaimsByPov       = $ClaimsPov
-        $Src.TotalFacts        = $TotalFacts
-        $Src.UnmappedConcepts  = $UnmappedConcepts
-        $Src.ModelInfo         = $MInfo
+        $Src = [PSCustomObject]@{
+            PSTypeName     = 'AITSource'
+            Id             = $Meta.id
+            Title          = if ($Props['title'])            { $Meta.title }            else { $null }
+            Url            = if ($Props['url'])              { $Meta.url }              else { $null }
+            Authors        = if ($Props['authors'])          { $Meta.authors }          else { @() }
+            DatePublished  = if ($Props['date_published'])   { $Meta.date_published }   else { $null }
+            DateIngested   = if ($Props['date_ingested'])    { $Meta.date_ingested }    else { $null }
+            ImportTime     = if ($Props['import_time'])      { $Meta.import_time }      else { $null }
+            SourceTime     = if ($Props['source_time'])      { $Meta.source_time }      else { $null }
+            SourceType     = if ($Props['source_type'])      { $Meta.source_type }      else { $null }
+            PovTags        = if ($Props['pov_tags'])         { $Meta.pov_tags }         else { @() }
+            TopicTags      = if ($Props['topic_tags'])       { $Meta.topic_tags }       else { @() }
+            RolodexAuthorIds = if ($Props['rolodex_author_ids']) { $Meta.rolodex_author_ids } else { @() }
+            ArchiveStatus  = if ($Props['archive_status'])   { $Meta.archive_status }   else { $null }
+            SummaryVersion = if ($Props['summary_version'])  { $Meta.summary_version }  else { $null }
+            SummaryStatus  = if ($Props['summary_status'])   { $Meta.summary_status }   else { $null }
+            SummaryUpdated = if ($Props['summary_updated'])  { $Meta.summary_updated }  else { $null }
+            OneLiner       = if ($Props['one_liner'])        { $Meta.one_liner }        else { $null }
+            Provenance     = if ($Props['provenance'])       { @($Meta.provenance) }    else { @() }
+            ProvenanceStatus = if ($Props['provenance_status']) { $Meta.provenance_status } else { $null }
+            ResolvedUrl    = if ($Props['resolved_url'])     { $Meta.resolved_url }     else { $null }
+            MDPath         = $MDPath
+            Directory      = $Folder.FullName
+            TotalClaims    = $TotalClaims
+            ClaimsByPov    = $ClaimsPov
+            TotalFacts     = $TotalFacts
+            UnmappedConcepts = $UnmappedConcepts
+            ModelInfo      = $MInfo
+        }
 
         $Results.Add($Src)
     }

@@ -39,6 +39,8 @@ function Invoke-PolicyRefinement {
 
         [switch]$DryRun,
 
+        [switch]$StaleOnly,
+
         [switch]$PassThru
     )
 
@@ -92,6 +94,15 @@ function Invoke-PolicyRefinement {
     Write-Step 'Finding policies with multiple framings'
 
     $MultiPolicies = @($Registry.policies | Where-Object { $_.member_count -gt 1 })
+
+    if ($StaleOnly) {
+        $Before = $MultiPolicies.Count
+        $MultiPolicies = @($MultiPolicies | Where-Object {
+            $RefAt = if ($_.PSObject.Properties['framing_count_at_refinement']) { [int]$_.framing_count_at_refinement } else { 0 }
+            ($_.member_count - $RefAt) -ge 3
+        })
+        Write-Info "StaleOnly filter: $Before multi-member -> $($MultiPolicies.Count) stale (member_count grew by >=3 since last refinement)"
+    }
 
     if ($MultiPolicies.Count -eq 0) {
         Write-OK 'No policies with member_count > 1 found. Nothing to refine.'
@@ -255,6 +266,17 @@ INSTRUCTIONS:
         # -- Update policy_actions.json --
         if ($PSCmdlet.ShouldProcess("$Pid in policy_actions.json", "Update action to '$RefinedAction'")) {
             $Policy.action = $RefinedAction
+            # Track refinement timestamp and framing count for incremental refinement
+            if ($Policy.PSObject.Properties['last_refined_at']) {
+                $Policy.last_refined_at = (Get-Date).ToString('yyyy-MM-dd')
+            } else {
+                $Policy | Add-Member -NotePropertyName 'last_refined_at' -NotePropertyValue (Get-Date).ToString('yyyy-MM-dd')
+            }
+            if ($Policy.PSObject.Properties['framing_count_at_refinement']) {
+                $Policy.framing_count_at_refinement = $Policy.member_count
+            } else {
+                $Policy | Add-Member -NotePropertyName 'framing_count_at_refinement' -NotePropertyValue $Policy.member_count
+            }
         }
 
         # -- Cascade to all referencing nodes --

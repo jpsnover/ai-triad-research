@@ -154,6 +154,7 @@ function Update-PolicyRegistry {
                     action       = $U.Action
                     source_povs  = @($U.POV)
                     member_count = 1
+                    status       = 'active'
                 }
 
                 # Update the node in the taxonomy file
@@ -201,6 +202,10 @@ function Update-PolicyRegistry {
                 $Pol.member_count = $FinalRefs[$Pid].Count
                 $Pol.source_povs  = @($FinalRefs[$Pid].POVs | Sort-Object)
             }
+            # Ensure new schema fields exist (preserve existing values)
+            if (-not $Pol.PSObject.Properties['status'])       { $Pol | Add-Member -NotePropertyName 'status'       -NotePropertyValue 'active' }
+            # Preserve: real_world_refs, last_refined_at, framing_count_at_refinement, superseded_by, merged_into
+            # (no action needed — they survive the rebuild if already present)
         }
 
         # Write registry

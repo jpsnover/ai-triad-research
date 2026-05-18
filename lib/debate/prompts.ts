@@ -1581,8 +1581,8 @@ ${draft}
 ${input.taxonomyContext}
 
 Ground the opening statement in the taxonomy. For each connection:
-1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1 sentence how the node informed the argument.
-2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.
+1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument.
+2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies. For each, explain in 1-2 sentences how the argument connects to the policy.
 3. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -1592,7 +1592,10 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "acc-desires-002", "relevance": "1-4 sentences explaining connection"},
     {"node_id": "acc-intentions-001", "relevance": "1-4 sentences explaining connection"}
   ],
-  "policy_refs": ["pol-001", "pol-012"],
+  "policy_refs": [
+    {"policy_id": "pol-001", "relevance": "1-2 sentences: how the argument relates to this policy"},
+    {"policy_id": "pol-012", "relevance": "1-2 sentences: how the argument relates to this policy"}
+  ],
   "grounding_confidence": 0.85
 }`;
 }
@@ -1930,7 +1933,7 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
 }
 
 /** Build the JSON field for the specific intervention response required by the pending moderator move. */
-function _buildInterventionResponseField(pi?: StagePromptInput['pendingIntervention']): string {
+export function _buildInterventionResponseField(pi?: StagePromptInput['pendingIntervention']): string {
   if (!pi?.isTargeted) return '';
   const RESPONSE_FIELDS: Record<string, string> = {
     PIN:            ',\n  "pin_response": {"position": "agree | disagree | conditional", "condition": "... (if conditional)", "brief_reason": "1-2 sentences"}',
@@ -2003,8 +2006,8 @@ ${draft}
 ${input.taxonomyContext}
 ${refsHistoryBlock}${buildPlannedNodesBlock(plan)}
 Ground the draft statement in the taxonomy. For each connection:
-1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1 sentence how the node informed the argument.
-2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.
+1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument.
+2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies. For each, explain in 1-2 sentences how the argument connects to the policy — what it supports, what it challenges, or what it implies for implementation. Do not just list IDs.
 3. MOVE ANNOTATIONS: Finalize the dialectical move annotations. For each move actually executed in the statement (not just planned), provide the move name, optional AN-ID target, and a brief description.
 4. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
 
@@ -2015,7 +2018,10 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "acc-desires-002", "relevance": "1-4 sentences explaining connection"},
     {"node_id": "acc-intentions-001", "relevance": "1-4 sentences explaining connection"}
   ],
-  "policy_refs": ["pol-001", "pol-012"],
+  "policy_refs": [
+    {"policy_id": "pol-001", "relevance": "1-2 sentences: how the argument relates to this policy"},
+    {"policy_id": "pol-012", "relevance": "1-2 sentences: how the argument relates to this policy"}
+  ],
   "move_annotations": [
     {"move": "DISTINGUISH", "target": "AN-3", "detail": "Separated regulatory capture from legitimate oversight"},
     {"move": "EXTEND", "detail": "Built on innovation metrics with new evidence"}
@@ -3191,6 +3197,7 @@ Available intervention moves (organized by family):
 - Elicitation: PIN (evasion of direct question), PROBE (unsupported claim), CHALLENGE (contradiction or stagnation)
 - Repair: CLARIFY (undefined term), CHECK (misunderstanding), SUMMARIZE (periodic anchor)
 - Reconciliation: ACKNOWLEDGE (reward concession), REVOICE (translate jargon)
+- Policy: POLICY_CHALLENGE (force engagement with a specific policy mechanism when debaters argue only at the level of principles)
 - Reflection: META-REFLECT (identify cruxes, examine assumptions)
 - Concluding: COMPRESS (force brevity), COMMIT (final position — concluding phase only)
 
@@ -3208,7 +3215,7 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
   "metaphor_reframe": false,
   "drift_detected": false,
   "intervene": false,
-  "suggested_move": null,         // REQUIRED when intervene=true: one of REDIRECT, BALANCE, SEQUENCE, PIN, PROBE, CHALLENGE, CLARIFY, CHECK, SUMMARIZE, ACKNOWLEDGE, REVOICE, META-REFLECT, COMPRESS, COMMIT
+  "suggested_move": null,         // REQUIRED when intervene=true: one of REDIRECT, BALANCE, SEQUENCE, PIN, PROBE, CHALLENGE, CLARIFY, CHECK, SUMMARIZE, ACKNOWLEDGE, REVOICE, META-REFLECT, COMPRESS, COMMIT, POLICY_CHALLENGE
   "target_debater": null,         // REQUIRED when intervene=true: which debater the intervention targets
   "trigger_reasoning": null,      // REQUIRED when intervene=true: why this intervention is warranted
   "trigger_evidence": null        // REQUIRED when intervene=true: { "signal_name": "...", "observed_behavior": "...", "source_claim": "...", "source_round": null }
@@ -3288,6 +3295,8 @@ function getMoveSpecificInstructions(move: InterventionMove, target: string, sou
       return `${target} made a substantively important point that other debaters aren't engaging with — possibly due to jargon or register mismatch. Restate the point in plain, register-neutral language.`;
     case 'META-REFLECT':
       return `Ask ${target} to step outside their argument. What would change their mind? Or: identify a shared assumption that all debaters are relying on without examining it.`;
+    case 'POLICY_CHALLENGE':
+      return `${target}'s position implies specific policy actions, but they have only argued at the level of principles. Name the specific policy mechanism their position entails and ask: do they support this concrete implementation, or only the abstract principle? Force them to engage with the mechanism, tradeoffs, and feasibility — not just the aspiration.`;
     case 'COMPRESS':
       return `Ask ${target} for their single most important reason in one sentence (max 40 words).`;
     case 'COMMIT':
@@ -3314,9 +3323,14 @@ export function newsReportPrompt(
   argumentSummary: string,
   transcriptHighlights: string,
   documentAnalysis?: string,
+  policyContext?: string,
 ): string {
   const docBlock = documentAnalysis
     ? `\n=== SOURCE DOCUMENT ===\n${documentAnalysis}\n`
+    : '';
+
+  const policyBlock = policyContext
+    ? `\n=== POLICY IMPLICATIONS ===\n${policyContext}\n`
     : '';
 
   return `You are a policy journalist writing for an informed general audience.
@@ -3348,7 +3362,7 @@ ${argumentSummary}
 ${docBlock}
 === TRANSCRIPT HIGHLIGHTS ===
 ${transcriptHighlights}
-
+${policyBlock}
 ARTICLE STRUCTURE:
 
 1. HEADLINE: Active voice, specific, frames the policy question.
@@ -3376,13 +3390,19 @@ ARTICLE STRUCTURE:
    or a definitional disagreement (talking past each other)? What
    evidence or event would resolve it?
 
-7. ## Bottom Line (1-2 sentences): What a policymaker should take away.
+7. ## Policy at Stake (1 paragraph): If policy implications data is
+   available, name 2-3 specific policy actions affected by this
+   debate's conclusions. For each, state whether the debate
+   strengthened, weakened, or complicated the case for it — and why.
+   Use plain language, not pol-NNN IDs.
+
+8. ## Bottom Line (1-2 sentences): What a policymaker should take away.
    Not a recommendation — a framing of what to watch for.
 
 OUTPUT: Return the article as plain text. Headline on line 1, subhead
 on line 2 (italic), then body paragraphs separated by blank lines.
-Use "## " markdown headers for Common Ground, The Crux, and Bottom Line.
-Target 600-800 words total. No JSON, no code fences.`;
+Use "## " markdown headers for Common Ground, The Crux, Policy at Stake,
+and Bottom Line. Target 700-900 words total. No JSON, no code fences.`;
 }
 
 // Exported for envelope builders (lib/debate/envelopes.ts)

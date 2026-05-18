@@ -198,8 +198,8 @@ export function resolveTurnValidationConfig(
   c: TurnValidationConfig | undefined,
 ): Required<TurnValidationConfig> {
   const src = c ?? {};
-  const rawRetries = src.maxRetries ?? 2;
-  const clamped = Math.max(0, Math.min(2, rawRetries));
+  const rawRetries = src.maxRetries ?? 4;
+  const clamped = Math.max(0, Math.min(4, rawRetries));
   return {
     enabled: src.enabled ?? true,
     maxRetries: clamped,
@@ -210,6 +210,7 @@ export function resolveTurnValidationConfig(
       argumentation: src.sampleRate?.argumentation ?? 1,
       concluding: src.sampleRate?.concluding ?? 1,
     },
+    scoreThreshold: Math.max(0, Math.min(1, src.scoreThreshold ?? 0.75)),
     preCheckModel: src.preCheckModel ?? 'gemini-2.0-flash-lite',
     skipPreCheck: src.skipPreCheck ?? false,
   };
@@ -672,32 +673,6 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     ...(judge?.weaknesses ?? []),
   ];
 
-  // Outcome — retry triggers (in priority order):
-  // 1. Stage A structural error
-  // 2. Judge explicitly recommends retry
-  // 3. Judge quality_score below threshold (substantive weaknesses warrant retry)
-  const retryBudget = p.config.maxRetries;
-  const JUDGE_RETRY_THRESHOLD = 0.55; // quality_score below this triggers retry
-  const judgeQualityLow = judge != null && judge.quality_score < JUDGE_RETRY_THRESHOLD;
-  let outcome: TurnValidation['outcome'];
-  if (hasStageAError && retryBudget > 0) {
-    outcome = 'retry';
-  } else if (judge && judge.recommend === 'retry' && retryBudget > 0) {
-    outcome = 'retry';
-  } else if (judgeQualityLow && retryBudget > 0) {
-    outcome = 'retry';
-  } else if (judge && judge.recommend === 'retry' && retryBudget === 0) {
-    outcome = 'accept_with_flag';
-  } else if (judgeQualityLow && retryBudget === 0) {
-    outcome = 'accept_with_flag';
-  } else if (judge && judge.recommend === 'accept_with_flag') {
-    outcome = 'accept_with_flag';
-  } else if (hasStageAError && retryBudget === 0) {
-    outcome = 'accept_with_flag';
-  } else {
-    outcome = 'pass';
-  }
-
   // Process reward: 40% Stage A structural dimensions + 60% judge quality score.
   // When no judge ran (deterministic-only or out-of-sample), quality defaults to 0.7
   // so deterministic-pass turns get 0.78, not a perfect 1.0.
@@ -710,6 +685,38 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     0.1 * (dims.clarifies.pass ? 1 : 0);
   const judgeQuality = judge?.quality_score ?? 0.7;
   const process_reward = 0.4 * stageAScore + 0.6 * judgeQuality;
+
+  // Outcome — retry triggers (in priority order):
+  // 1. Stage A structural error
+  // 2. Judge explicitly recommends retry
+  // 3. Judge quality_score below threshold (substantive weaknesses warrant retry)
+  // 4. Orchestration score below scoreThreshold (composite quality gate)
+  const retryBudget = p.config.maxRetries;
+  const JUDGE_RETRY_THRESHOLD = 0.55; // quality_score below this triggers retry
+  const judgeQualityLow = judge != null && judge.quality_score < JUDGE_RETRY_THRESHOLD;
+  const scoreBelowThreshold = process_reward < p.config.scoreThreshold;
+  let outcome: TurnValidation['outcome'];
+  if (hasStageAError && retryBudget > 0) {
+    outcome = 'retry';
+  } else if (judge && judge.recommend === 'retry' && retryBudget > 0) {
+    outcome = 'retry';
+  } else if (judgeQualityLow && retryBudget > 0) {
+    outcome = 'retry';
+  } else if (scoreBelowThreshold && retryBudget > 0) {
+    outcome = 'retry';
+  } else if (judge && judge.recommend === 'retry' && retryBudget === 0) {
+    outcome = 'accept_with_flag';
+  } else if (judgeQualityLow && retryBudget === 0) {
+    outcome = 'accept_with_flag';
+  } else if (scoreBelowThreshold && retryBudget === 0) {
+    outcome = 'accept_with_flag';
+  } else if (judge && judge.recommend === 'accept_with_flag') {
+    outcome = 'accept_with_flag';
+  } else if (hasStageAError && retryBudget === 0) {
+    outcome = 'accept_with_flag';
+  } else {
+    outcome = 'pass';
+  }
 
   return {
     outcome,
@@ -890,7 +897,7 @@ export function checkDirectiveContentCompliance(
   }
 
   if (intervention.move === 'PROBE') {
-    const hasEvidence = /\bthe evidence\b|\bevidence is\b|\bdata\b|\bcitation\b|\bstudy\b|\bfindings?\b/.test(firstParagraph);
+    const hasEvidence = /\bthe evidence\b|\bevidence is\b|\bdata\b|\bcitation\b|\bstud(?:y|ies)\b|\bfindings?\b|\bresearch\b|\bexample\b|\bprecedent\b|\bcase of\b|\bhistor(?:y|ical)\b|\b\d{4}\b|\bstatistic/i.test(firstParagraph);
     return hasEvidence
       ? { compliant: true, repair_hint: '', directive_terms: ['evidence', 'data', 'citation'], matched_terms: 1 }
       : { compliant: false, repair_hint: 'Your first paragraph must present specific evidence — cite a data point, study, or concrete example. Begin with "The evidence is..." or lead with your citation.', directive_terms: ['evidence', 'data'], matched_terms: 0 };

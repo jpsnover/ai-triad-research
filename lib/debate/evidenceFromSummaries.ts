@@ -43,8 +43,16 @@ export interface EvidenceBrief {
   totalCandidates: number;
 }
 
-/** Map of doc_id → human-readable document title */
+/** Map of doc_id → human-readable document title (legacy, still accepted) */
 export type DocTitleMap = Record<string, string>;
+
+/** Map of doc_id → source metadata with title, URL, and provenance label */
+export interface DocMeta {
+  title: string;
+  resolved_url?: string | null;
+  provenance_label?: string;
+}
+export type DocMetaMap = Record<string, DocMeta>;
 
 // ── Evidence retrieval ────────────────────────────────────
 
@@ -70,7 +78,7 @@ export function retrieveSourceEvidence(
   index: SourceEvidenceIndex,
   maxFacts: number = 3,
   maxKeyPoints: number = 2,
-  docTitles?: DocTitleMap,
+  docTitles?: DocTitleMap | DocMetaMap,
 ): EvidenceBrief {
   const nodeSet = new Set(targetNodeIds);
 
@@ -135,13 +143,24 @@ export function retrieveSourceEvidence(
 
 // ── Formatting ────────────────────────────────────────────
 
-function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], docTitles?: DocTitleMap): string {
-  if (facts.length === 0 && keyPoints.length === 0) return '';
+/** Resolve doc_id to metadata. Handles both legacy DocTitleMap (string values) and DocMetaMap (object values). */
+function resolveMeta(docId: string, docTitles?: DocTitleMap | DocMetaMap): DocMeta {
+  const entry = docTitles?.[docId];
+  if (!entry) return { title: docId };
+  if (typeof entry === 'string') return { title: entry };
+  return entry;
+}
 
-  const resolveTitle = (docId: string): string => {
-    if (docTitles?.[docId]) return docTitles[docId];
-    return docId;
-  };
+/** Format a source attribution line for the evidence block (plain text — LLM-friendly).
+ *  Provenance labels (arXiv IDs, DOIs) are deliberately omitted here — showing them
+ *  teaches the LLM the ID pattern, which it then fabricates for other citations.
+ *  Links are added post-draft by linkifyEvidenceCitations(). */
+function formatSourceAttribution(meta: DocMeta): string {
+  return `"${meta.title}"`;
+}
+
+function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], docTitles?: DocTitleMap | DocMetaMap): string {
+  if (facts.length === 0 && keyPoints.length === 0) return '';
 
   const lines: string[] = ['=== AVAILABLE SOURCE EVIDENCE ==='];
   lines.push('Cite 1-2 of these in your statement. Reference the source by its title. Do NOT list-cite all — weave the strongest into your argument.');
@@ -152,9 +171,9 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], d
     for (let i = 0; i < facts.length; i++) {
       const f = facts[i];
       const temporal = f.temporal_bound ? ` (${f.temporal_bound})` : '';
-      const title = resolveTitle(f.doc_id);
+      const meta = resolveMeta(f.doc_id, docTitles);
       lines.push(`  [${i + 1}] "${f.claim}"`);
-      lines.push(`      — "${title}"${temporal}`);
+      lines.push(`      — ${formatSourceAttribution(meta)}${temporal}`);
     }
     lines.push('');
   }
@@ -163,14 +182,46 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], d
     lines.push('Source document analysis:');
     for (let i = 0; i < keyPoints.length; i++) {
       const kp = keyPoints[i];
-      const title = resolveTitle(kp.doc_id);
+      const meta = resolveMeta(kp.doc_id, docTitles);
       lines.push(`  [${facts.length + i + 1}] ${kp.point}`);
       if (kp.verbatim) {
         lines.push(`      Quote: "${kp.verbatim}"`);
       }
-      lines.push(`      — "${title}" (${kp.pov}, ${kp.stance})`);
+      lines.push(`      — ${formatSourceAttribution(meta)} (${kp.pov}, ${kp.stance})`);
     }
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Post-process a debater's statement to replace title mentions with clickable markdown links.
+ * Called AFTER the draft is produced — does not require the LLM to generate link syntax.
+ */
+export function linkifyEvidenceCitations(
+  statement: string,
+  docTitles?: DocTitleMap | DocMetaMap,
+): string {
+  if (!docTitles || !statement) return statement;
+
+  let result = statement;
+  for (const [docId, entry] of Object.entries(docTitles)) {
+    const meta = typeof entry === 'string' ? { title: entry } as DocMeta : entry;
+    if (!meta.resolved_url) continue;
+
+    const title = meta.title;
+    if (!title || title.length < 5) continue;
+
+    // Match the title in the statement (case-insensitive, not already inside a markdown link)
+    const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`(?<!\\[)("?)(${escaped})("?)(?!\\])(?!\\()`, 'i');
+    const match = result.match(pattern);
+    if (match) {
+      const linkText = meta.provenance_label
+        ? `${title} (${meta.provenance_label})`
+        : title;
+      result = result.replace(pattern, `[${linkText}](${meta.resolved_url})`);
+    }
+  }
+  return result;
 }

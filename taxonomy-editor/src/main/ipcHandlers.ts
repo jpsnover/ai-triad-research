@@ -700,7 +700,7 @@ export function registerIpcHandlers(): void {
     } catch { return null; }
   }
 
-  /** Build doc_id → title map from source metadata.json files (best-effort). */
+  /** Build doc_id → metadata map from source metadata.json files (best-effort). */
   function loadDocTitles(): DocTitleMap | undefined {
     if (_docTitles) return _docTitles;
     try {
@@ -709,7 +709,7 @@ export function registerIpcHandlers(): void {
         ? path.resolve(PROJECT_ROOT, config.sources_root)
         : null;
       if (!sourcesRoot || !fs.existsSync(sourcesRoot)) return undefined;
-      const titles: DocTitleMap = {};
+      const metaMap: Record<string, { title: string; resolved_url?: string; provenance_label?: string }> = {};
       const dirs = fs.readdirSync(sourcesRoot, { withFileTypes: true });
       for (const entry of dirs) {
         if (!entry.isDirectory()) continue;
@@ -717,11 +717,20 @@ export function registerIpcHandlers(): void {
         if (!fs.existsSync(metaPath)) continue;
         try {
           const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-          if (meta.title) titles[entry.name] = meta.title;
+          if (meta.title) {
+            const docMeta: { title: string; resolved_url?: string; provenance_label?: string } = { title: meta.title };
+            if (meta.resolved_url) docMeta.resolved_url = meta.resolved_url;
+            if (meta.provenance?.length > 0 && meta.provenance[0].id) {
+              docMeta.provenance_label = meta.provenance[0].id;
+            }
+            // Fallback: if no resolved_url yet but url field exists, use it
+            if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
+            metaMap[entry.name] = docMeta;
+          }
         } catch { /* skip malformed metadata */ }
       }
-      _docTitles = Object.keys(titles).length > 0 ? titles : undefined;
-      if (_docTitles) console.log(`[evidence] Loaded ${Object.keys(titles).length} document titles`);
+      _docTitles = Object.keys(metaMap).length > 0 ? metaMap as unknown as DocTitleMap : undefined;
+      if (_docTitles) console.log(`[evidence] Loaded ${Object.keys(metaMap).length} document metadata entries`);
       return _docTitles;
     } catch { return undefined; }
   }

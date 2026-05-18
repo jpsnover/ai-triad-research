@@ -75,6 +75,11 @@ class AITSource {
     [string]       $MDPath
     [string]       $Directory
 
+    # Provenance (populated from metadata.json provenance fields)
+    [object]       $Provenance
+    [string]       $ProvenanceStatus
+    [string]       $ResolvedUrl
+
     # Summary statistics (populated when summary exists)
     [int]          $TotalClaims
     [ClaimsByPov]  $ClaimsByPov
