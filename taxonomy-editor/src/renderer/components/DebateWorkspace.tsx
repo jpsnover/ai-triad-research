@@ -1738,6 +1738,31 @@ function OpeningActions() {
     );
   }
 
+  // Some AI POVers haven't delivered openings yet — allow resuming
+  const aiPoversExpected = (activeDebate.active_povers ?? []).filter(p => p !== 'user');
+  const aiPoversWithOpening = activeDebate.transcript
+    .filter(e => e.type === 'opening' && e.speaker !== 'user')
+    .map(e => e.speaker);
+  const missingPovers = aiPoversExpected.filter(p => !aiPoversWithOpening.includes(p));
+
+  if (missingPovers.length > 0) {
+    return (
+      <div className="debate-action-bar">
+        {debateError && <div className="debate-error">{debateError}</div>}
+        <div className="debate-action-hint">
+          {missingPovers.length === 1
+            ? `${POVER_INFO[missingPovers[0] as keyof typeof POVER_INFO]?.label ?? missingPovers[0]} still needs to deliver an opening statement.`
+            : `${missingPovers.length} debaters still need to deliver opening statements.`}
+        </div>
+        <div className="debate-action-bar-inner">
+          <button className="btn btn-primary" onClick={() => void runOpeningStatements()}>
+            Resume Opening Statements
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Opening phase complete but phase not yet transitioned (shouldn't happen normally)
   return (
     <div className="debate-action-bar">

@@ -2126,7 +2126,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       }
-      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers' });
+      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [] });
       // Load prompt config from session (Phase B)
       usePromptConfigStore.getState().loadSessionConfig(
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
@@ -2202,10 +2202,40 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     if (!activeDebate) return;
     const idsToRemove = new Set(entryIds);
     const filtered = activeDebate.transcript.filter(e => !idsToRemove.has(e.id));
+
+    // Clean up orphaned diagnostics entries
+    let diagnostics = activeDebate.diagnostics;
+    if (diagnostics) {
+      const cleanedEntries = { ...diagnostics.entries };
+      for (const id of idsToRemove) {
+        delete cleanedEntries[id];
+      }
+      diagnostics = { ...diagnostics, entries: cleanedEntries };
+    }
+
+    // Clean up orphaned AN nodes and edges referencing deleted entries
+    let an = activeDebate.argument_network;
+    if (an) {
+      const removedNodeIds = new Set<string>();
+      const cleanedNodes = an.nodes.filter(n => {
+        if (n.source_entry_id && idsToRemove.has(n.source_entry_id)) {
+          removedNodeIds.add(n.id);
+          return false;
+        }
+        return true;
+      });
+      const cleanedEdges = an.edges.filter(e =>
+        !removedNodeIds.has(e.source) && !removedNodeIds.has(e.target),
+      );
+      an = { nodes: cleanedNodes, edges: cleanedEdges };
+    }
+
     const updated: DebateSession = {
       ...activeDebate,
       updated_at: nowISO(),
       transcript: filtered,
+      ...(diagnostics ? { diagnostics } : {}),
+      ...(an ? { argument_network: an } : {}),
     };
     set({ activeDebate: updated });
     await saveDebate();
@@ -2644,6 +2674,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
     set({ openingOrder: shuffled });
 
+    // Persist on the debate object so it survives app restarts
+    const freshDebate = get().activeDebate;
+    if (freshDebate) {
+      set({ activeDebate: { ...freshDebate, opening_order: shuffled } });
+    }
+
     const claimCount = activeDebate.document_analysis?.i_nodes?.length;
     addTranscriptEntry({
       type: 'system',
@@ -2667,18 +2703,37 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
-    // Use the user-configurable opening order (randomized at beginDebate)
+    // Use the user-configurable opening order (randomized at proceedToOpening).
+    // Priority: Zustand state > persisted on debate object > default order.
     const { openingOrder } = get();
-    const aiPovers = openingOrder.length > 0
-      ? openingOrder.filter((p) => activeDebate.active_povers.includes(p))
-      : AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
+    const resolvedOrder = openingOrder.length > 0
+      ? openingOrder
+      : (activeDebate.opening_order && activeDebate.opening_order.length > 0)
+        ? activeDebate.opening_order
+        : AI_POVER_ORDER;
+    const aiPovers = (resolvedOrder as readonly (typeof AI_POVER_ORDER[number])[]).filter(
+      (p) => activeDebate.active_povers.includes(p),
+    );
 
-    // Collect prior statements as we go (sequential — each sees the ones before it)
+    // Idempotency: collect prior statements from existing openings (supports resume after interruption)
+    const existingOpenings = new Set(
+      activeDebate.transcript.filter(e => e.type === 'opening').map(e => e.speaker),
+    );
     const priorStatements: { speaker: string; statement: string }[] = [];
+    for (const poverId of aiPovers) {
+      const existing = activeDebate.transcript.find(e => e.type === 'opening' && e.speaker === poverId);
+      if (existing) {
+        const info = POVER_INFO[poverId];
+        priorStatements.push({ speaker: info.label, statement: existing.content });
+      }
+    }
 
     const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
 
     for (const poverId of aiPovers) {
+      // Skip POVers who already delivered an opening (idempotency after interruption)
+      if (existingOpenings.has(poverId)) continue;
+
       set({ debateGenerating: poverId });
       const info = POVER_INFO[poverId];
 
@@ -4595,6 +4650,16 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           ).join('\n')
         : undefined;
 
+      // Pass prior reflections so later camps don't duplicate earlier proposals
+      const priorReflections = results.map(r => ({
+        pov: r.pover,
+        edits: r.edits.map(e => ({
+          edit_type: e.edit_type,
+          proposed_label: e.proposed_label,
+          category: e.category,
+        })),
+      }));
+
       const prompt = reflectionPrompt(
         info.label,
         info.pov,
@@ -4607,6 +4672,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         convBlock,
         activeDebate.audience,
         info.doctrinal_boundaries,
+        priorReflections.length > 0 ? priorReflections : undefined,
       );
 
       try {

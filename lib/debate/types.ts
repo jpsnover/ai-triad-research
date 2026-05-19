@@ -411,6 +411,8 @@ export interface DebateSession {
   /** For document/url: the loaded text content for prompt injection */
   source_content: string;
   active_povers: SpeakerId[];
+  /** Persisted opening speaker order (shuffled at proceedToOpening). Survives app restarts. */
+  opening_order?: Exclude<SpeakerId, 'user'>[];
   user_is_pover: boolean;
   transcript: TranscriptEntry[];
   context_summaries: ContextSummary[];
@@ -717,6 +719,8 @@ export interface TurnAttempt {
   stage_diagnostics?: StageDiagnostics[];
   /** Effectiveness tracking for repair hints that were injected into THIS attempt. */
   hint_effectiveness?: HintEffectiveness[];
+  /** Repair hints from the judge that triggered this rerun (only set for attemptIdx > 0). */
+  input_repair_hints?: string[];
 }
 
 export interface TurnValidationTrail {
@@ -953,6 +957,10 @@ export interface StageDiagnostics {
   parse_error?: string;
   /** When true, this stage was frozen from a prior pipeline run (not re-generated). */
   frozen?: boolean;
+  /** What triggered this stage run: initial generation, per-stage retry, or orchestration rerun. */
+  retry_trigger?: 'initial' | 'stage-retry' | 'orchestration-rerun';
+  /** Repair hints that were active when this stage ran (only set when hints exist). */
+  repair_hints_in?: string[];
 }
 
 export interface BriefWorkProduct {
