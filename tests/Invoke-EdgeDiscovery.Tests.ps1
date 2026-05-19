@@ -58,7 +58,7 @@ Describe 'Edge validation (gaps 7.1-7.4)' {
                 }
             }
 
-            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -RepoRoot $TempDir 3>$null 6>$null
+            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -MaxConcurrent 1 -RepoRoot $TempDir 3>$null 6>$null
 
             $script:CapturedEdgesJson | Should -Not -BeNullOrEmpty
             $written = $script:CapturedEdgesJson | ConvertFrom-Json
@@ -107,7 +107,7 @@ Describe 'Edge validation (gaps 7.1-7.4)' {
                 }
             }
 
-            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -RepoRoot $TempDir 3>$null 6>$null
+            $null = Invoke-EdgeDiscovery -NodeId 'acc-beliefs-001' -Force -MaxConcurrent 1 -RepoRoot $TempDir 3>$null 6>$null
 
             $written = $script:CapturedEdgesJson | ConvertFrom-Json
             $written.edges.Count | Should -Be 9
