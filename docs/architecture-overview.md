@@ -45,27 +45,61 @@ The system serves researchers, policy analysts, and scholars who need to underst
 │                   Data Layer                                 │
 │  ┌───────────────────────────────────────────────────────┐  │
 │  │              ai-triad-data (sibling repo, ~410 MB)    │  │
-│  │  taxonomy/  sources/  summaries/  conflicts/  debates/│  │
+│  │  taxonomy/  summaries/  conflicts/  debates/          │  │
+│  └───────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │         ai-triad-sources (local-only, ~200 docs)      │  │
+│  │  sources/  (PDFs, DOCX, HTML — not in web mode)       │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                                                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │        GitHub API Backend (web/container mode)         │  │
+│  │  StorageBackend ─► GitHubAPIBackend ─► SSD cache      │  │
+│  │  STORAGE_MODE=github-api | filesystem                 │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Two-Repository Split
+## Repository Split
 
-Code and data live in separate repositories:
+Code, data, and source documents live in separate repositories:
 
-| Repository | Contents | Size |
-|---|---|---|
-| `ai-triad-research` (this repo) | All source code, scripts, Electron apps, CI/CD | ~50 MB |
-| `ai-triad-data` (sibling) | Taxonomy JSON, source documents, summaries, debates | ~410 MB |
+| Repository | Contents | Size | Access |
+|---|---|---|---|
+| `ai-triad-research` (this repo) | All source code, scripts, Electron apps, CI/CD | ~50 MB | GitHub |
+| `ai-triad-data` (sibling) | Taxonomy JSON, summaries, conflicts, debates, embeddings | ~410 MB | GitHub (API in web mode) |
+| `ai-triad-sources` (local-only) | Source PDFs, DOCX, HTML documents (~200 files) | Variable | Local filesystem only |
+
+**Sources separation:** Source documents were moved to a dedicated `ai-triad-sources` repo to keep `ai-triad-data` focused on structured JSON data accessible via the GitHub API. Summaries (derived from sources) remain in `ai-triad-data`. Sources are unavailable in web/container mode — the UI shows summaries and metadata but not original documents.
 
 The file `.aitriad.json` in the code repo maps relative paths to data directories. Data paths resolve in priority order: `$env:AI_TRIAD_DATA_ROOT` > `.aitriad.json` > platform-specific default (`%LOCALAPPDATA%\AITriad\data` on Windows, `~/Library/Application Support/AITriad/data` on macOS, `$XDG_DATA_HOME/aitriad/data` on Linux).
+
+### Data Backend (GitHub API-First)
+
+The Taxonomy Editor's web deployment uses the **GitHub API-First** backend — reading and writing `ai-triad-data` directly via the GitHub REST API instead of local filesystem I/O.
+
+**`StorageBackend` interface** — A 5-method abstraction (`readFile`, `writeFile`, `listDirectory`, `deleteFile`, `fileExists`) with two implementations:
+
+| Backend | `STORAGE_MODE` | Use Case |
+|---|---|---|
+| `FilesystemBackend` | `filesystem` | Electron desktop app, local development |
+| `GitHubAPIBackend` | `github-api` | Azure Container Apps web deployment |
+
+`fileIO.ts` keeps all domain logic (40+ functions for taxonomy, conflicts, edges, debates) but delegates raw I/O to the active backend. This minimizes blast radius — only the 5 I/O primitives are swapped.
+
+**Session context:** In API mode, server middleware resolves the authenticated user (from Azure Easy Auth headers) into a `SessionContext`. Reads target the user's session branch (if one exists) or `main`. Writes always target the user's `api-session/{userId}` branch (lazy-created on first edit). The cache has two layers: a shared main cache and per-user session overlays.
+
+**Local SSD cache** (`/tmp/taxonomy-cache/`) — Ephemeral cache with SHA-based manifest. On startup, if the cached SHA matches GitHub's `main` HEAD, the app serves entirely from cache (0 API calls, <100ms). Polling every 60s checks for changes; webhook acceleration reduces the stale window to ~2s.
+
+**Authentication:** GitHub App installation tokens (PEM in Azure Key Vault, 1-hour TTL, auto-refresh). Rate budget: ~145 calls/hr against 5,000/hr limit (97% headroom).
+
+For the complete technical specification, see [GitHub API-First Implementation Plan](./github-api-first-implementation.md).
 
 ## Major Subsystems
 
 ### 1. Taxonomy Model
 
-The core data structure — a graph of ~320 nodes representing arguments about AI policy, organized by perspective and argument type. Four POV camps (Accelerationist, Safetyist, Skeptic, Situations) each decomposed into Belief-Desire-Intention categories. Nodes link to each other via typed edges (SUPPORTS, CONTRADICTS, ASSUMES, etc.) and reference shared policy actions from a centralized registry of ~1,100 policies.
+The core data structure — a graph of ~565 nodes representing arguments about AI policy, organized by perspective and argument type. Four POV camps (Accelerationist, Safetyist, Skeptic, Situations) each decomposed into Belief-Desire-Intention categories. Nodes link to each other via typed edges (SUPPORTS, CONTRADICTS, ASSUMES, etc.) and reference shared policy actions from a centralized registry of ~1,100 policies.
 
 **See:** [Taxonomy & Data Model](./subsystem-taxonomy.md)
 
@@ -77,7 +111,37 @@ The core data structure — a graph of ~320 nodes representing arguments about A
 
 ### 3. Debate Engine
 
-A three-agent BDI debate system in TypeScript. Characters (Prometheus, Sentinel, Cassandra) argue grounded in the taxonomy, with a moderator agent managing interventions, convergence detection, and phase transitions. Produces structured transcripts with QBAF (Quantitative Bipolar Argumentation Framework) networks.
+A three-agent BDI debate system in TypeScript (`lib/debate/`, 22+ files). Characters (Prometheus, Sentinel, Cassandra) argue grounded in the taxonomy, with a moderator agent managing interventions, convergence detection, and phase transitions. Produces structured transcripts with QBAF (Quantitative Bipolar Argumentation Framework) networks.
+
+**Debate phases:** confrontation → argumentation → concluding (with adaptive phase transitions based on convergence signals).
+
+**Four-stage turn pipeline:** Each debate turn passes through BRIEF → PLAN → DRAFT → CITE stages with per-stage validation and retry:
+
+| Stage | Purpose | Output |
+|---|---|---|
+| **BRIEF** | Situational analysis — what happened, what's at stake | `BriefWorkProduct` |
+| **PLAN** | Argument strategy — which moves, which nodes to cite | `PlanWorkProduct` |
+| **DRAFT** | Full statement generation with a quality pre-check (grounding, falsifiability, engagement) | `DraftWorkProduct` |
+| **CITE** | Citation extraction — taxonomy node refs, evidence claims, QBAF edges | `CiteWorkProduct` |
+
+Retry hierarchy: per-stage retry (cheap, re-prompts a single stage) → orchestration retry (expensive, restarts the full pipeline).
+
+**Two-stage turn validation:**
+
+- **Stage A (Symbolic):** 10 deterministic rules via `validatePlanStage`, `validateDraftStage`, and `validateCiteStage` — checks schema conformance, grounding, taxonomy references, and directive compliance
+- **Stage B (LLM Judge):** AI-powered quality assessment with calibration cap enforcement. Can be skipped with `deterministicOnly: true`.
+
+**Convergence diagnostics:** 7 deterministic signals for detecting when a debate should transition toward concluding:
+
+1. **Argument redundancy** — lexical self-overlap + semantic cosine similarity (recycling detection)
+2. **Dialectical engagement** — ratio of targeted responses vs. standalone assertions
+3. **Move polarity** — confrontational vs. collaborative move ratio
+4. **Position drift** — how much characters' positions are shifting
+5. **Concession opportunity** — whether characters are acknowledging opposing points
+6. **Crux resolution** — have the core disagreements been identified and addressed?
+7. **Pragmatic convergence** — hedge rate changes, qualification drops in concluding phase
+
+**Evidence pipeline:** Claims are backed by source evidence with QBAF scoring. The engine retrieves relevant sources from the corpus, attaches verification status, and builds evidence-weighted argument networks.
 
 **See:** [Debate Engine](./subsystem-debate-engine.md)
 
@@ -93,9 +157,9 @@ Two additional Electron apps: POViewer (three-pane document viewer with PDF rend
 
 ### 6. Infrastructure & Deployment
 
-GitHub Actions CI/CD, Docker multi-platform builds, Azure Container Apps deployment via Bicep, and a BYOK (Bring Your Own Key) model for API key management.
+GitHub Actions CI/CD, Docker multi-platform builds, Azure Container Apps deployment via Bicep, GitHub API-First data backend with local SSD cache, and a BYOK (Bring Your Own Key) model for API key management.
 
-**See:** [Infrastructure & Deployment](./subsystem-infrastructure.md)
+**See:** [Infrastructure & Deployment](./subsystem-infrastructure.md), [Infrastructure Design](./infrastructure-design.md)
 
 ## AI Backend Architecture
 
@@ -147,11 +211,15 @@ Edit Claims (optional) ── user reviews/edits extracted claims
 Opening Statements ── each character states position grounded in taxonomy
     │
     ▼
-Debate Rounds ── moderated turn-taking with interventions
+Confrontation ── initial position clashes, distinguish and counterexample moves
+    │                  └── each turn: BRIEF → PLAN → DRAFT → CITE pipeline
+    │
+    ▼
+Argumentation ── deep engagement, crux identification, evidence exchange
     │                  └── moderator: budget, cooldown, drift detection
     │
     ▼
-Synthesis ── convergence detection, final statements
+Concluding ── convergence detection, integration, final statements
     │
     ▼
 QBAF Network ── quantified argument strengths and relationships

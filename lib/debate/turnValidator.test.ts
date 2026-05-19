@@ -92,23 +92,25 @@ describe('resolveTurnValidationConfig', () => {
   it('fills defaults when given undefined', () => {
     const c = resolveTurnValidationConfig(undefined);
     expect(c.enabled).toBe(true);
-    expect(c.maxRetries).toBe(2);
+    expect(c.maxRetries).toBe(4);
     expect(c.deterministicOnly).toBe(false);
     expect(c.judgeModel).toBe('claude-haiku-4-5-20251001');
     expect(c.sampleRate['confrontation']).toBe(1);
     expect(c.sampleRate.argumentation).toBe(1);
     expect(c.sampleRate.concluding).toBe(1);
+    expect(c.scoreThreshold).toBe(0.75);
   });
 
   it('fills defaults when given empty object', () => {
     const c = resolveTurnValidationConfig({});
     expect(c.enabled).toBe(true);
-    expect(c.maxRetries).toBe(2);
+    expect(c.maxRetries).toBe(4);
+    expect(c.scoreThreshold).toBe(0.75);
   });
 
-  it('clamps maxRetries above 2 down to 2', () => {
-    const c = resolveTurnValidationConfig({ maxRetries: 5 as 0 | 1 | 2 });
-    expect(c.maxRetries).toBe(2);
+  it('clamps maxRetries above 4 down to 4', () => {
+    const c = resolveTurnValidationConfig({ maxRetries: 7 as 0 | 1 | 2 | 3 | 4 });
+    expect(c.maxRetries).toBe(4);
   });
 
   it('clamps negative maxRetries to 0', () => {
@@ -954,8 +956,9 @@ describe('judge parse failures', () => {
     });
     const r = await validateTurn(p);
     // parseJudgeVerdict fallback has recommend='accept_with_flag', advances=false
+    // Composite score (0.64) falls below scoreThreshold (0.75) → retry when budget > 0
     expect(r.judge_used).toBe(true);
-    expect(r.outcome).toBe('accept_with_flag');
+    expect(r.outcome).toBe('retry');
   });
 
   it('uses fallback judge when primary throws', async () => {
@@ -1134,8 +1137,8 @@ describe('score calculation', () => {
     });
     const r = await validateTurn(p);
     // 2 weaknesses → cap 0.65, "lacks evidence" → -0.10 → 0.55
-    // 0.55 < 0.7 → recommend reconciled to 'accept_with_flag'
-    expect(r.outcome).toBe('accept_with_flag');
+    // Composite score (0.69) falls below scoreThreshold (0.75) → retry when budget > 0
+    expect(r.outcome).toBe('retry');
   });
 });
 

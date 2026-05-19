@@ -2118,7 +2118,10 @@ export class DebateEngine {
     const priorRefs = priorRefsEarly;
     const taxMap = this.taxonomy as unknown as Record<string, { nodes?: { id: string }[] } | undefined>;
     const povFile = taxMap[info.pov];
-    const availablePovNodeIds = povFile?.nodes?.map(n => n.id) ?? [];
+    const availablePovNodeIds = [
+      ...(povFile?.nodes?.map(n => n.id) ?? []),
+      ...(taxMap.situations?.nodes?.map(n => n.id) ?? []),
+    ];
 
     // Gather cross-POV node IDs for late-round citation diversity (Rec 3)
     const crossPovNodeIds = round >= 4

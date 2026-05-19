@@ -7,9 +7,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { lineDiff } from '@lib/diff/lineDiff.js';
 import type { DiffLine, DiffResult } from '@lib/diff/lineDiff.js';
 import { PromptDiffTree, nodeKey } from './PromptDiffTree';
-import type { PromptNode } from './PromptDiffTree';
+import type { PromptNode, DiffViewMode } from './PromptDiffTree';
 import { PromptDiffPane } from './PromptDiffPane';
-import type { PaneData } from './PromptDiffPane';
+import type { PaneData, PaneDiffLine } from './PromptDiffPane';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId } from '../types/debate';
 
@@ -30,14 +30,20 @@ function speakerLabel(speaker: string): string {
   return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
 }
 
+/** Get the text content from a node based on the current view mode. */
+function getNodeText(node: PromptNode, mode: DiffViewMode): string {
+  return mode === 'responses' ? node.response : node.prompt;
+}
+
 /** Compute diff-colored lines for each pane. Pane 0 = reference (plain lines), Pane N diffs against Pane N-1. */
-function computePaneLines(nodes: PromptNode[]): PaneData[] {
+function computePaneLines(nodes: PromptNode[], mode: DiffViewMode): PaneData[] {
   if (nodes.length === 0) return [];
 
   const result: PaneData[] = [];
 
   // Pane 0: reference — plain lines, no diff
-  const refLines: DiffLine[] = nodes[0].prompt.split('\n').map((text, i) => ({
+  const refText = getNodeText(nodes[0], mode);
+  const refLines: DiffLine[] = refText.split('\n').map((text, i) => ({
     type: 'same' as const,
     text,
     lineNumber: i + 1,
@@ -46,14 +52,27 @@ function computePaneLines(nodes: PromptNode[]): PaneData[] {
 
   // Pane 1+: diff against left neighbor
   for (let i = 1; i < nodes.length; i++) {
-    const diff: DiffResult = lineDiff(nodes[i - 1].prompt, nodes[i].prompt);
+    const diff: DiffResult = lineDiff(getNodeText(nodes[i - 1], mode), getNodeText(nodes[i], mode));
+    // Annotate paired removed/added lines with counterpart text for word-level diffing
+    const leftLines: PaneDiffLine[] = diff.left.map((line, j) => {
+      if (line.type === 'removed' && j < diff.right.length && diff.right[j].type === 'added') {
+        return { ...line, pairText: diff.right[j].text };
+      }
+      return line;
+    });
+    const rightLines: PaneDiffLine[] = diff.right.map((line, j) => {
+      if (line.type === 'added' && j < diff.left.length && diff.left[j].type === 'removed') {
+        return { ...line, pairText: diff.left[j].text };
+      }
+      return line;
+    });
     result.push({
       node: nodes[i],
-      lines: diff.right,
+      lines: rightLines,
       stats: diff.stats,
     });
     // Update left pane's lines to include ghost alignment from this diff
-    result[i - 1] = { ...result[i - 1], lines: diff.left };
+    result[i - 1] = { ...result[i - 1], lines: leftLines };
   }
 
   return result;
@@ -126,6 +145,29 @@ export function PromptDiffWindow() {
   const [syncScroll, setSyncScroll] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
 
+  // View mode: prompts vs responses
+  const [viewMode, setViewMode] = useState<DiffViewMode>('prompts');
+
+  // Word wrap
+  const [wordWrap, setWordWrap] = useState(false);
+
+  // Shared validation panel height (synced across all panes)
+  const [validationHeight, setValidationHeight] = useState(150);
+
+  // Search state
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const findInPanes = useCallback((text: string) => {
+    setSearchTerm(text);
+    setSearchOpen(true);
+    setActiveMatchIndex(0);
+    // Focus the search input after state updates
+    setTimeout(() => searchInputRef.current?.focus(), 0);
+  }, []);
+
   const addNode = useCallback((node: PromptNode) => {
     setPaneNodes(prev => {
       // Don't add duplicates
@@ -148,7 +190,32 @@ export function PromptDiffWindow() {
     if (syncScroll) setScrollTop(st);
   }, [syncScroll]);
 
-  const panes = useMemo(() => computePaneLines(paneNodes), [paneNodes]);
+  const panes = useMemo(() => computePaneLines(paneNodes, viewMode), [paneNodes, viewMode]);
+
+  // Search: compute match counts per pane and cumulative offsets
+  const searchLower = searchTerm.toLowerCase();
+  const { paneMatchCounts, paneMatchOffsets, totalMatches } = useMemo(() => {
+    if (!searchLower) return { paneMatchCounts: [] as number[], paneMatchOffsets: [] as number[], totalMatches: 0 };
+    const counts: number[] = [];
+    const offsets: number[] = [];
+    let cumulative = 0;
+    for (const pane of panes) {
+      offsets.push(cumulative);
+      let count = 0;
+      for (const line of pane.lines) {
+        if (line.type === 'ghost') continue;
+        let idx = 0;
+        const lower = line.text.toLowerCase();
+        while ((idx = lower.indexOf(searchLower, idx)) !== -1) {
+          count++;
+          idx += searchLower.length;
+        }
+      }
+      counts.push(count);
+      cumulative += count;
+    }
+    return { paneMatchCounts: counts, paneMatchOffsets: offsets, totalMatches: cumulative };
+  }, [panes, searchLower]);
 
   // Outline sidebar — use rightmost diff
   const outlineBlocks = useMemo(() => {
@@ -170,9 +237,35 @@ export function PromptDiffWindow() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key >= '1' && e.key <= '4') {
+      // Search shortcuts
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 0);
+        return;
+      }
+      if (e.key === 'Escape' && searchOpen) {
+        setSearchOpen(false);
+        setSearchTerm('');
+        setActiveMatchIndex(0);
+        return;
+      }
+      if (e.key === 'F3' || (e.ctrlKey && e.key === 'g' && searchOpen)) {
+        e.preventDefault();
+        if (totalMatches > 0) {
+          setActiveMatchIndex(prev => e.shiftKey ? (prev - 1 + totalMatches) % totalMatches : (prev + 1) % totalMatches);
+        }
+        return;
+      }
+      // Pane focus (only when search input not focused)
+      if (e.key >= '1' && e.key <= '4' && document.activeElement?.tagName !== 'INPUT') {
         const idx = parseInt(e.key) - 1;
         if (idx < paneNodes.length) setFocusedPane(idx);
+        return;
+      }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'W' || e.key === 'w')) {
+        e.preventDefault();
+        setWordWrap(p => !p);
         return;
       }
       if (e.ctrlKey && e.key === 'w') {
@@ -194,7 +287,7 @@ export function PromptDiffWindow() {
         }
         return;
       }
-      if (e.ctrlKey && e.key === 'g') {
+      if (e.ctrlKey && e.key === 'g' && !searchOpen) {
         e.preventDefault();
         // Jump to next/prev diff block
         const blocks = outlineBlocks;
@@ -217,7 +310,7 @@ export function PromptDiffWindow() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [paneNodes, focusedPane, closePane, syncScroll, outlineBlocks, scrollTop, panes]);
+  }, [paneNodes, focusedPane, closePane, syncScroll, searchOpen, totalMatches, outlineBlocks, scrollTop, panes]);
 
   // Window title
   useEffect(() => {
@@ -225,10 +318,11 @@ export function PromptDiffWindow() {
       const entry = debate.transcript.find(e => e.id === focusedEntryId);
       if (entry) {
         const idx = debate.transcript.indexOf(entry);
-        document.title = `Prompt Diff — S${idx + 1} ${speakerLabel(entry.speaker)} (${entry.type})`;
+        const modeLabel = viewMode === 'responses' ? 'Response Diff' : 'Prompt Diff';
+        document.title = `${modeLabel} — S${idx + 1} ${speakerLabel(entry.speaker)} (${entry.type})`;
       }
     }
-  }, [debate, focusedEntryId]);
+  }, [debate, focusedEntryId, viewMode]);
 
   if (!debate) {
     return (
@@ -245,6 +339,114 @@ export function PromptDiffWindow() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+      {/* Toolbar */}
+      <div style={{
+        borderBottom: '1px solid var(--border-color)',
+        padding: '4px 12px',
+        display: 'flex', alignItems: 'center', gap: 12,
+        background: 'var(--bg-secondary)',
+        flexShrink: 0,
+        fontSize: '0.7rem',
+      }}>
+        <span style={{ fontWeight: 600, fontSize: '0.72rem' }}>Prompt Diff</span>
+        <div style={{
+          display: 'inline-flex', borderRadius: 4, overflow: 'hidden',
+          border: '1px solid var(--border-color)',
+        }}>
+          {(['prompts', 'responses'] as const).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              style={{
+                padding: '2px 10px',
+                border: 'none', cursor: 'pointer',
+                fontSize: '0.65rem', fontWeight: 600,
+                textTransform: 'capitalize',
+                background: viewMode === mode ? '#3b82f6' : 'var(--bg-primary)',
+                color: viewMode === mode ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setWordWrap(p => !p)}
+          style={{
+            padding: '2px 8px', borderRadius: 4,
+            border: '1px solid var(--border-color)',
+            cursor: 'pointer',
+            fontSize: '0.65rem', fontWeight: 600,
+            background: wordWrap ? '#3b82f6' : 'var(--bg-primary)',
+            color: wordWrap ? '#fff' : 'var(--text-muted)',
+          }}
+          title="Toggle word wrap (Ctrl+Shift+W)"
+        >
+          Wrap
+        </button>
+      </div>
+
+      {/* Search bar */}
+      {searchOpen && (
+        <div style={{
+          borderBottom: '1px solid var(--border-color)',
+          padding: '4px 12px',
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: 'var(--bg-secondary)',
+          flexShrink: 0,
+          fontSize: '0.7rem',
+        }}>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setActiveMatchIndex(0); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (totalMatches > 0) {
+                  setActiveMatchIndex(prev => e.shiftKey ? (prev - 1 + totalMatches) % totalMatches : (prev + 1) % totalMatches);
+                }
+              }
+              if (e.key === 'Escape') {
+                setSearchOpen(false);
+                setSearchTerm('');
+                setActiveMatchIndex(0);
+              }
+            }}
+            placeholder={`Search ${viewMode}... (F3 next, Shift+F3 prev)`}
+            style={{
+              flex: 1, maxWidth: 300, padding: '2px 8px',
+              border: '1px solid var(--border-color)', borderRadius: 3,
+              background: 'var(--bg-primary)', color: 'var(--text-primary)',
+              fontSize: '0.7rem', fontFamily: 'inherit', outline: 'none',
+            }}
+          />
+          {searchTerm && (
+            <span style={{ color: totalMatches > 0 ? 'var(--text-primary)' : '#ef4444', fontSize: '0.65rem' }}>
+              {totalMatches > 0 ? `${activeMatchIndex + 1} of ${totalMatches}` : 'No matches'}
+            </span>
+          )}
+          <button
+            onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev - 1 + totalMatches) % totalMatches)}
+            disabled={totalMatches === 0}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0 4px' }}
+            title="Previous (Shift+F3)"
+          >&#9650;</button>
+          <button
+            onClick={() => totalMatches > 0 && setActiveMatchIndex(prev => (prev + 1) % totalMatches)}
+            disabled={totalMatches === 0}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '0 4px' }}
+            title="Next (F3)"
+          >&#9660;</button>
+          <button
+            onClick={() => { setSearchOpen(false); setSearchTerm(''); setActiveMatchIndex(0); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '0 4px' }}
+            title="Close (Esc)"
+          >&times;</button>
+        </div>
+      )}
+
       {/* Main area: tree + panes + outline */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Tree (left) */}
@@ -270,7 +472,7 @@ export function PromptDiffWindow() {
               flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'var(--text-muted)', fontSize: '0.8rem',
             }}>
-              Click a prompt in the tree to add it to a pane
+              Click a node in the tree to add its {viewMode === 'responses' ? 'response' : 'prompt'} to a pane
             </div>
           )}
           {panes.map((pane, i) => (
@@ -284,6 +486,14 @@ export function PromptDiffWindow() {
               onFocus={() => setFocusedPane(i)}
               onScroll={syncScroll ? handleScroll : undefined}
               scrollTop={syncScroll ? scrollTop : undefined}
+              searchTerm={searchTerm}
+              activeMatchIndex={activeMatchIndex}
+              matchOffset={paneMatchOffsets[i]}
+              viewMode={viewMode}
+              wordWrap={wordWrap}
+              validationHeight={validationHeight}
+              onValidationResize={setValidationHeight}
+              onFindInPanes={findInPanes}
             />
           ))}
         </div>
@@ -338,7 +548,7 @@ export function PromptDiffWindow() {
         background: 'var(--bg-secondary)',
         flexShrink: 0,
       }}>
-        <span>{panes.length} prompt{panes.length !== 1 ? 's' : ''} loaded</span>
+        <span>{panes.length} {viewMode === 'responses' ? 'response' : 'prompt'}{panes.length !== 1 ? 's' : ''} loaded</span>
         {diffChain && <span>Diff: {diffChain}</span>}
         <span
           onClick={() => setSyncScroll(p => !p)}
@@ -347,6 +557,15 @@ export function PromptDiffWindow() {
         >
           Scroll sync: {syncScroll ? 'ON' : 'OFF'}
         </span>
+        {!searchOpen && (
+          <span
+            onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 0); }}
+            style={{ cursor: 'pointer', borderBottom: '1px dotted var(--text-muted)' }}
+            title="Ctrl+F to search"
+          >
+            Search
+          </span>
+        )}
       </div>
     </div>
   );

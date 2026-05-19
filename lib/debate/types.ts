@@ -684,6 +684,28 @@ export interface TurnValidation {
   judge_model?: string;
 }
 
+/** Classification of how actionable a repair hint is. */
+export type HintSpecificity = 'concrete' | 'structural' | 'evaluative';
+
+/** Where a repair hint originated. */
+export type HintSource = 'validation_error' | 'validation_warning' | 'judge_weakness';
+
+/** Tracked effectiveness of a single repair hint across retry attempts. */
+export interface HintEffectiveness {
+  hint_text: string;
+  category: string;                // QUALITY, DRAFT, STRUCTURAL, etc.
+  source: HintSource;
+  specificity: HintSpecificity;
+  resolution: 'fixed' | 'partially_fixed' | 'ignored' | 'made_worse' | 'pending';
+  /** Fragment from the statement that the hint referenced (if extractable). */
+  cited_fragment?: string;
+  /** Whether the cited fragment still appears in the retry statement. */
+  fragment_persists?: boolean;
+  pre_score: number;
+  post_score?: number;
+  score_delta?: number;
+}
+
 export interface TurnAttempt {
   attempt: number;
   model: string;
@@ -693,6 +715,8 @@ export interface TurnAttempt {
   validation: TurnValidation;
   /** Full pipeline stage diagnostics for this attempt — preserved across orchestration retries. */
   stage_diagnostics?: StageDiagnostics[];
+  /** Effectiveness tracking for repair hints that were injected into THIS attempt. */
+  hint_effectiveness?: HintEffectiveness[];
 }
 
 export interface TurnValidationTrail {
@@ -927,6 +951,8 @@ export interface StageDiagnostics {
   response_time_ms: number;
   work_product: Record<string, unknown>;
   parse_error?: string;
+  /** When true, this stage was frozen from a prior pipeline run (not re-generated). */
+  frozen?: boolean;
 }
 
 export interface BriefWorkProduct {

@@ -15,6 +15,8 @@ import {
   _getDetailInstruction,
   _sourceReminder,
   _buildMoveHistoryBlock,
+  _buildInterventionResponseField,
+  extractCitePlanContext,
 } from './prompts.js';
 
 // ── Layer 1 constants (immutable per prompt family) ──────
@@ -279,7 +281,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "key_assumptions": [
     {"assumption": "a key assumption your argument depends on", "if_wrong": "what changes if this assumption fails"}
   ],
-  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${positionUpdateField}
+  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${_buildInterventionResponseField(pi)}${positionUpdateField}
 }`,
       RECENCY_ANCHOR,
     ].join('\n\n'),
@@ -295,7 +297,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 }
 
 export function citeStageEnvelope(
-  input: StagePromptInput, brief: string, plan: string, draft: string,
+  input: StagePromptInput, plan: string, draft: string,
 ): PromptEnvelope {
   let refsHistoryBlock = '';
   if (input.priorRefs && input.priorRefs.length > 0) {
@@ -323,9 +325,8 @@ export function citeStageEnvelope(
     ].filter(s => s.length > 0).join('\n'),
 
     layer4_variable: [
-      `=== SITUATION BRIEF ===\n${brief}`,
-      `=== ARGUMENT PLAN ===\n${plan}`,
       `=== DRAFT STATEMENT ===\n${draft}`,
+      ...(extractCitePlanContext(plan) ? [`=== PLANNED MOVES ===\n${extractCitePlanContext(plan)}`] : []),
       `Ground the draft statement in the taxonomy. For each connection:
 1. TAXONOMY REFS: Tag 4-6 taxonomy nodes that the statement draws from. Cover all three BDI sections (Beliefs, Desires, Intentions). For each, explain in 1-4 sentences how the node informed the argument.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies.

@@ -101,6 +101,14 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     requiresConfig: false,
   },
   {
+    id: 'steelman',
+    name: 'Populate Steelman',
+    description: 'Generate steelman arguments and vulnerability analysis for each taxonomy node',
+    phase: 'Enrich',
+    canSkip: true,
+    requiresConfig: false,
+  },
+  {
     id: 'git-commit',
     name: 'Commit Changes',
     description: 'Stage and commit all data changes to the local git repository',
@@ -195,6 +203,8 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
       return `${moduleImport}; Invoke-AttributeExtraction -Verbose`;
     case 'lineage':
       return `${moduleImport}; Repair-PovLineage -Verbose`;
+    case 'steelman':
+      return `${moduleImport}; Repair-PovAttributes -Priority critical -Verbose`;
     case 'git-commit': {
       const dataRoot = getDataRoot().replace(/\\/g, '/');
       const message = (config.commitMessage as string) || 'chore: pipeline update';

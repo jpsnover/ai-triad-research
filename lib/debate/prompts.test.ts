@@ -553,7 +553,7 @@ describe('4-stage turn pipeline', () => {
 
   describe('citeStagePrompt', () => {
     it('returns a non-empty string with annotation schema', () => {
-      const result = citeStagePrompt(input, '{}', '{}', 'draft');
+      const result = citeStagePrompt(input, '{}', 'draft');
       expectNonEmpty(result);
       expectContains(result, '"taxonomy_refs"', '"move_annotations"', '"grounding_confidence"');
     });
@@ -561,7 +561,6 @@ describe('4-stage turn pipeline', () => {
     it('includes refs history block when priorRefs are provided', () => {
       const result = citeStagePrompt(
         makeStageInput({ priorRefs: ['acc-beliefs-001'], availablePovNodeIds: ['acc-beliefs-002', 'acc-desires-001'] }),
-        '{}',
         '{}',
         'draft',
       );

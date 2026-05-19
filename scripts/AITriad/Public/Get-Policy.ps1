@@ -108,11 +108,21 @@ function Get-Policy {
 
     # ── Output ──
     foreach ($Pol in $Policies) {
+        $Refs = @()
+        if ($Pol.PSObject.Properties['real_world_refs'] -and $Pol.real_world_refs) {
+            $Refs = @($Pol.real_world_refs | ForEach-Object {
+                "$($_.jurisdiction): $($_.instrument) [$($_.status)]"
+            })
+        }
+
         $Out = [PSCustomObject]@{
-            Id          = $Pol.id
-            Action      = $Pol.action
-            SourcePOVs  = $Pol.source_povs -join ', '
-            MemberCount = $Pol.member_count
+            Id             = $Pol.id
+            Action         = $Pol.action
+            SourcePOVs     = $Pol.source_povs -join ', '
+            MemberCount    = $Pol.member_count
+            Tags           = if ($Pol.PSObject.Properties['tags'] -and $Pol.tags) { $Pol.tags -join ', ' } else { '' }
+            Status         = if ($Pol.PSObject.Properties['status']) { $Pol.status } else { '' }
+            RealWorldRefs  = $Refs
         }
 
         if ($IncludeUsage -and $UsageMap.ContainsKey($Pol.id)) {

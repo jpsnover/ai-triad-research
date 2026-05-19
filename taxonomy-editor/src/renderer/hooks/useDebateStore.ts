@@ -3324,9 +3324,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       .slice(-2)
       .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
 
-    const crTaxState = useTaxonomyStore.getState();
-    const povFile = crTaxState[info.pov as keyof typeof crTaxState] as { nodes?: { id: string }[] } | null;
-    const availablePovNodeIds = povFile?.nodes?.map(n => n.id) ?? [];
+    const availablePovNodeIds = [...getAllKnownNodeIds()];
 
     // ── 4-stage pipeline: BRIEF → PLAN → DRAFT → CITE ──
     const debaterGapHint = formatGapHint(activeDebate.gap_injections);

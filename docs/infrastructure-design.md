@@ -214,7 +214,7 @@ User enters API key in UI
 Client-side AES-256-GCM encryption
     │
     ▼
-Encrypted key stored on /data volume
+Encrypted key stored via StorageBackend (session branch in API mode, local disk in filesystem mode)
     │
     ▼
 At inference time:
@@ -245,18 +245,134 @@ OAuth providers (optional):
 
 Secrets stored in Azure Key Vault, accessed via managed identity (no hardcoded credentials in the container).
 
-### 5.4 Data Sync
+### 5.4 Data Architecture (GitHub API-First)
 
-Optional feature that synchronizes the data volume with the `ai-triad-data` GitHub repository:
+The container reads and writes `ai-triad-data` directly via the GitHub REST API. There is no persistent volume, no git clone, and no Azure Files mount.
+
+#### Data Flow
 
 ```
-Cloud instance ←─ GitHub App ─→ ai-triad-data repo
-                   │
-                   ├─ Pull: sync latest taxonomy/sources/summaries
-                   └─ Push: sync debates, new summaries
+GitHub (jpsnover/ai-triad-data, main branch)
+    │
+    ▼
+GitHubAPIBackend ── GitHub Contents/Trees/Blobs APIs
+    │                  └── Auth: GitHub App installation token (Key Vault PEM)
+    ▼
+Local SSD Cache (/tmp/taxonomy-cache/)
+    │   ├── manifest.json (SHA + ETag per file, generation counter)
+    │   ├── taxonomy/Origin/*.json (cached file contents)
+    │   └── conflicts/_conflict-index.json (bulk-loaded, 1 API call)
+    ▼
+fileIO.ts domain functions (40+ functions, unchanged)
+    │
+    ▼
+Express REST API → React SPA
 ```
 
-Requires: GitHub App with installation on the data repo, App ID + private key stored in Key Vault. Enabled via `gitSyncEnabled` deployment parameter.
+#### Container Startup Sequence
+
+```
+Container starts
+  → CMD: node server.js (no entrypoint.sh, no background copy)
+  → tini as PID 1 (zombie reaping for pty-broker.py subprocesses)
+  → Health check passes immediately (no data dependency)
+  → GitHubAPIBackend.initialize():
+    → Read GitHub App installation token from Key Vault
+    → Check /tmp/taxonomy-cache/manifest.json
+    → If fresh (SHA matches main HEAD): serve from cache (0 API calls, <100ms)
+    → If stale/missing: fetch changed files via Compare API (2-10 calls, 3-5s)
+  → App interactive in 3-5 seconds
+```
+
+#### GitHub App Authentication
+
+All API calls use a GitHub App (not personal access tokens):
+
+1. Private key (PEM) stored in Azure Key Vault, accessed via managed identity
+2. Server mints a JWT (RS256, 9-minute TTL) from the PEM
+3. JWT exchanged for an installation access token (1-hour TTL)
+4. Token auto-refreshes 5 minutes before expiry
+5. Multi-step operations validate >60s token remaining before starting
+
+Rate limit: 5,000 requests/hour per installation. Estimated usage: ~145/hour (97% headroom).
+
+#### Caching Architecture
+
+**Write-through cache** — the cache is updated only after a confirmed 2xx from GitHub. No optimistic updates.
+
+| Mechanism | Detail |
+|---|---|
+| **Manifest** | `manifest.json` tracks per-file SHA, ETag, cached timestamp. Atomic swap via `.tmp` + rename. |
+| **Generation counter** | Monotonic integer detects stale reads across concurrent requests. |
+| **Polling** | Every 60s, compare cached SHA with `GET /repos/.../commits/main`. On change, fetch only changed files via Compare API. |
+| **Webhook acceleration** | Push events to main trigger immediate cache invalidation + WebSocket notification to clients (stale window: ~2s vs. 60s polling-only). |
+| **ETag support** | `If-None-Match` headers on API calls. GitHub returns 304 (no body) if unchanged — saves bandwidth. |
+| **Coherency probe** | 1% of cache hits are asynchronously verified against GitHub. Violations trigger full cache invalidation. |
+| **Force-push detection** | If a cached SHA returns 404/409 from Compare API, entire cache is invalidated and re-fetched. |
+
+**Session overlays:** Per-user cache layers track files modified on session branches. User A's edits are invisible to User B until merged to main.
+
+#### Session Branch Manager
+
+- No branch created until first edit (lazy creation)
+- Branch naming: `api-session/{sanitizedUserId}` (one per user)
+- Commits batched via Git Trees API (4 API calls per save, regardless of file count)
+- Per-user commit mutex serializes concurrent saves from multi-tab sessions
+- Divergence warning: yellow at 3+ commits behind main, red at 10+
+- Auto-merge main at 20+ commits behind (via Merges API)
+- Stale branch cleanup: daily GitHub Actions workflow deletes branches inactive >30 days
+
+#### Resilience
+
+| Feature | Detail |
+|---|---|
+| **Baked fallback data** | Container image includes a last-known-good taxonomy snapshot (`/app/fallback-data/`). If GitHub is unreachable at startup, serves read-only with a banner showing data age. |
+| **Adaptive circuit breaker** | After 5 consecutive GitHub API failures → open (fallback mode, writes disabled). Probe on exponential schedule (30s→1m→2m→5m cap). On success → immediately closed. |
+| **Rate limit degradation** | Below 1,000 remaining: warning logged. Below 500: polling disabled, serve from cache only, `degraded` health status. |
+| **SIGUSR2 emergency dump** | When the event loop is blocked, `kill -SIGUSR2 $(pgrep node)` triggers a flight recorder dump to stderr (bypasses Express). |
+
+#### Observability
+
+**Flight recorder:** Ring buffer (2,000 events server-side) with 18+ event types for GitHub API operations:
+
+| Category | Events |
+|---|---|
+| GitHub API | `github.api.request`, `response`, `error`, `rate_limit` |
+| Cache | `cache.hit`, `miss`, `invalidate`, `manifest.swap` |
+| Branch lifecycle | `branch.create`, `commit`, `delete`, `divergence` |
+| Sync | `sync.pr.create`, `update`, `merge`, `conflict`, `webhook` |
+| Storage | `storage.mode`, `storage.fallback` |
+
+All events are also emitted as structured JSON to stdout for Azure Log Analytics.
+
+**Azure Monitor alerts (7 rules):**
+
+| Alert | Condition | Severity |
+|---|---|---|
+| Rate limit warning | Remaining < 1,000 for 5 min | Warning |
+| Rate limit critical | Remaining < 500 or any 429 response | Critical |
+| Cache degraded | Hit rate < 85% over 5 min | Warning |
+| Branch divergence | Session branch > 10 commits behind main | Warning |
+| API error spike | > 5 `github.api.error` events in 5 min | Critical |
+| Fallback active | `storage.fallbackActive` = true for > 5 min | Critical |
+| Container restart storm | > 3 restarts in 15 min | Critical |
+
+**Health endpoint** (`GET /health`) includes GitHub API stats, cache state, and flight recorder stats:
+
+```json
+{
+  "status": "ok",
+  "github": { "rateLimit": { "remaining": 4850, "limit": 5000 }, "cacheHitRate": 0.95, "activeBranches": 2 },
+  "storage": { "mode": "github-api", "mainSha": "abc1234", "cacheFileCount": 15, "fallbackActive": false },
+  "flightRecorder": { "eventsTotal": 1234, "eventsRetained": 1000 }
+}
+```
+
+#### Sources Separation
+
+Source documents (PDFs, DOCX, HTML) live in a separate `ai-triad-sources` repo, accessible only from local filesystem (Electron mode). Summaries (derived from sources) remain in `ai-triad-data` and are available in web mode. The UI shows summaries and metadata but not original documents when running in API mode.
+
+For the complete technical specification, see [GitHub API-First Implementation Plan](./github-api-first-implementation.md).
 
 ## 6. Version Management
 
@@ -339,13 +455,15 @@ The CI pipeline validates version consistency:
 
 **Trade-off accepted:** GitHub Actions' runner fleet is limited (2-core Ubuntu runners for free tier). Build times for multi-platform Electron builds are ~15 minutes. Self-hosted runners could reduce this but add maintenance overhead.
 
-### D6: Azure Files Over Blob Storage / Managed Disk
+### D6: GitHub API-First Over Azure Files / Blob Storage
 
-**Chosen:** Azure Files (SMB share) for the `/data` volume.
+**Chosen:** GitHub REST API with local SSD cache, replacing the previous Azure Files SMB architecture.
 
-**Why:** Azure Files provides a POSIX-compatible filesystem that mounts directly into the container as a standard directory. The application reads and writes taxonomy JSON, debate transcripts, and source documents using normal file I/O — no SDK changes needed. Blob Storage would require rewriting all file access to use the Azure SDK.
+**Why:** Azure Files SMB had multiple issues: slow startup (30-60s for SMB copy + git init), SMB corruption of `.git/` directories, copy guard complexity (9+ endpoints checking `isCopyInProgress()`), and intermittent git init failures. The GitHub API-First approach eliminates all of these — startup is 3-5s, there's no local git, and the `StorageBackend` abstraction keeps `fileIO.ts` domain logic unchanged.
 
-**Trade-off accepted:** Azure Files has lower IOPS and throughput than managed disks or Blob Storage. For a research workload that reads/writes individual JSON files (not streaming large datasets), this is a non-issue.
+**Trade-off accepted:** Eventually consistent reads (≤60s stale window with polling, ≤2s with webhooks). Write latency is ~1-2s per save (GitHub API round-trip) vs. near-instant with local filesystem. GitHub rate limits (5,000/hr) constrain burst operations, though current usage (~145/hr) has 97% headroom. Container restart loses the ephemeral cache (re-fetched in 3-5s).
+
+**Previous architecture (deprecated):** Azure Files SMB mount → `entrypoint.sh` (93 lines, background copy) → `gitRepoStore.ts` (1,371 lines, 4-phase git sync) → `.git-ready` marker protocol. All removed.
 
 ### D7: Optional Authentication
 
@@ -361,10 +479,12 @@ The CI pipeline validates version consistency:
 
 | Check | How | Frequency |
 |---|---|---|
-| Container health | `GET /health` (built-in liveness probe) | Every 30 seconds |
-| Application logs | Azure Log Analytics → container stdout | Continuous |
-| Data volume | Azure Files metrics (IOPS, capacity) | On demand |
+| Container health | `GET /health` (liveness probe — includes GitHub API stats, cache state) | Every 30 seconds |
+| Application logs | Azure Log Analytics → container stdout (structured JSON) | Continuous |
+| GitHub API rate limit | `GET /health` → `github.rateLimit.remaining` | Per-request |
+| Cache coherency | Automatic 1% sampling probe on cache hits | Continuous |
 | API key validity | First AI call fails with 401 → user-visible error | Per-request |
+| Azure Monitor alerts | 7 alert rules (rate limit, cache, divergence, errors, fallback, restarts) | Continuous |
 
 ### Common Operations
 
@@ -374,27 +494,37 @@ The CI pipeline validates version consistency:
 | View container logs | Azure Portal → Container Apps → Log stream |
 | Rebuild base image | `gh workflow run base-image.yml` |
 | Force restart | Azure Portal → Container Apps → Restart |
-| Check data volume | Azure Portal → Storage Account → File Shares |
+| Force cache refresh | SyncDiagnosticsDialog → "Force cache refresh" button |
+| Emergency flight recorder dump | `az containerapp exec ... --command "kill -SIGUSR2 $(pgrep node)"` |
+| Check GitHub API status | `GET /health` → `github` and `storage` sections |
 
 ## 10. Risks and Open Questions
 
-| Risk | Impact | Mitigation |
+| Risk | Severity | Mitigation |
 |---|---|---|
-| **Base image staleness** | Unpatched system packages | Manual rebuild via `base-image.yml`; consider automated CVE scanning |
-| **Cold start latency** | 10–15 second delay after idle | Acceptable for research use; could configure min replicas = 1 if needed |
-| **Azure Files performance** | Slow for large batch operations | Not an issue at current scale; Blob Storage migration path exists |
-| **Single-region** | Outage = complete downtime | Acceptable for research team; multi-region not justified at current scale |
-| **GHCR image pull auth** | PAT expiration breaks deployments | `ghcrPassword` in Key Vault; manual rotation needed |
+| **Cache loss on container restart during GitHub outage** | HIGH | Baked fallback data in image, banner with data age, daily image builds for fresh snapshots |
+| **GitHub API rate limit exhaustion** | MEDIUM | Degraded mode at <500 remaining (disable polling, cache-only). Structured logging. Cap replicas. |
+| **Missing conflict index → 1,244 API calls** | MEDIUM | Hard cap: return empty conflicts if `_conflict-index.json` missing, never enumerate individual files |
+| **Session branch divergence** | MEDIUM | Proactive warnings (yellow at 3+, red at 10+ behind). Auto-merge main at 20+ commits. |
+| **Base image staleness** | MEDIUM | Manual rebuild via `base-image.yml`; consider automated CVE scanning |
+| **Cold start latency** | LOW | ~10-15s delay from scale-to-zero. App data loads in 3-5s. Acceptable for research use. |
+| **Single-region** | LOW | Outage = complete downtime. Acceptable for research team. |
+| **GHCR image pull auth** | LOW | `ghcrPassword` in Key Vault; manual rotation needed |
 
 ## 11. Glossary
 
 | Term | Definition |
 |---|---|
 | **BYOK** | Bring Your Own Key — users supply their own AI API keys |
+| **Circuit breaker** | Resilience pattern: after N consecutive failures, stop calling the failing service and serve from fallback until a probe succeeds |
+| **Flight recorder** | Ring buffer of structured events for post-mortem debugging. Dumps to NDJSON on error or manual trigger. |
 | **GHCR** | GitHub Container Registry — hosts Docker images |
+| **GitHub App** | Machine identity for GitHub API access. Uses PEM key → JWT → installation token flow. |
 | **Bicep** | Azure-native infrastructure-as-code language |
 | **Container Apps** | Azure serverless container hosting with scale-to-zero |
 | **Managed Identity** | Azure-assigned identity for resource-to-resource auth (no credentials in code) |
 | **Scale-to-zero** | Container stops when idle; no compute costs during inactivity |
 | **Cold start** | Delay when a stopped container starts in response to the first request |
-| **Azure Files** | Managed SMB file share, mountable as a container volume |
+| **Session branch** | Per-user git branch (`api-session/{userId}`) for isolated edits in API mode |
+| **StorageBackend** | 5-method I/O abstraction (`readFile`, `writeFile`, `listDirectory`, `deleteFile`, `fileExists`) with filesystem and GitHub API implementations |
+| **Write-through cache** | Cache updated only after confirmed successful write to source of truth (GitHub) |

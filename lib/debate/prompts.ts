@@ -1968,9 +1968,29 @@ Verify each appears in taxonomy_refs with a substantive relevance explanation. Y
   }
 }
 
+/** Extract a compact moves-only summary from the full plan JSON.
+ *  Returns just planned_moves + target_nodes — no strategic rationale. */
+export function extractCitePlanContext(planJson: string): string {
+  try {
+    const plan = JSON.parse(planJson);
+    const parts: string[] = [];
+    if (plan?.planned_moves?.length) {
+      const moves = plan.planned_moves.map((m: { move?: string; target?: string }) =>
+        m.target ? `${m.move} → ${m.target}` : m.move,
+      );
+      parts.push(`Planned moves: ${moves.join(', ')}`);
+    }
+    if (plan?.target_nodes?.length) {
+      parts.push(`Target nodes: ${plan.target_nodes.join(', ')}`);
+    }
+    return parts.length > 0 ? parts.join('\n') : '';
+  } catch {
+    return '';
+  }
+}
+
 export function citeStagePrompt(
   input: StagePromptInput,
-  brief: string,
   plan: string,
   draft: string,
 ): string {
@@ -1991,20 +2011,17 @@ Recently cited: ${recent.join(', ')}.
 REQUIRED: At least 1-2 of this turn's taxonomy_refs must be node_ids NOT in that list.${uncitedLine}${crossPovLine}\n`;
   }
 
+  const planContext = extractCitePlanContext(plan);
+  const planBlock = planContext ? `\n=== PLANNED MOVES ===\n${planContext}\n` : '';
+
   return `You are a grounding analyst. Your task is to annotate a debate statement with precise taxonomy references, policy connections, and dialectical move annotations.
-
-=== SITUATION BRIEF ===
-${brief}
-
-=== ARGUMENT PLAN ===
-${plan}
 
 === DRAFT STATEMENT ===
 ${draft}
 
 === TAXONOMY CONTEXT ===
 ${input.taxonomyContext}
-${refsHistoryBlock}${buildPlannedNodesBlock(plan)}
+${refsHistoryBlock}${buildPlannedNodesBlock(plan)}${planBlock}
 Ground the draft statement in the taxonomy. For each connection:
 1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies. For each, explain in 1-2 sentences how the argument connects to the policy — what it supports, what it challenges, or what it implies for implementation. Do not just list IDs.

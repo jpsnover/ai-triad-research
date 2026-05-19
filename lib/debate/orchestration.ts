@@ -32,6 +32,9 @@ import type {
   TurnAttempt,
   TaxonomyRef,
   TurnValidationConfig,
+  HintEffectiveness,
+  HintSpecificity,
+  HintSource,
 } from './types.js';
 
 import {
@@ -740,6 +743,27 @@ export async function executeTurnWithRetry(
     });
 
     const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+
+    // Analyze hint effectiveness for retry attempts (compare against previous attempt)
+    let hintEffectiveness: HintEffectiveness[] | undefined;
+    if (attemptIdx > 0 && attempts.length > 0) {
+      const prevAttempt = attempts[attempts.length - 1];
+      const prevHints = prevAttempt.validation.repairHints ?? [];
+      const prevStatement = prevAttempt.raw_response ?? '';
+      const prevScore = prevAttempt.validation.process_reward ?? 0;
+      const currentScore2 = validation.process_reward ?? 0;
+      if (prevHints.length > 0) {
+        hintEffectiveness = analyzeHintEffectiveness(
+          prevHints, prevStatement, draftDiag?.raw_response ?? '',
+          prevScore, currentScore2, prevAttempt.validation,
+        );
+        const fixed = hintEffectiveness.filter(h => h.resolution === 'fixed').length;
+        const ignored = hintEffectiveness.filter(h => h.resolution === 'ignored').length;
+        const worse = hintEffectiveness.filter(h => h.resolution === 'made_worse').length;
+        console.log(`[orchestration] Hint effectiveness: ${fixed} fixed, ${ignored} ignored, ${worse} worse out of ${hintEffectiveness.length} hints`);
+      }
+    }
+
     attempts.push({
       attempt: attemptIdx,
       model: input.model,
@@ -748,6 +772,7 @@ export async function executeTurnWithRetry(
       response_time_ms: pipelineResult.total_time_ms,
       validation,
       stage_diagnostics: pipelineResult.stage_diagnostics,
+      hint_effectiveness: hintEffectiveness,
     });
 
     // Track best attempt — retries can regress if the LLM introduces new problems.
@@ -782,9 +807,20 @@ export async function executeTurnWithRetry(
 
     attemptIdx += 1;
     try {
+      // Determine which stages can be frozen based on hint targets.
+      // If all actionable hints target cite, freeze Brief + Plan + Draft.
+      // Otherwise, freeze Brief + Plan, re-run Draft + Cite.
+      // Only pass hints for stages that will actually re-run — prevents
+      // stale draft corrections from leaking into cite-only retries.
+      const citeHints = actionableHints.filter(h => classifyHintTarget(h) === 'cite');
+      const draftHints = actionableHints.filter(h => classifyHintTarget(h) !== 'cite');
+      const isCiteOnly = draftHints.length === 0;
       pipelineResult = await callbacks.runPipeline({
         ...input.pipelineInput,
-        repairHints: actionableHints,
+        repairHints: isCiteOnly ? citeHints : actionableHints,
+        frozenBrief: pipelineResult.brief,
+        frozenPlan: pipelineResult.plan,
+        frozenDraft: isCiteOnly ? pipelineResult.draft : undefined,
       });
     } catch (err) {
       // Pipeline parse failure on retry — treat as failed attempt, break with current validation
@@ -826,6 +862,127 @@ const UNANSWERABLE_HINT_PATTERNS: RegExp[] = [
 
 function filterActionableHints(hints: string[]): string[] {
   return hints.filter(h => !UNANSWERABLE_HINT_PATTERNS.some(re => re.test(h)));
+}
+
+/** Cite-specific hint pattern — matches hints targeting taxonomy_refs, policy_refs,
+ *  relevance quality, and grounding_confidence (all addressed by the Cite stage). */
+const CITE_HINT_PATTERN = /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i;
+
+/** Classify which pipeline stage a repair hint targets.
+ *  Used by orchestration retry to determine which stages can be frozen. */
+function classifyHintTarget(hint: string): 'cite' | 'draft' | 'judge' {
+  if (CITE_HINT_PATTERN.test(hint)) return 'cite';
+  // Judge-internal hints (score calibration, parse issues) aren't actionable by any stage
+  if (/judge.*(?:parse|fail|error)|process_reward/i.test(hint)) return 'judge';
+  return 'draft';
+}
+
+// ── Hint effectiveness analysis ──────────────────────────
+
+/** Classify hint specificity based on text patterns. */
+function classifySpecificity(hint: string): HintSpecificity {
+  // Concrete: references a specific fragment, quotes text, names a specific fix
+  if (/['"][^'"]{5,}['"]/.test(hint) || /cut off|truncat|missing|malformed|empty/.test(hint)) {
+    return 'concrete';
+  }
+  // Structural: asks questions, identifies gaps that need judgment
+  if (/\?|who\s|what\s|how\s|where\s|undefined|unspecified|lacks\s/.test(hint)) {
+    return 'structural';
+  }
+  // Evaluative: states weakness without specific fix
+  return 'evaluative';
+}
+
+/** Classify hint source based on position in the repairHints array and content. */
+function classifySource(hint: string, errorIssues: string[], warningIssues: string[]): HintSource {
+  if (errorIssues.includes(hint)) return 'validation_error';
+  if (warningIssues.includes(hint)) return 'validation_warning';
+  return 'judge_weakness';
+}
+
+/** Extract a quoted or referenced text fragment from a hint. */
+function extractCitedFragment(hint: string): string | undefined {
+  // Match quoted text: 'fragment' or "fragment"
+  const quoted = hint.match(/['"]([^'"]{5,})['"]/);
+  if (quoted) return quoted[1];
+  // Match after colon: "Incomplete citation: 'evocation hazards'..."
+  const afterColon = hint.match(/:\s*['"]?([A-Z][^.;]{10,})/);
+  if (afterColon) return afterColon[1].trim();
+  return undefined;
+}
+
+/** Extract hint category from prefix (QUALITY, DRAFT, STRUCTURAL, etc.). */
+function extractCategory(hint: string): string {
+  // Hints from the judge are typically prefixed by the pipeline
+  if (/^\[?DRAFT\]?/i.test(hint)) return 'DRAFT';
+  if (/^\[?QUALITY\]?/i.test(hint)) return 'QUALITY';
+  if (/^\[?STRUCTURAL\]?/i.test(hint)) return 'STRUCTURAL';
+  if (/paragraph|hedge|duplication/i.test(hint)) return 'DRAFT';
+  if (/node|taxonomy|grounding/i.test(hint)) return 'STRUCTURAL';
+  return 'QUALITY';
+}
+
+/**
+ * Analyze the effectiveness of repair hints by comparing pre-retry and post-retry statements.
+ * Called after each retry to assess whether the hints were addressed.
+ */
+function analyzeHintEffectiveness(
+  hints: string[],
+  preStatement: string,
+  postStatement: string,
+  preScore: number,
+  postScore: number,
+  preValidation: TurnValidation,
+): HintEffectiveness[] {
+  const preErrors = preValidation.dimensions.schema.issues.concat(
+    preValidation.dimensions.grounding.issues,
+  );
+  const preWarnings: string[] = []; // warnings are mixed into repairHints
+
+  return hints.map(hint => {
+    const specificity = classifySpecificity(hint);
+    const source = classifySource(hint, preErrors, preWarnings);
+    const category = extractCategory(hint);
+    const citedFragment = extractCitedFragment(hint);
+
+    // Check if the cited fragment still appears in the retry
+    let fragmentPersists: boolean | undefined;
+    if (citedFragment) {
+      const fragLower = citedFragment.toLowerCase();
+      fragmentPersists = postStatement.toLowerCase().includes(fragLower);
+    }
+
+    // Determine resolution
+    let resolution: HintEffectiveness['resolution'] = 'pending';
+    const scoreDelta = postScore - preScore;
+
+    if (citedFragment && fragmentPersists === false) {
+      // The specific problem text was removed — likely fixed
+      resolution = scoreDelta >= 0 ? 'fixed' : 'partially_fixed';
+    } else if (citedFragment && fragmentPersists === true) {
+      // Same text still there
+      resolution = scoreDelta < -0.05 ? 'made_worse' : 'ignored';
+    } else {
+      // No fragment to check — use score heuristic
+      if (scoreDelta > 0.05) resolution = 'fixed';
+      else if (scoreDelta > -0.02) resolution = 'partially_fixed';
+      else if (scoreDelta < -0.05) resolution = 'made_worse';
+      else resolution = 'ignored';
+    }
+
+    return {
+      hint_text: hint,
+      category,
+      source,
+      specificity,
+      resolution,
+      cited_fragment: citedFragment,
+      fragment_persists: fragmentPersists,
+      pre_score: Math.round(preScore * 100) / 100,
+      post_score: Math.round(postScore * 100) / 100,
+      score_delta: Math.round(scoreDelta * 100) / 100,
+    };
+  });
 }
 
 const SKIPPED_VALIDATION: TurnValidation = {

@@ -5,6 +5,47 @@ import { useState, useCallback } from 'react';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession } from '../types/debate';
 
+export type DiffViewMode = 'prompts' | 'responses';
+
+export interface ValidationDetail {
+  rule: string;
+  pass: boolean;
+  value?: string;
+}
+
+export interface DirectiveCompliance {
+  compliant: boolean;
+  repair_hint: string;
+  directive_terms: string[];
+  matched_terms: number;
+}
+
+export interface StageValidation {
+  pass: boolean;
+  hints?: string[];
+  details?: ValidationDetail[];
+  directive_compliance?: DirectiveCompliance;
+}
+
+export interface QualityCheck {
+  grounded: boolean;
+  falsifiable: boolean;
+  engages: boolean;
+  weaknesses: string[];
+}
+
+export interface OrchestrationValidation {
+  outcome: string;
+  process_reward: number;
+  repairHints: string[];
+  dimensions: {
+    schema: { pass: boolean; issues: string[] };
+    grounding: { pass: boolean; issues: string[] };
+    advancement: { pass: boolean; signals: string[] };
+    clarifies: { pass: boolean; signals: string[] };
+  };
+}
+
 export interface PromptNode {
   entryId: string;
   entryIndex: number;
@@ -18,6 +59,10 @@ export interface PromptNode {
   responseTimeMs: number;
   validationPass?: boolean;
   prompt: string;
+  response: string;
+  validation?: StageValidation;
+  qualityCheck?: QualityCheck;
+  orchestrationValidation?: OrchestrationValidation;
 }
 
 interface Props {
@@ -56,8 +101,11 @@ interface StageRun {
   temperature: number;
   response_time_ms: number;
   prompt: string;
+  raw_response: string;
   work_product?: Record<string, unknown>;
-  stage_validation?: { pass: boolean };
+  stage_validation?: StageValidation;
+  qualityCheck?: QualityCheck;
+  orchestrationValidation?: OrchestrationValidation;
   runIndex: number;
 }
 
@@ -96,44 +144,90 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
     let grouped: StageGroup[];
 
     if (attempts.length > 0) {
-      // Multi-run entry: each orchestration attempt has its own stage_diagnostics
-      grouped = STAGE_ORDER.map(stage => ({
-        stage,
-        runs: attempts
-          .map((attempt, ri) => {
-            const sd = (attempt.stage_diagnostics as Array<Record<string, unknown>> | undefined)
-              ?.find(s => s.stage === stage);
-            if (!sd?.prompt) return null;
+      // Multi-run entry: flatMap across ALL orchestration attempts' stage_diagnostics
+      // to capture per-stage retries within each attempt (not just one per attempt)
+      grouped = STAGE_ORDER.map(stage => {
+        let runIdx = 0;
+        const runs: StageRun[] = attempts.flatMap((attempt, ri) => {
+          const allStages = attempt.stage_diagnostics as Array<Record<string, unknown>> | undefined;
+          const stageEntries = allStages?.filter(s => s.stage === stage && s.prompt) ?? [];
+          // Extract orchestration-level validation from the attempt (shared by all stages in this attempt)
+          const av = attempt.validation as Record<string, unknown> | undefined;
+          const orchestrationValidation: OrchestrationValidation | undefined = av ? {
+            outcome: (av.outcome as string) ?? 'unknown',
+            process_reward: (av.process_reward as number) ?? 0,
+            repairHints: (av.repairHints as string[]) ?? [],
+            dimensions: (av.dimensions as OrchestrationValidation['dimensions']) ?? {
+              schema: { pass: true, issues: [] }, grounding: { pass: true, issues: [] },
+              advancement: { pass: true, signals: [] }, clarifies: { pass: true, signals: [] },
+            },
+          } : undefined;
+          return stageEntries.map(sd => {
+            // Look up draft_quality stage for this attempt (pairs with 'draft' stage)
+            let qualityCheck: QualityCheck | undefined;
+            if (stage === 'draft') {
+              const dq = allStages?.find(s => s.stage === 'draft_quality');
+              const wp = dq?.work_product as Record<string, unknown> | undefined;
+              if (wp && typeof wp.grounded === 'boolean') {
+                qualityCheck = {
+                  grounded: wp.grounded as boolean,
+                  falsifiable: wp.falsifiable as boolean,
+                  engages: wp.engages as boolean,
+                  weaknesses: (wp.weaknesses as string[]) ?? [],
+                };
+              }
+            }
             return {
               stage,
               model: (sd.model as string) ?? '',
               temperature: (sd.temperature as number) ?? 0,
               response_time_ms: (sd.response_time_ms as number) ?? 0,
               prompt: sd.prompt as string,
+              raw_response: (sd.raw_response as string) ?? '',
               work_product: sd.work_product as Record<string, unknown> | undefined,
-              stage_validation: sd.stage_validation as { pass: boolean } | undefined,
-              runIndex: ri,
+              stage_validation: sd.stage_validation as StageValidation | undefined,
+              qualityCheck,
+              orchestrationValidation,
+              runIndex: runIdx++,
             } as StageRun;
-          })
-          .filter((r): r is StageRun => r !== null),
-      })).filter(g => g.runs.length > 0);
+          });
+        });
+        return { stage, runs };
+      }).filter(g => g.runs.length > 0);
     } else {
       // Single-run fallback: use diagnostics.entries stage_diagnostics
-      const stages = diags?.stage_diagnostics ?? [];
+      const allStages = (diags?.stage_diagnostics ?? []) as Array<Record<string, unknown>>;
       grouped = STAGE_ORDER.map(stage => ({
         stage,
-        runs: (stages as Array<Record<string, unknown>>)
+        runs: allStages
           .filter(s => s.stage === stage && s.prompt)
-          .map((s, i) => ({
-            stage,
-            model: (s.model as string) ?? '',
-            temperature: (s.temperature as number) ?? 0,
-            response_time_ms: (s.response_time_ms as number) ?? 0,
-            prompt: s.prompt as string,
-            work_product: s.work_product as Record<string, unknown> | undefined,
-            stage_validation: s.stage_validation as { pass: boolean } | undefined,
-            runIndex: i,
-          } as StageRun)),
+          .map((s, i) => {
+            let qualityCheck: QualityCheck | undefined;
+            if (stage === 'draft') {
+              const dq = allStages.find(x => x.stage === 'draft_quality');
+              const wp = dq?.work_product as Record<string, unknown> | undefined;
+              if (wp && typeof wp.grounded === 'boolean') {
+                qualityCheck = {
+                  grounded: wp.grounded as boolean,
+                  falsifiable: wp.falsifiable as boolean,
+                  engages: wp.engages as boolean,
+                  weaknesses: (wp.weaknesses as string[]) ?? [],
+                };
+              }
+            }
+            return {
+              stage,
+              model: (s.model as string) ?? '',
+              temperature: (s.temperature as number) ?? 0,
+              response_time_ms: (s.response_time_ms as number) ?? 0,
+              prompt: s.prompt as string,
+              raw_response: (s.raw_response as string) ?? '',
+              work_product: s.work_product as Record<string, unknown> | undefined,
+              stage_validation: s.stage_validation as StageValidation | undefined,
+              qualityCheck,
+              runIndex: i,
+            } as StageRun;
+          }),
       })).filter(g => g.runs.length > 0);
     }
 
@@ -223,6 +317,10 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                       responseTimeMs: r.response_time_ms,
                       validationPass: r.stage_validation?.pass,
                       prompt: r.prompt,
+                      response: r.raw_response,
+                      validation: r.stage_validation,
+                      qualityCheck: r.qualityCheck,
+                      orchestrationValidation: r.orchestrationValidation,
                     };
                     return (
                       <div

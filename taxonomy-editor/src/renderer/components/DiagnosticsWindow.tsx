@@ -1025,7 +1025,7 @@ function HelpContent() {
 
       <h3 style={{ color: '#f59e0b' }}>Per-Entry Diagnostics</h3>
       <p>
-        Click any transcript entry to see its internals: the full prompt sent to the AI,
+        Click any transcript entry to see its internals: each pipeline stage (Brief, Plan, Draft, Cite),
         the raw response, which claims were extracted (with validation scores), the taxonomy
         context injected, and what commitments were active at that point.
       </p>
@@ -1985,7 +1985,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  type EntryTab = 'tax-refs' | 'tax-context' | 'prompt' | 'response' | 'details' | 'claims' | 'evidence' | 'brief' | 'plan' | 'draft' | 'cite' | 'moderator';
+  type EntryTab = 'tax-refs' | 'tax-context' | 'response' | 'details' | 'claims' | 'evidence' | 'brief' | 'plan' | 'draft' | 'cite' | 'moderator';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -2230,7 +2230,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
         if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
+          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'response'];
           const idx = ENTRY_TABS.indexOf(entryTab);
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
@@ -3216,11 +3216,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
-          {/* ── Tabbed view: Taxonomy Refs | Taxonomy Context | Full Prompt | Raw Response ── */}
+          {/* ── Tabbed view: Taxonomy Refs | Taxonomy Context | Raw Response ── */}
           {(() => {
             const taxRefCount = entry.taxonomy_refs?.length ?? 0;
             const taxContext = diag?.taxonomy_context ?? '';
-            const prompt = diag?.prompt ?? '';
             const response = diag?.raw_response ?? '';
             const hasClaims = !!(
               diag?.extracted_claims ||
@@ -3373,7 +3372,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
               { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
               { id: 'tax-context', label: 'Taxonomy Context', has: taxContext.length > 0, copy: taxContext },
-              { id: 'prompt', label: 'Full Prompt Sent to AI', has: prompt.length > 0, copy: prompt },
               { id: 'response', label: 'Raw AI Response', has: response.length > 0, copy: response },
             ];
             // If the current tab has no data, auto-select the first tab that does.
@@ -3678,13 +3676,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={taxContext} /></pre>
                     ) : (
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No taxonomy context captured for this entry.</div>
-                    )
-                  )}
-                  {activeTab === 'prompt' && (
-                    prompt ? (
-                      <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={prompt} /></pre>
-                    ) : (
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No prompt captured for this entry.</div>
                     )
                   )}
                   {activeTab === 'response' && (
@@ -4812,7 +4803,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                   : 0.7;
                                 const mono = { fontFamily: 'monospace', fontSize: '0.68rem' } as const;
                                 const dimColor = (pass: boolean) => pass ? '#16a34a' : '#dc2626';
-                                const qualityHints = ov.repairHints.filter(h => classifyHintTarget(h) === 'judge');
+                                const allHints = ov.repairHints ?? [];
                                 return (
                                   <div style={{
                                     margin: '4px 0 8px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
@@ -4844,13 +4835,24 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                       <span>Judge: <strong style={mono}>{judgeQ.toFixed(2)}</strong>{!ov.judge_used && <span style={{ color: 'var(--text-muted)' }}> (default)</span>} <span style={{ color: 'var(--text-muted)' }}>×0.6 = {(0.6 * judgeQ).toFixed(2)}</span></span>
                                       <span>Total: <strong style={{ ...mono, color: score >= 0.7 ? '#16a34a' : score >= 0.5 ? '#d97706' : '#dc2626' }}>{score.toFixed(2)}</strong></span>
                                     </div>
-                                    {qualityHints.length > 0 && (
+                                    {allHints.length > 0 && (
                                       <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
-                                        <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2 }}>Judge Weaknesses</div>
+                                        <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2 }}>Repair Hints</div>
                                         <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
-                                          {qualityHints.map((h, hi) => (
-                                            <li key={hi} style={{ marginBottom: 2 }}>{h}</li>
-                                          ))}
+                                          {allHints.map((h, hi) => {
+                                            const target = classifyHintTarget(h);
+                                            const ts = HINT_TARGET_STYLE[target];
+                                            return (
+                                              <li key={hi} style={{ marginBottom: 2 }}>
+                                                <span style={{
+                                                  display: 'inline-block', fontSize: '0.58rem', fontWeight: 700,
+                                                  color: ts.color, background: ts.bg, padding: '1px 4px',
+                                                  borderRadius: 2, marginRight: 4, verticalAlign: 'middle',
+                                                }}>{ts.label}</span>
+                                                {h}
+                                              </li>
+                                            );
+                                          })}
                                         </ul>
                                       </div>
                                     )}

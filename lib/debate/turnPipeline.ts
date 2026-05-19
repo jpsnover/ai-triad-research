@@ -151,6 +151,12 @@ export interface TurnPipelineInput {
   sourceEvidenceIndex?: import('./evidenceFromSummaries.js').SourceEvidenceIndex;
   /** Map of doc_id → human-readable document title for evidence citations. */
   docTitles?: import('./evidenceFromSummaries.js').DocTitleMap;
+  /** Frozen Brief from a prior pipeline run — skips Brief stage when provided. */
+  frozenBrief?: BriefWorkProduct;
+  /** Frozen Plan from a prior pipeline run — skips Plan stage when provided. */
+  frozenPlan?: PlanWorkProduct;
+  /** Frozen Draft from a prior pipeline run — skips Draft stage when provided (cite-only retry). */
+  frozenDraft?: DraftWorkProduct;
 }
 
 export type StageGenerateFn = (
@@ -251,37 +257,55 @@ export async function runTurnPipeline(
   const pipelineStart = Date.now();
 
   // ── Stage 1: BRIEF ──
-  onProgress?.('brief', `${input.label} is briefing...`);
-  let briefPrompt: string;
-  let briefRaw: string;
-  let t0 = Date.now();
-  if (envelopeGenerate) {
-    const env = briefStageEnvelope(stageInput);
-    briefPrompt = flattenEnvelope(env);
-    const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
-    briefRaw = resp.text;
-  } else {
-    briefPrompt = briefStagePrompt(stageInput);
-    briefRaw = await generate(briefPrompt, input.model, { temperature: temps.brief_temperature }, `${input.label} brief`);
-  }
-  let elapsed = Date.now() - t0;
-  const briefParsed = parseStageResponse<BriefWorkProduct>(briefRaw, 'brief');
-  stageDiags.push({
-    stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
-    model: input.model, temperature: temps.brief_temperature,
-    response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
-    parse_error: briefParsed.error,
-  });
-  if (briefParsed.error) {
-    throw new ActionableError({
-      goal: 'Run debate turn pipeline',
-      problem: `Brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`,
-      location: 'turnPipeline.runPipeline',
-      nextSteps: ['Check the AI model response quality', 'Try a different model'],
+  let brief: BriefWorkProduct;
+  let briefJson: string;
+  let t0: number;
+  let elapsed: number;
+
+  if (input.frozenBrief) {
+    // Frozen from prior pipeline run — skip generation, reuse output
+    brief = input.frozenBrief;
+    briefJson = JSON.stringify(brief, null, 2);
+    stageDiags.push({
+      stage: 'brief', prompt: '(frozen — reused from prior run)', raw_response: briefJson,
+      model: input.model, temperature: temps.brief_temperature,
+      response_time_ms: 0, work_product: brief as unknown as Record<string, unknown>,
+      frozen: true,
     });
+    console.log(`[pipeline] Brief stage FROZEN — reusing prior output`);
+  } else {
+    onProgress?.('brief', `${input.label} is briefing...`);
+    let briefPrompt: string;
+    let briefRaw: string;
+    t0 = Date.now();
+    if (envelopeGenerate) {
+      const env = briefStageEnvelope(stageInput);
+      briefPrompt = flattenEnvelope(env);
+      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
+      briefRaw = resp.text;
+    } else {
+      briefPrompt = briefStagePrompt(stageInput);
+      briefRaw = await generate(briefPrompt, input.model, { temperature: temps.brief_temperature }, `${input.label} brief`);
+    }
+    elapsed = Date.now() - t0;
+    const briefParsed = parseStageResponse<BriefWorkProduct>(briefRaw, 'brief');
+    stageDiags.push({
+      stage: 'brief', prompt: briefPrompt, raw_response: briefRaw,
+      model: input.model, temperature: temps.brief_temperature,
+      response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
+      parse_error: briefParsed.error,
+    });
+    if (briefParsed.error) {
+      throw new ActionableError({
+        goal: 'Run debate turn pipeline',
+        problem: `Brief stage failed to parse — downstream stages would operate on empty context. ${briefParsed.error}`,
+        location: 'turnPipeline.runPipeline',
+        nextSteps: ['Check the AI model response quality', 'Try a different model'],
+      });
+    }
+    brief = briefParsed.product;
+    briefJson = JSON.stringify(brief, null, 2);
   }
-  const brief = briefParsed.product;
-  const briefJson = JSON.stringify(brief, null, 2);
 
   // ── Stage 2: PLAN (with per-stage validation + retry) ──
   // If repairHints are provided, this is an outer retry — skip per-stage retries
@@ -289,66 +313,97 @@ export async function runTurnPipeline(
   const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
   const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 1;
   const isFirstRound = (input.priorMoves ?? []).length === 0;
-  let planRepairHints: string[] = [];
   let plan: PlanWorkProduct | undefined;
   let planJson = '';
 
-  for (let planAttempt = 0; planAttempt <= MAX_STAGE_RETRIES; planAttempt++) {
-    onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
-    let planPromptText: string;
-    let planRaw: string;
-    t0 = Date.now();
-    if (envelopeGenerate) {
-      const env = planStageEnvelope(stageInput, briefJson);
-      if (planRepairHints.length > 0) {
-        env.layer4_variable += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
-      }
-      planPromptText = flattenEnvelope(env);
-      const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
-      planRaw = resp.text;
-    } else {
-      planPromptText = planStagePrompt(stageInput, briefJson);
-      if (planRepairHints.length > 0) {
-        planPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
-      }
-      planRaw = await generate(planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} plan`);
-    }
-    elapsed = Date.now() - t0;
-    const planParsed = parseStageResponse<PlanWorkProduct>(planRaw, 'plan');
-    stageDiags.push({
-      stage: 'plan', prompt: planPromptText, raw_response: planRaw,
-      model: input.model, temperature: temps.plan_temperature,
-      response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
-      parse_error: planParsed.error,
-    });
-    if (planParsed.error) {
-      throw new ActionableError({
-        goal: 'Run debate turn pipeline',
-        problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
-        location: 'turnPipeline.runPipeline',
-        nextSteps: ['Check the AI model response quality', 'Try a different model'],
-      });
-    }
-
-    // Validate plan
-    const planVal = validatePlanStage({ plan: planParsed.product, isFirstRound });
-    const lastPlanDiag = stageDiags[stageDiags.length - 1];
-    (lastPlanDiag as Record<string, unknown>).stage_validation = { pass: planVal.pass, hints: planVal.repairHints, details: planVal.details };
-
-    if (planVal.errorHints.length > 0 && planAttempt < MAX_STAGE_RETRIES) {
-      planRepairHints = planVal.errorHints;
-      console.log(`[pipeline] Plan validation errors (attempt ${planAttempt}), retrying: ${planVal.errorHints.join('; ')}`);
-      continue;
-    }
-
-    plan = planParsed.product;
+  if (input.frozenPlan) {
+    // Frozen from prior pipeline run — skip generation, reuse output
+    plan = input.frozenPlan;
     planJson = JSON.stringify(plan, null, 2);
-    break;
+    stageDiags.push({
+      stage: 'plan', prompt: '(frozen — reused from prior run)', raw_response: planJson,
+      model: input.model, temperature: temps.plan_temperature,
+      response_time_ms: 0, work_product: plan as unknown as Record<string, unknown>,
+      frozen: true,
+    });
+    console.log(`[pipeline] Plan stage FROZEN — reusing prior output`);
+  } else {
+    let planRepairHints: string[] = [];
+    for (let planAttempt = 0; planAttempt <= MAX_STAGE_RETRIES; planAttempt++) {
+      onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
+      let planPromptText: string;
+      let planRaw: string;
+      t0 = Date.now();
+      if (envelopeGenerate) {
+        const env = planStageEnvelope(stageInput, briefJson);
+        if (planRepairHints.length > 0) {
+          env.layer4_variable += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
+        }
+        planPromptText = flattenEnvelope(env);
+        const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
+        planRaw = resp.text;
+      } else {
+        planPromptText = planStagePrompt(stageInput, briefJson);
+        if (planRepairHints.length > 0) {
+          planPromptText += `\n\n=== REPAIR HINTS (from prior failed attempt) ===\n${planRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your revised plan.`;
+        }
+        planRaw = await generate(planPromptText, input.model, { temperature: temps.plan_temperature }, `${input.label} plan`);
+      }
+      elapsed = Date.now() - t0;
+      const planParsed = parseStageResponse<PlanWorkProduct>(planRaw, 'plan');
+      stageDiags.push({
+        stage: 'plan', prompt: planPromptText, raw_response: planRaw,
+        model: input.model, temperature: temps.plan_temperature,
+        response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
+        parse_error: planParsed.error,
+      });
+      if (planParsed.error) {
+        throw new ActionableError({
+          goal: 'Run debate turn pipeline',
+          problem: `Plan stage failed to parse — downstream stages would operate on empty context. ${planParsed.error}`,
+          location: 'turnPipeline.runPipeline',
+          nextSteps: ['Check the AI model response quality', 'Try a different model'],
+        });
+      }
+
+      // Validate plan
+      const planVal = validatePlanStage({ plan: planParsed.product, isFirstRound });
+      const lastPlanDiag = stageDiags[stageDiags.length - 1];
+      (lastPlanDiag as Record<string, unknown>).stage_validation = { pass: planVal.pass, hints: planVal.repairHints, details: planVal.details };
+
+      if (planVal.errorHints.length > 0 && planAttempt < MAX_STAGE_RETRIES) {
+        planRepairHints = planVal.errorHints;
+        console.log(`[pipeline] Plan validation errors (attempt ${planAttempt}), retrying: ${planVal.errorHints.join('; ')}`);
+        continue;
+      }
+
+      plan = planParsed.product;
+      planJson = JSON.stringify(plan, null, 2);
+      break;
+    }
   }
   if (!plan) {
     plan = {} as PlanWorkProduct;
     planJson = '{}';
   }
+
+  // ── Stages 2.5–3.5: EVIDENCE → DRAFT → PRE-CHECK ──
+  // When frozenDraft is provided, skip evidence retrieval, draft generation,
+  // linkification, citation verification, and quality pre-check entirely.
+  let draft: DraftWorkProduct | undefined;
+  let draftJson = '';
+
+  if (input.frozenDraft) {
+    draft = input.frozenDraft;
+    draftJson = JSON.stringify(draft, null, 2);
+    stageDiags.push({
+      stage: 'draft', prompt: '(frozen — reused from prior run)', raw_response: draftJson,
+      model: input.model, temperature: temps.draft_temperature,
+      response_time_ms: 0, work_product: draft as unknown as Record<string, unknown>,
+      frozen: true,
+    });
+    console.log(`[pipeline] Draft stage FROZEN — reusing prior output (skipping evidence, linkification, pre-check)`);
+  } else {
 
   // ── Stage 2.5: EVIDENCE (deterministic — no LLM call) ──
   // Retrieve source document evidence for the plan's target nodes.
@@ -394,8 +449,6 @@ export async function runTurnPipeline(
   let draftRepairHints: string[] = input.repairHints?.filter(h =>
     !/taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i.test(h)
   ) ?? [];
-  let draft: DraftWorkProduct | undefined;
-  let draftJson = '';
 
   const MAX_DRAFT_RETRIES = isOuterRetry ? 0 : 2; // directive failures get up to 2 retries (3 attempts)
   for (let draftAttempt = 0; draftAttempt <= MAX_DRAFT_RETRIES; draftAttempt++) {
@@ -408,6 +461,13 @@ export async function runTurnPipeline(
     const failedDraftStatement = draftRepairHints.length > 0 && draft?.statement ? draft.statement : undefined;
     const repairBlock = buildRepairBlock(draftRepairHints, failedDraftStatement);
 
+    // Field-level freeze: when hints target only specific fields, instruct the LLM
+    // to preserve unflagged fields from the prior draft (prevents unnecessary regression).
+    const targetedFields = draftRepairHints.length > 0 ? classifyDraftHintFields(draftRepairHints) : new Set<DraftField>();
+    const fieldFreezeBlock = draft && targetedFields.size > 0 && targetedFields.size < ALL_DRAFT_FIELDS.length
+      ? buildFieldFreezeBlock(draft, targetedFields)
+      : '';
+
     if (envelopeGenerate) {
       const env = draftStageEnvelope(stageInput, briefJson, planJson);
       // Inject repair block first (corrections from prior attempt)
@@ -419,6 +479,13 @@ export async function runTurnPipeline(
         if (!env.layer4_variable.includes('CORRECTIONS REQUIRED') && !env.layer4_variable.includes('MANDATORY CORRECTION')) {
           env.layer4_variable += repairBlock;
         }
+      }
+      // Inject field-freeze block (preserve unflagged fields from prior draft)
+      if (fieldFreezeBlock) {
+        env.layer4_variable = env.layer4_variable.replace(
+          /Respond ONLY with a JSON/,
+          `${fieldFreezeBlock}\nRespond ONLY with a JSON`,
+        );
       }
       // Inject source evidence LAST — right before the output schema (Lost-in-the-Middle mitigation)
       if (evidenceBlock) {
@@ -442,6 +509,13 @@ export async function runTurnPipeline(
           draftPromptText += repairBlock;
         }
       }
+      // Inject field-freeze block (preserve unflagged fields from prior draft)
+      if (fieldFreezeBlock) {
+        draftPromptText = draftPromptText.replace(
+          /Respond ONLY with a JSON/,
+          `${fieldFreezeBlock}\nRespond ONLY with a JSON`,
+        );
+      }
       // Inject source evidence LAST — right before the output schema
       if (evidenceBlock) {
         draftPromptText = draftPromptText.replace(
@@ -452,6 +526,7 @@ export async function runTurnPipeline(
       draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
     }
     elapsed = Date.now() - t0;
+    const priorDraft = draft; // save before reassign for field-level merge
     const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
     stageDiags.push({
       stage: 'draft', prompt: draftPromptText, raw_response: draftRaw,
@@ -460,6 +535,13 @@ export async function runTurnPipeline(
       parse_error: draftParsed.error,
     });
     draft = draftParsed.product;
+
+    // Merge frozen fields from prior draft to guarantee stability —
+    // LLMs don't always follow field-freeze instructions perfectly.
+    if (draft && priorDraft && fieldFreezeBlock) {
+      draft = mergeFrozenDraftFields(draft, priorDraft, targetedFields);
+      console.log(`[pipeline] Draft field-level merge: froze ${ALL_DRAFT_FIELDS.filter(f => !targetedFields.has(f)).join(', ')}, regenerated ${[...targetedFields].join(', ')}`);
+    }
 
     // Per-stage draft validation
     if (draft) {
@@ -496,6 +578,9 @@ export async function runTurnPipeline(
         continue;
       }
     }
+    // Draft passed validation — clear repair hints so they don't persist
+    // as stale noise into subsequent orchestration retry cycles.
+    draftRepairHints = [];
     break;
   }
   draftJson = JSON.stringify(draft, null, 2);
@@ -655,6 +740,8 @@ export async function runTurnPipeline(
     }
   }
 
+  } // end frozenDraft else
+
   // ── Stage 4: CITE (with per-stage validation + retry) ──
   let citeRepairHints: string[] = input.repairHints?.filter(h =>
     /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i.test(h)
@@ -667,7 +754,7 @@ export async function runTurnPipeline(
     let citeRaw: string;
     t0 = Date.now();
     if (envelopeGenerate) {
-      const env = citeStageEnvelope(stageInput, briefJson, planJson, draftJson);
+      const env = citeStageEnvelope(stageInput, planJson, draftJson);
       if (citeRepairHints.length > 0) {
         env.layer4_variable += `\n\n=== CITATION REPAIR HINTS (from prior failed attempt) ===\n${citeRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your taxonomy references.`;
       }
@@ -675,7 +762,7 @@ export async function runTurnPipeline(
       const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.cite_temperature } }, `${input.label} cite`);
       citeRaw = resp.text;
     } else {
-      citePromptText = citeStagePrompt(stageInput, briefJson, planJson, draftJson);
+      citePromptText = citeStagePrompt(stageInput, planJson, draftJson);
       if (citeRepairHints.length > 0) {
         citePromptText += `\n\n=== CITATION REPAIR HINTS (from prior failed attempt) ===\n${citeRepairHints.map(h => '- ' + h).join('\n')}\nAddress these issues in your taxonomy references.`;
       }
@@ -805,6 +892,107 @@ function normalizeSpeakerNames(text: string): string {
     out = out.replace(pattern, label);
   }
   return out;
+}
+
+// ── Draft field-level freeze for per-stage retries ───────
+
+/** DraftWorkProduct fields that can be individually frozen on retry. */
+type DraftField = 'statement' | 'claim_sketches' | 'key_assumptions' | 'turn_symbols'
+  | 'disagreement_type' | 'commitment' | 'position_update';
+
+const ALL_DRAFT_FIELDS: DraftField[] = [
+  'statement', 'claim_sketches', 'key_assumptions', 'turn_symbols',
+  'disagreement_type', 'commitment', 'position_update',
+];
+
+/** Map repair hint patterns to the DraftWorkProduct fields they target.
+ *  Returns the set of fields that need regeneration — everything else can be frozen. */
+function classifyDraftHintFields(hints: string[]): Set<DraftField> {
+  const targeted = new Set<DraftField>();
+  for (const h of hints) {
+    if (/abstract|number.*entity.*timeline|specific|claim_sketches|my_claims/i.test(h)) {
+      targeted.add('claim_sketches');
+    }
+    if (/hedge density|qualifiers|hedging/i.test(h)) {
+      targeted.add('statement');
+    }
+    if (/single paragraph|split into|paragraph/i.test(h)) {
+      targeted.add('statement');
+    }
+    if (/directive|first paragraph|PIN|PROBE|CHALLENGE/i.test(h)) {
+      targeted.add('statement');
+    }
+    if (/duplicate|repeated text/i.test(h)) {
+      targeted.add('statement');
+    }
+    if (/move_types repeat|vary moves/i.test(h)) {
+      targeted.add('turn_symbols');
+    }
+    if (/constructive move|CONCEDE.*PIVOT.*INTEGRATE/i.test(h)) {
+      targeted.add('turn_symbols');
+    }
+    if (/concessions|conditions_for_change|sharpest_disagreements|commitment.*sub-fields/i.test(h)) {
+      targeted.add('commitment');
+    }
+    if (/position_update/i.test(h)) {
+      targeted.add('position_update');
+    }
+    if (/disagreement_type/i.test(h)) {
+      targeted.add('disagreement_type');
+    }
+    if (/key_assumptions/i.test(h)) {
+      targeted.add('key_assumptions');
+    }
+  }
+  // If no specific fields matched, assume all fields need regeneration
+  if (targeted.size === 0) {
+    for (const f of ALL_DRAFT_FIELDS) targeted.add(f);
+  }
+  return targeted;
+}
+
+/** Build a prompt injection that tells the LLM to preserve specific fields
+ *  from the prior draft while regenerating only the targeted fields. */
+function buildFieldFreezeBlock(
+  priorDraft: DraftWorkProduct,
+  targetedFields: Set<DraftField>,
+): string {
+  const frozenFields = ALL_DRAFT_FIELDS.filter(f => !targetedFields.has(f));
+  if (frozenFields.length === 0) return '';
+
+  // Only include frozen field values that exist on the prior draft
+  const frozenEntries: Record<string, unknown> = {};
+  for (const f of frozenFields) {
+    const val = (priorDraft as Record<string, unknown>)[f];
+    if (val !== undefined) frozenEntries[f] = val;
+  }
+  if (Object.keys(frozenEntries).length === 0) return '';
+
+  return `\n=== FIELD-LEVEL FREEZE (from prior accepted draft) ===
+The following fields passed validation. Copy them EXACTLY into your response — do not modify them:
+${JSON.stringify(frozenEntries, null, 2)}
+
+Only regenerate these fields: ${[...targetedFields].join(', ')}
+All other fields above must appear verbatim in your output.\n`;
+}
+
+/** After parsing a retry draft, merge frozen fields from the prior draft
+ *  to guarantee stability — LLMs don't always follow freeze instructions perfectly. */
+function mergeFrozenDraftFields(
+  retryDraft: DraftWorkProduct,
+  priorDraft: DraftWorkProduct,
+  targetedFields: Set<DraftField>,
+): DraftWorkProduct {
+  const merged = { ...retryDraft };
+  for (const f of ALL_DRAFT_FIELDS) {
+    if (!targetedFields.has(f)) {
+      const priorVal = (priorDraft as Record<string, unknown>)[f];
+      if (priorVal !== undefined) {
+        (merged as Record<string, unknown>)[f] = priorVal;
+      }
+    }
+  }
+  return merged;
 }
 
 function buildRepairBlock(hints: string[], failedStatement?: string): string {

@@ -455,7 +455,7 @@ function buildJudgePrompt(p: ValidateTurnParams): string {
   }).join('\n\n');
 
   const turnJson = JSON.stringify({
-    statement: p.statement.slice(0, 2000),
+    statement: p.statement.slice(0, 6000),
     taxonomy_refs: p.taxonomyRefs,
     move_types: p.meta.move_types ?? [],
     disagreement_type: p.meta.disagreement_type ?? null,

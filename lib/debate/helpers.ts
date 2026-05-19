@@ -232,6 +232,7 @@ export interface PoverResponseMeta {
   reflection?: Record<string, unknown>;
   compressed_thesis?: string;
   commitment?: Record<string, unknown>;
+  directive_response?: { directive: string; how_addressed: string };
 }
 
 /** Try to parse JSON, with repair fallback for LLM formatting issues */
