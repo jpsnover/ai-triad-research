@@ -88,7 +88,7 @@ export function NewsReportModal({ onClose }: { onClose: () => void }) {
     if (!newsReport && !newsReportLoading && !newsReportError) {
       void generateNewsReport();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCopy = async () => {
     if (!newsReport) return;

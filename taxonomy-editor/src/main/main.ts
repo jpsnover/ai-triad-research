@@ -102,12 +102,12 @@ function registerWindowHandlers(): void {
 
 /** Apply security hardening to every BrowserWindow (will-navigate + setWindowOpenHandler). */
 function hardenWindow(win: BrowserWindow): void {
-  // S1: Block navigation to untrusted origins
+  // S1: Block navigation to untrusted origins — open external URLs in system browser
   win.webContents.on('will-navigate', (event, url) => {
     const allowed = ['http://localhost:5173', 'file://'];
     if (!allowed.some(prefix => url.startsWith(prefix))) {
       event.preventDefault();
-      console.warn(`[main] Blocked navigation to: ${url}`);
+      if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
     }
   });
   // S2: Deny new-window requests; open http(s) links externally

@@ -471,7 +471,7 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
           padding: '2px 0', fontSize: '0.7rem', minWidth: 120,
         }}>
           <div
-            onClick={() => { navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
+            onClick={() => { void navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
             style={{
               padding: '4px 12px', cursor: 'pointer',
             }}
