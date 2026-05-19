@@ -842,7 +842,9 @@ post('/api/debates/:id/news-report', async (req, res) => {
     const hasSynthesis = transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
     if (!hasSynthesis) { error(res, 'A synthesis must exist before generating a news report.', 400); return; }
 
+    // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
     const { extractTranscriptHighlights, summarizeArgumentNetwork } = await import('../../lib/debate/newsReport.js');
+    // @ts-expect-error — lib/debate uses bundler moduleResolution; dynamic import resolves at runtime
     const { newsReportPrompt } = await import('../../lib/debate/prompts.js');
 
     const anNodes = ((session.argument_network as Record<string, unknown>)?.nodes ?? []) as unknown[];

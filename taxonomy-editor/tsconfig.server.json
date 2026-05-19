@@ -14,5 +14,5 @@
     "declaration": false
   },
   "include": ["src/server/**/*", "../lib/ai-client/**/*", "../lib/search/**/*", "../lib/flight-recorder/**/*"],
-  "exclude": ["node_modules", "dist", "../lib/**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "../lib/**/*.test.ts", "src/server/__tests__"]
 }
