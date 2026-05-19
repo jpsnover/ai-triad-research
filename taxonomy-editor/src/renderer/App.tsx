@@ -20,6 +20,7 @@ import { StartupProgressScreen } from './components/StartupProgressScreen';
 import { DiagnosticsWindow } from './components/DiagnosticsWindow';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
 import { DebatePopoutWindow } from './components/DebatePopoutWindow';
+import { PromptDiffWindow } from './components/PromptDiffWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
 import { CruxesTab } from './components/CruxesTab';
@@ -112,6 +113,9 @@ export function App() {
   }
   if (window.location.hash.startsWith('#debate-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DebatePopoutWindow /></ErrorBoundary>;
+  }
+  if (window.location.hash.startsWith('#prompt-diff-window')) {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PromptDiffWindow /></ErrorBoundary>;
   }
   if (window.location.hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AnalyticsDashboard /></ErrorBoundary>;

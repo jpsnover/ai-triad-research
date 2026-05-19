@@ -627,6 +627,14 @@ function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
   );
 }
 
+/** Fix markdown links broken by newlines inside `[text](url)` — AI models often wrap long URLs. */
+function fixMarkdownLinks(text: string): string {
+  return text.replace(/\[([^\]]*)\]\(\s*([\s\S]*?)\s*\)/g, (_match, linkText, url) => {
+    const cleanUrl = url.replace(/\s+/g, '');
+    return `[${linkText}](${cleanUrl})`;
+  });
+}
+
 function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
   const meta = entry.metadata as Record<string, unknown> | undefined;
   const questions = meta?.questions as { question: string; options?: string[] }[] | undefined;
@@ -658,7 +666,7 @@ function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
         <span className="debate-statement-type">{entry.type}</span>
       </div>
       <div className="debate-statement-content markdown-body">
-        <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(entry.content)}</Markdown>
       </div>
     </div>
   );
@@ -819,7 +827,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
       <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown remarkPlugins={[remarkGfm]}>{displayContent}</Markdown>}
+          : <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(displayContent)}</Markdown>}
         {isTruncated && (
           <span
             className="debate-tier-truncated"
@@ -1157,7 +1165,7 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
       <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>}
+          : <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(entry.content)}</Markdown>}
       </div>
       {showWebEvidence && (
         <div className="debate-fact-check-web-evidence">
@@ -1166,7 +1174,7 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
             {annotatedEvidence ? (
               <div className="debate-fact-check-evidence-text">{annotatedEvidence}</div>
             ) : factCheck?.web_search_evidence ? (
-              <Markdown remarkPlugins={[remarkGfm]}>{factCheck.web_search_evidence}</Markdown>
+              <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(factCheck.web_search_evidence)}</Markdown>
             ) : (
               <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
                 {factCheck?.web_search_used

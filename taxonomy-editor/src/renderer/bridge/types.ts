@@ -157,6 +157,9 @@ export interface AppAPI {
   closeDiagnosticsWindow: () => Promise<void>;
   sendDiagnosticsState: (state: unknown) => void;
 
+  // --- Prompt Diff popout ---
+  openPromptDiffWindow: (debateId: string, entryId: string) => Promise<void>;
+
   // --- Debate popout ---
   openDebateWindow: (debateId: string) => Promise<void>;
   closeDebateWindow: () => Promise<void>;
@@ -186,6 +189,7 @@ export interface AppAPI {
   // --- Flight recorder ---
   dumpFlightRecorder: (ndjson: string) => Promise<{ filePath: string; filename: string }>;
   openFile: (filePath: string) => Promise<void>;
+  openFlightRecorderViewer: (dumpPath: string) => Promise<void>;
 
   // --- Event listeners (return unsubscribe function) ---
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;

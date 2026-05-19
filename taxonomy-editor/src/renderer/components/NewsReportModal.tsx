@@ -7,9 +7,18 @@ import remarkGfm from 'remark-gfm';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 
+/** Fix markdown links broken by newlines inside `[text](url)` — AI models often wrap long URLs. */
+function fixMarkdownLinks(text: string): string {
+  return text.replace(/\[([^\]]*)\]\(\s*([\s\S]*?)\s*\)/g, (_match, linkText, url) => {
+    const cleanUrl = url.replace(/\s+/g, '');
+    return `[${linkText}](${cleanUrl})`;
+  });
+}
+
 function ArticleContent({ markdown }: { markdown: string }) {
   // Prompt output: line 1 = headline, line 2 = subhead, rest = body with ## sections
-  const lines = markdown.split('\n');
+  const fixed = fixMarkdownLinks(markdown);
+  const lines = fixed.split('\n');
   const headline = lines[0]?.replace(/^#\s*/, '') || '';
   const subhead = lines[1]?.trim() || '';
   // Body starts after the first blank line following subhead, or line 3

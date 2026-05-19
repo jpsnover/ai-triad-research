@@ -159,11 +159,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   openFile: (filePath: string): Promise<void> =>
     ipcRenderer.invoke('open-file', filePath).then(() => {}),
+  openFlightRecorderViewer: (dumpPath: string): Promise<void> =>
+    ipcRenderer.invoke('open-flight-recorder-viewer', dumpPath).then(() => {}),
 
   // Diagnostics window
   openDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('open-diagnostics-window'),
   openPovProgressionWindow: (): Promise<void> => ipcRenderer.invoke('open-pov-progression-window'),
   closeDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('close-diagnostics-window'),
+
+  // Prompt Diff window
+  openPromptDiffWindow: (debateId: string, entryId: string): Promise<void> =>
+    ipcRenderer.invoke('open-prompt-diff-window', debateId, entryId),
+  onPromptDiffContext: (callback: (ctx: { debateId: string; entryId: string }) => void) => {
+    ipcRenderer.on('prompt-diff-context', (_event, ctx) => callback(ctx));
+  },
 
   // Debate popout window
   openDebateWindow: (debateId: string): Promise<void> => ipcRenderer.invoke('open-debate-window', debateId),

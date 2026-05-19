@@ -1016,6 +1016,43 @@ export function registerIpcHandlers(): void {
     return { filePath, filename };
   });
 
+  ipcMain.handle('open-flight-recorder-viewer', (_event, dumpPath: string) => {
+    if (!fs.existsSync(dumpPath)) return;
+
+    const viewerPath = path.join(PROJECT_ROOT, 'tools', 'flight-recorder-viewer.html');
+    if (!fs.existsSync(viewerPath)) {
+      // Fallback: open raw file if viewer HTML not found
+      void shell.openPath(dumpPath);
+      return;
+    }
+
+    const dumpContent = fs.readFileSync(dumpPath, 'utf-8');
+    const viewerHtml = fs.readFileSync(viewerPath, 'utf-8');
+
+    // Escape for embedding in a JS template literal
+    const escaped = dumpContent
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$/g, '\\$');
+
+    const autoLoadScript = `<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('fileName').textContent = '${path.basename(dumpPath).replace(/'/g, "\\'")}';
+  parseNdjson(\`${escaped}\`);
+});
+</script>`;
+
+    const outputHtml = viewerHtml.replace('</body>', `${autoLoadScript}\n</body>`);
+
+    const tempDir = path.join(app.getPath('temp'), 'flight-recorder-viewer');
+    fs.mkdirSync(tempDir, { recursive: true });
+    const ts = new Date().toISOString().replace(/:/g, '-');
+    const tempFile = path.join(tempDir, `viewer-${ts}.html`);
+    fs.writeFileSync(tempFile, outputHtml, 'utf-8');
+
+    void shell.openPath(tempFile);
+  });
+
   ipcMain.handle('pick-directory', async (_event, defaultPath?: string) => {
     const win = BrowserWindow.getFocusedWindow();
     if (!win) return { cancelled: true };

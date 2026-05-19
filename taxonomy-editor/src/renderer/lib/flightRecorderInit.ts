@@ -103,7 +103,7 @@ async function persistDump(
       filePath: result.filePath,
       isWeb,
       onCopy: () => { void api.clipboardWriteText(result.filePath); },
-      onOpen: () => { void api.openFile(result.filePath); },
+      onOpen: () => { void api.openFlightRecorderViewer(result.filePath); },
       serverFilename,
     });
   } catch (err) {

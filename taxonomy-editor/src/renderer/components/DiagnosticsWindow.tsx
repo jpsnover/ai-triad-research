@@ -279,6 +279,71 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
               </ul>
             </>
           )}
+          {/* Hint effectiveness tracking (retry attempts only) */}
+          {a.hint_effectiveness && a.hint_effectiveness.length > 0 && (
+            <>
+              <div style={{ fontWeight: 600, marginTop: 6 }}>Hint Effectiveness</div>
+              <div style={{ marginTop: 4 }}>
+                {(() => {
+                  const he = a.hint_effectiveness as Array<{
+                    hint_text: string; category: string; source: string; specificity: string;
+                    resolution: string; cited_fragment?: string; fragment_persists?: boolean;
+                    pre_score: number; post_score?: number; score_delta?: number;
+                  }>;
+                  const fixed = he.filter(h => h.resolution === 'fixed').length;
+                  const partial = he.filter(h => h.resolution === 'partially_fixed').length;
+                  const ignored = he.filter(h => h.resolution === 'ignored').length;
+                  const worse = he.filter(h => h.resolution === 'made_worse').length;
+                  const resColors: Record<string, string> = {
+                    fixed: '#16a34a', partially_fixed: '#d97706', ignored: '#6b7280', made_worse: '#dc2626', pending: '#3b82f6',
+                  };
+                  const specColors: Record<string, string> = {
+                    concrete: '#16a34a', structural: '#3b82f6', evaluative: '#d97706',
+                  };
+                  return (
+                    <>
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 6, fontSize: '0.65rem' }}>
+                        <span style={{ color: '#16a34a', fontWeight: 700 }}>Fixed: {fixed}</span>
+                        <span style={{ color: '#d97706', fontWeight: 700 }}>Partial: {partial}</span>
+                        <span style={{ color: '#6b7280', fontWeight: 700 }}>Ignored: {ignored}</span>
+                        <span style={{ color: '#dc2626', fontWeight: 700 }}>Worse: {worse}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          Score: {he[0]?.pre_score?.toFixed(2)} → {he[0]?.post_score?.toFixed(2)} ({(he[0]?.score_delta ?? 0) >= 0 ? '+' : ''}{he[0]?.score_delta?.toFixed(2)})
+                        </span>
+                      </div>
+                      {he.map((h, hi) => (
+                        <div key={hi} style={{
+                          marginBottom: 4, padding: '4px 8px', borderRadius: 4, fontSize: '0.66rem',
+                          borderLeft: `3px solid ${resColors[h.resolution] ?? '#6b7280'}`,
+                          background: 'var(--bg-subtle)',
+                        }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                            <span style={{
+                              fontSize: '0.55rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                              color: resColors[h.resolution] ?? '#6b7280',
+                              background: `${resColors[h.resolution] ?? '#6b7280'}18`,
+                            }}>{h.resolution.toUpperCase().replace('_', ' ')}</span>
+                            <span style={{
+                              fontSize: '0.55rem', padding: '0 4px', borderRadius: 3,
+                              color: specColors[h.specificity] ?? '#6b7280',
+                              background: `${specColors[h.specificity] ?? '#6b7280'}18`,
+                            }}>{h.specificity}</span>
+                            <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>{h.source.replace('_', ' ')}</span>
+                          </div>
+                          <div>{h.hint_text}</div>
+                          {h.cited_fragment && (
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                              Fragment: &ldquo;{h.cited_fragment}&rdquo; {h.fragment_persists ? '— still present' : '— removed'}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+            </>
+          )}
           {a.prompt_delta && (
             <>
               <div style={{ fontWeight: 600, marginTop: 4 }}>Repair prompt delta</div>
@@ -3050,6 +3115,18 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>
               {entryIdx + 1} / {totalEntries}
             </span>
+            {diag?.stage_diagnostics?.some(s => s.prompt) && debate && (
+              <button
+                onClick={() => void api.openPromptDiffWindow(debate.id, entry.id)}
+                title="Open Prompt Diff viewer for this entry"
+                style={{
+                  marginLeft: 8, padding: '2px 8px', fontSize: '0.65rem', fontWeight: 600,
+                  borderRadius: 4, border: '1px solid rgba(168,85,247,0.3)',
+                  background: 'rgba(168,85,247,0.1)', color: '#a855f7',
+                  cursor: 'pointer',
+                }}
+              >Prompt Diff</button>
+            )}
           </div>
 
           {/* ── Proxied moderator trace for system entries ── */}
@@ -4691,9 +4768,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           const isFinal = ai === effectiveDraftAttempts.length - 1;
                           const valData = (attempt as Record<string, unknown>).stage_validation as { pass: boolean; hints: string[]; details?: { rule: string; pass: boolean; value?: string }[] } | undefined;
                           const allHints = valData?.hints ?? [];
-                          // Pull judge-quality hints from overall validation for the final attempt only
-                          const judgeHints = isFinal ? (turnValTrail?.final.repairHints ?? []).filter(h => classifyHintTarget(h) === 'judge') : [];
-                          const combinedHints = [...allHints, ...judgeHints];
+                          // Pull draft + judge hints from overall validation for the final attempt
+                          // (cite hints go on the Cite tab, not here)
+                          const overallHints = isFinal
+                            ? (turnValTrail?.final.repairHints ?? []).filter(h => classifyHintTarget(h) !== 'cite')
+                            : [];
+                          const combinedHints = [...allHints, ...overallHints];
                           // Validation score: full breakdown on final turn, pass/fail on others
                           const turnScore = isFinal ? turnValTrail?.final.process_reward : undefined;
 

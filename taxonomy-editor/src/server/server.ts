@@ -746,6 +746,41 @@ get('/api/flight-recorder/download/:filename', (req, res) => {
   } catch (err) { error(res, String(err)); }
 });
 
+get('/api/flight-recorder/view/:filename', (req, res) => {
+  try {
+    const filename = decodeURIComponent(param(req, 'filename', '/api/flight-recorder/view/:filename'));
+    if (!/^(server-)?flight-recorder-.+\.jsonl$/.test(filename)) {
+      error(res, 'Invalid filename', 400);
+      return;
+    }
+    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    const filePath = path.join(dumpDir, filename);
+    if (!fs.existsSync(filePath)) { error(res, 'File not found', 404); return; }
+
+    const viewerPath = path.join(getProjectRoot(), 'tools', 'flight-recorder-viewer.html');
+    if (!fs.existsSync(viewerPath)) { error(res, 'Viewer HTML not found', 500); return; }
+
+    const dumpContent = fs.readFileSync(filePath, 'utf-8');
+    const viewerHtml = fs.readFileSync(viewerPath, 'utf-8');
+
+    const escaped = dumpContent
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$/g, '\\$');
+
+    const autoLoadScript = `<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('fileName').textContent = '${filename.replace(/'/g, "\\'")}';
+  parseNdjson(\`${escaped}\`);
+});
+</script>`;
+
+    const outputHtml = viewerHtml.replace('</body>', `${autoLoadScript}\n</body>`);
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(outputHtml);
+  } catch (err) { error(res, String(err)); }
+});
+
 get('/api/debates/:id', async (req, res) => {
   try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
   catch (err) { error(res, String(err), 404); }

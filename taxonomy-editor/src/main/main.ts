@@ -20,6 +20,7 @@ let mainWindow: BrowserWindow | null = null;
 let diagWindow: BrowserWindow | null = null;
 let povProgWindow: BrowserWindow | null = null;
 let debateWindow: BrowserWindow | null = null;
+let promptDiffWindow: BrowserWindow | null = null;
 let focusServer: http.Server | null = null;
 
 const FOCUS_PORT = 17862;
@@ -358,6 +359,42 @@ void app.whenReady().then(() => {
     if (diagWindow && !diagWindow.isDestroyed()) {
       diagWindow.close();
     }
+  });
+
+  // Prompt Diff popout window
+  ipcMain.handle('open-prompt-diff-window', (_event, debateId: string, entryId: string) => {
+    if (promptDiffWindow && !promptDiffWindow.isDestroyed()) {
+      // Update context and refocus
+      promptDiffWindow.webContents.send('prompt-diff-context', { debateId, entryId });
+      if (promptDiffWindow.isMinimized()) promptDiffWindow.restore();
+      promptDiffWindow.show();
+      promptDiffWindow.focus();
+      return;
+    }
+    const preloadPath = path.join(__dirname, 'preload.js');
+    promptDiffWindow = new BrowserWindow({
+      width: 1200,
+      height: 700,
+      minWidth: 900,
+      minHeight: 600,
+      title: 'Prompt Diff',
+      alwaysOnTop: false,
+      webPreferences: {
+        preload: preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    hardenWindow(promptDiffWindow);
+    const hash = `prompt-diff-window?debateId=${encodeURIComponent(debateId)}&entryId=${encodeURIComponent(entryId)}`;
+    const isDev = !app.isPackaged;
+    if (isDev) {
+      void promptDiffWindow.loadURL(`http://localhost:5173#${hash}`);
+    } else {
+      void promptDiffWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash });
+    }
+    promptDiffWindow.on('closed', () => { promptDiffWindow = null; });
   });
 
   // Relay diagnostics state from main window to diag window AND pov-progression window

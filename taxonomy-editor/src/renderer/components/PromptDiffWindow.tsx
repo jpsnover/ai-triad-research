@@ -91,19 +91,19 @@ export function PromptDiffWindow() {
   const { debateId: initialDebateId, entryId: initialEntryId } = parseHashParams();
   const [focusedEntryId, setFocusedEntryId] = useState(initialEntryId);
 
-  const { debates, loadDebate } = useDebateStore(useShallow(s => ({
-    debates: s.debates,
+  const { activeDebate, loadDebate } = useDebateStore(useShallow(s => ({
+    activeDebate: s.activeDebate,
     loadDebate: s.loadDebate,
   })));
 
   // Load debate if needed
   useEffect(() => {
-    if (initialDebateId && !(debates ?? []).find(d => d.id === initialDebateId)) {
+    if (initialDebateId && activeDebate?.id !== initialDebateId) {
       void loadDebate(initialDebateId);
     }
-  }, [initialDebateId, debates, loadDebate]);
+  }, [initialDebateId, activeDebate?.id, loadDebate]);
 
-  const debate = (debates ?? []).find(d => d.id === initialDebateId);
+  const debate = activeDebate?.id === initialDebateId ? activeDebate : null;
 
   // Listen for context updates from Electron (when window is reused)
   useEffect(() => {
@@ -129,8 +129,8 @@ export function PromptDiffWindow() {
   const addNode = useCallback((node: PromptNode) => {
     setPaneNodes(prev => {
       // Don't add duplicates
-      const key = nodeKey(node.entryId, node.stage, node.attemptIndex);
-      if (prev.some(n => nodeKey(n.entryId, n.stage, n.attemptIndex) === key)) return prev;
+      const key = nodeKey(node.entryId, node.stage, node.runIndex);
+      if (prev.some(n => nodeKey(n.entryId, n.stage, n.runIndex) === key)) return prev;
       if (prev.length >= MAX_PANES) {
         // Replace rightmost
         return [...prev.slice(0, MAX_PANES - 1), node];
@@ -258,7 +258,7 @@ export function PromptDiffWindow() {
             focusedEntryId={focusedEntryId}
             onSelectNode={addNode}
             selectedNodeKey={paneNodes.length > 0
-              ? nodeKey(paneNodes[paneNodes.length - 1].entryId, paneNodes[paneNodes.length - 1].stage, paneNodes[paneNodes.length - 1].attemptIndex)
+              ? nodeKey(paneNodes[paneNodes.length - 1].entryId, paneNodes[paneNodes.length - 1].stage, paneNodes[paneNodes.length - 1].runIndex)
               : undefined}
           />
         </div>
@@ -275,7 +275,7 @@ export function PromptDiffWindow() {
           )}
           {panes.map((pane, i) => (
             <PromptDiffPane
-              key={nodeKey(pane.node.entryId, pane.node.stage, pane.node.attemptIndex)}
+              key={nodeKey(pane.node.entryId, pane.node.stage, pane.node.runIndex)}
               pane={pane}
               paneIndex={i}
               isReference={i === 0}

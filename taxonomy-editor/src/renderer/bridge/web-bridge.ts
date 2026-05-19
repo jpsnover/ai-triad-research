@@ -371,6 +371,11 @@ const rawApi: AppAPI = {
   // Flight recorder
   dumpFlightRecorder: (ndjson) => post('/api/flight-recorder/dump', { ndjson }),
   openFile: async () => {}, // No local file access in web mode
+  openFlightRecorderViewer: async (dumpPath) => {
+    // Extract filename from path and open the server-side viewer endpoint
+    const filename = dumpPath.split('/').pop() ?? dumpPath;
+    window.open(`/api/flight-recorder/view/${encodeURIComponent(filename)}`, '_blank');
+  },
 
   // Diagnostics — in web mode, communicate cross-tab via BroadcastChannel
   openDiagnosticsWindow: async () => {
@@ -387,6 +392,10 @@ const rawApi: AppAPI = {
     // Broadcast to same-window listeners AND cross-tab via BroadcastChannel
     for (const cb of diagCallbacks) cb(state);
     diagChannel?.postMessage({ type: 'diagnostics-state', payload: state });
+  },
+  // Prompt Diff popout
+  openPromptDiffWindow: async (debateId, entryId) => {
+    window.open(`${location.origin}/#prompt-diff-window?debateId=${encodeURIComponent(debateId)}&entryId=${encodeURIComponent(entryId)}`, '_blank');
   },
   // Debate popout — in web mode, open in a new browser tab
   openDebateWindow: async (debateId) => {

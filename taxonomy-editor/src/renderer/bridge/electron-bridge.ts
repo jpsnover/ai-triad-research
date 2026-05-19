@@ -119,12 +119,16 @@ export const api: AppAPI = {
   // Flight recorder
   dumpFlightRecorder: (ndjson) => window.electronAPI.dumpFlightRecorder(ndjson),
   openFile: (filePath) => window.electronAPI.openFile(filePath),
+  openFlightRecorderViewer: (dumpPath) => window.electronAPI.openFlightRecorderViewer(dumpPath),
 
   // Diagnostics
   openDiagnosticsWindow: () => window.electronAPI.openDiagnosticsWindow(),
   openPovProgressionWindow: () => window.electronAPI.openPovProgressionWindow(),
   closeDiagnosticsWindow: () => window.electronAPI.closeDiagnosticsWindow(),
   sendDiagnosticsState: (s) => window.electronAPI.sendDiagnosticsState(s),
+
+  // Prompt Diff popout
+  openPromptDiffWindow: (debateId, entryId) => window.electronAPI.openPromptDiffWindow(debateId, entryId),
 
   // Debate popout
   openDebateWindow: (id) => window.electronAPI.openDebateWindow(id),
