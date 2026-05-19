@@ -63,6 +63,8 @@ export interface PromptNode {
   validation?: StageValidation;
   qualityCheck?: QualityCheck;
   orchestrationValidation?: OrchestrationValidation;
+  retryTrigger?: RetryTrigger;
+  repairHintsIn?: string[];
 }
 
 interface Props {
@@ -95,6 +97,8 @@ function nodeKey(entryId: string, stage: string, runIndex: number): string {
   return `${entryId}::${stage}::${runIndex}`;
 }
 
+export type RetryTrigger = 'initial' | 'stage-retry' | 'orchestration-rerun';
+
 interface StageRun {
   stage: string;
   model: string;
@@ -106,6 +110,8 @@ interface StageRun {
   stage_validation?: StageValidation;
   qualityCheck?: QualityCheck;
   orchestrationValidation?: OrchestrationValidation;
+  retryTrigger?: RetryTrigger;
+  repairHintsIn?: string[];
   runIndex: number;
 }
 
@@ -188,6 +194,8 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
               stage_validation: sd.stage_validation as StageValidation | undefined,
               qualityCheck,
               orchestrationValidation,
+              retryTrigger: sd.retry_trigger as RetryTrigger | undefined,
+              repairHintsIn: sd.repair_hints_in as string[] | undefined,
               runIndex: runIdx++,
             } as StageRun;
           });
@@ -225,6 +233,8 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
               work_product: s.work_product as Record<string, unknown> | undefined,
               stage_validation: s.stage_validation as StageValidation | undefined,
               qualityCheck,
+              retryTrigger: s.retry_trigger as RetryTrigger | undefined,
+              repairHintsIn: s.repair_hints_in as string[] | undefined,
               runIndex: i,
             } as StageRun;
           }),
@@ -321,6 +331,8 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                       validation: r.stage_validation,
                       qualityCheck: r.qualityCheck,
                       orchestrationValidation: r.orchestrationValidation,
+                      retryTrigger: r.retryTrigger,
+                      repairHintsIn: r.repairHintsIn,
                     };
                     return (
                       <div
@@ -336,6 +348,28 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                         title="Click to add to diff pane"
                       >
                         <span style={{ fontWeight: 500 }}>Run {r.runIndex + 1}</span>
+                        {r.retryTrigger === 'stage-retry' && (
+                          <span
+                            style={{
+                              fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                              background: 'rgba(245,158,11,0.15)', color: '#f59e0b', textTransform: 'uppercase',
+                            }}
+                            title={r.repairHintsIn?.join('\n') ?? 'Stage validator retry'}
+                          >
+                            Stage Retry
+                          </span>
+                        )}
+                        {r.retryTrigger === 'orchestration-rerun' && (
+                          <span
+                            style={{
+                              fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                              background: 'rgba(239,68,68,0.15)', color: '#ef4444', textTransform: 'uppercase',
+                            }}
+                            title={r.repairHintsIn?.join('\n') ?? 'Judge-triggered rerun'}
+                          >
+                            Rerun
+                          </span>
+                        )}
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>
                           {abbreviateModel(node.model)}, {node.temperature}, {(node.responseTimeMs / 1000).toFixed(1)}s
                         </span>

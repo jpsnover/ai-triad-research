@@ -238,6 +238,9 @@ export interface ValidateTurnParams {
   callJudgeFallback?: (prompt: string, label: string) => Promise<string>;
   /** Active moderator intervention that preceded this turn — triggers compliance checks. */
   pendingIntervention?: import('./types').ModeratorIntervention;
+  /** When true, all citations in the draft have been verified against the citation bank.
+   *  Tells the judge not to re-flag citation quality — the scrub already handled it. */
+  citationBankValidated?: boolean;
 }
 
 interface StageAResult {
@@ -493,7 +496,9 @@ Decide:
    - 2 weaknesses → score 0.50-0.65
    - 3 weaknesses → score 0.40-0.55
    - Any weakness containing "lacks evidence", "no data", "unsubstantiated", or "missing citation" → subtract 0.10 from what you would otherwise give
-   - A score of 1.0 with any weaknesses is contradictory and MUST NOT occur
+   - A score of 1.0 with any weaknesses is contradictory and MUST NOT occur${p.citationBankValidated ? `
+
+   CITATION NOTE: All citations in this statement have been verified against the source evidence bank. Do NOT flag citation quality, fabricated references, or unverifiable sources — these have already been validated. Focus your weaknesses on argument quality, engagement, and logical structure instead.` : ''}
 
 5. RECOMMEND — based on your quality_score:
    "pass": quality_score ≥ 0.7 and no critical weaknesses

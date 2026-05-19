@@ -3,7 +3,7 @@
 
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
-import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
+import type { FetchFn, GenerateOptions, ProviderResult, ToolCall } from '../types.js';
 
 export async function generateViaClaude(
   fetchFn: FetchFn,
@@ -26,6 +26,13 @@ export async function generateViaClaude(
   };
   if (opts.systemMessage) {
     reqBody.system = [{ type: 'text', text: opts.systemMessage, cache_control: { type: 'ephemeral' } }];
+  }
+  if (opts.tools?.length) {
+    reqBody.tools = opts.tools.map(t => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.parameters,
+    }));
   }
 
   const response = await withTimeout(
@@ -62,7 +69,7 @@ export async function generateViaClaude(
   }
 
   let json: {
-    content?: { type: string; text: string }[];
+    content?: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[];
     usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
   };
   try {
@@ -83,7 +90,15 @@ export async function generateViaClaude(
       nextSteps: ['Retry the request', 'Try a different model'],
     });
   }
-  const text = json.content.filter(c => c.type === 'text').map(c => c.text).join('');
+  const text = json.content.filter(c => c.type === 'text').map(c => c.text ?? '').join('');
+  const toolUseBlocks = json.content.filter(c => c.type === 'tool_use');
+  const toolCalls: ToolCall[] | undefined = toolUseBlocks.length > 0
+    ? toolUseBlocks.map(c => ({
+        name: c.name!,
+        arguments: c.input ?? {},
+        id: c.id!,
+      }))
+    : undefined;
   const u = json.usage;
   const usage = u ? {
     promptTokens: u.input_tokens,
@@ -91,5 +106,5 @@ export async function generateViaClaude(
     cachedTokens: (u.cache_read_input_tokens ?? 0) || undefined,
     totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0) || undefined,
   } : undefined;
-  return { text, usage };
+  return { text, usage, toolCalls };
 }

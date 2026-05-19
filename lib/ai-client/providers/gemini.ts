@@ -3,7 +3,7 @@
 
 import { ActionableError } from '../../debate/errors.js';
 import { withTimeout } from '../retry.js';
-import type { FetchFn, GenerateOptions, ProviderResult } from '../types.js';
+import type { FetchFn, GenerateOptions, ProviderResult, ToolCall } from '../types.js';
 
 export const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -73,6 +73,15 @@ export async function generateViaGemini(
   if (opts.systemMessage) {
     body.systemInstruction = { parts: [{ text: opts.systemMessage }] };
   }
+  if (opts.tools?.length) {
+    body.tools = [{
+      functionDeclarations: opts.tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        parameters: toGeminiSchema(t.parameters),
+      })),
+    }];
+  }
 
   const response = await withTimeout(
     fetchFn(url, {
@@ -104,7 +113,7 @@ export async function generateViaGemini(
   }
 
   let json: {
-    candidates?: { content: { parts: { text: string }[] } }[];
+    candidates?: { content: { parts: { text?: string; functionCall?: { name: string; args: Record<string, unknown> } }[] } }[];
     usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; cachedContentTokenCount?: number; totalTokenCount?: number };
   };
   try {
@@ -125,7 +134,16 @@ export async function generateViaGemini(
       nextSteps: ['Retry the request', 'Try a different model'],
     });
   }
-  const text = json.candidates[0].content.parts.map(p => p.text).join('');
+  const parts = json.candidates[0].content.parts;
+  const text = parts.filter(p => p.text).map(p => p.text).join('');
+  const fnCalls = parts.filter(p => p.functionCall);
+  const toolCalls: ToolCall[] | undefined = fnCalls.length > 0
+    ? fnCalls.map((p, i) => ({
+        name: p.functionCall!.name,
+        arguments: p.functionCall!.args ?? {},
+        id: `gemini-tc-${i}`,
+      }))
+    : undefined;
   const um = json.usageMetadata;
   const usage = um ? {
     promptTokens: um.promptTokenCount,
@@ -133,5 +151,5 @@ export async function generateViaGemini(
     cachedTokens: um.cachedContentTokenCount,
     totalTokens: um.totalTokenCount,
   } : undefined;
-  return { text, usage };
+  return { text, usage, toolCalls };
 }

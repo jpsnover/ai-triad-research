@@ -685,7 +685,12 @@ export function ReflectionsPanel({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {reflections.map((r) => (
+          {reflections.length > 1 && (
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 8, padding: '4px 8px', background: 'var(--bg-subtle)', borderRadius: 4 }}>
+              Reflection order: {reflections.map((r, i) => r.label).join(' → ')}. Each camp sees prior camps&apos; proposals to avoid duplicating the same concept.
+            </div>
+          )}
+          {reflections.map((r, ri) => (
             <PoverReflection key={r.pover} result={r} />
           ))}
         </div>

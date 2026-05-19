@@ -725,7 +725,17 @@ export async function executeTurnWithRetry(
   let { statement, taxonomyRefs, meta } = assembled;
   let validation: TurnValidation;
 
+  let currentInputHints: string[] | undefined; // hints that triggered the current attempt
+
   for (;;) {
+    // Check if citation bank validation passed (no warnings after scrub)
+    const draftDiagForCitation = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+    const citationRes = (draftDiagForCitation as Record<string, unknown> | undefined)?.citation_resolution as
+      { bank_size?: number; validation_warnings?: string[] } | undefined;
+    const citationBankValidated = citationRes != null
+      && citationRes.bank_size != null && citationRes.bank_size > 0
+      && (citationRes.validation_warnings?.length ?? 0) === 0;
+
     validation = await validateTurn({
       statement, taxonomyRefs, meta,
       phase: input.pipelineInput.phase,
@@ -740,6 +750,7 @@ export async function executeTurnWithRetry(
       callJudge: callbacks.callJudge,
       callJudgeFallback: callbacks.callJudgeFallback,
       pendingIntervention: input.pendingIntervention,
+      citationBankValidated,
     });
 
     const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
@@ -773,6 +784,7 @@ export async function executeTurnWithRetry(
       validation,
       stage_diagnostics: pipelineResult.stage_diagnostics,
       hint_effectiveness: hintEffectiveness,
+      input_repair_hints: currentInputHints,
     });
 
     // Track best attempt — retries can regress if the LLM introduces new problems.
@@ -806,6 +818,7 @@ export async function executeTurnWithRetry(
     if (!shouldRetry || attemptIdx >= vConfig.maxRetries) break;
 
     attemptIdx += 1;
+    currentInputHints = [...actionableHints];
     try {
       // Determine which stages can be frozen based on hint targets.
       // If all actionable hints target cite, freeze Brief + Plan + Draft.
@@ -858,6 +871,13 @@ const UNANSWERABLE_HINT_PATTERNS: RegExp[] = [
   /technical(?:ly)?\s+(?:vague|feasibility)\b.*\bwithout\s+(?:degrading|sacrificing|breaking)/i,
   /unclear\s+how.*without\s+degrading/i,
   /precedent\s+(?:validity|effectiveness)\s+unsubstantiated/i,
+  // Citation bank-miss warnings — the scrub already handled these; retrying won't help.
+  /not (?:found )?in (?:the )?(?:verified|citation) (?:sources|bank)/i,
+  /ArXiv ID not in citation bank/i,
+  /URL not in citation bank/i,
+  /likely fabricated/i,
+  /(?:fabricated|unverifiable)\s+(?:citation|reference|source)/i,
+  /missing citation/i,
 ];
 
 function filterActionableHints(hints: string[]): string[] {

@@ -46,6 +46,15 @@ import {
   draftStageEnvelope,
   citeStageEnvelope,
 } from './envelopes.js';
+import { resolveBackend } from '../ai-client/registry.js';
+import {
+  buildCitationBank,
+  formatCitationBank,
+  scrubCitations,
+  validateCitationsAgainstBank,
+} from './citationResolution.js';
+import type { CitationBankEntry } from './citationResolution.js';
+import type { DocMetaMap } from './evidenceFromSummaries.js';
 
 // ── Disagreement type normalization ─────────────────────
 
@@ -151,6 +160,8 @@ export interface TurnPipelineInput {
   sourceEvidenceIndex?: import('./evidenceFromSummaries.js').SourceEvidenceIndex;
   /** Map of doc_id → human-readable document title for evidence citations. */
   docTitles?: import('./evidenceFromSummaries.js').DocTitleMap;
+  /** Policy registry for citation bank building. */
+  policyRegistry?: Array<{ id: string; action: string }>;
   /** Frozen Brief from a prior pipeline run — skips Brief stage when provided. */
   frozenBrief?: BriefWorkProduct;
   /** Frozen Plan from a prior pipeline run — skips Plan stage when provided. */
@@ -255,6 +266,7 @@ export async function runTurnPipeline(
   const stageInput = buildStageInput(input);
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
+  const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
 
   // ── Stage 1: BRIEF ──
   let brief: BriefWorkProduct;
@@ -270,7 +282,7 @@ export async function runTurnPipeline(
       stage: 'brief', prompt: '(frozen — reused from prior run)', raw_response: briefJson,
       model: input.model, temperature: temps.brief_temperature,
       response_time_ms: 0, work_product: brief as unknown as Record<string, unknown>,
-      frozen: true,
+      frozen: true, retry_trigger: 'orchestration-rerun',
     });
     console.log(`[pipeline] Brief stage FROZEN — reusing prior output`);
   } else {
@@ -294,6 +306,7 @@ export async function runTurnPipeline(
       model: input.model, temperature: temps.brief_temperature,
       response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
       parse_error: briefParsed.error,
+      retry_trigger: isOuterRetry ? 'orchestration-rerun' : 'initial',
     });
     if (briefParsed.error) {
       throw new ActionableError({
@@ -310,7 +323,6 @@ export async function runTurnPipeline(
   // ── Stage 2: PLAN (with per-stage validation + retry) ──
   // If repairHints are provided, this is an outer retry — skip per-stage retries
   // to avoid compounding (outer retry already re-runs the full pipeline).
-  const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
   const MAX_STAGE_RETRIES = isOuterRetry ? 0 : 1;
   const isFirstRound = (input.priorMoves ?? []).length === 0;
   let plan: PlanWorkProduct | undefined;
@@ -324,7 +336,7 @@ export async function runTurnPipeline(
       stage: 'plan', prompt: '(frozen — reused from prior run)', raw_response: planJson,
       model: input.model, temperature: temps.plan_temperature,
       response_time_ms: 0, work_product: plan as unknown as Record<string, unknown>,
-      frozen: true,
+      frozen: true, retry_trigger: 'orchestration-rerun',
     });
     console.log(`[pipeline] Plan stage FROZEN — reusing prior output`);
   } else {
@@ -356,6 +368,8 @@ export async function runTurnPipeline(
         model: input.model, temperature: temps.plan_temperature,
         response_time_ms: elapsed, work_product: planParsed.product as unknown as Record<string, unknown>,
         parse_error: planParsed.error,
+        retry_trigger: isOuterRetry ? 'orchestration-rerun' : planAttempt > 0 ? 'stage-retry' : 'initial',
+        repair_hints_in: planRepairHints.length > 0 ? planRepairHints : undefined,
       });
       if (planParsed.error) {
         throw new ActionableError({
@@ -400,7 +414,7 @@ export async function runTurnPipeline(
       stage: 'draft', prompt: '(frozen — reused from prior run)', raw_response: draftJson,
       model: input.model, temperature: temps.draft_temperature,
       response_time_ms: 0, work_product: draft as unknown as Record<string, unknown>,
-      frozen: true,
+      frozen: true, retry_trigger: 'orchestration-rerun',
     });
     console.log(`[pipeline] Draft stage FROZEN — reusing prior output (skipping evidence, linkification, pre-check)`);
   } else {
@@ -442,6 +456,34 @@ export async function runTurnPipeline(
     } catch (err) {
       // Evidence retrieval failure is non-fatal — proceed without evidence
       console.warn(`[pipeline] Evidence retrieval failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
+    }
+  }
+
+  // ── Stage 2.6: CITATION BANK (deterministic — no LLM call) ──
+  // Build citation bank from evidence index for citation validation.
+  // Path A (all backends for now): inject bank into prompt + post-draft scrub.
+  // Path B (gemini/claude tool-calling) requires multi-turn provider support — future enhancement.
+  let citationBank: CitationBankEntry[] = [];
+  let citationBankBlock = '';
+  const citationBackend = resolveBackend(input.model);
+  const citationPathIntended = (citationBackend === 'gemini' || citationBackend === 'claude') ? 'B' : 'A';
+  const citationPathUsed = 'A'; // Path B requires multi-turn provider support (future)
+
+  if (input.sourceEvidenceIndex) {
+    try {
+      const docMeta: DocMetaMap = {};
+      if (input.docTitles) {
+        for (const [id, entry] of Object.entries(input.docTitles)) {
+          docMeta[id] = typeof entry === 'string' ? { title: entry } : entry;
+        }
+      }
+      citationBank = buildCitationBank(input.sourceEvidenceIndex, docMeta, input.policyRegistry);
+      if (citationBank.length > 0) {
+        citationBankBlock = '\n\n' + formatCitationBank(citationBank);
+        console.log(`[pipeline] Citation bank built: ${citationBank.length} entries, path=${citationPathUsed} (intended=${citationPathIntended})`);
+      }
+    } catch (err) {
+      console.warn(`[pipeline] Citation bank build failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
 
@@ -487,11 +529,18 @@ export async function runTurnPipeline(
           `${fieldFreezeBlock}\nRespond ONLY with a JSON`,
         );
       }
-      // Inject source evidence LAST — right before the output schema (Lost-in-the-Middle mitigation)
+      // Inject source evidence — right before the output schema (Lost-in-the-Middle mitigation)
       if (evidenceBlock) {
         env.layer4_variable = env.layer4_variable.replace(
           /Respond ONLY with a JSON/,
           `${evidenceBlock}\n\nYou MUST cite at least one source from the evidence above by title in your statement.\n\nRespond ONLY with a JSON`,
+        );
+      }
+      // Inject citation bank after evidence (constrains LLM to verified sources)
+      if (citationBankBlock) {
+        env.layer4_variable = env.layer4_variable.replace(
+          /Respond ONLY with a JSON/,
+          `${citationBankBlock}\n\nRespond ONLY with a JSON`,
         );
       }
       draftPromptText = flattenEnvelope(env);
@@ -516,11 +565,18 @@ export async function runTurnPipeline(
           `${fieldFreezeBlock}\nRespond ONLY with a JSON`,
         );
       }
-      // Inject source evidence LAST — right before the output schema
+      // Inject source evidence — right before the output schema
       if (evidenceBlock) {
         draftPromptText = draftPromptText.replace(
           /Respond ONLY with a JSON/,
           `${evidenceBlock}\n\nYou MUST cite at least one source from the evidence above by title in your statement.\n\nRespond ONLY with a JSON`,
+        );
+      }
+      // Inject citation bank after evidence (constrains LLM to verified sources)
+      if (citationBankBlock) {
+        draftPromptText = draftPromptText.replace(
+          /Respond ONLY with a JSON/,
+          `${citationBankBlock}\n\nRespond ONLY with a JSON`,
         );
       }
       draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
@@ -533,6 +589,8 @@ export async function runTurnPipeline(
       model: input.model, temperature: temps.draft_temperature,
       response_time_ms: elapsed, work_product: draftParsed.product as unknown as Record<string, unknown>,
       parse_error: draftParsed.error,
+      retry_trigger: draftAttempt === 0 && !isOuterRetry ? 'initial' : draftAttempt > 0 ? 'stage-retry' : 'orchestration-rerun',
+      repair_hints_in: draftRepairHints.length > 0 ? [...draftRepairHints] : undefined,
     });
     draft = draftParsed.product;
 
@@ -583,12 +641,28 @@ export async function runTurnPipeline(
     draftRepairHints = [];
     break;
   }
+  // ── Post-draft citation scrub ──
+  // Deterministically remove fabricated citations not in the citation bank.
+  let citationScrubResult: { removed: string[]; warnings: string[] } | undefined;
+  if (citationBank.length > 0 && draft?.statement) {
+    const scrub = scrubCitations(draft.statement, citationBank);
+    if (scrub.removed.length > 0) {
+      draft.statement = scrub.cleanedDraft;
+      citationScrubResult = { removed: scrub.removed, warnings: scrub.warnings };
+      console.log(`[pipeline] Citation scrub: removed ${scrub.removed.length} fabricated citation(s): ${scrub.removed.join(', ')}`);
+    }
+  }
+
   draftJson = JSON.stringify(draft, null, 2);
 
   // ── Post-draft linkification: replace title mentions with clickable links ──
+  let linkificationApplied = false;
+  let preLinkStatement = '';
   if (draft?.statement && input.docTitles) {
+    preLinkStatement = draft.statement;
     const { linkifyEvidenceCitations } = await import('./evidenceFromSummaries.js');
     draft.statement = linkifyEvidenceCitations(draft.statement, input.docTitles);
+    linkificationApplied = draft.statement !== preLinkStatement;
   }
 
   // ── Evidence citation verification ──
@@ -634,11 +708,65 @@ export async function runTurnPipeline(
         cited_docs: citedDocs,
         utilization_rate: Math.round(utilizationRate * 100),
       };
+      // Build per-doc citation pipeline trace
+      const docMetaForPipeline = input.docTitles;
+      const pipelineTrace = allDocIds.map(docId => {
+        const metaEntry = docMetaForPipeline?.[docId];
+        const meta = typeof metaEntry === 'string' ? { title: metaEntry } : metaEntry;
+        const cited = citedDocs.find(cd => cd.doc_id === docId);
+        return {
+          doc_id: docId,
+          resolved_title: meta?.title ?? docId,
+          resolved_url: (meta as { resolved_url?: string })?.resolved_url ?? null,
+          url_type: (() => {
+            const url = (meta as { resolved_url?: string })?.resolved_url ?? '';
+            if (url.includes('doi.org')) return 'doi';
+            if (url.includes('arxiv.org')) return 'arxiv';
+            if (url.includes('ssrn.com')) return 'ssrn';
+            if (url.includes('scholar.google')) return 'scholar_fallback';
+            if (url.includes('google.com/search')) return 'google_fallback';
+            if (url) return 'direct';
+            return 'none';
+          })(),
+          provenance_label: (meta as { provenance_label?: string })?.provenance_label ?? null,
+          cited: !!cited,
+          match_type: cited?.match_type ?? null,
+          linkified: linkificationApplied && cited?.match_type !== null,
+        };
+      });
+      (wp as Record<string, unknown>).citation_pipeline = pipelineTrace;
+
       if (citedDocs.length > 0) {
         console.log(`[pipeline] Evidence utilization: ${citedDocs.length}/${allDocIds.length} source docs cited (${Math.round(utilizationRate * 100)}%)`);
       } else {
         console.log(`[pipeline] Evidence utilization: 0/${allDocIds.length} — debater did not cite any source documents from evidence brief`);
       }
+    }
+  }
+
+  // ── Post-draft citation validation (both paths) ──
+  // Validate all citation-like strings against the bank.
+  // Warnings are recorded in diagnostics for the UI/judge.
+  let citationWarnings: string[] = [];
+  if (citationBank.length > 0 && draft?.statement) {
+    const warnings = validateCitationsAgainstBank(draft.statement, citationBank);
+    if (warnings.length > 0) {
+      citationWarnings = warnings.map(w => `${w.citation}: ${w.reason}`);
+      console.log(`[pipeline] Citation validation: ${warnings.length} warning(s): ${citationWarnings.join('; ')}`);
+    }
+  }
+
+  // Record citation resolution diagnostics on the draft stage diagnostic
+  if (citationBank.length > 0) {
+    const draftDiag = [...stageDiags].reverse().find(d => d.stage === 'draft');
+    if (draftDiag) {
+      (draftDiag as Record<string, unknown>).citation_resolution = {
+        bank_size: citationBank.length,
+        path_intended: citationPathIntended,
+        path_used: citationPathUsed,
+        scrub_removed: citationScrubResult?.removed ?? [],
+        validation_warnings: citationWarnings,
+      };
     }
   }
 
@@ -704,6 +832,13 @@ export async function runTurnPipeline(
               env.layer4_variable += repairBlock;
             }
           }
+          // Inject citation bank in quality retry
+          if (citationBankBlock) {
+            env.layer4_variable = env.layer4_variable.replace(
+              /Respond ONLY with a JSON/,
+              `${citationBankBlock}\n\nRespond ONLY with a JSON`,
+            );
+          }
           retryDraftPrompt = flattenEnvelope(env);
           const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft (quality retry)`);
           retryDraftRaw = resp.text;
@@ -717,6 +852,13 @@ export async function runTurnPipeline(
             if (!retryDraftPrompt.includes('CORRECTIONS REQUIRED') && !retryDraftPrompt.includes('MANDATORY CORRECTION')) {
               retryDraftPrompt += repairBlock;
             }
+          }
+          // Inject citation bank in quality retry
+          if (citationBankBlock) {
+            retryDraftPrompt = retryDraftPrompt.replace(
+              /Respond ONLY with a JSON/,
+              `${citationBankBlock}\n\nRespond ONLY with a JSON`,
+            );
           }
           retryDraftRaw = await generate(retryDraftPrompt, input.model, { temperature: temps.draft_temperature }, `${input.label} draft (quality retry)`);
         }
@@ -775,6 +917,8 @@ export async function runTurnPipeline(
       model: input.model, temperature: temps.cite_temperature,
       response_time_ms: elapsed, work_product: citeParsed.product as unknown as Record<string, unknown>,
       parse_error: citeParsed.error,
+      retry_trigger: isOuterRetry ? 'orchestration-rerun' : citeAttempt > 0 ? 'stage-retry' : 'initial',
+      repair_hints_in: citeRepairHints.length > 0 ? [...citeRepairHints] : undefined,
     });
 
     // Per-stage cite validation

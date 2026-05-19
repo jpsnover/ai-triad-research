@@ -107,9 +107,9 @@ export const SituationNodeSchema = z.object({
   label: z.string().min(1),
   description: z.string().regex(situationDescriptionPattern, 'Must follow genus-differentia pattern: "A situation that..."'),
   interpretations: z.object({
-    accelerationist: z.string(),
-    safetyist: z.string(),
-    skeptic: z.string(),
+    accelerationist: z.union([z.string(), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
+    safetyist: z.union([z.string(), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
+    skeptic: z.union([z.string(), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
   }),
   linked_nodes: z.array(z.string()),
   conflict_ids: z.array(z.string()),

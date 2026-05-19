@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { DiffLine } from '@lib/diff/lineDiff.js';
-import type { PromptNode, DiffViewMode, StageValidation, QualityCheck, OrchestrationValidation } from './PromptDiffTree';
+import type { PromptNode, DiffViewMode, StageValidation, QualityCheck, OrchestrationValidation, RetryTrigger } from './PromptDiffTree';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId } from '../types/debate';
 
@@ -105,10 +105,17 @@ const HINT_STYLE: Record<string, { label: string; color: string; bg: string }> =
   judge: { label: 'QUALITY', color: '#7c3aed', bg: 'rgba(124,58,237,0.08)' },
 };
 
-function ValidationPanel({ validation, qualityCheck, orchestrationValidation }: {
+const TRIGGER_LABEL: Record<RetryTrigger, { text: string; color: string; bg: string }> = {
+  'initial': { text: 'Initial', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' },
+  'stage-retry': { text: 'Stage Retry', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+  'orchestration-rerun': { text: 'Rerun (Judge)', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
+};
+
+function ValidationPanel({ validation, qualityCheck, orchestrationValidation, retryTrigger, repairHintsIn }: {
   validation?: StageValidation; qualityCheck?: QualityCheck; orchestrationValidation?: OrchestrationValidation;
+  retryTrigger?: RetryTrigger; repairHintsIn?: string[];
 }) {
-  if (!validation && !qualityCheck && !orchestrationValidation) {
+  if (!validation && !qualityCheck && !orchestrationValidation && !retryTrigger) {
     return (
       <div style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: '0.62rem', fontStyle: 'italic' }}>
         No validation data
@@ -118,6 +125,33 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation }: 
 
   return (
     <div style={{ padding: '4px 8px', fontSize: '0.65rem', overflowY: 'auto' }}>
+      {/* Retry trigger badge + input repair hints */}
+      {retryTrigger && retryTrigger !== 'initial' && (() => {
+        const tl = TRIGGER_LABEL[retryTrigger];
+        return (
+          <div style={{ marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <span style={{ fontWeight: 600, fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                Triggered By
+              </span>
+              <span style={{
+                display: 'inline-block', padding: '1px 6px', borderRadius: 3,
+                fontWeight: 700, fontSize: '0.58rem', background: tl.bg, color: tl.color,
+              }}>
+                {tl.text}
+              </span>
+            </div>
+            {repairHintsIn && repairHintsIn.length > 0 && (
+              <ul style={{ margin: '2px 0 0 14px', padding: 0 }}>
+                {repairHintsIn.map((h, i) => (
+                  <li key={i} style={{ marginBottom: 1, color: 'var(--text-secondary)', fontSize: '0.6rem' }}>{h}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })()}
+
       {validation && (
         <div>
           {/* Pass/Fail badge */}
@@ -459,6 +493,8 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
             validation={node.validation}
             qualityCheck={node.qualityCheck}
             orchestrationValidation={node.orchestrationValidation}
+            retryTrigger={node.retryTrigger}
+            repairHintsIn={node.repairHintsIn}
           />
         </div>
       )}

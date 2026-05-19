@@ -391,6 +391,20 @@ function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidationTrail
         {f.judge_used && (
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>judge: {f.judge_model}</span>
         )}
+        {/* Best-attempt indicator — shows when the system used an earlier attempt over the last */}
+        {trail.attempts.length > 1 && (() => {
+          const scores = trail.attempts.map(a => a.validation.process_reward ?? 0);
+          const bestIdx = scores.indexOf(Math.max(...scores));
+          const lastIdx = scores.length - 1;
+          if (bestIdx !== lastIdx) {
+            return (
+              <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#16a34a', fontWeight: 600 }}>
+                Used attempt {bestIdx} (score {scores[bestIdx].toFixed(2)}) — last attempt regressed to {scores[lastIdx].toFixed(2)}
+              </span>
+            );
+          }
+          return null;
+        })()}
       </div>
       <ScoreBreakdown dims={f.dimensions!} processReward={f.process_reward ?? 0} judgeUsed={f.judge_used} />
       {f.repairHints.length > 0 && (
@@ -5520,9 +5534,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                       fontSize: '0.55rem', fontWeight: 700, padding: '0 5px', borderRadius: 3,
                                       color: specColor, background: `${specColor}18`,
                                     }}>{fact.specificity?.toUpperCase() ?? 'FACT'}</span>
-                                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <a
+                                      href={`https://scholar.google.com/scholar?q=${encodeURIComponent(fact.doc_id.replace(/-/g, ' ').replace(/\d{4}$/, ''))}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ fontSize: '0.6rem', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                                      title={`Search for: ${fact.doc_id}`}
+                                    >
                                       {fact.doc_id}
-                                    </span>
+                                    </a>
                                     {fact.temporal_bound && (
                                       <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>{fact.temporal_bound}</span>
                                     )}
@@ -5558,9 +5578,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                       color: stanceColor, background: `${stanceColor}18`,
                                     }}>{kp.stance?.toUpperCase() ?? 'POINT'}</span>
                                     <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>{kp.pov}</span>
-                                    <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    <a
+                                      href={`https://scholar.google.com/scholar?q=${encodeURIComponent(kp.doc_id.replace(/-/g, ' ').replace(/\d{4}$/, ''))}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ fontSize: '0.6rem', color: '#3b82f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                                      title={`Search for: ${kp.doc_id}`}
+                                    >
                                       {kp.doc_id}
-                                    </span>
+                                    </a>
                                   </div>
                                   <div style={{ fontSize: '0.68rem', lineHeight: 1.35 }}>{kp.point}</div>
                                   {kp.verbatim && (
@@ -5588,7 +5614,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             total_docs?: number; cited_docs?: Array<{ doc_id: string; title?: string; match_type: string }>; utilization_rate?: number;
                           } | undefined;
                           if (!eu?.cited_docs || eu.total_docs === 0) return null;
-                          const matchColors: Record<string, string> = { exact_id: '#16a34a', slug: '#3b82f6', title_exact: '#8b5cf6', title_partial: '#d97706' };
+                          const matchColors: Record<string, string> = { exact_id: '#16a34a', slug: '#3b82f6', title_exact: '#8b5cf6', title_partial: '#d97706', markdown_link: '#059669' };
                           return (
                             <details open style={{ marginTop: 8 }}>
                               <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
@@ -5607,6 +5633,86 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                     </span>
                                   </div>
                                 ))
+                              )}
+                            </details>
+                          );
+                        })()}
+                        {/* ── 6. Citation Pipeline (full chain per source) ── */}
+                        {(() => {
+                          const pipeline = (evidenceWP as Record<string, unknown>)?.citation_pipeline as Array<{
+                            doc_id: string; resolved_title: string; resolved_url: string | null;
+                            url_type: string; provenance_label: string | null;
+                            cited: boolean; match_type: string | null; linkified: boolean;
+                          }> | undefined;
+                          if (!pipeline || pipeline.length === 0) return null;
+                          const urlTypeColors: Record<string, string> = {
+                            doi: '#16a34a', arxiv: '#16a34a', ssrn: '#16a34a', direct: '#3b82f6',
+                            scholar_fallback: '#d97706', google_fallback: '#d97706', none: '#dc2626',
+                          };
+                          return (
+                            <details style={{ marginTop: 8 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6 }}>
+                                Citation Pipeline ({pipeline.filter(p => p.cited).length}/{pipeline.length} cited, {pipeline.filter(p => p.linkified).length} linkified)
+                              </summary>
+                              <table style={{ width: '100%', fontSize: '0.62rem', borderCollapse: 'collapse' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                                    <th style={{ textAlign: 'left', padding: '2px 4px' }}>Source</th>
+                                    <th style={{ textAlign: 'left', padding: '2px 4px' }}>Title</th>
+                                    <th style={{ textAlign: 'center', padding: '2px 4px' }}>URL Type</th>
+                                    <th style={{ textAlign: 'center', padding: '2px 4px' }}>Cited</th>
+                                    <th style={{ textAlign: 'center', padding: '2px 4px' }}>Match</th>
+                                    <th style={{ textAlign: 'center', padding: '2px 4px' }}>Linked</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {pipeline.map((p, pi) => (
+                                    <tr key={pi} style={{
+                                      borderBottom: '1px solid var(--border)',
+                                      background: p.cited ? 'rgba(34,197,94,0.05)' : 'transparent',
+                                    }}>
+                                      <td style={{ padding: '3px 4px', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {p.resolved_url ? (
+                                          <a href={p.resolved_url} target="_blank" rel="noopener noreferrer"
+                                            style={{ color: '#3b82f6', textDecoration: 'none' }} title={p.doc_id}>
+                                            {p.doc_id.length > 25 ? p.doc_id.slice(0, 22) + '…' : p.doc_id}
+                                          </a>
+                                        ) : (
+                                          <span title={p.doc_id}>{p.doc_id.length > 25 ? p.doc_id.slice(0, 22) + '…' : p.doc_id}</span>
+                                        )}
+                                      </td>
+                                      <td style={{ padding: '3px 4px', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                        title={p.resolved_title}>
+                                        {p.resolved_title !== p.doc_id ? p.resolved_title.slice(0, 35) : '—'}
+                                      </td>
+                                      <td style={{ textAlign: 'center', padding: '3px 4px' }}>
+                                        <span style={{
+                                          fontSize: '0.55rem', padding: '0 4px', borderRadius: 3, fontWeight: 600,
+                                          color: urlTypeColors[p.url_type] ?? '#6b7280',
+                                          background: `${urlTypeColors[p.url_type] ?? '#6b7280'}18`,
+                                        }}>{p.url_type}</span>
+                                      </td>
+                                      <td style={{ textAlign: 'center', padding: '3px 4px' }}>
+                                        {p.cited ? '✓' : '—'}
+                                      </td>
+                                      <td style={{ textAlign: 'center', padding: '3px 4px' }}>
+                                        {p.match_type ? (
+                                          <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>
+                                            {p.match_type.replace('_', ' ')}
+                                          </span>
+                                        ) : '—'}
+                                      </td>
+                                      <td style={{ textAlign: 'center', padding: '3px 4px' }}>
+                                        {p.linkified ? '🔗' : '—'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              {pipeline.some(p => p.provenance_label) && (
+                                <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                                  Provenance: {pipeline.filter(p => p.provenance_label).map(p => `${p.doc_id} → ${p.provenance_label}`).join(', ')}
+                                </div>
                               )}
                             </details>
                           );

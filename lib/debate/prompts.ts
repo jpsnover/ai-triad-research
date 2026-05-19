@@ -2908,6 +2908,7 @@ export function reflectionPrompt(
   convergenceSignals?: string,
   audience?: DebateAudience,
   doctrinalBoundaries?: string[],
+  priorReflections?: Array<{ pov: string; edits: Array<{ edit_type: string; proposed_label: string; category: string }> }>,
 ): string {
   const nodesBlock = taxonomyNodes.map(n =>
     `[${n.id}] (${n.category}) "${n.label}"\n  ${n.description}`
@@ -2925,6 +2926,25 @@ export function reflectionPrompt(
     ? `\n=== CONVERGENCE SIGNALS (how the debate is trending) ===\n${convergenceSignals}\n`
     : '';
 
+  const priorReflectionBlock = priorReflections && priorReflections.length > 0
+    ? `\n=== PRIOR REFLECTIONS (other debaters have already proposed these edits) ===
+${priorReflections.map(r =>
+  `${r.pov}:\n${r.edits.map(e => `  - ${e.edit_type.toUpperCase()} ${e.category}: "${e.proposed_label}"`).join('\n')}`
+).join('\n\n')}
+
+DEDUPLICATION RULE: Do NOT propose a node that another debater has already proposed above.
+If another camp already proposed a Belief, Desire, or Intention that captures the same
+concept you would propose — even if you would word it differently — do NOT create a
+duplicate. Instead, focus your edits on:
+1. Nodes UNIQUE to your perspective that no other camp would propose
+2. REVISE/QUALIFY edits to your EXISTING nodes based on what the debate revealed
+3. If you agree with another camp's proposed node, that's fine — they own it. Move on.
+
+The goal is ONE node per concept in the taxonomy, owned by whichever camp has the
+strongest claim to it. Three camps proposing "Epistemic Asymmetry" is redundancy,
+not convergence.\n`
+    : '';
+
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${getReadingLevel(audience)}
@@ -2934,7 +2954,7 @@ You have just finished a structured debate on:
 
 === DEBATE TRANSCRIPT ===
 ${transcript}
-${argNetSection}${commitSection}${convergenceSection}
+${argNetSection}${commitSection}${convergenceSection}${priorReflectionBlock}
 === YOUR CURRENT TAXONOMY (Beliefs, Desires, Intentions) ===
 ${nodesBlock}
 

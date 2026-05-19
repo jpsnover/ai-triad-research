@@ -15,7 +15,7 @@ import fsSync from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
-import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot } from './config';
+import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot, STORAGE_MODE } from './config';
 import { ActionableError } from '../../../lib/debate/errors';
 import { POV_KEYS } from '../../../lib/debate/types';
 import type { StorageBackend } from './storageBackend';
@@ -835,9 +835,10 @@ function getSourcesDir(): string | null {
   if (sourcesRoot) return sourcesRoot;
 
   // Legacy fallback: sources inside data repo (pre-separation layout).
+  // In API mode the backend handles existence — skip local filesystem check.
   const config = loadDataConfig();
   const legacy = resolveDataPath(config.sources_dir);
-  return fsSync.existsSync(legacy) ? legacy : null;
+  return (STORAGE_MODE === 'github-api' || fsSync.existsSync(legacy)) ? legacy : null;
 }
 
 function getSummariesDir(): string {
@@ -902,6 +903,38 @@ export async function loadSnapshot(sourceId: string): Promise<string | null> {
   const sourcesDir = getSourcesDir();
   if (!sourcesDir) return null; // sources unavailable
   return backend.readFile(path.join(sourcesDir, sourceId, 'snapshot.md'));
+}
+
+// ── Dictionary ──
+
+export async function loadDictionary(): Promise<{ standardized: unknown[]; colloquial: unknown[]; lintViolations: unknown[] }> {
+  const dictDir = resolveDataPath('dictionary');
+  const stdDir = path.join(dictDir, 'standardized');
+  const colDir = path.join(dictDir, 'colloquial');
+
+  const standardized: unknown[] = [];
+  try {
+    const stdFiles = await backend.listDirectory(stdDir);
+    for (const f of stdFiles.filter(f => f.endsWith('.json'))) {
+      try {
+        const raw = await backend.readFile(path.join(stdDir, f));
+        if (raw) standardized.push(JSON.parse(raw));
+      } catch { /* skip malformed */ }
+    }
+  } catch { /* directory may not exist */ }
+
+  const colloquial: unknown[] = [];
+  try {
+    const colFiles = await backend.listDirectory(colDir);
+    for (const f of colFiles.filter(f => f.endsWith('.json'))) {
+      try {
+        const raw = await backend.readFile(path.join(colDir, f));
+        if (raw) colloquial.push(JSON.parse(raw));
+      } catch { /* skip malformed */ }
+    }
+  } catch { /* directory may not exist */ }
+
+  return { standardized, colloquial, lintViolations: [] };
 }
 
 // ── PowerShell prompts (project-root I/O — always local) ──

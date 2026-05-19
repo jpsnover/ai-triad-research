@@ -92,7 +92,8 @@ export function getSourcesRoot(): string | null {
   const envRoot = process.env.AI_TRIAD_SOURCES_ROOT;
   if (envRoot) {
     const resolved = path.resolve(envRoot);
-    return fs.existsSync(resolved) ? resolved : null;
+    // In API mode the backend handles existence — skip local filesystem check
+    return (STORAGE_MODE === 'github-api' || fs.existsSync(resolved)) ? resolved : null;
   }
 
   const config = loadDataConfig();
@@ -100,7 +101,7 @@ export function getSourcesRoot(): string | null {
     const resolved = path.isAbsolute(config.sources_root)
       ? config.sources_root
       : path.resolve(PROJECT_ROOT, config.sources_root);
-    return fs.existsSync(resolved) ? resolved : null;
+    return (STORAGE_MODE === 'github-api' || fs.existsSync(resolved)) ? resolved : null;
   }
 
   return null;

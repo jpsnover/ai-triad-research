@@ -925,10 +925,6 @@ post('/api/harvest/manifest', async (_req, res, body) => {
 // ── Summaries & Sources ──
 
 get('/api/sources', async (_req, res) => {
-  if (STORAGE_MODE === 'github-api') {
-    json(res, { available: false, message: 'Source documents are available in the desktop app only' });
-    return;
-  }
   json(res, await fileIO.discoverSources());
 });
 
@@ -940,14 +936,16 @@ get('/api/summaries/:docId', async (req, res) => {
 });
 
 get('/api/snapshots/:sourceId', async (req, res) => {
-  if (STORAGE_MODE === 'github-api') {
-    error(res, 'Snapshots available in desktop app only', 404);
-    return;
-  }
   const sourceId = param(req, 'sourceId', '/api/snapshots/:sourceId');
   const data = await fileIO.loadSnapshot(sourceId);
   if (data === null) { error(res, `Snapshot not found: ${sourceId}`, 404); return; }
   json(res, { content: data });
+});
+
+// ── Dictionary ──
+
+get('/api/dictionary', async (_req, res) => {
+  json(res, await fileIO.loadDictionary());
 });
 
 // ── Source evidence ──
