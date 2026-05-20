@@ -7,6 +7,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
+import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
 import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode } from '../types/debate';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
@@ -195,6 +196,11 @@ function getNodeLabel(nodeId: string): string {
   return nodeId;
 }
 
+/** Navigate the main application window to a taxonomy node and focus it. */
+function focusMainWindowNode(nodeId: string): void {
+  api.focusNodeInMainWindow(nodeId);
+}
+
 /** Grounding badge for the debate header (CT-2). Color-coded by grounding %. */
 function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null }) {
   const { stats } = coverageMap;
@@ -228,15 +234,14 @@ function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: Coverag
   );
 }
 
-/** Clickable taxonomy pill that opens the node in pane 3 */
+/** Clickable taxonomy pill — navigates the main window to this node */
 function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
   const { colorVar } = nodeIdToTab(taxRef.node_id);
   const label = getNodeLabel(taxRef.node_id);
-  const inspectNode = useDebateStore((s) => s.inspectNode);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    inspectNode(taxRef.node_id);
+    focusMainWindowNode(taxRef.node_id);
   };
 
   const scoreLabel = taxRef.relevance_score != null
@@ -271,8 +276,8 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
   entry?: TranscriptEntry;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [caveatsExpanded, setCaveatsExpanded] = useState(false);
   const [explainCopied, setExplainCopied] = useState(false);
-  const inspectNode = useDebateStore((s) => s.inspectNode);
   const polRefs = metaPolicyRefs || policyRefs || [];
 
   const handleExplain = () => {
@@ -298,7 +303,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
               className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
               style={{ borderColor: 'var(--color-sit)', color: 'var(--color-sit)' }}
               title={getPolicyAction(id)}
-              onClick={(e) => { e.stopPropagation(); inspectNode(id); }}
+              onClick={(e) => { e.stopPropagation(); focusMainWindowNode(id); }}
             >
               {id}
             </span>
@@ -317,10 +322,58 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
             ? <span className="debate-reasoning-toggle" style={{ color: '#22c55e', cursor: 'default' }}>✓ Explain prompt copied to clipboard</span>
             : <button className="debate-reasoning-toggle" onClick={handleExplain} title="Copy an explain prompt to clipboard and open Gemini">Explain</button>
         )}
+        {entry?.caveats && entry.caveats.length > 0 && (
+          <button
+            className="debate-reasoning-toggle"
+            onClick={() => setCaveatsExpanded(e => !e)}
+            title="Unresolved argument limitations identified by the judge"
+            style={{ color: '#d97706' }}
+          >
+            Caveats ({entry.caveats.length})
+          </button>
+        )}
       </div>
+      {caveatsExpanded && entry?.caveats && entry.caveats.length > 0 && (() => {
+        const qualityCaveats = entry.caveats.filter(c => !c.startsWith('[Ungrounded]'));
+        const ungroundedCaveats = entry.caveats.filter(c => c.startsWith('[Ungrounded]'));
+        return (
+          <div style={{
+            margin: '4px 0 8px', padding: '8px 12px', borderRadius: 6,
+            background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706',
+            fontSize: '0.75rem', lineHeight: 1.5,
+          }}>
+            {qualityCaveats.length > 0 && (
+              <>
+                <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 4, fontSize: '0.7rem' }}>
+                  Argument Caveats — limitations a critical reader would challenge:
+                </div>
+                <ul style={{ margin: '0 0 8px', paddingLeft: 18 }}>
+                  {qualityCaveats.map((c, i) => (
+                    <li key={i} style={{ marginBottom: 3 }}>{humanizeSpeakerIds(c)}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {ungroundedCaveats.length > 0 && (
+              <>
+                <div style={{ fontWeight: 600, color: '#6366f1', marginBottom: 4, fontSize: '0.7rem' }}>
+                  Ungrounded Claims — from model knowledge, not the source corpus:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {ungroundedCaveats.map((c, i) => (
+                    <li key={i} style={{ marginBottom: 3, color: '#6366f1' }}>
+                      {humanizeSpeakerIds(c.replace('[Ungrounded] ', ''))}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        );
+      })()}
       {expanded && (
         <div className="debate-reasoning-list">
-          {refs.map((taxRef) => {
+          {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => {
             const label = getNodeLabel(taxRef.node_id);
             const { colorVar } = nodeIdToTab(taxRef.node_id);
             return (
@@ -328,9 +381,12 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
                 <button
                   className="debate-reasoning-node"
                   style={{ color: colorVar }}
-                  onClick={() => inspectNode(taxRef.node_id)}
+                  onClick={() => focusMainWindowNode(taxRef.node_id)}
                 >
                   {taxRef.node_id}
+                  {taxRef.relevance_score != null && (
+                    <span style={{ fontWeight: 400, opacity: 0.7 }}>{' '}({taxRef.relevance_score.toFixed(2)})</span>
+                  )}
                 </button>
                 <span className="debate-reasoning-label">{label}</span>
                 <span className="debate-reasoning-text">{taxRef.relevance}</span>
@@ -344,7 +400,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
                 <button
                   className="debate-reasoning-node"
                   style={{ color: 'var(--color-sit)' }}
-                  onClick={() => inspectNode(id)}
+                  onClick={() => focusMainWindowNode(id)}
                 >
                   {id}
                 </button>
@@ -430,7 +486,6 @@ function ExportButtonInline({ onExport }: { onExport: (format: string) => void }
 
 function DebateSimilarPovPanel({ query, onClose }: { query: string; onClose: () => void }) {
   const { semanticResults, getLabelForId } = useTaxonomyStore();
-  const inspectNode = useDebateStore((s) => s.inspectNode);
   const [searching, setSearching] = useState(true);
   const isFirstRender = useRef(true);
 
@@ -464,7 +519,7 @@ function DebateSimilarPovPanel({ query, onClose }: { query: string; onClose: () 
               <button
                 key={r.id}
                 className="debate-similar-pov-row"
-                onClick={() => inspectNode(r.id)}
+                onClick={() => focusMainWindowNode(r.id)}
                 title={label}
               >
                 <span className="debate-similar-pov-score">{Math.round(r.score * 100)}%</span>
@@ -627,11 +682,33 @@ function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
   );
 }
 
-/** Fix markdown links broken by newlines inside `[text](url)` — AI models often wrap long URLs. */
+/** Strip markdown headings the AI sometimes hallucinates at the top of a statement (e.g. "# Engine Thermometer Accelerator"). */
+function stripLeadingHeadings(text: string): string {
+  return text.replace(/^(?:#{1,3}\s+.*\n*)+/, '').trimStart();
+}
+
+/** Fix markdown links broken by newlines inside `[text](url)` — AI models often wrap long URLs.
+ *  Also repairs garbled DOI links: if the link text contains a (doi:...) parenthetical, extract
+ *  the DOI and use it to reconstruct the correct URL, then clean up the display text. */
 function fixMarkdownLinks(text: string): string {
-  return text.replace(/\[([^\]]*)\]\(\s*([\s\S]*?)\s*\)/g, (_match, linkText, url) => {
-    const cleanUrl = url.replace(/\s+/g, '');
-    return `[${linkText}](${cleanUrl})`;
+  return text.replace(/\[([^\]]*)\]\(\s*([\s\S]*?)\s*\)/g, (_match, linkText: string, url: string) => {
+    let cleanUrl = url.replace(/\s+/g, '');
+    let cleanText = linkText;
+
+    // If the link text contains doi:..., extract the FIRST DOI and use it to fix the URL.
+    // The AI often omits closing parens, so match flexibly: stop at whitespace, paren, or end.
+    const doiMatch = linkText.match(/doi:\s*(10\.\d{4,9}\/\S+?)(?:\s|\)|$)/i);
+    if (doiMatch) {
+      cleanUrl = `https://doi.org/${doiMatch[1]}`;
+      // Strip ALL doi parentheticals (with or without closing paren) and trailing junk
+      cleanText = linkText
+        .replace(/\s*\(?doi:[^)]*\)?/gi, '')
+        .replace(/\s*\([A-Z]{1,5}\d{8,}\)/g, '')
+        .replace(/\d+\)\]?$/, '')  // trailing "41)]" junk
+        .trim();
+    }
+
+    return `[${cleanText || linkText}](${cleanUrl})`;
   });
 }
 
@@ -722,6 +799,8 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   } else {
     displayContent = entry.content;
   }
+  // Strip hallucinated markdown headings (AI sometimes prepends "# Keyword Soup")
+  displayContent = stripLeadingHeadings(displayContent);
 
   return (
     <div
@@ -1368,13 +1447,15 @@ interface StructuredQuestion {
 function ClarificationActions() {
   const {
     activeDebate, debateGenerating, debateError,
-    runClarification, submitAnswersAndSynthesize, beginDebate,
+    runClarification, submitAnswersAndSynthesize, beginDebate, runOpeningStatements,
     initialCrossRespondRounds, setInitialCrossRespondRounds,
+    openingOrder, setOpeningOrder,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError,
-      runClarification: s.runClarification, submitAnswersAndSynthesize: s.submitAnswersAndSynthesize, beginDebate: s.beginDebate,
+      runClarification: s.runClarification, submitAnswersAndSynthesize: s.submitAnswersAndSynthesize, beginDebate: s.beginDebate, runOpeningStatements: s.runOpeningStatements,
       initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds,
+      openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder,
     }))
   );
   const [answer, setAnswer] = useState('');
@@ -1432,6 +1513,22 @@ function ClarificationActions() {
 
   const handleBeginDebate = async () => {
     await beginDebate();
+    // Automatically start opening statements after setup completes
+    await runOpeningStatements();
+  };
+
+  const moveUp = (index: number) => {
+    if (index <= 0) return;
+    const next = [...openingOrder];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setOpeningOrder(next);
+  };
+
+  const moveDown = (index: number) => {
+    if (index >= openingOrder.length - 1) return;
+    const next = [...openingOrder];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setOpeningOrder(next);
   };
 
   const isGenerating = !!debateGenerating;
@@ -1443,8 +1540,37 @@ function ClarificationActions() {
       {!hasClarifications && !isGenerating && (
         <div className="debate-clarification-choice">
           <div className="debate-action-hint">
-            Would you like to refine the topic with clarifying questions, or jump straight into the debate?
+            Configure the debate, then refine the topic or begin.
           </div>
+          {openingOrder.length > 0 && (
+            <div className="debate-opening-order">
+              <span className="debate-opening-order-label">Speaking order:</span>
+              <ol className="debate-opening-order-list">
+                {openingOrder.map((poverId, idx) => {
+                  const info = POVER_INFO[poverId];
+                  return (
+                    <li key={poverId} className="debate-opening-order-item">
+                      <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
+                      <span className="debate-opening-order-btns">
+                        <button
+                          className="debate-opening-order-btn"
+                          onClick={() => moveUp(idx)}
+                          disabled={idx === 0}
+                          title="Move left"
+                        >&#9664;</button>
+                        <button
+                          className="debate-opening-order-btn"
+                          onClick={() => moveDown(idx)}
+                          disabled={idx === openingOrder.length - 1}
+                          title="Move right"
+                        >&#9654;</button>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )}
           <div className="debate-initial-rounds">
             {activeDebate.adaptive_staging?.enabled ? (
               <span className="debate-initial-rounds-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1457,14 +1583,14 @@ function ClarificationActions() {
               </span>
             ) : (
               <label className="debate-initial-rounds-label">
-                Rounds after openings:
+                Cross-respond rounds after openings:
                 <select
                   className="debate-turns-select"
                   value={initialCrossRespondRounds}
                   onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
                   title="Number of cross-respond rounds to run automatically after opening statements"
                 >
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
+                  {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
                     <option key={n} value={n}>{n}</option>
                   ))}
                 </select>
@@ -1473,16 +1599,16 @@ function ClarificationActions() {
           </div>
           <div className="debate-clarification-buttons">
             <button
-              className="btn btn-primary"
+              className="btn"
               onClick={() => void runClarification()}
             >
               Refine Topic
             </button>
             <button
-              className="btn"
+              className="btn btn-primary"
               onClick={handleBeginDebate}
             >
-              Skip to Debate
+              Begin Debate
             </button>
           </div>
         </div>
@@ -1592,8 +1718,8 @@ function ClarificationActions() {
 
 /** Opening phase action bar — shows user opening input if user is a POVer */
 function OpeningActions() {
-  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements, openingOrder, setOpeningOrder, initialCrossRespondRounds, setInitialCrossRespondRounds } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, submitUserOpening: s.submitUserOpening, runOpeningStatements: s.runOpeningStatements, openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder, initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds }))
+  const { activeDebate, debateGenerating, debateError, submitUserOpening, runOpeningStatements } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, submitUserOpening: s.submitUserOpening, runOpeningStatements: s.runOpeningStatements }))
   );
   const [statement, setStatement] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -1602,94 +1728,9 @@ function OpeningActions() {
 
   const isGenerating = !!debateGenerating;
   const userIsPover = activeDebate.user_is_pover;
-  const hasAnyOpening = activeDebate.transcript.some((e) => e.type === 'opening');
   const hasUserOpening = activeDebate.transcript.some(
     (e) => e.type === 'opening' && e.speaker === 'user',
   );
-
-  const moveUp = (index: number) => {
-    if (index <= 0) return;
-    const next = [...openingOrder];
-    [next[index - 1], next[index]] = [next[index], next[index - 1]];
-    setOpeningOrder(next);
-  };
-
-  const moveDown = (index: number) => {
-    if (index >= openingOrder.length - 1) return;
-    const next = [...openingOrder];
-    [next[index], next[index + 1]] = [next[index + 1], next[index]];
-    setOpeningOrder(next);
-  };
-
-  // Before any openings have started — let user pick length, order, and start
-  if (!hasAnyOpening && !isGenerating) {
-    return (
-      <div className="debate-action-bar">
-        {debateError && <div className="debate-error">{debateError}</div>}
-        <div className="debate-action-hint">Set order and depth for opening statements, then begin.</div>
-        {openingOrder.length > 0 && (
-          <div className="debate-opening-order">
-            <span className="debate-opening-order-label">Speaking order:</span>
-            <ol className="debate-opening-order-list">
-              {openingOrder.map((poverId, idx) => {
-                const info = POVER_INFO[poverId];
-                return (
-                  <li key={poverId} className="debate-opening-order-item">
-                    <span className="debate-opening-order-name" style={{ color: info.color }}>{info.label}</span>
-                    <span className="debate-opening-order-btns">
-                      <button
-                        className="debate-opening-order-btn"
-                        onClick={() => moveUp(idx)}
-                        disabled={idx === 0}
-                        title="Move left"
-                      >&#9664;</button>
-                      <button
-                        className="debate-opening-order-btn"
-                        onClick={() => moveDown(idx)}
-                        disabled={idx === openingOrder.length - 1}
-                        title="Move right"
-                      >&#9654;</button>
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        )}
-        <div className="debate-initial-rounds">
-          {activeDebate.adaptive_staging?.enabled ? (
-            <span className="debate-initial-rounds-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ background: '#f59e0b', color: '#000', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.75rem' }}>
-                Adaptive
-              </span>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                Signal-driven phase transitions ({activeDebate.adaptive_staging.pacing} pacing)
-              </span>
-            </span>
-          ) : (
-            <label className="debate-initial-rounds-label">
-              Cross-respond rounds after openings:
-              <select
-                className="debate-turns-select"
-                value={initialCrossRespondRounds}
-                onChange={(e) => setInitialCrossRespondRounds(parseInt(e.target.value, 10))}
-                title="Number of cross-respond rounds to run automatically after opening statements"
-              >
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15].map(n => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-        <div className="debate-action-bar-inner">
-          <button className="btn btn-primary" onClick={() => void runOpeningStatements()}>
-            Begin Opening Statements
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // AI POVers still generating
   if (isGenerating) {
@@ -2000,7 +2041,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
               disabled={disabled}
               title="Number of cross-respond rounds"
             >
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map(n => (
+              {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>

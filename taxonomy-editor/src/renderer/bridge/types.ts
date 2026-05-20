@@ -205,6 +205,7 @@ export interface AppAPI {
   }) => void) => () => void;
   onReloadTaxonomy: (callback: () => void) => () => void;
   onFocusNode: (callback: (nodeId: string) => void) => () => void;
+  focusNodeInMainWindow: (nodeId: string) => void;
   onTerminalData: (callback: (data: string) => void) => () => void;
   onTerminalExit: (callback: () => void) => () => void;
 }

@@ -15,6 +15,9 @@ function Repair-PovLineage {
 
         Processes unique values in batch (not per-node) to minimize AI calls.
         Caches results in a lineage-enrichments.json file for incremental re-runs.
+    .PARAMETER NodeIds
+        One or more taxonomy node IDs to process. Accepts pipeline input
+        by value or by property name (Id, NodeId). If omitted, processes all nodes.
     .PARAMETER POV
         Filter to a specific POV file.
     .PARAMETER Model
@@ -28,12 +31,18 @@ function Repair-PovLineage {
     .EXAMPLE
         Repair-PovLineage -WhatIf
     .EXAMPLE
-        Repair-PovLineage -POV accelerationist -BatchSize 10
+        Repair-PovLineage -NodeIds acc-beliefs-001, acc-beliefs-002
     .EXAMPLE
-        Repair-PovLineage -SkipUrlValidation
+        Get-Tax -POV accelerationist | Repair-PovLineage -SkipUrlValidation
+    .EXAMPLE
+        Repair-PovLineage -POV accelerationist -BatchSize 10
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
+        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [Alias('NodeId', 'Id')]
+        [string[]]$NodeIds,
+
         [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'situations')]
         [string]$POV,
 
@@ -50,6 +59,26 @@ function Repair-PovLineage {
 
         [switch]$FixUrls
     )
+
+    begin {
+        $CollectedIds = [System.Collections.Generic.List[string]]::new()
+    }
+
+    process {
+        if ($NodeIds) {
+            foreach ($nid in $NodeIds) {
+                if (-not [string]::IsNullOrWhiteSpace($nid)) { $CollectedIds.Add($nid) }
+            }
+        }
+    }
+
+    end {
+    # Build filter set from collected IDs (empty = process all)
+    $FilterNodeIds = $null
+    if ($CollectedIds.Count -gt 0) {
+        $FilterNodeIds = [System.Collections.Generic.HashSet[string]]::new(
+            [string[]]@($CollectedIds), [System.StringComparer]::OrdinalIgnoreCase)
+    }
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
@@ -210,6 +239,7 @@ No markdown, no explanation.
         $TaxData[$PovName] = $Data
 
         foreach ($Node in $Data.nodes) {
+            if ($FilterNodeIds -and -not $FilterNodeIds.Contains($Node.id)) { continue }
             if (-not $Node.PSObject.Properties['graph_attributes'] -or -not $Node.graph_attributes) { continue }
             $GA = $Node.graph_attributes
             if (-not $GA.PSObject.Properties['intellectual_lineage']) { continue }
@@ -221,7 +251,16 @@ No markdown, no explanation.
         }
     }
 
+    if ($null -ne $FilterNodeIds -and $FilterNodeIds.Count -gt 0) {
+        Write-Verbose "Filtering to $($CollectedIds.Count) node ID(s): $($CollectedIds[0..([Math]::Min(4, $CollectedIds.Count - 1))] -join ', ')"
+    }
+    Write-Verbose "UniqueValues type: $($UniqueValues.GetType().Name), count: $($UniqueValues.Count)"
     Write-Host "Unique lineage values: $($UniqueValues.Count)" -ForegroundColor Cyan
+
+    if ($UniqueValues.Count -eq 0) {
+        Write-Host 'No bare-string lineage entries to process.' -ForegroundColor Green
+        return
+    }
 
     # ── Phase 0: Dedup via embedding similarity ───────────────────────────────
     # Cluster near-duplicates (cosine ≥ 0.85), pick canonical representative,
@@ -435,6 +474,7 @@ No markdown, no explanation.
     for ($i = 0; $i -lt $NeedEnrichment.Count; $i += $BatchSize) {
         $BatchNum++
         $Batch = @($NeedEnrichment[$i..[Math]::Min($i + $BatchSize - 1, $NeedEnrichment.Count - 1)])
+        Write-Verbose "Batch ${BatchNum}/${TotalBatches}: $($Batch -join ', ')"
         Write-Host "  Batch $BatchNum/$TotalBatches ($($Batch.Count) values)..." -ForegroundColor Gray -NoNewline
 
         $BatchList = ($Batch | ForEach-Object { "- $_" }) -join "`n"
@@ -473,16 +513,18 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
                         $W2 = @($CKey.ToLower() -split '\W+' | Where-Object { $_.Length -gt 2 })
                         if ($W1.Count -eq 0 -or $W2.Count -eq 0) { continue }
                         $Inter = @($W1 | Where-Object { $_ -in $W2 }).Count
-                        $Union = ($W1 + $W2 | Select-Object -Unique).Count
+                        $Union = @($W1 + $W2 | Select-Object -Unique).Count
                         if ($Union -gt 0 -and ($Inter / $Union) -gt 0.75) {
                             $ExistingMatch = $CKey
                             break
                         }
                     }
                     if ($ExistingMatch) {
-                        # Map enriched name to existing canonical
+                        # Map enriched name to existing canonical, and also add the
+                        # original name to cache so bare-string lookup succeeds
                         if ($E.name -ne $ExistingMatch) {
                             $DedupMap[$E.name] = $ExistingMatch
+                            $Cache[$E.name] = $Cache[$ExistingMatch]  # alias to same data
                             Write-Verbose "  Dedup guard: '$($E.name)' → existing '$ExistingMatch'"
                         }
                     } else {
@@ -491,6 +533,8 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
                             url         = $E.url
                             category    = $E.category
                         }
+                        $DescPreview = if ($E.description.Length -gt 60) { $E.description.Substring(0, 60) + '...' } else { $E.description }
+                        Write-Verbose "  Enriched: '$($E.name)' [$($E.category)] → $DescPreview"
                     }
                 }
                 Write-Host " $(@($Enriched).Count) enriched" -ForegroundColor Green
@@ -543,6 +587,10 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
     Write-Host "`nApplying enrichments to taxonomy files..." -ForegroundColor Cyan
     $TotalUpdated = 0
 
+    # Build case-insensitive lookup for cache keys (AI may return different casing)
+    $CacheLookup = @{}
+    foreach ($CKey in $Cache.Keys) { $CacheLookup[$CKey.ToLower()] = $CKey }
+
     foreach ($PovName in $TaxData.Keys) {
         $Data = $TaxData[$PovName]
         $Modified = $false
@@ -555,24 +603,29 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
             $NeedUpdate = $false
 
             foreach ($Entry in $Lin) {
-                if ($Entry -is [string] -and $Cache.ContainsKey($Entry)) { $NeedUpdate = $true; break }
+                if ($Entry -is [string] -and ($Cache.ContainsKey($Entry) -or $CacheLookup.ContainsKey($Entry.ToLower()))) { $NeedUpdate = $true; break }
             }
             if (-not $NeedUpdate) { continue }
 
             # Replace bare strings with rich objects
             $NewLin = @(foreach ($Entry in $Lin) {
-                if ($Entry -is [string] -and $Cache.ContainsKey($Entry)) {
-                    $Cached = $Cache[$Entry]
-                    [ordered]@{
-                        name        = $Entry
-                        description = $Cached.description
-                        url         = $Cached.url
-                        category    = $Cached.category
+                if ($Entry -is [string]) {
+                    # Case-insensitive cache lookup
+                    $CacheKey = if ($Cache.ContainsKey($Entry)) { $Entry }
+                                elseif ($CacheLookup.ContainsKey($Entry.ToLower())) { $CacheLookup[$Entry.ToLower()] }
+                                else { $null }
+                    if ($CacheKey) {
+                        $Cached = $Cache[$CacheKey]
+                        [ordered]@{
+                            name        = $Entry
+                            description = $Cached.description
+                            url         = $Cached.url
+                            category    = $Cached.category
+                        }
+                    } else {
+                        # No cache hit — keep as bare string
+                        $Entry
                     }
-                }
-                elseif ($Entry -is [string]) {
-                    # No cache hit — keep as bare string
-                    $Entry
                 }
                 else {
                     # Already a rich object
@@ -581,6 +634,9 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
             })
 
             if ($PSCmdlet.ShouldProcess("$($Node.id) ($($NewLin.Count) lineage entries)", 'Enrich lineage')) {
+                $BareFixed = @($Lin | Where-Object { $_ -is [string] }).Count
+                $RichKept = @($Lin | Where-Object { $_ -isnot [string] }).Count
+                Write-Verbose "  $($Node.id) [$PovName]: $BareFixed bare → enriched, $RichKept already rich"
                 $GA.intellectual_lineage = $NewLin
                 $Modified = $true
                 $TotalUpdated++
@@ -602,4 +658,5 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
     if (-not $SkipUrlValidation) {
         Write-Host "  URLs valid: $UrlValid | invalid: $UrlInvalid"
     }
+    } # end
 }

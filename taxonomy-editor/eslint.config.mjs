@@ -22,6 +22,12 @@ export default tseslint.config(
       '@typescript-eslint/no-misused-promises': ['error', {
         checksVoidReturn: { attributes: false },
       }],
+      '@typescript-eslint/no-use-before-define': ['error', {
+        functions: false,
+        classes: true,
+        variables: true,
+        allowNamedExports: false,
+      }],
     },
   },
   {

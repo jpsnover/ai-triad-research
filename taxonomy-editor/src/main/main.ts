@@ -487,6 +487,11 @@ void app.whenReady().then(() => {
     });
   });
 
+  // Navigate main window to a taxonomy node (called from popout windows)
+  ipcMain.on('focus-node-in-main', (_event, nodeId: string) => {
+    sendFocusNode(nodeId);
+  });
+
   ipcMain.handle('close-debate-window', () => {
     if (debateWindow && !debateWindow.isDestroyed()) {
       debateWindow.close();

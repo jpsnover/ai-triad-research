@@ -731,10 +731,25 @@ export async function executeTurnWithRetry(
     // Check if citation bank validation passed (no warnings after scrub)
     const draftDiagForCitation = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
     const citationRes = (draftDiagForCitation as Record<string, unknown> | undefined)?.citation_resolution as
-      { bank_size?: number; validation_warnings?: string[] } | undefined;
+      { bank_size?: number; warnings?: string[] } | undefined;
     const citationBankValidated = citationRes != null
       && citationRes.bank_size != null && citationRes.bank_size > 0
-      && (citationRes.validation_warnings?.length ?? 0) === 0;
+      && (citationRes.warnings?.length ?? 0) === 0;
+
+    // Extract evidence context so the judge knows what evidence was available
+    const evidenceDiagForJudge = pipelineResult.stage_diagnostics.find(s => s.stage === 'evidence');
+    const evidenceWpForJudge = evidenceDiagForJudge?.work_product as Record<string, unknown> | undefined;
+    let evidenceContext: string | undefined;
+    if (evidenceWpForJudge) {
+      const facts = (evidenceWpForJudge.facts as Array<{ claim?: string; doc_id?: string }>) ?? [];
+      const kps = (evidenceWpForJudge.keyPoints as Array<{ point?: string; doc_id?: string }>) ?? [];
+      if (facts.length > 0 || kps.length > 0) {
+        const lines: string[] = [];
+        for (const f of facts) lines.push(`- Fact: "${f.claim?.slice(0, 100)}" (${f.doc_id})`);
+        for (const kp of kps) lines.push(`- Key point: "${kp.point?.slice(0, 100)}" (${kp.doc_id})`);
+        evidenceContext = lines.join('\n');
+      }
+    }
 
     validation = await validateTurn({
       statement, taxonomyRefs, meta,
@@ -751,6 +766,7 @@ export async function executeTurnWithRetry(
       callJudgeFallback: callbacks.callJudgeFallback,
       pendingIntervention: input.pendingIntervention,
       citationBankValidated,
+      evidenceContext,
     });
 
     const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
@@ -809,9 +825,11 @@ export async function executeTurnWithRetry(
     // validation.repairHints for transparency.
     const actionableHints = filterActionableHints(validation.repairHints ?? []);
     const hasActionableFeedback = actionableHints.length > 0;
-    const shouldRetry = attemptIdx === 0
-      ? hasActionableFeedback                  // first draft: any actionable feedback → retry
-      : validation.outcome === 'retry' && hasActionableFeedback; // retry draft: outcome + actionable
+    // Retry only when the score-based outcome says so — not on any feedback.
+    // Data from 12-turn analysis showed retries improve only 8% of turns;
+    // 92% of the time attempt 0 was the best. The "any feedback → retry" rule
+    // caused 35 wasted pipeline runs in a single debate.
+    const shouldRetry = validation.outcome === 'retry' && hasActionableFeedback;
 
     console.log(`[orchestration] *** RETRY CHECK: attempt=${attemptIdx}, score=${currentScore.toFixed(2)}, bestScore=${bestScore.toFixed(2)}, totalHints=${validation.repairHints?.length ?? 0}, actionableHints=${actionableHints.length}, outcome=${validation.outcome}, retry=${shouldRetry}, max=${vConfig.maxRetries} ***`);
 
@@ -834,6 +852,7 @@ export async function executeTurnWithRetry(
         frozenBrief: pipelineResult.brief,
         frozenPlan: pipelineResult.plan,
         frozenDraft: isCiteOnly ? pipelineResult.draft : undefined,
+        frozenEvidenceBlock: pipelineResult.evidenceBlock,
       });
     } catch (err) {
       // Pipeline parse failure on retry — treat as failed attempt, break with current validation
@@ -862,7 +881,7 @@ export async function executeTurnWithRetry(
  *  list conservative: false positives (filtering an actually-actionable hint)
  *  are worse than false negatives (running an extra retry). */
 const UNANSWERABLE_HINT_PATTERNS: RegExp[] = [
-  /lacks?\s+empirical\s+evidence/i,
+  /lacks?\s+(?:empirical\s+)?(?:evidence|case\s+stud|data|example|demonstrat)/i,
   /no\s+(?:empirical\s+)?(?:data|evidence)\s+(?:that|on|for|supporting)/i,
   /no\s+analysis\s+of\s+whether.*(?:achieved|reached|delivered)/i,
   /(?:false[- ]positive|false[- ]negative)\s+rates?/i,
@@ -881,7 +900,14 @@ const UNANSWERABLE_HINT_PATTERNS: RegExp[] = [
 ];
 
 function filterActionableHints(hints: string[]): string[] {
-  return hints.filter(h => !UNANSWERABLE_HINT_PATTERNS.some(re => re.test(h)));
+  return hints.filter(h => {
+    // Remove unanswerable hints (evidence the corpus doesn't have)
+    if (UNANSWERABLE_HINT_PATTERNS.some(re => re.test(h))) return false;
+    // Remove cite-targeted hints — they're actionable but by the cite stage, not draft.
+    // Sending them to the draft retry wastes a retry attempt on something the draft can't fix.
+    if (CITE_HINT_PATTERN.test(h)) return false;
+    return true;
+  });
 }
 
 /** Cite-specific hint pattern — matches hints targeting taxonomy_refs, policy_refs,

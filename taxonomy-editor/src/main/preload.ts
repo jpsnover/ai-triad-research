@@ -251,6 +251,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => { ipcRenderer.removeListener('focus-node', listener); };
   },
 
+  focusNodeInMainWindow: (nodeId: string): void => {
+    ipcRenderer.send('focus-node-in-main', nodeId);
+  },
+
   growWindow: (deltaWidth: number): Promise<void> =>
     ipcRenderer.invoke('grow-window', deltaWidth),
 

@@ -1079,13 +1079,13 @@ describe('score calculation', () => {
     expect(r.dimensions.clarifies.pass).toBe(true);
   });
 
-  it('returns 0.78 when clarifies dimension fails (deterministic-only)', async () => {
-    // deterministic-only: clarifies always false, everything else passes
+  it('returns 0.82 baseline score (deterministic-only, all dimensions pass)', async () => {
+    // deterministic-only: all dimensions pass (clarifies is informational, always true)
     // judgeQuality defaults to 0.7 when no judge runs
     const p = makeParams();
     const r = await validateTurn(p);
-    // 0.4 * stageA(0.90) + 0.6 * default(0.70) = 0.36 + 0.42 = 0.78
-    expect(r.process_reward).toBeCloseTo(0.78, 2);
+    // 0.4 * stageA(1.00) + 0.6 * default(0.70) = 0.40 + 0.42 = 0.82
+    expect(r.process_reward).toBeCloseTo(0.82, 2);
   });
 
   it('returns lower process_reward with schema failure', async () => {
@@ -1171,7 +1171,7 @@ describe('clarifies_taxonomy from judge', () => {
     const p = makeParams();
     const r = await validateTurn(p);
     expect(r.clarifies_taxonomy).toHaveLength(0);
-    expect(r.dimensions.clarifies.pass).toBe(false);
+    expect(r.dimensions.clarifies.pass).toBe(true);
   });
 });
 

@@ -159,9 +159,38 @@ for (const [alias, canonical] of MOVE_ALIAS_ENTRIES) {
   }
 }
 
-function resolveMoveName(raw: string): string {
+/** Fuzzy keyword patterns — catch hallucinated move names that don't match any exact alias.
+ *  Order matters: more specific patterns first to avoid false matches. */
+const FUZZY_MOVE_KEYWORDS: [RegExp, string][] = [
+  [/COUNTER.*EXAMPLE|EXCEPTION/i, 'COUNTEREXAMPLE'],
+  [/COUNTER/i, 'COUNTEREXAMPLE'],
+  [/ANALOG/i, 'INTEGRATE'],
+  [/INTEGRAT|SYNTHESIZ|RECONCIL|BRIDG/i, 'INTEGRATE'],
+  [/CONCEDE|CONCESSION|PIVOT|RETRACT/i, 'CONCEDE AND PIVOT'],
+  [/CHALLENG/i, 'EMPIRICAL CHALLENGE'],
+  [/DISTINGU|NARROW|SCOPE|BOUNDAR/i, 'DISTINGUISH'],
+  [/REFRAME|RECAST|FRAME/i, 'REFRAME'],
+  [/EXTEND|EXPAND|ELABORATE|BUILD/i, 'EXTEND'],
+  [/UNDERCUT|UNDERMINE/i, 'UNDERCUT'],
+  [/SPECIFY|OPERATIONALIZE|CLARIF/i, 'SPECIFY'],
+  [/BURDEN|PROOF/i, 'BURDEN SHIFT'],
+  [/ASSUMPTION|PRESUPPOS/i, 'EXPOSE ASSUMPTION'],
+  [/STEEL|STRENGTHEN/i, 'STEEL BUILD'],
+  [/GROUND|FACT.*CHECK|VERIFY/i, 'GROUND CHECK'],
+  [/CRUX|TENSION/i, 'IDENTIFY CRUX'],
+  [/CONDITION|QUALIF|PARTIAL/i, 'INTEGRATE'],
+];
+
+/** Resolve a move name (including aliases and hallucinated variants) to a canonical move name. */
+export function resolveMoveName(raw: string): string {
   const normalized = normalizeMoveName(raw);
-  return MOVE_ALIASES.get(normalized) ?? normalized;
+  const exact = MOVE_ALIASES.get(normalized);
+  if (exact) return exact;
+  if (MOVE_CATALOG.has(normalized)) return normalized;
+  for (const [pattern, canonical] of FUZZY_MOVE_KEYWORDS) {
+    if (pattern.test(normalized)) return canonical;
+  }
+  return normalized;
 }
 
 const MOVE_CATALOG = new Set<string>(MOVE_CATALOG_RAW.map(normalizeMoveName));
@@ -200,7 +229,7 @@ export function resolveTurnValidationConfig(
   c: TurnValidationConfig | undefined,
 ): Required<TurnValidationConfig> {
   const src = c ?? {};
-  const rawRetries = src.maxRetries ?? 4;
+  const rawRetries = src.maxRetries ?? 1;
   const clamped = Math.max(0, Math.min(4, rawRetries));
   return {
     enabled: src.enabled ?? true,
@@ -243,6 +272,9 @@ export interface ValidateTurnParams {
   /** When true, all citations in the draft have been verified against the citation bank.
    *  Tells the judge not to re-flag citation quality — the scrub already handled it. */
   citationBankValidated?: boolean;
+  /** Summary of evidence that was available to the debater (from the evidence stage).
+   *  Passed to the judge so it doesn't penalize missing evidence the debater never had. */
+  evidenceContext?: string;
 }
 
 interface StageAResult {
@@ -467,6 +499,13 @@ function buildJudgePrompt(p: ValidateTurnParams): string {
     my_claims: p.meta.my_claims ?? [],
   }, null, 2);
 
+  // Include the evidence that was available to the debater (if any)
+  const evidenceBlock = p.evidenceContext
+    ? `\nEvidence available to this debater (from source corpus):
+${p.evidenceContext}
+`
+    : '';
+
   return `You are a debate-progress referee. You do NOT take sides. You judge ONE turn against the last two turns of the same debate.
 
 Phase: ${p.phase}
@@ -475,7 +514,7 @@ Round: ${p.round}
 
 Previous turns (last 2, any agent):
 ${window || '(no prior turns)'}
-
+${evidenceBlock}
 Current turn (JSON):
 ${turnJson}
 
@@ -485,6 +524,7 @@ Decide:
    narrow <node_id> | broaden <node_id> | split <node_id> | merge <node_ids> | qualify <node_id> | retire <node_id> | new_node <label>
    Only mark a hint when the turn contains evidence for it — never speculative.
 3. WEAKNESSES — list at most 3, each ≤15 words. Each names a concrete fix the debater could apply on retry.
+   IMPORTANT: Only flag missing evidence if the evidence WAS available above and the debater failed to use it. Do NOT flag the absence of evidence that was never in the debater's evidence block — that is a corpus limitation, not a debater failure.
 4. QUALITY_SCORE — rate overall turn quality 0.0 to 1.0 using this rubric:
    1.0: Exceptional — specific evidence, falsifiable claims, engages opponent's strongest point, no logical gaps
    0.8: Strong — substantive argument with minor gaps (missing evidence for one claim, or one unaddressed counterpoint)
@@ -687,7 +727,7 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
       ],
     },
     clarifies: {
-      pass: !!(judge && judge.clarifies_taxonomy.length > 0),
+      pass: true,  // Informational — signals show when taxonomy suggestions were made
       signals: (judge?.clarifies_taxonomy ?? []).map(h =>
         `${h.action}${h.node_id ? `:${h.node_id}` : ''}`,
       ),

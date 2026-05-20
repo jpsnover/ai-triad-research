@@ -261,6 +261,10 @@ export interface TranscriptEntry {
   display_tier?: 'brief' | 'medium' | 'detailed';
   /** Present when type === 'intervention'. Metadata about the moderator move. */
   intervention_metadata?: InterventionMetadata;
+  /** Unresolved judge weaknesses from the final retry attempt — substantive limitations
+   *  of the argument that couldn't be fixed without changing the debater's position.
+   *  Surfaced to readers as "Caveats" alongside the statement. */
+  caveats?: string[];
 }
 
 export interface ContextSummary {
@@ -961,6 +965,20 @@ export interface StageDiagnostics {
   retry_trigger?: 'initial' | 'stage-retry' | 'orchestration-rerun';
   /** Repair hints that were active when this stage ran (only set when hints exist). */
   repair_hints_in?: string[];
+  /** True when per-stage validation failed and triggered a retry. Enables easy FR event emission by callers. */
+  validation_failed?: boolean;
+  /** Validation error hints that caused the retry. Only set when validation_failed is true. */
+  validation_errors?: string[];
+}
+
+/** Provenance metadata stamped on work products after LLM parsing.
+ *  Added by pipeline code (not LLM-generated), stripped before downstream prompt injection. */
+export interface StageProvenance {
+  pipeline_run: number;
+  stage: TurnStageId;
+  attempt: number;
+  model: string;
+  timestamp: string;
 }
 
 export interface BriefWorkProduct {
@@ -1017,6 +1035,8 @@ export interface TurnPipelineResult {
   plan: PlanWorkProduct;
   draft: DraftWorkProduct;
   cite: CiteWorkProduct;
+  /** Evidence block injected into the DRAFT prompt. Returned so orchestration can freeze it on retry. */
+  evidenceBlock?: string;
   stage_diagnostics: StageDiagnostics[];
   total_time_ms: number;
 }

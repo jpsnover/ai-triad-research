@@ -1992,7 +1992,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       origin: { mode: 'gui' },
     };
     await api.saveDebateSession(session);
-    set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null });
+    // Initialize opening order with shuffled AI povers so the setup screen can show it
+    const aiPoversForOrder = AI_POVER_ORDER.filter(p => povers.includes(p));
+    const shuffledOrder = [...aiPoversForOrder];
+    for (let i = shuffledOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledOrder[i], shuffledOrder[j]] = [shuffledOrder[j], shuffledOrder[i]];
+    }
+    set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null, openingOrder: shuffledOrder });
     void api.setDebateTemperature(debateTemperature ?? null);
     await get().loadSessions();
     getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate created', data: { topic: title, povers, protocol: protocolId, model: debateModel } });
@@ -2666,18 +2673,23 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     updatePhase('opening');
     getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Phase: opening', data: { phase: 'opening' } });
 
-    const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
-    const shuffled = [...aiPovers];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    // Only shuffle if no order has been set yet (preserves user customization from setup screen)
+    const { openingOrder: existingOrder } = get();
+    if (existingOrder.length === 0) {
+      const aiPovers = AI_POVER_ORDER.filter((p) => activeDebate.active_povers.includes(p));
+      const shuffled = [...aiPovers];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      set({ openingOrder: shuffled });
     }
-    set({ openingOrder: shuffled });
 
     // Persist on the debate object so it survives app restarts
     const freshDebate = get().activeDebate;
+    const finalOrder = get().openingOrder;
     if (freshDebate) {
-      set({ activeDebate: { ...freshDebate, opening_order: shuffled } });
+      set({ activeDebate: { ...freshDebate, opening_order: finalOrder } });
     }
 
     const claimCount = activeDebate.document_analysis?.i_nodes?.length;
@@ -2730,9 +2742,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
 
+    console.log(`[debate-store] Opening statements: aiPovers=${JSON.stringify(aiPovers)}, existingOpenings=${JSON.stringify([...existingOpenings])}, resolvedOrder=${JSON.stringify(resolvedOrder)}`);
+
     for (const poverId of aiPovers) {
       // Skip POVers who already delivered an opening (idempotency after interruption)
-      if (existingOpenings.has(poverId)) continue;
+      if (existingOpenings.has(poverId)) {
+        console.log(`[debate-store] Skipping ${poverId} — already has opening`);
+        continue;
+      }
 
       set({ debateGenerating: poverId });
       const info = POVER_INFO[poverId];
@@ -2791,7 +2808,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           stageGenerate,
           (_stage, label) => set({ debateActivity: label }),
         );
-        if (!isStillValid()) return;
+        if (!isStillValid()) {
+          console.warn(`[debate-store] Debate state changed after ${info.label} opening pipeline — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
+          addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} — debate state changed during generation.`, taxonomy_refs: [] });
+          return;
+        }
 
         // Opening retry: if per-stage validation found errors, retry once with repair hints.
         const openingRepairHints = getOpeningRepairHints(pipelineResult);
@@ -2807,11 +2828,21 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           } catch (err) {
             console.warn(`[debate-store] Opening retry failed for ${info.label}:`, err);
           }
-          if (!isStillValid()) return;
+          if (!isStillValid()) {
+            console.warn(`[debate-store] Debate state changed after ${info.label} opening retry — remaining speakers will be skipped. activeDebateId: ${get().activeDebateId}, aborted: ${_abortController?.signal.aborted}`);
+            addTranscriptEntry({ type: 'system', speaker: 'system', content: `Opening generation interrupted after ${info.label} retry — debate state changed during generation.`, taxonomy_refs: [] });
+            return;
+          }
         }
 
         const knownNodeIds = getAllKnownNodeIds();
         const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, knownNodeIds);
+
+        // Guard: reject empty or trivially short opening statements
+        if (!statement || statement.trim().length < 50) {
+          console.error(`[debate] ${info.label} opening produced empty/trivial statement (${statement.length} chars) — treating as failure`);
+          throw new Error(`Opening statement was empty or too short (${statement.trim().length} chars). The AI may have returned only structural metadata without prose content.`);
+        }
 
         // Enrich policy refs with per-policy relevance from draft stage
         meta.policy_refs = enrichPolicyRefs(meta.policy_refs, pipelineResult.draft as unknown as Record<string, unknown>);
@@ -2885,15 +2916,26 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     set({ debateGenerating: null });
 
     // If user is a POVer, wait for their input (phase stays 'opening')
-    // Otherwise, transition to debate phase
+    // Otherwise, transition to debate phase — but only if at least one valid opening was delivered
     if (!activeDebate.user_is_pover) {
-      get().updatePhase('debate');
-      addTranscriptEntry({
-        type: 'system',
-        speaker: 'system',
-        content: 'Opening statements complete. The floor is open.',
-        taxonomy_refs: [],
-      });
+      const currentDebate = get().activeDebate;
+      const validOpenings = (currentDebate?.transcript ?? []).filter(
+        e => e.type === 'opening' && e.content && e.content.trim().length > 0,
+      );
+      if (validOpenings.length > 0) {
+        get().updatePhase('debate');
+        const expectedCount = aiPovers.length;
+        const suffix = validOpenings.length < expectedCount
+          ? ` (${expectedCount - validOpenings.length} debater${expectedCount - validOpenings.length > 1 ? 's' : ''} failed to deliver — they will join during cross-respond.)`
+          : '';
+        addTranscriptEntry({
+          type: 'system',
+          speaker: 'system',
+          content: `Opening statements complete.${suffix} The floor is open.`,
+          taxonomy_refs: [],
+        });
+      }
+      // If no valid openings at all, stay in 'opening' phase so user can retry
     }
 
     // Cache opening embeddings for position drift detection (non-blocking)
@@ -3483,6 +3525,23 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       // Serialize source tracking for diagnostics display
       const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
 
+      // Extract caveats: only QUALITY (judge weakness) hints — not DRAFT or CITE structural hints
+      const CITE_RE = /taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i;
+      const DRAFT_RE = /move_types|my_claims|paragraph|statement|hedge|constructive|pin_response|probe_response|challenge_response|clarification|check_response|revoice|reflection|compressed_thesis|commitment/i;
+      const caveats = (validation.repairHints ?? []).filter((h: string) =>
+        !CITE_RE.test(h) && !DRAFT_RE.test(h)
+      );
+
+      // Add ungrounded claims from the evidence work product
+      const evidenceDiagForCaveats = pipelineResult.stage_diagnostics.find((s: { stage: string }) => s.stage === 'evidence');
+      const ungroundedClaims = (evidenceDiagForCaveats?.work_product as Record<string, unknown>)?.ungrounded_claims as
+        Array<{ claim: string; reason: string }> | undefined;
+      if (ungroundedClaims?.length) {
+        for (const uc of ungroundedClaims) {
+          caveats.push(`[Ungrounded] ${uc.claim}`);
+        }
+      }
+
       addTranscriptEntry({
         type: 'statement',
         speaker: responderPover,
@@ -3490,6 +3549,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomy_refs: taxonomyRefs,
         policy_refs: enrichPolicyRefs(meta.policy_refs, pipelineResult.draft as unknown as Record<string, unknown>),
         addressing: 'all',
+        caveats: caveats.length > 0 ? caveats : undefined,
         metadata: {
           cross_respond: true, round: crossRespondRound,
           focus_point: focusPoint, addressing_label: addressingLabel,

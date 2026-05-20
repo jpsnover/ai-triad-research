@@ -467,6 +467,7 @@ const rawApi: AppAPI = {
   onGenerateTextProgress: (cb) => addEventListener('generate-text-progress', cb as EventCallback),
   onReloadTaxonomy: (cb) => addEventListener('reload-taxonomy', cb as EventCallback),
   onFocusNode: (cb) => addEventListener('focus-node', (d) => cb((d as { nodeId: string }).nodeId)),
+  focusNodeInMainWindow: (nodeId) => { void post('/api/focus-node', { nodeId }); },
   onTerminalData: (cb) => {
     terminalDataCallbacks.add(cb);
     return () => { terminalDataCallbacks.delete(cb); };

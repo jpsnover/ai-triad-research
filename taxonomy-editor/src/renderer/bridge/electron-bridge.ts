@@ -160,6 +160,7 @@ export const api: AppAPI = {
   onGenerateTextProgress: (cb) => window.electronAPI.onGenerateTextProgress(cb),
   onReloadTaxonomy: (cb) => window.electronAPI.onReloadTaxonomy(cb),
   onFocusNode: (cb) => window.electronAPI.onFocusNode(cb),
+  focusNodeInMainWindow: (nodeId) => window.electronAPI.focusNodeInMainWindow(nodeId),
   onTerminalData: (cb) => window.electronAPI.onTerminalData(cb),
   onTerminalExit: (cb) => window.electronAPI.onTerminalExit(cb),
 };

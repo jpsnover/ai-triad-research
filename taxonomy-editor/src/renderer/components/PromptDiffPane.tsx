@@ -4,8 +4,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import type { DiffLine } from '@lib/diff/lineDiff.js';
 import type { PromptNode, DiffViewMode, StageValidation, QualityCheck, OrchestrationValidation, RetryTrigger } from './PromptDiffTree';
+import type { CitationResolutionDiagnostics } from '@lib/debate/citationResolution.js';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId } from '../types/debate';
+import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
 
 const STAGE_COLORS: Record<string, string> = {
   brief: '#3b82f6', plan: '#a855f7', evidence: '#f59e0b', draft: '#22c55e', cite: '#f97316',
@@ -50,6 +52,10 @@ interface Props {
   validationHeight?: number;
   onValidationResize?: (height: number) => void;
   onFindInPanes?: (text: string) => void;
+  /** Whether pre-scrub mode is active (Path A drafts in Responses mode). */
+  preScrub?: boolean;
+  /** Toggle pre-scrub mode for this pane. */
+  onTogglePreScrub?: () => void;
 }
 
 function highlightMatches(
@@ -111,11 +117,73 @@ const TRIGGER_LABEL: Record<RetryTrigger, { text: string; color: string; bg: str
   'orchestration-rerun': { text: 'Rerun (Judge)', color: '#ef4444', bg: 'rgba(239,68,68,0.12)' },
 };
 
-function ValidationPanel({ validation, qualityCheck, orchestrationValidation, retryTrigger, repairHintsIn }: {
+function fabricatedColor(count: number): string {
+  if (count === 0) return '#22c55e';
+  if (count <= 2) return '#f59e0b';
+  return '#ef4444';
+}
+
+function CitationResolutionSummary({ cr }: { cr: CitationResolutionDiagnostics }) {
+  const fabColor = fabricatedColor(cr.citations_fabricated);
+  const removed = cr.fabrications.filter(f => f.action === 'removed').length;
+  const hedged = cr.fabrications.filter(f => f.action === 'hedged').length;
+  const fabDetail = cr.citations_fabricated === 0
+    ? '0 — clean'
+    : [removed > 0 ? `${removed} removed` : '', hedged > 0 ? `${hedged} hedged` : ''].filter(Boolean).join(', ');
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ fontWeight: 600, fontSize: '0.6rem', marginBottom: 3, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+        Citation Resolution
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: '0.62rem' }}>
+        <span>
+          Path:{' '}
+          <span style={{
+            fontWeight: 700, fontSize: '0.58rem', padding: '0 4px', borderRadius: 2,
+            background: cr.path === 'tool-calling' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
+            color: cr.path === 'tool-calling' ? '#3b82f6' : '#f59e0b',
+          }}>
+            {cr.path === 'tool-calling' ? 'Tool-Call' : 'Bank+Scrub'}
+          </span>
+        </span>
+        <span style={{ color: 'var(--text-muted)' }}>Bank: {cr.bank_size} srcs</span>
+        <span>
+          Matched:{' '}
+          <span style={{
+            fontWeight: 600,
+            color: cr.citations_matched === cr.citations_extracted ? '#22c55e' : '#f59e0b',
+          }}>
+            {cr.citations_matched}/{cr.citations_extracted}
+          </span>
+        </span>
+        <span>
+          Fabricated:{' '}
+          <span style={{ fontWeight: 600, color: fabColor }}>{fabDetail}</span>
+        </span>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: 2 }}>
+        {cr.tool_calls && cr.tool_calls.length > 0 && (
+          <span>
+            Tool calls: {cr.tool_calls.length}
+            {cr.tool_calls.some(tc => tc.empty) && (
+              <span style={{ color: '#f59e0b' }}> ({cr.tool_calls.filter(tc => tc.empty).length} empty)</span>
+            )}
+          </span>
+        )}
+        {cr.scrub_diff && (
+          <span>Scrub: {cr.scrub_diff.lines_removed} removed, {cr.scrub_diff.lines_modified} modified</span>
+        )}
+        <span>Resolution: {cr.resolution_time_ms}ms</span>
+      </div>
+    </div>
+  );
+}
+
+function ValidationPanel({ validation, qualityCheck, orchestrationValidation, retryTrigger, repairHintsIn, citationResolution }: {
   validation?: StageValidation; qualityCheck?: QualityCheck; orchestrationValidation?: OrchestrationValidation;
-  retryTrigger?: RetryTrigger; repairHintsIn?: string[];
+  retryTrigger?: RetryTrigger; repairHintsIn?: string[]; citationResolution?: CitationResolutionDiagnostics;
 }) {
-  if (!validation && !qualityCheck && !orchestrationValidation && !retryTrigger) {
+  if (!validation && !qualityCheck && !orchestrationValidation && !retryTrigger && !citationResolution) {
     return (
       <div style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: '0.62rem', fontStyle: 'italic' }}>
         No validation data
@@ -144,7 +212,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
             {repairHintsIn && repairHintsIn.length > 0 && (
               <ul style={{ margin: '2px 0 0 14px', padding: 0 }}>
                 {repairHintsIn.map((h, i) => (
-                  <li key={i} style={{ marginBottom: 1, color: 'var(--text-secondary)', fontSize: '0.6rem' }}>{h}</li>
+                  <li key={i} style={{ marginBottom: 1, color: 'var(--text-secondary)', fontSize: '0.6rem' }}>{humanizeSpeakerIds(h)}</li>
                 ))}
               </ul>
             )}
@@ -177,7 +245,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
                       color: s.color, background: s.bg, padding: '0 4px',
                       borderRadius: 2, marginRight: 4,
                     }}>{s.label}</span>
-                    {h}
+                    {humanizeSpeakerIds(h)}
                   </li>
                 );
               })}
@@ -238,7 +306,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
           {qualityCheck.weaknesses.length > 0 && (
             <ul style={{ margin: '2px 0 0 14px', padding: 0, color: 'var(--text-muted)' }}>
               {qualityCheck.weaknesses.map((w, i) => (
-                <li key={i} style={{ marginBottom: 1 }}>{w}</li>
+                <li key={i} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>
               ))}
             </ul>
           )}
@@ -280,7 +348,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
                       color: s.color, background: s.bg, padding: '0 4px',
                       borderRadius: 2, marginRight: 4,
                     }}>{s.label}</span>
-                    {h}
+                    {humanizeSpeakerIds(h)}
                   </li>
                 );
               })}
@@ -314,7 +382,7 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
                     <span style={{ textTransform: 'capitalize', fontWeight: 500 }}>{dim}</span>
                     {items.length > 0 && (
                       <ul style={{ margin: '1px 0 0 14px', padding: 0, color: 'var(--text-muted)' }}>
-                        {items.map((item, j) => <li key={j} style={{ marginBottom: 1 }}>{item}</li>)}
+                        {items.map((item, j) => <li key={j} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(item)}</li>)}
                       </ul>
                     )}
                   </div>
@@ -323,6 +391,11 @@ function ValidationPanel({ validation, qualityCheck, orchestrationValidation, re
             </div>
           </details>
         </div>
+      )}
+
+      {/* Citation Resolution Summary */}
+      {citationResolution && (
+        <CitationResolutionSummary cr={citationResolution} />
       )}
     </div>
   );
@@ -387,8 +460,8 @@ function renderWordDiff(
 }
 
 const VALIDATION_MIN_HEIGHT = 28;
-const VALIDATION_DEFAULT_HEIGHT = 150;
-const VALIDATION_MAX_HEIGHT = 500;
+const VALIDATION_DEFAULT_HEIGHT = 350;
+const VALIDATION_MAX_HEIGHT = 800;
 
 function ValidationPanelContainer({ node, height, onResize, onFind }: {
   node: PromptNode; height: number; onResize: (h: number) => void; onFind?: (text: string) => void;
@@ -495,6 +568,7 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
             orchestrationValidation={node.orchestrationValidation}
             retryTrigger={node.retryTrigger}
             repairHintsIn={node.repairHintsIn}
+            citationResolution={node.citationResolution}
           />
         </div>
       )}
@@ -530,10 +604,25 @@ function ValidationPanelContainer({ node, height, onResize, onFind }: {
   );
 }
 
-export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClose, onFocus, onScroll, scrollTop, searchTerm, activeMatchIndex, matchOffset, viewMode, wordWrap, validationHeight, onValidationResize, onFindInPanes }: Props) {
+export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClose, onFocus, onScroll, scrollTop, searchTerm, activeMatchIndex, matchOffset, viewMode, wordWrap, validationHeight, onValidationResize, onFindInPanes, preScrub, onTogglePreScrub }: Props) {
   const contentRef = useRef<HTMLDivElement>(null);
   const suppressScrollEvent = useRef(false);
   const activeMatchRef = useRef<HTMLSpanElement>(null);
+
+  // Context menu for copying selected text
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; text: string } | null>(null);
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const sel = window.getSelection()?.toString().trim();
+    if (!sel) return;
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, text: sel });
+  }, []);
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    document.addEventListener('click', close, { once: true });
+    return () => document.removeEventListener('click', close);
+  }, [ctxMenu]);
 
   // Sync scroll from external source
   useEffect(() => {
@@ -606,26 +695,116 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         fontSize: '0.68rem',
         flexShrink: 0,
       }}>
-        <span style={{
-          padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
-          background: `${stageColor}20`, color: stageColor,
-          textTransform: 'uppercase',
-        }}>
-          {node.stage}
-        </span>
-        {viewMode === 'responses' && (
-          <span style={{
-            padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
-            background: 'rgba(239,68,68,0.15)', color: '#ef4444',
-            textTransform: 'uppercase',
-          }}>
-            resp
-          </span>
+        {node.kind === 'tool-call' ? (
+          <>
+            <span style={{
+              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+              background: 'rgba(14,165,233,0.12)', color: '#0ea5e9',
+            }}>
+              🔍 {node.toolName ?? 'lookup_citation'}
+            </span>
+            <span style={{ fontWeight: 600 }}>#{(node.toolCallIndex ?? 0) + 1}</span>
+            {node.toolCallEmpty && (
+              <span style={{
+                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
+              }}>
+                EMPTY
+              </span>
+            )}
+            {viewMode === 'responses' && (
+              <span style={{
+                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+                textTransform: 'uppercase',
+              }}>
+                results
+              </span>
+            )}
+          </>
+        ) : node.kind === 'scrub' ? (
+          <>
+            <span style={{
+              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+              background: 'rgba(168,85,247,0.12)', color: '#a855f7',
+            }}>
+              ✂ Scrub
+            </span>
+            {viewMode === 'responses' && (
+              <span style={{
+                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+                textTransform: 'uppercase',
+              }}>
+                post
+              </span>
+            )}
+            {!viewMode || viewMode === 'prompts' ? (
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>pre-scrub draft</span>
+            ) : (
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>post-scrub draft</span>
+            )}
+          </>
+        ) : node.kind === 'attempt-verdict' ? (
+          <>
+            <span style={{ fontSize: '0.65rem' }}>⚖</span>
+            <span style={{ fontWeight: 700 }}>Attempt {node.runIndex + 1} Verdict</span>
+            {node.orchestrationValidation && (() => {
+              const isAccept = node.orchestrationValidation.outcome === 'accept' || node.orchestrationValidation.outcome === 'accept_with_flag';
+              return (
+                <span style={{
+                  padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+                  background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                  color: isAccept ? '#22c55e' : '#ef4444',
+                  textTransform: 'uppercase',
+                }}>
+                  {node.orchestrationValidation.outcome.replace(/_/g, ' ')} ({node.orchestrationValidation.process_reward.toFixed(2)})
+                </span>
+              );
+            })()}
+          </>
+        ) : (
+          <>
+            <span style={{
+              padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+              background: `${stageColor}20`, color: stageColor,
+              textTransform: 'uppercase',
+            }}>
+              {node.stage}
+            </span>
+            {viewMode === 'responses' && (
+              <span style={{
+                padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+                background: 'rgba(239,68,68,0.15)', color: '#ef4444',
+                textTransform: 'uppercase',
+              }}>
+                resp
+              </span>
+            )}
+            <span style={{ fontWeight: 600 }}>Run {node.runIndex + 1}</span>
+          </>
         )}
-        <span style={{ fontWeight: 600 }}>Run {node.runIndex + 1}</span>
         <span style={{ color: 'var(--text-muted)' }}>
           S{node.entryIndex + 1} {speakerLabel(node.speaker)}
         </span>
+        {/* Pre-scrub toggle: Path A drafts in Responses mode with fabrications */}
+        {!node.kind && node.stage === 'draft' && viewMode === 'responses'
+          && node.citationResolution?.path === 'bank-scrub'
+          && (node.citationResolution?.fabrications?.length ?? 0) > 0
+          && onTogglePreScrub && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onTogglePreScrub(); }}
+            style={{
+              padding: '1px 6px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 700,
+              border: '1px solid var(--border-color)', cursor: 'pointer',
+              background: preScrub ? 'rgba(168,85,247,0.2)' : 'transparent',
+              color: preScrub ? '#a855f7' : 'var(--text-muted)',
+            }}
+            title={preScrub ? 'Showing pre-scrub draft (click to show post-scrub)' : 'Click to show pre-scrub draft (before citation cleanup)'}
+          >
+            {preScrub ? 'Pre-scrub ✓' : 'Pre-scrub'}
+          </button>
+        )}
         {stats && !isReference && (
           <span style={{ marginLeft: 'auto', fontSize: '0.6rem', color: 'var(--text-muted)' }}>
             <span style={{ color: '#eab308' }}>+{stats.added}</span>
@@ -651,10 +830,20 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         >&times;</button>
       </div>
 
-      {/* Content */}
+      {/* Content — hidden for attempt-verdict nodes (validation panel is the sole content) */}
+      {node.kind === 'attempt-verdict' ? (
+        <div style={{
+          padding: '12px 16px', fontSize: '0.68rem', color: 'var(--text-muted)',
+          fontStyle: 'italic',
+        }}>
+          Orchestration judge verdict for attempt {node.runIndex + 1}. This assessment was produced after
+          the full pipeline (brief → plan → evidence → draft → cite) completed.
+        </div>
+      ) : (
       <div
         ref={contentRef}
         onScroll={handleScroll}
+        onContextMenu={handleContextMenu}
         style={{
           flex: 1, overflowY: 'auto', overflowX: wordWrap ? 'hidden' : 'auto',
           fontFamily: 'Consolas, "Fira Code", monospace',
@@ -706,9 +895,35 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
           });
         })()}
       </div>
+      )}
 
-      {/* Validation panel — resizable via drag handle, height synced across panes */}
-      {(node.validation || node.qualityCheck || node.orchestrationValidation) && (
+      {/* Context menu */}
+      {ctxMenu && (
+        <div style={{
+          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
+          background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+          borderRadius: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+          padding: '2px 0', fontSize: '0.7rem', minWidth: 120,
+        }}>
+          <div
+            onClick={() => { void navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
+            style={{ padding: '4px 12px', cursor: 'pointer' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >Copy</div>
+          {onFindInPanes && (
+            <div
+              onClick={() => { onFindInPanes(ctxMenu.text); setCtxMenu(null); }}
+              style={{ padding: '4px 12px', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >Find in Panes</div>
+          )}
+        </div>
+      )}
+
+      {/* Validation panel — resizable via drag handle, height synced across panes (not shown for tool-call/scrub sub-nodes) */}
+      {(!node.kind || node.kind === 'attempt-verdict') && (node.validation || node.qualityCheck || node.orchestrationValidation || node.citationResolution) && (
         <ValidationPanelContainer
           node={node}
           height={validationHeight ?? VALIDATION_DEFAULT_HEIGHT}

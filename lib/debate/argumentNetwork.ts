@@ -12,6 +12,7 @@ import { retrieveEvidence } from './evidenceRetriever.js';
 import { computeFactCheckStrength } from './qbaf.js';
 import type { WebEvidenceItem } from './qbaf.js';
 import { detectAmbiguityCollapse, findSourcePassage } from './ambiguityDetector.js';
+import { fuzzyCorrectNodeId } from './nodeIdUtils.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -838,6 +839,8 @@ export interface ProcessClaimsInput {
   existingEdgeCount: number;
   startNodeId: number;
   taxonomyEdges?: { source: string; target: string; weight?: number }[];
+  /** Known valid node IDs for taxonomy ref sanitization. When provided, invalid refs are corrected or stripped. */
+  knownNodeIds?: Set<string>;
 }
 
 export interface ProcessClaimsResult {
@@ -858,9 +861,26 @@ export function processExtractedClaims(
   options: ProcessClaimsOptions,
 ): ProcessClaimsResult {
   const {
-    claims, statement, speaker, entryId, taxonomyRefIds,
+    claims, statement, speaker, entryId,
     turnNumber, existingNodes, existingEdgeCount, startNodeId, taxonomyEdges,
+    knownNodeIds,
   } = input;
+
+  // Sanitize taxonomy ref IDs — final safety net against hallucinated IDs
+  let taxonomyRefIds = input.taxonomyRefIds;
+  if (knownNodeIds && knownNodeIds.size > 0) {
+    taxonomyRefIds = taxonomyRefIds.map(id => {
+      if (knownNodeIds.has(id)) return id;
+      const corrected = fuzzyCorrectNodeId(id, knownNodeIds);
+      if (corrected) {
+        console.log(`[AN] Taxonomy ref ID correction: ${id} → ${corrected}`);
+        return corrected;
+      }
+      console.log(`[AN] Taxonomy ref ID removed (unknown): ${id}`);
+      return null;
+    }).filter((id): id is string => id !== null);
+  }
+
   const maxClaims = options.maxClaims ?? 6;
   const dupThreshold = options.duplicateOverlapThreshold ?? 0.30;
   const groundingThreshold = options.groundingOverlapThreshold;

@@ -20,6 +20,7 @@ export type EventType =
   | 'turn.stage'
   | 'turn.validate'
   | 'turn.repair'
+  | 'turn.stage.validation.fail'
   // Debate flow
   | 'debate.phase'
   | 'debate.round'
@@ -76,6 +77,12 @@ export type EventType =
   | 'lock.released'
   | 'lock.timeout'
   | 'lock.ttl_eviction'
+  // Citation resolution
+  | 'citation.bank.built'
+  | 'citation.tool_call'
+  | 'citation.tool_call.empty'
+  | 'citation.scrub'
+  | 'citation.validation'
   // System
   | 'system.error'
   | 'system.warning'

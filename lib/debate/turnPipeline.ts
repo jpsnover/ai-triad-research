@@ -171,6 +171,8 @@ export interface TurnPipelineInput {
   frozenPlan?: PlanWorkProduct;
   /** Frozen Draft from a prior pipeline run — skips Draft stage when provided (cite-only retry). */
   frozenDraft?: DraftWorkProduct;
+  /** Frozen evidence block from a prior pipeline run — skips evidence retrieval when provided. */
+  frozenEvidenceBlock?: string;
 }
 
 export type StageGenerateFn = (
@@ -297,12 +299,6 @@ export async function runTurnPipeline(
     // Frozen from prior pipeline run — skip generation, reuse output
     brief = input.frozenBrief;
     briefJson = toPromptJson(brief);
-    stageDiags.push({
-      stage: 'brief', prompt: '(frozen — reused from prior run)', raw_response: briefJson,
-      model: input.model, temperature: temps.brief_temperature,
-      response_time_ms: 0, work_product: brief as unknown as Record<string, unknown>,
-      frozen: true, retry_trigger: 'orchestration-rerun',
-    });
     console.log(`[pipeline] Brief stage FROZEN — reusing prior output`);
   } else {
     onProgress?.('brief', `${input.label} is briefing...`);
@@ -390,12 +386,6 @@ export async function runTurnPipeline(
     // Frozen from prior pipeline run — skip generation, reuse output
     plan = input.frozenPlan;
     planJson = toPromptJson(plan);
-    stageDiags.push({
-      stage: 'plan', prompt: '(frozen — reused from prior run)', raw_response: planJson,
-      model: input.model, temperature: temps.plan_temperature,
-      response_time_ms: 0, work_product: plan as unknown as Record<string, unknown>,
-      frozen: true, retry_trigger: 'orchestration-rerun',
-    });
     console.log(`[pipeline] Plan stage FROZEN — reusing prior output`);
   } else {
     let planRepairHints: string[] = [];
@@ -486,25 +476,22 @@ export async function runTurnPipeline(
   // linkification, citation verification, and quality pre-check entirely.
   let draft: DraftWorkProduct | undefined;
   let draftJson = '';
+  let evidenceBlock = '';
 
   if (input.frozenDraft) {
     draft = input.frozenDraft;
     draftJson = toPromptJson(draft);
-    stageDiags.push({
-      stage: 'draft', prompt: '(frozen — reused from prior run)', raw_response: draftJson,
-      model: input.model, temperature: temps.draft_temperature,
-      response_time_ms: 0, work_product: draft as unknown as Record<string, unknown>,
-      frozen: true, retry_trigger: 'orchestration-rerun',
-    });
+    evidenceBlock = input.frozenEvidenceBlock ?? '';
     console.log(`[pipeline] Draft stage FROZEN — reusing prior output (skipping evidence, linkification, pre-check)`);
   } else {
 
   // ── Stage 2.5: EVIDENCE (deterministic — no LLM call) ──
   // Retrieve source document evidence for the plan's target nodes.
   // Produces a compact evidence brief injected into the DRAFT prompt.
-  let evidenceBlock = '';
-  console.log(`[pipeline] EVIDENCE stage check: hasIndex=${!!input.sourceEvidenceIndex}, indexKeys=${input.sourceEvidenceIndex ? Object.keys(input.sourceEvidenceIndex).length : 0}, target_nodes=${JSON.stringify(plan.target_nodes ?? null)}`);
-  if (input.sourceEvidenceIndex && plan.target_nodes && plan.target_nodes.length > 0) {
+  if (input.frozenEvidenceBlock != null) {
+    evidenceBlock = input.frozenEvidenceBlock;
+    console.log(`[pipeline] Evidence stage FROZEN — reusing prior output (${evidenceBlock.length} chars)`);
+  } else if (input.sourceEvidenceIndex && plan.target_nodes && plan.target_nodes.length > 0) {
     try {
       const { retrieveSourceEvidence } = await import('./evidenceFromSummaries.js');
       const evidenceBrief = retrieveSourceEvidence(
@@ -667,6 +654,18 @@ export async function runTurnPipeline(
     elapsed = Date.now() - t0;
     const priorDraft = draft; // save before reassign for field-level merge
     const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
+
+    // Fallback: if JSON parse failed but raw has substantial text, use it as the statement.
+    // The LLM sometimes produces prose instead of JSON — salvage the content.
+    if (draftParsed.error && !draftParsed.product.statement && draftRaw.length > 100) {
+      // Strip markdown fences if present
+      let salvaged = draftRaw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      // If it starts with a quote or letter (not { ), it's prose — use it directly
+      if (salvaged.length > 50 && !salvaged.startsWith('{')) {
+        draftParsed.product.statement = salvaged;
+        console.log(`[pipeline] Draft JSON parse failed — salvaged ${salvaged.length} chars of prose as statement`);
+      }
+    }
     stageDiags.push({
       stage: 'draft', prompt: draftPromptText, raw_response: draftRaw,
       model: input.model, temperature: temps.draft_temperature,
@@ -876,6 +875,77 @@ export async function runTurnPipeline(
       } else {
         console.log(`[pipeline] Evidence utilization: 0/${allDocIds.length} — debater did not cite any source documents from evidence brief`);
       }
+    }
+  }
+
+  // ── Ungrounded claims detection ──
+  // Find specific factual claims in the statement that don't match any source in the
+  // evidence block or evidence index. These are from the LLM's parametric knowledge.
+  if (draft?.statement) {
+    const evidenceDiagForGrounding = stageDiags.find(d => d.stage === 'evidence');
+    const evidenceWpForGrounding = evidenceDiagForGrounding?.work_product as Record<string, unknown> | undefined;
+
+    // Build a set of "grounded" text fragments from the evidence
+    const groundedFragments = new Set<string>();
+    const evidenceFacts = (evidenceWpForGrounding?.facts as Array<{ claim?: string }>) ?? [];
+    const evidenceKPs = (evidenceWpForGrounding?.keyPoints as Array<{ point?: string; verbatim?: string }>) ?? [];
+    for (const f of evidenceFacts) {
+      if (f.claim) {
+        // Extract key phrases (3+ word sequences with a named entity or number)
+        const words = f.claim.toLowerCase().split(/\s+/);
+        for (let w = 0; w <= words.length - 4; w++) {
+          groundedFragments.add(words.slice(w, w + 4).join(' '));
+        }
+      }
+    }
+    for (const kp of evidenceKPs) {
+      for (const text of [kp.point, kp.verbatim]) {
+        if (!text) continue;
+        const words = text.toLowerCase().split(/\s+/);
+        for (let w = 0; w <= words.length - 4; w++) {
+          groundedFragments.add(words.slice(w, w + 4).join(' '));
+        }
+      }
+    }
+
+    // Extract specific factual assertions from the statement
+    // (sentences with named entities, numbers, dates, or specific references)
+    const sentences = draft.statement
+      .replace(/\n+/g, ' ')
+      .split(/(?<=[.!?])\s+/)
+      .filter(s => s.length > 30);
+
+    const specificPattern = /(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+.*(?:study|report|found|showed|documented|revealed))|(?:(?:a|the)\s+\d{4}\s+(?:study|report|survey|analysis))|(?:[A-Z][a-z]+'s?\s+(?:scrapped|hiring|recruiting|algorithm))/;
+
+    const ungroundedClaims: Array<{ claim: string; reason: string }> = [];
+    for (const sentence of sentences) {
+      if (!specificPattern.test(sentence)) continue;
+
+      // Check if any 4-word sequence from this sentence matches the evidence
+      const sentWords = sentence.toLowerCase().split(/\s+/);
+      let isGrounded = false;
+      for (let w = 0; w <= sentWords.length - 4; w++) {
+        if (groundedFragments.has(sentWords.slice(w, w + 4).join(' '))) {
+          isGrounded = true;
+          break;
+        }
+      }
+
+      if (!isGrounded) {
+        ungroundedClaims.push({
+          claim: sentence.length > 150 ? sentence.slice(0, 147) + '...' : sentence,
+          reason: 'Not found in evidence block or source corpus — from model general knowledge',
+        });
+      }
+    }
+
+    if (ungroundedClaims.length > 0) {
+      // Store on the evidence work product for diagnostics
+      const evidenceWpToUpdate = evidenceDiagForGrounding?.work_product as Record<string, unknown> | undefined;
+      if (evidenceWpToUpdate) {
+        evidenceWpToUpdate.ungrounded_claims = ungroundedClaims;
+      }
+      console.log(`[pipeline] Ungrounded claims: ${ungroundedClaims.length} factual assertions not traceable to source corpus`);
     }
   }
 
@@ -1164,6 +1234,7 @@ export async function runTurnPipeline(
     plan,
     draft,
     cite,
+    evidenceBlock,
     stage_diagnostics: stageDiags,
     total_time_ms: Date.now() - pipelineStart,
   };
@@ -1171,11 +1242,17 @@ export async function runTurnPipeline(
 
 /** Extract PoverResponseMeta-compatible object from DraftWorkProduct for validation. */
 function extractDraftMeta(draft: DraftWorkProduct): PoverResponseMeta {
+  // Map claim_sketches → my_claims; fall back to structural extraction if LLM didn't produce them
+  const claimsFromSketches = draft.claim_sketches?.map(c => ({
+    claim: typeof c === 'string' ? c : (c as Record<string, unknown>).claim as string ?? '',
+  }));
+  const myClaims = claimsFromSketches?.length
+    ? claimsFromSketches
+    : extractFallbackClaims(draft.statement ?? '') ?? [];
+
   return {
     move_types: draft.move_types as MoveAnnotation[] | undefined,
-    my_claims: draft.claim_sketches?.map(c => ({
-      claim: typeof c === 'string' ? c : (c as Record<string, unknown>).claim as string ?? '',
-    })) ?? [],
+    my_claims: myClaims,
     disagreement_type: draft.disagreement_type as string | undefined,
     key_assumptions: draft.key_assumptions as { assumption: string; if_wrong: string }[] | undefined,
     // Pass through intervention response fields
@@ -1427,6 +1504,11 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
 // content is repeated verbatim — 3 paragraphs followed by the same 3 paragraphs.
 // Detect and truncate before the statement reaches the transcript.
 
+/** Strip hallucinated markdown headings the LLM sometimes prepends despite prompt instructions. */
+function stripLeadingHeadings(statement: string): string {
+  return statement.replace(/^(?:#{1,3}\s+.*\n*)+/, '').trimStart();
+}
+
 function deduplicateStatement(statement: string): string {
   if (!statement || statement.length < 200) return statement;
   const len = statement.length;
@@ -1450,13 +1532,49 @@ function deduplicateStatement(statement: string): string {
   return statement;
 }
 
+// ── Fallback claim extractor ─────────────────────────────
+
+/**
+ * When the LLM fails to produce claim_sketches (e.g., outputs markdown instead
+ * of JSON on retry), extract claims structurally from the statement text.
+ * Finds sentences containing numbers, named entities, timelines, or specific
+ * assertions — the same specificity signals Rule 9 checks for.
+ */
+function extractFallbackClaims(
+  statement: string,
+): Array<{ claim: string; targets: string[] }> | undefined {
+  if (!statement || statement.length < 50) return undefined;
+
+  // Split into sentences
+  const sentences = statement
+    .replace(/\n+/g, ' ')
+    .split(/(?<=[.!?])\s+/)
+    .filter(s => s.length > 20 && s.length < 300);
+
+  // Specificity patterns — same as Rule 9 in validateDraftStage
+  const specificPattern = /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/;
+
+  const claims: Array<{ claim: string; targets: string[] }> = [];
+  for (const sentence of sentences) {
+    if (specificPattern.test(sentence) && claims.length < 5) {
+      claims.push({ claim: sentence.trim(), targets: [] });
+    }
+  }
+
+  if (claims.length === 0) return undefined;
+  console.log(`[pipeline] Fallback claim extraction: recovered ${claims.length} claims from statement text`);
+  return claims;
+}
+
 // ── Assembler ───────────────────────────────────────────
 
 export function assemblePipelineResult(
   result: TurnPipelineResult,
   validNodeIds?: Set<string>,
 ): { statement: string; taxonomyRefs: TaxonomyRef[]; meta: PoverResponseMeta } {
-  const moveAnnotations: (string | MoveAnnotation)[] = (result.cite.move_annotations ?? []).map(m => ({
+  // Moves come from the plan (source of truth), not from draft/cite LLM output.
+  // The plan's planned_moves are already validated against the canonical move list.
+  const moveAnnotations: (string | MoveAnnotation)[] = (result.plan.planned_moves ?? []).map(m => ({
     move: m.move,
     target: m.target,
     detail: m.detail,
@@ -1483,7 +1601,7 @@ export function assemblePipelineResult(
     taxonomyRefs = rawRefs;
   }
 
-  const statement = deduplicateStatement(result.draft.statement ?? '');
+  const statement = stripLeadingHeadings(deduplicateStatement(result.draft.statement ?? ''));
   const rawClaims = result.draft.claim_sketches?.length ? result.draft.claim_sketches : undefined;
   const groundedClaims = rawClaims && statement
     ? rawClaims.filter(c => wordOverlap(c.claim, statement) >= 0.4)
@@ -1756,7 +1874,7 @@ export function assembleOpeningPipelineResult(
     taxonomyRefs = rawRefs;
   }
 
-  const statement = deduplicateStatement(result.draft.statement ?? '');
+  const statement = stripLeadingHeadings(deduplicateStatement(result.draft.statement ?? ''));
   const rawClaims = result.draft.claim_sketches?.length ? result.draft.claim_sketches : undefined;
   const groundedClaims = rawClaims && statement
     ? rawClaims.filter(c => wordOverlap(c.claim, statement) >= 0.4)

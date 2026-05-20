@@ -30,19 +30,22 @@ function speakerLabel(speaker: string): string {
   return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label ?? speaker;
 }
 
-/** Get the text content from a node based on the current view mode. */
-function getNodeText(node: PromptNode, mode: DiffViewMode): string {
+/** Get the text content from a node based on the current view mode and pre-scrub state. */
+function getNodeText(node: PromptNode, mode: DiffViewMode, preScrub?: boolean): string {
+  if (mode === 'responses' && preScrub && node.citationResolution?.scrub_original) {
+    return node.citationResolution.scrub_original;
+  }
   return mode === 'responses' ? node.response : node.prompt;
 }
 
 /** Compute diff-colored lines for each pane. Pane 0 = reference (plain lines), Pane N diffs against Pane N-1. */
-function computePaneLines(nodes: PromptNode[], mode: DiffViewMode): PaneData[] {
+function computePaneLines(nodes: PromptNode[], mode: DiffViewMode, preScrubPanes?: Set<number>): PaneData[] {
   if (nodes.length === 0) return [];
 
   const result: PaneData[] = [];
 
   // Pane 0: reference — plain lines, no diff
-  const refText = getNodeText(nodes[0], mode);
+  const refText = getNodeText(nodes[0], mode, preScrubPanes?.has(0));
   const refLines: DiffLine[] = refText.split('\n').map((text, i) => ({
     type: 'same' as const,
     text,
@@ -52,7 +55,7 @@ function computePaneLines(nodes: PromptNode[], mode: DiffViewMode): PaneData[] {
 
   // Pane 1+: diff against left neighbor
   for (let i = 1; i < nodes.length; i++) {
-    const diff: DiffResult = lineDiff(getNodeText(nodes[i - 1], mode), getNodeText(nodes[i], mode));
+    const diff: DiffResult = lineDiff(getNodeText(nodes[i - 1], mode, preScrubPanes?.has(i - 1)), getNodeText(nodes[i], mode, preScrubPanes?.has(i)));
     // Annotate paired removed/added lines with counterpart text for word-level diffing
     const leftLines: PaneDiffLine[] = diff.left.map((line, j) => {
       if (line.type === 'removed' && j < diff.right.length && diff.right[j].type === 'added') {
@@ -151,8 +154,11 @@ export function PromptDiffWindow() {
   // Word wrap
   const [wordWrap, setWordWrap] = useState(false);
 
+  // Pre-scrub state: set of pane indices showing pre-scrub text
+  const [preScrubPanes, setPreScrubPanes] = useState<Set<number>>(new Set());
+
   // Shared validation panel height (synced across all panes)
-  const [validationHeight, setValidationHeight] = useState(150);
+  const [validationHeight, setValidationHeight] = useState(350);
 
   // Search state
   const [searchOpen, setSearchOpen] = useState(false);
@@ -171,8 +177,8 @@ export function PromptDiffWindow() {
   const addNode = useCallback((node: PromptNode) => {
     setPaneNodes(prev => {
       // Don't add duplicates
-      const key = nodeKey(node.entryId, node.stage, node.runIndex);
-      if (prev.some(n => nodeKey(n.entryId, n.stage, n.runIndex) === key)) return prev;
+      const key = nodeKey(node.entryId, node.stage, node.runIndex, node.kind, node.toolCallIndex);
+      if (prev.some(n => nodeKey(n.entryId, n.stage, n.runIndex, n.kind, n.toolCallIndex) === key)) return prev;
       if (prev.length >= MAX_PANES) {
         // Replace rightmost
         return [...prev.slice(0, MAX_PANES - 1), node];
@@ -184,13 +190,22 @@ export function PromptDiffWindow() {
   const closePane = useCallback((index: number) => {
     setPaneNodes(prev => prev.filter((_, i) => i !== index));
     setFocusedPane(p => Math.min(p, Math.max(0, paneNodes.length - 2)));
+    // Clear pre-scrub for closed pane and shift indices
+    setPreScrubPanes(prev => {
+      const next = new Set<number>();
+      for (const pi of prev) {
+        if (pi < index) next.add(pi);
+        else if (pi > index) next.add(pi - 1);
+      }
+      return next;
+    });
   }, [paneNodes.length]);
 
   const handleScroll = useCallback((st: number) => {
     if (syncScroll) setScrollTop(st);
   }, [syncScroll]);
 
-  const panes = useMemo(() => computePaneLines(paneNodes, viewMode), [paneNodes, viewMode]);
+  const panes = useMemo(() => computePaneLines(paneNodes, viewMode, preScrubPanes), [paneNodes, viewMode, preScrubPanes]);
 
   // Search: compute match counts per pane and cumulative offsets
   const searchLower = searchTerm.toLowerCase();
@@ -460,7 +475,7 @@ export function PromptDiffWindow() {
             focusedEntryId={focusedEntryId}
             onSelectNode={addNode}
             selectedNodeKey={paneNodes.length > 0
-              ? nodeKey(paneNodes[paneNodes.length - 1].entryId, paneNodes[paneNodes.length - 1].stage, paneNodes[paneNodes.length - 1].runIndex)
+              ? nodeKey(paneNodes[paneNodes.length - 1].entryId, paneNodes[paneNodes.length - 1].stage, paneNodes[paneNodes.length - 1].runIndex, paneNodes[paneNodes.length - 1].kind, paneNodes[paneNodes.length - 1].toolCallIndex)
               : undefined}
           />
         </div>
@@ -477,7 +492,7 @@ export function PromptDiffWindow() {
           )}
           {panes.map((pane, i) => (
             <PromptDiffPane
-              key={nodeKey(pane.node.entryId, pane.node.stage, pane.node.runIndex)}
+              key={nodeKey(pane.node.entryId, pane.node.stage, pane.node.runIndex, pane.node.kind, pane.node.toolCallIndex)}
               pane={pane}
               paneIndex={i}
               isReference={i === 0}
@@ -494,6 +509,12 @@ export function PromptDiffWindow() {
               validationHeight={validationHeight}
               onValidationResize={setValidationHeight}
               onFindInPanes={findInPanes}
+              preScrub={preScrubPanes.has(i)}
+              onTogglePreScrub={() => setPreScrubPanes(prev => {
+                const next = new Set(prev);
+                if (next.has(i)) next.delete(i); else next.add(i);
+                return next;
+              })}
             />
           ))}
         </div>

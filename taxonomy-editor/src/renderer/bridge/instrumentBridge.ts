@@ -62,8 +62,9 @@ const SKIP = new Set([
   'onDebateWindowLoad', 'onDebatePopoutClosed',
   'onGenerateTextProgress', 'onReloadTaxonomy', 'onFocusNode',
   'onTerminalData', 'onTerminalExit',
-  // Sync method
+  // Sync methods
   'sendDiagnosticsState',
+  'focusNodeInMainWindow',
   // Avoid recursion — dump calls the bridge itself
   'dumpFlightRecorder',
 ]);

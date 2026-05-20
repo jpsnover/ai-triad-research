@@ -2288,6 +2288,22 @@ export class DebateEngine {
     const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
     this.enrichTaxonomyRefs(taxonomyRefs);
 
+    // Extract caveats: unresolved judge weaknesses + ungrounded claims.
+    // Surfaced to readers as "Caveats" alongside the statement.
+    const caveats = (validation.repairHints ?? []).filter(h =>
+      !/my_claims|taxonomy_refs|move_types|paragraph|hedge|duplication|schema/i.test(h)
+    );
+
+    // Add ungrounded claims from the evidence work product
+    const evidenceDiagForCaveats = pipelineResult.stage_diagnostics.find(s => s.stage === 'evidence');
+    const ungroundedClaims = (evidenceDiagForCaveats?.work_product as Record<string, unknown>)?.ungrounded_claims as
+      Array<{ claim: string; reason: string }> | undefined;
+    if (ungroundedClaims?.length) {
+      for (const uc of ungroundedClaims) {
+        caveats.push(`[Ungrounded] ${uc.claim}`);
+      }
+    }
+
     const entry = this.addEntry({
       type: 'statement',
       speaker: responder,
@@ -2295,6 +2311,7 @@ export class DebateEngine {
       taxonomy_refs: taxonomyRefs,
       policy_refs: meta.policy_refs,
       addressing: addressing as SpeakerId | 'all',
+      caveats: caveats.length > 0 ? caveats : undefined,
       metadata: {
         cross_respond: true,
         round,
@@ -3887,6 +3904,7 @@ Return ONLY JSON (no markdown, no code fences):
         existingEdgeCount: an.edges.length,
         startNodeId: an.nodes.length + 1,
         taxonomyEdges: this.taxonomy.edges?.edges,
+        knownNodeIds: this.getKnownNodeIds(),
       },
       {
         groundingOverlapThreshold: overlapThreshold,

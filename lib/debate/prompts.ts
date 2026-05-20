@@ -698,11 +698,7 @@ openings:
 - "Let me challenge that directly..."
 - "Consider what happens if we apply your logic consistently..."
 
-Include a "move_types" array in your response (select 1-5 per response). Each entry is an object:
-  {"move": "DISTINGUISH", "target": "AN-3", "detail": "Narrowed 'all regulation' to Section 230 liability specifically"}
-- "move" MUST be one of the 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT. No other values are accepted.
-- "target" (optional) is the AN-ID of the prior claim this move responds to.
-- "detail" is a brief phrase explaining what you did (e.g., what you specified, what you conceded, what you challenged).`;
+Execute the dialectical moves from your argument plan. Do NOT include a "move_types" field in your response — moves are tracked from the plan.`;
 
 const COUNTER_TACTICS = `RECOGNIZE AND COUNTER THESE PATTERNS when opponents use them:
 
@@ -1029,7 +1025,6 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. sit-005", "relevance": "The debate around this contested concept is where the real disagreement lives — my reframe targets the definitional divergence here."},
     {"node_id": "e.g. acc-desires-007", "relevance": "The value commitment here motivates why this distinction matters in practice, not just in theory."}
   ],
-  "move_types": [{"move": "DISTINGUISH", "detail": "brief description of what was distinguished"}],  // select 1-5 from the 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT; each with optional "target" (AN-ID) and required "detail"
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
@@ -1365,7 +1360,6 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"node_id": "e.g. acc-intentions-003", "relevance": "This reasoning strategy shapes the reframe and anticipates the counterargument."},
     {"node_id": "e.g. acc-desires-009", "relevance": "The value commitment motivates why this distinction matters beyond abstract theorizing."}
   ],
-  "move_types": [{"move": "COUNTEREXAMPLE", "target": "AN-1", "detail": "brief description"}, {"move": "REFRAME", "detail": "brief description"}],  // select 1-5 from the 10 canonical moves; each with optional "target" (AN-ID) and required "detail"${constructiveMoveList}
   "my_claims": [
     {"claim": "near-verbatim headline assertion", "targets": ["AN-1"]},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []},
@@ -1688,6 +1682,8 @@ ${input.pendingIntervention ? `6. MODERATOR DIRECTIVE: A moderator ${input.pendi
 
 GROUNDING DEPTH: Each claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
 
+NODE-ID ACCURACY: Copy taxonomy node IDs exactly as they appear in your context above. Do NOT modify, prefix, or "correct" them. "cc-040" stays "cc-040" — do not change it to "sit-cc-040" or any other variant.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences describing the current debate state and what just happened${input.pendingIntervention ? '. Include the moderator directive and what it requires' : ''}",
@@ -1799,6 +1795,8 @@ ASSUMPTION TARGETING:
 - Shared assumptions = common ground. Plan to name them explicitly.
 
 BRIDGING NODES: If citing a bridging node, plan how the analogy holds under scrutiny.
+
+NODE-ID ACCURACY: Copy taxonomy node IDs exactly as they appear in the situation brief. Do NOT modify, prefix, or "correct" them. "cc-040" stays "cc-040" — do not change it to "sit-cc-040" or any other variant.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -2025,8 +2023,9 @@ ${refsHistoryBlock}${buildPlannedNodesBlock(plan)}${planBlock}
 Ground the draft statement in the taxonomy. For each connection:
 1. TAXONOMY REFS: Tag 3-5 taxonomy nodes that the statement draws from. Cover at least two BDI sections. For each, explain in 1-4 sentences how the node informed the argument.
 2. POLICY REFS: Identify any policy actions the argument supports, opposes, or implies. For each, explain in 1-2 sentences how the argument connects to the policy — what it supports, what it challenges, or what it implies for implementation. Do not just list IDs.
-3. MOVE ANNOTATIONS: Finalize the dialectical move annotations. For each move actually executed in the statement (not just planned), provide the move name, optional AN-ID target, and a brief description.
-4. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
+3. GROUNDING CONFIDENCE: Rate 0-1 how well the statement is grounded in the taxonomy (1.0 = every claim traceable to a node, 0.5 = loosely connected, 0.0 = no taxonomy basis).
+
+Do NOT include move_annotations — dialectical moves are tracked from the argument plan.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -2038,10 +2037,6 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "policy_refs": [
     {"policy_id": "pol-001", "relevance": "1-2 sentences: how the argument relates to this policy"},
     {"policy_id": "pol-012", "relevance": "1-2 sentences: how the argument relates to this policy"}
-  ],
-  "move_annotations": [
-    {"move": "DISTINGUISH", "target": "AN-3", "detail": "Separated regulatory capture from legitimate oversight"},
-    {"move": "EXTEND", "detail": "Built on innovation metrics with new evidence"}
   ],
   "grounding_confidence": 0.85
 }`;

@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession } from '../types/debate';
+import type { CitationResolutionDiagnostics } from '@lib/debate/citationResolution.js';
 
 export type DiffViewMode = 'prompts' | 'responses';
 
@@ -46,6 +47,9 @@ export interface OrchestrationValidation {
   };
 }
 
+/** Sub-node kind: 'stage' for normal stage runs, 'tool-call' for citation tool calls, 'scrub' for Path A scrub, 'attempt-verdict' for orchestration judge verdicts. */
+export type PromptNodeKind = 'stage' | 'tool-call' | 'scrub' | 'attempt-verdict';
+
 export interface PromptNode {
   entryId: string;
   entryIndex: number;
@@ -65,6 +69,16 @@ export interface PromptNode {
   orchestrationValidation?: OrchestrationValidation;
   retryTrigger?: RetryTrigger;
   repairHintsIn?: string[];
+  /** Discriminator for tool-call / scrub sub-nodes. Defaults to 'stage'. */
+  kind?: PromptNodeKind;
+  /** For tool-call nodes: the tool name (e.g. 'lookup_citation'). */
+  toolName?: string;
+  /** For tool-call nodes: index within the tool_calls array. */
+  toolCallIndex?: number;
+  /** For tool-call nodes: whether the lookup returned empty results. */
+  toolCallEmpty?: boolean;
+  /** Citation resolution diagnostics (only on draft stage nodes). */
+  citationResolution?: CitationResolutionDiagnostics;
 }
 
 interface Props {
@@ -93,7 +107,10 @@ function abbreviateModel(model: string): string {
     .slice(0, 20);
 }
 
-function nodeKey(entryId: string, stage: string, runIndex: number): string {
+function nodeKey(entryId: string, stage: string, runIndex: number, kind?: PromptNodeKind, subIndex?: number): string {
+  if (kind === 'tool-call') return `${entryId}::${stage}::${runIndex}::tc${subIndex ?? 0}`;
+  if (kind === 'scrub') return `${entryId}::${stage}::${runIndex}::scrub`;
+  if (kind === 'attempt-verdict') return `${entryId}::verdict::${runIndex}`;
   return `${entryId}::${stage}::${runIndex}`;
 }
 
@@ -109,10 +126,77 @@ interface StageRun {
   work_product?: Record<string, unknown>;
   stage_validation?: StageValidation;
   qualityCheck?: QualityCheck;
-  orchestrationValidation?: OrchestrationValidation;
   retryTrigger?: RetryTrigger;
   repairHintsIn?: string[];
   runIndex: number;
+  subNodes?: StageSubNode[];
+  citationResolution?: CitationResolutionDiagnostics;
+}
+
+/** Extract tool-call and scrub sub-nodes from a draft stage diagnostic's citation_resolution. */
+function extractDraftSubNodes(sd: Record<string, unknown>): StageSubNode[] {
+  const cr = sd.citation_resolution as CitationResolutionDiagnostics | undefined;
+  if (!cr) return [];
+  const subs: StageSubNode[] = [];
+
+  // Path B: tool calls
+  if (cr.tool_calls && cr.tool_calls.length > 0) {
+    for (let i = 0; i < cr.tool_calls.length; i++) {
+      const tc = cr.tool_calls[i];
+      const queryText = tc.source_type
+        ? `lookup_citation\n\nQuery: ${tc.query}\nSource type: ${tc.source_type}`
+        : `lookup_citation\n\nQuery: ${tc.query}\nSource type: any`;
+      let resultText: string;
+      if (tc.empty) {
+        resultText = `No verified sources found for this query.\n\nThe citation bank (${cr.bank_size} sources) had no match above the similarity threshold.`;
+      } else if (tc.top_result) {
+        resultText = `Results: ${tc.results_count}\nTop: "${tc.top_result.doc_id}" — ${tc.top_result.title} (relevance: ${tc.top_result.relevance.toFixed(2)})`;
+      } else {
+        resultText = `Results: ${tc.results_count}`;
+      }
+      subs.push({
+        kind: 'tool-call',
+        toolCallIndex: i,
+        toolName: 'lookup_citation',
+        timeMs: tc.time_ms,
+        empty: tc.empty,
+        prompt: queryText,
+        response: resultText,
+      });
+    }
+  }
+
+  // Path A: scrub diff — use scrub_original (pre-scrub) vs raw_response from the stage diag
+  const preScrub = cr.scrub_original ?? (sd.raw_response as string | undefined);
+  const postScrub = (sd.work_product as Record<string, unknown> | undefined)?.statement as string | undefined;
+  if (cr.path === 'bank-scrub' && preScrub && postScrub) {
+    subs.push({
+      kind: 'scrub',
+      prompt: preScrub,
+      response: postScrub,
+    });
+  }
+
+  return subs;
+}
+
+/** Sub-node under a stage run: either a tool call or a scrub diff. */
+interface StageSubNode {
+  kind: 'tool-call' | 'scrub';
+  toolCallIndex?: number;
+  toolName?: string;
+  timeMs?: number;
+  empty?: boolean;
+  /** The prompt text (tool call query or pre-scrub draft). */
+  prompt: string;
+  /** The response text (tool call result JSON or post-scrub draft). */
+  response: string;
+}
+
+/** Orchestration-level verdict for a single attempt (displayed as its own tree node). */
+interface AttemptVerdict {
+  attemptIndex: number;
+  validation: OrchestrationValidation;
 }
 
 interface StageGroup {
@@ -148,26 +232,16 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
     const attempts = trail?.attempts ?? [];
 
     let grouped: StageGroup[];
+    const verdicts: AttemptVerdict[] = [];
 
     if (attempts.length > 0) {
       // Multi-run entry: flatMap across ALL orchestration attempts' stage_diagnostics
       // to capture per-stage retries within each attempt (not just one per attempt)
       grouped = STAGE_ORDER.map(stage => {
         let runIdx = 0;
-        const runs: StageRun[] = attempts.flatMap((attempt, ri) => {
+        const runs: StageRun[] = attempts.flatMap((attempt) => {
           const allStages = attempt.stage_diagnostics as Array<Record<string, unknown>> | undefined;
           const stageEntries = allStages?.filter(s => s.stage === stage && s.prompt) ?? [];
-          // Extract orchestration-level validation from the attempt (shared by all stages in this attempt)
-          const av = attempt.validation as Record<string, unknown> | undefined;
-          const orchestrationValidation: OrchestrationValidation | undefined = av ? {
-            outcome: (av.outcome as string) ?? 'unknown',
-            process_reward: (av.process_reward as number) ?? 0,
-            repairHints: (av.repairHints as string[]) ?? [],
-            dimensions: (av.dimensions as OrchestrationValidation['dimensions']) ?? {
-              schema: { pass: true, issues: [] }, grounding: { pass: true, issues: [] },
-              advancement: { pass: true, signals: [] }, clarifies: { pass: true, signals: [] },
-            },
-          } : undefined;
           return stageEntries.map(sd => {
             // Look up draft_quality stage for this attempt (pairs with 'draft' stage)
             let qualityCheck: QualityCheck | undefined;
@@ -193,15 +267,35 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
               work_product: sd.work_product as Record<string, unknown> | undefined,
               stage_validation: sd.stage_validation as StageValidation | undefined,
               qualityCheck,
-              orchestrationValidation,
               retryTrigger: sd.retry_trigger as RetryTrigger | undefined,
               repairHintsIn: sd.repair_hints_in as string[] | undefined,
               runIndex: runIdx++,
+              subNodes: stage === 'draft' ? extractDraftSubNodes(sd) : undefined,
+              citationResolution: stage === 'draft' ? sd.citation_resolution as CitationResolutionDiagnostics | undefined : undefined,
             } as StageRun;
           });
         });
         return { stage, runs };
       }).filter(g => g.runs.length > 0);
+
+      // Extract orchestration-level verdicts — one per attempt, displayed as separate tree nodes
+      for (const [ai, attempt] of attempts.entries()) {
+        const av = attempt.validation as Record<string, unknown> | undefined;
+        if (av) {
+          verdicts.push({
+            attemptIndex: ai,
+            validation: {
+              outcome: (av.outcome as string) ?? 'unknown',
+              process_reward: (av.process_reward as number) ?? 0,
+              repairHints: (av.repairHints as string[]) ?? [],
+              dimensions: (av.dimensions as OrchestrationValidation['dimensions']) ?? {
+                schema: { pass: true, issues: [] }, grounding: { pass: true, issues: [] },
+                advancement: { pass: true, signals: [] }, clarifies: { pass: true, signals: [] },
+              },
+            },
+          });
+        }
+      }
     } else {
       // Single-run fallback: use diagnostics.entries stage_diagnostics
       const allStages = (diags?.stage_diagnostics ?? []) as Array<Record<string, unknown>>;
@@ -236,18 +330,20 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
               retryTrigger: s.retry_trigger as RetryTrigger | undefined,
               repairHintsIn: s.repair_hints_in as string[] | undefined,
               runIndex: i,
+              subNodes: stage === 'draft' ? extractDraftSubNodes(s) : undefined,
+              citationResolution: stage === 'draft' ? s.citation_resolution as CitationResolutionDiagnostics | undefined : undefined,
             } as StageRun;
           }),
       })).filter(g => g.runs.length > 0);
     }
 
     const totalRuns = attempts.length || 1;
-    return { entry, idx, grouped, totalRuns, hasPrompts: grouped.some(g => g.runs.length > 0) };
+    return { entry, idx, grouped, verdicts, totalRuns, hasPrompts: grouped.some(g => g.runs.length > 0) };
   });
 
   return (
     <div style={{ fontSize: '0.72rem', overflowY: 'auto', height: '100%', padding: '4px 0' }}>
-      {entries.map(({ entry, idx, grouped, totalRuns, hasPrompts }) => {
+      {entries.map(({ entry, idx, grouped, verdicts, totalRuns, hasPrompts }) => {
         const isExpanded = expandedEntries.has(entry.id);
         const isFocused = entry.id === focusedEntryId;
         return (
@@ -278,7 +374,8 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
               )}
             </div>
 
-            {isExpanded && grouped.map(({ stage, runs }) => {
+            {isExpanded && (<>
+              {grouped.map(({ stage, runs }) => {
               const stageKey = `${entry.id}::${stage}`;
               const isStageExpanded = expandedStages.has(stageKey) || runs.length === 1;
               return (
@@ -330,63 +427,209 @@ export function PromptDiffTree({ debate, focusedEntryId, onSelectNode, selectedN
                       response: r.raw_response,
                       validation: r.stage_validation,
                       qualityCheck: r.qualityCheck,
-                      orchestrationValidation: r.orchestrationValidation,
                       retryTrigger: r.retryTrigger,
                       repairHintsIn: r.repairHintsIn,
+                      citationResolution: r.citationResolution,
                     };
+                    const toolCalls = r.subNodes?.filter(sn => sn.kind === 'tool-call') ?? [];
+                    const scrubNode = r.subNodes?.find(sn => sn.kind === 'scrub');
                     return (
-                      <div
-                        key={r.runIndex}
-                        onClick={() => onSelectNode(node)}
-                        style={{
-                          padding: '2px 8px 2px 46px',
-                          cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: 6,
-                          background: isSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
-                          borderLeft: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                        }}
-                        title="Click to add to diff pane"
-                      >
-                        <span style={{ fontWeight: 500 }}>Run {r.runIndex + 1}</span>
-                        {r.retryTrigger === 'stage-retry' && (
-                          <span
-                            style={{
-                              fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                              background: 'rgba(245,158,11,0.15)', color: '#f59e0b', textTransform: 'uppercase',
-                            }}
-                            title={r.repairHintsIn?.join('\n') ?? 'Stage validator retry'}
-                          >
-                            Stage Retry
+                      <div key={r.runIndex}>
+                        <div
+                          onClick={() => onSelectNode(node)}
+                          style={{
+                            padding: '2px 8px 2px 46px',
+                            cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            background: isSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
+                            borderLeft: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
+                          }}
+                          title="Click to add to diff pane"
+                        >
+                          <span style={{ fontWeight: 500 }}>Run {r.runIndex + 1}</span>
+                          {r.retryTrigger === 'stage-retry' && (
+                            <span
+                              style={{
+                                fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                                background: 'rgba(245,158,11,0.15)', color: '#f59e0b', textTransform: 'uppercase',
+                              }}
+                              title={r.repairHintsIn?.join('\n') ?? 'Stage validator retry'}
+                            >
+                              Stage Retry
+                            </span>
+                          )}
+                          {r.retryTrigger === 'orchestration-rerun' && (
+                            <span
+                              style={{
+                                fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
+                                background: 'rgba(239,68,68,0.15)', color: '#ef4444', textTransform: 'uppercase',
+                              }}
+                              title={r.repairHintsIn?.join('\n') ?? 'Judge-triggered rerun'}
+                            >
+                              Rerun
+                            </span>
+                          )}
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>
+                            {abbreviateModel(node.model)}, {node.temperature}, {(node.responseTimeMs / 1000).toFixed(1)}s
                           </span>
-                        )}
-                        {r.retryTrigger === 'orchestration-rerun' && (
-                          <span
-                            style={{
-                              fontSize: '0.5rem', fontWeight: 700, padding: '0 4px', borderRadius: 3,
-                              background: 'rgba(239,68,68,0.15)', color: '#ef4444', textTransform: 'uppercase',
-                            }}
-                            title={r.repairHintsIn?.join('\n') ?? 'Judge-triggered rerun'}
-                          >
-                            Rerun
-                          </span>
-                        )}
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.58rem' }}>
-                          {abbreviateModel(node.model)}, {node.temperature}, {(node.responseTimeMs / 1000).toFixed(1)}s
-                        </span>
-                        {node.validationPass !== undefined && (
-                          <span style={{
-                            color: node.validationPass ? '#22c55e' : '#ef4444',
-                            fontWeight: 700, fontSize: '0.65rem',
-                          }}>
-                            {node.validationPass ? '✓' : '✗'}
-                          </span>
-                        )}
+                          {node.validationPass !== undefined && (
+                            <span style={{
+                              color: node.validationPass ? '#22c55e' : '#ef4444',
+                              fontWeight: 700, fontSize: '0.65rem',
+                            }}>
+                              {node.validationPass ? '✓' : '✗'}
+                            </span>
+                          )}
+                        </div>
+                        {/* Tool call sub-nodes (Path B) */}
+                        {toolCalls.length > 0 && toolCalls.map((tc, ti) => {
+                          const tcKey = nodeKey(entry.id, stage, r.runIndex, 'tool-call', ti);
+                          const tcSelected = tcKey === selectedNodeKey;
+                          const tcNode: PromptNode = {
+                            ...node,
+                            kind: 'tool-call',
+                            toolName: tc.toolName,
+                            toolCallIndex: tc.toolCallIndex,
+                            toolCallEmpty: tc.empty,
+                            prompt: tc.prompt,
+                            response: tc.response,
+                          };
+                          return (
+                            <div
+                              key={tcKey}
+                              onClick={() => onSelectNode(tcNode)}
+                              style={{
+                                padding: '1px 8px 1px 60px',
+                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                background: tcSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
+                                borderLeft: tcSelected ? '2px solid #3b82f6' : '2px solid transparent',
+                                fontSize: '0.62rem',
+                              }}
+                              title="Tool call — click to view query & results"
+                            >
+                              <span style={{
+                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: '0.55rem',
+                                background: 'rgba(14,165,233,0.12)', color: '#0ea5e9',
+                              }}>
+                                🔍
+                              </span>
+                              <span style={{ fontWeight: 500 }}>{tc.toolName ?? 'lookup_citation'}</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                                #{(tc.toolCallIndex ?? ti) + 1}
+                              </span>
+                              {tc.timeMs != null && (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                                  {(tc.timeMs / 1000).toFixed(1)}s
+                                </span>
+                              )}
+                              {tc.empty && (
+                                <span style={{
+                                  padding: '0 3px', borderRadius: 2, fontWeight: 700, fontSize: '0.5rem',
+                                  background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
+                                }}>
+                                  EMPTY
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                        {/* Scrub sub-node (Path A) */}
+                        {scrubNode && (() => {
+                          const scrubKey = nodeKey(entry.id, stage, r.runIndex, 'scrub');
+                          const scrubSelected = scrubKey === selectedNodeKey;
+                          const scrubPNode: PromptNode = {
+                            ...node,
+                            kind: 'scrub',
+                            prompt: scrubNode.prompt,
+                            response: scrubNode.response,
+                          };
+                          return (
+                            <div
+                              onClick={() => onSelectNode(scrubPNode)}
+                              style={{
+                                padding: '1px 8px 1px 60px',
+                                cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                background: scrubSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
+                                borderLeft: scrubSelected ? '2px solid #3b82f6' : '2px solid transparent',
+                                fontSize: '0.62rem',
+                              }}
+                              title="Scrub diff — pre-scrub vs post-scrub draft"
+                            >
+                              <span style={{
+                                padding: '0 4px', borderRadius: 2, fontWeight: 600, fontSize: '0.55rem',
+                                background: 'rgba(168,85,247,0.12)', color: '#a855f7',
+                              }}>
+                                ✂
+                              </span>
+                              <span style={{ fontWeight: 500 }}>Scrub</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                                pre → post
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
                 </div>
               );
             })}
+              {/* Attempt verdict nodes — orchestration judge results, one per attempt */}
+              {verdicts.map((v) => {
+                const vKey = nodeKey(entry.id, 'verdict', v.attemptIndex, 'attempt-verdict');
+                const vSelected = vKey === selectedNodeKey;
+                const isAccept = v.validation.outcome === 'accept' || v.validation.outcome === 'accept_with_flag';
+                const verdictNode: PromptNode = {
+                  entryId: entry.id,
+                  entryIndex: idx,
+                  speaker: entry.speaker,
+                  type: entry.type,
+                  stage: 'verdict',
+                  runIndex: v.attemptIndex,
+                  runCount: verdicts.length,
+                  model: '',
+                  temperature: 0,
+                  responseTimeMs: 0,
+                  prompt: '',
+                  response: '',
+                  kind: 'attempt-verdict',
+                  orchestrationValidation: v.validation,
+                };
+                return (
+                  <div
+                    key={vKey}
+                    onClick={() => onSelectNode(verdictNode)}
+                    style={{
+                      padding: '3px 8px 3px 28px',
+                      cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      background: vSelected ? 'rgba(59,130,246,0.12)' : 'transparent',
+                      borderLeft: vSelected ? '2px solid #3b82f6' : '2px solid transparent',
+                      fontSize: '0.62rem',
+                    }}
+                    title={`Orchestration judge verdict for attempt ${v.attemptIndex + 1}`}
+                  >
+                    <span style={{ fontSize: '0.65rem' }}>⚖</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
+                      Attempt {v.attemptIndex + 1}
+                    </span>
+                    <span style={{
+                      padding: '0 5px', borderRadius: 3, fontWeight: 700, fontSize: '0.55rem',
+                      background: isAccept ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: isAccept ? '#22c55e' : '#ef4444',
+                      textTransform: 'uppercase',
+                    }}>
+                      {v.validation.outcome.replace(/_/g, ' ')}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                      ({v.validation.process_reward.toFixed(2)})
+                    </span>
+                  </div>
+                );
+              })}
+            </>)}
           </div>
         );
       })}

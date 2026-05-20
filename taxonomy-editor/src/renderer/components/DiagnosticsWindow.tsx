@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, createContext, useCo
 import { api } from '@bridge';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnValidationDimensions, TurnAttempt } from '../types/debate';
+import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { explainNodeStrength } from '../utils/qbafExplain';
@@ -138,7 +139,7 @@ function DimensionScoreRow({ name, pass, weight, details }: {
       </span>
       <span style={{ color: 'var(--text-muted)', fontSize: '0.66rem', flex: 1 }} title={desc}>
         {details.length > 0
-          ? details.join('; ')
+          ? humanizeSpeakerIds(details.join('; '))
           : (pass ? desc : 'FAIL')}
       </span>
     </div>
@@ -258,7 +259,7 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                         color: ts.color, background: ts.bg, padding: '1px 5px',
                         borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                       }}>{ts.label}</span>
-                      {h}
+                      {humanizeSpeakerIds(h)}
                     </li>
                   );
                 })}
@@ -330,10 +331,10 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
                             }}>{h.specificity}</span>
                             <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>{h.source.replace('_', ' ')}</span>
                           </div>
-                          <div>{h.hint_text}</div>
+                          <div>{humanizeSpeakerIds(h.hint_text)}</div>
                           {h.cited_fragment && (
                             <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                              Fragment: &ldquo;{h.cited_fragment}&rdquo; {h.fragment_persists ? '— still present' : '— removed'}
+                              Fragment: &ldquo;{humanizeSpeakerIds(h.cited_fragment)}&rdquo; {h.fragment_persists ? '— still present' : '— removed'}
                             </div>
                           )}
                         </div>
@@ -421,7 +422,7 @@ function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidationTrail
                     color: ts.color, background: ts.bg, padding: '1px 5px',
                     borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                   }}>{ts.label}</span>
-                  {h}
+                  {humanizeSpeakerIds(h)}
                 </li>
               );
             })}
@@ -4327,7 +4328,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                           color: ts.color, background: ts.bg, padding: '1px 5px',
                                           borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                                         }}>{ts.label}</span>
-                                        {h}
+                                        {humanizeSpeakerIds(h)}
                                       </li>
                                     );
                                   })}
@@ -4561,7 +4562,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                           color: ts.color, background: ts.bg, padding: '1px 5px',
                                           borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                                         }}>{ts.label}</span>
-                                        {h}
+                                        {humanizeSpeakerIds(h)}
                                       </li>
                                     );
                                   })}
@@ -4880,7 +4881,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                                   color: ts.color, background: ts.bg, padding: '1px 4px',
                                                   borderRadius: 2, marginRight: 4, verticalAlign: 'middle',
                                                 }}>{ts.label}</span>
-                                                {h}
+                                                {humanizeSpeakerIds(h)}
                                               </li>
                                             );
                                           })}
@@ -5009,7 +5010,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                             color: ts.color, background: ts.bg, padding: '1px 5px',
                                             borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                                           }}>{ts.label}</span>
-                                          {h}
+                                          {humanizeSpeakerIds(h)}
                                         </li>
                                       );
                                     })}
@@ -5055,7 +5056,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2, color: '#d97706' }}>Weaknesses</div>
                               <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
                                 {wp.weaknesses.map((w, wi) => (
-                                  <li key={wi} style={{ marginBottom: 2 }}>{w}</li>
+                                  <li key={wi} style={{ marginBottom: 2 }}>{humanizeSpeakerIds(w)}</li>
                                 ))}
                               </ul>
                             </div>
@@ -5352,7 +5353,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                           color: ts.color, background: ts.bg, padding: '1px 5px',
                                           borderRadius: 3, marginRight: 5, verticalAlign: 'middle',
                                         }}>{ts.label}</span>
-                                        {h}
+                                        {humanizeSpeakerIds(h)}
                                       </li>
                                     );
                                   })}
@@ -5731,6 +5732,32 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                   Provenance: {pipeline.filter(p => p.provenance_label).map(p => `${p.doc_id} → ${p.provenance_label}`).join(', ')}
                                 </div>
                               )}
+                            </details>
+                          );
+                        })()}
+                        {/* ── 7. Ungrounded Claims (from model knowledge, not corpus) ── */}
+                        {(() => {
+                          const uc = (evidenceWP as Record<string, unknown>)?.ungrounded_claims as
+                            Array<{ claim: string; reason: string }> | undefined;
+                          if (!uc || uc.length === 0) return null;
+                          return (
+                            <details style={{ marginTop: 8 }}>
+                              <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.72rem', marginBottom: 6, color: '#6366f1' }}>
+                                Ungrounded Claims ({uc.length})
+                              </summary>
+                              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                                These factual assertions appear in the statement but don&apos;t match any source in the evidence block or corpus. They likely come from the model&apos;s training data.
+                              </div>
+                              {uc.map((c, ci) => (
+                                <div key={ci} style={{
+                                  marginBottom: 4, padding: '4px 8px', borderRadius: 4,
+                                  borderLeft: '3px solid #6366f1', background: 'rgba(99,102,241,0.06)',
+                                  fontSize: '0.66rem',
+                                }}>
+                                  <div>{c.claim}</div>
+                                  <div style={{ fontSize: '0.58rem', color: '#6366f1', marginTop: 2 }}>{c.reason}</div>
+                                </div>
+                              ))}
                             </details>
                           );
                         })()}

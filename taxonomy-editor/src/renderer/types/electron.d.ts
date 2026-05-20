@@ -67,6 +67,7 @@ export interface ElectronAPI {
   onGenerateTextProgress: (callback: (progress: { attempt: number; maxRetries: number; backoffSeconds: number; limitType: string; limitMessage: string }) => void) => () => void;
   onReloadTaxonomy: (callback: () => void) => () => void;
   onFocusNode: (callback: (nodeId: string) => void) => () => void;
+  focusNodeInMainWindow: (nodeId: string) => void;
   growWindow: (deltaWidth: number) => Promise<void>;
   shrinkWindow: (deltaWidth: number) => Promise<void>;
   isMaximized: () => Promise<boolean>;
