@@ -35,6 +35,66 @@ export interface ScrubResult {
   cleanedDraft: string;
   removed: string[];
   warnings: string[];
+  /** Detailed fabrication records for diagnostics. */
+  fabrications: CitationFabrication[];
+}
+
+// ── Diagnostics types ──────────────────────────────────────
+
+export interface CitationMatch {
+  citation_text: string;
+  doc_id: string;
+  title: string;
+  similarity: number;
+  match_type: 'exact' | 'fuzzy_title' | 'url' | 'arxiv_id';
+}
+
+export interface CitationFabrication {
+  citation_text: string;
+  pattern: 'arxiv' | 'url' | 'title' | 'legislation';
+  action: 'removed' | 'hedged';
+  replacement?: string;
+}
+
+export interface CitationResolutionDiagnostics {
+  // Common
+  path: 'tool-calling' | 'bank-scrub';
+  bank_size: number;
+  bank_sources: string[];
+  citations_extracted: number;
+  citations_matched: number;
+  citations_fabricated: number;
+  resolution_time_ms: number;
+
+  // Matched citations
+  matches: CitationMatch[];
+
+  // Fabricated citations (removed or hedged)
+  fabrications: CitationFabrication[];
+
+  // Path B: tool calls
+  tool_calls?: {
+    query: string;
+    source_type?: string;
+    results_count: number;
+    top_result?: { doc_id: string; title: string; relevance: number };
+    time_ms: number;
+    empty: boolean;
+  }[];
+
+  // Path A: scrub diff
+  scrub_diff?: {
+    lines_removed: number;
+    lines_modified: number;
+    original_length: number;
+    cleaned_length: number;
+  };
+
+  // Path A: original text before scrubbing (for Diff Viewer)
+  scrub_original?: string;
+
+  // Validation warnings
+  warnings: string[];
 }
 
 // ── Citation Bank ─────────────────────────────────────────
@@ -267,6 +327,7 @@ export function scrubCitations(
 ): ScrubResult {
   const removed: string[] = [];
   const warnings: string[] = [];
+  const fabrications: CitationFabrication[] = [];
   let result = draft;
 
   // Build lookup sets for fast matching
@@ -276,6 +337,7 @@ export function scrubCitations(
   // 1. Check arXiv IDs — none should appear (we don't inject them)
   for (const match of draft.matchAll(ARXIV_PATTERN)) {
     removed.push(match[0]);
+    fabrications.push({ citation_text: match[0], pattern: 'arxiv', action: 'removed' });
     result = result.replace(match[0], '');
   }
 
@@ -284,6 +346,7 @@ export function scrubCitations(
     const url = match[0].toLowerCase().replace(/[.,;)]+$/, '');
     if (!bankUrls.has(url)) {
       removed.push(match[0]);
+      fabrications.push({ citation_text: match[0], pattern: 'url', action: 'removed' });
       result = result.replace(match[0], '');
     }
   }
@@ -292,6 +355,7 @@ export function scrubCitations(
   for (const match of draft.matchAll(EXEC_ORDER_PATTERN)) {
     if (!fuzzyMatchBank(match[0], bankTitles)) {
       removed.push(match[0]);
+      fabrications.push({ citation_text: match[0], pattern: 'legislation', action: 'hedged', replacement: 'relevant policy directives' });
       result = result.replace(match[0], 'relevant policy directives');
     }
   }
@@ -300,6 +364,7 @@ export function scrubCitations(
   for (const match of draft.matchAll(LEGISLATION_PATTERN)) {
     if (!fuzzyMatchBank(match[0], bankTitles)) {
       removed.push(match[0]);
+      fabrications.push({ citation_text: match[0], pattern: 'legislation', action: 'hedged', replacement: 'proposed regulatory frameworks' });
       // Keep but hedge
       result = result.replace(match[0], 'proposed regulatory frameworks');
     }
@@ -315,7 +380,7 @@ export function scrubCitations(
     warnings.push(`Removed ${removed.length} unverified citation(s): ${removed.join(', ')}`);
   }
 
-  return { cleanedDraft: result, removed, warnings };
+  return { cleanedDraft: result, removed, warnings, fabrications };
 }
 
 /**
@@ -399,4 +464,91 @@ export function validateCitationsAgainstBank(
   }
 
   return warnings;
+}
+
+// ── Citation Match Extraction (for diagnostics) ───────────
+
+/**
+ * Extract matched citations from a draft for diagnostics.
+ * Returns an array of matches with similarity and match type.
+ */
+export function extractCitationMatches(
+  draftText: string,
+  bank: CitationBankEntry[],
+): CitationMatch[] {
+  const matches: CitationMatch[] = [];
+  const bankTitles = bank.map(e => e.title.toLowerCase());
+  const bankUrls = new Map(
+    bank.filter(e => e.url).map(e => [e.url!.toLowerCase(), e]),
+  );
+
+  // Match URLs
+  for (const match of draftText.matchAll(URL_PATTERN)) {
+    const url = match[0].toLowerCase().replace(/[.,;)]+$/, '');
+    const entry = bankUrls.get(url);
+    if (entry) {
+      matches.push({
+        citation_text: match[0],
+        doc_id: entry.doc_id,
+        title: entry.title,
+        similarity: 1.0,
+        match_type: 'url',
+      });
+    }
+  }
+
+  // Match quoted titles
+  for (const match of draftText.matchAll(QUOTED_TITLE_PATTERN)) {
+    const title = match[1];
+    if (title.length < 15) continue;
+    if (/^(I |we |they |he |she |it |as |the |this |that )/i.test(title)) continue;
+    const titleLower = title.toLowerCase();
+
+    for (let i = 0; i < bank.length; i++) {
+      const bankTitle = bankTitles[i];
+      if (bankTitle.includes(titleLower) || titleLower.includes(bankTitle)) {
+        matches.push({
+          citation_text: `"${title}"`,
+          doc_id: bank[i].doc_id,
+          title: bank[i].title,
+          similarity: 1.0,
+          match_type: 'exact',
+        });
+        break;
+      }
+      // Fuzzy word overlap
+      const words = titleLower.split(/\s+/).filter(w => w.length > 2);
+      if (words.length === 0) continue;
+      const matchCount = words.filter(w => bankTitle.includes(w)).length;
+      const sim = matchCount / words.length;
+      if (sim >= 0.6) {
+        matches.push({
+          citation_text: `"${title}"`,
+          doc_id: bank[i].doc_id,
+          title: bank[i].title,
+          similarity: Math.round(sim * 100) / 100,
+          match_type: 'fuzzy_title',
+        });
+        break;
+      }
+    }
+  }
+
+  // Match Executive Orders and legislation by fuzzy title
+  for (const match of draftText.matchAll(EXEC_ORDER_PATTERN)) {
+    for (let i = 0; i < bank.length; i++) {
+      if (fuzzyMatchBank(match[0], [bankTitles[i]])) {
+        matches.push({
+          citation_text: match[0],
+          doc_id: bank[i].doc_id,
+          title: bank[i].title,
+          similarity: 0.8,
+          match_type: 'fuzzy_title',
+        });
+        break;
+      }
+    }
+  }
+
+  return matches;
 }

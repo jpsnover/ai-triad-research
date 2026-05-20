@@ -67,3 +67,70 @@ export function isNodeOfPov(id: string, pov: string): boolean {
 
 // Legacy ID normalization lives in index.ts (normalizeNodeId).
 // It handles cc-→sit- and goals→desires/data→beliefs/methods→intentions mappings.
+
+// ── Fuzzy ID correction ─────────────────────────────────
+
+/**
+ * Attempt to correct a hallucinated node ID against a set of known valid IDs.
+ *
+ * LLMs sometimes "helpfully" transform node IDs by adding or swapping prefixes:
+ *   sit-cc-040 → cc-040   (added sit- prefix to a cross-cutting node)
+ *   pov-sit-001 → sit-001  (added pov- prefix)
+ *   cc-sit-051 → sit-051   (swapped prefix)
+ *
+ * Returns the corrected ID if a match is found, or null if no correction is possible.
+ */
+export function fuzzyCorrectNodeId(badId: string, knownIds: Set<string>): string | null {
+  // Direct match — not actually bad
+  if (knownIds.has(badId)) return badId;
+
+  // Strip common hallucinated prefix combinations
+  const prefixStripped = badId
+    .replace(/^sit-(cc|acc|saf|skp)-/, '$1-')   // sit-cc-040 → cc-040
+    .replace(/^(cc|pov)-(sit)-/, '$2-')          // cc-sit-051 → sit-051
+    .replace(/^pov-(cc|acc|saf|skp)-/, '$1-')    // pov-cc-040 → cc-040
+    .replace(/^sit-pol-/, 'pol-')                 // sit-pol-123 → pol-123
+    .replace(/^pol-sit-/, 'sit-');                // pol-sit-001 → sit-001
+  if (prefixStripped !== badId && knownIds.has(prefixStripped)) return prefixStripped;
+
+  // Try known prefixes against the numeric suffix
+  // e.g., "sit-cc-040" → suffix "040" → try "cc-040"
+  const suffixMatch = badId.match(/-(\d{2,4})$/);
+  if (suffixMatch) {
+    const suffix = suffixMatch[1];
+    const candidates = [...knownIds].filter(id => id.endsWith('-' + suffix));
+    if (candidates.length === 1) return candidates[0];
+  }
+
+  return null;
+}
+
+/**
+ * Validate and correct an array of node IDs against known valid IDs.
+ * Returns a sanitized array with invalid IDs either corrected or removed.
+ * Also returns arrays of corrections and removals for diagnostics.
+ */
+export function sanitizeNodeIds(
+  ids: string[],
+  knownIds: Set<string>,
+): { sanitized: string[]; corrections: { from: string; to: string }[]; removed: string[] } {
+  const sanitized: string[] = [];
+  const corrections: { from: string; to: string }[] = [];
+  const removed: string[] = [];
+
+  for (const id of ids) {
+    if (knownIds.has(id)) {
+      sanitized.push(id);
+    } else {
+      const corrected = fuzzyCorrectNodeId(id, knownIds);
+      if (corrected) {
+        sanitized.push(corrected);
+        corrections.push({ from: id, to: corrected });
+      } else {
+        removed.push(id);
+      }
+    }
+  }
+
+  return { sanitized, corrections, removed };
+}
