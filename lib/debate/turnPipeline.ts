@@ -52,9 +52,11 @@ import {
   formatCitationBank,
   scrubCitations,
   validateCitationsAgainstBank,
+  extractCitationMatches,
 } from './citationResolution.js';
-import type { CitationBankEntry } from './citationResolution.js';
+import type { CitationBankEntry, CitationResolutionDiagnostics } from './citationResolution.js';
 import type { DocMetaMap } from './evidenceFromSummaries.js';
+import { sanitizeNodeIds } from './nodeIdUtils.js';
 
 // ── Disagreement type normalization ─────────────────────
 
@@ -320,6 +322,41 @@ export async function runTurnPipeline(
     briefJson = JSON.stringify(brief, null, 2);
   }
 
+  // ── Stage 1.5: BRIEF node ID sanitization ──
+  // LLMs sometimes hallucinate node ID prefixes (e.g., sit-cc-040 instead of cc-040).
+  // Validate and correct all node IDs in the BRIEF output BEFORE they cascade into PLAN/DRAFT/CITE.
+  const knownNodeIds = new Set(input.availablePovNodeIds ?? []);
+  if (knownNodeIds.size > 0 && brief.key_claims_to_address) {
+    let briefCorrected = false;
+    for (const claim of brief.key_claims_to_address) {
+      if (!claim.grounding?.length) continue;
+      const groundingIds = claim.grounding.map(g => g.node_id);
+      const result = sanitizeNodeIds(groundingIds, knownNodeIds);
+      if (result.corrections.length > 0 || result.removed.length > 0) {
+        briefCorrected = true;
+        for (const c of result.corrections) {
+          console.log(`[pipeline] Brief ID correction: ${c.from} → ${c.to}`);
+        }
+        for (const r of result.removed) {
+          console.log(`[pipeline] Brief ID removed (unknown): ${r}`);
+        }
+        // Rebuild grounding with corrected IDs only
+        claim.grounding = claim.grounding
+          .map(g => {
+            const correction = result.corrections.find(c => c.from === g.node_id);
+            if (correction) return { ...g, node_id: correction.to };
+            if (result.removed.includes(g.node_id)) return null;
+            return g;
+          })
+          .filter((g): g is NonNullable<typeof g> => g !== null);
+      }
+    }
+    if (briefCorrected) {
+      // Re-serialize so downstream stages (PLAN/DRAFT) see the corrected IDs
+      briefJson = JSON.stringify(brief, null, 2);
+    }
+  }
+
   // ── Stage 2: PLAN (with per-stage validation + retry) ──
   // If repairHints are provided, this is an outer retry — skip per-stage retries
   // to avoid compounding (outer retry already re-runs the full pipeline).
@@ -401,6 +438,22 @@ export async function runTurnPipeline(
     planJson = '{}';
   }
 
+  // ── Stage 2.1: PLAN target_nodes sanitization ──
+  // Same as BRIEF — validate target_nodes against knownNodeIds before DRAFT/CITE.
+  if (knownNodeIds.size > 0 && plan.target_nodes?.length) {
+    const planIdResult = sanitizeNodeIds(plan.target_nodes, knownNodeIds);
+    if (planIdResult.corrections.length > 0 || planIdResult.removed.length > 0) {
+      for (const c of planIdResult.corrections) {
+        console.log(`[pipeline] Plan target_nodes correction: ${c.from} → ${c.to}`);
+      }
+      for (const r of planIdResult.removed) {
+        console.log(`[pipeline] Plan target_nodes removed (unknown): ${r}`);
+      }
+      plan.target_nodes = planIdResult.sanitized;
+      planJson = JSON.stringify(plan, null, 2);
+    }
+  }
+
   // ── Stages 2.5–3.5: EVIDENCE → DRAFT → PRE-CHECK ──
   // When frozenDraft is provided, skip evidence retrieval, draft generation,
   // linkification, citation verification, and quality pre-check entirely.
@@ -467,10 +520,12 @@ export async function runTurnPipeline(
   let citationBankBlock = '';
   const citationBackend = resolveBackend(input.model);
   const citationPathIntended = (citationBackend === 'gemini' || citationBackend === 'claude') ? 'B' : 'A';
-  const citationPathUsed = 'A'; // Path B requires multi-turn provider support (future)
+  const citationPathUsed: 'tool-calling' | 'bank-scrub' = 'bank-scrub'; // Path B requires multi-turn provider support (future)
+  let citationBankBuildTime = 0;
 
   if (input.sourceEvidenceIndex) {
     try {
+      const bankT0 = Date.now();
       const docMeta: DocMetaMap = {};
       if (input.docTitles) {
         for (const [id, entry] of Object.entries(input.docTitles)) {
@@ -478,9 +533,10 @@ export async function runTurnPipeline(
         }
       }
       citationBank = buildCitationBank(input.sourceEvidenceIndex, docMeta, input.policyRegistry);
+      citationBankBuildTime = Date.now() - bankT0;
       if (citationBank.length > 0) {
         citationBankBlock = '\n\n' + formatCitationBank(citationBank);
-        console.log(`[pipeline] Citation bank built: ${citationBank.length} entries, path=${citationPathUsed} (intended=${citationPathIntended})`);
+        console.log(`[pipeline] Citation bank built: ${citationBank.length} entries, path=${citationPathUsed} (intended=${citationPathIntended}), ${citationBankBuildTime}ms`);
       }
     } catch (err) {
       console.warn(`[pipeline] Citation bank build failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
@@ -643,12 +699,14 @@ export async function runTurnPipeline(
   }
   // ── Post-draft citation scrub ──
   // Deterministically remove fabricated citations not in the citation bank.
-  let citationScrubResult: { removed: string[]; warnings: string[] } | undefined;
+  let citationScrubResult: import('./citationResolution.js').ScrubResult | undefined;
+  let citationScrubOriginal: string | undefined;
   if (citationBank.length > 0 && draft?.statement) {
+    citationScrubOriginal = draft.statement; // preserve pre-scrub text for Diff Viewer
     const scrub = scrubCitations(draft.statement, citationBank);
     if (scrub.removed.length > 0) {
       draft.statement = scrub.cleanedDraft;
-      citationScrubResult = { removed: scrub.removed, warnings: scrub.warnings };
+      citationScrubResult = scrub;
       console.log(`[pipeline] Citation scrub: removed ${scrub.removed.length} fabricated citation(s): ${scrub.removed.join(', ')}`);
     }
   }
@@ -756,17 +814,52 @@ export async function runTurnPipeline(
     }
   }
 
-  // Record citation resolution diagnostics on the draft stage diagnostic
+  // Record rich citation resolution diagnostics on the draft stage diagnostic
   if (citationBank.length > 0) {
     const draftDiag = [...stageDiags].reverse().find(d => d.stage === 'draft');
     if (draftDiag) {
-      (draftDiag as Record<string, unknown>).citation_resolution = {
+      const citationResolutionT0 = Date.now();
+      const citationMatches = draft?.statement
+        ? extractCitationMatches(draft.statement, citationBank)
+        : [];
+      const citationFabrications = citationScrubResult?.fabrications ?? [];
+      const citationResolutionTime = citationBankBuildTime + (Date.now() - citationResolutionT0);
+
+      const diagnostics: CitationResolutionDiagnostics = {
+        path: citationPathUsed,
         bank_size: citationBank.length,
-        path_intended: citationPathIntended,
-        path_used: citationPathUsed,
-        scrub_removed: citationScrubResult?.removed ?? [],
-        validation_warnings: citationWarnings,
+        bank_sources: citationBank.map(e => e.doc_id),
+        citations_extracted: citationMatches.length + citationFabrications.length,
+        citations_matched: citationMatches.length,
+        citations_fabricated: citationFabrications.length,
+        resolution_time_ms: citationResolutionTime,
+        matches: citationMatches,
+        fabrications: citationFabrications,
+        warnings: citationWarnings,
       };
+
+      // Path A scrub diff
+      if (citationScrubOriginal && citationScrubResult) {
+        const origLines = citationScrubOriginal.split('\n');
+        const cleanedLines = citationScrubResult.cleanedDraft.split('\n');
+        let linesRemoved = 0;
+        let linesModified = 0;
+        const maxLen = Math.max(origLines.length, cleanedLines.length);
+        for (let li = 0; li < maxLen; li++) {
+          if (li >= cleanedLines.length) { linesRemoved++; continue; }
+          if (li >= origLines.length) continue;
+          if (origLines[li] !== cleanedLines[li]) linesModified++;
+        }
+        diagnostics.scrub_diff = {
+          lines_removed: linesRemoved,
+          lines_modified: linesModified,
+          original_length: citationScrubOriginal.length,
+          cleaned_length: citationScrubResult.cleanedDraft.length,
+        };
+        diagnostics.scrub_original = citationScrubOriginal;
+      }
+
+      (draftDiag as Record<string, unknown>).citation_resolution = diagnostics;
     }
   }
 
@@ -1289,9 +1382,22 @@ export function assemblePipelineResult(
     node_id: r.node_id,
     relevance: r.relevance,
   }));
-  const taxonomyRefs = validNodeIds
-    ? rawRefs.filter(r => validNodeIds.has(r.node_id))
-    : rawRefs;
+  // Fuzzy-correct hallucinated node IDs (e.g., sit-cc-040 → cc-040) before filtering
+  let taxonomyRefs: TaxonomyRef[];
+  if (validNodeIds) {
+    const { sanitized, corrections, removed } = sanitizeNodeIds(rawRefs.map(r => r.node_id), validNodeIds);
+    if (corrections.length > 0) console.log(`[pipeline] Corrected ${corrections.length} hallucinated node ID(s): ${corrections.map(c => `${c.from}→${c.to}`).join(', ')}`);
+    if (removed.length > 0) console.log(`[pipeline] Removed ${removed.length} invalid node ID(s): ${removed.join(', ')}`);
+    const validSet = new Set(sanitized);
+    taxonomyRefs = rawRefs
+      .map(r => {
+        const correction = corrections.find(c => c.from === r.node_id);
+        return correction ? { ...r, node_id: correction.to } : r;
+      })
+      .filter(r => validSet.has(r.node_id));
+  } else {
+    taxonomyRefs = rawRefs;
+  }
 
   const statement = deduplicateStatement(result.draft.statement ?? '');
   const rawClaims = result.draft.claim_sketches?.length ? result.draft.claim_sketches : undefined;
@@ -1540,9 +1646,22 @@ export function assembleOpeningPipelineResult(
     node_id: r.node_id,
     relevance: r.relevance,
   }));
-  const taxonomyRefs = validNodeIds
-    ? rawRefs.filter(r => validNodeIds.has(r.node_id))
-    : rawRefs;
+  // Fuzzy-correct hallucinated node IDs before filtering (same as assemblePipelineResult)
+  let taxonomyRefs: TaxonomyRef[];
+  if (validNodeIds) {
+    const { sanitized, corrections, removed } = sanitizeNodeIds(rawRefs.map(r => r.node_id), validNodeIds);
+    if (corrections.length > 0) console.log(`[pipeline] Opening: corrected ${corrections.length} hallucinated node ID(s): ${corrections.map(c => `${c.from}→${c.to}`).join(', ')}`);
+    if (removed.length > 0) console.log(`[pipeline] Opening: removed ${removed.length} invalid node ID(s): ${removed.join(', ')}`);
+    const validSet = new Set(sanitized);
+    taxonomyRefs = rawRefs
+      .map(r => {
+        const correction = corrections.find(c => c.from === r.node_id);
+        return correction ? { ...r, node_id: correction.to } : r;
+      })
+      .filter(r => validSet.has(r.node_id));
+  } else {
+    taxonomyRefs = rawRefs;
+  }
 
   const statement = deduplicateStatement(result.draft.statement ?? '');
   const rawClaims = result.draft.claim_sketches?.length ? result.draft.claim_sketches : undefined;
