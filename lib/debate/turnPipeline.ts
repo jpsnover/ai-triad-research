@@ -16,15 +16,16 @@ import type {
   OpeningPipelineResult,
   TaxonomyRef,
   DebatePhase,
+  StageProvenance,
 } from './types.js';
 import type { DocumentAnalysis } from './types.js';
 import { POVER_INFO } from './types.js';
 import { ActionableError } from './errors.js';
-import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult } from './turnValidator.js';
+import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName } from './turnValidator.js';
 import type { DraftQualityCheckOutput } from './turnValidator.js';
 import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
 import type { GenerateOptions } from './aiAdapter.js';
-import { parseJsonRobust, wordOverlap } from './helpers.js';
+import { parseJsonRobust, wordOverlap, getMoveName } from './helpers.js';
 import {
   briefStagePrompt,
   planStagePrompt,
@@ -254,6 +255,22 @@ function parseStageResponse<T>(raw: string, stage: TurnStageId): { product: T; e
   }
 }
 
+// ── Provenance tagging ──────────────────────────────────
+
+/** Stamp provenance metadata onto a parsed work product. */
+function tagProvenance<T>(
+  product: T,
+  prov: StageProvenance,
+): T {
+  (product as Record<string, unknown>)._provenance = prov;
+  return product;
+}
+
+/** Serialize a work product to JSON for downstream prompt injection, stripping _provenance. */
+function toPromptJson(product: unknown): string {
+  return JSON.stringify(product, (key, value) => key === '_provenance' ? undefined : value, 2);
+}
+
 export async function runTurnPipeline(
   input: TurnPipelineInput,
   generate: StageGenerateFn,
@@ -279,7 +296,7 @@ export async function runTurnPipeline(
   if (input.frozenBrief) {
     // Frozen from prior pipeline run — skip generation, reuse output
     brief = input.frozenBrief;
-    briefJson = JSON.stringify(brief, null, 2);
+    briefJson = toPromptJson(brief);
     stageDiags.push({
       stage: 'brief', prompt: '(frozen — reused from prior run)', raw_response: briefJson,
       model: input.model, temperature: temps.brief_temperature,
@@ -318,8 +335,12 @@ export async function runTurnPipeline(
         nextSteps: ['Check the AI model response quality', 'Try a different model'],
       });
     }
-    brief = briefParsed.product;
-    briefJson = JSON.stringify(brief, null, 2);
+    brief = tagProvenance(briefParsed.product, {
+      pipeline_run: isOuterRetry ? 1 : 0,
+      stage: 'brief', attempt: 0,
+      model: input.model, timestamp: new Date().toISOString(),
+    });
+    briefJson = toPromptJson(brief);
   }
 
   // ── Stage 1.5: BRIEF node ID sanitization ──
@@ -353,7 +374,7 @@ export async function runTurnPipeline(
     }
     if (briefCorrected) {
       // Re-serialize so downstream stages (PLAN/DRAFT) see the corrected IDs
-      briefJson = JSON.stringify(brief, null, 2);
+      briefJson = toPromptJson(brief);
     }
   }
 
@@ -368,7 +389,7 @@ export async function runTurnPipeline(
   if (input.frozenPlan) {
     // Frozen from prior pipeline run — skip generation, reuse output
     plan = input.frozenPlan;
-    planJson = JSON.stringify(plan, null, 2);
+    planJson = toPromptJson(plan);
     stageDiags.push({
       stage: 'plan', prompt: '(frozen — reused from prior run)', raw_response: planJson,
       model: input.model, temperature: temps.plan_temperature,
@@ -424,12 +445,18 @@ export async function runTurnPipeline(
 
       if (planVal.errorHints.length > 0 && planAttempt < MAX_STAGE_RETRIES) {
         planRepairHints = planVal.errorHints;
+        (lastPlanDiag as Record<string, unknown>).validation_failed = true;
+        (lastPlanDiag as Record<string, unknown>).validation_errors = [...planVal.errorHints];
         console.log(`[pipeline] Plan validation errors (attempt ${planAttempt}), retrying: ${planVal.errorHints.join('; ')}`);
         continue;
       }
 
-      plan = planParsed.product;
-      planJson = JSON.stringify(plan, null, 2);
+      plan = tagProvenance(planParsed.product, {
+        pipeline_run: isOuterRetry ? 1 : 0,
+        stage: 'plan', attempt: planAttempt,
+        model: input.model, timestamp: new Date().toISOString(),
+      });
+      planJson = toPromptJson(plan);
       break;
     }
   }
@@ -450,7 +477,7 @@ export async function runTurnPipeline(
         console.log(`[pipeline] Plan target_nodes removed (unknown): ${r}`);
       }
       plan.target_nodes = planIdResult.sanitized;
-      planJson = JSON.stringify(plan, null, 2);
+      planJson = toPromptJson(plan);
     }
   }
 
@@ -462,7 +489,7 @@ export async function runTurnPipeline(
 
   if (input.frozenDraft) {
     draft = input.frozenDraft;
-    draftJson = JSON.stringify(draft, null, 2);
+    draftJson = toPromptJson(draft);
     stageDiags.push({
       stage: 'draft', prompt: '(frozen — reused from prior run)', raw_response: draftJson,
       model: input.model, temperature: temps.draft_temperature,
@@ -648,13 +675,37 @@ export async function runTurnPipeline(
       retry_trigger: draftAttempt === 0 && !isOuterRetry ? 'initial' : draftAttempt > 0 ? 'stage-retry' : 'orchestration-rerun',
       repair_hints_in: draftRepairHints.length > 0 ? [...draftRepairHints] : undefined,
     });
-    draft = draftParsed.product;
+    draft = tagProvenance(draftParsed.product, {
+      pipeline_run: isOuterRetry ? 1 : 0,
+      stage: 'draft', attempt: draftAttempt,
+      model: input.model, timestamp: new Date().toISOString(),
+    });
 
     // Merge frozen fields from prior draft to guarantee stability —
     // LLMs don't always follow field-freeze instructions perfectly.
     if (draft && priorDraft && fieldFreezeBlock) {
       draft = mergeFrozenDraftFields(draft, priorDraft, targetedFields);
       console.log(`[pipeline] Draft field-level merge: froze ${ALL_DRAFT_FIELDS.filter(f => !targetedFields.has(f)).join(', ')}, regenerated ${[...targetedFields].join(', ')}`);
+    }
+
+    // Backfill empty claim_sketches targets from prior draft — LLMs drop AN-ID
+    // targets when regenerating claims because they focus on text, not ID mappings.
+    if (draft?.claim_sketches && priorDraft?.claim_sketches) {
+      let backfilled = 0;
+      for (const claim of draft.claim_sketches) {
+        if (!claim.targets || claim.targets.length === 0) {
+          // Find best-matching prior claim by text overlap
+          const best = priorDraft.claim_sketches
+            .filter(pc => pc.targets && pc.targets.length > 0)
+            .map(pc => ({ pc, overlap: wordOverlap(claim.claim, pc.claim) }))
+            .sort((a, b) => b.overlap - a.overlap)[0];
+          if (best && best.overlap >= 0.3) {
+            claim.targets = best.pc.targets;
+            backfilled++;
+          }
+        }
+      }
+      if (backfilled > 0) console.log(`[pipeline] Backfilled ${backfilled} claim target(s) from prior draft`);
     }
 
     // Per-stage draft validation
@@ -688,10 +739,36 @@ export async function runTurnPipeline(
         : draftVal.errorHints.length > 0;
       if (draftShouldRetry && draftAttempt < maxDraftRetries) {
         draftRepairHints = draftAttempt === 0 ? draftVal.repairHints : draftVal.errorHints;
+        const lastDraftDiag = stageDiags[stageDiags.length - 1];
+        (lastDraftDiag as Record<string, unknown>).validation_failed = true;
+        (lastDraftDiag as Record<string, unknown>).validation_errors = [...draftRepairHints];
         console.log(`[pipeline] Draft validation feedback (attempt ${draftAttempt}), retrying: ${draftRepairHints.join('; ')}`);
         continue;
       }
     }
+    // ── PLAN→DRAFT move consistency check (warning only) ──
+    // Compare draft's actual moves against plan's intended moves.
+    // This is a quality signal — the LLM sometimes ignores the plan.
+    if (draft?.move_types && plan?.planned_moves?.length) {
+      const plannedMoves = plan.planned_moves.map(pm => resolveMoveName(pm.move));
+      const draftMoves = (draft.move_types as Array<string | { move: string }>).map(mt => resolveMoveName(getMoveName(mt)));
+      const plannedSet = new Set(plannedMoves);
+      const draftSet = new Set(draftMoves);
+      const missingFromDraft = plannedMoves.filter(m => !draftSet.has(m));
+      const addedInDraft = draftMoves.filter(m => !plannedSet.has(m));
+      if (missingFromDraft.length > 0 || addedInDraft.length > 0) {
+        const lastDraftDiag = stageDiags[stageDiags.length - 1];
+        const moveConsistency = {
+          planned: plannedMoves,
+          actual: draftMoves,
+          missing: missingFromDraft,
+          added: addedInDraft,
+        };
+        (lastDraftDiag as Record<string, unknown>).move_consistency = moveConsistency;
+        console.log(`[pipeline] PLAN→DRAFT move divergence: planned=[${plannedMoves.join(',')}] actual=[${draftMoves.join(',')}] missing=[${missingFromDraft.join(',')}] added=[${addedInDraft.join(',')}]`);
+      }
+    }
+
     // Draft passed validation — clear repair hints so they don't persist
     // as stale noise into subsequent orchestration retry cycles.
     draftRepairHints = [];
@@ -711,7 +788,7 @@ export async function runTurnPipeline(
     }
   }
 
-  draftJson = JSON.stringify(draft, null, 2);
+  draftJson = toPromptJson(draft);
 
   // ── Post-draft linkification: replace title mentions with clickable links ──
   let linkificationApplied = false;
@@ -964,8 +1041,12 @@ export async function runTurnPipeline(
           parse_error: retryDraftParsed.error,
         });
         if (!retryDraftParsed.error && retryDraftParsed.product?.statement) {
-          draft = retryDraftParsed.product;
-          draftJson = JSON.stringify(draft, null, 2);
+          draft = tagProvenance(retryDraftParsed.product, {
+            pipeline_run: isOuterRetry ? 1 : 0,
+            stage: 'draft', attempt: 1, // quality retry is always attempt 1
+            model: input.model, timestamp: new Date().toISOString(),
+          });
+          draftJson = toPromptJson(draft);
           console.log(`[pipeline] Draft quality retry produced new draft`);
         }
       }
@@ -1030,6 +1111,9 @@ export async function runTurnPipeline(
 
       if (citeVal.errorHints.length > 0 && citeAttempt < MAX_STAGE_RETRIES) {
         citeRepairHints = citeVal.errorHints;
+        const lastCiteDiag = stageDiags[stageDiags.length - 1];
+        (lastCiteDiag as Record<string, unknown>).validation_failed = true;
+        (lastCiteDiag as Record<string, unknown>).validation_errors = [...citeVal.errorHints];
         console.log(`[pipeline] Cite validation errors (attempt ${citeAttempt}), retrying: ${citeVal.errorHints.join('; ')}`);
         continue;
       }
@@ -1502,8 +1586,11 @@ export async function runOpeningPipeline(
       nextSteps: ['Check the AI model response quality', 'Try a different model'],
     });
   }
-  const brief = briefParsed.product;
-  const briefJson = JSON.stringify(brief, null, 2);
+  const brief = tagProvenance(briefParsed.product, {
+    pipeline_run: 0, stage: 'brief', attempt: 0,
+    model: input.model, timestamp: new Date().toISOString(),
+  });
+  const briefJson = toPromptJson(brief);
 
   // ── Stage 2: PLAN ──
   onProgress?.('plan', `${input.label} is planning...`);
@@ -1528,8 +1615,11 @@ export async function runOpeningPipeline(
       nextSteps: ['Check the AI model response quality', 'Try a different model'],
     });
   }
-  const plan = planParsed.product;
-  const planJson = JSON.stringify(plan, null, 2);
+  const plan = tagProvenance(planParsed.product, {
+    pipeline_run: 0, stage: 'plan', attempt: 0,
+    model: input.model, timestamp: new Date().toISOString(),
+  });
+  const planJson = toPromptJson(plan);
 
   // ── Stage 3: DRAFT ──
   onProgress?.('draft', `${input.label} is drafting...`);
@@ -1558,8 +1648,11 @@ export async function runOpeningPipeline(
     response_time_ms: elapsed, work_product: draftParsed.product as unknown as Record<string, unknown>,
     parse_error: draftParsed.error,
   });
-  const draft = draftParsed.product;
-  const draftJson = JSON.stringify(draft, null, 2);
+  const draft = tagProvenance(draftParsed.product, {
+    pipeline_run: 0, stage: 'draft', attempt: 0,
+    model: input.model, timestamp: new Date().toISOString(),
+  });
+  const draftJson = toPromptJson(draft);
 
   // Per-stage draft validation for openings (Rules 6, 10, 12 — no moves/disagreement for openings)
   if (draft) {
