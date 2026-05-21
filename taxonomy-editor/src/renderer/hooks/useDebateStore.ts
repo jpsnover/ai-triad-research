@@ -764,22 +764,21 @@ async function extractClaimsAndUpdateAN(
         cruxes: debate.crux_tracker,
       });
 
-      if (!firstResult.pass && regenCallback) {
-        // Retry: regenerate response with targeted hint (1 retry max)
-        const hint = buildRegenHint(firstResult);
-        console.log(`[Lookahead] Gate failed (Δu=${firstResult.utility_delta.toFixed(3)}), requesting regeneration`);
-        getGlobalRecorder()?.record({ type: 'lookahead.regen', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Lookahead gate failed, triggering regen`, data: { utility_delta: firstResult.utility_delta, threshold: firstResult.threshold } });
+      const MAX_REGEN_ATTEMPTS = 3;
+      let bestResult = firstResult;
+      let bestNodes = [...newNodes];
+      let bestEdges = [...newEdges];
+      let bestStatement: string | null = null;
+      const regenAttempts: import('@lib/debate/lookaheadGate').LookaheadGateResult[] = [];
 
-        const regenResult = await regenCallback(hint);
-        if (regenResult) {
-          // Update transcript entry with regenerated content
-          const currDebate = get().activeDebate as DebateSession | null;
-          if (currDebate) {
-            const updatedTranscript = currDebate.transcript.map(e =>
-              e.id === entryId ? { ...e, content: regenResult.statement, metadata: { ...(e.metadata as Record<string, unknown>), lookahead_regenerated: true } } : e,
-            );
-            set({ activeDebate: { ...currDebate, transcript: updatedTranscript } });
-          }
+      if (!firstResult.pass && regenCallback) {
+        for (let attempt = 0; attempt < MAX_REGEN_ATTEMPTS; attempt++) {
+          const hint = buildRegenHint(bestResult);
+          console.log(`[Lookahead] Gate failed (Δu=${bestResult.utility_delta.toFixed(3)}), requesting regen ${attempt + 1}/${MAX_REGEN_ATTEMPTS}`);
+          getGlobalRecorder()?.record({ type: 'lookahead.regen', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Lookahead gate failed, triggering regen attempt ${attempt + 1}`, data: { attempt: attempt + 1, utility_delta: bestResult.utility_delta, threshold: bestResult.threshold } });
+
+          const regenResult = await regenCallback(hint);
+          if (!regenResult) break; // callback returned null — stop retrying
 
           // Re-extract claims from regenerated response
           const regenPrompt = regenResult.debaterClaims && regenResult.debaterClaims.length > 0
@@ -793,101 +792,98 @@ async function extractClaimsAndUpdateAN(
             regenCleaned = regenCleaned.replace(/,\s*([}\]])/g, '$1');
             const regenParsed = JSON.parse(regenCleaned) as { claims?: typeof parsed.claims };
 
-            if (regenParsed.claims && Array.isArray(regenParsed.claims) && regenParsed.claims.length > 0) {
-              const taxEdgesRetry = useTaxonomyStore.getState().edgesFile?.edges;
-              const regenClaims = processExtractedClaims(
-                {
-                  claims: regenParsed.claims,
-                  statement: regenResult.statement,
-                  speaker,
-                  entryId,
-                  taxonomyRefIds: taxonomyRefs,
-                  turnNumber,
-                  existingNodes: an.nodes,
-                  existingEdgeCount: an.edges.length,
-                  startNodeId: an.nodes.length + 1,
-                  taxonomyEdges: taxEdgesRetry,
-                },
-                { groundingOverlapThreshold: 0.3, isClassifyPath: !!(regenResult.debaterClaims && regenResult.debaterClaims.length > 0) },
-              );
-
-              if (regenClaims.newNodes.length > 0) {
-                // Embed retry claims
-                for (const node of regenClaims.newNodes) {
-                  try {
-                    const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
-                    if (vector && vector.length > 0) node.embedding = vector;
-                  } catch { /* non-blocking */ }
-                }
-
-                // Re-evaluate lookahead on retry claims
-                const retryResult = evaluateLookahead({
-                  speaker,
-                  existingNodes: an.nodes,
-                  existingEdges: an.edges,
-                  tentativeClaims: regenClaims.newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
-                  tentativeEdges: regenClaims.newEdges,
-                  cruxes: debate.crux_tracker,
-                });
-
-                // Use retry claims if they're better (higher delta) or if they pass
-                if (retryResult.pass || retryResult.utility_delta > firstResult.utility_delta) {
-                  newNodes.length = 0;
-                  newNodes.push(...regenClaims.newNodes);
-                  newEdges.length = 0;
-                  newEdges.push(...regenClaims.newEdges);
-                  extractionTrace.candidates_accepted = newNodes.length;
-                  console.log(`[Lookahead] Retry improved: Δu=${retryResult.utility_delta.toFixed(3)} (was ${firstResult.utility_delta.toFixed(3)})`);
-                }
-
-                lookaheadDiag = {
-                  stage: 'lookahead',
-                  first_attempt: firstResult,
-                  regen_triggered: true,
-                  regen_attempt: retryResult,
-                  final_pass: retryResult.pass || retryResult.utility_delta > firstResult.utility_delta,
-                  elapsed_ms: Date.now() - lookaheadStart,
-                };
-              } else {
-                // Retry extraction yielded no claims — keep originals
-                lookaheadDiag = {
-                  stage: 'lookahead',
-                  first_attempt: firstResult,
-                  regen_triggered: true,
-                  final_pass: false,
-                  elapsed_ms: Date.now() - lookaheadStart,
-                };
-              }
-            } else {
-              // Retry parse yielded no claims — keep originals
-              lookaheadDiag = {
-                stage: 'lookahead',
-                first_attempt: firstResult,
-                regen_triggered: true,
-                final_pass: false,
-                elapsed_ms: Date.now() - lookaheadStart,
-              };
+            if (!regenParsed.claims || !Array.isArray(regenParsed.claims) || regenParsed.claims.length === 0) {
+              regenAttempts.push({ ...bestResult, pass: false, tentative_claims: [], tentative_network_size: { nodes: 0, edges: 0 } });
+              continue;
             }
+
+            const taxEdgesRetry = useTaxonomyStore.getState().edgesFile?.edges;
+            const regenClaims = processExtractedClaims(
+              {
+                claims: regenParsed.claims,
+                statement: regenResult.statement,
+                speaker,
+                entryId,
+                taxonomyRefIds: taxonomyRefs,
+                turnNumber,
+                existingNodes: an.nodes,
+                existingEdgeCount: an.edges.length,
+                startNodeId: an.nodes.length + 1,
+                taxonomyEdges: taxEdgesRetry,
+              },
+              { groundingOverlapThreshold: 0.3, isClassifyPath: !!(regenResult.debaterClaims && regenResult.debaterClaims.length > 0) },
+            );
+
+            if (regenClaims.newNodes.length === 0) {
+              regenAttempts.push({ ...bestResult, pass: false, tentative_claims: [], tentative_network_size: { nodes: 0, edges: 0 } });
+              continue;
+            }
+
+            // Embed retry claims
+            for (const node of regenClaims.newNodes) {
+              try {
+                const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
+                if (vector && vector.length > 0) node.embedding = vector;
+              } catch { /* non-blocking */ }
+            }
+
+            // Re-evaluate lookahead on retry claims
+            const retryResult = evaluateLookahead({
+              speaker,
+              existingNodes: an.nodes,
+              existingEdges: an.edges,
+              tentativeClaims: regenClaims.newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
+              tentativeEdges: regenClaims.newEdges,
+              cruxes: debate.crux_tracker,
+            });
+            regenAttempts.push(retryResult);
+
+            // Track the best attempt — use if it passes or beats previous best
+            if (retryResult.pass || retryResult.utility_delta > bestResult.utility_delta) {
+              bestResult = retryResult;
+              bestNodes = regenClaims.newNodes;
+              bestEdges = regenClaims.newEdges;
+              bestStatement = regenResult.statement;
+              console.log(`[Lookahead] Attempt ${attempt + 1} improved: Δu=${retryResult.utility_delta.toFixed(3)} (was ${firstResult.utility_delta.toFixed(3)})`);
+            }
+
+            // Stop early if we pass
+            if (retryResult.pass) break;
           } catch (regenErr) {
-            console.warn('[Lookahead] Regen extraction failed, keeping original claims:', regenErr);
-            lookaheadDiag = {
-              stage: 'lookahead',
-              first_attempt: firstResult,
-              regen_triggered: true,
-              final_pass: false,
-              elapsed_ms: Date.now() - lookaheadStart,
-            };
+            console.warn(`[Lookahead] Regen attempt ${attempt + 1} extraction failed:`, regenErr);
+            break;
           }
-        } else {
-          // Callback returned null — skip retry
-          lookaheadDiag = {
-            stage: 'lookahead',
-            first_attempt: firstResult,
-            regen_triggered: false,
-            final_pass: firstResult.pass,
-            elapsed_ms: Date.now() - lookaheadStart,
-          };
         }
+
+        // Apply best result: update claims and transcript only if an attempt improved on the original
+        if (bestResult !== firstResult) {
+          newNodes.length = 0;
+          newNodes.push(...bestNodes);
+          newEdges.length = 0;
+          newEdges.push(...bestEdges);
+          extractionTrace.candidates_accepted = newNodes.length;
+
+          // Update transcript entry with the best regenerated statement
+          if (bestStatement) {
+            const currDebate = get().activeDebate as DebateSession | null;
+            if (currDebate) {
+              const updatedTranscript = currDebate.transcript.map(e =>
+                e.id === entryId ? { ...e, content: bestStatement!, metadata: { ...(e.metadata as Record<string, unknown>), lookahead_regenerated: true, lookahead_regen_attempts: regenAttempts.length } } : e,
+              );
+              set({ activeDebate: { ...currDebate, transcript: updatedTranscript } });
+            }
+          }
+        }
+
+        lookaheadDiag = {
+          stage: 'lookahead',
+          first_attempt: firstResult,
+          regen_triggered: true,
+          regen_attempt: regenAttempts[regenAttempts.length - 1], // backwards compat
+          regen_attempts: regenAttempts,
+          final_pass: bestResult !== firstResult && (bestResult.pass || bestResult.utility_delta > firstResult.utility_delta),
+          elapsed_ms: Date.now() - lookaheadStart,
+        };
       } else {
         // Gate passed or no regen callback — record as-is
         lookaheadDiag = {

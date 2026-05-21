@@ -78,9 +78,11 @@ export interface LookaheadDiagnostics {
   first_attempt: LookaheadGateResult;
   /** Whether regeneration was triggered. */
   regen_triggered: boolean;
-  /** Second attempt result (only if regen triggered). */
+  /** @deprecated Use regen_attempts[0] instead. Kept for backwards compat with existing debate files. */
   regen_attempt?: LookaheadGateResult;
-  /** Final pass status (true if either attempt passed). */
+  /** All regen attempt results in order (empty if no regen triggered). */
+  regen_attempts?: LookaheadGateResult[];
+  /** Final pass status (true if any attempt passed). */
   final_pass: boolean;
   /** Total wall-clock time for the lookahead evaluation (ms). */
   elapsed_ms: number;

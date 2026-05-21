@@ -3373,6 +3373,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               first_attempt: { pass: boolean; utility_before: { position_strength: number; attack_effectiveness: number; crux_engagement: number; composite: number; concession_asymmetry: number }; utility_after: { position_strength: number; attack_effectiveness: number; crux_engagement: number; composite: number; concession_asymmetry: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } };
               regen_triggered: boolean;
               regen_attempt?: { pass: boolean; utility_before: { composite: number }; utility_after: { composite: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } };
+              regen_attempts?: { pass: boolean; utility_before: { composite: number }; utility_after: { composite: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } }[];
               final_pass: boolean;
               elapsed_ms: number;
             } | undefined;
@@ -5341,33 +5342,38 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </details>
                       )}
 
-                      {/* Regeneration Attempt */}
-                      {lookaheadDiag.regen_triggered && lookaheadDiag.regen_attempt && (
-                        <div style={{ marginTop: 8, padding: 8, borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.06)', borderRadius: 4 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>REGENERATION</span>
-                            <span style={{
-                              padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
-                              background: lookaheadDiag.regen_attempt.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
-                              color: lookaheadDiag.regen_attempt.pass ? '#16a34a' : '#dc2626',
-                            }}>{lookaheadDiag.regen_attempt.pass ? '\u2713 PASS' : '\u2717 FAIL'}</span>
+                      {/* Regeneration Attempts */}
+                      {lookaheadDiag.regen_triggered && (() => {
+                        // Support both new regen_attempts[] and legacy regen_attempt
+                        const attempts = lookaheadDiag.regen_attempts ?? (lookaheadDiag.regen_attempt ? [lookaheadDiag.regen_attempt] : []);
+                        if (attempts.length === 0) return null;
+                        return attempts.map((ra, ai) => (
+                          <div key={ai} style={{ marginTop: 8, padding: 8, borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.06)', borderRadius: 4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>REGEN {ai + 1}/{attempts.length}</span>
+                              <span style={{
+                                padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
+                                background: ra.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
+                                color: ra.pass ? '#16a34a' : '#dc2626',
+                              }}>{ra.pass ? '\u2713 PASS' : '\u2717 FAIL'}</span>
+                            </div>
+                            <div style={{ fontSize: '0.72rem' }}>
+                              <span>{'\u0394'}u = {ra.utility_delta >= 0 ? '+' : ''}{ra.utility_delta.toFixed(3)}</span>
+                              <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>threshold: {ra.threshold.toFixed(3)}</span>
+                            </div>
+                            {ra.tentative_claims.length > 0 && (
+                              <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Regen Claims ({ra.tentative_claims.length})</summary>
+                                {ra.tentative_claims.map((c, ci) => (
+                                  <div key={ci} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: '2px solid rgba(245,158,11,0.3)', fontSize: '0.68rem' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: 'var(--text-muted)', marginRight: 6 }}>{c.strength.toFixed(2)}</span>
+                                    <Highlight text={c.text} />
+                                  </div>
+                                ))}
+                              </details>
+                            )}
                           </div>
-                          <div style={{ fontSize: '0.72rem' }}>
-                            <span>{'\u0394'}u = {lookaheadDiag.regen_attempt.utility_delta >= 0 ? '+' : ''}{lookaheadDiag.regen_attempt.utility_delta.toFixed(3)}</span>
-                            <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>threshold: {lookaheadDiag.regen_attempt.threshold.toFixed(3)}</span>
-                          </div>
-                          {lookaheadDiag.regen_attempt.tentative_claims.length > 0 && (
-                            <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Regen Claims ({lookaheadDiag.regen_attempt.tentative_claims.length})</summary>
-                              {lookaheadDiag.regen_attempt.tentative_claims.map((c, i) => (
-                                <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: '2px solid rgba(245,158,11,0.3)', fontSize: '0.68rem' }}>
-                                  <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: 'var(--text-muted)', marginRight: 6 }}>{c.strength.toFixed(2)}</span>
-                                  <Highlight text={c.text} />
-                                </div>
-                              ))}
-                            </details>
-                          )}
-                        </div>
-                      )}
+                        ));
+                      })()}
 
                       {/* Low Utility Warning */}
                       {!lookaheadDiag.final_pass && (
@@ -5376,7 +5382,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           borderLeft: '3px solid #dc2626', background: 'rgba(220,38,38,0.08)',
                           fontSize: '0.72rem', color: '#dc2626', fontWeight: 600,
                         }}>
-                          Low utility turn — both attempts failed threshold. Committed anyway; <code>low_utility_turn</code> logged.
+                          Low utility turn — all attempts failed threshold. Committed anyway; <code>low_utility_turn</code> logged.
                         </div>
                       )}
 
