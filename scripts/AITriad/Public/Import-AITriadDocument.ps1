@@ -116,7 +116,7 @@ function Import-AITriadDocument {
                 $Meta = Get-Content $MF.FullName -Raw | ConvertFrom-Json
             } catch { continue }
 
-            if (-not [string]::IsNullOrWhiteSpace($Url) -and $Meta.document_url -eq $Url) {
+            if (-not [string]::IsNullOrWhiteSpace($Url) -and $Meta.url -eq $Url) {
                 return $MF.Directory.Name
             }
 
@@ -380,8 +380,11 @@ function Import-AITriadDocument {
         }
 
         $MetaPath = Join-Path $DocDir 'metadata.json'
-        $Metadata | ConvertTo-Json -Depth 5 | Write-Utf8NoBom -Path $MetaPath 
+        $Metadata | ConvertTo-Json -Depth 5 | Write-Utf8NoBom -Path $MetaPath
         Write-OK "Metadata written: metadata.json"
+
+        # -- Rebuild source index ---------------------------------------------
+        try { Update-AITSourceIndex -Quiet } catch { Write-Verbose "Index rebuild skipped: $_" }
 
         # -- Summary queue ----------------------------------------------------
         if (-not $NoSummaryQueue) {
@@ -469,8 +472,18 @@ function Import-AITriadDocument {
                     ))
             }
 
+            # Skip VCS placeholders, OS-metadata junk (e.g. macOS .DS_Store /
+            # AppleDouble ._* files, Windows Thumbs.db/desktop.ini), and the
+            # *.meta.json sidecars — none of these are documents to ingest.
+            # Without this, .DS_Store falsely "matches" an existing source via
+            # filename in Find-ExistingSource and gets skipped as a duplicate.
+            $InboxJunk = @('.gitkeep', '.DS_Store', 'Thumbs.db', 'desktop.ini')
             $InboxFiles = @(Get-ChildItem -Path $InboxDir -File |
-                Where-Object { $_.Name -ne '.gitkeep' })
+                Where-Object {
+                    $InboxJunk -notcontains $_.Name -and
+                    $_.Name -notlike '.*' -and
+                    $_.Name -notlike '*.meta.json'
+                })
 
             if ($InboxFiles.Count -eq 0) {
                 Write-Warn "Inbox is empty: $InboxDir"
