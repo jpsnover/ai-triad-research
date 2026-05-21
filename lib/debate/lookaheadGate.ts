@@ -121,14 +121,18 @@ export function evaluateLookahead(input: LookaheadGateInput): LookaheadGateResul
   );
   const tentativeEdges = [...input.existingEdges, ...input.tentativeEdges];
 
-  // Compute tentative utility
+  // Compute tentative utility — augment crux tracker so new claims that
+  // attack/support crux nodes are reflected in crux_engagement scoring.
   const tentativeStrengths = runQbaf(tentativeNodes, tentativeEdges, input.qbafOptions);
   const tentativeWithStrengths = applyStrengths(tentativeNodes, tentativeStrengths);
+  const augmentedCruxes = augmentCruxesForTentative(
+    input.cruxes, input.tentativeEdges, tentativeNodes, input.speaker,
+  );
   const utility_after = computeAgentUtility(
     input.speaker,
     tentativeWithStrengths,
     tentativeEdges as ArgumentNetworkEdge[],
-    input.cruxes as TrackedCrux[] | undefined,
+    augmentedCruxes,
   );
 
   const utility_delta = utility_after.composite - utility_before.composite;
@@ -234,6 +238,58 @@ function applyStrengths(
     ...n,
     computed_strength: strengths.get(n.id) ?? n.computed_strength ?? n.base_strength ?? 0.5,
   }));
+}
+
+/**
+ * Augment crux tracker entries so that tentative edges targeting crux nodes
+ * are reflected in crux_engagement scoring. Without this, crux_engagement
+ * is identical before/after because the frozen tracker doesn't know about
+ * the new claims' relationships to crux nodes.
+ */
+function augmentCruxesForTentative(
+  cruxes: readonly TrackedCrux[] | undefined,
+  tentativeEdges: readonly ArgumentNetworkEdge[],
+  tentativeNodes: readonly ArgumentNetworkNode[],
+  speaker: SpeakerId,
+): TrackedCrux[] | undefined {
+  if (!cruxes || cruxes.length === 0) return cruxes as TrackedCrux[] | undefined;
+
+  const cruxIds = new Set(cruxes.map(c => c.id));
+
+  // Find tentative edges that attack or support crux nodes
+  const tentativeEdgesToCruxes = tentativeEdges.filter(e =>
+    cruxIds.has(e.target) || cruxIds.has(e.source),
+  );
+  if (tentativeEdgesToCruxes.length === 0) return cruxes as TrackedCrux[] | undefined;
+
+  // Build a set of tentative node IDs owned by this speaker
+  const speakerTentativeIds = new Set(
+    tentativeNodes.filter(n => n.speaker === speaker && n.source_entry_id === 'tentative').map(n => n.id),
+  );
+
+  return cruxes.map(crux => {
+    // Check if any tentative edge connects a speaker's tentative node to this crux
+    const engagesCrux = tentativeEdgesToCruxes.some(e => {
+      const sourceIsSpeaker = speakerTentativeIds.has(e.source);
+      const targetIsSpeaker = speakerTentativeIds.has(e.target);
+      return (sourceIsSpeaker && e.target === crux.id) || (targetIsSpeaker && e.source === crux.id);
+    });
+
+    if (!engagesCrux) return crux;
+
+    // Augment: add speaker to speakers_involved and tentative node IDs to attacking_claim_ids
+    const newAttackIds = tentativeEdgesToCruxes
+      .filter(e => e.target === crux.id && speakerTentativeIds.has(e.source))
+      .map(e => e.source);
+
+    return {
+      ...crux,
+      speakers_involved: crux.speakers_involved.includes(speaker)
+        ? crux.speakers_involved
+        : [...crux.speakers_involved, speaker],
+      attacking_claim_ids: [...crux.attacking_claim_ids, ...newAttackIds],
+    };
+  });
 }
 
 function buildTentativeNodes(

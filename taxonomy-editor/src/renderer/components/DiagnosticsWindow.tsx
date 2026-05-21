@@ -5271,7 +5271,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       })()}
 
                       {/* Utility Breakdown */}
-                      <details style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Utility Breakdown</summary>
+                      <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Utility Breakdown</summary>
                         <table style={{ width: '100%', fontSize: '0.68rem', borderCollapse: 'collapse', marginTop: 4 }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
