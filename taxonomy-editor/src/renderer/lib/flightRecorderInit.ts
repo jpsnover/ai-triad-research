@@ -337,6 +337,14 @@ export function initFlightRecorder(): FlightRecorder {
           backend: taxState.aiBackend,
           model: taxState.geminiModel,
         },
+        diagnostics: {
+          enabled: !!debateState.diagnosticsEnabled,
+          selected_entry: debateState.selectedDiagEntry ?? null,
+        },
+        network: {
+          online: navigator.onLine,
+          deployment_mode: getDeploymentMode(),
+        },
         performance: {
           uptime_s: Math.round(performance.now() / 1000),
           heap_used_mb: mem ? Math.round(mem.usedJSHeapSize / 1048576) : undefined,

@@ -21,6 +21,7 @@ import type {
 import type { DocumentAnalysis } from './types.js';
 import { POVER_INFO } from './types.js';
 import { ActionableError } from './errors.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName } from './turnValidator.js';
 import type { DraftQualityCheckOutput } from './turnValidator.js';
 import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
@@ -173,6 +174,8 @@ export interface TurnPipelineInput {
   frozenDraft?: DraftWorkProduct;
   /** Frozen evidence block from a prior pipeline run — skips evidence retrieval when provided. */
   frozenEvidenceBlock?: string;
+  /** Opponent-aware strategic hints computed from AN/commitments. */
+  strategicHints?: string[];
 }
 
 export type StageGenerateFn = (
@@ -242,6 +245,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     pendingIntervention: input.pendingIntervention,
     phaseContext: input.phaseContext,
     doctrinalBoundaries: input.doctrinalBoundaries,
+    strategicHints: input.strategicHints,
   };
 }
 
@@ -302,6 +306,12 @@ export async function runTurnPipeline(
     console.log(`[pipeline] Brief stage FROZEN — reusing prior output`);
   } else {
     onProgress?.('brief', `${input.label} is briefing...`);
+    getGlobalRecorder()?.record({
+      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      speaker: input.label, debate_id: (input as any).debate_id, turn_id: (input as any).turn_id,
+      message: `${input.label} entering BRIEF stage`,
+      data: { stage: 'brief', action: 'enter' },
+    });
     let briefPrompt: string;
     let briefRaw: string;
     t0 = Date.now();
@@ -337,6 +347,12 @@ export async function runTurnPipeline(
       model: input.model, timestamp: new Date().toISOString(),
     });
     briefJson = toPromptJson(brief);
+    getGlobalRecorder()?.record({
+      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      speaker: input.label, duration_ms: elapsed,
+      message: `${input.label} completed BRIEF stage`,
+      data: { stage: 'brief', action: 'exit', duration_ms: elapsed },
+    });
   }
 
   // ── Stage 1.5: BRIEF node ID sanitization ──
@@ -391,6 +407,12 @@ export async function runTurnPipeline(
     let planRepairHints: string[] = [];
     for (let planAttempt = 0; planAttempt <= MAX_STAGE_RETRIES; planAttempt++) {
       onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
+      getGlobalRecorder()?.record({
+        type: 'turn.stage', component: 'turnPipeline', level: 'info',
+        speaker: input.label,
+        message: `${input.label} entering PLAN stage (attempt ${planAttempt})`,
+        data: { stage: 'plan', action: 'enter', attempt: planAttempt },
+      });
       let planPromptText: string;
       let planRaw: string;
       t0 = Date.now();
@@ -437,6 +459,12 @@ export async function runTurnPipeline(
         planRepairHints = planVal.errorHints;
         (lastPlanDiag as Record<string, unknown>).validation_failed = true;
         (lastPlanDiag as Record<string, unknown>).validation_errors = [...planVal.errorHints];
+        getGlobalRecorder()?.record({
+          type: 'turn.repair', component: 'turnPipeline', level: 'warn',
+          speaker: input.label,
+          message: `PLAN repair attempt ${planAttempt}: ${planVal.errorHints.length} error(s)`,
+          data: { stage: 'plan', attempt: planAttempt, hints: planVal.errorHints },
+        });
         console.log(`[pipeline] Plan validation errors (attempt ${planAttempt}), retrying: ${planVal.errorHints.join('; ')}`);
         continue;
       }
@@ -447,6 +475,12 @@ export async function runTurnPipeline(
         model: input.model, timestamp: new Date().toISOString(),
       });
       planJson = toPromptJson(plan);
+      getGlobalRecorder()?.record({
+        type: 'turn.stage', component: 'turnPipeline', level: 'info',
+        speaker: input.label, duration_ms: elapsed,
+        message: `${input.label} completed PLAN stage (attempt ${planAttempt})`,
+        data: { stage: 'plan', action: 'exit', attempt: planAttempt, duration_ms: elapsed },
+      });
       break;
     }
   }
@@ -565,6 +599,12 @@ export async function runTurnPipeline(
   const MAX_DRAFT_RETRIES = isOuterRetry ? 0 : 2; // directive failures get up to 2 retries (3 attempts)
   for (let draftAttempt = 0; draftAttempt <= MAX_DRAFT_RETRIES; draftAttempt++) {
     onProgress?.('draft', `${input.label} is drafting${draftAttempt > 0 ? ` (retry ${draftAttempt})` : ''}...`);
+    getGlobalRecorder()?.record({
+      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      speaker: input.label,
+      message: `${input.label} entering DRAFT stage (attempt ${draftAttempt})`,
+      data: { stage: 'draft', action: 'enter', attempt: draftAttempt },
+    });
     let draftPromptText: string;
     let draftRaw: string;
     t0 = Date.now();
@@ -741,6 +781,12 @@ export async function runTurnPipeline(
         const lastDraftDiag = stageDiags[stageDiags.length - 1];
         (lastDraftDiag as Record<string, unknown>).validation_failed = true;
         (lastDraftDiag as Record<string, unknown>).validation_errors = [...draftRepairHints];
+        getGlobalRecorder()?.record({
+          type: 'turn.repair', component: 'turnPipeline', level: 'warn',
+          speaker: input.label,
+          message: `DRAFT repair attempt ${draftAttempt}: ${draftRepairHints.length} hint(s)`,
+          data: { stage: 'draft', attempt: draftAttempt, hints: draftRepairHints },
+        });
         console.log(`[pipeline] Draft validation feedback (attempt ${draftAttempt}), retrying: ${draftRepairHints.join('; ')}`);
         continue;
       }
@@ -1031,6 +1077,7 @@ export async function runTurnPipeline(
       typeof (stageInput as Record<string, unknown>).round === 'number'
         ? (stageInput as Record<string, unknown>).round as number
         : 3,
+      plan?.planned_moves,
     );
     const preCheckT0 = Date.now();
     try {
@@ -1136,6 +1183,12 @@ export async function runTurnPipeline(
 
   for (let citeAttempt = 0; citeAttempt <= MAX_STAGE_RETRIES; citeAttempt++) {
     onProgress?.('cite', `${input.label} is citing${citeAttempt > 0 ? ` (retry ${citeAttempt})` : ''}...`);
+    getGlobalRecorder()?.record({
+      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      speaker: input.label,
+      message: `${input.label} entering CITE stage (attempt ${citeAttempt})`,
+      data: { stage: 'cite', action: 'enter', attempt: citeAttempt },
+    });
     let citePromptText: string;
     let citeRaw: string;
     t0 = Date.now();
@@ -1184,6 +1237,12 @@ export async function runTurnPipeline(
         const lastCiteDiag = stageDiags[stageDiags.length - 1];
         (lastCiteDiag as Record<string, unknown>).validation_failed = true;
         (lastCiteDiag as Record<string, unknown>).validation_errors = [...citeVal.errorHints];
+        getGlobalRecorder()?.record({
+          type: 'turn.repair', component: 'turnPipeline', level: 'warn',
+          speaker: input.label,
+          message: `CITE repair attempt ${citeAttempt}: ${citeVal.errorHints.length} error(s)`,
+          data: { stage: 'cite', attempt: citeAttempt, hints: citeVal.errorHints },
+        });
         console.log(`[pipeline] Cite validation errors (attempt ${citeAttempt}), retrying: ${citeVal.errorHints.join('; ')}`);
         continue;
       }

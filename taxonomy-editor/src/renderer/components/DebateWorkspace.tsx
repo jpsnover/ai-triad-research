@@ -9,6 +9,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
 import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode } from '../types/debate';
+import type { TopicCritique, StructuralScore, FrameScore } from '@lib/debate/topicCritique';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
 import { HarvestDialog } from './HarvestDialog';
@@ -269,11 +270,12 @@ function resolvePolRef(ref: PolicyRefEntry): { id: string; relevance: string | n
   return { id: ref.policy_id, relevance: ref.relevance };
 }
 
-function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
+function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDiagnostics }: {
   refs: TaxonomyRef[];
   policyRefs?: PolicyRefEntry[];
   metaPolicyRefs?: PolicyRefEntry[];
   entry?: TranscriptEntry;
+  stageDiagnostics?: { stage: string; raw_response: string; work_product: Record<string, unknown> }[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [caveatsExpanded, setCaveatsExpanded] = useState(false);
@@ -287,29 +289,17 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
     setTimeout(() => setExplainCopied(false), 3000);
   };
 
-  if (refs.length === 0 && polRefs.length === 0 && !entry) return null;
+  const briefStage = stageDiagnostics?.find(s => s.stage === 'brief');
+  const planStage = stageDiagnostics?.find(s => s.stage === 'plan');
+  const hasDiagSections = !!(briefStage || planStage);
+  const hasReasoning = refs.length > 0 || polRefs.length > 0 || hasDiagSections;
+
+  if (!hasReasoning && !entry) return null;
 
   return (
     <div className="debate-taxonomy-refs-section">
       <div className="debate-taxonomy-refs">
-        {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => (
-          <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
-        ))}
-        {polRefs.map((polRef, i) => {
-          const { id } = resolvePolRef(polRef);
-          return (
-            <span
-              key={`${id}-${i}`}
-              className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
-              style={{ borderColor: 'var(--color-sit)', color: 'var(--color-sit)' }}
-              title={getPolicyAction(id)}
-              onClick={(e) => { e.stopPropagation(); focusMainWindowNode(id); }}
-            >
-              {id}
-            </span>
-          );
-        })}
-        {(refs.length > 0 || polRefs.length > 0) && (
+        {hasReasoning && (
           <button
             className="debate-reasoning-toggle"
             onClick={() => setExpanded(e => !e)}
@@ -373,42 +363,192 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry }: {
       })()}
       {expanded && (
         <div className="debate-reasoning-list">
-          {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => {
-            const label = getNodeLabel(taxRef.node_id);
-            const { colorVar } = nodeIdToTab(taxRef.node_id);
-            return (
-              <div key={taxRef.node_id} className="debate-reasoning-item">
-                <button
-                  className="debate-reasoning-node"
-                  style={{ color: colorVar }}
-                  onClick={() => focusMainWindowNode(taxRef.node_id)}
-                >
-                  {taxRef.node_id}
-                  {taxRef.relevance_score != null && (
-                    <span style={{ fontWeight: 400, opacity: 0.7 }}>{' '}({taxRef.relevance_score.toFixed(2)})</span>
-                  )}
-                </button>
-                <span className="debate-reasoning-label">{label}</span>
-                <span className="debate-reasoning-text">{taxRef.relevance}</span>
+          {briefStage && (
+            <details open className="debate-reasoning-section">
+              <summary className="debate-reasoning-section-title" style={{ color: '#3b82f6' }}>BRIEF</summary>
+              <div className="debate-reasoning-section-body">
+                {(briefStage.work_product as Record<string, unknown>).situation_assessment
+                  ? <p style={{ margin: '4px 0', fontSize: '0.78rem' }}>{String((briefStage.work_product as Record<string, unknown>).situation_assessment)}</p>
+                  : <p style={{ margin: '4px 0', fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No situation assessment captured.</p>}
               </div>
-            );
-          })}
-          {polRefs.map((polRef, i) => {
-            const { id, relevance } = resolvePolRef(polRef);
-            return (
-              <div key={`${id}-${i}`} className="debate-reasoning-item">
-                <button
-                  className="debate-reasoning-node"
-                  style={{ color: 'var(--color-sit)' }}
-                  onClick={() => focusMainWindowNode(id)}
-                >
-                  {id}
-                </button>
-                <span className="debate-reasoning-label">{getPolicyAction(id)}</span>
-                <span className="debate-reasoning-text">{relevance ?? 'Policy action referenced by this debater\'s argument'}</span>
+            </details>
+          )}
+          {planStage && (
+            <details className="debate-reasoning-section">
+              <summary className="debate-reasoning-section-title" style={{ color: '#a855f7' }}>PLAN</summary>
+              <div className="debate-reasoning-section-body">
+                {(() => {
+                  const wp = planStage.work_product as Record<string, unknown>;
+                  if (!wp || Object.keys(wp).length === 0) {
+                    return <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(planStage.raw_response)}</Markdown>;
+                  }
+                  return (
+                    <>
+                      {(() => {
+                        const drp = wp.directive_response_plan as string | undefined;
+                        const dr = wp.directive_response as { directive: string; how_addressed: string } | undefined;
+                        if (!drp && !dr) return null;
+                        return (
+                          <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(245,158,11,0.6)', background: 'rgba(245,158,11,0.08)', borderRadius: 4, fontSize: '0.72rem' }}>
+                            <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.65rem' }}>MODERATOR DIRECTIVE</span>
+                            {dr && (
+                              <>
+                                <div style={{ marginTop: 4 }}><strong>Directive:</strong> {dr.directive}</div>
+                                <div><strong>How addressed:</strong> {dr.how_addressed}</div>
+                              </>
+                            )}
+                            {drp && !dr && <div style={{ marginTop: 4 }}>{String(drp)}</div>}
+                          </div>
+                        );
+                      })()}
+                      {!!wp.strategic_goal && (
+                        <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.75rem', fontWeight: 600 }}>
+                          {String(wp.strategic_goal)}
+                        </div>
+                      )}
+                      {!!wp.core_thesis && (
+                        <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.4)', background: 'rgba(168,85,247,0.05)', fontSize: '0.72rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.68rem' }}>Core Thesis: </span>
+                          {String(wp.core_thesis)}
+                        </div>
+                      )}
+                      {!!wp.framing_choices && (
+                        <div style={{ padding: 6, margin: '4px 0', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.7rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.68rem' }}>Framing: </span>
+                          {Array.isArray(wp.framing_choices)
+                            ? (wp.framing_choices as { frame: string; why: string }[]).map((fc, i) => (
+                              <div key={i} style={{ marginTop: i > 0 ? 4 : 2 }}>
+                                <strong>{fc.frame}</strong>
+                                {fc.why && <span style={{ opacity: 0.7 }}> — {fc.why}</span>}
+                              </div>
+                            ))
+                            : <span>{String(wp.framing_choices)}</span>
+                          }
+                        </div>
+                      )}
+                      {Array.isArray(wp.planned_moves) && (wp.planned_moves as unknown[]).length > 0 && (
+                        <details open style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Planned Moves</summary>
+                          {(wp.planned_moves as { move: string; target?: string; detail: string }[]).map((m, i) => (
+                            <div key={i} style={{ margin: '3px 0', paddingLeft: 6, borderLeft: '2px solid rgba(168,85,247,0.3)' }}>
+                              <span style={{ display: 'inline-block', padding: '1px 5px', borderRadius: 3, background: 'rgba(168,85,247,0.2)', color: '#a855f7', fontSize: '0.65rem', fontWeight: 600 }}>{m.move}</span>
+                              {m.target && <span style={{ marginLeft: 4, fontSize: '0.62rem', color: 'var(--text-muted)' }}>{'→'} {m.target}</span>}
+                              {m.detail && <div style={{ fontSize: '0.68rem', marginTop: 1 }}>{m.detail}</div>}
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {Array.isArray(wp.argument_structure) && (wp.argument_structure as unknown[]).length > 0 && (
+                        <details open style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Argumentation Structure</summary>
+                          {(wp.argument_structure as { point: string; evidence: string; taxonomy_anchor: string }[]).map((s, i) => (
+                            <div key={i} style={{ margin: '3px 0', padding: '4px 6px', borderLeft: '2px solid rgba(168,85,247,0.3)', background: 'rgba(168,85,247,0.03)', borderRadius: '0 4px 4px 0' }}>
+                              <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{s.point}</div>
+                              {s.evidence && <div style={{ fontSize: '0.68rem', marginTop: 1 }}>{s.evidence}</div>}
+                              {s.taxonomy_anchor && (
+                                <div style={{ marginTop: 2 }}>
+                                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Anchor: </span>
+                                  <button
+                                    onClick={() => focusMainWindowNode(s.taxonomy_anchor)}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: '0.62rem' }}
+                                  >{s.taxonomy_anchor}</button>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </details>
+                      )}
+                      {!!wp.argument_sketch && (
+                        <details open style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Argument Sketch</summary>
+                          <div style={{ fontSize: '0.7rem', padding: 4, background: 'rgba(128,128,128,0.05)', borderRadius: 4 }}>
+                            {String(wp.argument_sketch)}
+                          </div>
+                        </details>
+                      )}
+                      {Array.isArray(wp.anticipated_responses) && (wp.anticipated_responses as string[]).length > 0 && (
+                        <details style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Anticipated Responses</summary>
+                          <ul style={{ fontSize: '0.7rem', margin: '2px 0', paddingLeft: 14 }}>
+                            {(wp.anticipated_responses as string[]).map((r, i) => (
+                              <li key={i}>{r}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                      {Array.isArray(wp.anticipated_challenges) && (wp.anticipated_challenges as string[]).length > 0 && (
+                        <details style={{ margin: '4px 0' }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}>Anticipated Challenges</summary>
+                          <ul style={{ fontSize: '0.7rem', margin: '2px 0', paddingLeft: 14 }}>
+                            {(wp.anticipated_challenges as string[]).map((r, i) => (
+                              <li key={i}>{r}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
-            );
-          })}
+            </details>
+          )}
+          {(refs.length > 0 || polRefs.length > 0) && (
+            <details className="debate-reasoning-section">
+              <summary className="debate-reasoning-section-title" style={{ color: '#f59e0b' }}>BDI</summary>
+              <div className="debate-reasoning-section-body">
+                <div className="debate-taxonomy-refs" style={{ marginBottom: 6 }}>
+                  {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => (
+                    <TaxonomyPill key={taxRef.node_id} taxRef={taxRef} />
+                  ))}
+                  {polRefs.map((polRef, i) => {
+                    const { id } = resolvePolRef(polRef);
+                    return (
+                      <span
+                        key={`${id}-${i}`}
+                        className="debate-taxonomy-pill debate-taxonomy-pill-clickable"
+                        style={{ borderColor: 'var(--color-sit)', color: 'var(--color-sit)' }}
+                        title={getPolicyAction(id)}
+                        onClick={(e) => { e.stopPropagation(); focusMainWindowNode(id); }}
+                      >
+                        {id}
+                      </span>
+                    );
+                  })}
+                </div>
+                {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => {
+                  const label = getNodeLabel(taxRef.node_id);
+                  const { colorVar } = nodeIdToTab(taxRef.node_id);
+                  return (
+                    <div key={taxRef.node_id} className="debate-reasoning-item">
+                      <button
+                        className="debate-reasoning-node"
+                        style={{ color: colorVar }}
+                        onClick={() => focusMainWindowNode(taxRef.node_id)}
+                      >
+                        {taxRef.node_id}
+                        {taxRef.relevance_score != null && (
+                          <span style={{ fontWeight: 400, opacity: 0.7 }}>{' '}({taxRef.relevance_score.toFixed(2)})</span>
+                        )}
+                      </button>
+                      <span className="debate-reasoning-label">{label}</span>
+                      <span className="debate-reasoning-text">{taxRef.relevance}</span>
+                    </div>
+                  );
+                })}
+                {polRefs.map((polRef, i) => {
+                  const { id, relevance } = resolvePolRef(polRef);
+                  return (
+                    <div key={`${id}-${i}`} className="debate-reasoning-item">
+                      <button
+                        className="debate-reasoning-node"
+                        style={{ color: 'var(--color-sit)' }}
+                        onClick={() => focusMainWindowNode(id)}
+                      >
+                        {id}
+                      </button>
+                      <span className="debate-reasoning-label">{getPolicyAction(id)}</span>
+                      <span className="debate-reasoning-text">{relevance ?? "Policy action referenced by this debater's argument"}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          )}
         </div>
       )}
     </div>
@@ -951,6 +1091,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         policyRefs={entry.policy_refs}
         metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
         entry={entry}
+        stageDiagnostics={activeDebate?.diagnostics?.entries[entry.id]?.stage_diagnostics as { stage: string; raw_response: string; work_product: Record<string, unknown> }[] | undefined}
       />
     </div>
   );
@@ -1131,6 +1272,7 @@ function EntryCommentBadge({ entryId }: { entryId: string }) {
 function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, findCurrentIndex = -1 }: {
   entry: TranscriptEntry; statementId?: string; findQuery?: string; matchOffset?: number; findCurrentIndex?: number;
 }) {
+  const activeDebate = useDebateStore(s => s.activeDebate);
   const [showWebEvidence, setShowWebEvidence] = useState(false);
   const factCheck = entry.metadata?.fact_check as {
     verdict: string;
@@ -1294,6 +1436,7 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         policyRefs={entry.policy_refs}
         metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
         entry={entry}
+        stageDiagnostics={activeDebate?.diagnostics?.entries[entry.id]?.stage_diagnostics as { stage: string; raw_response: string; work_product: Record<string, unknown> }[] | undefined}
       />
     </div>
   );
@@ -1438,6 +1581,252 @@ function ClaimsEditor() {
   );
 }
 
+// ── Topic Critique Card ──────────────────────────────────
+
+const DIMENSION_LABELS: Record<string, string> = {
+  crux_density: 'Crux Density',
+  evidence_coverage: 'Evidence',
+  bdi_heterogeneity: 'BDI Balance',
+  abstraction_level: 'Abstraction',
+  situation_activation: 'Situations',
+  conditionality: 'Conditionality',
+  mechanism: 'Mechanism',
+  stakeholder: 'Stakeholders',
+  tension: 'Tension',
+  scope: 'Scope',
+};
+
+const RATING_COLORS: Record<string, string> = {
+  strong: '#16a34a',
+  fair: '#d97706',
+  weak: '#dc2626',
+};
+
+function RadarChart({ structural, frame }: { structural: StructuralScore; frame: FrameScore | null }) {
+  const dimensions = [
+    { key: 'crux_density', value: structural.crux_density },
+    { key: 'evidence_coverage', value: structural.evidence_coverage },
+    { key: 'bdi_heterogeneity', value: structural.bdi_heterogeneity },
+    { key: 'abstraction_level', value: structural.abstraction_level },
+    { key: 'situation_activation', value: structural.situation_activation },
+    { key: 'conditionality', value: frame?.conditionality ?? 0 },
+    { key: 'mechanism', value: frame?.mechanism ?? 0 },
+    { key: 'stakeholder', value: frame?.stakeholder ?? 0 },
+    { key: 'tension', value: frame?.tension ?? 0 },
+    { key: 'scope', value: frame?.scope ?? 0 },
+  ];
+
+  const cx = 100, cy = 100, r = 75;
+  const n = dimensions.length;
+  const angleStep = (2 * Math.PI) / n;
+  const maxVal = 2;
+
+  const pointAt = (i: number, val: number) => {
+    const angle = -Math.PI / 2 + i * angleStep;
+    const dist = (val / maxVal) * r;
+    return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) };
+  };
+
+  // Grid rings at 1 and 2
+  const ringPaths = [1, 2].map(ring => {
+    const pts = Array.from({ length: n }, (_, i) => pointAt(i, ring));
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
+  });
+
+  // Data polygon
+  const dataPts = dimensions.map((d, i) => pointAt(i, d.value));
+  const dataPath = dataPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
+
+  // Axis lines
+  const axes = Array.from({ length: n }, (_, i) => pointAt(i, maxVal));
+
+  return (
+    <svg viewBox="0 0 200 200" style={{ width: 200, height: 200 }}>
+      {/* Grid rings */}
+      {ringPaths.map((d, i) => (
+        <path key={i} d={d} fill="none" stroke="var(--border-color, #555)" strokeWidth={0.5} opacity={0.4} />
+      ))}
+      {/* Axis lines */}
+      {axes.map((p, i) => (
+        <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="var(--border-color, #555)" strokeWidth={0.3} opacity={0.3} />
+      ))}
+      {/* Data polygon */}
+      <path d={dataPath} fill="var(--accent-color, #3b82f6)" fillOpacity={0.2} stroke="var(--accent-color, #3b82f6)" strokeWidth={1.5} />
+      {/* Data points */}
+      {dataPts.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={2.5}
+          fill={dimensions[i].value === 0 ? '#dc2626' : dimensions[i].value === 1 ? '#d97706' : '#16a34a'}
+        />
+      ))}
+      {/* Labels */}
+      {axes.map((p, i) => {
+        const label = DIMENSION_LABELS[dimensions[i].key] ?? dimensions[i].key;
+        const dx = p.x - cx, dy = p.y - cy;
+        const labelDist = 14;
+        const lx = p.x + (dx / r) * labelDist;
+        const ly = p.y + (dy / r) * labelDist;
+        const anchor = Math.abs(dx) < 5 ? 'middle' : dx > 0 ? 'start' : 'end';
+        return (
+          <text key={i} x={lx} y={ly} textAnchor={anchor} dominantBaseline="central"
+            style={{ fontSize: 7.5, fill: 'var(--text-secondary, #999)' }}>
+            {label}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
+function TopicCritiqueCard({ critique, onUseSuggested }: { critique: TopicCritique; onUseSuggested: (topic: string) => void }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const ratingColor = RATING_COLORS[critique.rating] ?? '#888';
+  const highIssues = critique.issues.filter(i => i.severity === 'high');
+  const mediumIssues = critique.issues.filter(i => i.severity === 'medium');
+
+  return (
+    <div className="topic-critique-card" style={{
+      border: `1px solid ${ratingColor}40`,
+      borderRadius: 8,
+      padding: '12px 16px',
+      marginBottom: 12,
+      background: `${ratingColor}08`,
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <span style={{
+          background: ratingColor, color: '#fff', padding: '2px 10px', borderRadius: 4,
+          fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase',
+        }}>
+          {critique.rating}
+        </span>
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Topic Quality: {critique.composite_score}/20
+          {critique.structural_score && <> (structural {critique.structural_score.total}/10</>}
+          {critique.frame_score && <>, frame {critique.frame_score.total}/10)</>}
+          {!critique.frame_score && <>)</>}
+        </span>
+        <button
+          className="btn btn-sm"
+          onClick={() => setShowDetails(d => !d)}
+          style={{ marginLeft: 'auto', fontSize: '0.75rem', padding: '2px 8px' }}
+        >
+          {showDetails ? 'Hide Details' : 'Show Details'}
+        </button>
+      </div>
+
+      {/* Issues summary */}
+      {(highIssues.length > 0 || mediumIssues.length > 0) && (
+        <div style={{ fontSize: '0.8rem', marginBottom: 8 }}>
+          {highIssues.length > 0 && (
+            <div style={{ color: '#dc2626', marginBottom: 2 }}>
+              {highIssues.length} critical issue{highIssues.length !== 1 ? 's' : ''}: {highIssues.map(i => DIMENSION_LABELS[i.dimension] ?? i.dimension).join(', ')}
+            </div>
+          )}
+          {mediumIssues.length > 0 && (
+            <div style={{ color: '#d97706' }}>
+              {mediumIssues.length} warning{mediumIssues.length !== 1 ? 's' : ''}: {mediumIssues.map(i => DIMENSION_LABELS[i.dimension] ?? i.dimension).join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Rewritten topic suggestion */}
+      {critique.rewritten_topic && critique.rating !== 'strong' && (
+        <div style={{
+          background: 'var(--bg-secondary, #1a1a2e)',
+          borderRadius: 6, padding: '8px 12px', marginBottom: 8,
+          border: '1px solid var(--border-color, #333)',
+        }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
+            Suggested topic:
+          </div>
+          <div style={{ fontSize: '0.85rem', fontStyle: 'italic', marginBottom: 6 }}>
+            {critique.rewritten_topic}
+          </div>
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={() => onUseSuggested(critique.rewritten_topic)}
+            style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+          >
+            Use Suggested Topic
+          </button>
+        </div>
+      )}
+
+      {/* Expanded details */}
+      {showDetails && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            {/* Radar chart */}
+            <RadarChart structural={critique.structural_score} frame={critique.frame_score} />
+
+            {/* Dimension breakdown */}
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-secondary)' }}>
+                Structural (taxonomy alignment)
+              </div>
+              {(['crux_density', 'evidence_coverage', 'bdi_heterogeneity', 'abstraction_level', 'situation_activation'] as const).map(key => {
+                const val = critique.structural_score[key] as number;
+                return (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.8rem' }}>
+                    <span style={{ width: 90, color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</span>
+                    <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
+                    <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
+                  </div>
+                );
+              })}
+
+              {critique.frame_score && (
+                <>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: 'var(--text-secondary)' }}>
+                    Frame (linguistic quality)
+                  </div>
+                  {(['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const).map(key => {
+                    const val = critique.frame_score![key] as number;
+                    return (
+                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.8rem' }}>
+                        <span style={{ width: 90, color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</span>
+                        <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
+                        <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Issues list */}
+          {critique.issues.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-secondary)' }}>Issues</div>
+              {critique.issues.map((issue, i) => (
+                <div key={i} style={{ fontSize: '0.8rem', marginBottom: 6, paddingLeft: 8, borderLeft: `2px solid ${issue.severity === 'high' ? '#dc2626' : issue.severity === 'medium' ? '#d97706' : '#6b7280'}` }}>
+                  <div>{issue.description}</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: 2 }}>{issue.suggestion}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Reframe suggestions */}
+          {critique.reframe_suggestions.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-secondary)' }}>Reframe Suggestions</div>
+              {critique.reframe_suggestions.map((s, i) => (
+                <div key={i} style={{ fontSize: '0.8rem', marginBottom: 4 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[s.dimension] ?? s.dimension}:</span>{' '}
+                  <span style={{ fontStyle: 'italic' }}>{s.reframed_fragment}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Clarification phase action bar */
 interface StructuredQuestion {
   question: string;
@@ -1450,14 +1839,25 @@ function ClarificationActions() {
     runClarification, submitAnswersAndSynthesize, beginDebate, runOpeningStatements,
     initialCrossRespondRounds, setInitialCrossRespondRounds,
     openingOrder, setOpeningOrder,
+    runTopicCritique, topicCritiqueLoading, updateTopic,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError,
       runClarification: s.runClarification, submitAnswersAndSynthesize: s.submitAnswersAndSynthesize, beginDebate: s.beginDebate, runOpeningStatements: s.runOpeningStatements,
       initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds,
       openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder,
+      runTopicCritique: s.runTopicCritique, topicCritiqueLoading: s.topicCritiqueLoading, updateTopic: s.updateTopic,
     }))
   );
+
+  // Auto-trigger topic critique for free-form topics on first render
+  const critiqueTriggered = useRef(false);
+  useEffect(() => {
+    if (activeDebate?.source_type === 'topic' && !activeDebate.topic.critique && !critiqueTriggered.current && !topicCritiqueLoading) {
+      critiqueTriggered.current = true;
+      void runTopicCritique();
+    }
+  }, [activeDebate?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [answer, setAnswer] = useState('');
   const [selections, setSelections] = useState<Record<number, string>>({});
   const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});
@@ -1536,6 +1936,23 @@ function ClarificationActions() {
   return (
     <div className="debate-action-bar">
       {debateError && <div className="debate-error">{debateError}</div>}
+
+      {/* Topic critique card — shows for free-form topic debates */}
+      {topicCritiqueLoading && (
+        <div className="debate-action-hint" style={{ fontStyle: 'italic' }}>Evaluating topic quality...</div>
+      )}
+      {activeDebate.topic.critique && (
+        <TopicCritiqueCard
+          critique={activeDebate.topic.critique as TopicCritique}
+          onUseSuggested={(suggested) => {
+            updateTopic({ final: suggested });
+            // Reset critique so it can be re-evaluated with new topic
+            updateTopic({ critique: undefined } as any);
+            critiqueTriggered.current = false;
+            void runTopicCritique();
+          }}
+        />
+      )}
 
       {!hasClarifications && !isGenerating && (
         <div className="debate-clarification-choice">
@@ -1875,6 +2292,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
 
   const isGenerating = !!debateGenerating;
   const disabled = isGenerating || sending || activeDebate.phase === 'closed';
+  const isSocratic = (activeDebate.active_povers ?? []).filter(p => p !== 'user').length < 2;
 
   // Filter mention options to active AI povers
   const mentionOptions = AI_MENTION_OPTIONS.filter(o => activeDebate.active_povers.includes(o.id as SpeakerId));
@@ -2012,7 +2430,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         >
           Send
         </button>
-        {isAdaptive ? (
+        {!isSocratic && (isAdaptive ? (
           /* Adaptive mode: single "Continue" button that lets the engine decide */
           <button
             className="btn debate-continue-btn"
@@ -2046,7 +2464,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
               ))}
             </select>
           </div>
-        )}
+        ))}
       </div>
       {/* Row 2: Phase overrides (adaptive) + Analysis actions + Audience */}
       <div className="debate-action-bar-secondary">

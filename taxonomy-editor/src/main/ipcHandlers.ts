@@ -966,11 +966,12 @@ export function registerIpcHandlers(): void {
         return;
       }
       // One-time listener for the dump result from the main window
+      let timeout: ReturnType<typeof setTimeout>;
       const handler = (_e: Electron.IpcMainEvent, result: { filePath: string }) => {
         clearTimeout(timeout);
         resolve(result);
       };
-      const timeout = setTimeout(() => {
+      timeout = setTimeout(() => {
         ipcMain.removeListener('dump-result', handler);
         reject(new Error('Dump request timed out'));
       }, 10_000);

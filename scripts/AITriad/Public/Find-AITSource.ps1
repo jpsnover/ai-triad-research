@@ -47,7 +47,7 @@ function Find-AITSource {
         return
     }
 
-    $SummaryFiles = Get-ChildItem -Path $SummariesDir -Filter '*.json' -File
+    $SummaryFiles = @(Get-ChildItem -Path $SummariesDir -Filter '*.json' -File)
     if ($SummaryFiles.Count -eq 0) {
         Write-Warning "No summary files found in $SummariesDir"
         return
@@ -82,7 +82,7 @@ function Find-AITSource {
         # Scan all POV summaries for matching taxonomy_node_id values
         $Hits = [System.Collections.Generic.List[PSObject]]::new()
 
-        foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic')) {
+        foreach ($PovName in $Summary.pov_summaries.PSObject.Properties.Name) {
             $PovData = $Summary.pov_summaries.$PovName
             if (-not $PovData) { continue }
 

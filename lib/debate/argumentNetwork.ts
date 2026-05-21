@@ -841,6 +841,8 @@ export interface ProcessClaimsInput {
   taxonomyEdges?: { source: string; target: string; weight?: number }[];
   /** Known valid node IDs for taxonomy ref sanitization. When provided, invalid refs are corrected or stripped. */
   knownNodeIds?: Set<string>;
+  /** IDs of nodes identified as crux nodes. Used by marginal value filter to exempt crux-connected claims. */
+  cruxNodeIds?: Set<string>;
 }
 
 export interface ProcessClaimsResult {
@@ -852,6 +854,8 @@ export interface ProcessClaimsResult {
   rejectionReasons: Record<string, number>;
   rejectedOverlapPcts: number[];
   maxOverlapVsExisting: number;
+  /** Number of claims rejected by the marginal value filter (anti-filibustering). */
+  lowValueClaimsRejected: number;
 }
 
 const VALID_ATTACK_TYPES = new Set(['rebut', 'undercut', 'undermine']);
@@ -1048,6 +1052,28 @@ export function processExtractedClaims(
           node.base_strength = specStrength;
           node.scoring_method = 'belief_specificity';
         }
+      }
+    }
+
+    // Anti-filibustering: reject low-value claims that don't connect to cruxes or introduce novel schemes
+    const nodeStrength = node.base_strength ?? 0.5;
+    if (nodeStrength < 0.25) {
+      const cruxIds = input.cruxNodeIds;
+      const connectsToCrux = cruxIds && cruxIds.size > 0 && (claim.responds_to ?? []).some(
+        rel => rel.prior_claim_id && cruxIds.has(rel.prior_claim_id),
+      );
+      const recentSchemes = new Set(
+        allNodes.slice(-10).flatMap(n => {
+          const edges = newEdges.filter(e => e.source === n.id || e.target === n.id);
+          return edges.map(e => e.argumentation_scheme).filter(Boolean) as string[];
+        }),
+      );
+      const scheme = (claim.responds_to ?? []).find(r => r.scheme || r.argumentation_scheme);
+      const isNovelScheme = scheme && !recentSchemes.has(scheme.scheme ?? scheme.argumentation_scheme ?? '');
+      if (!connectsToCrux && !isNovelScheme) {
+        rejected.push({ text: claim.text, reason: 'low_marginal_value', overlap_pct: Math.round(overlap * 100) });
+        rejectionReasons['low_marginal_value'] = (rejectionReasons['low_marginal_value'] ?? 0) + 1;
+        continue;
       }
     }
 

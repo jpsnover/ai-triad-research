@@ -12,6 +12,8 @@ console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 console.log('[embeddings] Tavily import OK');
 
+const EXPECTED_DIMENSION = 384;
+
 // ── Shared AI-client imports ──
 import {
   withTimeout,
@@ -419,7 +421,6 @@ async function callGeminiBatchApi(
   });
 }
 
-const EXPECTED_DIMENSION = 384;
 
 async function computeEmbeddingsViaApi(texts: string[]): Promise<number[][]> {
   const apiKey = loadApiKey();
@@ -517,6 +518,7 @@ let _debateTemperature: number | null = null;
 
 /** Set the temperature for debate AI calls. Pass null to reset to default (0.7). */
 export function setDebateTemperature(temp: number | null): void {
+  if (temp === _debateTemperature) return;
   _debateTemperature = temp;
   if (temp !== null) console.log(`[AI] Debate temperature set to: ${temp}`);
   else console.log('[AI] Debate temperature reset to default (0.7)');

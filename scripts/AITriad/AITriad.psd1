@@ -96,6 +96,7 @@
         'Show-OSSLicenses'
         'Get-FlightRecorderDump'
         'Show-FlightRecorder'
+        'Update-AITSourceIndex'
     )
 
     # Aliases exported from this module

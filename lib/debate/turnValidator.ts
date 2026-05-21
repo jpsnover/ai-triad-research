@@ -32,6 +32,7 @@ import type {
 import type { PoverResponseMeta } from './helpers.js';
 import { parseJsonRobust, getMoveName, SUPPORT_MOVES } from './helpers.js';
 import { checkInterventionCompliance } from './moderator.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Canonical move catalog — 10 well-differentiated dialectical moves ──
 const MOVE_CATALOG_RAW = [
@@ -1207,16 +1208,23 @@ export function validateDraftStage(p: {
     }
   }
 
-  return {
+  const draftResult = {
     pass: errors.length === 0,
     repairHints: [...errors, ...warnings],
     errorHints: errors,
     details,
     failedDimension: errors.length > 0
       ? (directiveResult && !directiveResult.compliant ? 'directive' : 'schema')
-      : undefined,
+      : undefined as 'schema' | 'grounding' | 'plan' | 'directive' | undefined,
     directive_compliance: directiveResult,
   };
+  getGlobalRecorder()?.record({
+    type: draftResult.pass ? 'turn.validate' : 'turn.stage.validation.fail',
+    component: 'turnValidator', level: draftResult.pass ? 'info' : 'warn',
+    message: `draft validation ${draftResult.pass ? 'passed' : 'failed'}: ${errors.length} error(s), ${warnings.length} warning(s)`,
+    data: { stage: 'draft', pass: draftResult.pass, error_count: errors.length, warning_count: warnings.length, failed_dimension: draftResult.failedDimension },
+  });
+  return draftResult;
 }
 
 /**
@@ -1288,12 +1296,19 @@ export function validateCiteStage(p: {
     }
   }
 
-  return {
+  const citeResult = {
     pass: errors.length === 0,
     repairHints: [...errors, ...warnings],
     errorHints: errors,
-    failedDimension: errors.length > 0 ? 'grounding' : undefined,
+    failedDimension: errors.length > 0 ? 'grounding' as const : undefined,
   };
+  getGlobalRecorder()?.record({
+    type: citeResult.pass ? 'turn.validate' : 'turn.stage.validation.fail',
+    component: 'turnValidator', level: citeResult.pass ? 'info' : 'warn',
+    message: `cite validation ${citeResult.pass ? 'passed' : 'failed'}: ${errors.length} error(s), ${warnings.length} warning(s)`,
+    data: { stage: 'cite', pass: citeResult.pass, error_count: errors.length, warning_count: warnings.length, taxonomy_refs_count: taxonomyRefs.length },
+  });
+  return citeResult;
 }
 
 /**
@@ -1371,11 +1386,18 @@ export function validatePlanStage(p: {
     details.push({ rule: 'target_claims', pass: true, value: 'skipped (first round)' });
   }
 
-  return {
+  const planResult = {
     pass: errors.length === 0,
     repairHints: [...errors, ...warnings],
     errorHints: errors,
     details,
-    failedDimension: errors.length > 0 ? 'plan' : undefined,
+    failedDimension: errors.length > 0 ? 'plan' as const : undefined,
   };
+  getGlobalRecorder()?.record({
+    type: planResult.pass ? 'turn.validate' : 'turn.stage.validation.fail',
+    component: 'turnValidator', level: planResult.pass ? 'info' : 'warn',
+    message: `plan validation ${planResult.pass ? 'passed' : 'failed'}: ${errors.length} error(s), ${warnings.length} warning(s)`,
+    data: { stage: 'plan', pass: planResult.pass, error_count: errors.length, warning_count: warnings.length, move_count: (plan.planned_moves ?? []).length },
+  });
+  return planResult;
 }

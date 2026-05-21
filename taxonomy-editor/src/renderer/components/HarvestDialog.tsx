@@ -8,6 +8,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { ArgumentNetworkNode } from '../types/debate';
 import { QbafClaimBadge } from './QbafOverlay';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import {
   extractConflictCandidates,
   extractSteelmanCandidates,
@@ -374,6 +375,7 @@ Return ONLY JSON (no markdown):
   const handleApply = async () => {
     if (!activeDebate) return;
     setApplying(true);
+    getGlobalRecorder()?.record({ type: 'lifecycle', component: 'harvest', level: 'info', message: 'harvest.start', data: { debate_id: activeDebate.id, conflicts: conflicts.filter(c => c.checked).length, steelmans: steelmans.filter(s => s.checked).length, debate_refs: debateRefs.filter(r => r.checked).length, verdicts: verdicts.filter(v => v.checked).length, concepts: concepts.filter(c => c.checked).length } });
     const manifest: HarvestManifestItem[] = [];
     let applied = 0, failed = 0;
 
@@ -494,6 +496,7 @@ Return ONLY JSON (no markdown):
     });
 
     setResult({ applied, failed });
+    getGlobalRecorder()?.record({ type: 'lifecycle', component: 'harvest', level: applied > 0 ? 'info' : 'warn', message: 'harvest.complete', data: { debate_id: activeDebate.id, applied, failed, manifest_items: manifest.length } });
     setApplying(false);
   };
 

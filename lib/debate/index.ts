@@ -26,6 +26,7 @@ export * from './nodeIdUtils.js';
 export * from './qbaf.js';
 export * from './qbafCombinator.js';
 export * from './concessionTracker.js';
+export * from './strategicHints.js';
 export * from './networkGc.js';
 export * from './coverageTracker.js';
 export * from './debateExport.js';
@@ -51,7 +52,11 @@ export * from './envelopes.js';
 export * from './cacheTypes.js';
 export * from './situationRefs.js';
 export * from './newsReport.js';
+export * from './counterfactualCrux.js';
+export * from './beliefTracking.js';
+export * from './lookaheadGate.js';
 export * from './citationResolution.js';
+export * from './topicCritique.js';
 // schemas.ts deliberately excluded from barrel — it imports zod.
 // cli.ts deliberately excluded from barrel — it is the CLI entry point.
 // phaseTransitions.ts excluded — imports fs/path (Node.js only).

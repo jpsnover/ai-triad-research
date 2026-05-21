@@ -124,6 +124,10 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
     ? `,\n  "directive_response_plan": "${pi.isTargeted ? '1-3 sentences: how you will directly respond to the moderator directive in your opening paragraph' : '1 sentence: brief acknowledgment of the moderator directive as it relates to your position'}"`
     : '';
 
+  const strategicHintsBlock = input.strategicHints && input.strategicHints.length > 0
+    ? `=== OPPONENT INTELLIGENCE ===\nThe following tactical observations were computed from the argument network and commitment stores. Use them to inform your strategy — they suggest exploitable weaknesses or shifts in opponent behavior.\n${input.strategicHints.map(h => '- ' + h).join('\n')}`
+    : '';
+
   return {
     layer1_static: '',
 
@@ -136,6 +140,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
       moveHistoryBlock,
       flaggedBlock,
       interventionBlock,
+      strategicHintsBlock,
       `=== AVAILABLE DIALECTICAL MOVES ===\nThe 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}\n\nEach move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}`,
       `=== FIELD-AWARE STRATEGY ===
 Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:

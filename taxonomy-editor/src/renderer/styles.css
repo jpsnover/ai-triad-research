@@ -14171,3 +14171,34 @@ th[data-tooltip]::after {
   color: var(--text-secondary);
   margin-top: 2px;
 }
+
+/* ── Reasoning collapsible sections (BRIEF / PLAN / BDI) ── */
+.debate-reasoning-section {
+  margin: 2px 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.debate-reasoning-section[open] {
+  margin-bottom: 6px;
+}
+.debate-reasoning-section-title {
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(128, 128, 128, 0.06);
+  user-select: none;
+}
+.debate-reasoning-section-title:hover {
+  background: rgba(128, 128, 128, 0.12);
+}
+.debate-reasoning-section-body {
+  padding: 6px 8px 8px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.debate-reasoning-section-body .markdown-body {
+  font-size: 0.75rem;
+}

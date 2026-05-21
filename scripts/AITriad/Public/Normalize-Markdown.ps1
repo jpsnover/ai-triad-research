@@ -60,6 +60,9 @@ function Normalize-Markdown {
     $Text = [regex]::Replace($Text, "[─-╿⌐]", ' ')
 
     # Decode residual HTML entities (from pandoc/markitdown paths)
+    # NOTE: HtmlDecode runs globally, including inside fenced code blocks.
+    # This may convert &amp; → & in code samples. Accepted as a known
+    # limitation given the academic prose focus of the research corpus.
     $Text = [System.Net.WebUtility]::HtmlDecode($Text)
 
     # Normalize whitespace

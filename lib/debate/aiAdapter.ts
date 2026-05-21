@@ -28,6 +28,7 @@ import {
   GEMINI_BASE,
   geminiGroundedSearch,
 } from '../ai-client/index.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type {
   ProviderResult,
   GenerateOptions as SharedGenerateOptions,
@@ -204,16 +205,35 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     const opts = options ?? {};
 
     const t0 = performance.now();
+    getGlobalRecorder()?.record({
+      type: 'ai.request', component: 'aiAdapter', level: 'info',
+      message: `generateText ${backend}/${apiModelId}`,
+      data: { backend, model: apiModelId, fn: 'generateText' },
+    });
     try {
       const result = await withRetry(
         () => callProvider(fetch, backend, prompt, apiModelId, apiKey, opts),
         CLI_RETRY_CONFIG, `${backend}/${apiModelId}`, retryLog,
       );
       emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
+      getGlobalRecorder()?.record({
+        type: 'ai.response', component: 'aiAdapter', level: 'info',
+        duration_ms: Math.round(performance.now() - t0),
+        message: `generateText success ${backend}/${apiModelId}`,
+        data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage },
+      });
       return result.text;
     } catch (primaryErr) {
       const errMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
       const isAuthError = errMsg.includes('401') || errMsg.includes('403');
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'aiAdapter', level: 'error',
+        error_category: isAuthError ? 'permissions' : 'ai_provider',
+        duration_ms: Math.round(performance.now() - t0),
+        message: `generateText failed ${backend}/${apiModelId}: ${errMsg.slice(0, 120)}`,
+        error: { name: primaryErr instanceof Error ? primaryErr.name : 'Error', message: errMsg },
+        data: { backend, model: apiModelId, fn: 'generateText', isAuthError },
+      });
       const chain = registry.fallbackChains?.[model] ?? [];
       for (const fbModel of chain) {
         const fb = resolveModel(registry, fbModel);
@@ -240,6 +260,11 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     const resolvedReq = { ...request, model: apiModelId };
 
     const t0 = performance.now();
+    getGlobalRecorder()?.record({
+      type: 'ai.request', component: 'aiAdapter', level: 'info',
+      message: `generate (envelope) ${backend}/${apiModelId}`,
+      data: { backend, model: apiModelId, fn: 'generate' },
+    });
     try {
       const result = await withRetry(
         () => callEnvelopeProvider(backend, resolvedReq, apiKey),
@@ -253,8 +278,22 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         cacheReadTokens: result.usage?.cachedTokens,
       });
       emitUsageTelemetry(backend, apiModelId, latency, result.usage);
+      getGlobalRecorder()?.record({
+        type: 'ai.response', component: 'aiAdapter', level: 'info',
+        duration_ms: Math.round(latency),
+        message: `generate (envelope) success ${backend}/${apiModelId}`,
+        data: { backend, model: apiModelId, fn: 'generate', usage: { inputTokens: result.usage?.promptTokens, outputTokens: result.usage?.completionTokens, cachedTokens: result.usage?.cachedTokens } },
+      });
       return { text: result.text, usage, model: apiModelId, backend, responseTimeMs: Math.round(latency) };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'ai.error', component: 'aiAdapter', level: 'warn',
+        error_category: 'ai_provider',
+        duration_ms: Math.round(performance.now() - t0),
+        message: `generate (envelope) fallback ${backend}/${apiModelId}`,
+        error: { name: err instanceof Error ? err.name : 'Error', message: err instanceof Error ? err.message : String(err) },
+        data: { backend, model: apiModelId, fn: 'generate', fallback: true },
+      });
       // Graceful degradation: fall back to flat generateText
       process.stderr.write(`[envelope-fallback] ${backend}/${apiModelId}: ${err instanceof Error ? err.message.slice(0, 100) : err}\n`);
       const flatPrompt = flattenEnvelope(request.envelope);

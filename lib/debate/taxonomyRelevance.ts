@@ -8,6 +8,7 @@
  */
 
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
+import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 
 export interface NodeRelevanceScore {
   nodeId: string;
@@ -265,4 +266,96 @@ export function scoreNodesViaAN(
   }
 
   return scores;
+}
+
+// ── Adaptive situation re-scoring (t/23) ────────────────────────────
+
+/** Diversity bonus for situations covering all three disagreement types. */
+const DIVERSITY_BONUS = 0.15;
+/** Penalty for previously-injected but never-referenced situations. */
+const STALE_PENALTY = -0.20;
+
+export interface SituationReScoreInput {
+  situationNodes: readonly SituationNode[];
+  cruxes: readonly TrackedCrux[];
+  anNodes: readonly ArgumentNetworkNode[];
+  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>;
+  /** Situation IDs that were injected in prior turns. */
+  injectedSitIds: ReadonlySet<string>;
+  /** Situation IDs actually referenced in transcript taxonomy_refs. */
+  referencedSitIds: ReadonlySet<string>;
+}
+
+/**
+ * Re-score situation nodes against emerging cruxes at phase transitions.
+ *
+ * Three adjustment components:
+ * 1. Crux alignment: max cosine similarity of the situation's embedding
+ *    to any crux-related AN claim embedding (via attacking_claim_ids).
+ * 2. Diversity bonus: +0.15 for situations whose disagreement_type is
+ *    underrepresented in the current selection (covers all 3 types).
+ * 3. Stale penalty: -0.20 for situations that were injected but never
+ *    referenced by any debater.
+ *
+ * Returns a Map of situation node ID → score adjustment to add to base scores.
+ */
+export function reScoreSituationsForCruxes(input: SituationReScoreInput): Map<string, number> {
+  const adjustments = new Map<string, number>();
+
+  // Build crux-related claim embeddings from AN nodes
+  const cruxClaimIds = new Set<string>();
+  for (const crux of input.cruxes) {
+    for (const claimId of crux.attacking_claim_ids) cruxClaimIds.add(claimId);
+  }
+
+  const cruxEmbeddings: { vector: number[]; strength: number }[] = [];
+  for (const node of input.anNodes) {
+    if (cruxClaimIds.has(node.id) && node.embedding && node.embedding.length > 0) {
+      cruxEmbeddings.push({
+        vector: node.embedding,
+        strength: node.computed_strength ?? node.base_strength ?? 0.5,
+      });
+    }
+  }
+
+  // Count existing disagreement types for diversity bonus
+  const typePresence = new Set<string>();
+  for (const sit of input.situationNodes) {
+    if (sit.disagreement_type) typePresence.add(sit.disagreement_type);
+  }
+  const allTypesPresent = typePresence.size >= 3;
+
+  for (const sit of input.situationNodes) {
+    let adjustment = 0;
+
+    // 1. Crux alignment: max cosine similarity to crux-related claims
+    if (cruxEmbeddings.length > 0) {
+      const sitEmbedding = input.nodeEmbeddings[sit.id]?.vector;
+      if (sitEmbedding && sitEmbedding.length > 0) {
+        let maxSim = 0;
+        for (const cruxEmb of cruxEmbeddings) {
+          const sim = cosineSimilarity(sitEmbedding, cruxEmb.vector);
+          if (sim > maxSim) maxSim = sim;
+        }
+        // Scale crux alignment to a meaningful bonus range [0, 0.25]
+        adjustment += maxSim * 0.25;
+      }
+    }
+
+    // 2. Diversity bonus: boost underrepresented disagreement types
+    if (!allTypesPresent && sit.disagreement_type && !typePresence.has(sit.disagreement_type)) {
+      adjustment += DIVERSITY_BONUS;
+    }
+
+    // 3. Stale penalty: injected but never referenced
+    if (input.injectedSitIds.has(sit.id) && !input.referencedSitIds.has(sit.id)) {
+      adjustment += STALE_PENALTY;
+    }
+
+    if (adjustment !== 0) {
+      adjustments.set(sit.id, adjustment);
+    }
+  }
+
+  return adjustments;
 }

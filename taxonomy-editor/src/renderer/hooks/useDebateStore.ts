@@ -102,6 +102,10 @@ import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
+import { evaluateLookahead, buildRegenHint } from '@lib/debate/lookaheadGate';
+import type { LookaheadDiagnostics, LookaheadGateResult } from '@lib/debate/lookaheadGate';
+import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique } from '@lib/debate/topicCritique';
+import type { TopicCritique } from '@lib/debate/topicCritique';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import { usePromptConfigStore } from './usePromptConfigStore';
 import { api } from '@bridge';
@@ -524,6 +528,12 @@ function checkAnInvariants(label: string, get: () => any, expectedMinCount: numb
  * Extract claims from a debater's statement and update the argument network.
  * Runs in the background after each turn — does not block the debate flow.
  */
+/** Callback for lookahead-driven regeneration. Returns new statement + pre-extracted claims, or null to skip retry. */
+type LookaheadRegenCallback = (hint: string) => Promise<{
+  statement: string;
+  debaterClaims?: { claim: string; targets: string[] }[];
+} | null>;
+
 async function extractClaimsAndUpdateAN(
   statement: string,
   speaker: SpeakerId,
@@ -534,6 +544,7 @@ async function extractClaimsAndUpdateAN(
 
   set: (partial: any) => void,
   debaterClaims?: { claim: string; targets: string[] }[],
+  regenCallback?: LookaheadRegenCallback,
 ): Promise<void> {
   const debate = get().activeDebate as DebateSession | null;
   if (!debate) return;
@@ -739,6 +750,158 @@ async function extractClaimsAndUpdateAN(
         if (vector && vector.length > 0) node.embedding = vector;
       } catch { /* embedding failure never blocks extraction */ }
     }
+
+    // ── Pre-commit lookahead gate (t/34) — evaluate before committing ──
+    let lookaheadDiag: LookaheadDiagnostics | undefined;
+    try {
+      const lookaheadStart = Date.now();
+      const firstResult = evaluateLookahead({
+        speaker,
+        existingNodes: an.nodes,
+        existingEdges: an.edges,
+        tentativeClaims: newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
+        tentativeEdges: newEdges,
+        cruxes: debate.crux_tracker,
+      });
+
+      if (!firstResult.pass && regenCallback) {
+        // Retry: regenerate response with targeted hint (1 retry max)
+        const hint = buildRegenHint(firstResult);
+        console.log(`[Lookahead] Gate failed (Δu=${firstResult.utility_delta.toFixed(3)}), requesting regeneration`);
+        getGlobalRecorder()?.record({ type: 'lookahead.regen', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Lookahead gate failed, triggering regen`, data: { utility_delta: firstResult.utility_delta, threshold: firstResult.threshold } });
+
+        const regenResult = await regenCallback(hint);
+        if (regenResult) {
+          // Update transcript entry with regenerated content
+          const currDebate = get().activeDebate as DebateSession | null;
+          if (currDebate) {
+            const updatedTranscript = currDebate.transcript.map(e =>
+              e.id === entryId ? { ...e, content: regenResult.statement, metadata: { ...(e.metadata as Record<string, unknown>), lookahead_regenerated: true } } : e,
+            );
+            set({ activeDebate: { ...currDebate, transcript: updatedTranscript } });
+          }
+
+          // Re-extract claims from regenerated response
+          const regenPrompt = regenResult.debaterClaims && regenResult.debaterClaims.length > 0
+            ? classifyClaimsPrompt(regenResult.statement, speakerLabel, regenResult.debaterClaims, priorClaims)
+            : extractClaimsPrompt(regenResult.statement, speakerLabel, priorClaims);
+          try {
+            const { text: regenText } = await api.generateText(regenPrompt, model);
+            let regenCleaned = regenText.replace(/```json\s*/g, '').replace(/```/g, '').trim();
+            const rfb = regenCleaned.indexOf('{'), rlb = regenCleaned.lastIndexOf('}');
+            if (rfb >= 0 && rlb > rfb) regenCleaned = regenCleaned.slice(rfb, rlb + 1);
+            regenCleaned = regenCleaned.replace(/,\s*([}\]])/g, '$1');
+            const regenParsed = JSON.parse(regenCleaned) as { claims?: typeof parsed.claims };
+
+            if (regenParsed.claims && Array.isArray(regenParsed.claims) && regenParsed.claims.length > 0) {
+              const taxEdgesRetry = useTaxonomyStore.getState().edgesFile?.edges;
+              const regenClaims = processExtractedClaims(
+                {
+                  claims: regenParsed.claims,
+                  statement: regenResult.statement,
+                  speaker,
+                  entryId,
+                  taxonomyRefIds: taxonomyRefs,
+                  turnNumber,
+                  existingNodes: an.nodes,
+                  existingEdgeCount: an.edges.length,
+                  startNodeId: an.nodes.length + 1,
+                  taxonomyEdges: taxEdgesRetry,
+                },
+                { groundingOverlapThreshold: 0.3, isClassifyPath: !!(regenResult.debaterClaims && regenResult.debaterClaims.length > 0) },
+              );
+
+              if (regenClaims.newNodes.length > 0) {
+                // Embed retry claims
+                for (const node of regenClaims.newNodes) {
+                  try {
+                    const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
+                    if (vector && vector.length > 0) node.embedding = vector;
+                  } catch { /* non-blocking */ }
+                }
+
+                // Re-evaluate lookahead on retry claims
+                const retryResult = evaluateLookahead({
+                  speaker,
+                  existingNodes: an.nodes,
+                  existingEdges: an.edges,
+                  tentativeClaims: regenClaims.newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
+                  tentativeEdges: regenClaims.newEdges,
+                  cruxes: debate.crux_tracker,
+                });
+
+                // Use retry claims if they're better (higher delta) or if they pass
+                if (retryResult.pass || retryResult.utility_delta > firstResult.utility_delta) {
+                  newNodes.length = 0;
+                  newNodes.push(...regenClaims.newNodes);
+                  newEdges.length = 0;
+                  newEdges.push(...regenClaims.newEdges);
+                  extractionTrace.candidates_accepted = newNodes.length;
+                  console.log(`[Lookahead] Retry improved: Δu=${retryResult.utility_delta.toFixed(3)} (was ${firstResult.utility_delta.toFixed(3)})`);
+                }
+
+                lookaheadDiag = {
+                  stage: 'lookahead',
+                  first_attempt: firstResult,
+                  regen_triggered: true,
+                  regen_attempt: retryResult,
+                  final_pass: retryResult.pass || retryResult.utility_delta > firstResult.utility_delta,
+                  elapsed_ms: Date.now() - lookaheadStart,
+                };
+              } else {
+                // Retry extraction yielded no claims — keep originals
+                lookaheadDiag = {
+                  stage: 'lookahead',
+                  first_attempt: firstResult,
+                  regen_triggered: true,
+                  final_pass: false,
+                  elapsed_ms: Date.now() - lookaheadStart,
+                };
+              }
+            } else {
+              // Retry parse yielded no claims — keep originals
+              lookaheadDiag = {
+                stage: 'lookahead',
+                first_attempt: firstResult,
+                regen_triggered: true,
+                final_pass: false,
+                elapsed_ms: Date.now() - lookaheadStart,
+              };
+            }
+          } catch (regenErr) {
+            console.warn('[Lookahead] Regen extraction failed, keeping original claims:', regenErr);
+            lookaheadDiag = {
+              stage: 'lookahead',
+              first_attempt: firstResult,
+              regen_triggered: true,
+              final_pass: false,
+              elapsed_ms: Date.now() - lookaheadStart,
+            };
+          }
+        } else {
+          // Callback returned null — skip retry
+          lookaheadDiag = {
+            stage: 'lookahead',
+            first_attempt: firstResult,
+            regen_triggered: false,
+            final_pass: firstResult.pass,
+            elapsed_ms: Date.now() - lookaheadStart,
+          };
+        }
+      } else {
+        // Gate passed or no regen callback — record as-is
+        lookaheadDiag = {
+          stage: 'lookahead',
+          first_attempt: firstResult,
+          regen_triggered: false,
+          final_pass: firstResult.pass,
+          elapsed_ms: Date.now() - lookaheadStart,
+        };
+      }
+    } catch (err) {
+      console.warn('[Lookahead] Pre-commit gate evaluation failed (non-blocking):', err);
+    }
+    if (lookaheadDiag) recordDiagnostic(get, set, entryId, { lookahead: lookaheadDiag });
 
     extractionTrace.status = 'ok';
 
@@ -1795,6 +1958,10 @@ interface DebateStore {
   setGenerating: (pover: SpeakerId | null) => void;
   setError: (error: string | null) => void;
 
+  // Phase 1.5: Topic Critique (wisdom-generating quality gate)
+  topicCritiqueLoading: boolean;
+  runTopicCritique: () => Promise<void>;
+
   // Phase 2: Clarification
   runClarification: () => Promise<void>;
   submitAnswersAndSynthesize: (answers: string) => Promise<void>;
@@ -1896,6 +2063,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateModel: null,
   debateTemperature: null,
   vocabularyTerms: null,
+  topicCritiqueLoading: false,
   diagnosticsEnabled: false,
   selectedDiagEntry: null,
   diagPopoutOpen: false,
@@ -2315,6 +2483,90 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   setGenerating: (pover) => set({ debateGenerating: pover }),
   inspectNode: (nodeId) => set({ inspectedNodeId: nodeId }),
   setError: (error) => set({ debateError: error }),
+
+  // ── Phase 1.5: Topic Critique ─────────────────────────────
+
+  runTopicCritique: async () => {
+    const { activeDebate, saveDebate } = get();
+    if (!activeDebate) return;
+
+    // Guard: only for free-form topics, don't rerun if already critiqued
+    if (activeDebate.source_type !== 'topic') return;
+    if (activeDebate.topic.critique) return;
+    if (get().topicCritiqueLoading) return;
+
+    set({ topicCritiqueLoading: true, debateError: null });
+    const model = getConfiguredModel();
+    const topic = activeDebate.topic.final;
+
+    try {
+      // Phase A: structural scoring from taxonomy embeddings
+      const taxState = useTaxonomyStore.getState();
+      const povFiles = ['accelerationist', 'safetyist', 'skeptic'] as const;
+      const allPovNodes: { id: string; pov: string; category: import('../types/taxonomy').Category }[] = [];
+      const allNodeTexts: string[] = [];
+      const allNodeIds: string[] = [];
+
+      for (const pov of povFiles) {
+        const file = taxState[pov];
+        if (!file?.nodes) continue;
+        for (const n of file.nodes) {
+          allPovNodes.push({ id: n.id, pov, category: n.category });
+          allNodeTexts.push(`${n.label}: ${n.description}`);
+          allNodeIds.push(n.id);
+        }
+      }
+
+      const sitNodes = taxState.situations?.nodes ?? [];
+      for (const n of sitNodes) {
+        allNodeTexts.push(`${n.label}: ${n.description}`);
+        allNodeIds.push(n.id);
+      }
+
+      // Compute embeddings for topic + all nodes in one batch
+      const allTexts = [topic, ...allNodeTexts];
+      const allIds = ['__topic__', ...allNodeIds];
+      const { vectors } = await api.computeEmbeddings(allTexts, allIds);
+
+      const topicEmbedding = vectors[0];
+      const nodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+      for (let i = 0; i < allNodeIds.length; i++) {
+        const povNode = allPovNodes.find(n => n.id === allNodeIds[i]);
+        nodeEmbeddings[allNodeIds[i]] = { pov: povNode?.pov ?? 'situations', vector: vectors[i + 1] };
+      }
+
+      const structuralScore = computeStructuralScore({
+        topicEmbedding,
+        povNodes: allPovNodes,
+        situationNodes: sitNodes.map(n => ({ id: n.id })),
+        embeddings: nodeEmbeddings,
+      });
+
+      // Phase B: LLM frame analysis
+      const prompt = critiqueTopicPrompt(topic);
+      const { text } = await generateTextWithProgress(prompt, model, `Evaluating topic quality (${model})`, set);
+      const critique = parseTopicCritique(text, structuralScore);
+
+      // Store on session (non-persistent field set once before clarification)
+      const updated = {
+        ...activeDebate,
+        topic: { ...activeDebate.topic, critique },
+        updated_at: nowISO(),
+      };
+      set({ activeDebate: updated, topicCritiqueLoading: false, debateActivity: null });
+      await saveDebate();
+
+      getGlobalRecorder()?.record({
+        type: 'topic.critique', component: 'debate-store', level: 'info',
+        debate_id: activeDebate.id,
+        message: `Topic critique: ${critique.rating} (${critique.composite_score}/20)`,
+        data: { structural: structuralScore.total, frame: critique.frame_score?.total ?? 0, rating: critique.rating },
+      });
+    } catch (err) {
+      console.warn('[TopicCritique] Failed (non-blocking):', err);
+      set({ topicCritiqueLoading: false, debateActivity: null });
+    }
+  },
 
   // ── Phase 2: Clarification ──────────────────────────────
 
@@ -3593,7 +3845,22 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           commitment_context: commitBlock || undefined,
           stage_diagnostics: pipelineResult.stage_diagnostics,
         });
-        void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+        void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims,
+          // Lookahead regen callback: regenerate the debate response with quality feedback
+          async (hint: string) => {
+            try {
+              const regenPipelineInput = { ...pipelineInput, concessionHint: (pipelineInput.concessionHint ?? '') + '\n\n[MOVE QUALITY FEEDBACK — your previous response weakened your position]\n' + hint };
+              const regenPipelineResult = await runTurnPipeline(regenPipelineInput, stageGenerate, (_stage, label) => set({ debateActivity: `Regenerating: ${label}` }));
+              const regenAssembled = assemblePipelineResult(regenPipelineResult);
+              if (!regenAssembled) return null;
+              const { statement: newStatement, meta: newMeta } = regenAssembled;
+              return { statement: newStatement, debaterClaims: newMeta.my_claims };
+            } catch (err) {
+              console.warn('[Lookahead] Response regeneration failed:', err);
+              return null;
+            }
+          },
+        );
         // Post-turn summarization (DT-2)
         await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
 

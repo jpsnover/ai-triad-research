@@ -89,7 +89,7 @@ function Save-AITSource {
 
                 # Avoid name collisions by prefixing with doc-id
                 if (Test-Path $Dest) {
-                    $Dest = Join-Path $Directory "$Id`_$($File.Name)"
+                    $Dest = Join-Path $Directory "${Id}_$($File.Name)"
                 }
 
                 if ($PSCmdlet.ShouldProcess($File.FullName, "Copy to $Dest")) {

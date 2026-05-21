@@ -323,3 +323,124 @@ export function computeProcessReward(input: ProcessRewardInput): { score: number
 
   return { score, components: { engagement, novelty, consistency, grounding, move_quality } };
 }
+
+// ── Anti-sycophancy: 3-tier uncertainty metric (t/26) ─────────────
+
+/** Weights for the uncertainty composite. */
+const UNCERTAINTY_WEIGHTS = {
+  intra_agent: 0.30,
+  inter_agent: 0.40,
+  system_level: 0.30,
+} as const;
+
+/** Composite threshold above which agreement is considered suspicious. */
+const COLLAPSE_THRESHOLD = 0.55;
+
+export interface UncertaintyMetric {
+  /** Self-contradiction score: agents attacking their own prior claims. */
+  intra_agent: number;
+  /** Premature agreement: all agents cooperative without genuine engagement. */
+  inter_agent: number;
+  /** Weak argumentation: low QBAF scores across the board. */
+  system_level: number;
+  /** Weighted composite of the three tiers. */
+  composite: number;
+  /** True when composite exceeds threshold AND agreement appears superficial. */
+  collapse_warning: boolean;
+}
+
+/**
+ * Compute a 3-tier uncertainty metric to detect premature consensus collapse.
+ *
+ * - Intra-agent: self-contradiction (same speaker's nodes attacking each other)
+ * - Inter-agent: premature agreement (high support ratio + low engagement depth)
+ * - System-level: weak arguments (low mean QBAF computed_strength)
+ *
+ * Uses only data already available in the convergence signal pipeline.
+ */
+export function computeUncertaintyMetric(
+  nodes: readonly { id: string; speaker: string; computed_strength?: number; base_strength?: number }[],
+  edges: readonly { source: string; target: string; type: 'supports' | 'attacks' }[],
+  convergenceSignals: {
+    argument_redundancy: { avg_self_overlap: number; semantic_max_similarity?: number };
+    dialectical_engagement: { ratio: number };
+    position_drift: { drift: number };
+    concession_opportunity: { outcome: string; strong_attacks_faced: number };
+  },
+  phase: string,
+): UncertaintyMetric {
+  // Build speaker-to-nodes index
+  const nodesBySpeaker = new Map<string, string[]>();
+  for (const n of nodes) {
+    if (n.speaker === 'system' || n.speaker === 'document' || n.speaker === 'user') continue;
+    if (!nodesBySpeaker.has(n.speaker)) nodesBySpeaker.set(n.speaker, []);
+    nodesBySpeaker.get(n.speaker)!.push(n.id);
+  }
+  const speakerNodeSets = new Map<string, Set<string>>();
+  for (const [sp, ids] of nodesBySpeaker) speakerNodeSets.set(sp, new Set(ids));
+
+  // ── Tier 1: Intra-agent (self-contradiction) ──
+  // Count edges where source and target belong to the same speaker
+  let selfAttackCount = 0;
+  let totalEdges = 0;
+  for (const edge of edges) {
+    totalEdges++;
+    for (const [, nodeSet] of speakerNodeSets) {
+      if (nodeSet.has(edge.source) && nodeSet.has(edge.target) && edge.type === 'attacks') {
+        selfAttackCount++;
+        break;
+      }
+    }
+  }
+  // Also factor in position drift: high drift = speaker diverging from own opening
+  const driftContribution = Math.min(1, convergenceSignals.position_drift.drift * 2);
+  const selfAttackRate = totalEdges > 0 ? selfAttackCount / totalEdges : 0;
+  const intra_agent = Math.min(1, selfAttackRate * 3 + driftContribution * 0.3);
+
+  // ── Tier 2: Inter-agent (premature agreement) ──
+  // High support-to-attack ratio + low engagement depth = suspicious
+  let supportEdges = 0;
+  let attackEdges = 0;
+  for (const edge of edges) {
+    if (edge.type === 'supports') supportEdges++;
+    else if (edge.type === 'attacks') attackEdges++;
+  }
+  const supportRatio = (supportEdges + attackEdges) > 0
+    ? supportEdges / (supportEdges + attackEdges)
+    : 0;
+  const lowEngagement = 1 - convergenceSignals.dialectical_engagement.ratio;
+  const highRecycling = convergenceSignals.argument_redundancy.semantic_max_similarity
+    ?? convergenceSignals.argument_redundancy.avg_self_overlap;
+  // Premature agreement = high support + low engagement + high recycling
+  // In argumentation phase, this is more concerning than in concluding
+  const phaseMultiplier = phase === 'argumentation' ? 1.2 : phase === 'confrontation' ? 1.5 : 0.6;
+  const inter_agent = Math.min(1, (supportRatio * 0.4 + lowEngagement * 0.3 + highRecycling * 0.3) * phaseMultiplier);
+
+  // ── Tier 3: System-level (weak QBAF) ──
+  // Low mean computed_strength = arguments are superficial
+  const debaterNodes = nodes.filter(n =>
+    n.speaker !== 'system' && n.speaker !== 'document' && n.speaker !== 'user',
+  );
+  let meanStrength = 0.5;
+  if (debaterNodes.length > 0) {
+    const totalStrength = debaterNodes.reduce(
+      (sum, n) => sum + (n.computed_strength ?? n.base_strength ?? 0.5), 0,
+    );
+    meanStrength = totalStrength / debaterNodes.length;
+  }
+  // Low strength = high system uncertainty. Also count fraction below 0.3
+  const weakFraction = debaterNodes.length > 0
+    ? debaterNodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) < 0.3).length / debaterNodes.length
+    : 0;
+  const system_level = Math.min(1, (1 - meanStrength) * 0.6 + weakFraction * 0.4);
+
+  const composite =
+    UNCERTAINTY_WEIGHTS.intra_agent * intra_agent +
+    UNCERTAINTY_WEIGHTS.inter_agent * inter_agent +
+    UNCERTAINTY_WEIGHTS.system_level * system_level;
+
+  // Collapse warning: high uncertainty AND superficial agreement (high support ratio, low attacks)
+  const collapse_warning = composite > COLLAPSE_THRESHOLD && supportRatio > 0.6;
+
+  return { intra_agent, inter_agent, system_level, composite, collapse_warning };
+}

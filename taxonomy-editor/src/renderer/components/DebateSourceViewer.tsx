@@ -138,6 +138,10 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
     setSimilarLoading(false);
   }, [query, mode, content]);
 
+  const scrollToMatch = (idx: number) => {
+    const el = contentRef.current?.querySelector(`[data-match-idx="${idx}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
   // Trigger similar search on Enter
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -153,10 +157,6 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
     }
   };
 
-  const scrollToMatch = (idx: number) => {
-    const el = contentRef.current?.querySelector(`[data-match-idx="${idx}"]`) as HTMLElement | null;
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
 
   useEffect(() => {
     if (matches.length > 0) scrollToMatch(activeMatchIdx);

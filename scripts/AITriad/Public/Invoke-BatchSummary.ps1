@@ -657,6 +657,9 @@ function Invoke-BatchSummary {
         Write-Warn "Extraction metrics logging failed (non-critical): $_"
     }
 
+    # -- STEP 8c — Rebuild source index ----------------------------------------
+    try { Update-AITSourceIndex -Quiet } catch { Write-Verbose "Index rebuild skipped: $_" }
+
     # -- STEP 9 — Post-batch policy registry consolidation ---------------------
     # Strategy: parallel workers each write to different source/summary files so
     # there is no write contention on those. However, taxonomy policy_actions may

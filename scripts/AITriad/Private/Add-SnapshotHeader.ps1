@@ -41,12 +41,17 @@ function Add-SnapshotHeader {
         [string]$CapturedAt = (Get-Date -Format 'yyyy-MM-dd')
     )
 
+    # Escape --> sequences to prevent premature HTML comment closure
+    $SafeTitle      = $Title      -replace '-->', '--&gt;'
+    $SafeSourceUrl  = $SourceUrl  -replace '-->', '--&gt;'
+    $SafeSourceType = $SourceType -replace '-->', '--&gt;'
+
     $Header = @"
 <!--
   AI Triad Research Project — Document Snapshot
-  Title      : $Title
-  Source     : $SourceUrl
-  Type       : $SourceType
+  Title      : $SafeTitle
+  Source     : $SafeSourceUrl
+  Type       : $SafeSourceType
   Captured   : $CapturedAt
   This file is a Markdown shadow copy for AI summarisation and POViewer display.
   The original file lives in raw/ for fidelity (charts, tables, exact layout).

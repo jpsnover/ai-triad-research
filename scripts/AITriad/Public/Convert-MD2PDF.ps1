@@ -80,19 +80,15 @@ function Convert-MD2PDF {
             elseif ($IsWindows) {
                 # Windows fallback: pandoc → HTML → PDF via Edge or Chrome headless
                 $BrowserPath = $null
-                # Edge (ships with Windows 10/11)
-                $EdgePath = Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe'
-                if (-not (Test-Path $EdgePath)) {
-                    $EdgePath = Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'
-                }
-                if (Test-Path $EdgePath) { $BrowserPath = $EdgePath }
+                # Edge — registry lookup covers system and per-user installs
+                $EdgePath = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\msedge.exe' -ErrorAction SilentlyContinue).'(default)'
+                if (-not $EdgePath) { $EdgePath = (Get-Command msedge -ErrorAction SilentlyContinue)?.Source }
+                if ($EdgePath -and (Test-Path $EdgePath)) { $BrowserPath = $EdgePath }
                 # Chrome fallback
                 if (-not $BrowserPath) {
-                    $ChromePath = Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'
-                    if (-not (Test-Path $ChromePath)) {
-                        $ChromePath = Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'
-                    }
-                    if (Test-Path $ChromePath) { $BrowserPath = $ChromePath }
+                    $ChromePath = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe' -ErrorAction SilentlyContinue).'(default)'
+                    if (-not $ChromePath) { $ChromePath = (Get-Command chrome -ErrorAction SilentlyContinue)?.Source }
+                    if ($ChromePath -and (Test-Path $ChromePath)) { $BrowserPath = $ChromePath }
                 }
                 if ($BrowserPath) {
                     $UseFallback = $true
@@ -166,8 +162,8 @@ No PDF engine found. Install one of:
                             $SourcePath
                             '-o', $TempHtml
                             '--standalone'
-                            '--self-contained'
-                            '--highlight-style', 'tango'
+                            '--embed-resources'
+                            '--syntax-highlighting', 'tango'
                             '--metadata', "title=$BaseName"
                             '-c', "data:text/css,$CssBody"
                         )
@@ -207,7 +203,7 @@ No PDF engine found. Install one of:
                             $SourcePath
                             '-o', $PdfPath
                             '--pdf-engine', $PdfEngine
-                            '--highlight-style', 'tango'
+                            '--syntax-highlighting', 'tango'
                         )
 
                         # Engine-specific options

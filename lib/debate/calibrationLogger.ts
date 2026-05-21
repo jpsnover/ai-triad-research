@@ -12,9 +12,100 @@
  * lives in the data directory alongside debate sessions.
  */
 
-import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
+import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge, SpeakerId, TrackedCrux } from './types.js';
 import type { NeutralEvaluation } from './neutralEvaluator.js';
 import { classifyClaimOutcomes, summarizeOutcomes } from './claimOutcomes.js';
+// ── Agent utility (game theory Layer 4) ────────────────────
+
+export interface AgentUtility {
+  /** Mean computed_strength of agent's undefeated nodes. */
+  position_strength: number;
+  /** Fraction of opponent nodes weakened below 0.3. */
+  attack_effectiveness: number;
+  /** Fraction of identified cruxes this agent has addressed. */
+  crux_engagement: number;
+  /** Persona-weighted composite score. */
+  composite: number;
+  /** Attack target strength minus conceded strength. High asymmetry may indicate strategic concession. */
+  concession_asymmetry: number;
+}
+
+/** Persona-specific utility weights: [position, attack, crux]. */
+export const PERSONA_UTILITY_WEIGHTS: Record<string, { position: number; attack: number; crux: number }> = {
+  prometheus: { position: 0.45, attack: 0.30, crux: 0.25 },
+  sentinel:   { position: 0.30, attack: 0.25, crux: 0.45 },
+  cassandra:  { position: 0.20, attack: 0.25, crux: 0.55 },
+};
+
+/**
+ * Compute the utility score for a single agent at a point in the debate.
+ * Pure function — no side effects.
+ */
+export function computeAgentUtility(
+  speaker: SpeakerId,
+  nodes: readonly ArgumentNetworkNode[],
+  edges: readonly ArgumentNetworkEdge[],
+  cruxNodes?: readonly TrackedCrux[],
+  weights?: { position: number; attack: number; crux: number },
+): AgentUtility {
+  const w = weights ?? PERSONA_UTILITY_WEIGHTS[speaker] ?? { position: 0.33, attack: 0.34, crux: 0.33 };
+
+  // ── Position strength: mean computed_strength of this agent's undefeated nodes ──
+  const agentNodes = nodes.filter(n => n.speaker === speaker);
+  const undefeated = agentNodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) >= 0.3);
+  const position_strength = undefeated.length > 0
+    ? undefeated.reduce((sum, n) => sum + (n.computed_strength ?? n.base_strength ?? 0.5), 0) / undefeated.length
+    : 0;
+
+  // ── Attack effectiveness: fraction of opponent nodes weakened below 0.3 ──
+  const opponentNodes = nodes.filter(n => n.speaker !== speaker && n.speaker !== 'system' && n.speaker !== 'document');
+  const weakenedOpponents = opponentNodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) < 0.3);
+  const attack_effectiveness = opponentNodes.length > 0
+    ? weakenedOpponents.length / opponentNodes.length
+    : 0;
+
+  // ── Crux engagement: fraction of cruxes this agent has addressed ──
+  let crux_engagement = 0;
+  if (cruxNodes && cruxNodes.length > 0) {
+    const addressedCount = cruxNodes.filter(crux =>
+      crux.speakers_involved.includes(speaker) ||
+      crux.attacking_claim_ids.some(claimId =>
+        nodes.some(n => n.id === claimId && n.speaker === speaker)
+      )
+    ).length;
+    crux_engagement = addressedCount / cruxNodes.length;
+  }
+
+  // ── Concession asymmetry: mean attack target strength minus mean conceded node strength ──
+  // Identifies agents who concede only weak positions while pressing strong attacks.
+  const concededNodeIds = new Set(
+    edges.filter(e => e.type === 'supports' && nodes.find(n => n.id === e.source)?.speaker === speaker)
+      .map(e => e.target),
+  );
+  const agentAttackTargetIds = new Set(
+    edges.filter(e => e.type === 'attacks' && nodes.find(n => n.id === e.source)?.speaker === speaker)
+      .map(e => e.target),
+  );
+  const concededStrength = concededNodeIds.size > 0
+    ? [...concededNodeIds].reduce((sum, id) => {
+        const n = nodes.find(nd => nd.id === id);
+        return sum + (n ? (n.computed_strength ?? n.base_strength ?? 0.5) : 0.5);
+      }, 0) / concededNodeIds.size
+    : 0.5;
+  const attackTargetStrength = agentAttackTargetIds.size > 0
+    ? [...agentAttackTargetIds].reduce((sum, id) => {
+        const n = nodes.find(nd => nd.id === id);
+        return sum + (n ? (n.computed_strength ?? n.base_strength ?? 0.5) : 0.5);
+      }, 0) / agentAttackTargetIds.size
+    : 0.5;
+  const concession_asymmetry = attackTargetStrength - concededStrength;
+
+  // ── Composite ──
+  const composite = w.position * position_strength + w.attack * attack_effectiveness + w.crux * crux_engagement;
+
+  return { position_strength, attack_effectiveness, crux_engagement, composite, concession_asymmetry };
+}
+
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -178,6 +269,18 @@ export interface CalibrationDataPoint {
   confidence_escalations: number;
   /** Predominant bottleneck: extraction, stability, or none */
   confidence_bottleneck: 'extraction' | 'stability' | 'none';
+
+  // ── Agent utility (game theory Layer 4) ──
+  /** Per-agent utility scores computed from argument network state. */
+  agent_utilities: Record<string, AgentUtility> | null;
+  /** Number of claims rejected by the marginal value filter (anti-filibustering). */
+  low_value_claims_rejected: number;
+  /** Per-speaker mean embedding similarity to crux centroid (1.0 = perfectly on-topic). */
+  topic_coherence_per_speaker: Record<string, number> | null;
+  /** Per-agent concession asymmetry (attack target strength - conceded strength). */
+  concession_asymmetry_per_speaker: Record<string, number> | null;
+  /** Premature concession cascades: sequential concessions by different agents within 2 turns. */
+  concession_cascades: number;
 
   // ── Process reward (PRM-adjacent signal) ──
   /** Per-turn process reward scores for correlation with convergence signals */
@@ -563,6 +666,83 @@ export function extractCalibrationData(
     sitCruxAlignment = alignedCruxes / finalEval.cruxes.length;
   }
 
+  // ── Anti-exploit metrics ──
+  // Low-value claims rejected is tracked in argument_network diagnostics
+  const lowValueRejected = ((session as any).argument_network_diagnostics?.rejectionReasons?.low_marginal_value as number) ?? 0;
+
+  // Topic coherence per speaker: mean embedding similarity of each speaker's claims to crux centroid
+  let topicCoherencePerSpeaker: Record<string, number> | null = null;
+  if (an && an.nodes.length > 0) {
+    const cruxes = (session as any).crux_tracker as TrackedCrux[] | undefined;
+    if (cruxes && cruxes.length > 0) {
+      const cruxEmbeddings = cruxes
+        .map(c => an.nodes.find((n: ArgumentNetworkNode) => n.id === c.id)?.embedding)
+        .filter((e): e is number[] => !!e);
+      if (cruxEmbeddings.length > 0) {
+        const dim = cruxEmbeddings[0].length;
+        const centroid = new Array(dim).fill(0) as number[];
+        for (const emb of cruxEmbeddings) {
+          for (let i = 0; i < dim; i++) centroid[i] += emb[i];
+        }
+        for (let i = 0; i < dim; i++) centroid[i] /= cruxEmbeddings.length;
+
+        topicCoherencePerSpeaker = {};
+        const speakers = [...new Set(an.nodes.map((n: ArgumentNetworkNode) => n.speaker).filter(s => s !== 'system' && s !== 'document'))];
+        for (const sp of speakers) {
+          const spNodes = an.nodes.filter((n: ArgumentNetworkNode) => n.speaker === sp && n.embedding);
+          if (spNodes.length === 0) continue;
+          let simSum = 0;
+          for (const n of spNodes) {
+            let dot = 0, normA = 0, normB = 0;
+            for (let i = 0; i < dim; i++) {
+              dot += n.embedding![i] * centroid[i];
+              normA += n.embedding![i] * n.embedding![i];
+              normB += centroid[i] * centroid[i];
+            }
+            const denom = Math.sqrt(normA) * Math.sqrt(normB);
+            simSum += denom > 0 ? dot / denom : 0;
+          }
+          topicCoherencePerSpeaker[sp] = simSum / spNodes.length;
+        }
+      }
+    }
+  }
+
+  // ── Agent utilities ──
+  let agentUtilities: Record<string, AgentUtility> | null = null;
+  if (an && an.nodes.length > 0) {
+    const speakers = [...new Set(an.nodes.map((n: ArgumentNetworkNode) => n.speaker).filter((s): s is SpeakerId => s !== 'system' && s !== 'document'))];
+    const cruxes = (session as any).crux_tracker as TrackedCrux[] | undefined;
+    if (speakers.length > 0) {
+      agentUtilities = {};
+      for (const sp of speakers) {
+        agentUtilities[sp] = computeAgentUtility(sp, an.nodes, an.edges, cruxes ?? []);
+      }
+    }
+  }
+
+  // ── Premature concession cascading ──
+  // Detect sequential concessions by different agents within a 2-turn window.
+  const signals = session.convergence_signals ?? [];
+  let concessionCascades = 0;
+  if (signals.length > 0) {
+    // Find turns where concession was used
+    const concessionTurns: { speaker: string; index: number }[] = [];
+    for (let i = 0; i < signals.length; i++) {
+      if (signals[i].concession_opportunity?.concession_used) {
+        concessionTurns.push({ speaker: signals[i].speaker, index: i });
+      }
+    }
+    // Check for cascades: different speaker concedes within 2 entries of a prior concession
+    for (let i = 1; i < concessionTurns.length; i++) {
+      const prev = concessionTurns[i - 1];
+      const curr = concessionTurns[i];
+      if (curr.speaker !== prev.speaker && (curr.index - prev.index) <= 2) {
+        concessionCascades++;
+      }
+    }
+  }
+
   return {
     schema_version: 1,
     debate_id: session.id,
@@ -634,6 +814,14 @@ export function extractCalibrationData(
     situation_nodes_referenced: sitNodesReferenced,
     situation_crux_alignment: sitCruxAlignment,
     situation_max_nodes: config.situationMaxNodes ?? 15,
+
+    agent_utilities: agentUtilities,
+    low_value_claims_rejected: lowValueRejected,
+    topic_coherence_per_speaker: topicCoherencePerSpeaker,
+    concession_asymmetry_per_speaker: agentUtilities
+      ? Object.fromEntries(Object.entries(agentUtilities).map(([k, v]) => [k, v.concession_asymmetry]))
+      : null,
+    concession_cascades: concessionCascades,
 
     sycophancy_guard_fired: (session.transcript ?? []).some(e => e.type === 'system' && e.content.includes('[Sycophancy guard]')),
     max_sycophancy_score: (session.per_claim_drift ?? []).reduce((max, s) => Math.max(max, s.sycophancy_score), 0),

@@ -17,6 +17,7 @@ export type {
   DumpEvent,
   DumpTrigger,
   TriggerType,
+  ErrorCategory,
 } from './types.js';
 export { DEFAULT_CONFIG } from './types.js';
 

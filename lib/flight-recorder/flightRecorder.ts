@@ -12,6 +12,7 @@ import type {
   DumpContext,
   DumpTrigger,
   TriggerType,
+  ErrorCategory,
 } from './types.js';
 import { DEFAULT_CONFIG } from './types.js';
 
@@ -62,6 +63,7 @@ export class FlightRecorder {
   recordError(
     err: unknown,
     context?: Record<string, unknown>,
+    error_category?: ErrorCategory,
   ): { ndjson: string; trigger: DumpTrigger } | null {
     const error = normalizeError(err);
     this.record({
@@ -71,6 +73,7 @@ export class FlightRecorder {
       message: error.message,
       error,
       data: context,
+      error_category,
     });
 
     if (this.config.dumpOnError) {

@@ -82,6 +82,10 @@ import {
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
+import { computeStrategicHints } from './strategicHints.js';
+import { evaluateLookahead } from './lookaheadGate.js';
+import type { LookaheadDiagnostics } from './lookaheadGate.js';
+import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique } from './topicCritique.js';
 import {
   optimizeRelevanceThreshold,
   applyRelevanceThresholdAdaptation,
@@ -108,6 +112,7 @@ import {
   buildRelevanceQuery,
   type RelevanceOptions,
   type ANClaimEmbedding,
+  reScoreSituationsForCruxes,
 } from './taxonomyRelevance.js';
 import {
   generateId,
@@ -251,6 +256,8 @@ export class DebateEngine {
   private _perturbationEntryId: string | null = null;
   /** Accumulated context manifests across turns — for taxonomy gap analysis. */
   private _contextManifests: ContextManifestEntry[] = [];
+  /** Adaptive situation score adjustments from crux re-scoring at phase transitions. */
+  private _situationScoreAdjustments: Map<string, number> | null = null;
   /** Lazy-built set of every taxonomy node id in the loaded taxonomy. */
   private _knownNodeIds: Set<string> | null = null;
   /** Lazy-built set of every policy id in the loaded policy registry. */
@@ -326,6 +333,11 @@ export class DebateEngine {
     this.initSession();
 
     try {
+      // Phase 0.5: Topic critique (free-form topics only, before clarification)
+      if (this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
+        await this.runTopicCritique();
+      }
+
       // Phase 1: Clarification (optional)
       if (this.config.enableClarification) {
         await this.runClarification();
@@ -1149,6 +1161,14 @@ export class DebateEngine {
       }
     }
 
+    // Apply adaptive situation score adjustments from crux re-scoring (t/23)
+    if (this._situationScoreAdjustments) {
+      for (const [id, adj] of this._situationScoreAdjustments) {
+        const base = scores.get(id) ?? 0;
+        scores.set(id, Math.max(0, base + adj));
+      }
+    }
+
     const relevanceOpts: RelevanceOptions = {
       scoringMode,
       embeddingThreshold: 0.48,
@@ -1267,6 +1287,64 @@ export class DebateEngine {
     }));
 
     return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 10, an.edges);
+  }
+
+  // ── Phase: Topic Critique ──────────────────────────────────
+
+  private async runTopicCritique(): Promise<void> {
+    // Skip if already computed (run-once guard)
+    if (this.session.topic.critique) return;
+
+    this.progress('setup', undefined, 'Evaluating topic quality');
+
+    try {
+      // Phase A: Structural scoring (deterministic)
+      const adapter = this.adapter;
+      let topicEmbedding: number[] | undefined;
+      if (adapter.computeQueryEmbedding) {
+        try {
+          const { vector } = await adapter.computeQueryEmbedding(this.session.topic.final);
+          topicEmbedding = vector;
+        } catch { /* embedding unavailable — Phase A scores will be minimal */ }
+      }
+
+      // Collect POV nodes for structural analysis
+      const povNodes: { id: string; pov: string; category: import('./taxonomyTypes.js').Category }[] = [];
+      for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        for (const node of this.taxonomy[pov]?.nodes ?? []) {
+          povNodes.push({ id: node.id, pov, category: node.category });
+        }
+      }
+
+      let structuralScore;
+      if (topicEmbedding && topicEmbedding.length > 0) {
+        structuralScore = computeStructuralScore({
+          topicEmbedding,
+          povNodes,
+          situationNodes: this.taxonomy.situations?.nodes ?? [],
+          embeddings: this.taxonomy.embeddings,
+          evidenceIndex: this.sourceEvidenceIndex ?? undefined,
+        });
+      } else {
+        // No embedding available — return zeroed structural score
+        structuralScore = computeStructuralScore({
+          topicEmbedding: [],
+          povNodes,
+          situationNodes: this.taxonomy.situations?.nodes ?? [],
+          embeddings: {},
+        });
+      }
+
+      // Phase B: Frame analysis (single LLM call)
+      const prompt = critiqueTopicPrompt(this.session.topic.final);
+      const text = await this.generate(prompt, 'Topic critique');
+      const critique = parseTopicCritique(text, structuralScore);
+
+      this.session.topic.critique = critique;
+      this.progress('setup', undefined, `Topic quality: ${critique.rating} (${critique.composite_score}/20)`);
+    } catch (err) {
+      this.warn('Topic critique', err, 'Topic quality evaluation skipped — does not affect debate flow');
+    }
   }
 
   // ── Phase: Clarification ───────────────────────────────────
@@ -1886,6 +1964,35 @@ export class DebateEngine {
           taxonomy_refs: [],
           metadata: { adaptive_transition: true, from_phase: prevPhase, to_phase: state.current_phase, reason: result.reason },
         });
+
+        // Adaptive situation re-scoring: re-score situations against emerging cruxes
+        if (this.session.crux_tracker && this.session.crux_tracker.length > 0) {
+          const sitNodes = (this.taxonomy as Record<string, { nodes?: SituationNode[] }>).situations?.nodes ?? [];
+          const anForRescore = this.session.argument_network;
+          if (sitNodes.length > 0 && anForRescore) {
+            // Collect injected and referenced sit IDs from transcript
+            const injectedSitIds = new Set<string>();
+            for (const m of this._contextManifests) {
+              for (const id of m.injected_node_ids) {
+                if (id.startsWith('sit-')) injectedSitIds.add(id);
+              }
+            }
+            const referencedSitIds = new Set<string>();
+            for (const e of this.session.transcript) {
+              for (const ref of e.taxonomy_refs) {
+                if (ref.node_id.startsWith('sit-')) referencedSitIds.add(ref.node_id);
+              }
+            }
+            this._situationScoreAdjustments = reScoreSituationsForCruxes({
+              situationNodes: sitNodes,
+              cruxes: this.session.crux_tracker,
+              anNodes: anForRescore.nodes,
+              nodeEmbeddings: this.taxonomy.embeddings,
+              injectedSitIds,
+              referencedSitIds,
+            });
+          }
+        }
       }
 
       if (result.action === 'regress') {
@@ -2163,6 +2270,18 @@ export class DebateEngine {
       ? (typeof lastOpponentEntry.content === 'string' ? lastOpponentEntry.content : JSON.stringify(lastOpponentEntry.content))
       : undefined;
 
+    // Opponent-aware strategic hints (t/20): computed from AN + commitments, no LLM calls
+    const an = this.session.argument_network;
+    const strategicHints = an && this.session.commitments
+      ? computeStrategicHints(
+          responder,
+          an.nodes,
+          an.edges,
+          this.session.commitments,
+          round,
+        )
+      : undefined;
+
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -2190,6 +2309,7 @@ export class DebateEngine {
       audience: this.config.audience,
       model: this.config.model,
       lastOpponentStatement,
+      strategicHints: strategicHints?.length ? strategicHints : undefined,
       sourceEvidenceIndex: this.sourceEvidenceIndex,
       docTitles: this.docTitles,
       ...(this.config.temperature != null ? {
@@ -2375,6 +2495,41 @@ export class DebateEngine {
     const anNodesBefore = this.session.argument_network!.nodes.length;
     await this.extractClaims(statement, responder, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
     const newNodes = this.session.argument_network!.nodes.slice(anNodesBefore);
+
+    // Lookahead gate: evaluate move quality of extracted claims (t/21)
+    if (newNodes.length > 0) {
+      const lookaheadStart = Date.now();
+      try {
+        const anNow = this.session.argument_network!;
+        const existingNodes = anNow.nodes.slice(0, anNodesBefore);
+        const existingEdges = anNow.edges.filter(e => {
+          const newIds = new Set(newNodes.map(n => n.id));
+          return !newIds.has(e.source) && !newIds.has(e.target);
+        });
+        const tentativeEdges = anNow.edges.filter(e => {
+          const newIds = new Set(newNodes.map(n => n.id));
+          return newIds.has(e.source) || newIds.has(e.target);
+        });
+        const gateResult = evaluateLookahead({
+          speaker: responder,
+          existingNodes,
+          existingEdges,
+          tentativeClaims: newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
+          tentativeEdges,
+          cruxes: this.session.crux_tracker,
+        });
+        const lookaheadDiag: LookaheadDiagnostics = {
+          stage: 'lookahead',
+          first_attempt: gateResult,
+          regen_triggered: false,
+          final_pass: gateResult.pass,
+          elapsed_ms: Date.now() - lookaheadStart,
+        };
+        this.recordDiagnostic(entry.id, { lookahead: lookaheadDiag });
+      } catch (err) {
+        this.warn('Lookahead gate', err, 'Lookahead evaluation skipped — does not affect debate flow');
+      }
+    }
 
     // Post-extraction interventions (non-blocking)
     if (newNodes.length > 0) {

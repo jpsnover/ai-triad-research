@@ -324,9 +324,9 @@ describe('validateAdaptiveConfig', () => {
 describe('buildSignalRegistry', () => {
   beforeEach(() => resetWeightsCache());
 
-  it('returns 7 signals', () => {
+  it('returns 8 signals', () => {
     const signals = buildSignalRegistry();
-    expect(signals).toHaveLength(7);
+    expect(signals).toHaveLength(8);
   });
 
   it('all signals are enabled by default', () => {
@@ -337,7 +337,7 @@ describe('buildSignalRegistry', () => {
   it('all v1-ship signals are enabled; post-validation signals are also enabled', () => {
     const signals = buildSignalRegistry();
     expect(signals.filter(s => s.maturity === 'v1-ship')).toHaveLength(6);
-    expect(signals.filter(s => s.maturity === 'post-validation')).toHaveLength(1);
+    expect(signals.filter(s => s.maturity === 'post-validation')).toHaveLength(2);
     expect(signals.every(s => s.enabled)).toBe(true);
   });
 

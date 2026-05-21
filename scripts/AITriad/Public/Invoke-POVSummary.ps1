@@ -386,8 +386,11 @@ function Invoke-POVSummary {
             }
         }
 
-        Write-Utf8NoBom -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10) 
+        Write-Utf8NoBom -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10)
         Write-OK "metadata.json updated: summary_status=current, summary_version=$taxonomyVersion"
+
+        # Rebuild source index so Get-AITSource picks up updated stats
+        try { Update-AITSourceIndex -Quiet } catch { Write-Verbose "Index rebuild skipped: $_" }
     }
     catch {
         Write-Warn "Summary written but metadata update failed — $($_.Exception.Message)"

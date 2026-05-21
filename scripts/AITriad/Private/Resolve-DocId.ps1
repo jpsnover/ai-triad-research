@@ -35,9 +35,17 @@ function Resolve-DocId {
     }
     $Candidate  = "$BaseSlug-$Year"
     $Counter    = 1
-    while (Test-Path (Join-Path $SourcesDir $Candidate)) {
-        $Candidate = "$BaseSlug-$Year-$Counter"
-        $Counter++
+    # Use atomic directory creation as the uniqueness guarantee.
+    # New-Item fails if the directory already exists, avoiding the
+    # check-then-act race in parallel imports.
+    while ($true) {
+        try {
+            New-Item -ItemType Directory -Path (Join-Path $SourcesDir $Candidate) -ErrorAction Stop | Out-Null
+            return $Candidate
+        } catch {
+            # Directory already exists — increment suffix and retry
+            $Candidate = "$BaseSlug-$Year-$Counter"
+            $Counter++
+        }
     }
-    return $Candidate
 }

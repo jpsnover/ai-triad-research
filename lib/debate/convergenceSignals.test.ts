@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD } from './convergenceSignals.js';
+import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD, computeUncertaintyMetric } from './convergenceSignals.js';
 import type {
   SpeakerId,
   TranscriptEntry,
@@ -1323,5 +1323,260 @@ describe('computeConvergenceSignals — arco', () => {
     // sig2 phase_mean should only reflect the current (argumentation) phase turn
     expect(sig2.arco).toBeDefined();
     expect(sig2.arco!.phase_mean).toBeCloseTo(sig2.arco!.turn_similarity, 5);
+  });
+});
+
+// ── Uncertainty metric (anti-sycophancy) ───────────────────
+
+function makeSignalInput(overrides: Partial<Parameters<typeof computeUncertaintyMetric>[2]> = {}) {
+  return {
+    argument_redundancy: { avg_self_overlap: 0, semantic_max_similarity: undefined as number | undefined },
+    dialectical_engagement: { ratio: 0.5 },
+    position_drift: { drift: 0 },
+    concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
+    ...overrides,
+  };
+}
+
+describe('computeUncertaintyMetric — basic', () => {
+  it('returns all zero-ish metrics for empty inputs', () => {
+    const result = computeUncertaintyMetric([], [], makeSignalInput(), 'argumentation');
+    expect(result.intra_agent).toBe(0);
+    // Inter-agent: supportRatio=0, lowEngagement=0.5, highRecycling=0 → (0+0.15+0)*1.2
+    expect(result.inter_agent).toBeGreaterThan(0);
+    // System-level: no nodes, meanStrength defaults to 0.5 → (1-0.5)*0.6 + 0*0.4 = 0.3
+    expect(result.system_level).toBeCloseTo(0.3, 2);
+    expect(result.collapse_warning).toBe(false);
+  });
+
+  it('composite is a weighted sum of three tiers', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.5 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.5 },
+    ];
+    const result = computeUncertaintyMetric(nodes, [], makeSignalInput(), 'argumentation');
+    const expected = 0.30 * result.intra_agent + 0.40 * result.inter_agent + 0.30 * result.system_level;
+    expect(result.composite).toBeCloseTo(expected, 10);
+  });
+});
+
+describe('computeUncertaintyMetric — intra-agent', () => {
+  it('detects self-attacks (same speaker attacking own nodes)', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.5 },
+      { id: 'n2', speaker: 'prometheus', computed_strength: 0.5 },
+    ];
+    const edges = [{ source: 'n1', target: 'n2', type: 'attacks' as const }];
+    const result = computeUncertaintyMetric(nodes, edges, makeSignalInput(), 'argumentation');
+    // selfAttackRate = 1/1 = 1.0, intra = min(1, 1*3 + 0) = 1.0
+    expect(result.intra_agent).toBe(1);
+  });
+
+  it('no self-attacks yields zero intra score (with no drift)', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.5 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.5 },
+    ];
+    const edges = [{ source: 'n1', target: 'n2', type: 'attacks' as const }];
+    const result = computeUncertaintyMetric(nodes, edges, makeSignalInput(), 'argumentation');
+    expect(result.intra_agent).toBe(0);
+  });
+
+  it('position drift contributes to intra score', () => {
+    const result = computeUncertaintyMetric(
+      [], [],
+      makeSignalInput({ position_drift: { drift: 1.0 } }),
+      'argumentation',
+    );
+    // driftContribution = min(1, 1.0*2) = 1, intra = min(1, 0 + 1*0.3) = 0.3
+    expect(result.intra_agent).toBeCloseTo(0.3, 2);
+  });
+
+  it('ignores system/document/user nodes for self-attack', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'system', computed_strength: 0.5 },
+      { id: 'n2', speaker: 'system', computed_strength: 0.5 },
+    ];
+    const edges = [{ source: 'n1', target: 'n2', type: 'attacks' as const }];
+    const result = computeUncertaintyMetric(nodes, edges, makeSignalInput(), 'argumentation');
+    // system nodes are excluded, so no self-attacks counted
+    expect(result.intra_agent).toBe(0);
+  });
+});
+
+describe('computeUncertaintyMetric — inter-agent', () => {
+  it('high support ratio + low engagement raises inter score', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.5 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.5 },
+    ];
+    const edges = [
+      { source: 'n1', target: 'n2', type: 'supports' as const },
+      { source: 'n2', target: 'n1', type: 'supports' as const },
+    ];
+    const signals = makeSignalInput({
+      dialectical_engagement: { ratio: 0.0 }, // low engagement
+      argument_redundancy: { avg_self_overlap: 0.8 }, // high recycling
+    });
+    const result = computeUncertaintyMetric(nodes, edges, signals, 'argumentation');
+    // supportRatio = 1.0, lowEngagement = 1.0, highRecycling = 0.8
+    // (1.0*0.4 + 1.0*0.3 + 0.8*0.3) * 1.2 = (0.4+0.3+0.24)*1.2 = 0.94*1.2 = 1.128 → clamped to 1
+    expect(result.inter_agent).toBe(1);
+  });
+
+  it('confrontation phase uses higher multiplier than argumentation', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.5 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.5 },
+    ];
+    const edges = [{ source: 'n1', target: 'n2', type: 'supports' as const }];
+    const signals = makeSignalInput({ dialectical_engagement: { ratio: 0.5 } });
+
+    const confResult = computeUncertaintyMetric(nodes, edges, signals, 'confrontation');
+    const argResult = computeUncertaintyMetric(nodes, edges, signals, 'argumentation');
+    // confrontation multiplier 1.5 > argumentation 1.2
+    expect(confResult.inter_agent).toBeGreaterThan(argResult.inter_agent);
+  });
+
+  it('concluding phase uses lower multiplier', () => {
+    const edges = [{ source: 'n1', target: 'n2', type: 'supports' as const }];
+    const signals = makeSignalInput({ dialectical_engagement: { ratio: 0.5 } });
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.5 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.5 },
+    ];
+    const concResult = computeUncertaintyMetric(nodes, edges, signals, 'concluding');
+    const argResult = computeUncertaintyMetric(nodes, edges, signals, 'argumentation');
+    expect(concResult.inter_agent).toBeLessThan(argResult.inter_agent);
+  });
+
+  it('prefers semantic_max_similarity over avg_self_overlap when present', () => {
+    const signals1 = makeSignalInput({
+      argument_redundancy: { avg_self_overlap: 0.1, semantic_max_similarity: 0.9 },
+      dialectical_engagement: { ratio: 0.5 },
+    });
+    const signals2 = makeSignalInput({
+      argument_redundancy: { avg_self_overlap: 0.1 },
+      dialectical_engagement: { ratio: 0.5 },
+    });
+    const r1 = computeUncertaintyMetric([], [], signals1, 'argumentation');
+    const r2 = computeUncertaintyMetric([], [], signals2, 'argumentation');
+    // r1 uses 0.9 for recycling, r2 uses 0.1
+    expect(r1.inter_agent).toBeGreaterThan(r2.inter_agent);
+  });
+});
+
+describe('computeUncertaintyMetric — system-level', () => {
+  it('low computed_strength yields high system uncertainty', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.1 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.2 },
+    ];
+    const result = computeUncertaintyMetric(nodes, [], makeSignalInput(), 'argumentation');
+    // meanStrength = 0.15, weakFraction = 2/2 = 1.0 (both < 0.3)
+    // system = min(1, (1-0.15)*0.6 + 1.0*0.4) = min(1, 0.51 + 0.4) = 0.91
+    expect(result.system_level).toBeCloseTo(0.91, 1);
+  });
+
+  it('high computed_strength yields low system uncertainty', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.9 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.8 },
+    ];
+    const result = computeUncertaintyMetric(nodes, [], makeSignalInput(), 'argumentation');
+    // meanStrength = 0.85, weakFraction = 0
+    // system = (1-0.85)*0.6 + 0 = 0.09
+    expect(result.system_level).toBeCloseTo(0.09, 2);
+  });
+
+  it('falls back to base_strength when computed_strength absent', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', base_strength: 0.9 },
+      { id: 'n2', speaker: 'sentinel', base_strength: 0.8 },
+    ];
+    const result = computeUncertaintyMetric(nodes, [], makeSignalInput(), 'argumentation');
+    expect(result.system_level).toBeCloseTo(0.09, 2);
+  });
+
+  it('defaults to 0.5 when both strengths are missing', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus' },
+      { id: 'n2', speaker: 'sentinel' },
+    ];
+    const result = computeUncertaintyMetric(nodes, [], makeSignalInput(), 'argumentation');
+    // meanStrength = 0.5, weakFraction = 0
+    // system = (1-0.5)*0.6 + 0 = 0.3
+    expect(result.system_level).toBeCloseTo(0.3, 2);
+  });
+
+  it('excludes system/document/user nodes from QBAF analysis', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'system', computed_strength: 0.1 },
+      { id: 'n2', speaker: 'prometheus', computed_strength: 0.9 },
+    ];
+    const result = computeUncertaintyMetric(nodes, [], makeSignalInput(), 'argumentation');
+    // Only n2 (0.9) is counted
+    // meanStrength = 0.9, system = (1-0.9)*0.6 + 0*0.4 = 0.06
+    expect(result.system_level).toBeCloseTo(0.06, 2);
+  });
+});
+
+describe('computeUncertaintyMetric — collapse_warning', () => {
+  it('triggers when composite > 0.55 AND support ratio > 0.6', () => {
+    // Engineer a scenario: all supports, low engagement, weak arguments
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.15 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.15 },
+    ];
+    const edges = [
+      { source: 'n1', target: 'n2', type: 'supports' as const },
+      { source: 'n2', target: 'n1', type: 'supports' as const },
+    ];
+    const signals = makeSignalInput({
+      dialectical_engagement: { ratio: 0.0 },
+      argument_redundancy: { avg_self_overlap: 0.9 },
+    });
+    const result = computeUncertaintyMetric(nodes, edges, signals, 'argumentation');
+    expect(result.composite).toBeGreaterThan(0.55);
+    expect(result.collapse_warning).toBe(true);
+  });
+
+  it('does NOT trigger with low composite even if support ratio is high', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.9 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.9 },
+    ];
+    const edges = [
+      { source: 'n1', target: 'n2', type: 'supports' as const },
+    ];
+    const signals = makeSignalInput({
+      dialectical_engagement: { ratio: 1.0 }, // high engagement
+      argument_redundancy: { avg_self_overlap: 0.0 }, // no recycling
+    });
+    const result = computeUncertaintyMetric(nodes, edges, signals, 'concluding');
+    // Strong arguments + high engagement + concluding phase (0.6x) → low composite
+    expect(result.collapse_warning).toBe(false);
+  });
+
+  it('does NOT trigger when support ratio ≤ 0.6 even if composite is high', () => {
+    const nodes = [
+      { id: 'n1', speaker: 'prometheus', computed_strength: 0.1 },
+      { id: 'n2', speaker: 'sentinel', computed_strength: 0.1 },
+      { id: 'n3', speaker: 'prometheus', computed_strength: 0.1 },
+    ];
+    // More attacks than supports
+    const edges = [
+      { source: 'n1', target: 'n2', type: 'attacks' as const },
+      { source: 'n2', target: 'n3', type: 'attacks' as const },
+      { source: 'n3', target: 'n1', type: 'supports' as const },
+    ];
+    const signals = makeSignalInput({
+      dialectical_engagement: { ratio: 0.0 },
+      argument_redundancy: { avg_self_overlap: 0.8 },
+      position_drift: { drift: 0.5 },
+    });
+    const result = computeUncertaintyMetric(nodes, edges, signals, 'argumentation');
+    // Support ratio = 1/3 ≈ 0.33, below 0.6
+    expect(result.collapse_warning).toBe(false);
   });
 });

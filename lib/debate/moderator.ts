@@ -15,6 +15,7 @@ import type {
   ConvergenceSignals,
   InterventionResponseFields,
 } from './types.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import {
   MOVE_TO_FAMILY,
   MOVE_TO_FORCE,
@@ -440,15 +441,26 @@ export function validateRecommendation(
       `${selection.target_debater} burden (${debaterBurden.toFixed(1)}) exceeds 1.5× average (${(state.avg_burden * 1.5).toFixed(1)}) — high-burden ${family} move blocked`);
   }
 
-  return {
-    proceed: true,
+  const result = {
+    proceed: true as const,
     validated_move: move,
     validated_family: family,
     validated_target: selection.target_debater,
   };
+  getGlobalRecorder()?.record({
+    type: 'debate.moderate', component: 'moderator', level: 'info',
+    message: `intervention approved: ${move} → ${selection.target_debater}`,
+    data: { move, family, target: selection.target_debater, proceed: true, budget_remaining: state.budget_remaining },
+  });
+  return result;
 }
 
 function suppress(move: InterventionMove, target: SpeakerId, reason: EngineValidationResult['suppressed_reason'], explanation?: string): EngineValidationResult {
+  getGlobalRecorder()?.record({
+    type: 'debate.moderate', component: 'moderator', level: 'info',
+    message: `intervention suppressed: ${move} → ${target} (${reason})`,
+    data: { move, target, proceed: false, suppressed_reason: reason },
+  });
   return {
     proceed: false,
     validated_move: move,
@@ -534,6 +546,11 @@ export function updateModeratorState(
       state.consecutive_rise = 0;
     }
   }
+  getGlobalRecorder()?.record({
+    type: 'debate.moderate', component: 'moderator', level: 'debug',
+    message: `moderator state updated: round ${round}, phase ${phase}${intervention ? `, fired ${intervention.move} → ${intervention.target_debater}` : ', no intervention'}`,
+    data: { round, phase, intervened: !!intervention, budget_remaining: state.budget_remaining, interventions_fired: state.interventions_fired },
+  });
 }
 
 // ── Trigger evaluation context ─────────────────────────

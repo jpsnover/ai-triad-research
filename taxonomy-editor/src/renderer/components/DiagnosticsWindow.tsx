@@ -692,9 +692,10 @@ function EdgesUsedDetail({ edge, taxNodeMap, nodeLabels }: {
   );
 }
 
-function CommitmentsPanel({ commitments, nodes, onGoToNode }: {
+function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
   commitments: Record<string, CommitmentStore>;
   nodes: ArgumentNetworkNode[];
+  edges: ArgumentNetworkEdge[];
   onGoToNode: (nodeId: string) => void;
 }) {
   const [expanded, setExpanded] = useState<Record<string, string | null>>({});
@@ -744,12 +745,67 @@ function CommitmentsPanel({ commitments, nodes, onGoToNode }: {
     { key: 'challenged', label: 'Challenged', color: '#ef4444' },
   ] as const;
 
+  // Compute concession asymmetry per speaker (mirrors calibrationLogger logic)
+  const asymmetryByPov = useMemo(() => {
+    const result: Record<string, number | null> = {};
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const nodesBySpeaker = new Map<string, ArgumentNetworkNode[]>();
+    for (const n of nodes) {
+      if (!nodesBySpeaker.has(n.speaker)) nodesBySpeaker.set(n.speaker, []);
+      nodesBySpeaker.get(n.speaker)!.push(n);
+    }
+
+    for (const [pov, store] of Object.entries(commitments)) {
+      if (store.conceded.length === 0) { result[pov] = null; continue; }
+
+      // Mean strength of conceded claims (matched to AN nodes)
+      let concSum = 0, concCount = 0;
+      for (const text of store.conceded) {
+        const match = nodes.find(n => n.speaker === pov && (n.text === text || n.text.includes(text) || text.includes(n.text)));
+        if (match) { concSum += match.computed_strength ?? match.base_strength ?? 0.5; concCount++; }
+      }
+      const concededMean = concCount > 0 ? concSum / concCount : 0.5;
+
+      // Mean strength of attack targets
+      const speakerNodes = nodesBySpeaker.get(pov) ?? [];
+      const speakerNodeIds = new Set(speakerNodes.map(n => n.id));
+      const attackTargetIds = new Set<string>();
+      for (const e of edges) {
+        if (speakerNodeIds.has(e.source) && (e as { type?: string }).type === 'attacks') {
+          attackTargetIds.add(e.target);
+        }
+      }
+      let atkSum = 0, atkCount = 0;
+      for (const id of attackTargetIds) {
+        const n = nodeMap.get(id);
+        if (n) { atkSum += n.computed_strength ?? n.base_strength ?? 0.5; atkCount++; }
+      }
+      const atkMean = atkCount > 0 ? atkSum / atkCount : 0.5;
+
+      result[pov] = atkMean - concededMean;
+    }
+    return result;
+  }, [commitments, nodes, edges]);
+
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
       {Object.entries(commitments).map(([pov, store]) => (
         <div key={pov} style={{ marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
             <strong style={{ fontSize: '0.8rem' }}>{speakerLabel(pov)}</strong>
+            {asymmetryByPov[pov] != null && (() => {
+              const a = asymmetryByPov[pov]!;
+              const color = Math.abs(a) > 0.3 ? '#dc2626' : Math.abs(a) > 0.15 ? '#d97706' : '#16a34a';
+              const label = Math.abs(a) > 0.3 ? 'high' : Math.abs(a) > 0.15 ? 'moderate' : 'balanced';
+              return (
+                <span
+                  title={`Concession asymmetry: ${a.toFixed(3)}\nAttack target strength minus conceded claim strength.\nHigh asymmetry = conceding weak claims while pressing strong ones.`}
+                  style={{ fontSize: '0.58rem', padding: '1px 6px', borderRadius: 10, background: `${color}15`, color, fontWeight: 600 }}
+                >
+                  asym: {a.toFixed(2)} ({label})
+                </span>
+              );
+            })()}
           </div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 2 }}>
             {categories.map(cat => {
@@ -2000,7 +2056,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  type EntryTab = 'tax-refs' | 'tax-context' | 'response' | 'details' | 'claims' | 'evidence' | 'citations' | 'brief' | 'plan' | 'draft' | 'cite' | 'moderator';
+  type EntryTab = 'tax-refs' | 'tax-context' | 'response' | 'details' | 'claims' | 'evidence' | 'citations' | 'brief' | 'plan' | 'draft' | 'lookahead' | 'cite' | 'moderator';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -2245,7 +2301,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
         if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'response'];
+          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'lookahead', 'cite', 'claims', 'tax-refs', 'tax-context', 'response'];
           const idx = ENTRY_TABS.indexOf(entryTab);
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
@@ -2540,6 +2596,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             <th style={{ padding: '2px 4px' }}>Sat</th>
                             <th style={{ padding: '2px 4px' }}>Conv</th>
                             <th style={{ padding: '2px 4px' }}>Conf</th>
+                            <th style={{ padding: '2px 4px' }} title="Topic Coherence — mean embedding similarity to crux centroid (anti-drift)">TC</th>
                             <th style={{ padding: '2px 4px' }}>Net</th>
                             <th style={{ padding: '2px 4px' }}>Action</th>
                             <th style={{ padding: '2px 4px' }}>Reason</th>
@@ -2556,6 +2613,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <td style={{ padding: '2px 4px' }}>{t.composite.saturation_score?.toFixed(2) ?? '—'}</td>
                               <td style={{ padding: '2px 4px' }}>{t.composite.convergence_score?.toFixed(2) ?? '—'}</td>
                               <td style={{ padding: '2px 4px', color: (t.confidence?.global ?? 0) < 0.4 ? '#ef4444' : undefined }}>{(t.confidence?.global ?? 0).toFixed(2)}</td>
+                              {(() => { const raw = t.signals?.topic_coherence; if (raw == null) return <td style={{ padding: '2px 4px', color: 'var(--text-muted)' }}>—</td>; const coh = 1 - raw; return <td style={{ padding: '2px 4px', color: coh > 0.7 ? '#16a34a' : coh > 0.4 ? '#d97706' : '#dc2626' }} title={`Coherence: ${coh.toFixed(3)} (raw signal: ${raw.toFixed(3)})`}>{coh.toFixed(2)}</td>; })()}
                               <td style={{ padding: '2px 4px' }}>{t.network_size}</td>
                               <td style={{ padding: '2px 4px', fontWeight: t.predicate_result.action !== 'stay' ? 700 : 400 }}>{t.predicate_result.action}</td>
                               <td style={{ padding: '2px 4px', color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={t.predicate_result.reason}>{t.predicate_result.reason}</td>
@@ -2860,6 +2918,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             <CommitmentsPanel
               commitments={commitments}
               nodes={an?.nodes ?? []}
+              edges={an?.edges ?? []}
               onGoToNode={(nodeId) => { setOverviewTab('argument-network'); setFocusedNodeId(nodeId); }}
             />
           )}
@@ -3309,6 +3368,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const planStage = planAttempts.length > 0 ? planAttempts[planAttempts.length - 1] : undefined;
             const draftStage = draftAttempts.length > 0 ? draftAttempts[draftAttempts.length - 1] : undefined;
             const citeStage = citeAttempts.length > 0 ? citeAttempts[citeAttempts.length - 1] : undefined;
+            const lookaheadDiag = (diag as Record<string, unknown> | undefined)?.lookahead as {
+              stage: 'lookahead';
+              first_attempt: { pass: boolean; utility_before: { position_strength: number; attack_effectiveness: number; crux_engagement: number; composite: number; concession_asymmetry: number }; utility_after: { position_strength: number; attack_effectiveness: number; crux_engagement: number; composite: number; concession_asymmetry: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } };
+              regen_triggered: boolean;
+              regen_attempt?: { pass: boolean; utility_before: { composite: number }; utility_after: { composite: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } };
+              final_pass: boolean;
+              elapsed_ms: number;
+            } | undefined;
 
             // Build all draft stages across ALL orchestration attempts (t/504).
             // turnValTrail.attempts[N].stage_diagnostics preserves full pipeline per retry.
@@ -3400,6 +3467,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'evidence', label: 'Evidence', count: evidenceFactCount || undefined, has: hasEvidence, copy: evidenceStage?.raw_response ?? '' },
               { id: 'citations', label: 'Citations', count: citationsCount || undefined, has: hasCitations, copy: citationResDiag ? JSON.stringify(citationResDiag, null, 2) : '' },
               { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : (typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content, null, 2)) },
+              { id: 'lookahead', label: 'Lookahead', has: !!lookaheadDiag, copy: lookaheadDiag ? JSON.stringify(lookaheadDiag, null, 2) : '' },
               { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
               { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
               { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
@@ -4379,6 +4447,39 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           No structured plan data — expand Raw Response below to inspect the model output.
                         </div>
                       )}
+                      {/* Opponent Intelligence — strategic hints extracted from PLAN prompt (t/20) */}
+                      {(() => {
+                        const prompt = planStage.prompt ?? '';
+                        const oiStart = prompt.indexOf('=== OPPONENT INTELLIGENCE ===');
+                        if (oiStart === -1) return null;
+                        const afterHeader = prompt.slice(oiStart + '=== OPPONENT INTELLIGENCE ==='.length);
+                        const hintLines = afterHeader.split('\n').filter(l => l.trim().startsWith('- '));
+                        if (hintLines.length === 0) return null;
+                        const hints = hintLines.map(l => l.trim().slice(2));
+                        return (
+                          <details open>
+                            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontWeight: 600, fontSize: '0.68rem' }}>OPPONENT INTELLIGENCE</span>
+                              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>{hints.length} hint{hints.length !== 1 ? 's' : ''}</span>
+                            </summary>
+                            <div style={{ padding: '4px 8px', fontSize: '0.72rem' }}>
+                              {hints.map((h, i) => {
+                                const isTrap = h.includes('asserted') && h.includes('conceded');
+                                const isGap = h.includes('sparse coverage') || h.includes('knowledge gap');
+                                const isShift = h.includes('shifted') && (h.includes('cooperative') || h.includes('adversarial'));
+                                const typeLabel = isTrap ? 'TRAP' : isGap ? 'GAP' : isShift ? 'SHIFT' : 'HINT';
+                                const typeColor = isTrap ? '#dc2626' : isGap ? '#d97706' : isShift ? '#2563eb' : '#6b7280';
+                                return (
+                                  <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${typeColor}40` }}>
+                                    <span style={{ display: 'inline-block', padding: '0 4px', borderRadius: 3, background: `${typeColor}15`, color: typeColor, fontSize: '0.62rem', fontWeight: 600, marginRight: 6 }}>{typeLabel}</span>
+                                    <Highlight text={h} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </details>
+                        );
+                      })()}
                       {/* Moderator Directive Response (both formats — moved to position 2) */}
                       {(() => {
                         const wp = planStage.work_product as Record<string, unknown>;
@@ -5071,6 +5172,223 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     })()}
                     </div>
                   )}
+                  {activeTab === 'lookahead' && lookaheadDiag && (
+                    <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        <span style={{
+                          padding: '1px 6px', borderRadius: 3, fontWeight: 600,
+                          background: lookaheadDiag.final_pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
+                          color: lookaheadDiag.final_pass ? '#16a34a' : '#dc2626',
+                        }}>{lookaheadDiag.final_pass ? '\u2713 PASS' : '\u2717 FAIL'}</span>
+                        <span>LOOKAHEAD</span>
+                        <span>{(lookaheadDiag.elapsed_ms / 1000).toFixed(1)}s</span>
+                        {lookaheadDiag.regen_triggered && <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.62rem' }}>REGEN TRIGGERED</span>}
+                      </div>
+
+                      {/* Utility Delta Gauge */}
+                      {(() => {
+                        const r = lookaheadDiag.first_attempt;
+                        const before = r.utility_before.composite;
+                        const after = r.utility_after.composite;
+                        const delta = r.utility_delta;
+                        const pct = Math.min(Math.max((after / Math.max(before, 0.01)) * 50, 5), 95);
+                        const deltaColor = delta > 0.05 ? '#16a34a' : delta >= 0 ? '#d97706' : '#dc2626';
+                        return (
+                          <div style={{ padding: 8, margin: '6px 0', borderLeft: `3px solid ${deltaColor}`, background: `${deltaColor}08`, borderRadius: 4 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: 6 }}>
+                              <span>Before: <strong>{before.toFixed(3)}</strong></span>
+                              <span style={{ color: deltaColor, fontWeight: 700 }}>{'\u0394'}u = {delta >= 0 ? '+' : ''}{delta.toFixed(3)}</span>
+                              <span>After: <strong>{after.toFixed(3)}</strong></span>
+                            </div>
+                            <div style={{ height: 10, borderRadius: 5, background: 'var(--bg-secondary)', position: 'relative', overflow: 'hidden' }}>
+                              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: '50%', background: 'rgba(128,128,128,0.15)', borderRight: '2px solid var(--text-muted)' }} />
+                              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: deltaColor, borderRadius: 5, transition: 'width 0.3s' }} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                              <span>threshold: {r.threshold.toFixed(3)}</span>
+                              <span>{r.pass ? '\u2713 passed' : '\u2717 below threshold'}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Strategic Assessment */}
+                      {(() => {
+                        const r = lookaheadDiag.first_attempt;
+                        const posDelta = r.utility_after.position_strength - r.utility_before.position_strength;
+                        const atkDelta = r.utility_after.attack_effectiveness - r.utility_before.attack_effectiveness;
+                        const crxDelta = r.utility_after.crux_engagement - r.utility_before.crux_engagement;
+                        const claims = r.tentative_claims;
+                        const weakClaims = claims.filter(c => c.strength < 0.4).length;
+                        const strongClaims = claims.filter(c => c.strength >= 0.7).length;
+
+                        const assessments: string[] = [];
+                        // Position strength interpretation
+                        if (posDelta < -0.03 && r.utility_before.position_strength > 0.7) {
+                          assessments.push(`Position dilution: speaker had strong position (${r.utility_before.position_strength.toFixed(2)}) but new claims drag the average down${weakClaims > 0 ? ` \u2014 ${weakClaims} weak claim${weakClaims !== 1 ? 's' : ''} (< 0.4 strength) pulling the mean` : ''}.`);
+                        } else if (posDelta < -0.03) {
+                          assessments.push(`Position weakened: new claims undermine the speaker's existing arguments.`);
+                        } else if (posDelta > 0.03) {
+                          assessments.push(`Position strengthened: new claims reinforce the speaker's stance (+${posDelta.toFixed(3)}).`);
+                        }
+                        // Attack effectiveness interpretation
+                        if (atkDelta < 0.001 && r.utility_before.attack_effectiveness < 0.3) {
+                          assessments.push(`No offensive impact: claims are defensive \u2014 they reinforce the speaker's position but don't target opponent weak points.`);
+                        } else if (atkDelta < 0.001 && r.utility_before.attack_effectiveness >= 0.3) {
+                          assessments.push(`Attack plateau: speaker already has good attack coverage (${r.utility_before.attack_effectiveness.toFixed(2)}) and these claims don't extend it.`);
+                        } else if (atkDelta > 0.05) {
+                          assessments.push(`Strong offensive move: attacks landed on opponent nodes (+${atkDelta.toFixed(3)} effectiveness).`);
+                        }
+                        // Crux engagement interpretation
+                        if (crxDelta < 0.001 && r.utility_before.crux_engagement >= 0.9) {
+                          assessments.push(`Cruxes fully addressed: all identified cruxes already engaged \u2014 new claims don't open new territory.`);
+                        } else if (crxDelta < 0.001 && r.utility_before.crux_engagement < 0.5) {
+                          assessments.push(`Crux avoidance: ${((1 - r.utility_before.crux_engagement) * 100).toFixed(0)}% of cruxes unaddressed and these claims don't engage them.`);
+                        } else if (crxDelta > 0.05) {
+                          assessments.push(`Crux engagement improved: speaker addressed previously unengaged disagreement points.`);
+                        }
+                        // Overall pattern
+                        if (!r.pass && posDelta < 0 && atkDelta < 0.001) {
+                          assessments.push(`Pattern: padding \u2014 speaker is adding volume without advancing the debate. Retry hint would push toward targeted attacks on opponent weak points or unresolved cruxes.`);
+                        } else if (!r.pass && r.utility_delta >= 0 && r.utility_delta < r.threshold) {
+                          assessments.push(`Pattern: marginal \u2014 claims add slight value but below the threshold for meaningful contribution. More specific, falsifiable claims would score higher.`);
+                        } else if (r.pass && r.utility_delta > 0.05) {
+                          assessments.push(`Pattern: strong move \u2014 claims meaningfully advance the speaker's position.`);
+                        }
+
+                        if (assessments.length === 0) return null;
+                        return (
+                          <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem', lineHeight: 1.5 }}>
+                            <div style={{ fontWeight: 600, fontSize: '0.68rem', marginBottom: 4, color: 'var(--text-muted)' }}>STRATEGIC ASSESSMENT</div>
+                            {assessments.map((a, i) => (
+                              <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${a.includes('Pattern:') ? (r.pass ? '#16a34a40' : '#dc262640') : '#6b728040'}` }}>
+                                {a}
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Utility Breakdown */}
+                      <details style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Utility Breakdown</summary>
+                        <table style={{ width: '100%', fontSize: '0.68rem', borderCollapse: 'collapse', marginTop: 4 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                              <th style={{ textAlign: 'left', padding: '2px 6px' }}>Component</th>
+                              <th style={{ textAlign: 'right', padding: '2px 6px' }}>Before</th>
+                              <th style={{ textAlign: 'right', padding: '2px 6px' }}>After</th>
+                              <th style={{ textAlign: 'right', padding: '2px 6px' }}>{'\u0394'}</th>
+                              <th style={{ textAlign: 'left', padding: '2px 6px' }}>Assessment</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(['position_strength', 'attack_effectiveness', 'crux_engagement', 'composite'] as const).map(k => {
+                              const b = lookaheadDiag.first_attempt.utility_before[k];
+                              const a = lookaheadDiag.first_attempt.utility_after[k];
+                              const d = a - b;
+                              const hint = k === 'position_strength'
+                                ? (d < -0.03 ? 'diluting' : d > 0.03 ? 'reinforcing' : 'stable')
+                                : k === 'attack_effectiveness'
+                                ? (d < 0.001 ? (b < 0.3 ? 'no attacks' : 'plateau') : 'attacks landed')
+                                : k === 'crux_engagement'
+                                ? (d < 0.001 ? (b >= 0.9 ? 'fully engaged' : 'avoiding cruxes') : 'engaging')
+                                : '';
+                              const hintColor = hint === 'diluting' || hint === 'no attacks' || hint === 'avoiding cruxes' ? '#dc2626'
+                                : hint === 'stable' || hint === 'plateau' || hint === 'fully engaged' ? 'var(--text-muted)'
+                                : '#16a34a';
+                              return (
+                                <tr key={k} style={{ borderBottom: '1px solid var(--border)', fontWeight: k === 'composite' ? 700 : 400 }}>
+                                  <td style={{ padding: '2px 6px' }}>{k.replace(/_/g, ' ')}</td>
+                                  <td style={{ textAlign: 'right', padding: '2px 6px' }}>{b.toFixed(3)}</td>
+                                  <td style={{ textAlign: 'right', padding: '2px 6px' }}>{a.toFixed(3)}</td>
+                                  <td style={{ textAlign: 'right', padding: '2px 6px', color: d > 0 ? '#16a34a' : d < 0 ? '#dc2626' : 'var(--text-muted)' }}>{d >= 0 ? '+' : ''}{d.toFixed(3)}</td>
+                                  <td style={{ padding: '2px 6px', fontSize: '0.62rem', color: hintColor, fontStyle: 'italic' }}>{hint}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </details>
+
+                      {/* Tentative Claims */}
+                      {lookaheadDiag.first_attempt.tentative_claims.length > 0 && (
+                        <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Tentative Claims ({lookaheadDiag.first_attempt.tentative_claims.length})</summary>
+                          {lookaheadDiag.first_attempt.tentative_claims.map((c, i) => {
+                            const label = c.strength >= 0.7 ? 'strong' : c.strength >= 0.4 ? 'moderate' : 'weak';
+                            const claimColor = c.strength >= 0.7 ? '#16a34a' : c.strength >= 0.4 ? '#d97706' : '#dc2626';
+                            const assessment = c.strength < 0.4
+                              ? 'Rhetorical or vague \u2014 drags position mean down'
+                              : c.strength >= 0.9
+                              ? 'Strong declarative claim \u2014 anchors position'
+                              : c.strength >= 0.7
+                              ? 'Specific, falsifiable claim'
+                              : 'Moderate \u2014 reframes but lacks new evidence';
+                            return (
+                              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${claimColor}40`, fontSize: '0.7rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: claimColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
+                                  <span style={{ fontSize: '0.58rem', padding: '0 4px', borderRadius: 3, background: `${claimColor}15`, color: claimColor, fontWeight: 600 }}>{label.toUpperCase()}</span>
+                                  <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{assessment}</span>
+                                </div>
+                                <Highlight text={c.text} />
+                              </div>
+                            );
+                          })}
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                            Tentative network: {lookaheadDiag.first_attempt.tentative_network_size.nodes} nodes, {lookaheadDiag.first_attempt.tentative_network_size.edges} edges
+                          </div>
+                        </details>
+                      )}
+
+                      {/* Regeneration Attempt */}
+                      {lookaheadDiag.regen_triggered && lookaheadDiag.regen_attempt && (
+                        <div style={{ marginTop: 8, padding: 8, borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.06)', borderRadius: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>REGENERATION</span>
+                            <span style={{
+                              padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
+                              background: lookaheadDiag.regen_attempt.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
+                              color: lookaheadDiag.regen_attempt.pass ? '#16a34a' : '#dc2626',
+                            }}>{lookaheadDiag.regen_attempt.pass ? '\u2713 PASS' : '\u2717 FAIL'}</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem' }}>
+                            <span>{'\u0394'}u = {lookaheadDiag.regen_attempt.utility_delta >= 0 ? '+' : ''}{lookaheadDiag.regen_attempt.utility_delta.toFixed(3)}</span>
+                            <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>threshold: {lookaheadDiag.regen_attempt.threshold.toFixed(3)}</span>
+                          </div>
+                          {lookaheadDiag.regen_attempt.tentative_claims.length > 0 && (
+                            <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Regen Claims ({lookaheadDiag.regen_attempt.tentative_claims.length})</summary>
+                              {lookaheadDiag.regen_attempt.tentative_claims.map((c, i) => (
+                                <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: '2px solid rgba(245,158,11,0.3)', fontSize: '0.68rem' }}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: 'var(--text-muted)', marginRight: 6 }}>{c.strength.toFixed(2)}</span>
+                                  <Highlight text={c.text} />
+                                </div>
+                              ))}
+                            </details>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Low Utility Warning */}
+                      {!lookaheadDiag.final_pass && (
+                        <div style={{
+                          marginTop: 8, padding: '8px 10px', borderRadius: 4,
+                          borderLeft: '3px solid #dc2626', background: 'rgba(220,38,38,0.08)',
+                          fontSize: '0.72rem', color: '#dc2626', fontWeight: 600,
+                        }}>
+                          Low utility turn — both attempts failed threshold. Committed anyway; <code>low_utility_turn</code> logged.
+                        </div>
+                      )}
+
+                      {/* Raw Data */}
+                      <details style={{ marginTop: 8 }}>
+                        <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          Raw Data <CopyButton text={JSON.stringify(lookaheadDiag, null, 2)} />
+                        </summary>
+                        <pre style={{ fontSize: '0.65rem', whiteSpace: 'pre-wrap', maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(lookaheadDiag, null, 2)}</pre>
+                      </details>
+                    </div>
+                  )}
                   {activeTab === 'cite' && citeStage && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
                       {/* ── Top section: header + content from final cite ── */}
@@ -5367,6 +5685,21 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                   {activeTab === 'claims' && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {/* Low-value claims filter banner (anti-filibustering, t/22) */}
+                      {(() => {
+                        const lvr = (extTrace?.rejection_reasons as Record<string, number> | undefined)?.low_marginal_value;
+                        if (!lvr || lvr <= 0) return null;
+                        return (
+                          <div style={{
+                            padding: '6px 8px', marginBottom: 8, borderRadius: 4,
+                            borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.08)',
+                            fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: 6,
+                          }}>
+                            <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.62rem' }}>ANTI-FILIBUSTER</span>
+                            <span>{lvr} low-value claim{lvr !== 1 ? 's' : ''} filtered (weak, non-crux, no novel scheme)</span>
+                          </div>
+                        );
+                      })()}
                       {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
                         <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
                           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (

@@ -10,6 +10,7 @@ import type { SpeakerId, DebateSourceType, DebateAudience } from '../types/debat
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
 import { AI_POVERS } from '@lib/debate/types';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export type DebatePacing = 'tight' | 'moderate' | 'thorough';
 export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
@@ -119,7 +120,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       ? sourceContent.length > 0
       : sourceRef.trim().length > 0;
 
-  const canStart = hasSource && selected.size >= 2;
+  const canStart = hasSource && selected.size >= 1;
 
   const handleStart = async () => {
     if (!canStart || creating) return;
@@ -172,6 +173,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       },
     );
     await loadDebate(id);
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, pacing, adaptive_staging: useAdaptiveStaging } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();
@@ -467,8 +469,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               </label>
             </div>
 
-            {selected.size < 2 && (
-              <div className="ndd-hint-error">Select at least 2 perspectives</div>
+            {selected.size < 1 && (
+              <div className="ndd-hint-error">Select at least 1 perspective</div>
             )}
           </div>
         </div>

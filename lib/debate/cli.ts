@@ -276,12 +276,12 @@ async function main(): Promise<void> {
 
   // Validate debaters
   const activePovers = (config.activePovers ?? ['prometheus', 'sentinel', 'cassandra']) as Exclude<SpeakerId, 'user'>[];
-  if (activePovers.length < 2) throw new ActionableError({
+  if (activePovers.length < 1) throw new ActionableError({
     goal: 'Validate debate configuration',
-    problem: `At least 2 debaters required, but only ${activePovers.length} specified`,
+    problem: `At least 1 debater required, but none specified`,
     location: 'cli.main',
     nextSteps: [
-      'Add at least 2 entries to the "activePovers" array in your config',
+      'Add at least 1 entry to the "activePovers" array in your config',
       'Valid debaters: prometheus, sentinel, cassandra',
     ],
   });

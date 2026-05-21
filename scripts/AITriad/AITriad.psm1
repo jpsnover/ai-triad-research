@@ -382,6 +382,7 @@ Export-ModuleMember -Function @(
     'Show-OSSLicenses'
     'Get-FlightRecorderDump'
     'Show-FlightRecorder'
+    'Update-AITSourceIndex'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

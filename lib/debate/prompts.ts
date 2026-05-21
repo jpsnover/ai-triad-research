@@ -1648,6 +1648,7 @@ export interface StagePromptInput {
   };
   doctrinalBoundaries?: string[];
   edgeContext?: string;
+  strategicHints?: string[];
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1739,13 +1740,17 @@ Consider how the moderator's point relates to your own position and plan a brief
     ? `,\n  "directive_response": {"directive": "restate the moderator's directive in one sentence", "how_addressed": "${pi.isTargeted ? '1-3 sentences: how you will directly respond to the moderator directive in your opening paragraph' : '1 sentence: brief acknowledgment of the moderator directive as it relates to your position'}"}`
     : '';
 
+  const strategicHintsBlock = input.strategicHints && input.strategicHints.length > 0
+    ? `\n=== OPPONENT INTELLIGENCE ===\nThe following tactical observations were computed from the argument network and commitment stores. Use them to inform your strategy — they suggest exploitable weaknesses or shifts in opponent behavior.\n${input.strategicHints.map(h => '- ' + h).join('\n')}\n`
+    : '';
+
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
 Your personality: ${input.personality}.
 Your perspective: ${input.pov}.
 ${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
 === SITUATION BRIEF ===
 ${brief}
-${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}
+${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}
 === AVAILABLE DIALECTICAL MOVES ===
 The 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}
 
@@ -2087,13 +2092,23 @@ export function draftQualityCheckPrompt(
   pov: string,
   phase: DebatePhase,
   round: number,
+  plannedMoves?: { move: string; target?: string; detail: string }[],
 ): string {
+  const plannedMovesBlock = plannedMoves && plannedMoves.length > 0
+    ? `
+PLANNED MOVES (from the debater's strategic plan — these are AUTHORIZED):
+${plannedMoves.map(pm => `- ${pm.move}${pm.target ? ` (targeting: ${pm.target})` : ''}: ${pm.detail}`).join('\n')}
+
+IMPORTANT: Do NOT flag the draft for executing these planned moves. If the draft uses REFRAME, DISTINGUISH, CONCEDE-AND-PIVOT, or any other move listed above, that is correct execution of the plan. Only flag weaknesses in HOW a move is executed (e.g., vague claims, missing evidence), never flag WHETHER a planned move should be used.
+`
+    : '';
+
   return `You are a debate-draft quality gate. Answer 3 yes/no questions about this draft statement. Do NOT judge overall quality — only flag structural defects that the debater should fix before grounding citations.
 
 Phase: ${phase}
 Speaker: ${speaker} (${pov})
 Round: ${round}
-
+${plannedMovesBlock}
 Prior turn (last opponent):
 ${lastOpponentStatement.slice(0, 600)}
 

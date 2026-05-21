@@ -41,6 +41,7 @@ const BATCH_SIZE = 100;
 let _debateTemperature: number | null = null;
 
 export function setDebateTemperature(temp: number | null): void {
+  if (temp === _debateTemperature) return;
   _debateTemperature = temp;
 }
 

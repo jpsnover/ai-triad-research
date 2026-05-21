@@ -49,7 +49,11 @@ interface AiTriadConfig {
   version_file: string;
 }
 
+let _dataConfigCache: AiTriadConfig | null = null;
+
 export function loadDataConfig(): AiTriadConfig {
+  if (_dataConfigCache) return _dataConfigCache;
+
   const defaults: AiTriadConfig = {
     data_root: IS_PACKAGED ? getPlatformDataDir() : '.',
     taxonomy_dir: 'taxonomy/Origin',
@@ -74,13 +78,16 @@ export function loadDataConfig(): AiTriadConfig {
       if (fs.existsSync(configPath)) {
         const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
         console.log(`[fileIO] Loaded config from ${configPath}`);
-        return { ...defaults, ...raw };
+        const merged = { ...defaults, ...raw };
+        _dataConfigCache = merged;
+        return merged;
       }
     } catch { /* try next */ }
   }
 
   console.log(`[fileIO] Using default config (packaged=${IS_PACKAGED}, data_root=${defaults.data_root})`);
-  return defaults;
+  _dataConfigCache = defaults;
+  return _dataConfigCache;
 }
 
 function resolveDataPath(subPath: string): string {
@@ -117,6 +124,7 @@ export function setDataRootPath(newRoot: string): void {
   } catch { /* start fresh */ }
   existing.data_root = newRoot;
   fs.writeFileSync(configPath, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
+  _dataConfigCache = null; // invalidate — caller should relaunch
   console.log(`[fileIO] Updated .aitriad.json data_root → ${newRoot}`);
 }
 

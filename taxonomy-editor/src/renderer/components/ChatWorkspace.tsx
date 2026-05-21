@@ -10,6 +10,7 @@ import { CHAT_MODE_INFO } from '../types/chat';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -174,6 +175,7 @@ export function ChatWorkspace() {
     if (!input.trim() || chatGenerating) return;
     const msg = input;
     setInput('');
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.send', data: { chat_id: activeChat?.id, mode: activeChat?.mode, pover: activeChat?.pover, message_length: msg.length } });
     await sendMessage(msg);
   }, [input, chatGenerating, sendMessage]);
 
@@ -206,7 +208,7 @@ export function ChatWorkspace() {
           <span className="chat-header-pover" style={{ color: poverInfo.color }}>
             {poverInfo.label}
           </span>
-          <ModeSelector mode={activeChat.mode} onChange={changeMode} />
+          <ModeSelector mode={activeChat.mode} onChange={(m) => { getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.mode_switch', data: { chat_id: activeChat.id, from: activeChat.mode, to: m } }); changeMode(m); }} />
         </div>
         <div className="chat-header-topic" title={activeChat.topic}>
           {activeChat.topic}

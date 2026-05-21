@@ -408,6 +408,8 @@ export interface DebateSession {
      *  clause-coverage signal — which clause of the resolution each turn
      *  most closely engages with. */
     clause_embeddings?: number[][];
+    /** Pre-debate topic quality critique (wisdom-generating scoring). Set once before clarification. */
+    critique?: import('./topicCritique.js').TopicCritique;
   };
   source_type: DebateSourceType;
   /** For document: file path; for url: the URL; for topic: empty */
@@ -937,6 +939,8 @@ export interface EntryDiagnostics {
   edges_used?: { source: string; target: string; type: string; confidence: number }[];
   convergence_signals?: ConvergenceSignals;
   evaluator_warning?: string;
+  /** Lookahead gate diagnostics — move-quality evaluation between draft and commit (t/21). */
+  lookahead?: import('./lookaheadGate.js').LookaheadDiagnostics;
 }
 
 // ── Turn pipeline types ──────────────────────────────

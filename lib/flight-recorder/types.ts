@@ -13,7 +13,6 @@ export type EventType =
   // Argument network
   | 'an.extract'
   | 'an.commit'
-  | 'an.reject'
   | 'an.qbaf'
   | 'an.gc'
   // Turn pipeline
@@ -26,11 +25,6 @@ export type EventType =
   | 'debate.round'
   | 'debate.signal'
   | 'debate.moderate'
-  | 'debate.news_report'
-  // Adaptive staging
-  | 'adaptive.eval'
-  | 'adaptive.transition'
-  | 'adaptive.regress'
   // State management
   | 'state.save'
   | 'state.load'
@@ -63,9 +57,7 @@ export type EventType =
   // Sync operations
   | 'sync.pr.create'
   | 'sync.pr.update'
-  | 'sync.pr.merge'
   | 'sync.conflict'
-  | 'sync.webhook'
   // Overlay operations
   | 'overlay.commit'
   // Storage
@@ -77,20 +69,13 @@ export type EventType =
   | 'lock.released'
   | 'lock.timeout'
   | 'lock.ttl_eviction'
-  // Citation resolution
-  | 'citation.bank.built'
-  | 'citation.tool_call'
-  | 'citation.tool_call.empty'
-  | 'citation.scrub'
-  | 'citation.validation'
   // System
   | 'system.error'
-  | 'system.warning'
-  | 'system.memory'
-  | 'system.perf'
   | 'system.scaling_warning';
 
 export type EventLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+
+export type ErrorCategory = 'network' | 'schema' | 'ai_provider' | 'state' | 'render' | 'permissions';
 
 // ── Core event ───────────────────────────────────────────────────────────
 
@@ -121,6 +106,7 @@ export interface FlightRecorderEvent {
     stack?: string;
   };
   duration_ms?: number;
+  error_category?: ErrorCategory;
 }
 
 /** Input to record() — header fields are stamped automatically. */
@@ -202,6 +188,7 @@ export interface DumpEvent {
   data?: Record<string, unknown>;
   error?: { name: string; message: string; stack?: string };
   duration_ms?: number;
+  error_category?: ErrorCategory;
 }
 
 export interface DumpContext {

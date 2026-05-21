@@ -11,6 +11,7 @@ import { api } from '@bridge';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import type { Edge, EdgeType, EdgeStatus, EdgesFile } from '../types/taxonomy';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -169,8 +170,10 @@ export function EdgeBrowser() {
     try {
       await api.bulkUpdateEdges(indices, status);
       await reloadEdges();
+      getGlobalRecorder()?.record({ type: 'user.action', component: 'edge-browser', level: 'info', message: 'edge.bulk_update', data: { status, count: indices.length } });
     } catch (err) {
       console.error('Bulk update failed:', err);
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'edge-browser', level: 'error', message: 'edge.bulk_update failed', error: { name: 'BulkUpdateError', message: String(err) } });
     }
   }, [filteredEdges, reloadEdges]);
 
@@ -178,6 +181,7 @@ export function EdgeBrowser() {
     try {
       await api.updateEdgeStatus(index, status);
       await reloadEdges();
+      getGlobalRecorder()?.record({ type: 'user.action', component: 'edge-browser', level: 'info', message: 'edge.status_update', data: { index, status } });
       if (autoAdvance) {
         const updated = useTaxonomyStore.getState().edgesFile;
         if (updated) {
@@ -204,6 +208,7 @@ export function EdgeBrowser() {
     try {
       await api.swapEdgeDirection(index);
       await reloadEdges();
+      getGlobalRecorder()?.record({ type: 'user.action', component: 'edge-browser', level: 'info', message: 'edge.swap_direction', data: { index } });
     } catch (err) {
       console.error('Swap direction failed:', err);
     }

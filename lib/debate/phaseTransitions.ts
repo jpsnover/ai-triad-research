@@ -31,6 +31,7 @@ import {
   type ConfidenceState,
 } from './signalConfidence.js';
 import { needsGc, needsHardCap } from './networkGc.js';
+import { computeUncertaintyMetric } from './convergenceSignals.js';
 // ── Weight Loading ──────────────────────────────────────────
 // Node.js fs/path/url are only available in the main process. In the renderer
 // (Vite browser bundle) we fall through to the hardcoded defaults below.
@@ -329,7 +330,58 @@ export function buildSignalRegistry(): Signal[] {
         return slope < 0 ? Math.min(1, Math.abs(slope) * 4) : 0;
       },
     },
+    {
+      id: 'topic_coherence',
+      weight: w.argumentative_saturation.topic_coherence ?? 0.08,
+      enabled: true,
+      maturity: 'post-validation' as const,
+      compute: (ctx: SignalContext) => {
+        // Mean embedding similarity of recent claims to crux centroid.
+        // Low coherence → high signal (debate has drifted from core disagreements).
+        const recentRounds = ctx.transcript.lastNRounds(2);
+        const recentTurnNumbers = new Set(recentRounds.map(r => r.round));
+        const recentClaims = ctx.network.nodes.filter(n =>
+          recentTurnNumbers.has(n.turn_number) && n.embedding,
+        );
+        if (recentClaims.length === 0) return 0;
+
+        // Crux centroid: mean embedding of crux-identified nodes
+        const cruxEmbeddings = (ctx.phase.cruxNodes ?? [])
+          .map(c => ctx.network.nodes.find(n => n.id === c.id)?.embedding)
+          .filter((e): e is number[] => !!e);
+        if (cruxEmbeddings.length === 0) return 0;
+
+        const centroid = meanEmbedding(cruxEmbeddings);
+        const similarities = recentClaims.map(c => cosineSimilarity(c.embedding!, centroid));
+        const meanSim = similarities.reduce((a, b) => a + b, 0) / similarities.length;
+
+        // Invert: high coherence (focused) → low signal, low coherence (drift) → high signal
+        return 1 - Math.max(0, Math.min(1, meanSim));
+      },
+    },
   ];
+}
+
+// ── Embedding helpers (topic coherence) ────────────────────
+
+function meanEmbedding(embeddings: number[][]): number[] {
+  const dim = embeddings[0].length;
+  const result = new Array(dim).fill(0) as number[];
+  for (const emb of embeddings) {
+    for (let i = 0; i < dim; i++) result[i] += emb[i];
+  }
+  return result.map(v => v / embeddings.length);
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom > 0 ? dot / denom : 0;
 }
 
 // ── Composite Scores ────────────────────────────────────────
@@ -552,6 +604,30 @@ export function evaluatePhaseTransition(
       veto_active: false, force_active: false, confidence_deferred: true,
       components: { extraction_conf: extractionConf, stability_conf: stabilityConf, global_conf: confDiag.global_conf, effective_floor: confDiag.effective_floor, consecutive_deferrals: confDiag.consecutive_deferrals },
     };
+  }
+
+  // Anti-sycophancy: block premature transitions when uncertainty is high
+  // but superficial agreement masks genuine disagreement (t/26)
+  if (!coldStart && state.current_phase !== 'concluding') {
+    const uncertainty = computeUncertaintyMetric(
+      ctx.network.nodes,
+      ctx.network.edges,
+      ctx.convergenceSignals,
+      state.current_phase,
+    );
+    if (uncertainty.collapse_warning) {
+      return {
+        action: 'stay',
+        reason: `Anti-sycophancy hold: uncertainty=${uncertainty.composite.toFixed(2)} with superficial agreement (intra=${uncertainty.intra_agent.toFixed(2)}, inter=${uncertainty.inter_agent.toFixed(2)}, system=${uncertainty.system_level.toFixed(2)})`,
+        veto_active: true, force_active: false, confidence_deferred: false,
+        components: {
+          uncertainty_composite: uncertainty.composite,
+          uncertainty_intra: uncertainty.intra_agent,
+          uncertainty_inter: uncertainty.inter_agent,
+          uncertainty_system: uncertainty.system_level,
+        },
+      };
+    }
   }
 
   // Phase-specific predicates
