@@ -78,190 +78,303 @@ function Get-AITSource {
         return
     }
 
-    $Folders = Get-ChildItem -Path $SourcesDir -Directory
-    if ($Folders.Count -eq 0) {
-        Write-Warning "No source folders found in $SourcesDir"
-        return
+    # ── Fast path: read from _index.json when fresh ──────────────────────────
+    $IndexPath = Join-Path $SourcesDir '_index.json'
+    $UseIndex  = $false
+
+    if (Test-Path $IndexPath) {
+        $IndexMTime = (Get-Item $IndexPath).LastWriteTimeUtc
+        $NewestMeta = Get-ChildItem -Path $SourcesDir -Filter 'metadata.json' -Recurse -Depth 1 -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+        if ($null -eq $NewestMeta -or $IndexMTime -ge $NewestMeta.LastWriteTimeUtc) {
+            $UseIndex = $true
+        } else {
+            Write-Verbose "Index is stale — falling back to folder scan"
+        }
     }
 
-    $SummariesDir = Get-SummariesDir
     $Results = [System.Collections.Generic.List[object]]::new()
 
-    foreach ($Folder in $Folders) {
-        $MetaPath = Join-Path $Folder.FullName 'metadata.json'
-        if (-not (Test-Path $MetaPath)) { continue }
-
+    if ($UseIndex) {
+        # ── Index fast path — single file read ───────────────────────────────
         try {
-            $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
+            $Index = Get-Content -Raw -Path $IndexPath | ConvertFrom-Json
+        } catch {
+            Write-Verbose "Failed to parse index — falling back to folder scan: $_"
+            $UseIndex = $false
         }
-        catch {
-            Write-Warning "Failed to parse ${MetaPath}: $_"
-            continue
-        }
+    }
 
-        # Safe property accessor for metadata that may lack optional fields
-        $Props = $Meta.PSObject.Properties
+    if ($UseIndex) {
+        $TodayStr = if ($Today) { Get-Date -Format 'yyyy-MM-dd' } else { $null }
 
-        # --- Filters ---
-        if ($DocId -and $Meta.id -notlike $DocId) { continue }
-        if ($Title) {
-            if ($Props['title']) { $SrcTitle = $Meta.title } else { $SrcTitle = $null }
-            if (-not $SrcTitle) { continue }
-            $TitleMatch = $false
-            foreach ($Pattern in $Title) {
-                if ($SrcTitle -like $Pattern) { $TitleMatch = $true; break }
+        foreach ($Entry in $Index.sources) {
+            $Props = $Entry.PSObject.Properties
+
+            # --- Filters ---
+            if ($DocId -and $Entry.id -notlike $DocId) { continue }
+            if ($Title) {
+                $SrcTitle = if ($Props['title']) { $Entry.title } else { $null }
+                if (-not $SrcTitle) { continue }
+                $TitleMatch = $false
+                foreach ($Pattern in $Title) {
+                    if ($SrcTitle -like $Pattern) { $TitleMatch = $true; break }
+                }
+                if (-not $TitleMatch) { continue }
             }
-            if (-not $TitleMatch) { continue }
-        }
-        if ($Pov) {
-            if ($Props['pov_tags']) { $PovArr = $Meta.pov_tags } else { $PovArr = @() }
-            if ($PovArr -notcontains $Pov) { continue }
-        }
-        if ($Topic) {
-            if ($Props['topic_tags']) { $TopicArr = $Meta.topic_tags } else { $TopicArr = @() }
-            if ($TopicArr -notcontains $Topic) { continue }
-        }
-        if ($Status) {
-            if ($Props['summary_status']) { $SumStatus = $Meta.summary_status } else { $SumStatus = $null }
-            if ($SumStatus -ne $Status) { continue }
-        }
-        if ($SourceType) {
-            if ($Props['source_type']) { $SrcType = $Meta.source_type } else { $SrcType = $null }
-            if ($SrcType -ne $SourceType) { continue }
-        }
-        if ($Today) {
-            if ($Props['date_ingested']) { $Ingested = $Meta.date_ingested } else { $Ingested = $null }
-            if ($Ingested -ne (Get-Date -Format 'yyyy-MM-dd')) { continue }
-        }
-
-        # Build snapshot.md path
-        $SnapshotPath = Join-Path $Folder.FullName 'snapshot.md'
-        if (Test-Path $SnapshotPath) { $MDPath = $SnapshotPath } else { $MDPath = $null }
-
-        # Load summary file (needed for ModelInfo and fallback stats)
-        $Summary     = $null
-        $SummaryPath = Join-Path $SummariesDir "$($Meta.id).json"
-        if (Test-Path $SummaryPath) {
-            try {
-                $Summary = Get-Content -Raw -Path $SummaryPath | ConvertFrom-Json
+            if ($Pov) {
+                $PovArr = if ($Props['pov_tags']) { @($Entry.pov_tags) } else { @() }
+                if ($PovArr -notcontains $Pov) { continue }
             }
-            catch {
-                Write-Verbose "Could not parse summary for $($Meta.id): $($_.Exception.Message)"
+            if ($Topic) {
+                $TopicArr = if ($Props['topic_tags']) { @($Entry.topic_tags) } else { @() }
+                if ($TopicArr -notcontains $Topic) { continue }
             }
-        }
+            if ($Status) {
+                $SumStatus = if ($Props['summary_status']) { $Entry.summary_status } else { $null }
+                if ($SumStatus -ne $Status) { continue }
+            }
+            if ($SourceType) {
+                $SrcType = if ($Props['source_type']) { $Entry.source_type } else { $null }
+                if ($SrcType -ne $SourceType) { continue }
+            }
+            if ($Today) {
+                $Ingested = if ($Props['date_ingested']) { $Entry.date_ingested } else { $null }
+                if ($Ingested -ne $TodayStr) { continue }
+            }
 
-        # Load summary statistics — prefer cached values in metadata, fall back to summary file
-        $TotalClaims      = 0
-        $ClaimsPov        = [PSCustomObject]@{ Accelerationist = 0; Safetyist = 0; Skeptic = 0; Situations = 0 }
-        $TotalFacts       = 0
-        $UnmappedConcepts = 0
-
-        if ($Props['total_claims']) {
-            # Stats cached in metadata (written by Invoke-POVSummary)
-            $TotalClaims      = [int]$Meta.total_claims
-            if ($Props['total_facts']) { $TotalFacts = [int]$Meta.total_facts } else { $TotalFacts = 0 }
-            if ($Props['unmapped_concepts'] -and $Meta.unmapped_concepts -is [int]) { $UnmappedConcepts = [int]$Meta.unmapped_concepts } else { $UnmappedConcepts = 0 }
-            if ($Props['claims_by_pov'] -and $Meta.claims_by_pov) {
-                $Cbp = $Meta.claims_by_pov
+            # Build claims-by-pov from index
+            $ClaimsPov = [PSCustomObject]@{ Accelerationist = 0; Safetyist = 0; Skeptic = 0; Situations = 0 }
+            if ($Props['claims_by_pov'] -and $Entry.claims_by_pov) {
+                $Cbp = $Entry.claims_by_pov
                 $CbpProps = $Cbp.PSObject.Properties
                 $ClaimsPov.Accelerationist = if ($CbpProps['accelerationist']) { [int]$Cbp.accelerationist } else { 0 }
                 $ClaimsPov.Safetyist       = if ($CbpProps['safetyist'])       { [int]$Cbp.safetyist }       else { 0 }
                 $ClaimsPov.Skeptic         = if ($CbpProps['skeptic'])         { [int]$Cbp.skeptic }         else { 0 }
                 $ClaimsPov.Situations      = if ($CbpProps['situations'])      { [int]$Cbp.situations }      else { 0 }
             }
-        }
-        elseif ($null -ne $Summary) {
-            # Fall back to computing from summary file
-            if ($Summary.factual_claims) {
-                $TotalClaims = @($Summary.factual_claims).Count
+
+            $DocDir = Join-Path $SourcesDir $Entry.id
+
+            $Src = [PSCustomObject]@{
+                PSTypeName       = 'AITSource'
+                Id               = $Entry.id
+                Title            = if ($Props['title'])          { $Entry.title }          else { $null }
+                Url              = $null
+                Authors          = @()
+                DatePublished    = if ($Props['date_published']) { $Entry.date_published } else { $null }
+                DateIngested     = if ($Props['date_ingested'])  { $Entry.date_ingested }  else { $null }
+                ImportTime       = $null
+                SourceTime       = $null
+                SourceType       = if ($Props['source_type'])    { $Entry.source_type }    else { $null }
+                PovTags          = if ($Props['pov_tags'])        { @($Entry.pov_tags) }   else { @() }
+                TopicTags        = if ($Props['topic_tags'])      { @($Entry.topic_tags) } else { @() }
+                RolodexAuthorIds = @()
+                ArchiveStatus    = $null
+                SummaryVersion   = $null
+                SummaryStatus    = if ($Props['summary_status']) { $Entry.summary_status } else { $null }
+                SummaryUpdated   = $null
+                OneLiner         = if ($Props['one_liner'])      { $Entry.one_liner }      else { $null }
+                Provenance       = @()
+                ProvenanceStatus = $null
+                ResolvedUrl      = $null
+                MDPath           = $null
+                Directory        = $DocDir
+                TotalClaims      = if ($Props['total_claims'])      { [int]$Entry.total_claims }      else { 0 }
+                ClaimsByPov      = $ClaimsPov
+                TotalFacts       = if ($Props['total_facts'])       { [int]$Entry.total_facts }       else { 0 }
+                UnmappedConcepts = if ($Props['unmapped_concepts']) { [int]$Entry.unmapped_concepts } else { 0 }
+                ModelInfo        = $null
             }
 
-            foreach ($Claim in @($Summary.factual_claims)) {
-                if (-not $Claim.PSObject.Properties['linked_taxonomy_nodes']) { continue }
-                $Nodes = @($Claim.linked_taxonomy_nodes)
-                if ($Nodes.Count -eq 0) { continue }
-                foreach ($NodeId in $Nodes) {
-                    if     ($NodeId -like 'acc-*') { $ClaimsPov.Accelerationist++ }
-                    elseif ($NodeId -like 'saf-*') { $ClaimsPov.Safetyist++ }
-                    elseif ($NodeId -like 'skp-*') { $ClaimsPov.Skeptic++ }
-                    elseif ($NodeId -like 'sit-*') { $ClaimsPov.Situations++ }
+            $Results.Add($Src)
+        }
+    } else {
+        # ── Full scan fallback — reads metadata.json + summary for each source ─
+        $Folders = Get-ChildItem -Path $SourcesDir -Directory
+        if ($Folders.Count -eq 0) {
+            Write-Warning "No source folders found in $SourcesDir"
+            return
+        }
+
+        $SummariesDir = Get-SummariesDir
+
+        foreach ($Folder in $Folders) {
+            $MetaPath = Join-Path $Folder.FullName 'metadata.json'
+            if (-not (Test-Path $MetaPath)) { continue }
+
+            try {
+                $Meta = Get-Content -Raw -Path $MetaPath | ConvertFrom-Json
+            }
+            catch {
+                Write-Warning "Failed to parse ${MetaPath}: $_"
+                continue
+            }
+
+            # Safe property accessor for metadata that may lack optional fields
+            $Props = $Meta.PSObject.Properties
+
+            # --- Filters ---
+            if ($DocId -and $Meta.id -notlike $DocId) { continue }
+            if ($Title) {
+                if ($Props['title']) { $SrcTitle = $Meta.title } else { $SrcTitle = $null }
+                if (-not $SrcTitle) { continue }
+                $TitleMatch = $false
+                foreach ($Pattern in $Title) {
+                    if ($SrcTitle -like $Pattern) { $TitleMatch = $true; break }
+                }
+                if (-not $TitleMatch) { continue }
+            }
+            if ($Pov) {
+                if ($Props['pov_tags']) { $PovArr = $Meta.pov_tags } else { $PovArr = @() }
+                if ($PovArr -notcontains $Pov) { continue }
+            }
+            if ($Topic) {
+                if ($Props['topic_tags']) { $TopicArr = $Meta.topic_tags } else { $TopicArr = @() }
+                if ($TopicArr -notcontains $Topic) { continue }
+            }
+            if ($Status) {
+                if ($Props['summary_status']) { $SumStatus = $Meta.summary_status } else { $SumStatus = $null }
+                if ($SumStatus -ne $Status) { continue }
+            }
+            if ($SourceType) {
+                if ($Props['source_type']) { $SrcType = $Meta.source_type } else { $SrcType = $null }
+                if ($SrcType -ne $SourceType) { continue }
+            }
+            if ($Today) {
+                if ($Props['date_ingested']) { $Ingested = $Meta.date_ingested } else { $Ingested = $null }
+                if ($Ingested -ne (Get-Date -Format 'yyyy-MM-dd')) { continue }
+            }
+
+            # Build snapshot.md path
+            $SnapshotPath = Join-Path $Folder.FullName 'snapshot.md'
+            if (Test-Path $SnapshotPath) { $MDPath = $SnapshotPath } else { $MDPath = $null }
+
+            # Load summary file (needed for ModelInfo and fallback stats)
+            $Summary     = $null
+            $SummaryPath = Join-Path $SummariesDir "$($Meta.id).json"
+            if (Test-Path $SummaryPath) {
+                try {
+                    $Summary = Get-Content -Raw -Path $SummaryPath | ConvertFrom-Json
+                }
+                catch {
+                    Write-Verbose "Could not parse summary for $($Meta.id): $($_.Exception.Message)"
                 }
             }
 
-            foreach ($Pov_ in @('accelerationist', 'safetyist', 'skeptic')) {
-                $PovData = $Summary.pov_summaries.$Pov_
-                if ($PovData -and $PovData.key_points) {
-                    $TotalFacts += @($PovData.key_points).Count
+            # Load summary statistics — prefer cached values in metadata, fall back to summary file
+            $TotalClaims      = 0
+            $ClaimsPov        = [PSCustomObject]@{ Accelerationist = 0; Safetyist = 0; Skeptic = 0; Situations = 0 }
+            $TotalFacts       = 0
+            $UnmappedConcepts = 0
+
+            if ($Props['total_claims']) {
+                # Stats cached in metadata (written by Invoke-POVSummary)
+                $TotalClaims      = [int]$Meta.total_claims
+                if ($Props['total_facts']) { $TotalFacts = [int]$Meta.total_facts } else { $TotalFacts = 0 }
+                if ($Props['unmapped_concepts'] -and $Meta.unmapped_concepts -is [int]) { $UnmappedConcepts = [int]$Meta.unmapped_concepts } else { $UnmappedConcepts = 0 }
+                if ($Props['claims_by_pov'] -and $Meta.claims_by_pov) {
+                    $Cbp = $Meta.claims_by_pov
+                    $CbpProps = $Cbp.PSObject.Properties
+                    $ClaimsPov.Accelerationist = if ($CbpProps['accelerationist']) { [int]$Cbp.accelerationist } else { 0 }
+                    $ClaimsPov.Safetyist       = if ($CbpProps['safetyist'])       { [int]$Cbp.safetyist }       else { 0 }
+                    $ClaimsPov.Skeptic         = if ($CbpProps['skeptic'])         { [int]$Cbp.skeptic }         else { 0 }
+                    $ClaimsPov.Situations      = if ($CbpProps['situations'])      { [int]$Cbp.situations }      else { 0 }
+                }
+            }
+            elseif ($null -ne $Summary) {
+                # Fall back to computing from summary file
+                if ($Summary.factual_claims) {
+                    $TotalClaims = @($Summary.factual_claims).Count
+                }
+
+                foreach ($Claim in @($Summary.factual_claims)) {
+                    if (-not $Claim.PSObject.Properties['linked_taxonomy_nodes']) { continue }
+                    $Nodes = @($Claim.linked_taxonomy_nodes)
+                    if ($Nodes.Count -eq 0) { continue }
+                    foreach ($NodeId in $Nodes) {
+                        if     ($NodeId -like 'acc-*') { $ClaimsPov.Accelerationist++ }
+                        elseif ($NodeId -like 'saf-*') { $ClaimsPov.Safetyist++ }
+                        elseif ($NodeId -like 'skp-*') { $ClaimsPov.Skeptic++ }
+                        elseif ($NodeId -like 'sit-*') { $ClaimsPov.Situations++ }
+                    }
+                }
+
+                foreach ($Pov_ in @('accelerationist', 'safetyist', 'skeptic')) {
+                    $PovData = $Summary.pov_summaries.$Pov_
+                    if ($PovData -and $PovData.key_points) {
+                        $TotalFacts += @($PovData.key_points).Count
+                    }
+                }
+
+                if ($Summary.unmapped_concepts) {
+                    $UnmappedConcepts = @($Summary.unmapped_concepts).Count
                 }
             }
 
-            if ($Summary.unmapped_concepts) {
-                $UnmappedConcepts = @($Summary.unmapped_concepts).Count
+            # Hydrate ModelInfo from summary's model_info or legacy ai_model field
+            $MInfo = $null
+            if ($null -ne $Summary) {
+                $MInfo = [PSCustomObject]@{
+                    Model = $null; Temperature = 0; MaxTokens = 0; ExtractionMode = $null
+                    TaxonomyFilter = $null; TaxonomyNodes = 0; FireConfidenceThreshold = 0
+                    Chunked = $false; ChunkCount = 0; FireStats = $null
+                }
+                $SP = $Summary.PSObject.Properties
+                if ($SP['model_info']) {
+                    $Mi = $Summary.model_info
+                    $Mp = $Mi.PSObject.Properties
+                    $MInfo.Model                  = if ($Mp['model'])                    { $Mi.model }                    else { $null }
+                    $MInfo.Temperature            = if ($Mp['temperature'])              { $Mi.temperature }              else { 0 }
+                    $MInfo.MaxTokens              = if ($Mp['max_tokens'])               { $Mi.max_tokens }               else { 0 }
+                    $MInfo.ExtractionMode         = if ($Mp['extraction_mode'])          { $Mi.extraction_mode }          else { $null }
+                    $MInfo.TaxonomyFilter         = if ($Mp['taxonomy_filter'])          { $Mi.taxonomy_filter }          else { $null }
+                    $MInfo.TaxonomyNodes          = if ($Mp['taxonomy_nodes'])           { $Mi.taxonomy_nodes }           else { 0 }
+                    $MInfo.FireConfidenceThreshold = if ($Mp['fire_confidence_threshold']) { $Mi.fire_confidence_threshold } else { 0 }
+                    $MInfo.Chunked                = if ($Mp['chunked'])                  { $Mi.chunked }                  else { $false }
+                    $MInfo.ChunkCount             = if ($Mp['chunk_count'])              { $Mi.chunk_count }              else { 0 }
+                    $MInfo.FireStats              = if ($Mp['fire_stats'])               { $Mi.fire_stats }               else { $null }
+                }
+                elseif ($SP['ai_model']) {
+                    # Legacy format
+                    $MInfo.Model       = $Summary.ai_model
+                    $MInfo.Temperature = if ($SP['temperature']) { $Summary.temperature } else { 0 }
+                }
             }
-        }
 
-        # Hydrate ModelInfo from summary's model_info or legacy ai_model field
-        $MInfo = $null
-        if ($null -ne $Summary) {
-            $MInfo = [PSCustomObject]@{
-                Model = $null; Temperature = 0; MaxTokens = 0; ExtractionMode = $null
-                TaxonomyFilter = $null; TaxonomyNodes = 0; FireConfidenceThreshold = 0
-                Chunked = $false; ChunkCount = 0; FireStats = $null
+            $Src = [PSCustomObject]@{
+                PSTypeName     = 'AITSource'
+                Id             = $Meta.id
+                Title          = if ($Props['title'])            { $Meta.title }            else { $null }
+                Url            = if ($Props['url'])              { $Meta.url }              else { $null }
+                Authors        = if ($Props['authors'])          { $Meta.authors }          else { @() }
+                DatePublished  = if ($Props['date_published'])   { $Meta.date_published }   else { $null }
+                DateIngested   = if ($Props['date_ingested'])    { $Meta.date_ingested }    else { $null }
+                ImportTime     = if ($Props['import_time'])      { $Meta.import_time }      else { $null }
+                SourceTime     = if ($Props['source_time'])      { $Meta.source_time }      else { $null }
+                SourceType     = if ($Props['source_type'])      { $Meta.source_type }      else { $null }
+                PovTags        = if ($Props['pov_tags'])         { $Meta.pov_tags }         else { @() }
+                TopicTags      = if ($Props['topic_tags'])       { $Meta.topic_tags }       else { @() }
+                RolodexAuthorIds = if ($Props['rolodex_author_ids']) { $Meta.rolodex_author_ids } else { @() }
+                ArchiveStatus  = if ($Props['archive_status'])   { $Meta.archive_status }   else { $null }
+                SummaryVersion = if ($Props['summary_version'])  { $Meta.summary_version }  else { $null }
+                SummaryStatus  = if ($Props['summary_status'])   { $Meta.summary_status }   else { $null }
+                SummaryUpdated = if ($Props['summary_updated'])  { $Meta.summary_updated }  else { $null }
+                OneLiner       = if ($Props['one_liner'])        { $Meta.one_liner }        else { $null }
+                Provenance     = if ($Props['provenance'])       { @($Meta.provenance) }    else { @() }
+                ProvenanceStatus = if ($Props['provenance_status']) { $Meta.provenance_status } else { $null }
+                ResolvedUrl    = if ($Props['resolved_url'])     { $Meta.resolved_url }     else { $null }
+                MDPath         = $MDPath
+                Directory      = $Folder.FullName
+                TotalClaims    = $TotalClaims
+                ClaimsByPov    = $ClaimsPov
+                TotalFacts     = $TotalFacts
+                UnmappedConcepts = $UnmappedConcepts
+                ModelInfo      = $MInfo
             }
-            $SP = $Summary.PSObject.Properties
-            if ($SP['model_info']) {
-                $Mi = $Summary.model_info
-                $Mp = $Mi.PSObject.Properties
-                $MInfo.Model                  = if ($Mp['model'])                    { $Mi.model }                    else { $null }
-                $MInfo.Temperature            = if ($Mp['temperature'])              { $Mi.temperature }              else { 0 }
-                $MInfo.MaxTokens              = if ($Mp['max_tokens'])               { $Mi.max_tokens }               else { 0 }
-                $MInfo.ExtractionMode         = if ($Mp['extraction_mode'])          { $Mi.extraction_mode }          else { $null }
-                $MInfo.TaxonomyFilter         = if ($Mp['taxonomy_filter'])          { $Mi.taxonomy_filter }          else { $null }
-                $MInfo.TaxonomyNodes          = if ($Mp['taxonomy_nodes'])           { $Mi.taxonomy_nodes }           else { 0 }
-                $MInfo.FireConfidenceThreshold = if ($Mp['fire_confidence_threshold']) { $Mi.fire_confidence_threshold } else { 0 }
-                $MInfo.Chunked                = if ($Mp['chunked'])                  { $Mi.chunked }                  else { $false }
-                $MInfo.ChunkCount             = if ($Mp['chunk_count'])              { $Mi.chunk_count }              else { 0 }
-                $MInfo.FireStats              = if ($Mp['fire_stats'])               { $Mi.fire_stats }               else { $null }
-            }
-            elseif ($SP['ai_model']) {
-                # Legacy format
-                $MInfo.Model       = $Summary.ai_model
-                $MInfo.Temperature = if ($SP['temperature']) { $Summary.temperature } else { 0 }
-            }
-        }
 
-        $Src = [PSCustomObject]@{
-            PSTypeName     = 'AITSource'
-            Id             = $Meta.id
-            Title          = if ($Props['title'])            { $Meta.title }            else { $null }
-            Url            = if ($Props['url'])              { $Meta.url }              else { $null }
-            Authors        = if ($Props['authors'])          { $Meta.authors }          else { @() }
-            DatePublished  = if ($Props['date_published'])   { $Meta.date_published }   else { $null }
-            DateIngested   = if ($Props['date_ingested'])    { $Meta.date_ingested }    else { $null }
-            ImportTime     = if ($Props['import_time'])      { $Meta.import_time }      else { $null }
-            SourceTime     = if ($Props['source_time'])      { $Meta.source_time }      else { $null }
-            SourceType     = if ($Props['source_type'])      { $Meta.source_type }      else { $null }
-            PovTags        = if ($Props['pov_tags'])         { $Meta.pov_tags }         else { @() }
-            TopicTags      = if ($Props['topic_tags'])       { $Meta.topic_tags }       else { @() }
-            RolodexAuthorIds = if ($Props['rolodex_author_ids']) { $Meta.rolodex_author_ids } else { @() }
-            ArchiveStatus  = if ($Props['archive_status'])   { $Meta.archive_status }   else { $null }
-            SummaryVersion = if ($Props['summary_version'])  { $Meta.summary_version }  else { $null }
-            SummaryStatus  = if ($Props['summary_status'])   { $Meta.summary_status }   else { $null }
-            SummaryUpdated = if ($Props['summary_updated'])  { $Meta.summary_updated }  else { $null }
-            OneLiner       = if ($Props['one_liner'])        { $Meta.one_liner }        else { $null }
-            Provenance     = if ($Props['provenance'])       { @($Meta.provenance) }    else { @() }
-            ProvenanceStatus = if ($Props['provenance_status']) { $Meta.provenance_status } else { $null }
-            ResolvedUrl    = if ($Props['resolved_url'])     { $Meta.resolved_url }     else { $null }
-            MDPath         = $MDPath
-            Directory      = $Folder.FullName
-            TotalClaims    = $TotalClaims
-            ClaimsByPov    = $ClaimsPov
-            TotalFacts     = $TotalFacts
-            UnmappedConcepts = $UnmappedConcepts
-            ModelInfo      = $MInfo
+            $Results.Add($Src)
         }
-
-        $Results.Add($Src)
     }
 
     if ($Results.Count -eq 0) {
@@ -269,5 +382,9 @@ function Get-AITSource {
         return
     }
 
-    $Results | Sort-Object { if ($_.DatePublished) { [datetime]$_.DatePublished } else { [datetime]::MinValue } } -Descending
+    $Results | Sort-Object {
+        [datetime]$d = [datetime]::MinValue
+        if ($_.DatePublished -and [datetime]::TryParse([string]$_.DatePublished, [ref]$d)) { $d }
+        else { [datetime]::MinValue }
+    } -Descending
 }

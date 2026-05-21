@@ -16,7 +16,7 @@ Import-Module ./scripts/AITriad/AITriad.psm1
 Invoke-Pester ./tests/
 
 # Run a single Pester test by name
-Invoke-Pester ./tests/ -Filter @{ FullName = '*test name pattern*' }
+Invoke-Pester ./tests/ -FullNameFilter '*test name pattern*'
 
 # Build distributable module
 ./scripts/Build-Module.ps1 -Clean
