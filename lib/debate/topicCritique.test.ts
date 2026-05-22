@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeStructuralScore,
   critiqueTopicPrompt,
+  formatStructuralContext,
   parseTopicCritique,
 } from './topicCritique.js';
 import type { StructuralScoreInput } from './topicCritique.js';
@@ -348,6 +349,100 @@ describe('critiqueTopicPrompt', () => {
     const prompt = critiqueTopicPrompt('test');
     expect(prompt).toContain('rewritten_topic');
     expect(prompt).toContain('MANDATORY');
+  });
+});
+
+// ── formatStructuralContext ─────────────────────────────
+
+describe('formatStructuralContext', () => {
+  it('warns when no nodes activated', () => {
+    const score = computeStructuralScore({
+      topicEmbedding: [],
+      povNodes: [],
+      situationNodes: [],
+      embeddings: {},
+    });
+    const ctx = formatStructuralContext(score);
+    expect(ctx).toContain('WARNING: No taxonomy nodes activated');
+  });
+
+  it('warns when a POV dominates above 60%', () => {
+    const ctx = formatStructuralContext({
+      crux_density: 1, evidence_coverage: 1, bdi_heterogeneity: 1,
+      abstraction_level: 1, situation_activation: 1, total: 5,
+      activated_nodes: [
+        { id: 'acc-B-001', similarity: 0.8, pov: 'acc', category: 'Beliefs' },
+        { id: 'acc-B-002', similarity: 0.7, pov: 'acc', category: 'Beliefs' },
+        { id: 'acc-B-003', similarity: 0.7, pov: 'acc', category: 'Beliefs' },
+        { id: 'saf-B-001', similarity: 0.6, pov: 'saf', category: 'Beliefs' },
+      ],
+      pov_distribution: { acc: 3, saf: 1 },
+      bdi_distribution: { Beliefs: 4 },
+    });
+    expect(ctx).toContain('WARNING: acc dominates with 75%');
+    expect(ctx).toContain('underrepresented perspectives');
+  });
+
+  it('reports missing BDI layers', () => {
+    const ctx = formatStructuralContext({
+      crux_density: 1, evidence_coverage: 1, bdi_heterogeneity: 1,
+      abstraction_level: 1, situation_activation: 0, total: 4,
+      activated_nodes: [],
+      pov_distribution: { acc: 2, saf: 2 },
+      bdi_distribution: { Beliefs: 4, Desires: 0, Intentions: 0 },
+    });
+    expect(ctx).toContain('Missing BDI layers: Desires, Intentions');
+  });
+
+  it('reports no situation nodes', () => {
+    const ctx = formatStructuralContext({
+      crux_density: 1, evidence_coverage: 1, bdi_heterogeneity: 1,
+      abstraction_level: 1, situation_activation: 0, total: 4,
+      activated_nodes: [{ id: 'acc-B-001', similarity: 0.8 }],
+      pov_distribution: { acc: 1 },
+      bdi_distribution: { Beliefs: 1 },
+    });
+    expect(ctx).toContain('No situation nodes activated');
+  });
+
+  it('counts situation nodes when present', () => {
+    const ctx = formatStructuralContext({
+      crux_density: 1, evidence_coverage: 1, bdi_heterogeneity: 1,
+      abstraction_level: 1, situation_activation: 2, total: 6,
+      activated_nodes: [
+        { id: 'sit-001', similarity: 0.7 },
+        { id: 'cc-001', similarity: 0.6 },
+      ],
+      pov_distribution: {},
+      bdi_distribution: {},
+    });
+    expect(ctx).toContain('Situation nodes activated: 2');
+  });
+
+  it('includes structural sub-scores', () => {
+    const ctx = formatStructuralContext({
+      crux_density: 2, evidence_coverage: 1, bdi_heterogeneity: 2,
+      abstraction_level: 1, situation_activation: 0, total: 6,
+      activated_nodes: [],
+      pov_distribution: {},
+      bdi_distribution: {},
+    });
+    expect(ctx).toContain('crux_density=2/2');
+    expect(ctx).toContain('total: 6/10');
+  });
+});
+
+describe('critiqueTopicPrompt with structuralContext', () => {
+  it('includes structural block when context provided', () => {
+    const prompt = critiqueTopicPrompt('test topic', 'WARNING: acc dominates');
+    expect(prompt).toContain('=== STRUCTURAL ANALYSIS (pre-computed from taxonomy) ===');
+    expect(prompt).toContain('WARNING: acc dominates');
+    expect(prompt).toContain('addresses structural gaps');
+  });
+
+  it('omits structural block when context not provided', () => {
+    const prompt = critiqueTopicPrompt('test topic');
+    expect(prompt).not.toContain('STRUCTURAL ANALYSIS');
   });
 });
 

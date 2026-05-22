@@ -85,7 +85,7 @@ import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
-import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique } from './topicCritique.js';
+import { computeStructuralScore, critiqueTopicPrompt, formatStructuralContext, parseTopicCritique } from './topicCritique.js';
 import {
   optimizeRelevanceThreshold,
   applyRelevanceThresholdAdaptation,
@@ -1336,7 +1336,7 @@ export class DebateEngine {
       }
 
       // Phase B: Frame analysis (single LLM call)
-      const prompt = critiqueTopicPrompt(this.session.topic.final);
+      const prompt = critiqueTopicPrompt(this.session.topic.final, formatStructuralContext(structuralScore));
       const text = await this.generate(prompt, 'Topic critique');
       const critique = parseTopicCritique(text, structuralScore);
 

@@ -283,9 +283,19 @@ function scoreSituationActivation(activated: StructuralScore['activated_nodes'])
  * Build the LLM prompt for Phase B frame analysis.
  * Single call — returns structured JSON with frame scores + rewritten topic.
  */
-export function critiqueTopicPrompt(topic: string): string {
-  return `You are evaluating a debate topic for its potential to generate productive, wisdom-yielding discourse.
+export function critiqueTopicPrompt(topic: string, structuralContext?: string): string {
+  const structuralBlock = structuralContext
+    ? `
 
+=== STRUCTURAL ANALYSIS (pre-computed from taxonomy) ===
+${structuralContext}
+
+Your REWRITTEN TOPIC must address any structural warnings above in addition to improving frame scores.
+`
+    : '';
+
+  return `You are evaluating a debate topic for its potential to generate productive, wisdom-yielding discourse.
+${structuralBlock}
 Score the topic on these five FRAME dimensions. Each dimension scores 0, 1, or 2:
 
 1. **Conditionality** (does the topic invite conditional reasoning?)
@@ -318,7 +328,7 @@ TOPIC: "${topic}"
 You MUST also provide:
 - A list of issues (weaknesses found in the topic)
 - Reframe suggestions for each weak dimension
-- A REWRITTEN TOPIC that scores higher on all dimensions (this is MANDATORY — always provide one, even if the original is strong)
+- A REWRITTEN TOPIC that scores higher on all dimensions AND addresses any structural gaps above (this is MANDATORY — always provide one, even if the original is strong)
 
 Respond with ONLY this JSON (no markdown fences, no explanation):
 {
@@ -344,7 +354,7 @@ Respond with ONLY this JSON (no markdown fences, no explanation):
       "reframed_fragment": "<suggested rewrite>"
     }
   ],
-  "rewritten_topic": "<full rewritten topic that scores higher>"
+  "rewritten_topic": "<full rewritten topic that scores higher on frame AND addresses structural gaps>"
 }`;
 }
 
@@ -550,6 +560,58 @@ export function formatCritiqueForRefinement(critique: TopicCritique): string {
       parts.push(`\nFrame dimensions below maximum: ${weak.join(', ')}.`);
     }
   }
+
+  return parts.join('\n');
+}
+
+/**
+ * Format a StructuralScore as a text block for injection into
+ * critiqueTopicPrompt's structuralContext parameter.
+ *
+ * Surfaces POV balance, BDI coverage, situation activation, and
+ * sub-scores with actionable warnings for the LLM.
+ */
+export function formatStructuralContext(score: StructuralScore): string {
+  const parts: string[] = [];
+
+  // POV balance
+  const povEntries = Object.entries(score.pov_distribution);
+  if (povEntries.length > 0) {
+    parts.push(`Perspective activation: ${povEntries.map(([p, n]) => `${p}: ${n} nodes`).join(', ')}.`);
+    const total = povEntries.reduce((sum, [, n]) => sum + n, 0);
+    const maxFrac = Math.max(...povEntries.map(([, n]) => n / total));
+    if (maxFrac > 0.60) {
+      const dominant = povEntries.sort((a, b) => b[1] - a[1])[0];
+      parts.push(`WARNING: ${dominant[0]} dominates with ${(maxFrac * 100).toFixed(0)}% of activated nodes. The rewritten topic must give underrepresented perspectives a clear entry point.`);
+    }
+  } else {
+    parts.push(`WARNING: No taxonomy nodes activated. The topic may be too abstract or outside the taxonomy coverage.`);
+  }
+
+  // BDI distribution
+  const bdiEntries = Object.entries(score.bdi_distribution).filter(([, n]) => n > 0);
+  if (bdiEntries.length > 0) {
+    parts.push(`BDI layer coverage: ${bdiEntries.map(([b, n]) => `${b}: ${n}`).join(', ')}.`);
+    const missing = ['Beliefs', 'Desires', 'Intentions'].filter(
+      b => !score.bdi_distribution[b] || score.bdi_distribution[b] === 0
+    );
+    if (missing.length > 0) {
+      parts.push(`Missing BDI layers: ${missing.join(', ')}. The rewritten topic should engage these layers.`);
+    }
+  }
+
+  // Situation activation
+  const sitCount = score.activated_nodes.filter(
+    n => n.id.startsWith('sit-') || n.id.startsWith('cc-')
+  ).length;
+  if (sitCount === 0) {
+    parts.push(`No situation nodes activated. The rewritten topic should anchor to a specific contested phenomenon or shared empirical observation.`);
+  } else {
+    parts.push(`Situation nodes activated: ${sitCount}.`);
+  }
+
+  // Structural sub-scores
+  parts.push(`\nStructural sub-scores: crux_density=${score.crux_density}/2, evidence=${score.evidence_coverage}/2, bdi=${score.bdi_heterogeneity}/2, abstraction=${score.abstraction_level}/2, situations=${score.situation_activation}/2 (total: ${score.total}/10).`);
 
   return parts.join('\n');
 }
