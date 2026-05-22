@@ -260,6 +260,12 @@ export function readTaxonomyFile(pov: string): unknown {
   return parseJsonFile(path.join(activeTaxonomyDir, filename));
 }
 
+export function readLineageCategories(): unknown {
+  const filePath = path.join(activeTaxonomyDir, 'lineage_categories.json');
+  if (!fs.existsSync(filePath)) return null;
+  return parseJsonFile(filePath);
+}
+
 export function writeTaxonomyFile(pov: string, data: unknown): void {
   // Situations migration: write to whichever file currently exists (prefer situations.json)
   if (pov === 'situations') {

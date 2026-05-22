@@ -2,14 +2,53 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 // Intellectual lineage category taxonomy.
-// Maps the ~1100 distinct lineage values into a two-level hierarchy
-// (~10 root categories) for grouped display and embedding enrichment.
+// Loads L1 and L2 categories from lineage_categories.json (data repo),
+// with regex fallback for items not in the mapping.
+
+import { api } from '@bridge';
 
 export interface LineageCategory {
   id: string;
   label: string;
   /** Patterns tested case-insensitively against lineage keys. First match wins. */
   patterns: RegExp[];
+}
+
+export interface L2Category {
+  id: string;
+  label: string;
+  l1_parent: string;
+  member_count: number;
+}
+
+/** Raw shape of lineage_categories.json */
+interface LineageCategoriesJson {
+  categories: Array<{ id: string; label: string }>;
+  level2_categories: L2Category[];
+  mapping: Record<string, { l1: string; l2: string }>;
+}
+
+// ── Loaded L2 data (populated by loadLineageCategoriesData) ──
+
+let l2Categories: L2Category[] = [];
+let lineageMapping: Record<string, { l1: string; l2: string }> = {};
+let dataLoaded = false;
+
+export function getL2Categories(): L2Category[] { return l2Categories; }
+export function getLineageMapping(): Record<string, { l1: string; l2: string }> { return lineageMapping; }
+export function isLineageDataLoaded(): boolean { return dataLoaded; }
+
+/** Load L2 categories and mapping from the data repo via IPC. Call once at app start. */
+export async function loadLineageCategoriesData(): Promise<void> {
+  try {
+    const raw = await api.loadLineageCategories() as LineageCategoriesJson | null;
+    if (!raw) return;
+    l2Categories = raw.level2_categories ?? [];
+    lineageMapping = raw.mapping ?? {};
+    dataLoaded = true;
+  } catch (err) {
+    console.warn('[lineageCategories] Failed to load L2 data:', err);
+  }
 }
 
 /**
@@ -390,13 +429,21 @@ export const CATEGORY_ORDER = [...LINEAGE_CATEGORIES.map(c => c.id), UNCATEGORIZ
 const classificationCache = new Map<string, string>();
 
 /**
- * Classify a lineage key into its category ID.
- * First matching category wins (order matters).
+ * Classify a lineage key into its L1 category ID.
+ * Uses the JSON mapping first (exact match), falls back to regex patterns.
  */
 export function classifyLineage(key: string): string {
   const cached = classificationCache.get(key);
   if (cached !== undefined) return cached;
 
+  // Try JSON mapping first (authoritative)
+  const mapped = lineageMapping[key];
+  if (mapped?.l1) {
+    classificationCache.set(key, mapped.l1);
+    return mapped.l1;
+  }
+
+  // Regex fallback
   for (const cat of LINEAGE_CATEGORIES) {
     for (const pattern of cat.patterns) {
       if (pattern.test(key)) {
@@ -409,12 +456,39 @@ export function classifyLineage(key: string): string {
   return UNCATEGORIZED.id;
 }
 
+/**
+ * Get the L2 category ID for a lineage key.
+ * Returns undefined if not in the JSON mapping or if L2 is 'uncategorized'.
+ */
+export function classifyLineageL2(key: string): string | undefined {
+  const mapped = lineageMapping[key];
+  if (mapped?.l2 && mapped.l2 !== 'uncategorized') return mapped.l2;
+  return undefined;
+}
+
 /** Look up a category by ID. */
 export function getCategoryById(id: string): LineageCategory {
   return LINEAGE_CATEGORIES.find(c => c.id === id) ?? UNCATEGORIZED;
 }
 
-/** Get the display label for a lineage key's category. */
+/** Look up an L2 category by ID. */
+export function getL2CategoryById(id: string): L2Category | undefined {
+  return l2Categories.find(c => c.id === id);
+}
+
+/** Get the display label for a lineage key's L1 category. */
 export function getCategoryLabel(key: string): string {
   return getCategoryById(classifyLineage(key)).label;
+}
+
+/** Get the display label for a lineage key's L2 category. */
+export function getL2CategoryLabel(key: string): string | undefined {
+  const l2Id = classifyLineageL2(key);
+  if (!l2Id) return undefined;
+  return getL2CategoryById(l2Id)?.label;
+}
+
+/** Get all L2 categories under a given L1 parent. */
+export function getL2CategoriesForL1(l1Id: string): L2Category[] {
+  return l2Categories.filter(c => c.l1_parent === l1Id);
 }

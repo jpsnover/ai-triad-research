@@ -5,8 +5,9 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import {
-  LINEAGE_CATEGORIES, UNCATEGORIZED, CATEGORY_ORDER,
-  classifyLineage, getCategoryById,
+  CATEGORY_ORDER,
+  classifyLineage, classifyLineageL2, getCategoryById,
+  getL2CategoriesForL1, isLineageDataLoaded,
 } from '../data/lineageCategories';
 
 interface LineagePanelProps {
@@ -19,9 +20,11 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
   const { pendingLineageValue, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
   const [query, setQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set(CATEGORY_ORDER));
+  const [collapsedL1, setCollapsedL1] = useState<Set<string>>(new Set(CATEGORY_ORDER));
+  const [collapsedL2, setCollapsedL2] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const hasL2 = isLineageDataLoaded();
 
   // Merge catalog keys with actual taxonomy lineage values
   const allKeys = useMemo(() => {
@@ -39,7 +42,6 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
     return [...keys].sort();
   }, [accelerationist, safetyist, skeptic, situations]);
 
-  /** Case-insensitive key lookup */
   const findKey = useCallback((value: string): string | undefined => {
     const lower = value.toLowerCase();
     return allKeys.find(k => k.toLowerCase() === lower);
@@ -51,31 +53,40 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
     return allKeys.filter(k => k.toLowerCase().includes(q));
   }, [query, allKeys]);
 
-  // Group filtered keys by category
   const grouped = useMemo(() => {
-    const groups = new Map<string, string[]>();
+    const groups = new Map<string, { ungrouped: string[]; l2Groups: Map<string, string[]> }>();
     for (const catId of CATEGORY_ORDER) {
-      groups.set(catId, []);
+      groups.set(catId, { ungrouped: [], l2Groups: new Map() });
     }
     for (const key of filtered) {
-      const catId = classifyLineage(key);
-      groups.get(catId)!.push(key);
+      const l1Id = classifyLineage(key);
+      const group = groups.get(l1Id)!;
+      const l2Id = hasL2 ? classifyLineageL2(key) : undefined;
+      if (l2Id) {
+        if (!group.l2Groups.has(l2Id)) group.l2Groups.set(l2Id, []);
+        group.l2Groups.get(l2Id)!.push(key);
+      } else {
+        group.ungrouped.push(key);
+      }
     }
     return groups;
-  }, [filtered]);
+  }, [filtered, hasL2]);
 
-  // Flat list for keyboard navigation (respects collapsed state)
   const visibleKeys = useMemo(() => {
     const keys: string[] = [];
     for (const catId of CATEGORY_ORDER) {
-      const items = grouped.get(catId);
-      if (!items || items.length === 0) continue;
-      if (!collapsedCategories.has(catId)) {
-        keys.push(...items);
+      const group = grouped.get(catId);
+      if (!group) continue;
+      const totalItems = group.ungrouped.length + Array.from(group.l2Groups.values()).reduce((a, b) => a + b.length, 0);
+      if (totalItems === 0) continue;
+      if (collapsedL1.has(catId)) continue;
+      for (const [l2Id, items] of group.l2Groups) {
+        if (!collapsedL2.has(l2Id)) keys.push(...items);
       }
+      keys.push(...group.ungrouped);
     }
     return keys;
-  }, [grouped, collapsedCategories]);
+  }, [grouped, collapsedL1, collapsedL2]);
 
   const selectItem = useCallback((key: string) => {
     setSelectedKey(key);
@@ -87,19 +98,16 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
     });
   }, [onSelectValue]);
 
-  // Auto-select when navigated to from a lineage chip click
   useEffect(() => {
     if (!pendingLineageValue) return;
     const canonicalKey = findKey(pendingLineageValue);
     if (canonicalKey) {
-      // Ensure the category is expanded
       const catId = classifyLineage(canonicalKey);
-      setCollapsedCategories(prev => {
-        if (!prev.has(catId)) return prev;
-        const next = new Set(prev);
-        next.delete(catId);
-        return next;
-      });
+      setCollapsedL1(prev => { if (!prev.has(catId)) return prev; const next = new Set(prev); next.delete(catId); return next; });
+      const l2Id = classifyLineageL2(canonicalKey);
+      if (l2Id) {
+        setCollapsedL2(prev => { if (!prev.has(l2Id)) return prev; const next = new Set(prev); next.delete(l2Id); return next; });
+      }
       setSelectedKey(canonicalKey);
       onSelectValue?.(canonicalKey);
       requestAnimationFrame(() => {
@@ -113,24 +121,16 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (visibleKeys.length === 0) return;
     const currentIndex = selectedKey ? visibleKeys.indexOf(selectedKey) : -1;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      const next = Math.min(currentIndex + 1, visibleKeys.length - 1);
-      selectItem(visibleKeys[next]);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const next = Math.max(currentIndex - 1, 0);
-      selectItem(visibleKeys[next]);
-    }
+    if (e.key === 'ArrowDown') { e.preventDefault(); selectItem(visibleKeys[Math.min(currentIndex + 1, visibleKeys.length - 1)]); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); selectItem(visibleKeys[Math.max(currentIndex - 1, 0)]); }
   }, [selectedKey, visibleKeys, selectItem]);
 
-  const toggleCategory = useCallback((catId: string) => {
-    setCollapsedCategories(prev => {
-      const next = new Set(prev);
-      if (next.has(catId)) next.delete(catId);
-      else next.add(catId);
-      return next;
-    });
+  const toggleL1 = useCallback((catId: string) => {
+    setCollapsedL1(prev => { const next = new Set(prev); next.has(catId) ? next.delete(catId) : next.add(catId); return next; });
+  }, []);
+
+  const toggleL2 = useCallback((l2Id: string) => {
+    setCollapsedL2(prev => { const next = new Set(prev); next.has(l2Id) ? next.delete(l2Id) : next.add(l2Id); return next; });
   }, []);
 
   return (
@@ -150,33 +150,57 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
       </div>
       <div className="lineage-panel-list" ref={listRef}>
         {CATEGORY_ORDER.map((catId) => {
-          const items = grouped.get(catId);
-          if (!items || items.length === 0) return null;
+          const group = grouped.get(catId);
+          if (!group) return null;
+          const totalItems = group.ungrouped.length + Array.from(group.l2Groups.values()).reduce((a, b) => a + b.length, 0);
+          if (totalItems === 0) return null;
           const cat = getCategoryById(catId);
-          const isCollapsed = collapsedCategories.has(catId);
+          const isCollapsed = collapsedL1.has(catId);
+          const l2Cats = hasL2 ? getL2CategoriesForL1(catId) : [];
+
           return (
             <div key={catId} className="lineage-category-group">
-              <div
-                className="lineage-category-header"
-                onClick={() => toggleCategory(catId)}
-              >
+              <div className="lineage-category-header" onClick={() => toggleL1(catId)}>
                 <span className={`category-toggle${isCollapsed ? ' collapsed' : ''}`}>&#9660;</span>
                 <span className="lineage-category-label">{cat.label}</span>
-                <span className="lineage-category-count">({items.length})</span>
+                <span className="lineage-category-count">({totalItems})</span>
               </div>
-              {!isCollapsed && items.map((key) => {
-                const info = INTELLECTUAL_LINEAGES[key];
-                return (
-                  <div
-                    key={key}
-                    data-lineage-key={key}
-                    className={`lineage-panel-item lineage-panel-item-indented${key === selectedKey ? ' selected' : ''}`}
-                    onClick={() => selectItem(key)}
-                  >
-                    {info?.label || key}
-                  </div>
-                );
-              })}
+              {!isCollapsed && (
+                <>
+                  {l2Cats.map(l2 => {
+                    const l2Items = group.l2Groups.get(l2.id);
+                    if (!l2Items || l2Items.length === 0) return null;
+                    const l2Collapsed = collapsedL2.has(l2.id);
+                    return (
+                      <div key={l2.id} className="lineage-l2-group">
+                        <div className="lineage-l2-header" onClick={() => toggleL2(l2.id)}>
+                          <span className={`category-toggle category-toggle-sm${l2Collapsed ? ' collapsed' : ''}`}>&#9660;</span>
+                          <span className="lineage-l2-label">{l2.label}</span>
+                          <span className="lineage-category-count">({l2Items.length})</span>
+                        </div>
+                        {!l2Collapsed && l2Items.map(key => {
+                          const info = INTELLECTUAL_LINEAGES[key];
+                          return (
+                            <div key={key} data-lineage-key={key}
+                              className={`lineage-panel-item lineage-panel-item-l2-indented${key === selectedKey ? ' selected' : ''}`}
+                              onClick={() => selectItem(key)}
+                            >{info?.label || key}</div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                  {group.ungrouped.map(key => {
+                    const info = INTELLECTUAL_LINEAGES[key];
+                    return (
+                      <div key={key} data-lineage-key={key}
+                        className={`lineage-panel-item lineage-panel-item-indented${key === selectedKey ? ' selected' : ''}`}
+                        onClick={() => selectItem(key)}
+                      >{info?.label || key}</div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           );
         })}

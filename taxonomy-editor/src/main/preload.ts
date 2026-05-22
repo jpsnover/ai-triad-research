@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadPolicyRegistry: (): Promise<unknown> =>
     ipcRenderer.invoke('load-policy-registry'),
 
+  loadLineageCategories: (): Promise<unknown> =>
+    ipcRenderer.invoke('load-lineage-categories'),
+
   loadConflictFiles: (): Promise<unknown[]> =>
     ipcRenderer.invoke('load-conflict-files'),
 

@@ -916,6 +916,10 @@ body {
 .category-toggle.collapsed {
   transform: rotate(-90deg);
 }
+.category-toggle.category-toggle-sm {
+  font-size: 0.48rem;
+  margin-right: 2px;
+}
 
 .category-count {
   font-weight: 400;
@@ -5230,6 +5234,37 @@ body {
 
 .lineage-panel-item-indented {
   padding-left: 24px;
+}
+
+.lineage-panel-item-l2-indented,
+.lineage-panel-item-l2 {
+  padding-left: 42px;
+}
+
+/* ─── Lineage L2 Cluster Groups ───────────────────────── */
+
+.lineage-l2-group {
+  margin-bottom: 1px;
+}
+
+.lineage-l2-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 20px;
+  font-size: 0.73rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lineage-l2-header:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.lineage-l2-label {
+  flex: 1;
 }
 
 /* ─── Lineage Category Groups (Pane 1) ────────────────── */

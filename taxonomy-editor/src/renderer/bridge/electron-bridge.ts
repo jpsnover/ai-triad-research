@@ -17,6 +17,7 @@ export const api: AppAPI = {
   loadTaxonomyFile: (pov) => window.electronAPI.loadTaxonomyFile(pov),
   saveTaxonomyFile: (pov, data) => window.electronAPI.saveTaxonomyFile(pov, data),
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
+  loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
   loadEdges: () => window.electronAPI.loadEdges(),
   updateEdgeStatus: (i, s) => window.electronAPI.updateEdgeStatus(i, s),
   swapEdgeDirection: (i) => window.electronAPI.swapEdgeDirection(i),

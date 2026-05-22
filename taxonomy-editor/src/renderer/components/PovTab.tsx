@@ -21,7 +21,7 @@ import { FallacyDetailPanel } from './FallacyPanel';
 import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { getLineageInfo } from '../data/lineageLookup';
-import { getCategoryLabel, classifyLineage } from '../data/lineageCategories';
+import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../data/lineageCategories';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 
@@ -326,7 +326,7 @@ export function PovTab({ pov }: PovTabProps) {
             <div>
               <div className="lineage-detail-secondary-eyebrow">See Also</div>
               <h3 className="lineage-detail-secondary-title">{secInfo?.label ?? lineageSecondaryValue}</h3>
-              <div className="lineage-category-badge">{getCategoryLabel(lineageSecondaryValue)}</div>
+              <div className="lineage-category-badge">{getCategoryLabel(lineageSecondaryValue)}{getL2CategoryLabel(lineageSecondaryValue) ? ` › ${getL2CategoryLabel(lineageSecondaryValue)}` : ''}</div>
             </div>
             <div style={{ display: 'flex', gap: 4 }}>
               <button
@@ -458,7 +458,7 @@ export function PovTab({ pov }: PovTabProps) {
     if (!info) return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
-        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}{getL2CategoryLabel(lineagePreviewValue) ? ` › ${getL2CategoryLabel(lineagePreviewValue)}` : ''}</div>
         <div className="lineage-detail-section">
           <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
         </div>
@@ -471,7 +471,7 @@ export function PovTab({ pov }: PovTabProps) {
     return (
       <div className="lineage-detail">
         <h2 className="lineage-detail-title">{info.label}</h2>
-        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}</div>
+        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}{getL2CategoryLabel(lineagePreviewValue) ? ` › ${getL2CategoryLabel(lineagePreviewValue)}` : ''}</div>
         <div className="lineage-detail-section">
           <div className="lineage-detail-label">Summary</div>
           <p className="lineage-detail-text">{info.summary}</p>

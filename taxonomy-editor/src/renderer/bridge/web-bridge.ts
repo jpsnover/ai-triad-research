@@ -184,6 +184,7 @@ const rawApi: AppAPI = {
   loadTaxonomyFile: (pov) => get(`/api/taxonomy/${encodeURIComponent(pov)}`),
   saveTaxonomyFile: (pov, data) => put(`/api/taxonomy/${encodeURIComponent(pov)}`, data).then(() => {}),
   loadPolicyRegistry: () => get('/api/policy-registry'),
+  loadLineageCategories: () => get('/api/lineage-categories'),
   loadEdges: () => get('/api/edges'),
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
   swapEdgeDirection: (index) => put('/api/edges/swap', { index }),

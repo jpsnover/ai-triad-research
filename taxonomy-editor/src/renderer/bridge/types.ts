@@ -34,6 +34,7 @@ export interface AppAPI {
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
+  loadLineageCategories: () => Promise<unknown>;
   loadEdges: () => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
   swapEdgeDirection: (index: number) => Promise<unknown>;

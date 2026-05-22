@@ -10,6 +10,7 @@ export interface ElectronAPI {
   loadTaxonomyFile: (pov: string) => Promise<unknown>;
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
+  loadLineageCategories: () => Promise<unknown>;
   loadConflictFiles: () => Promise<unknown[]>;
   loadConflictClusters?: () => Promise<unknown | null>;
   loadAggregatedCruxes?: () => Promise<unknown | null>;

@@ -21,6 +21,7 @@ import {
   buildPolicySourceIndex,
   readPolicyRegistry,
   readAggregatedCruxes,
+  readLineageCategories,
   discoverSources,
   loadSummary,
   loadSnapshot,
@@ -98,6 +99,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('load-policy-registry', () => {
     return readPolicyRegistry();
+  });
+
+  ipcMain.handle('load-lineage-categories', () => {
+    return readLineageCategories();
   });
 
   ipcMain.handle('load-conflict-files', () => {

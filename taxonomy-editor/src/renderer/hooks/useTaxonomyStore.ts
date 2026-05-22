@@ -42,6 +42,7 @@ import type { ValidationResult } from '@lib/debate/validators';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
 import { api } from '@bridge';
+import { loadLineageCategoriesData } from '../data/lineageCategories';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export type PinnedData =
@@ -1187,6 +1188,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         track(steps[6], api.loadConflictClusters().catch(() => null)),
         track(steps[7], api.loadAggregatedCruxes().catch(() => null)),
       ]);
+      // Load L2 lineage categories (non-blocking, used by LineagePanel)
+      void loadLineageCategoriesData();
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       for (const povFile of [saf, skp] as PovTaxonomyFile[]) {
         if (povFile?.nodes) {

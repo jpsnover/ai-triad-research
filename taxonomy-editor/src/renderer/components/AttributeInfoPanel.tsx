@@ -8,7 +8,7 @@ import { EPISTEMIC_TYPES } from '../data/epistemicTypeInfo';
 import { EMOTIONAL_REGISTERS } from '../data/emotionalRegisterInfo';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import type { AttributeInfo } from '../data/epistemicTypeInfo';
-import { classifyLineage, getCategoryById } from '../data/lineageCategories';
+import { classifyLineage, getCategoryById, getL2CategoryLabel } from '../data/lineageCategories';
 import { lookupLineage } from '../data/lineageLookup';
 import { api } from '@bridge';
 
@@ -53,7 +53,9 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
       }
     }
     siblings.sort((a, b) => a.label.localeCompare(b.label));
-    return { categoryLabel: getCategoryById(currentCat).label, items: siblings };
+    const l2Label = getL2CategoryLabel(currentKey);
+    const fullLabel = getCategoryById(currentCat).label + (l2Label ? ` › ${l2Label}` : '');
+    return { categoryLabel: fullLabel, items: siblings };
   }, [attributeInfo]);
 
   if (!attributeInfo) return null;
