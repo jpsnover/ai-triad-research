@@ -125,11 +125,12 @@ For each claim, also classify:
   0.5-0.69: implicit premise or reading between the lines
   Below 0.5: do not include — you are editorializing beyond the statement
 - "bdi_category": "belief" (empirical/factual claim), "desire" (normative/value claim), or "intention" (strategic/methodological claim)
-- "base_strength": classify the evidential grounding as ONE of:
+- "base_strength": FOR BELIEF CLAIMS ONLY. Classify the evidential grounding as ONE of:
   "grounded" — cites specific data, named sources, dates, or directly verifiable facts
   "reasoned" — logical argument with internal coherence but no specific evidence
   "asserted" — claim stated without supporting reasoning or evidence
   Do NOT output numeric scores. Use ONLY these three categories.
+  For desire and intention claims: OMIT base_strength entirely — use bdi_sub_scores instead.
 - "bdi_sub_scores": for each criterion, answer "yes", "partial", or "no":
   For belief claims: OMIT bdi_sub_scores — use "belief_verification" instead (see below)
   For desire claims: {"values_grounding": "yes/partial/no", "tradeoff_acknowledgment": "yes/partial/no", "precedent_citation": "yes/partial/no"}
@@ -144,17 +145,19 @@ For each claim, also classify:
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
 
 ${DOMAIN_VOCABULARY}
-Return ONLY JSON (no markdown):
+Return ONLY JSON (no markdown). Two example claim shapes:
+
+Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
+{"text": "...", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]}
+
+Example 2 — Desire claim (includes bdi_sub_scores; NO base_strength):
+{"text": "...", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]}
+
+Full responds_to shape (same for all BDI categories):
 {
   "claims": [
     {
       "text": "near-verbatim claim from the statement",
-      "extraction_confidence": 0.92,
-      "bdi_category": "belief or desire or intention",
-      "base_strength": "grounded or reasoned or asserted",
-      "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"},
-      "specificity": "precise or general or abstract",
-      "steelman_of": null,
       "responds_to": [
         {
           "prior_claim_id": "AN-1",
@@ -229,11 +232,12 @@ For each claim:
 
 Also classify each claim:
 - "bdi_category": "belief" (empirical/factual), "desire" (normative/value), or "intention" (strategic/methodological)
-- "base_strength": classify the evidential grounding as ONE of:
+- "base_strength": FOR BELIEF CLAIMS ONLY. Classify the evidential grounding as ONE of:
   "grounded" — cites specific data, named sources, dates, or directly verifiable facts
   "reasoned" — logical argument with internal coherence but no specific evidence
   "asserted" — claim stated without supporting reasoning or evidence
   Do NOT output numeric scores. Use ONLY these three categories.
+  For desire and intention claims: OMIT base_strength entirely — use bdi_sub_scores instead.
 - "bdi_sub_scores": for each criterion, answer "yes", "partial", or "no":
   For belief claims: OMIT bdi_sub_scores — use "belief_verification" instead (see below)
   desire: {"values_grounding": "yes/partial/no", "tradeoff_acknowledgment": "yes/partial/no", "precedent_citation": "yes/partial/no"}
@@ -248,16 +252,19 @@ Also classify each claim:
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 
 ${DOMAIN_VOCABULARY}
-Return ONLY JSON (no markdown):
+Return ONLY JSON (no markdown). Two example claim shapes:
+
+Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
+{"text": "...", "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]}
+
+Example 2 — Intention claim (includes bdi_sub_scores; NO base_strength):
+{"text": "...", "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]}
+
+Full responds_to shape (same for all BDI categories):
 {
   "claims": [
     {
       "text": "the debater's claim text (unchanged)",
-      "bdi_category": "belief or desire or intention",
-      "base_strength": "grounded or reasoned or asserted",
-      "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"},
-      "specificity": "precise or general or abstract",
-      "steelman_of": null,
       "responds_to": [
         {
           "prior_claim_id": "AN-1",
@@ -749,8 +756,15 @@ export function normalizeExtractedClaim(claim: RawExtractedClaim): RawExtractedC
   const normalized = { ...claim };
 
   // base_strength: accept discrete category string or legacy float
+  // Only apply the evidential grounding map (grounded→0.8, reasoned→0.5, asserted→0.2)
+  // to Belief claims. For Desires/Intentions, evidential grounding is epistemically
+  // wrong — use neutral 0.5 so BDI composite scoring isn't biased by an empirical scale.
   if (isDiscreteNodeStrength(claim.base_strength)) {
-    normalized.base_strength = discreteNodeStrength(claim.base_strength as unknown as string);
+    if (claim.bdi_category === 'belief' || !claim.bdi_category) {
+      normalized.base_strength = discreteNodeStrength(claim.base_strength as unknown as string);
+    } else {
+      normalized.base_strength = 0.5;
+    }
   }
 
   // bdi_sub_scores: accept discrete ternary strings or legacy floats

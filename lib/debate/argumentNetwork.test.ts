@@ -209,6 +209,8 @@ describe('BDI composite scoring', () => {
     expect(result.newNodes).toHaveLength(1);
     const node = result.newNodes[0];
     expect(node.scoring_method).toBe('bdi_criteria');
+    // Desire with no sub-scores: base_strength should be neutral 0.5, not 0.8 (grounded)
+    expect(node.base_strength).toBeCloseTo(0.5, 5);
   });
 });
 
@@ -280,5 +282,61 @@ describe('normalizeExtractedClaim — BDI sub-scores', () => {
       tradeoff_acknowledgment: 0.5,
       precedent_citation: 0.0,
     });
+  });
+});
+
+describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
+  it('maps "asserted" to 0.2 for Belief claims', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'empirical claim about AI capabilities',
+      bdi_category: 'belief',
+      base_strength: 'asserted',
+    });
+    expect(claim.base_strength).toBe(0.2);
+  });
+
+  it('maps "asserted" to neutral 0.5 for Desire claims', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'We should prioritize safety over capability racing',
+      bdi_category: 'desire',
+      base_strength: 'asserted',
+    });
+    expect(claim.base_strength).toBe(0.5);
+  });
+
+  it('maps "asserted" to neutral 0.5 for Intention claims', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'Implement staged deployment with safety gates',
+      bdi_category: 'intention',
+      base_strength: 'asserted',
+    });
+    expect(claim.base_strength).toBe(0.5);
+  });
+
+  it('maps "grounded" to 0.8 for Belief claims', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'GPT-4 scores 86% on MMLU benchmark',
+      bdi_category: 'belief',
+      base_strength: 'grounded',
+    });
+    expect(claim.base_strength).toBe(0.8);
+  });
+
+  it('maps "grounded" to neutral 0.5 for Desire claims', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'We should mandate transparency in AI systems',
+      bdi_category: 'desire',
+      base_strength: 'grounded',
+    });
+    expect(claim.base_strength).toBe(0.5);
+  });
+
+  it('passes through numeric base_strength unchanged regardless of BDI category', () => {
+    const claim = normalizeExtractedClaim({
+      text: 'test claim with numeric strength',
+      bdi_category: 'desire',
+      base_strength: 0.7,
+    });
+    expect(claim.base_strength).toBe(0.7);
   });
 });
