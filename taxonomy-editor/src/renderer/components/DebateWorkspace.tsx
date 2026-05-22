@@ -2757,7 +2757,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onBlur={() => setTimeout(() => setMentionOpen(false), 150)}
-            disabled={disabled}
+            disabled={disableAnalysis}
           />
           {mentionOpen && mentionOptions.length > 0 && (
             <div className="debate-mention-dropdown">
@@ -2776,7 +2776,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         <button
           className="btn btn-primary debate-send-btn"
           onClick={handleSend}
-          disabled={!input.trim() || disabled}
+          disabled={!input.trim() || disableAnalysis}
         >
           Send
         </button>
@@ -2785,7 +2785,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
           <button
             className="btn debate-continue-btn"
             onClick={handleCrossRespond}
-            disabled={disabled}
+            disabled={disableAnalysis}
             title="Let the debate engine select the next speaker and continue"
           >
             Continue
@@ -2796,7 +2796,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
             <button
               className="btn debate-cross-btn"
               onClick={handleCrossRespond}
-              disabled={disabled}
+              disabled={disableAnalysis}
               title={`Run ${crossRespondTurns} cross-respond round${crossRespondTurns > 1 ? 's' : ''}`}
               style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
             >
@@ -2806,7 +2806,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
               className="debate-turns-select"
               value={crossRespondTurns}
               onChange={(e) => setCrossRespondTurns(parseInt(e.target.value, 10))}
-              disabled={disabled}
+              disabled={disableAnalysis}
               title="Number of cross-respond rounds"
             >
               {[1, 2, 3, 6, 9, 12, 15, 18, 21].map(n => (
