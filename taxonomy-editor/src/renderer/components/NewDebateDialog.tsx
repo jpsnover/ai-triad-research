@@ -12,14 +12,7 @@ import { AI_POVERS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
-export type DebatePacing = 'tight' | 'moderate' | 'thorough';
 export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
-
-const PACING_PRESETS: { id: DebatePacing; label: string; desc: string; maxRounds: number }[] = [
-  { id: 'tight', label: 'Tight', desc: 'Get to the point. Shorter debates, earlier transitions.', maxRounds: 8 },
-  { id: 'moderate', label: 'Moderate', desc: 'Balanced depth. Default for most topics.', maxRounds: 12 },
-  { id: 'thorough', label: 'Thorough', desc: 'Deep dive. Lets exploration run longer.', maxRounds: 15 },
-];
 
 const STYLE_PRESETS: { id: DialecticalStyle; label: string; desc: string }[] = [
   { id: 'adversarial', label: 'Adversarial', desc: 'Direct challenge. Western academic debate norms.' },
@@ -79,7 +72,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [protocolId, setProtocolId] = useState('structured');
   const [temperature, setTemperature] = useState(0.7);
   const [audience, setAudience] = useState<DebateAudience>('policymakers');
-  const [pacing, setPacing] = useState<DebatePacing>('moderate');
   const [dialecticalStyle, setDialecticalStyle] = useState<DialecticalStyle>('adversarial');
   const [useAdaptiveStaging, setUseAdaptiveStaging] = useState(false);
   const [evaluatorModel, setEvaluatorModel] = useState('');
@@ -168,12 +160,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       audience,
       {
         evaluatorModel: evaluatorModel || undefined,
-        pacing: pacing !== 'moderate' ? pacing : undefined,
         useAdaptiveStaging: useAdaptiveStaging || undefined,
       },
     );
     await loadDebate(id);
-    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, pacing, adaptive_staging: useAdaptiveStaging } });
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: useAdaptiveStaging } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();
@@ -338,21 +329,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   ))}
                 </select>
               )}
-            </div>
-
-            {/* Pacing */}
-            <label className="ndd-field-label">Pacing</label>
-            <div className="ndd-pacing-cards">
-              {PACING_PRESETS.map(p => (
-                <label key={p.id} className={`ndd-pacing-card${pacing === p.id ? ' active' : ''}`}>
-                  <input type="radio" name="pacing" value={p.id} checked={pacing === p.id} onChange={() => setPacing(p.id)} />
-                  <div className="ndd-pacing-text">
-                    <span className="ndd-pacing-name">{p.label}</span>
-                    <span className="ndd-pacing-desc">{p.desc}</span>
-                  </div>
-                  <span className="ndd-pacing-rounds">{p.maxRounds} max</span>
-                </label>
-              ))}
             </div>
 
             {/* Dialectical Style */}

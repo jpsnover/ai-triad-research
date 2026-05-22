@@ -1944,12 +1944,12 @@ interface DebateStore {
   debateLoading: boolean;
   debateGenerating: SpeakerId | null;
   debateError: string | null;
-  responseLength: 'claims' | 'brief' | 'medium' | 'detailed';
-  setResponseLength: (length: 'claims' | 'brief' | 'medium' | 'detailed') => void;
+  responseLength: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning';
+  setResponseLength: (length: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning') => void;
   audience: DebateAudience;
   setAudience: (audience: DebateAudience) => void;
   /** Set display tier for a specific transcript entry (DT-3). */
-  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed') => void;
+  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning') => void;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
@@ -1988,6 +1988,7 @@ interface DebateStore {
   // Phase 1.5: Topic Critique (wisdom-generating quality gate)
   topicCritiqueLoading: boolean;
   runTopicCritique: () => Promise<void>;
+  reEvaluateSuggestedTopic: (suggestedText: string) => Promise<void>;
 
   // Phase 2: Clarification
   runClarification: () => Promise<void>;
@@ -2550,16 +2551,24 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         allNodeIds.push(n.id);
       }
 
-      // Compute embeddings for topic + all nodes in one batch
-      const allTexts = [topic, ...allNodeTexts];
-      const allIds = ['__topic__', ...allNodeIds];
-      const { vectors } = await api.computeEmbeddings(allTexts, allIds);
+      // Compute topic embedding via local model (same all-MiniLM-L6-v2 as embeddings.json)
+      // to ensure cosine similarity is meaningful against cached node vectors.
+      const { vector: topicEmbedding } = await api.computeQueryEmbedding(topic);
 
-      const topicEmbedding = vectors[0];
+      // Load node embeddings from cache (same model)
+      const { vectors: nodeVectors } = await api.computeEmbeddings(allNodeTexts, allNodeIds);
+
+      // Validate dimension match — if the topic came from a different model (API fallback),
+      // cosine similarity would be meaningless, so warn and skip structural scoring
       const nodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+      const dimMismatch = nodeVectors.length > 0 && nodeVectors[0].length > 0
+        && topicEmbedding.length !== nodeVectors[0].length;
+      if (dimMismatch) {
+        console.warn(`[TopicCritique] Dimension mismatch: topic=${topicEmbedding.length}d, nodes=${nodeVectors[0].length}d — structural scores will be zero`);
+      }
       for (let i = 0; i < allNodeIds.length; i++) {
         const povNode = allPovNodes.find(n => n.id === allNodeIds[i]);
-        nodeEmbeddings[allNodeIds[i]] = { pov: povNode?.pov ?? 'situations', vector: vectors[i + 1] };
+        nodeEmbeddings[allNodeIds[i]] = { pov: povNode?.pov ?? 'situations', vector: nodeVectors[i] };
       }
 
       const structuralScore = computeStructuralScore({
@@ -2574,10 +2583,29 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(prompt, model, `Evaluating topic quality (${model})`, set);
       const critique = parseTopicCritique(text, structuralScore);
 
+      // Score the suggested rewrite too (for side-by-side comparison)
+      let suggestedCritique: ReturnType<typeof parseTopicCritique> | undefined;
+      if (critique.rewritten_topic && critique.rewritten_topic !== topic) {
+        try {
+          const { vector: suggestedEmbedding } = await api.computeQueryEmbedding(critique.rewritten_topic);
+          const suggestedStructural = computeStructuralScore({
+            topicEmbedding: suggestedEmbedding,
+            povNodes: allPovNodes,
+            situationNodes: sitNodes.map(n => ({ id: n.id })),
+            embeddings: nodeEmbeddings,
+          });
+          const suggestedPrompt = critiqueTopicPrompt(critique.rewritten_topic, formatStructuralContext(suggestedStructural));
+          const { text: suggestedText } = await generateTextWithProgress(suggestedPrompt, model, `Scoring suggested topic (${model})`, set);
+          suggestedCritique = parseTopicCritique(suggestedText, suggestedStructural);
+        } catch (sugErr) {
+          console.warn('[TopicCritique] Suggested topic scoring failed (non-blocking):', sugErr);
+        }
+      }
+
       // Store on session (non-persistent field set once before clarification)
       const updated = {
         ...activeDebate,
-        topic: { ...activeDebate.topic, critique },
+        topic: { ...activeDebate.topic, critique, ...(suggestedCritique ? { suggested_critique: suggestedCritique } : {}) },
         updated_at: nowISO(),
       };
       set({ activeDebate: updated, topicCritiqueLoading: false, debateActivity: null });
@@ -2586,11 +2614,80 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       getGlobalRecorder()?.record({
         type: 'topic.critique', component: 'debate-store', level: 'info',
         debate_id: activeDebate.id,
-        message: `Topic critique: ${critique.rating} (${critique.composite_score}/20)`,
+        message: `Topic critique: ${critique.rating} (${critique.composite_score}/20)${suggestedCritique ? `, suggested: ${suggestedCritique.rating} (${suggestedCritique.composite_score}/20)` : ''}`,
         data: { structural: structuralScore.total, frame: critique.frame_score?.total ?? 0, rating: critique.rating },
       });
     } catch (err) {
       console.warn('[TopicCritique] Failed (non-blocking):', err);
+      set({ topicCritiqueLoading: false, debateActivity: null });
+    }
+  },
+
+  reEvaluateSuggestedTopic: async (suggestedText: string) => {
+    const { activeDebate, saveDebate } = get();
+    if (!activeDebate || !suggestedText.trim()) return;
+    if (get().topicCritiqueLoading) return;
+
+    set({ topicCritiqueLoading: true, debateError: null });
+    const model = getConfiguredModel();
+
+    try {
+      const taxState = useTaxonomyStore.getState();
+      const povFiles = ['accelerationist', 'safetyist', 'skeptic'] as const;
+      const allPovNodes: { id: string; pov: string; category: import('../types/taxonomy').Category }[] = [];
+      const allNodeTexts: string[] = [];
+      const allNodeIds: string[] = [];
+
+      for (const pov of povFiles) {
+        const file = taxState[pov];
+        if (!file?.nodes) continue;
+        for (const n of file.nodes) {
+          allPovNodes.push({ id: n.id, pov, category: n.category });
+          allNodeTexts.push(`${n.label}: ${n.description}`);
+          allNodeIds.push(n.id);
+        }
+      }
+
+      const sitNodes = taxState.situations?.nodes ?? [];
+      for (const n of sitNodes) {
+        allNodeTexts.push(`${n.label}: ${n.description}`);
+        allNodeIds.push(n.id);
+      }
+
+      const { vector: suggestedEmbedding } = await api.computeQueryEmbedding(suggestedText);
+      const { vectors: nodeVectors } = await api.computeEmbeddings(allNodeTexts, allNodeIds);
+
+      const nodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+      for (let i = 0; i < allNodeIds.length; i++) {
+        const povNode = allPovNodes.find(n => n.id === allNodeIds[i]);
+        nodeEmbeddings[allNodeIds[i]] = { pov: povNode?.pov ?? 'situations', vector: nodeVectors[i] };
+      }
+
+      const suggestedStructural = computeStructuralScore({
+        topicEmbedding: suggestedEmbedding,
+        povNodes: allPovNodes,
+        situationNodes: sitNodes.map(n => ({ id: n.id })),
+        embeddings: nodeEmbeddings,
+      });
+
+      const suggestedPrompt = critiqueTopicPrompt(suggestedText, formatStructuralContext(suggestedStructural));
+      const { text } = await generateTextWithProgress(suggestedPrompt, model, `Re-evaluating suggested topic (${model})`, set);
+      const suggestedCritique = parseTopicCritique(text, suggestedStructural);
+
+      // Update only the suggested_critique and rewritten_topic, preserving the original critique
+      const updated = {
+        ...activeDebate,
+        topic: {
+          ...activeDebate.topic,
+          critique: { ...activeDebate.topic.critique!, rewritten_topic: suggestedText },
+          suggested_critique: suggestedCritique,
+        },
+        updated_at: nowISO(),
+      };
+      set({ activeDebate: updated, topicCritiqueLoading: false, debateActivity: null });
+      await saveDebate();
+    } catch (err) {
+      console.warn('[TopicCritique] Re-evaluate suggested failed (non-blocking):', err);
       set({ topicCritiqueLoading: false, debateActivity: null });
     }
   },
@@ -2689,6 +2786,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const MAX_REFINEMENT_ATTEMPTS = 3;
     let bestTopic: string | null = null;
     let bestScore = baselineScore;
+    let bestCritique: ReturnType<typeof parseTopicCritique> | null = null;
 
     for (let attempt = 0; attempt < MAX_REFINEMENT_ATTEMPTS; attempt++) {
       const prompt = buildSynthesisPrompt(activeDebate.topic.original, clarifications, activeDebate.audience, baselineCritique);
@@ -2712,6 +2810,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             if (candidateCritique.composite_score >= baselineScore) {
               bestTopic = candidate;
               bestScore = candidateCritique.composite_score;
+              bestCritique = candidateCritique;
               console.log(`[TopicRefinement] Attempt ${attempt + 1}: score ${candidateCritique.composite_score} >= baseline ${baselineScore} — accepted`);
               break;
             }
@@ -2738,7 +2837,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const keptOriginal = bestTopic === null && baselineCritique != null;
 
     try {
-      get().updateTopic({ refined: refinedTopic, final: refinedTopic });
+      get().updateTopic({ refined: refinedTopic, final: refinedTopic, ...(bestCritique ? { refined_critique: bestCritique } : {}) });
 
       addTranscriptEntry({
         type: 'system',

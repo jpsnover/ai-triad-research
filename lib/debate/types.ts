@@ -258,7 +258,7 @@ export interface TranscriptEntry {
     medium: string;  // 1-2 paragraphs: main argument + key evidence
   };
   /** Which detail tier to display by default. Absent = show full content. */
-  display_tier?: 'claims' | 'brief' | 'medium' | 'detailed';
+  display_tier?: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning';
   /** Present when type === 'intervention'. Metadata about the moderator move. */
   intervention_metadata?: InterventionMetadata;
   /** Unresolved judge weaknesses from the final retry attempt — substantive limitations
@@ -410,6 +410,10 @@ export interface DebateSession {
     clause_embeddings?: number[][];
     /** Pre-debate topic quality critique (wisdom-generating scoring). Set once before clarification. */
     critique?: import('./topicCritique.js').TopicCritique;
+    /** Post-refinement topic critique — scores the refined topic for old-vs-new comparison. */
+    refined_critique?: import('./topicCritique.js').TopicCritique;
+    /** Critique of the AI-suggested rewrite (for side-by-side comparison in the critique card). */
+    suggested_critique?: import('./topicCritique.js').TopicCritique;
   };
   source_type: DebateSourceType;
   /** For document: file path; for url: the URL; for topic: empty */

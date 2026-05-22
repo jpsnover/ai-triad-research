@@ -195,10 +195,18 @@ function EditCard({ edit, pover, editIndex }: {
           <>
             <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>{edit.current_label}</span>
             {' → '}
-            <span style={{ fontWeight: 600 }}>{edit.proposed_label}</span>
+            <span
+              style={{ fontWeight: 600, cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
+              title={resolved ? undefined : 'Click to edit label'}
+              onClick={resolved ? undefined : () => setEditing(true)}
+            >{editedLabel}</span>
           </>
         ) : (
-          <span style={{ fontWeight: 600 }}>{edit.proposed_label}</span>
+          <span
+            style={{ fontWeight: 600, cursor: resolved ? undefined : 'pointer', borderBottom: resolved ? undefined : '1px dashed var(--text-muted)' }}
+            title={resolved ? undefined : 'Click to edit label'}
+            onClick={resolved ? undefined : () => setEditing(true)}
+          >{editedLabel}</span>
         )}
       </div>
 

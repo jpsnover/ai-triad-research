@@ -386,14 +386,16 @@ function resolvePolRef(ref: PolicyRefEntry): { id: string; relevance: string | n
   return { id: ref.policy_id, relevance: ref.relevance };
 }
 
-function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDiagnostics }: {
+function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDiagnostics, forceExpanded }: {
   refs: TaxonomyRef[];
   policyRefs?: PolicyRefEntry[];
   metaPolicyRefs?: PolicyRefEntry[];
   entry?: TranscriptEntry;
   stageDiagnostics?: { stage: string; raw_response: string; work_product: Record<string, unknown> }[];
+  forceExpanded?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const isExpanded = forceExpanded || expanded;
   const [caveatsExpanded, setCaveatsExpanded] = useState(false);
   const [explainCopied, setExplainCopied] = useState(false);
   const polRefs = metaPolicyRefs || policyRefs || [];
@@ -415,7 +417,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
   return (
     <div className="debate-taxonomy-refs-section">
       <div className="debate-taxonomy-refs">
-        {hasReasoning && (
+        {hasReasoning && !forceExpanded && (
           <button
             className="debate-reasoning-toggle"
             onClick={() => setExpanded(e => !e)}
@@ -477,7 +479,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
           </div>
         );
       })()}
-      {expanded && (
+      {isExpanded && (
         <div className="debate-reasoning-list">
           {briefStage && (
             <details open className="debate-reasoning-section">
@@ -490,7 +492,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
             </details>
           )}
           {planStage && (
-            <details className="debate-reasoning-section">
+            <details open className="debate-reasoning-section">
               <summary className="debate-reasoning-section-title" style={{ color: '#a855f7' }}>PLAN</summary>
               <div className="debate-reasoning-section-body">
                 {(() => {
@@ -1083,14 +1085,14 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         </span>
         {showTierPills && (
           <span className="debate-tier-pills">
-            {(['claims', 'brief', 'medium', 'detailed'] as const).map(tier => (
+            {(['claims', 'brief', 'medium', 'detailed', 'reasoning'] as const).map(tier => (
               <button
                 key={tier}
                 className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
                 onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
-                title={tier === 'claims' ? 'Argument network claims' : tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : 'Full response'}
+                title={tier === 'claims' ? 'Argument network claims' : tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : tier === 'reasoning' ? 'Brief, plan & BDI (replaces text)' : 'Full response'}
               >
-                {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
+                {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'reasoning' ? 'Plan' : 'Detail'}
               </button>
             ))}
           </span>
@@ -1163,6 +1165,16 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         <div className="debate-statement-content">
           <ClaimsView entryId={entry.id} debate={activeDebate!} />
         </div>
+      ) : activeTier === 'reasoning' ? (
+        /* Plan tier: show only the brief/plan/BDI sections, replacing the statement text */
+        <TaxonomyRefsSection
+          refs={entry.taxonomy_refs}
+          policyRefs={entry.policy_refs}
+          metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
+          entry={entry}
+          stageDiagnostics={activeDebate?.diagnostics?.entries[entry.id]?.stage_diagnostics as { stage: string; raw_response: string; work_product: Record<string, unknown> }[] | undefined}
+          forceExpanded
+        />
       ) : (
         <>
           <div className="debate-statement-content markdown-body">
@@ -1180,43 +1192,48 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
           <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={activeTier as DetailTier} />
         </>
       )}
-      <EntryCommentBadge entryId={entry.id} />
-      {entry.speaker === 'system' && entry.type === 'system' && entry.content.includes('Consider exploring:') && (() => {
-        const match = entry.content.match(/Consider exploring:\s*(.+)/s);
-        const topic = match?.[1]?.trim();
-        if (!topic) return null;
-        return (
-          <div style={{
-            marginTop: 10, padding: '8px 12px', borderRadius: 6,
-            background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)',
-            display: 'flex', alignItems: 'center', gap: 10,
-          }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flex: 1 }}>
-              Redirect the debate to explore this topic?
-            </span>
-            <button
-              disabled={!!debateGenerating}
-              onClick={(e) => { e.stopPropagation(); void askQuestion(`Explore this: ${topic}`); }}
-              style={{
-                padding: '6px 18px', fontSize: '0.8rem', fontWeight: 700,
-                background: '#3b82f6', color: '#fff', border: 'none',
-                borderRadius: 5, cursor: debateGenerating ? 'not-allowed' : 'pointer',
-                opacity: debateGenerating ? 0.5 : 1, whiteSpace: 'nowrap',
-              }}
-              title={`Ask debaters to explore: ${topic}`}
-            >
-              Explore This
-            </button>
-          </div>
-        );
-      })()}
-      <TaxonomyRefsSection
-        refs={entry.taxonomy_refs}
-        policyRefs={entry.policy_refs}
-        metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
-        entry={entry}
-        stageDiagnostics={activeDebate?.diagnostics?.entries[entry.id]?.stage_diagnostics as { stage: string; raw_response: string; work_product: Record<string, unknown> }[] | undefined}
-      />
+      {activeTier !== 'reasoning' && (
+        <>
+          <EntryCommentBadge entryId={entry.id} />
+          {entry.speaker === 'system' && entry.type === 'system' && entry.content.includes('Consider exploring:') && (() => {
+            const match = entry.content.match(/Consider exploring:\s*(.+)/s);
+            const topic = match?.[1]?.trim();
+            if (!topic) return null;
+            return (
+              <div style={{
+                marginTop: 10, padding: '8px 12px', borderRadius: 6,
+                background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)',
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flex: 1 }}>
+                  Redirect the debate to explore this topic?
+                </span>
+                <button
+                  disabled={!!debateGenerating}
+                  onClick={(e) => { e.stopPropagation(); void askQuestion(`Explore this: ${topic}`); }}
+                  style={{
+                    padding: '6px 18px', fontSize: '0.8rem', fontWeight: 700,
+                    background: '#3b82f6', color: '#fff', border: 'none',
+                    borderRadius: 5, cursor: debateGenerating ? 'not-allowed' : 'pointer',
+                    opacity: debateGenerating ? 0.5 : 1, whiteSpace: 'nowrap',
+                  }}
+                  title={`Ask debaters to explore: ${topic}`}
+                >
+                  Explore This
+                </button>
+              </div>
+            );
+          })()}
+          <TaxonomyRefsSection
+            refs={entry.taxonomy_refs}
+            policyRefs={entry.policy_refs}
+            metaPolicyRefs={(entry.metadata as Record<string, unknown>)?.policy_refs as string[] | undefined}
+            entry={entry}
+            stageDiagnostics={activeDebate?.diagnostics?.entries[entry.id]?.stage_diagnostics as { stage: string; raw_response: string; work_product: Record<string, unknown> }[] | undefined}
+            forceExpanded={false}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -1720,6 +1737,19 @@ const DIMENSION_LABELS: Record<string, string> = {
   scope: 'Scope',
 };
 
+const DIMENSION_TOOLTIPS: Record<string, string> = {
+  crux_density: 'POV balance — do all three perspectives (accelerationist, safetyist, skeptic) have nodes activated by this topic?\n\nGood: "Should AI development require mandatory safety audits before deployment?" activates nodes across all three POVs evenly.',
+  evidence_coverage: 'Evidence richness — do the activated taxonomy nodes have supporting evidence entries (citations, data)?\n\nGood: "What does the empirical record show about algorithmic bias in hiring?" maps to well-evidenced nodes with real studies.',
+  bdi_heterogeneity: 'BDI category spread — does the topic engage Beliefs, Desires, and Intentions, not just one category?\n\nGood: "How should regulators balance innovation incentives with safety mandates?" touches beliefs about risk, desires for growth, and concrete policy intentions.',
+  abstraction_level: 'Goldilocks granularity — is the topic neither too broad (activating hundreds of nodes) nor too narrow (activating only a handful)?\n\nGood: "Should foundation model developers be liable for downstream harms?" — specific enough to focus debate, broad enough to sustain multiple rounds.',
+  situation_activation: 'Situational grounding — does the topic activate shared cross-cutting or situation nodes that anchor the debate in concrete contexts?\n\nGood: "In the wake of deepfake election interference, what guardrails should platforms adopt?" activates situation nodes about elections and misinformation.',
+  conditionality: 'Conditional framing — does the topic specify conditions under which different answers apply, rather than asking a binary yes/no question?\n\nGood: "Under what conditions should open-source AI models require licensing?" vs. bad: "Should AI be regulated?"',
+  mechanism: 'Mechanism focus — does the topic ask about causal pathways and processes rather than just outcomes?\n\nGood: "Through what institutional mechanisms can international AI governance achieve compliance?" vs. bad: "Will AI governance work?"',
+  stakeholder: 'Stakeholder breadth — does the topic name multiple actors with distinct roles and distributed responsibility?\n\nGood: "How should developers, regulators, and civil society actors share responsibility for AI safety?" vs. bad: "Should tech companies self-regulate?"',
+  tension: 'Tension acknowledgment — does the topic explicitly name a trade-off or invite meta-level disagreement?\n\nGood: "How should policymakers navigate the tension between AI innovation speed and precautionary safety requirements?" surfaces a genuine dilemma.',
+  scope: 'Scope boundedness — does the topic specify concrete artifacts, timeframes, or domains rather than remaining open-ended?\n\nGood: "Should the EU AI Act\'s risk classification framework be adopted as a global standard by 2030?" vs. bad: "What should AI policy look like?"',
+};
+
 const RATING_COLORS: Record<string, string> = {
   strong: '#16a34a',
   fair: '#d97706',
@@ -1801,49 +1831,87 @@ function RadarChart({ structural, frame }: { structural: StructuralScore; frame:
   );
 }
 
-function TopicCritiqueCard({ critique, onUseSuggested }: { critique: TopicCritique; onUseSuggested: (topic: string) => void }) {
-  const [showDetails, setShowDetails] = useState(false);
-  const ratingColor = RATING_COLORS[critique.rating] ?? '#888';
+/** Single-column critique breakdown (used in both left and right columns) */
+function CritiqueColumn({ critique, label, topicText, accentColor, action }: {
+  critique: TopicCritique;
+  label: string;
+  topicText?: string;
+  accentColor: string;
+  action?: React.ReactNode;
+}) {
   const highIssues = critique.issues.filter(i => i.severity === 'high');
   const mediumIssues = critique.issues.filter(i => i.severity === 'medium');
 
   return (
-    <div className="topic-critique-card" style={{
-      border: `1px solid ${ratingColor}40`,
-      borderRadius: 8,
-      padding: '12px 16px',
-      marginBottom: 12,
-      background: `${ratingColor}08`,
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+    <div style={{ flex: 1, minWidth: 260 }}>
+      {/* Column header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
         <span style={{
-          background: ratingColor, color: '#fff', padding: '2px 10px', borderRadius: 4,
-          fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase',
+          background: accentColor, color: '#fff', padding: '1px 8px', borderRadius: 4,
+          fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase',
         }}>
           {critique.rating}
         </span>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Topic Quality: {critique.composite_score}/20
-          {critique.structural_score && <> (structural {critique.structural_score.total}/10</>}
-          {critique.frame_score && <>, frame {critique.frame_score.total}/10)</>}
-          {!critique.frame_score && <>)</>}
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+          {critique.composite_score}/20
         </span>
-        <button
-          className="btn btn-sm"
-          onClick={() => setShowDetails(d => !d)}
-          style={{ marginLeft: 'auto', fontSize: '0.75rem', padding: '2px 8px' }}
-        >
-          {showDetails ? 'Hide Details' : 'Show Details'}
-        </button>
       </div>
 
-      {/* Issues summary */}
+      {/* Topic text */}
+      {topicText && (
+        <div style={{
+          fontSize: '0.78rem', fontStyle: 'italic', padding: '6px 10px', marginBottom: 8,
+          background: 'var(--bg-secondary)', borderRadius: 6, lineHeight: 1.5,
+          borderLeft: `3px solid ${accentColor}40`,
+        }}>
+          {topicText}
+        </div>
+      )}
+
+      {action && <div style={{ marginBottom: 8 }}>{action}</div>}
+
+      {/* Radar chart + scores */}
+      <RadarChart structural={critique.structural_score} frame={critique.frame_score} />
+
+      <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: 'var(--text-secondary)' }}>
+        Structural ({critique.structural_score.total}/10)
+      </div>
+      {(['crux_density', 'evidence_coverage', 'bdi_heterogeneity', 'abstraction_level', 'situation_activation'] as const).map(key => {
+        const val = critique.structural_score[key] as number;
+        return (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.78rem' }} title={DIMENSION_TOOLTIPS[key]}>
+            <span style={{ width: 90, color: 'var(--text-secondary)', cursor: 'help', borderBottom: '1px dotted var(--text-muted, #999)' }}>{DIMENSION_LABELS[key]}</span>
+            <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
+            <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
+          </div>
+        );
+      })}
+
+      {critique.frame_score && (
+        <>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: 'var(--text-secondary)' }}>
+            Frame ({critique.frame_score.total}/10)
+          </div>
+          {(['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const).map(key => {
+            const val = critique.frame_score![key] as number;
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.78rem' }} title={DIMENSION_TOOLTIPS[key]}>
+                <span style={{ width: 90, color: 'var(--text-secondary)', cursor: 'help', borderBottom: '1px dotted var(--text-muted, #999)' }}>{DIMENSION_LABELS[key]}</span>
+                <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
+                <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Issues */}
       {(highIssues.length > 0 || mediumIssues.length > 0) && (
-        <div style={{ fontSize: '0.8rem', marginBottom: 8 }}>
+        <div style={{ marginTop: 8, fontSize: '0.75rem' }}>
           {highIssues.length > 0 && (
             <div style={{ color: '#dc2626', marginBottom: 2 }}>
-              {highIssues.length} critical issue{highIssues.length !== 1 ? 's' : ''}: {highIssues.map(i => DIMENSION_LABELS[i.dimension] ?? i.dimension).join(', ')}
+              {highIssues.length} critical: {highIssues.map(i => DIMENSION_LABELS[i.dimension] ?? i.dimension).join(', ')}
             </div>
           )}
           {mediumIssues.length > 0 && (
@@ -1853,97 +1921,145 @@ function TopicCritiqueCard({ critique, onUseSuggested }: { critique: TopicCritiq
           )}
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Rewritten topic suggestion */}
-      {critique.rewritten_topic && critique.rating !== 'strong' && (
-        <div style={{
-          background: 'var(--bg-secondary, #1a1a2e)',
-          borderRadius: 6, padding: '8px 12px', marginBottom: 8,
-          border: '1px solid var(--border-color, #333)',
+function TopicCritiqueCard({ critique, suggestedCritique, currentTopicText, onUseSuggested, onReEvaluateSuggested, isLoading }: {
+  critique: TopicCritique;
+  suggestedCritique?: TopicCritique;
+  currentTopicText: string;
+  onUseSuggested: (topic: string) => void;
+  onReEvaluateSuggested: (editedTopic: string) => void;
+  isLoading?: boolean;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [editingSuggested, setEditingSuggested] = useState(false);
+  const [editedSuggested, setEditedSuggested] = useState(critique.rewritten_topic ?? '');
+  const ratingColor = RATING_COLORS[critique.rating] ?? '#888';
+  const suggestedColor = suggestedCritique ? (RATING_COLORS[suggestedCritique.rating] ?? '#888') : '#888';
+  const hasSuggestion = !!critique.rewritten_topic && critique.rating !== 'strong';
+  const delta = suggestedCritique ? suggestedCritique.composite_score - critique.composite_score : 0;
+  const hasEdits = editedSuggested.trim() !== (critique.rewritten_topic ?? '').trim();
+
+  return (
+    <div className="topic-critique-card" style={{
+      borderRadius: 8,
+      padding: '12px 16px',
+      marginBottom: 12,
+      border: '1px solid var(--border-color)',
+      background: 'var(--bg-primary)',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Topic Quality</span>
+        <span style={{
+          background: ratingColor, color: '#fff', padding: '1px 8px', borderRadius: 4,
+          fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase',
         }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4, fontWeight: 600 }}>
-            Suggested topic:
-          </div>
-          <div style={{ fontSize: '0.85rem', fontStyle: 'italic', marginBottom: 6 }}>
-            {critique.rewritten_topic}
-          </div>
-          <button
-            className="btn btn-sm btn-primary"
-            onClick={() => onUseSuggested(critique.rewritten_topic)}
-            style={{ fontSize: '0.75rem', padding: '3px 10px' }}
-          >
-            Use Suggested Topic
-          </button>
-        </div>
-      )}
+          {critique.composite_score}/20
+        </span>
+        {suggestedCritique && (
+          <>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>→</span>
+            <span style={{
+              background: suggestedColor, color: '#fff', padding: '1px 8px', borderRadius: 4,
+              fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase',
+            }}>
+              {suggestedCritique.composite_score}/20
+            </span>
+            {delta !== 0 && (
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: delta > 0 ? '#16a34a' : '#dc2626' }}>
+                ({delta > 0 ? '+' : ''}{delta})
+              </span>
+            )}
+          </>
+        )}
+        <button
+          className="btn btn-sm"
+          onClick={() => setShowDetails(d => !d)}
+          style={{ marginLeft: 'auto', fontSize: '0.75rem', padding: '2px 8px' }}
+        >
+          {showDetails ? 'Hide Details' : 'Show Details'}
+        </button>
+      </div>
 
-      {/* Expanded details */}
+      {/* Expanded 2-column details */}
       {showDetails && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            {/* Radar chart */}
-            <RadarChart structural={critique.structural_score} frame={critique.frame_score} />
+        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 8, maxHeight: 420, overflowY: 'auto' }}>
+          {/* Left: Current topic */}
+          <CritiqueColumn
+            critique={critique}
+            label="Current Topic"
+            topicText={currentTopicText}
+            accentColor={ratingColor}
+          />
 
-            {/* Dimension breakdown */}
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-secondary)' }}>
-                Structural (taxonomy alignment)
-              </div>
-              {(['crux_density', 'evidence_coverage', 'bdi_heterogeneity', 'abstraction_level', 'situation_activation'] as const).map(key => {
-                const val = critique.structural_score[key] as number;
-                return (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.8rem' }}>
-                    <span style={{ width: 90, color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</span>
-                    <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
-                    <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
-                  </div>
-                );
-              })}
-
-              {critique.frame_score && (
-                <>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: 'var(--text-secondary)' }}>
-                    Frame (linguistic quality)
-                  </div>
-                  {(['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const).map(key => {
-                    const val = critique.frame_score![key] as number;
-                    return (
-                      <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.8rem' }}>
-                        <span style={{ width: 90, color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</span>
-                        <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
-                        <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
+          {/* Right: Suggested topic */}
+          {hasSuggestion && (
+            <CritiqueColumn
+              critique={suggestedCritique ?? critique}
+              label={suggestedCritique ? 'Suggested Topic' : 'Suggested Topic (scoring...)'}
+              topicText={editingSuggested ? undefined : (critique.rewritten_topic)}
+              accentColor={suggestedCritique ? suggestedColor : '#6b7280'}
+              action={
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {editingSuggested ? (
+                    <>
+                      <textarea
+                        value={editedSuggested}
+                        onChange={(e) => setEditedSuggested(e.target.value)}
+                        style={{
+                          width: '100%', minHeight: 80, fontSize: '0.78rem', lineHeight: 1.5,
+                          padding: '6px 10px', borderRadius: 6,
+                          border: '1px solid var(--border-color)',
+                          background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                          fontFamily: 'inherit', resize: 'vertical',
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn btn-sm btn-primary"
+                          disabled={!editedSuggested.trim() || isLoading}
+                          onClick={() => {
+                            setEditingSuggested(false);
+                            onReEvaluateSuggested(editedSuggested.trim());
+                          }}
+                          style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                        >
+                          {isLoading ? 'Evaluating...' : hasEdits ? 'Re-evaluate' : 'Re-evaluate'}
+                        </button>
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => { setEditingSuggested(false); setEditedSuggested(critique.rewritten_topic ?? ''); }}
+                          style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                        >
+                          Cancel
+                        </button>
                       </div>
-                    );
-                  })}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Issues list */}
-          {critique.issues.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-secondary)' }}>Issues</div>
-              {critique.issues.map((issue, i) => (
-                <div key={i} style={{ fontSize: '0.8rem', marginBottom: 6, paddingLeft: 8, borderLeft: `2px solid ${issue.severity === 'high' ? '#dc2626' : issue.severity === 'medium' ? '#d97706' : '#6b7280'}` }}>
-                  <div>{issue.description}</div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: 2 }}>{issue.suggestion}</div>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => onUseSuggested(critique.rewritten_topic)}
+                        style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                      >
+                        Use Suggested Topic
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => setEditingSuggested(true)}
+                        style={{ fontSize: '0.75rem', padding: '3px 10px' }}
+                        title="Edit the suggested topic and re-evaluate its score"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Reframe suggestions */}
-          {critique.reframe_suggestions.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: 'var(--text-secondary)' }}>Reframe Suggestions</div>
-              {critique.reframe_suggestions.map((s, i) => (
-                <div key={i} style={{ fontSize: '0.8rem', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[s.dimension] ?? s.dimension}:</span>{' '}
-                  <span style={{ fontStyle: 'italic' }}>{s.reframed_fragment}</span>
-                </div>
-              ))}
-            </div>
+              }
+            />
           )}
         </div>
       )}
@@ -1963,14 +2079,14 @@ function ClarificationActions() {
     runClarification, submitAnswersAndSynthesize, beginDebate, runOpeningStatements,
     initialCrossRespondRounds, setInitialCrossRespondRounds,
     openingOrder, setOpeningOrder,
-    runTopicCritique, topicCritiqueLoading, updateTopic,
+    runTopicCritique, reEvaluateSuggestedTopic, topicCritiqueLoading, updateTopic,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError,
       runClarification: s.runClarification, submitAnswersAndSynthesize: s.submitAnswersAndSynthesize, beginDebate: s.beginDebate, runOpeningStatements: s.runOpeningStatements,
       initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds,
       openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder,
-      runTopicCritique: s.runTopicCritique, topicCritiqueLoading: s.topicCritiqueLoading, updateTopic: s.updateTopic,
+      runTopicCritique: s.runTopicCritique, reEvaluateSuggestedTopic: s.reEvaluateSuggestedTopic, topicCritiqueLoading: s.topicCritiqueLoading, updateTopic: s.updateTopic,
     }))
   );
 
@@ -2068,12 +2184,18 @@ function ClarificationActions() {
       {activeDebate.topic.critique && (
         <TopicCritiqueCard
           critique={activeDebate.topic.critique as TopicCritique}
+          suggestedCritique={activeDebate.topic.suggested_critique as TopicCritique | undefined}
+          currentTopicText={activeDebate.topic.final}
+          isLoading={topicCritiqueLoading}
           onUseSuggested={(suggested) => {
             updateTopic({ final: suggested });
             // Reset critique so it can be re-evaluated with new topic
             updateTopic({ critique: undefined } as any);
             critiqueTriggered.current = false;
             void runTopicCritique();
+          }}
+          onReEvaluateSuggested={(editedTopic) => {
+            void reEvaluateSuggestedTopic(editedTopic);
           }}
         />
       )}
@@ -2726,6 +2848,140 @@ function RefinedTopicEditor() {
   );
 }
 
+/** Side-by-side old vs new topic score comparison */
+function TopicScoreComparison() {
+  const activeDebate = useDebateStore(s => s.activeDebate);
+  const [showDetails, setShowDetails] = useState(false);
+
+  if (!activeDebate?.topic.critique || !activeDebate.topic.refined_critique) return null;
+
+  const old = activeDebate.topic.critique as TopicCritique;
+  const neu = activeDebate.topic.refined_critique as TopicCritique;
+  const delta = neu.composite_score - old.composite_score;
+  const deltaColor = delta > 0 ? '#16a34a' : delta < 0 ? '#dc2626' : 'var(--text-muted)';
+
+  const structuralKeys = ['crux_density', 'evidence_coverage', 'bdi_heterogeneity', 'abstraction_level', 'situation_activation'] as const;
+  const frameKeys = ['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const;
+
+  const scoreCell = (val: number, max: number) => (
+    <span style={{ color: val === 0 ? '#dc2626' : val === max ? '#16a34a' : '#d97706', fontWeight: 600 }}>{val}/{max}</span>
+  );
+
+  const deltaCell = (oldVal: number, newVal: number) => {
+    const d = newVal - oldVal;
+    if (d === 0) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    return <span style={{ color: d > 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{d > 0 ? '+' : ''}{d}</span>;
+  };
+
+  return (
+    <div style={{
+      border: '1px solid var(--border-color)',
+      borderRadius: 8,
+      padding: '10px 14px',
+      marginBottom: 12,
+      background: 'var(--bg-secondary)',
+    }}>
+      {/* Summary row */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Topic Score</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{
+            padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600,
+            background: `${RATING_COLORS[old.rating]}18`, color: RATING_COLORS[old.rating],
+          }}>
+            Original: {old.composite_score}/20
+          </span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>→</span>
+          <span style={{
+            padding: '2px 8px', borderRadius: 4, fontSize: '0.75rem', fontWeight: 600,
+            background: `${RATING_COLORS[neu.rating]}18`, color: RATING_COLORS[neu.rating],
+          }}>
+            Refined: {neu.composite_score}/20
+          </span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: deltaColor }}>
+            ({delta > 0 ? '+' : ''}{delta})
+          </span>
+        </div>
+        <button
+          className="btn btn-sm"
+          onClick={() => setShowDetails(d => !d)}
+          style={{ marginLeft: 'auto', fontSize: '0.7rem', padding: '2px 8px' }}
+        >
+          {showDetails ? 'Hide' : 'Compare'}
+        </button>
+      </div>
+
+      {/* Detail comparison */}
+      {showDetails && (
+        <div style={{ marginTop: 10 }}>
+          <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ textAlign: 'left', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Dimension</th>
+                <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Original</th>
+                <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Refined</th>
+                <th style={{ textAlign: 'center', padding: '4px 8px', color: 'var(--text-secondary)', fontWeight: 600 }}>Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <td colSpan={4} style={{ padding: '6px 8px 2px', fontWeight: 700, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                  Structural (taxonomy alignment)
+                </td>
+              </tr>
+              {structuralKeys.map(key => (
+                <tr key={key}>
+                  <td style={{ padding: '2px 8px', color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(old.structural_score[key] as number, 2)}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(neu.structural_score[key] as number, 2)}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.structural_score[key] as number, neu.structural_score[key] as number)}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: '1px solid var(--border-color)', fontWeight: 600 }}>
+                <td style={{ padding: '2px 8px' }}>Subtotal</td>
+                <td style={{ textAlign: 'center', padding: '2px 8px' }}>{old.structural_score.total}/10</td>
+                <td style={{ textAlign: 'center', padding: '2px 8px' }}>{neu.structural_score.total}/10</td>
+                <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.structural_score.total, neu.structural_score.total)}</td>
+              </tr>
+
+              {old.frame_score && neu.frame_score && (
+                <>
+                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td colSpan={4} style={{ padding: '8px 8px 2px', fontWeight: 700, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      Frame (linguistic quality)
+                    </td>
+                  </tr>
+                  {frameKeys.map(key => (
+                    <tr key={key}>
+                      <td style={{ padding: '2px 8px', color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</td>
+                      <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(old.frame_score![key] as number, 2)}</td>
+                      <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(neu.frame_score![key] as number, 2)}</td>
+                      <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.frame_score![key] as number, neu.frame_score![key] as number)}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderTop: '1px solid var(--border-color)', fontWeight: 600 }}>
+                    <td style={{ padding: '2px 8px' }}>Subtotal</td>
+                    <td style={{ textAlign: 'center', padding: '2px 8px' }}>{old.frame_score.total}/10</td>
+                    <td style={{ textAlign: 'center', padding: '2px 8px' }}>{neu.frame_score.total}/10</td>
+                    <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.frame_score.total, neu.frame_score.total)}</td>
+                  </tr>
+                </>
+              )}
+
+              <tr style={{ borderTop: '2px solid var(--border-color)', fontWeight: 700 }}>
+                <td style={{ padding: '4px 8px' }}>Composite</td>
+                <td style={{ textAlign: 'center', padding: '4px 8px' }}>{old.composite_score}/20</td>
+                <td style={{ textAlign: 'center', padding: '4px 8px' }}>{neu.composite_score}/20</td>
+                <td style={{ textAlign: 'center', padding: '4px 8px', color: deltaColor }}>{delta > 0 ? '+' : ''}{delta}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DebateWorkspace({ onExport, exportStatus }: {
   onExport?: (format: string) => void;
   exportStatus?: string | null;
@@ -3010,14 +3266,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           <ExportButtonInline onExport={onExport} />
         )}
         <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
-          {(['claims', 'brief', 'medium', 'detailed'] as const).map(tier => (
+          {(['claims', 'brief', 'medium', 'detailed', 'reasoning'] as const).map(tier => (
             <button
               key={tier}
               className={`debate-tier-pill${defaultTier === tier ? ' debate-tier-pill-active' : ''}`}
               onClick={() => setDefaultTier(tier)}
-              title={tier === 'claims' ? 'Show argument network claims' : `Set all turns to ${tier}${tier === 'brief' ? ' (2-3 sentences)' : tier === 'medium' ? ' (key points)' : ' (full content)'}`}
+              title={tier === 'claims' ? 'Show argument network claims' : tier === 'reasoning' ? 'Show brief, plan & BDI (replaces text)' : `Set all turns to ${tier}${tier === 'brief' ? ' (2-3 sentences)' : tier === 'medium' ? ' (key points)' : ' (full content)'}`}
             >
-              {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
+              {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'reasoning' ? 'Plan' : 'Detail'}
             </button>
           ))}
         </span>
@@ -3111,9 +3367,12 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           <DebaterToggles />
         )}
 
-        {/* Refined topic editor (shown after synthesis, only during clarification) */}
-        {activeDebate.topic.refined && activeDebate.phase === 'clarification' && (
-          <RefinedTopicEditor />
+        {/* Refined topic editor + score comparison (shown whenever refined topic exists and debate is still active) */}
+        {activeDebate.topic.refined && activeDebate.phase !== 'closed' && activeDebate.phase !== 'cancelled' && (
+          <>
+            <RefinedTopicEditor />
+            <TopicScoreComparison />
+          </>
         )}
 
         {/* Transcript */}
