@@ -340,3 +340,104 @@ describe('normalizeExtractedClaim — base_strength BDI scoping', () => {
     expect(claim.base_strength).toBe(0.7);
   });
 });
+
+describe('processExtractedClaims — concession speaker guard', () => {
+  // Use distinct claim texts to avoid duplicate rejection (>30% overlap with existing AN nodes)
+  const concessionInput = {
+    statement: 'Regulatory frameworks must balance innovation incentives against precautionary oversight obligations',
+    speaker: 'sentinel',
+    entryId: 'entry-2',
+    taxonomyRefIds: [],
+    turnNumber: 2,
+    existingNodes: [
+      { id: 'AN-1', text: 'Mandatory discovery rights ensure transparent auditing of deployed systems', speaker: 'sentinel', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.5 },
+      { id: 'AN-2', text: 'Voluntary compliance achieves better outcomes than prescriptive mandates', speaker: 'prometheus', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.5 },
+    ] as any[],
+    existingEdgeCount: 0,
+    startNodeId: 3,
+  };
+  const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
+
+  it('does NOT add own claim to conceded when self-supporting (EXTEND)', () => {
+    const result = processExtractedClaims({
+      ...concessionInput,
+      claims: [{
+        text: 'Regulatory frameworks must balance innovation incentives against precautionary oversight obligations effectively',
+        bdi_category: 'intention',
+        base_strength: 0.5,
+        responds_to: [{
+          prior_claim_id: 'AN-1',
+          relationship: 'supports',
+          scheme: 'EXTEND',
+          weight: 0.8,
+        }],
+      }],
+    }, baseOptions);
+
+    // AN-1 belongs to sentinel (same speaker) — should NOT be conceded
+    expect(result.commitments.conceded).not.toContain('Mandatory discovery rights ensure transparent auditing of deployed systems');
+  });
+
+  it('DOES add opponent claim to conceded when cross-speaker support', () => {
+    const result = processExtractedClaims({
+      ...concessionInput,
+      claims: [{
+        text: 'Regulatory frameworks must balance innovation incentives while granting that voluntary compliance has merits',
+        bdi_category: 'desire',
+        base_strength: 0.5,
+        responds_to: [{
+          prior_claim_id: 'AN-2',
+          relationship: 'supports',
+          scheme: 'CONCEDE-AND-PIVOT',
+          weight: 0.7,
+        }],
+      }],
+    }, baseOptions);
+
+    // AN-2 belongs to prometheus (opponent) — SHOULD be conceded
+    expect(result.commitments.conceded).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
+  });
+
+  it('splits CONCEDE-AND-PIVOT dual edges correctly', () => {
+    const result = processExtractedClaims({
+      ...concessionInput,
+      claims: [{
+        text: 'Regulatory frameworks must balance innovation incentives while granting that voluntary compliance has merits',
+        bdi_category: 'desire',
+        base_strength: 0.5,
+        responds_to: [
+          // Support edge targeting opponent's claim (concession)
+          { prior_claim_id: 'AN-2', relationship: 'supports', scheme: 'CONCEDE-AND-PIVOT', weight: 0.7 },
+          // Attack edge targeting opponent's claim (challenge)
+          { prior_claim_id: 'AN-2', relationship: 'attacks', attack_type: 'rebut', scheme: 'REFRAME', weight: 0.6 },
+        ],
+      }],
+    }, baseOptions);
+
+    // Opponent's claim conceded via support edge
+    expect(result.commitments.conceded).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
+    // Also challenged via attack edge
+    expect(result.commitments.challenged).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
+  });
+
+  it('self-INTEGRATE does not add own claim to conceded', () => {
+    const result = processExtractedClaims({
+      ...concessionInput,
+      claims: [{
+        text: 'Regulatory frameworks must balance innovation incentives by integrating discovery rights with compliance flexibility',
+        bdi_category: 'intention',
+        base_strength: 0.5,
+        responds_to: [
+          // INTEGRATE own claim
+          { prior_claim_id: 'AN-1', relationship: 'supports', scheme: 'INTEGRATE', weight: 0.8 },
+          // INTEGRATE opponent claim
+          { prior_claim_id: 'AN-2', relationship: 'supports', scheme: 'INTEGRATE', weight: 0.6 },
+        ],
+      }],
+    }, baseOptions);
+
+    // Own claim NOT conceded, opponent claim IS conceded
+    expect(result.commitments.conceded).not.toContain('Mandatory discovery rights ensure transparent auditing of deployed systems');
+    expect(result.commitments.conceded).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
+  });
+});

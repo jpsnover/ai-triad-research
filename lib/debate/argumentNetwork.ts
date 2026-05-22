@@ -1128,7 +1128,8 @@ export function processExtractedClaims(
         const normalized = rel.scheme.toUpperCase().replace(/[_]/g, '-').trim();
         if (SUPPORT_MOVES.has(normalized) || SUPPORT_MOVES.has(normalized.replace(/-/g, ' '))) {
           const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
-          if (targetNode && !commitments.conceded.includes(targetNode.text)) commitments.conceded.push(targetNode.text);
+          // Only count as concession if supporting an OPPONENT's claim
+          if (targetNode && targetNode.speaker !== speaker && !commitments.conceded.includes(targetNode.text)) commitments.conceded.push(targetNode.text);
         }
       }
       if (rel.relationship === 'attacks') {
