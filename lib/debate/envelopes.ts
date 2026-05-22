@@ -128,6 +128,14 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
     ? `=== OPPONENT INTELLIGENCE ===\nThe following tactical observations were computed from the argument network and commitment stores. Use them to inform your strategy — they suggest exploitable weaknesses or shifts in opponent behavior.\n${input.strategicHints.map(h => '- ' + h).join('\n')}`
     : '';
 
+  const strongFoundationsBlock = input.strongFoundations && input.strongFoundations.length > 0
+    ? `=== STRONG FOUNDATIONS ===\nThese arguments are strategically valuable. Base your statement on them.\n\n${input.strongFoundations.map(c => `- "${c.text}" (strength: ${c.base_strength.toFixed(2)}, Δu: ${c.marginal_delta >= 0 ? '+' : ''}${c.marginal_delta.toFixed(3)})\n  Why strong: ${c.reason}`).join('\n')}\n\nGround your statement in these strong positions. You may extend or sharpen them.`
+    : '';
+
+  const avoidClaimsBlock = input.avoidClaims && input.avoidClaims.length > 0
+    ? `=== DO NOT USE THESE ARGUMENTS ===\nThese arguments weaken your overall position. Do not use them or make substantially similar arguments.\n\n${input.avoidClaims.map(c => `- "${c.text}" (strength: ${c.base_strength.toFixed(2)}, Δu: ${c.marginal_delta >= 0 ? '+' : ''}${c.marginal_delta.toFixed(3)})\n  Why weak: ${c.reason}`).join('\n')}`
+    : '';
+
   return {
     layer1_static: '',
 
@@ -141,6 +149,8 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
       flaggedBlock,
       interventionBlock,
       strategicHintsBlock,
+      strongFoundationsBlock,
+      avoidClaimsBlock,
       `=== AVAILABLE DIALECTICAL MOVES ===\nThe 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}\n\nEach move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}`,
       `=== FIELD-AWARE STRATEGY ===
 Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:

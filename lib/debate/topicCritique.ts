@@ -497,3 +497,59 @@ function buildStructuralIssues(score: StructuralScore): TopicIssue[] {
 
   return issues;
 }
+
+// ── Critique formatting for prompt injection ──────────────
+
+/**
+ * Format a TopicCritique as a text block for injection into the
+ * concludingPrompt's critiqueContext parameter.
+ *
+ * Designed for the topic refinement stage — surfaces actionable issues
+ * and reframe suggestions in natural language.
+ */
+export function formatCritiqueForRefinement(critique: TopicCritique): string {
+  const parts: string[] = [];
+
+  parts.push(`Current quality score: ${critique.composite_score}/20 (${critique.rating}).`);
+
+  // Structural gaps
+  const ss = critique.structural_score;
+  const povEntries = Object.entries(ss.pov_distribution);
+  if (povEntries.length > 0) {
+    parts.push(`\nPerspective balance: ${povEntries.map(([p, n]) => `${p}: ${n} nodes`).join(', ')}.`);
+  }
+  const bdiEntries = Object.entries(ss.bdi_distribution).filter(([, n]) => n > 0);
+  if (bdiEntries.length > 0) {
+    parts.push(`BDI coverage: ${bdiEntries.map(([b, n]) => `${b}: ${n}`).join(', ')}.`);
+  }
+
+  // Issues (high and medium only — skip low severity to control prompt length)
+  const actionableIssues = critique.issues.filter(i => i.severity !== 'low');
+  if (actionableIssues.length > 0) {
+    parts.push(`\nIssues to address in your refinement:`);
+    for (const issue of actionableIssues) {
+      parts.push(`- [${issue.severity}] ${issue.description} → ${issue.suggestion}`);
+    }
+  }
+
+  // Reframe suggestions
+  if (critique.reframe_suggestions.length > 0) {
+    parts.push(`\nFrame improvements to incorporate:`);
+    for (const rs of critique.reframe_suggestions) {
+      parts.push(`- ${rs.dimension}: ${rs.original_weakness} → ${rs.reframed_fragment}`);
+    }
+  }
+
+  // Frame scores (if available)
+  if (critique.frame_score) {
+    const fs = critique.frame_score;
+    const weak = (['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const)
+      .filter(d => fs[d] < 2)
+      .map(d => `${d}: ${fs[d]}/2`);
+    if (weak.length > 0) {
+      parts.push(`\nFrame dimensions below maximum: ${weak.join(', ')}.`);
+    }
+  }
+
+  return parts.join('\n');
+}

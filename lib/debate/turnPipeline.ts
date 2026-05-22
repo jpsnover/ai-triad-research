@@ -176,6 +176,10 @@ export interface TurnPipelineInput {
   frozenEvidenceBlock?: string;
   /** Opponent-aware strategic hints computed from AN/commitments. */
   strategicHints?: string[];
+  /** Strong claims to base the argument on — injected into Plan stage as foundations. */
+  strongFoundations?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
+  /** Weak claims to avoid using — injected into Plan stage with reasons. */
+  avoidClaims?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
 }
 
 export type StageGenerateFn = (
@@ -246,6 +250,8 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     phaseContext: input.phaseContext,
     doctrinalBoundaries: input.doctrinalBoundaries,
     strategicHints: input.strategicHints,
+    strongFoundations: input.strongFoundations,
+    avoidClaims: input.avoidClaims,
   };
 }
 

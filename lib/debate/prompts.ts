@@ -849,16 +849,22 @@ export function concludingPrompt(
   originalTopic: string,
   qaPairs: string,
   audience?: DebateAudience,
+  critiqueContext?: string,
 ): string {
+  const critiqueBlock = critiqueContext
+    ? `\n\n=== QUALITY ANALYSIS ===\n${critiqueContext}\n\nYour refined topic MUST address the issues listed above. Specifically:\n- If perspectives are imbalanced, add language that gives underrepresented viewpoints a clear entry point.\n- If BDI coverage is narrow, broaden to engage missing layers (add "is it true..." for Beliefs, "what should we prioritize..." for Desires, "how should we implement..." for Intentions).\n- If frame dimensions score below 2, apply the suggested improvements.\n- Prefer conditional framing ("under what conditions...") over binary framing ("should we...").\n- Name specific mechanisms, stakeholders, or policy artifacts rather than abstract categories.\n`
+    : '';
+
   return `A debate moderator proposed this topic:
 
 "${originalTopic}"
 
 Several debaters asked clarifying questions and the moderator answered:
 ${qaPairs}
-
+${critiqueBlock}
 Synthesize the original topic and the answers into a clear, specific debate topic statement.
 One to three sentences. Incorporate the key constraints and scope clarifications from the answers.
+The refined topic should be specific enough to produce falsifiable claims but broad enough to sustain 6-10 rounds of multi-perspective debate.
 ${getReadingLevel(audience)}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -1649,6 +1655,10 @@ export interface StagePromptInput {
   doctrinalBoundaries?: string[];
   edgeContext?: string;
   strategicHints?: string[];
+  /** Strong claims to base the argument on — injected into Plan stage as foundations. */
+  strongFoundations?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
+  /** Weak claims to avoid using — injected into Plan stage with reasons. */
+  avoidClaims?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1744,13 +1754,21 @@ Consider how the moderator's point relates to your own position and plan a brief
     ? `\n=== OPPONENT INTELLIGENCE ===\nThe following tactical observations were computed from the argument network and commitment stores. Use them to inform your strategy — they suggest exploitable weaknesses or shifts in opponent behavior.\n${input.strategicHints.map(h => '- ' + h).join('\n')}\n`
     : '';
 
+  const strongFoundationsBlock = input.strongFoundations && input.strongFoundations.length > 0
+    ? `\n=== STRONG FOUNDATIONS ===\nThese arguments are strategically valuable. Base your statement on them.\n\n${input.strongFoundations.map(c => `- "${c.text}" (strength: ${c.base_strength.toFixed(2)}, Δu: ${c.marginal_delta >= 0 ? '+' : ''}${c.marginal_delta.toFixed(3)})\n  Why strong: ${c.reason}`).join('\n')}\n\nGround your statement in these strong positions. You may extend or sharpen them.\n`
+    : '';
+
+  const avoidClaimsBlock = input.avoidClaims && input.avoidClaims.length > 0
+    ? `\n=== DO NOT USE THESE ARGUMENTS ===\nThese arguments weaken your overall position. Do not use them or make substantially similar arguments.\n\n${input.avoidClaims.map(c => `- "${c.text}" (strength: ${c.base_strength.toFixed(2)}, Δu: ${c.marginal_delta >= 0 ? '+' : ''}${c.marginal_delta.toFixed(3)})\n  Why weak: ${c.reason}`).join('\n')}\n`
+    : '';
+
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
 Your personality: ${input.personality}.
 Your perspective: ${input.pov}.
 ${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
 === SITUATION BRIEF ===
 ${brief}
-${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}
+${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}
 === AVAILABLE DIALECTICAL MOVES ===
 The 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}
 

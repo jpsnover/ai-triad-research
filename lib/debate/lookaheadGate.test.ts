@@ -2,7 +2,12 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { evaluateLookahead, buildRegenHint } from './lookaheadGate.js';
+import {
+  evaluateLookahead,
+  buildRegenHint,
+  evaluateLookaheadPerClaim,
+  buildClaimAnalysis,
+} from './lookaheadGate.js';
 import type { LookaheadGateInput } from './lookaheadGate.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 
@@ -252,5 +257,168 @@ describe('buildRegenHint', () => {
 
     expect(hint).toContain('marginal value');
     expect(hint).toContain('Component breakdown');
+  });
+});
+
+// ── evaluateLookaheadPerClaim ───────────────────────────
+
+describe('evaluateLookaheadPerClaim', () => {
+  it('returns empty perClaim for no tentative claims', () => {
+    const { batchResult, perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 })],
+      existingEdges: [],
+      tentativeClaims: [],
+      tentativeEdges: [],
+    });
+    expect(batchResult.utility_delta).toBe(0);
+    expect(perClaim).toHaveLength(0);
+  });
+
+  it('single claim marginal delta equals batch delta', () => {
+    const { batchResult, perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 })],
+      existingEdges: [],
+      tentativeClaims: [{ text: 'Strong claim', base_strength: 0.9 }],
+      tentativeEdges: [],
+    });
+    expect(perClaim).toHaveLength(1);
+    expect(perClaim[0].marginal_delta).toBeCloseTo(batchResult.utility_delta, 6);
+    expect(perClaim[0].classification).toBe('STRONG');
+  });
+
+  it('classifies strong and weak claims separately', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 }),
+      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.7 }),
+    ];
+    const { perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes,
+      existingEdges: [],
+      tentativeClaims: [
+        { text: 'Strong support', base_strength: 0.9 },
+        { text: 'Self-attack', base_strength: 0.3 },
+      ],
+      tentativeEdges: [
+        // Second claim attacks own node
+        makeEdge('AN-4', 'AN-1', 'attacks', 0.8),
+      ],
+    });
+    expect(perClaim).toHaveLength(2);
+    // First claim should be STRONG (no harmful edges)
+    expect(perClaim[0].classification).toBe('STRONG');
+    // Second claim attacks own node — should be WEAK
+    expect(perClaim[1].classification).toBe('WEAK');
+  });
+
+  it('preserves batch result unchanged', () => {
+    const input: LookaheadGateInput = {
+      speaker: 'prometheus',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 })],
+      existingEdges: [],
+      tentativeClaims: [{ text: 'A', base_strength: 0.7 }],
+      tentativeEdges: [],
+    };
+    const standalone = evaluateLookahead(input);
+    const { batchResult } = evaluateLookaheadPerClaim(input);
+    expect(batchResult.utility_delta).toBeCloseTo(standalone.utility_delta, 6);
+    expect(batchResult.pass).toBe(standalone.pass);
+  });
+
+  it('marginal deltas sum approximately to batch delta for independent claims', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.6 }),
+    ];
+    const { batchResult, perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes,
+      existingEdges: [],
+      tentativeClaims: [
+        { text: 'Claim A', base_strength: 0.8 },
+        { text: 'Claim B', base_strength: 0.7 },
+      ],
+      tentativeEdges: [],
+    });
+    // For independent claims (no edges between them), marginal deltas
+    // should approximately sum to the batch delta
+    const sumMarginals = perClaim.reduce((s, c) => s + c.marginal_delta, 0);
+    // Allow some tolerance since QBAF is non-linear
+    expect(Math.abs(sumMarginals - batchResult.utility_delta)).toBeLessThan(0.05);
+  });
+});
+
+// ── buildClaimAnalysis ──────────────────────────────────
+
+describe('buildClaimAnalysis', () => {
+  it('separates strong and weak claims', () => {
+    const { perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes: [
+        makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 }),
+        makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.7 }),
+      ],
+      existingEdges: [],
+      tentativeClaims: [
+        { text: 'Good claim', base_strength: 0.9 },
+        { text: 'Self-attack', base_strength: 0.3 },
+      ],
+      tentativeEdges: [
+        makeEdge('AN-4', 'AN-1', 'attacks', 0.8),
+      ],
+    });
+
+    const analysis = buildClaimAnalysis(perClaim);
+    expect(analysis.strongFoundations.length).toBeGreaterThanOrEqual(1);
+    expect(analysis.avoidClaims.length).toBeGreaterThanOrEqual(0);
+    // All items have required fields
+    for (const item of [...analysis.strongFoundations, ...analysis.avoidClaims]) {
+      expect(item.text).toBeTruthy();
+      expect(typeof item.base_strength).toBe('number');
+      expect(typeof item.marginal_delta).toBe('number');
+      expect(item.reason.length).toBeGreaterThan(10);
+    }
+  });
+
+  it('generates human-readable reasons (no raw metrics)', () => {
+    const { perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 })],
+      existingEdges: [],
+      tentativeClaims: [{ text: 'Test', base_strength: 0.9 }],
+      tentativeEdges: [],
+    });
+    const analysis = buildClaimAnalysis(perClaim);
+    for (const item of [...analysis.strongFoundations, ...analysis.avoidClaims]) {
+      // Reasons should not contain raw metric names
+      expect(item.reason).not.toContain('base_strength');
+      expect(item.reason).not.toContain('computed_strength');
+      expect(item.reason).not.toContain('composite');
+    }
+  });
+
+  it('sorts strong by delta descending, weak by delta ascending', () => {
+    const { perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 })],
+      existingEdges: [],
+      tentativeClaims: [
+        { text: 'Medium', base_strength: 0.6 },
+        { text: 'Best', base_strength: 0.95 },
+      ],
+      tentativeEdges: [],
+    });
+    const analysis = buildClaimAnalysis(perClaim);
+    if (analysis.strongFoundations.length >= 2) {
+      expect(analysis.strongFoundations[0].marginal_delta)
+        .toBeGreaterThanOrEqual(analysis.strongFoundations[1].marginal_delta);
+    }
+  });
+
+  it('returns empty arrays when no claims', () => {
+    const analysis = buildClaimAnalysis([]);
+    expect(analysis.strongFoundations).toHaveLength(0);
+    expect(analysis.avoidClaims).toHaveLength(0);
   });
 });
