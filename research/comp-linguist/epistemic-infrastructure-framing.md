@@ -75,6 +75,34 @@ A debate about AI regulation might surface dozens of arguments. But the crux mig
 
 Across debates, cruxes aggregate. The system tracks which cruxes recur — these are the structural fault lines of AI policy discourse, the deep disagreements that no single debate resolves. These recurring cruxes are where wisdom lives: not in any one answer, but in the precise articulation of what remains contested and why.
 
+### Strategic Evaluation: Game-Theoretic Wisdom Extraction
+
+The components described above -- BDI decomposition, QBAF propagation, adversarial debate, crux identification -- create the structural conditions for wisdom. But structural conditions are necessary, not sufficient. A debate can have all the right components and still degenerate: agents recycle their strongest-sounding positions, flood the argument network with low-value claims, or concede tactically without genuinely updating. The system needs a mechanism that evaluates not just the *structure* of the discourse but the *strategic quality* of each move within it.
+
+This is where game-theoretic evaluation enters -- not as an optimization framework that turns agents into utility maximizers, but as a **quantitative diagnostic lens** for distinguishing genuine epistemic progress from its mimicry.
+
+Each agent carries a per-turn utility function composed of three signals: **position strength** (the mean computed strength of that agent's surviving argument nodes), **attack effectiveness** (the fraction of opponent nodes weakened below viability), and **crux engagement** (the fraction of identified cruxes the agent has directly addressed). These are not rewards the agent optimizes against; they are measurements the system takes of the argument network's state from each agent's perspective. The crucial insight is that the *ratio* between these components reveals strategic posture. An agent with high attack effectiveness but low crux engagement is scoring rhetorical points without advancing understanding. An agent with high crux engagement but stagnant position strength is engaging the right questions but failing to move the discourse. An agent whose position strength rises while crux engagement falls is winning by avoidance -- the most corrosive failure mode for wisdom extraction.
+
+The utility function's deepest contribution is temporal. Plotted across rounds, utility curves expose what no single-turn metric can: **stagnation** (flat curves despite available cruxes), **runaway dominance** (one agent's utility monotonically rising while others decline, suggesting the debate has become a monologue with spectators), and **disengagement** (declining utility without corresponding opponent pressure, indicating the agent has retreated from the contested ground).
+
+Critically, the system applies a **lookahead gate** that rejects low-value moves before they enter the argument network. After an agent generates a draft response, the system tentatively computes the utility delta -- would committing this move measurably improve the argument network's state? If the delta falls below a minimum threshold, the move is rejected and regenerated with targeted hints identifying the weakest component. This is relevance engineering at the most granular level: not just filtering which taxonomy nodes enter the debate (salience), not just computing which arguments survive scrutiny (relevance), but gatekeeping which *individual moves* merit inclusion in the epistemic record.
+
+The game-theoretic layer also introduces **anti-exploit defenses** that protect calibration integrity. Three failure patterns receive dedicated detection: *filibustering* (flooding the network with low-strength claims), *dialectical drift* (steering toward terrain where one agent has rhetorical advantage), and *preference faking* (conceding cheap nodes to extract valuable counter-concessions). Each defense operates as a calibration signal rather than a hard block: the pattern is surfaced, quantified, and made visible for interpretation.
+
+This reflects a deliberate architectural choice. The debate system is **structured cooperation with adversarial stress-testing** -- agents pursue genuinely different positions under formal rules that prevent adversarial dynamics from collapsing into either domination or accommodation. The game-theoretic layer provides the metrics to diagnose *where on the cooperative-adversarial spectrum* each agent is operating, and to intervene when the balance tips too far in either direction. Too adversarial, and agents optimize for attack effectiveness over crux engagement -- the debate generates heat. Too cooperative, and agents accommodate rather than challenge -- the debate generates false consensus. The utility function, the lookahead gate, and the anti-exploit defenses collectively maintain the productive tension between these poles, which is the zone where wisdom emerges.
+
+### Situation-Driven Topic Discovery: The Taxonomy as Wisdom Generator
+
+The preceding components describe how the system engineers relevance and salience *within* a debate. But there is a prior question: **what should the system debate?** A perfectly calibrated debate engine running on a poorly chosen topic produces activity, not wisdom.
+
+The answer is to treat the taxonomy itself as a source of debate topics -- not a passive knowledge store that waits for external queries, but an active generator of its own most productive lines of inquiry.
+
+Every situation node in the taxonomy carries three POV-specific interpretations along with a `disagreement_type` classification that names *why* the perspectives diverge: definitionally (they mean different things by the same term), interpretively (they agree on what something is but disagree on what it means), or structurally (they disagree about institutional arrangements and governance design). A situation node with divergent interpretations is, structurally, a pre-scored debate topic with built-in multi-perspective grounding.
+
+The `disagreement_type` functions as a **debate strategy selector**. Definitional disagreements are best served by Socratic dialogue that forces each perspective to articulate its definition before cross-examination -- the wisdom output is sharper genus-differentia descriptions. Interpretive disagreements require simultaneous three-way engagement, because the disagreement lives in the inferential bridge between shared observations and divergent conclusions -- the wisdom output is surfaced assumptions. Structural disagreements produce the richest convergence signals under deliberation protocols, because they force agents to propose specific mechanisms, creating surface area for partial agreement.
+
+A situation divergence score -- computed from interpretation distance, BDI layer distribution, conflict saturation, and debate coverage -- ranks every situation by **wisdom potential**. The result is a closed loop that extends the wisdom-harvesting cycle into topic selection itself: situations identify where the most productive disagreements lie, linked conflicts identify what claims are in tension, debates test those claims, and the results feed back into situation scoring for the next cycle. The taxonomy does not merely store what has been learned; it identifies what should be investigated next -- generating the agenda for its own inquiry.
+
 ### Genus-Differentia Descriptions: Salience at the Linguistic Level
 
 Every taxonomy node follows a structured format:
@@ -145,4 +173,4 @@ The result is not a database of AI policy positions (that's information). It's n
 
 ---
 
-*Drafted: 2026-05-06 · Reframed: 2026-05-11 · Computational Linguist · AI Triad Research*
+*Drafted: 2026-05-06 · Reframed: 2026-05-11 · Updated: 2026-05-22 (game-theoretic strategy, situation-driven topic discovery) · Computational Linguist · AI Triad Research*

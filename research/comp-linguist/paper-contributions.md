@@ -184,4 +184,80 @@ This approach makes three contributions: (1) it eliminates the query-length and 
 
 ---
 
-*Updated 2026-05-09 by CL.Investigate1 (Computational Linguist) · AI Triad Research*
+## 6. Per-Agent Utility Functions for Multi-Agent Debate Calibration
+
+**Venue fit:** Multi-Agent Systems (AAMAS), Computational Argumentation (COMMA)
+
+### Problem Statement
+
+Multi-agent debate systems that employ QBAFs for argument evaluation compute a single, global graph state -- argument strengths propagated across all nodes via DF-QuAD. However, the shared graph does not answer the per-agent question: "Did this agent make a strategically effective move?" Existing calibration metrics measure debate-level quality, not individual agent performance. Without per-agent utility, there is no principled way to detect stagnation (an agent contributing turns that change nothing), runaway dominance (one agent's position monotonically strengthening without effective opposition), or strategic disengagement (an agent retreating from cruxes without conceding).
+
+### Prior Approach and Its Limitations
+
+Prior work treats QBAF evaluation as a global property of the argumentation graph (Baroni et al., 2019; Rago et al., 2016). Game-theoretic models of argumentation (Rahwan & Larson, 2009) define utility functions over outcomes but typically assume a two-player zero-sum structure. In multi-perspective debate systems with three or more agents -- where the goal is wisdom generation rather than victory -- neither the zero-sum model nor global graph metrics provide agent-level strategic feedback.
+
+### Our Approach
+
+We define a per-agent utility function that projects the shared QBAF argument network through agent-specific lenses. The `AgentUtility` score decomposes into three components: (1) **position strength** -- the mean computed QBAF strength of the agent's undefeated nodes (strength >= 0.3 after propagation); (2) **attack effectiveness** -- the fraction of opponent nodes weakened below the 0.3 defeat threshold; and (3) **crux engagement** -- the fraction of identified cruxes the agent has substantively addressed.
+
+The critical design choice is persona-specific weighting. Each debate character receives weights reflecting its epistemic role: Prometheus (accelerationist) is weighted toward position strength (0.45/0.30/0.25), reflecting a persuasion-leaning strategy; Sentinel (safetyist) toward crux engagement (0.30/0.25/0.45), reflecting evidence orientation; Cassandra (skeptic) most heavily crux-weighted (0.20/0.25/0.55), reflecting truth-seeking priority. A supplementary concession asymmetry metric detects agents that strategically concede only low-value positions while pressing attacks on high-value targets.
+
+### Significance
+
+This approach makes three contributions: (1) it provides the first per-agent utility decomposition for multi-perspective QBAF-based debate, bridging global graph evaluation and agent-level strategic assessment; (2) persona-specific weighting embeds character-consistent epistemic values directly into the utility function, enabling calibration that respects the cooperative-adversarial hybrid nature of research debate; and (3) per-turn utility curves enable automated detection of debate pathologies (stagnation, dominance, disengagement) that are invisible to aggregate quality metrics.
+
+---
+
+## 7. One-Step Move-Quality Lookahead with QBAF Evaluation
+
+**Venue fit:** AI Safety, Computational Argumentation (COMMA, AAAI)
+
+### Problem Statement
+
+In LLM-powered multi-agent debate, move generation is single-shot: the model produces a draft turn, claims are extracted, and the result is committed to the argument network. There is no quality gate between generation and commitment. Low-value turns -- restating existing positions, introducing tangential claims, failing to engage cruxes -- are committed at the same cost as high-value turns, degrading debate quality and consuming finite API token budget.
+
+### Prior Approach and Its Limitations
+
+Full game-tree search (minimax, MCTS) is standard for move quality in adversarial settings (Silver et al., 2017), but the branching factor in LLM-debate is prohibitively large: 10 dialectical move types multiplied by variable claim counts multiplied by three agents. RL-based debate training (Irving et al., 2018) addresses this at training time but assumes stable reward signals and large compute budgets unavailable in live research debate on API-tier access.
+
+### Our Approach
+
+We introduce a one-step lookahead gate that uses QBAF propagation as a lightweight strategic evaluator. After the LLM generates a draft turn and claims are extracted: (1) extracted claims are added as provisional nodes to a copy of the argument network with tentative edges; (2) DF-QuAD strengths are computed on both baseline and tentative networks (under 10ms per propagation for a 100-node graph); (3) the per-agent utility delta is computed (position strength, attack effectiveness, crux engagement with persona-specific weights); (4) if the delta falls below threshold, a targeted regeneration hint is injected identifying which utility component was weakest, and one retry is permitted.
+
+The gate augments the crux tracker for tentative evaluation: new claims that attack or support crux nodes receive credit in the tentative utility score. Maximum retry count is capped at one to prevent infinite loops; if the retry also fails, the turn is committed and a `low_utility_turn` calibration event is logged.
+
+### Significance
+
+This approach makes three contributions: (1) it introduces QBAF-based argument evaluation as a real-time move-quality gate, using formal argumentation semantics not just for post-hoc analysis but as a generative quality signal; (2) it achieves strategic depth at minimal cost -- one extra graph propagation (sub-10ms) and at most one LLM retry, versus dozens-to-hundreds of calls for tree search; and (3) it directly mitigates the filibustering exploit (flooding the graph with weak claims) since low-utility claims that fail to shift the strategic landscape are rejected before they pollute the argument network.
+
+---
+
+## 8. Wisdom-Oriented Topic Quality Gate for Debate Systems
+
+**Venue fit:** NLP Applications (EMNLP, NAACL), Computational Argumentation (COMMA)
+
+### Problem Statement
+
+The quality of a multi-agent debate is substantially determined before the first turn: a poorly framed topic produces shallow, circuitous debate regardless of agent sophistication. Yet existing debate systems treat topic selection as exogenous -- the user provides a topic string and the system debates it as given. There is no systematic assessment of whether a topic's properties predict wisdom-generating outcomes versus degenerate outcomes.
+
+### Prior Approach and Its Limitations
+
+Topic quality in educational and competitive debate contexts relies on subjective criteria: "controversial," "balanced," "well-scoped" (Branham, 1991). In computational argumentation, topic quality is not formally studied. In our system, early debates on vague topics ("Discuss AI safety") or lopsided topics ("Is deceptive alignment bad?") consistently produced low calibration scores -- low crux-addressed rates, high repetition, rapid convergence to trivial consensus -- but these failures were only detectable post-hoc, after consuming the full API budget.
+
+### Our Approach
+
+We introduce a two-phase, 20-point topic quality rubric combining deterministic structural analysis with LLM-assessed framing properties.
+
+**Phase A: Structural scoring (10 points, deterministic).** The topic text is embedded and compared against all taxonomy nodes via cosine similarity. Five dimensions scored 0/1/2: (1) **crux density** -- whether activated nodes span multiple POV camps; (2) **evidence coverage** -- fraction of activated nodes with entries in the source evidence index; (3) **BDI heterogeneity** -- balance across Beliefs, Desires, and Intentions; (4) **abstraction level** -- per-POV activation counts in a Goldilocks zone (8-15 nodes); (5) **situation activation** -- cross-cutting node engagement.
+
+**Phase B: Frame scoring (10 points, LLM-assessed).** A single LLM call scores five linguistic properties: (1) **conditionality** -- conditional vs. binary framing; (2) **mechanism focus** -- causal pathways vs. outcome-only; (3) **stakeholder breadth** -- distributed agency; (4) **tension acknowledgment** -- named conflict vs. neutral; (5) **scope boundedness** -- concrete artifacts vs. open-ended.
+
+Topics scoring 14+ auto-proceed. Topics scoring below 8 trigger automated reframing: the LLM generates a rewritten topic targeting lowest-scoring dimensions, with per-dimension explanations. A quality gate enforces that reframed topics must score equal to or higher than the original (up to three retries).
+
+### Significance
+
+This approach makes three contributions: (1) it establishes the first formal, measurable link between topic input properties and debate output quality in multi-agent argumentation -- demonstrating that structural properties (crux density, BDI heterogeneity, evidence coverage) predict wisdom-generating outcomes; (2) it integrates taxonomy-grounded structural analysis with linguistic frame assessment in a complementary two-phase design -- structural scoring is deterministic and zero-cost, while frame scoring captures pragmatic properties not inferable from embeddings alone; and (3) the automated reframing pipeline converts topic assessment from passive diagnostic into active intervention, catching predictable failure modes before resources are committed.
+
+---
+
+*Updated 2026-05-22 by Computational Linguist · AI Triad Research*

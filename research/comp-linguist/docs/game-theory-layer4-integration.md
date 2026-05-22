@@ -2,7 +2,7 @@
 
 **Author:** CL.Investigate1 (Computational Linguist)
 **Date:** 2026-05-21
-**Status:** Proposal — pending implementation review
+**Status:** Mostly implemented — see implementation notes per section
 **Origin:** Jeffrey Snover's Layer 4 (Strategy & Pragmatics) framework email, 2026-05-21
 
 ---
@@ -95,6 +95,8 @@ const UTILITY_WEIGHTS: Record<SpeakerId, {pos: number, atk: number, crux: number
 
 **Integration point:** Add `computeAgentUtility()` to `calibrationLogger.ts`. Log per-turn per-agent utility alongside existing metrics. No changes to prompts or debate flow.
 
+> **Implementation Status (2026-05):** Fully implemented. `AgentUtility` interface, `PERSONA_UTILITY_WEIGHTS`, and `computeAgentUtility()` are in `calibrationLogger.ts` (lines 18-107). Per-agent utilities computed and logged in every `CalibrationDataPoint`. The implementation adds `concession_asymmetry` beyond the original proposal -- see Section 3.4C.
+
 ### 3.2 Opponent-Aware Strategic Hints
 
 **Effort:** Medium | **Value:** High | **Architecture change:** Extends existing hint system in `prompts.ts`
@@ -138,6 +140,8 @@ or rhetorical softening. Test with a SPECIFY move to confirm.
 
 **Data source:** Dialectical scheme history on argument network edges.
 
+> **Implementation Status (2026-05):** Fully implemented in `strategicHints.ts`. All three hint types (commitment trap detection, capability gap steering, strategy shift detection) are implemented as pure functions and wired into the debate pipeline via `debateEngine.ts`. Test suite in `strategicHints.test.ts`.
+
 ### 3.3 Move-Quality Lookahead (One-Step)
 
 **Effort:** High | **Value:** High | **Architecture change:** Adds evaluation step between draft generation and transcript commit
@@ -165,6 +169,8 @@ This is a **one-step lookahead** — one extra QBAF propagation per turn, no ext
 **Constraint:** Maximum 1 regeneration per turn to avoid infinite loops. If the retry also fails the threshold, commit it anyway and log a `low_utility_turn` calibration event.
 
 **Side benefit:** Directly mitigates Jeffrey's "Filibustering" attack vector. Weak claims that don't shift utility get rejected before they pollute the graph.
+
+> **Implementation Status (2026-05):** Partially implemented. The evaluation pipeline is complete in `lookaheadGate.ts`: `evaluateLookahead()`, per-claim marginal analysis (`evaluateLookaheadPerClaim()`), and regeneration hint generation (`buildRegenHint()`). The gate is wired into `debateEngine.ts` and runs after every turn, but regeneration is NOT yet triggered -- the gate currently operates in observation/logging mode only. Wiring the regeneration pathway is the remaining work (deferred pending validation that gate failures correlate with lower judge quality scores).
 
 ### 3.4 Anti-Exploit Defenses
 
@@ -221,6 +227,11 @@ const asymmetry = attackValue - concessionValue;
 
 This is an **observation metric for calibration**, not a block. In truth-seeking debate, strategic concession patterns are informative — the metric tells us whether an agent is genuinely updating or gaming.
 
+> **Implementation Status (2026-05):** Fully implemented -- all three defenses are active.
+> - **A. Anti-Filibustering:** Claim marginal value check in `argumentNetwork.ts` (line 1058). Claims with `base_strength < 0.25` that do not connect to cruxes or introduce novel schemes are rejected as `low_marginal_value`. Metric: `low_value_claims_rejected` in calibration log.
+> - **B. Anti-Drift:** `topic_coherence` saturation signal in `phaseTransitions.ts` (line 334). Computes mean embedding similarity of recent claims to crux centroid. Per-speaker coherence logged as `topic_coherence_per_speaker`.
+> - **C. Anti-Preference-Faking:** `concession_asymmetry` computed per-agent in `calibrationLogger.ts` (line 79). Also tracks `concession_cascades` (sequential concessions by different agents within 2 turns).
+
 ### 3.5 Adaptive Situation Injection
 
 **Effort:** Low | **Value:** Medium | **Architecture change:** Extends `taxonomyRelevance.ts`
@@ -257,6 +268,8 @@ function rescoreSituations(
 - Situations with maximum disagreement diversity (definitional + interpretive + structural) get a bonus — richest strategic terrain
 - Situations injected in prior phases but never referenced by any debater are demoted — `situation_crux_alignment` metric as a selection feedback signal
 
+> **Implementation Status (2026-05):** Fully implemented. `reScoreSituationsForCruxes()` in `taxonomyRelevance.ts` (line 302) implements all three proposed adjustments: crux alignment via cosine similarity, diversity bonus (+0.15), and stale penalty (-0.20). Called at phase transitions in `debateEngine.ts` (line 2054). Score adjustments flow into context injection via `_situationScoreAdjustments`.
+
 ---
 
 ## 4. Implementation Order
@@ -270,6 +283,8 @@ function rescoreSituations(
 | 5 | 3.3 Move-Quality Lookahead | High | 3.1 (utility delta as gate) | `debateRunner.ts` (pipeline change) |
 
 Phase 1 is a pure calibration addition with no debate-flow changes. Phases 2-4 are independent and can be parallelized. Phase 5 depends on having a working utility function and is the most architecturally invasive.
+
+> **Implementation Status (2026-05):** Phases 1-4 are complete. Phase 5 (lookahead gate) is partially complete -- the evaluation pipeline runs every turn and logs diagnostics, but the regeneration pathway is not yet wired. See Section 3.3 status note.
 
 ---
 
