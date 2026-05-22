@@ -331,10 +331,12 @@ Score the topic on these five FRAME dimensions. Each dimension scores 0, 1, or 2
 
 TOPIC: "${topic}"
 
-You MUST also provide:
-- A list of issues (weaknesses found in the topic)
-- Reframe suggestions for each weak dimension
-- A REWRITTEN TOPIC that scores higher on all dimensions AND addresses any structural gaps above (this is MANDATORY — always provide one, even if the original is strong)
+TASK: Score the topic, then rewrite it. Follow these steps IN ORDER:
+
+Step 1 — Score each frame dimension for the ORIGINAL topic above.
+Step 2 — For each dimension scoring below 2, write one reframe_suggestion explaining the weakness and a concrete replacement fragment.
+Step 3 — Write rewritten_topic by starting from the original topic and INCORPORATING every reframe_suggestion from Step 2. Dimensions already at 2 must be PRESERVED — do not weaken them. The rewritten topic must be 1-3 sentences (similar length to the original). Do not bloat.
+Step 4 — Self-check: mentally re-score your rewritten_topic. If ANY dimension dropped below its original score, revise before outputting.
 
 Respond with ONLY this JSON (no markdown fences, no explanation):
 {
@@ -357,10 +359,10 @@ Respond with ONLY this JSON (no markdown fences, no explanation):
     {
       "dimension": "<conditionality|mechanism|stakeholder|tension|scope>",
       "original_weakness": "<what's weak>",
-      "reframed_fragment": "<suggested rewrite>"
+      "reframed_fragment": "<suggested replacement fragment>"
     }
   ],
-  "rewritten_topic": "<full rewritten topic that scores higher on frame AND addresses structural gaps>"
+  "rewritten_topic": "<1-3 sentence rewrite incorporating ALL reframe_suggestions, preserving dimensions already at 2>"
 }`;
 }
 

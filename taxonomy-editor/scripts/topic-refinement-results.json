@@ -1,0 +1,584 @@
+{
+  "baseline": {
+    "label": "baseline",
+    "model": "gemini-2.5-flash",
+    "timestamp": "2026-05-22T15:10:28.354Z",
+    "topics": [
+      {
+        "original_topic": "The physical limits of power grids, cooling capacity, and silicon yields will halt AI scaling long before algorithmic breakthroughs yield AGI.",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "To what extent are the escalating energy demands of AI data centers (projected to reach 4-5% of global electricity by 2030), the inherent cooling capacity of existing infrastructure, and the manufacturing limitations of advanced silicon chips (e.g., 2nm process nodes) *currently* constraining the pace and scale of AI model development, and how do these physical limits compare to the potential for algorithmic breakthroughs in shaping AGI timelines? Through what specific economic and engineering pathways do these physical limitations manifest, impacting both the cost and feasibility of continued AI scaling? Given these observed trends, what urgent policy interventions and industry investments should governments (e.g., DOE, EPA) and major AI developers (e.g., OpenAI, Google) prioritize to either mitigate these physical barriers or strategically shift focus towards more resource-efficient AI paradigms?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 2,
+              "total": 10
+            },
+            "composite_score": 13,
+            "rating": "fair",
+            "rewritten_topic": "Given the widely acknowledged, yet debated, implications of escalating AI energy demands (projected to reach 4-5% of global electricity by 2030), inherent cooling capacity limits, and advanced silicon chip manufacturing bottlenecks, we must evaluate current empirical evidence on how these physical limits *currently* constrain the pace and scale of AI model development. How do these physical limits compare to the potential for algorithmic breakthroughs in shaping AGI timelines, and through what specific economic and engineering pathways do they manifest, impacting the cost and feasibility of continued AI scaling? Considering these observed trends, what urgent policy interventions and industry investments should governments (e.g., DOE, EPA) and major AI developers (e.g., OpenAI, Google) prioritize to either mitigate these physical barriers or strategically shift focus towards more resource-efficient AI paradigms?",
+            "issues_count": 7
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Recognizing the fundamental tension between rapid AI advancement and the physical limits of our planet's resources, this debate will examine whether current constraints in regional power grid capacity, water availability for advanced cooling, and the manufacturing yields of leading-edge AI accelerators will compel governments and AI developers to implement significant policy changes or resource reallocations, thereby halting current AI scaling trajectories long before algorithmic breakthroughs yield AGI. Specifically, what investments in infrastructure, regulatory frameworks, or alternative computing paradigms are most critical to address these physical bottlenecks, and who bears the primary responsibility for their implementation?",
+            "frame_score": {
+              "conditionality": 1,
+              "mechanism": 1,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 1,
+              "total": 6
+            },
+            "composite_score": 9,
+            "rating": "fair",
+            "rewritten_topic": "Given recent surges in AI compute demand and observed regional power grid strains, and recognizing the fundamental tension between rapid AI advancement and the physical limits of our planet's resources, this debate will examine under what conditions and to what extent current constraints in regional power grid capacity, water availability for advanced cooling, and the manufacturing yields of leading-edge AI accelerators will compel governments, AI developers, energy providers, and other key actors to implement significant policy changes or resource reallocations, thereby halting current AI scaling trajectories long before algorithmic breakthroughs yield AGI. Through what specific mechanisms will this compulsion manifest, and what counter-mechanisms might mitigate or alter these outcomes? What investments in infrastructure, regulatory frameworks, or alternative computing paradigms are most critical to address these physical bottlenecks, and who bears the primary responsibility for their implementation?",
+            "issues_count": 6
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Observing the accelerating strain on regional power grids, water supplies, and advanced chip manufacturing capacity due to rapid AI growth, we must debate under what conditions these physical limits will compel governments and AI developers to implement significant policy changes or resource reallocations. These interventions could significantly alter current AI scaling trajectories, potentially halting or redirecting progress long before algorithmic breakthroughs yield Artificial General Intelligence (AGI). Specifically, what policy mechanisms, such as energy rationing, water usage mandates, or semiconductor export controls, would be most effective, and which stakeholders bear primary responsibility for these critical investments and strategic shifts?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Observing the accelerating strain on regional power grids, water supplies, and advanced chip manufacturing capacity due to rapid AI growth, we must debate under what conditions these physical limits will compel governments, AI developers, utility providers, and affected communities to collaboratively implement significant policy changes or resource reallocations. These interventions could significantly alter current AI scaling trajectories, potentially halting or redirecting progress long before algorithmic breakthroughs yield Artificial General Intelligence (AGI). Specifically, what policy mechanisms, such as energy rationing, water usage mandates, or semiconductor export controls, would be most effective, and which stakeholders bear primary responsibility for these critical investments and strategic shifts?",
+            "issues_count": 3
+          }
+        ]
+      },
+      {
+        "original_topic": "Is AI safety regulation a necessary guardrail against existential catastrophe, or a legally codified monopoly designed to crush open-source competition?",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "Under what specific conditions do recent proposals for licensing, auditing, and liability frameworks for frontier AI models primarily function as necessary guardrails against existential catastrophe, and when do they risk becoming legally codified monopolies that stifle open-source innovation? This debate should examine the specific mechanisms through which such AI safety regulation either mitigates catastrophic risks or inadvertently creates barriers to entry, considering the diverse roles and intentions of governments, incumbent tech companies, open-source communities, and civil society organizations.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given the observed concentration of advanced AI development and the ongoing policy debates surrounding AI safety, under what specific conditions do proposals for licensing, auditing, and liability frameworks for frontier AI models primarily function as necessary guardrails against existential catastrophe, and when do they risk becoming legally codified monopolies that stifle open-source innovation? This debate should examine the specific mechanisms through which such AI safety regulation either mitigates catastrophic risks or inadvertently creates barriers to entry, considering the diverse roles and intentions of governments, incumbent tech companies, open-source communities, and civil society organizations.",
+            "issues_count": 3
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Under what specific conditions can the EU AI Act's proposed licensing, auditing, and liability frameworks for frontier AI models effectively serve as a necessary guardrail against existential catastrophe? Critically, how can policymakers implement these regulations without inadvertently creating a legally codified monopoly that stifles open-source competition and innovation?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 2,
+              "total": 10
+            },
+            "composite_score": 13,
+            "rating": "fair",
+            "rewritten_topic": "Considering the observed trend of AI development concentrating among a few large corporations and the rapid pace of frontier model deployment, under what specific conditions can the EU AI Act's proposed licensing, auditing, and liability frameworks effectively serve as a necessary guardrail against existential catastrophe? Critically, how can policymakers implement these regulations without inadvertently creating a legally codified monopoly that stifles open-source competition and innovation?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Given the rapid, unconstrained scaling of frontier AI models and the increasing concentration of development power, under what specific conditions can the EU AI Act's proposed licensing, auditing, and liability frameworks effectively mitigate concrete risks like large-scale algorithmic discrimination, critical infrastructure disruption, or autonomous weapons proliferation? Furthermore, how can policymakers design and implement these regulations to avoid creating barriers that disproportionately disadvantage open-source developers and smaller innovators, thereby preventing a legally codified monopoly?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Considering the ongoing debate within the EU regarding the classification of general-purpose AI models under the AI Act and the observed market trend of increasing concentration of development power, under what specific conditions can the EU AI Act's proposed licensing, auditing, and liability frameworks effectively mitigate concrete risks like large-scale algorithmic discrimination, critical infrastructure disruption, or autonomous weapons proliferation? Furthermore, how can policymakers design and implement these regulations to avoid creating barriers that disproportionately disadvantage open-source developers and smaller innovators, thereby preventing a legally codified monopoly?",
+            "issues_count": 7
+          }
+        ]
+      },
+      {
+        "original_topic": "Deploying autonomous AI agents into real-world infrastructure is an uncontrollable systemic risk masquerading as a post-scarcity economic engine.",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "The deployment of autonomous AI agents by developers and regulators into critical infrastructure sectors, such as energy grids and supply chains, presents a complex challenge. Under what specific conditions and with what robust safeguards can these deployments genuinely foster economic transformation, rather than primarily generating systemic risks for society?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 1,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 1,
+              "total": 7
+            },
+            "composite_score": 10,
+            "rating": "fair",
+            "rewritten_topic": "Given the observed increase in pilot programs for AI-driven predictive maintenance and logistics optimization across national energy grids and global supply chains, the deployment of autonomous AI agents presents a complex challenge for developers, operators, regulators, and affected communities. Under what specific conditions and with what robust safeguards can these deployments genuinely foster economic transformation, detailing the causal pathways and feedback loops involved, rather than primarily generating systemic risks for society?",
+            "issues_count": 5
+          },
+          {
+            "iteration": 2,
+            "topic_text": "The deployment of autonomous AI agents by developers, regulators, and critical infrastructure operators into sectors like energy grids and transportation poses a fundamental question: under what specific conditions does this deployment reliably deliver promised economic efficiencies and post-scarcity benefits, versus introducing uncontrollable systemic risks that demand new governance models?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "The deployment of autonomous AI agents by developers, regulators, and critical infrastructure operators into sectors like energy grids and transportation poses a fundamental question: under what specific conditions does this deployment reliably deliver measurable improvements in grid stability and resource allocation, versus exacerbating cascading failures or creating new points of adversarial attack that current regulatory frameworks are demonstrably failing to address?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Given recent incidents of unexpected behavior or near-misses involving autonomous systems in critical infrastructure sectors like energy grids, under what specific regulatory and operational conditions can organizations deploy autonomous AI agents without creating an uncontrollable systemic risk that outweighs their potential as a post-scarcity economic engine? Policymakers must articulate how to prioritize the development and implementation of verifiable safety mechanisms and accountability frameworks for these deployments.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given recent incidents of unexpected behavior or near-misses involving autonomous systems in critical infrastructure sectors like energy grids, under what specific regulatory, operational, and ethical conditions can developers, deployers, and regulators collaborate to deploy autonomous AI agents without creating an uncontrollable systemic risk that outweighs their potential as a post-scarcity economic engine? This requires articulating how to prioritize the development and implementation of verifiable safety mechanisms and accountability frameworks, ensuring shared responsibility across all relevant stakeholders, including affected communities.",
+            "issues_count": 3
+          }
+        ]
+      },
+      {
+        "original_topic": "Will delegating cognitive labor to machines elevate humanity to a higher evolutionary tier, or permanently atrophy our agency, intellect, and economic utility?",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "Considering the accelerating integration of artificial intelligence into complex problem-solving and creative generation, under what conditions and through what mechanisms can the delegation of cognitive labor to machines either enhance or diminish human agency, intellectual development, and economic adaptability across individuals, educational institutions, and economic sectors, and what critical policy interventions or design principles are necessary to steer these outcomes toward broad human flourishing while mitigating risks of societal stratification or skill erosion?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 1,
+              "scope": 0,
+              "total": 7
+            },
+            "composite_score": 10,
+            "rating": "fair",
+            "rewritten_topic": "Given the observed trend of AI systems increasingly performing tasks previously considered uniquely human, such as complex reasoning and creative synthesis, specifically within medical diagnosis and architectural design, what is the fundamental tension between the perceived efficiency gains of AI delegation and the potential for professional deskilling or disempowerment of human practitioners? Under what conditions and through what mechanisms does this delegation of cognitive labor to AI systems either enhance or diminish human agency, intellectual development, and economic adaptability for practitioners in these fields, and what critical policy interventions or design principles are necessary to steer these outcomes toward broad human flourishing while mitigating risks of market concentration?",
+            "issues_count": 4
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Given the rapid integration of generative AI across knowledge work and creative industries, what specific policy strategies and educational reforms are necessary to ensure this technology primarily augments human skill acquisition and elevates creative potential, rather than eroding human agency, intellect, and economic utility?",
+            "frame_score": {
+              "conditionality": 1,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given the emerging challenges in ensuring human flourishing amidst the rapid integration of generative AI across knowledge work and creative industries, under what conditions do specific policy strategies and educational reforms most effectively ensure this technology primarily augments human skill acquisition and elevates creative potential, rather than eroding human agency, intellect, and economic utility?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Given the rapid integration of generative AI across knowledge work and creative industries, governments, businesses, and educational institutions must determine under what specific conditions these tools can most effectively augment human cognitive capabilities and economic utility. The critical debate is through which policy strategies and educational reforms we can proactively mitigate the risks of deskilling, job displacement, and over-reliance that could atrophy human agency.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Amidst emerging evidence of both productivity gains and early signs of deskilling in specific AI-integrated workflows within knowledge work and creative industries, governments, businesses, and educational institutions must determine under what specific conditions these tools can most effectively augment human cognitive capabilities and economic utility. The critical debate is through which policy strategies and educational reforms we can proactively mitigate the risks of deskilling, job displacement, and over-reliance that could atrophy human agency.",
+            "issues_count": 3
+          }
+        ]
+      },
+      {
+        "original_topic": "AGI is not required to break the labor market; narrow, cheap, specialized models are already sufficient to cause structural unemployment that governments are entirely unprepared for.",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "Considering recent trends in AI adoption within specific sectors like customer service or logistics, under what specific economic and policy conditions would the widespread deployment of narrow, cheap, specialized AI models lead to significant structural unemployment, independent of AGI development? Through what specific labor market mechanisms—such as task automation, wage depression, or skill mismatch—would this impact manifest? What are the distributed responsibilities of governments, corporations, labor unions, and educational institutions in mitigating or adapting to these profound labor market shifts?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 1,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Amidst the observed tension between economic efficiency and potential labor displacement from recent trends in narrow AI adoption in sectors like customer service or logistics, under what specific economic and policy conditions would the widespread deployment of such models lead to significant structural unemployment, independent of AGI development? Through what specific labor market mechanisms—such as task automation, wage depression, or skill mismatch—would this impact manifest? What are the distributed responsibilities of governments, corporations, labor unions, and educational institutions in mitigating or adapting to these profound labor market shifts?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 2,
+            "topic_text": "The accelerating deployment of narrow AI models in sectors like customer service and logistics is already demonstrably displacing human labor, creating a critical tension between corporate efficiency gains and labor market stability. This immediate phenomenon, not future AGI, presents a pressing challenge: are governments adequately prepared to mitigate the structural unemployment caused by these specific, observable AI applications, and what policy interventions will effectively re-skill workers and maintain economic equilibrium?",
+            "frame_score": {
+              "conditionality": 1,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "The accelerating deployment of narrow AI models in sectors like customer service and logistics is already demonstrably displacing human labor, creating a critical tension between corporate efficiency gains and labor market stability. This immediate phenomenon, not future AGI, presents a pressing challenge: Under what conditions can governments effectively mitigate the structural unemployment caused by these specific, observable AI applications and foster economic equilibrium, and what trade-offs do various policy interventions entail for re-skilling workers?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Under what specific economic and political conditions can national governments effectively implement workforce retraining programs, strengthen social safety nets, and adapt regulatory frameworks to mitigate the structural unemployment already emerging from widespread adoption of narrow, specialized generative AI tools in white-collar sectors? Specifically, is the current scale of job displacement from tools like large language models (LLMs) in content creation and customer service truly sufficient to overwhelm existing labor market resilience, or are these impacts localized and manageable with incremental policy adjustments?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given the contested phenomenon of emerging structural unemployment from widespread adoption of specialized generative AI in white-collar sectors, under what specific economic and political conditions can national governments, in concert with industry, labor organizations, and educational institutions, effectively implement evidence-backed workforce retraining programs, strengthen social safety nets, and adapt regulatory frameworks to foster a resilient and adaptable workforce? Specifically, is the current scale of job displacement from tools like large language models (LLMs) in content creation and customer service truly sufficient to overwhelm existing labor market resilience, or are these impacts localized and manageable with incremental policy adjustments?",
+            "issues_count": 7
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "avg_initial_score": 11.4,
+      "avg_final_score": 12,
+      "avg_delta": 0.6,
+      "dimension_deltas": {
+        "conditionality": 0,
+        "mechanism": 0.2,
+        "stakeholder": -0.4,
+        "tension": 0.4,
+        "scope": 0.4
+      },
+      "stagnant_dimensions": [
+        "conditionality"
+      ]
+    }
+  },
+  "treatment": {
+    "label": "feedback",
+    "model": "gemini-2.5-flash",
+    "timestamp": "2026-05-22T16:26:53.481Z",
+    "topics": [
+      {
+        "original_topic": "The physical limits of power grids, cooling capacity, and silicon yields will halt AI scaling long before algorithmic breakthroughs yield AGI.",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "To what extent do the physical limits of power grids, cooling capacity, and silicon yields currently constrain AI scaling through specific mechanisms like energy costs, supply chain bottlenecks, and data center construction delays? And how should policymakers, industry leaders, and AI researchers strategically prioritize investments and innovations to manage these constraints, relative to the pace of algorithmic breakthroughs yielding AGI?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 1,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Amidst the accelerating pace of AI algorithmic breakthroughs and the observable strain on global infrastructure, how can policymakers, industry leaders, and AI researchers best reconcile the imperative for rapid AI scaling with the urgent need to manage the physical limits of power grids, cooling capacity, and silicon yields, which currently constrain growth through specific mechanisms like energy costs, supply chain bottlenecks, and data center construction delays? This reconciliation requires strategically prioritizing investments and innovations relative to the pace of AGI development.",
+            "issues_count": 3
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Considering the recent surge in AI energy consumption and the projected doubling of data center power demand by 2026, to what extent do the physical limits of power grids, cooling capacity, and silicon yields currently constrain AI scaling through specific mechanisms like energy costs, supply chain bottlenecks, and data center construction delays? Policymakers, industry leaders, and AI researchers must critically evaluate whether the prevailing narrative—that these physical limits will halt AI scaling long before algorithmic breakthroughs yield AGI—adequately captures the full range of strategic options and implementation pathways for managing these constraints and shaping future AI development.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given the recent power grid instability concerns linked to new data center proposals in specific regions (e.g., Ireland, Texas) and the projected doubling of global AI power demand by 2026, to what extent do the physical limits of power grids, cooling capacity, and silicon yields currently constrain AI scaling through specific mechanisms like energy costs, supply chain bottlenecks, and data center construction delays? Policymakers, industry leaders, and AI researchers must critically evaluate whether the prevailing narrative—that these physical limits will halt AI scaling long before algorithmic breakthroughs yield AGI—adequately captures the full range of strategic options and implementation pathways for managing these constraints and shaping future AI development.",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Policymakers, industry leaders, and AI researchers must critically evaluate the core tension between the desire for rapid AI advancement and the prevailing narrative that physical limits will halt AI scaling long before algorithmic breakthroughs yield AGI, considering the recent surge in AI energy consumption and the projected doubling of data center power demand by 2026—a contested empirical observation regarding resource scarcity. To what extent do the physical limits of power grids, cooling capacity, and silicon yields currently constrain AI scaling, as evidenced by quantifiable data on global resource availability and infrastructure development timelines, through specific mechanisms like energy costs, supply chain bottlenecks, and data center construction delays? Furthermore, under what specific conditions, informed by empirical data and considering the feasibility of proposed solutions like advanced nuclear power or novel chip architectures by 2030, do diverse strategic options, stakeholder incentives, and implementation pathways effectively mitigate these constraints or accelerate alternative development trajectories?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 2,
+              "total": 10
+            },
+            "composite_score": 13,
+            "rating": "fair",
+            "rewritten_topic": "Given the contested empirical observation of a recent surge in AI energy consumption and the projected doubling of data center power demand by 2026, how should policymakers, industry leaders, and AI researchers evaluate the core tension between the desire for rapid AI advancement and the prevailing narrative that physical limits will halt AI scaling long before algorithmic breakthroughs yield AGI? To what extent do the physical limits of power grids, cooling capacity, and silicon yields currently constrain AI scaling, as evidenced by quantifiable data on global resource availability and infrastructure development timelines, through specific mechanisms like energy costs, supply chain bottlenecks, and data center construction delays? Furthermore, under what specific conditions, informed by empirical data and considering the feasibility of proposed solutions like advanced nuclear power or novel chip architectures by 2030, do diverse strategic options, stakeholder incentives, and implementation pathways effectively mitigate these constraints or accelerate alternative development trajectories?",
+            "issues_count": 3
+          }
+        ]
+      },
+      {
+        "original_topic": "Is AI safety regulation a necessary guardrail against existential catastrophe, or a legally codified monopoly designed to crush open-source competition?",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "Considering the rapid emergence of frontier AI models and recent policy proposals like the EU AI Act or the US Executive Order, under what specific conditions and with what design principles should governments, industry leaders, and civil society organizations implement AI safety regulation? This debate should critically examine how such regulation can effectively mitigate specific, verifiable risks of advanced AI systems while simultaneously fostering innovation and ensuring competitive access for open-source developers and smaller enterprises, rather than inadvertently creating a legally codified monopoly.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given the observed challenges of emergent AI capabilities leading to novel misuse vectors (e.g., sophisticated disinformation, autonomous decision-making failures) and the increasing market concentration among a few large AI developers, under what specific conditions and with what design principles can governments, industry leaders, and civil society organizations best balance the imperative to mitigate these novel misuse vectors and market concentration with the need to foster innovation and ensure competitive access for open-source developers and smaller enterprises, thereby avoiding the inadvertent creation of a legally codified monopoly?",
+            "issues_count": 4
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Considering the increasing concentration of frontier AI development due to escalating compute and data requirements, and recent policy proposals like the US Executive Order 14110 or the EU AI Act, under what specific conditions and with what design principles should governments implement AI safety regulations, such as mandatory red-teaming or compute thresholds for models exceeding 10^26 FLOPs? This debate should critically examine whether such targeted regulations effectively mitigate specific, verifiable risks of advanced AI systems, or if they inadvertently create a legally codified monopoly that stifles open-source innovation and competitive access for smaller enterprises.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given the widely observed, yet debated, concentration of frontier AI development among a few large entities, driven by escalating compute and data requirements, and in light of recent policy proposals like the US Executive Order 14110 or the EU AI Act, under what specific conditions and with what design principles should governments implement AI safety regulations, such as mandatory red-teaming or compute thresholds for models exceeding 10^26 FLOPs? This debate should critically examine whether such targeted regulations effectively mitigate specific, verifiable risks of advanced AI systems, or if they inadvertently create a legally codified monopoly that stifles open-source innovation and competitive access for smaller enterprises.",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Amidst an intensifying debate over whether escalating compute and data requirements are inevitably concentrating frontier AI development, governments are proposing regulations like the US Executive Order 14110 and the EU AI Act, mandating measures such as independent red-teaming and compute thresholds for models exceeding 10^26 FLOPs. The critical question is: under what verifiable conditions and with what specific design modifications would these AI safety regulations demonstrably mitigate existential risks within the next five years, rather than primarily functioning as a legally codified barrier that disproportionately stifles open-source innovation and competitive access for smaller enterprises?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 1,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 8
+            },
+            "composite_score": 11,
+            "rating": "fair",
+            "rewritten_topic": "Given the observed trend that escalating compute and data requirements are concentrating frontier AI development, governments are proposing regulations like the US Executive Order 14110 and the EU AI Act, mandating measures such as independent red-teaming and compute thresholds for models exceeding 10^26 FLOPs. The critical question is: under what verifiable conditions, supported by what empirical metrics and data, and with what specific design modifications would these AI safety regulations demonstrably mitigate catastrophic misuse or loss of control risks within the next five years, rather than primarily functioning as a legally codified barrier that disproportionately stifles open-source innovation and competitive access for smaller enterprises?",
+            "issues_count": 4
+          }
+        ]
+      },
+      {
+        "original_topic": "Deploying autonomous AI agents into real-world infrastructure is an uncontrollable systemic risk masquerading as a post-scarcity economic engine.",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "Considering recent pilot programs and observed incidents involving autonomous AI agents in critical national infrastructure like energy grids and financial systems, under what specific conditions and with what robust safeguards should governments, corporations, and civil society proceed with such deployments? Through what precise causal pathways would these deployments primarily manifest as an uncontrollable systemic risk, or conversely, genuinely function as a post-scarcity economic engine for society?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Following recent, widely publicized incidents where autonomous AI agents in critical national infrastructure (e.g., energy grids, financial systems) have demonstrated emergent, unpredictable behaviors leading to localized disruptions and raising questions about control, under what specific conditions and with what robust safeguards should governments, corporations, and civil society proceed with such deployments? Through what precise causal pathways would these deployments primarily manifest as an uncontrollable systemic risk, or conversely, genuinely function as a post-scarcity economic engine for society?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Given recent, widely reported incidents of unexpected system behaviors in pilot programs deploying autonomous AI agents for real-time decision-making within critical national infrastructure—such as anomalous trading spikes in financial markets or localized energy grid instability—under what specific, measurable safety thresholds and independent audit protocols should governments and infrastructure operators permit further deployment? Debaters must analyze the precise causal pathways through which these agents could trigger uncontrollable systemic risks, or conversely, genuinely function as a post-scarcity economic engine, focusing on specific policy interventions and technological safeguards.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given recent, widely reported incidents of unexpected system behaviors in pilot programs deploying autonomous AI agents for real-time decision-making within critical national infrastructure—such as anomalous trading spikes in financial markets or localized energy grid instability—under what specific, measurable safety thresholds and independent audit protocols should governments, infrastructure operators, AI developers, and affected communities permit further deployment? Debaters must analyze the precise causal pathways through which these agents could trigger uncontrollable systemic risks, or conversely, genuinely function as a post-scarcity economic engine, focusing on specific policy interventions and technological safeguards.",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "Under what verifiable conditions and with what specific, independently auditable safeguards can governments, infrastructure operators, and AI developers demonstrate that deploying autonomous AI agents in critical infrastructure sectors genuinely functions as a post-scarcity economic engine? Debaters must present empirical data and documented case studies, analyzed by independent oversight bodies, to evaluate whether these deployments mitigate or introduce uncontrollable systemic risks.",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 2,
+              "total": 10
+            },
+            "composite_score": 13,
+            "rating": "fair",
+            "rewritten_topic": "Given the accelerating, yet contested, deployment of autonomous AI agents in critical infrastructure sectors, under what verifiable conditions and with what specific, independently auditable safeguards can governments, infrastructure operators, and AI developers demonstrate, through independently auditable, quantifiable metrics and rigorously documented case studies, that these deployments genuinely function as a post-scarcity economic engine while simultaneously mitigating uncontrollable systemic risks, or conversely, introduce them?",
+            "issues_count": 2
+          }
+        ]
+      },
+      {
+        "original_topic": "Will delegating cognitive labor to machines elevate humanity to a higher evolutionary tier, or permanently atrophy our agency, intellect, and economic utility?",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "Considering the accelerating integration of advanced AI into professional and daily life, under what specific conditions and through what mechanisms does delegating complex cognitive tasks to AI systems primarily enhance human capabilities and foster new forms of innovation? Conversely, how might this delegation risk significant deskilling, job displacement, and atrophy of critical thinking skills across diverse societal groups, particularly knowledge workers and entry-level employees?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 0,
+              "total": 7
+            },
+            "composite_score": 10,
+            "rating": "fair",
+            "rewritten_topic": "Considering the increasing reliance on AI copilots for initial drafts and data synthesis in knowledge work (e.g., legal, marketing, software development), under what specific conditions and through what mechanisms can organizations and individuals strategically delegate these tasks to AI systems to primarily enhance human capabilities and foster new forms of innovation? Conversely, how might this delegation, if poorly governed by industry leaders and policymakers, risk significant deskilling, job displacement, and atrophy of critical thinking skills across diverse societal groups?",
+            "issues_count": 4
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Under what specific regulatory frameworks and industry standards should policymakers, technology developers, and labor organizations collaborate to measure and mitigate the risk of human agency, intellect, and economic utility atrophy among knowledge workers and entry-level employees, as AI rapidly deploys in domains like medical diagnosis, legal research, and creative content generation? Conversely, what specific metrics and incentives will best maximize AI's potential to elevate human capabilities and foster new forms of innovation in these same sectors?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 2,
+              "total": 10
+            },
+            "composite_score": 13,
+            "rating": "fair",
+            "rewritten_topic": "As AI rapidly deploys in domains like medical diagnosis, legal research, and creative content generation, and amidst emerging concerns about observed declines in human proficiency and agency in tasks now heavily augmented by AI (e.g., diagnostic interpretation, legal brief drafting, creative ideation), under what specific regulatory frameworks and industry standards should policymakers, technology developers, and labor organizations collaborate to measure and mitigate the risk of human agency, intellect, and economic utility atrophy among knowledge workers and entry-level employees? Conversely, what specific metrics and incentives will best maximize AI's potential to elevate human capabilities and foster new forms of innovation in these same sectors?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 3,
+            "topic_text": "As AI drives observable shifts in job roles and skill requirements within medical diagnosis, legal research, and creative content generation, policymakers and industry leaders must determine whether current adoption trajectories risk deskilling human professionals and diminishing critical agency, or if they are primarily fostering enhanced capabilities and new forms of innovation. What specific regulatory standards and investment strategies will best ensure AI's integration elevates human expertise and economic utility, rather than permanently atrophying our core intellectual and decision-making faculties?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 1,
+              "tension": 2,
+              "scope": 2,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "As AI drives observable shifts in job roles and skill requirements within medical diagnosis, legal research, and creative content generation, policymakers, industry leaders, professional associations, and educational institutions must collaboratively determine whether current adoption trajectories risk deskilling human professionals and diminishing critical agency, or if they are primarily fostering enhanced capabilities and new forms of innovation. What specific regulatory standards and investment strategies will best ensure AI's integration elevates human expertise and economic utility, rather than permanently atrophying our core intellectual and decision-making faculties?",
+            "issues_count": 3
+          }
+        ]
+      },
+      {
+        "original_topic": "AGI is not required to break the labor market; narrow, cheap, specialized models are already sufficient to cause structural unemployment that governments are entirely unprepared for.",
+        "iterations": [
+          {
+            "iteration": 1,
+            "topic_text": "Under what specific economic and policy conditions will the rapid deployment of narrow, cheap, specialized AI models, rather than AGI, significantly displace labor and reshape job markets through specific economic and social pathways, leading to structural unemployment? Given the tension between this rapid technological shift and current societal adaptation capabilities, how should governments, businesses, and educational institutions collaboratively adapt to mitigate widespread job loss and ensure economic stability?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "Given the observed acceleration of AI-driven automation in sectors like customer service and logistics, under what specific economic and policy conditions will the rapid deployment of narrow, cheap, specialized AI models, rather than AGI, significantly displace labor and reshape job markets through specific economic and social pathways, leading to structural unemployment? Given the tension between this rapid technological shift and current societal adaptation capabilities, how should governments, businesses, and educational institutions collaboratively adapt to mitigate widespread job loss and ensure economic stability?",
+            "issues_count": 3
+          },
+          {
+            "iteration": 2,
+            "topic_text": "Given the accelerating deployment of narrow, cheap, specialized AI models in sectors like customer service and logistics, under what specific economic conditions and policy thresholds (e.g., a 15% job displacement rate in a key sector within three years) will these models demonstrably cause structural unemployment, independent of AGI development? Furthermore, what specific policy interventions—such as universal basic income pilot programs, targeted retraining initiatives, or new regulatory frameworks for AI deployment—should governments and industry leaders prioritize to mitigate widespread job loss and ensure economic stability by 2030, considering current fiscal constraints and societal adaptation capabilities?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 1,
+              "tension": 1,
+              "scope": 2,
+              "total": 8
+            },
+            "composite_score": 11,
+            "rating": "fair",
+            "rewritten_topic": "Given the accelerating deployment of narrow, cheap, specialized AI models in sectors like customer service and logistics, under what specific economic conditions and policy thresholds (e.g., a 15% job displacement rate in a key sector within three years) will these models demonstrably cause structural unemployment, independent of AGI development? Furthermore, what specific policy interventions—such as universal basic income pilot programs, targeted retraining initiatives, or new regulatory frameworks for AI deployment—should governments, industry leaders, labor organizations, and educational institutions prioritize to navigate the inherent tension between maximizing AI-driven productivity and ensuring equitable employment outcomes by 2030, considering current fiscal constraints and societal adaptation capabilities?",
+            "issues_count": 4
+          },
+          {
+            "iteration": 3,
+            "topic_text": "This debate explores the critical tension of how to harness AI's productivity gains while preventing widespread job displacement and ensuring equitable economic transition, challenging the premise that AGI is a prerequisite for labor market disruption. Under what specific economic conditions and policy thresholds will the accelerating deployment of narrow, cheap, specialized AI models in sectors like customer service, data entry, and logistics demonstrably cause structural unemployment, independent of AGI development? Furthermore, what evidence-based policy interventions—such as adaptive social safety nets, industry-funded retraining programs, or new labor market regulations—should governments, industry leaders, labor unions, and educational institutions collaboratively prioritize by 2030 to mitigate these impacts, and does this framing adequately capture the full scope of the challenge?",
+            "frame_score": {
+              "conditionality": 2,
+              "mechanism": 2,
+              "stakeholder": 2,
+              "tension": 2,
+              "scope": 1,
+              "total": 9
+            },
+            "composite_score": 12,
+            "rating": "fair",
+            "rewritten_topic": "This debate explores the critical tension of how to harness AI's productivity gains while preventing widespread job displacement and ensuring equitable economic transition, challenging the premise that AGI is a prerequisite for labor market disruption. Given current empirical observations of job displacement and widening skill gaps in sectors like customer service, data entry, and logistics due to the accelerating deployment of narrow, cheap, specialized AI models, what specific economic conditions and policy thresholds are demonstrably causing or mitigating these impacts, independent of AGI development? Furthermore, what evidence-based policy interventions—such as adaptive social safety nets, industry-funded retraining programs, or new labor market regulations—should governments, industry leaders, labor unions, and educational institutions, considering their diverse and often conflicting beliefs and desires regarding economic growth, labor protection, and societal welfare, collaboratively prioritize by 2030 to mitigate these impacts, and does this framing adequately capture the full scope of the challenge?",
+            "issues_count": 8
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "avg_initial_score": 11.6,
+      "avg_final_score": 12.2,
+      "avg_delta": 0.6,
+      "dimension_deltas": {
+        "conditionality": 0,
+        "mechanism": -0.2,
+        "stakeholder": 0,
+        "tension": 0.2,
+        "scope": 0.6
+      },
+      "stagnant_dimensions": [
+        "conditionality",
+        "stakeholder"
+      ]
+    }
+  },
+  "comparison": {
+    "overall_improvement": 0,
+    "regressions": [
+      "mechanism: treatment -0.20 < baseline 0.20",
+      "tension: treatment 0.20 < baseline 0.40"
+    ]
+  }
+}

@@ -2054,7 +2054,21 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   debateLoading: false,
   debateGenerating: null,
   responseLength: 'detailed',
-  setResponseLength: (length) => set({ responseLength: length }),
+  setResponseLength: (length) => {
+    set({ responseLength: length });
+    // Clear per-entry display_tier overrides so all entries follow the new default
+    const debate = get().activeDebate;
+    if (debate) {
+      let changed = false;
+      for (const entry of debate.transcript) {
+        if (entry.display_tier) {
+          entry.display_tier = undefined;
+          changed = true;
+        }
+      }
+      if (changed) set({ activeDebate: { ...debate } });
+    }
+  },
   audience: 'policymakers' as DebateAudience,
   setAudience: (audience) => {
     set({ audience });
@@ -2596,7 +2610,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           });
           const suggestedPrompt = critiqueTopicPrompt(critique.rewritten_topic, formatStructuralContext(suggestedStructural));
           const { text: suggestedText } = await generateTextWithProgress(suggestedPrompt, model, `Scoring suggested topic (${model})`, set);
-          suggestedCritique = parseTopicCritique(suggestedText, suggestedStructural);
+          const parsed = parseTopicCritique(suggestedText, suggestedStructural);
+          // Quality gate: only present the suggestion if it scores at least as high as the original
+          if (parsed.composite_score >= critique.composite_score) {
+            suggestedCritique = parsed;
+          } else {
+            console.log(`[TopicCritique] Suggested topic scored ${parsed.composite_score} < original ${critique.composite_score} — discarding suggestion`);
+          }
         } catch (sugErr) {
           console.warn('[TopicCritique] Suggested topic scoring failed (non-blocking):', sugErr);
         }

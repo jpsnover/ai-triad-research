@@ -348,7 +348,7 @@ describe('critiqueTopicPrompt', () => {
   it('requests rewritten_topic', () => {
     const prompt = critiqueTopicPrompt('test');
     expect(prompt).toContain('rewritten_topic');
-    expect(prompt).toContain('MANDATORY');
+    expect(prompt).toContain('Self-check');
   });
 });
 
@@ -437,7 +437,7 @@ describe('critiqueTopicPrompt with structuralContext', () => {
     const prompt = critiqueTopicPrompt('test topic', 'WARNING: acc dominates');
     expect(prompt).toContain('=== STRUCTURAL ANALYSIS (pre-computed from taxonomy) ===');
     expect(prompt).toContain('WARNING: acc dominates');
-    expect(prompt).toContain('addresses structural gaps');
+    expect(prompt).toContain('address any structural warnings');
   });
 
   it('omits structural block when context not provided', () => {
