@@ -78,6 +78,15 @@ export interface FrameScore {
   total: number;
 }
 
+export interface LineageFrameEntry {
+  /** Level 2 cluster ID (kebab-case). */
+  cluster_id: string;
+  /** Human-readable cluster label. */
+  label: string;
+  /** Fraction of activated lineage items in this cluster (0-1). */
+  percentage: number;
+}
+
 export interface TopicCritique {
   /** Phase A: deterministic structural scoring. */
   structural_score: StructuralScore;
@@ -101,6 +110,8 @@ export interface TopicCritique {
   reframe_changes?: string;
   /** True when evidence coverage scored 0 — topic is outside well-documented territory. */
   exploratory?: boolean;
+  /** Dominant intellectual traditions from activated nodes' lineage (top 3 at 15%+). */
+  lineage_frame?: LineageFrameEntry[];
 }
 
 // ── Constants ─────────────────────────────────────────────
@@ -623,4 +634,67 @@ export function formatStructuralContext(score: StructuralScore): string {
   parts.push(`\nStructural sub-scores: crux_density=${score.crux_density}/2, evidence=${score.evidence_coverage}/2, bdi=${score.bdi_heterogeneity}/2, abstraction=${score.abstraction_level}/2, situations=${score.situation_activation}/2 (total: ${score.total}/10).`);
 
   return parts.join('\n');
+}
+
+/**
+ * Format a lineage_frame as text for injection into the structural context block.
+ * Shows dominant intellectual traditions so the LLM can incorporate them into topic rewriting.
+ */
+export function formatLineageContext(frame: LineageFrameEntry[]): string {
+  if (frame.length === 0) return '';
+  const lines = frame.map(
+    f => `  - ${f.label} (${(f.percentage * 100).toFixed(0)}%)`,
+  );
+  return `Dominant intellectual traditions:\n${lines.join('\n')}`;
+}
+
+// ── Lineage Distribution ─────────────────────────────────
+
+/** Minimum fraction of total lineage items for a cluster to be included. */
+const LINEAGE_THRESHOLD = 0.15;
+/** Maximum number of traditions to report. */
+const LINEAGE_MAX = 3;
+
+export interface LineageDistributionInput {
+  /** IDs of activated nodes from structural scoring. */
+  activatedNodeIds: string[];
+  /** Per-node lineage: nodeId → lineage name list. */
+  lineageByNode: Record<string, string[]>;
+  /** Lineage name → L2 cluster ID mapping. */
+  nameToCluster: Record<string, string>;
+  /** L2 cluster ID → human-readable label. */
+  clusterLabels: Record<string, string>;
+}
+
+/**
+ * Compute the Level 2 intellectual tradition distribution across activated nodes.
+ * Returns the top clusters (up to 3) that represent ≥15% of mapped lineage items.
+ */
+export function computeLineageDistribution(input: LineageDistributionInput): LineageFrameEntry[] {
+  const clusterCounts: Record<string, number> = {};
+  let totalMapped = 0;
+
+  for (const nodeId of input.activatedNodeIds) {
+    const names = input.lineageByNode[nodeId];
+    if (!names) continue;
+    for (const name of names) {
+      const clusterId = input.nameToCluster[name];
+      if (!clusterId || clusterId === 'uncategorized') continue;
+      clusterCounts[clusterId] = (clusterCounts[clusterId] ?? 0) + 1;
+      totalMapped++;
+    }
+  }
+
+  if (totalMapped === 0) return [];
+
+  // Sort by count descending, filter by threshold, cap at max
+  return Object.entries(clusterCounts)
+    .map(([id, count]) => ({
+      cluster_id: id,
+      label: input.clusterLabels[id] ?? id,
+      percentage: count / totalMapped,
+    }))
+    .filter(e => e.percentage >= LINEAGE_THRESHOLD)
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, LINEAGE_MAX);
 }

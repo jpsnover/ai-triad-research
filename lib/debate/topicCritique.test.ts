@@ -6,7 +6,9 @@ import {
   computeStructuralScore,
   critiqueTopicPrompt,
   formatStructuralContext,
+  formatLineageContext,
   parseTopicCritique,
+  computeLineageDistribution,
 } from './topicCritique.js';
 import type { StructuralScoreInput } from './topicCritique.js';
 import type { SourceEvidenceIndex } from './evidenceFromSummaries.js';
@@ -552,5 +554,144 @@ describe('parseTopicCritique', () => {
     // Should have structural issues for crux_density (0 nodes) and situation_activation
     const structIssues = result.issues.filter(i => ['crux_density', 'situation_activation'].includes(i.dimension));
     expect(structIssues.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ── computeLineageDistribution ──────────────────────────
+
+describe('computeLineageDistribution', () => {
+  const clusterLabels: Record<string, string> = {
+    'ai-safety': 'AI Safety & Alignment',
+    'labor-econ': 'Labor & Political Economy',
+    'tech-society': 'Technology & Society',
+    'legal-theory': 'Legal Theory & Applied Ethics',
+  };
+
+  const nameToCluster: Record<string, string> = {
+    'AI alignment research': 'ai-safety',
+    'machine learning fairness': 'ai-safety',
+    'RLHF': 'ai-safety',
+    'labor economics': 'labor-econ',
+    'automation displacement': 'labor-econ',
+    'STS frameworks': 'tech-society',
+    'tort law': 'legal-theory',
+  };
+
+  it('returns empty array when no activated nodes', () => {
+    const result = computeLineageDistribution({
+      activatedNodeIds: [],
+      lineageByNode: {},
+      nameToCluster,
+      clusterLabels,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when no lineage data on nodes', () => {
+    const result = computeLineageDistribution({
+      activatedNodeIds: ['acc-beliefs-001'],
+      lineageByNode: {},
+      nameToCluster,
+      clusterLabels,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('returns dominant cluster above 15% threshold', () => {
+    const result = computeLineageDistribution({
+      activatedNodeIds: ['n1', 'n2'],
+      lineageByNode: {
+        n1: ['AI alignment research', 'RLHF', 'machine learning fairness'],
+        n2: ['AI alignment research', 'labor economics'],
+      },
+      nameToCluster,
+      clusterLabels,
+    });
+    // ai-safety: 4/5 = 80%, labor-econ: 1/5 = 20%
+    expect(result).toHaveLength(2);
+    expect(result[0].cluster_id).toBe('ai-safety');
+    expect(result[0].label).toBe('AI Safety & Alignment');
+    expect(result[0].percentage).toBeCloseTo(0.8);
+    expect(result[1].cluster_id).toBe('labor-econ');
+  });
+
+  it('filters clusters below 15% threshold', () => {
+    const result = computeLineageDistribution({
+      activatedNodeIds: ['n1', 'n2', 'n3'],
+      lineageByNode: {
+        n1: ['AI alignment research', 'RLHF', 'machine learning fairness'],
+        n2: ['AI alignment research', 'RLHF'],
+        n3: ['labor economics', 'AI alignment research', 'RLHF', 'machine learning fairness', 'tort law'],
+      },
+      nameToCluster,
+      clusterLabels,
+    });
+    // ai-safety: 7/10 = 70%, labor-econ: 1/10 = 10% (below 15%), legal-theory: 1/10 = 10%
+    // Only ai-safety should be above threshold (unless both others also aren't)
+    const belowThreshold = result.filter(r => r.percentage < 0.15);
+    expect(belowThreshold).toHaveLength(0);
+  });
+
+  it('caps at 3 traditions', () => {
+    // Create scenario with 4+ clusters all above threshold
+    const bigNameToCluster: Record<string, string> = {
+      a1: 'c1', a2: 'c2', a3: 'c3', a4: 'c4',
+    };
+    const bigLabels: Record<string, string> = {
+      c1: 'Cluster 1', c2: 'Cluster 2', c3: 'Cluster 3', c4: 'Cluster 4',
+    };
+    const result = computeLineageDistribution({
+      activatedNodeIds: ['n1'],
+      lineageByNode: { n1: ['a1', 'a2', 'a3', 'a4'] },
+      nameToCluster: bigNameToCluster,
+      clusterLabels: bigLabels,
+    });
+    // Each at 25% (above threshold), but capped at 3
+    expect(result.length).toBeLessThanOrEqual(3);
+  });
+
+  it('skips uncategorized lineage names', () => {
+    const result = computeLineageDistribution({
+      activatedNodeIds: ['n1'],
+      lineageByNode: { n1: ['AI alignment research', 'unknown tradition'] },
+      nameToCluster: { 'AI alignment research': 'ai-safety', 'unknown tradition': 'uncategorized' },
+      clusterLabels,
+    });
+    // Only ai-safety should be counted (uncategorized skipped)
+    expect(result).toHaveLength(1);
+    expect(result[0].cluster_id).toBe('ai-safety');
+    expect(result[0].percentage).toBe(1);
+  });
+
+  it('sorts by percentage descending', () => {
+    const result = computeLineageDistribution({
+      activatedNodeIds: ['n1', 'n2'],
+      lineageByNode: {
+        n1: ['labor economics', 'automation displacement', 'STS frameworks'],
+        n2: ['labor economics', 'STS frameworks'],
+      },
+      nameToCluster,
+      clusterLabels,
+    });
+    // labor-econ: 3/5 = 60%, tech-society: 2/5 = 40%
+    expect(result[0].percentage).toBeGreaterThan(result[1].percentage);
+  });
+});
+
+// ── formatLineageContext ────────────────────────────────
+
+describe('formatLineageContext', () => {
+  it('returns empty string for empty frame', () => {
+    expect(formatLineageContext([])).toBe('');
+  });
+
+  it('formats traditions with percentages', () => {
+    const result = formatLineageContext([
+      { cluster_id: 'ai-safety', label: 'AI Safety & Alignment', percentage: 0.45 },
+      { cluster_id: 'labor-econ', label: 'Labor & Political Economy', percentage: 0.22 },
+    ]);
+    expect(result).toContain('Dominant intellectual traditions:');
+    expect(result).toContain('AI Safety & Alignment (45%)');
+    expect(result).toContain('Labor & Political Economy (22%)');
   });
 });

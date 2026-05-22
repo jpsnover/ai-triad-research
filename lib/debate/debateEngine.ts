@@ -85,7 +85,8 @@ import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
-import { computeStructuralScore, critiqueTopicPrompt, formatStructuralContext, parseTopicCritique } from './topicCritique.js';
+import { computeStructuralScore, critiqueTopicPrompt, formatStructuralContext, formatLineageContext, parseTopicCritique, computeLineageDistribution } from './topicCritique.js';
+import type { LineageFrameEntry } from './topicCritique.js';
 import {
   optimizeRelevanceThreshold,
   applyRelevanceThresholdAdaptation,
@@ -1181,7 +1182,7 @@ export class DebateEngine {
       embeddingThreshold: 0.48,
       lexicalThreshold: 0.22,
       minPerCategory: 3,
-      maxTotal: 35,
+      maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 35,
     };
     const scoredPov = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
     const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, { ...relevanceOpts, maxTotal: undefined }, 3, 15);
@@ -1342,10 +1343,53 @@ export class DebateEngine {
         });
       }
 
+      // Lineage distribution (deterministic — from activated nodes' intellectual_lineage)
+      let lineageFrame: LineageFrameEntry[] = [];
+      const lc = this.taxonomy.lineageCategories;
+      if (lc && structuralScore.activated_nodes.length > 0) {
+        // Build per-node lineage lookup from taxonomy nodes
+        const lineageByNode: Record<string, string[]> = {};
+        for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+          for (const node of this.taxonomy[pov]?.nodes ?? []) {
+            const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
+            const lineage = ga?.intellectual_lineage;
+            if (lineage && lineage.length > 0) {
+              lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
+            }
+          }
+        }
+
+        // Build name→cluster and cluster→label lookups from lineage categories
+        const nameToCluster: Record<string, string> = {};
+        for (const [name, val] of Object.entries(lc.mapping)) {
+          nameToCluster[name] = val.l2;
+        }
+        const clusterLabels: Record<string, string> = {};
+        for (const cat of lc.level2_categories) {
+          clusterLabels[cat.id] = cat.label;
+        }
+
+        lineageFrame = computeLineageDistribution({
+          activatedNodeIds: structuralScore.activated_nodes.map(n => n.id),
+          lineageByNode,
+          nameToCluster,
+          clusterLabels,
+        });
+      }
+
       // Phase B: Frame analysis (single LLM call)
-      const prompt = critiqueTopicPrompt(this.session.topic.final, formatStructuralContext(structuralScore));
+      let structuralContext = formatStructuralContext(structuralScore);
+      if (lineageFrame.length > 0) {
+        structuralContext += '\n' + formatLineageContext(lineageFrame);
+      }
+      const prompt = critiqueTopicPrompt(this.session.topic.final, structuralContext);
       const text = await this.generate(prompt, 'Topic critique');
       const critique = parseTopicCritique(text, structuralScore);
+
+      // Store lineage frame on the critique
+      if (lineageFrame.length > 0) {
+        critique.lineage_frame = lineageFrame;
+      }
 
       this.session.topic.critique = critique;
       this.progress('setup', undefined, `Topic quality: ${critique.rating} (${critique.composite_score}/20)`);

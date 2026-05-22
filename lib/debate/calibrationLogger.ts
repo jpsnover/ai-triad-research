@@ -289,6 +289,8 @@ export interface CalibrationDataPoint {
   topic_reframed: boolean;
   /** Dimensions that scored 0 (weakest areas). */
   topic_weakest: string[];
+  /** Dominant intellectual traditions from lineage distribution (top 3 at 15%+). Null if unavailable. */
+  lineage_frame: { cluster_id: string; label: string; percentage: number }[] | null;
 
   // ── Process reward (PRM-adjacent signal) ──
   /** Per-turn process reward scores for correlation with convergence signals */
@@ -852,6 +854,7 @@ export function extractCalibrationData(
       }
       return weak;
     })(),
+    lineage_frame: session.topic.critique?.lineage_frame ?? null,
 
     sycophancy_guard_fired: (session.transcript ?? []).some(e => e.type === 'system' && e.content.includes('[Sycophancy guard]')),
     max_sycophancy_score: (session.per_claim_drift ?? []).reduce((max, s) => Math.max(max, s.sycophancy_score), 0),

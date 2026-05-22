@@ -14,6 +14,13 @@ import { ActionableError } from './errors.js';
 
 // ── Types ────────────────────────────────────────────────
 
+export interface LineageCategoryData {
+  /** Lineage name → { l1 category, l2 cluster } mapping. */
+  mapping: Record<string, { l1: string; l2: string }>;
+  /** Level 2 cluster definitions with labels. */
+  level2_categories: { id: string; label: string; l1_parent: string; member_count: number }[];
+}
+
 export interface LoadedTaxonomy {
   accelerationist: { nodes: PovNode[] };
   safetyist: { nodes: PovNode[] };
@@ -22,6 +29,8 @@ export interface LoadedTaxonomy {
   edges: EdgesFile | null;
   embeddings: Record<string, { pov: string; vector: number[] }>;
   policyRegistry: PolicyRef[];
+  /** Lineage category data (L1 + L2 cluster mapping). Absent if file not found. */
+  lineageCategories?: LineageCategoryData;
 }
 
 export interface ConflictFile {
@@ -182,6 +191,29 @@ export function loadTaxonomy(repoRoot: string): LoadedTaxonomy {
     source_povs: p.source_povs,
   }));
 
+  // Lineage categories (optional — absent means lineage distribution unavailable)
+  const lineageRaw = loadJsonSafe<{
+    mapping?: Record<string, string | { l1: string; l2: string }>;
+    level2_categories?: { id: string; label: string; l1_parent: string; member_count: number }[];
+  } | null>(path.join(taxonomyDir, 'lineage_categories.json'), null);
+
+  let lineageCategories: LineageCategoryData | undefined;
+  if (lineageRaw?.mapping && lineageRaw?.level2_categories) {
+    // Normalize mapping: support both old flat string and new {l1, l2} formats
+    const normalizedMapping: Record<string, { l1: string; l2: string }> = {};
+    for (const [name, val] of Object.entries(lineageRaw.mapping)) {
+      if (typeof val === 'string') {
+        normalizedMapping[name] = { l1: val, l2: 'uncategorized' };
+      } else {
+        normalizedMapping[name] = val;
+      }
+    }
+    lineageCategories = {
+      mapping: normalizedMapping,
+      level2_categories: lineageRaw.level2_categories,
+    };
+  }
+
   return {
     accelerationist: { nodes: acc.nodes ?? [] },
     safetyist: { nodes: saf.nodes ?? [] },
@@ -190,6 +222,7 @@ export function loadTaxonomy(repoRoot: string): LoadedTaxonomy {
     edges,
     embeddings,
     policyRegistry,
+    lineageCategories,
   };
 }
 
