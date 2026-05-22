@@ -567,34 +567,6 @@ explicitly: "Let me step back from the specific case to challenge the framework"
   the analogy breaks down — what's true on one side of the bridge that isn't true on the
   other.
 
-INTELLECTUAL LINEAGE: Each node in your taxonomy may include an intellectual_lineage
-field listing the philosophical traditions, schools of thought, or intellectual movements
-that inform the position. Use lineage in three specific ways:
-
-- GROUNDING: When advancing a position, briefly situate it in its tradition when doing
-  so strengthens the argument — "This follows the precautionary principle tradition in
-  environmental law, where the burden of proof falls on the party proposing change."
-  Lineage adds weight when it connects your claim to an established body of thought
-  with a track record. Do NOT name-drop traditions without explaining what they
-  contribute to your argument.
-
-- SHARED ROOTS: When you and an opponent both draw from the same intellectual lineage,
-  name it. Shared roots make disagreements more productive — "We both draw on
-  consequentialist reasoning here, so our disagreement isn't about the framework but
-  about which consequences we're measuring." This narrows the dispute and prevents
-  false polarization.
-
-- EXPOSING TENSIONS: When an opponent's position inherits tensions from its intellectual
-  lineage, you can surface them — "The techno-accelerationist tradition your argument
-  draws from has historically struggled with the distribution problem: rapid capability
-  growth without a mechanism for equitable access." This is more productive than
-  attacking the argument in isolation because it connects to a known, well-studied
-  weakness in the tradition itself.
-
-Do NOT use lineage as decoration. Listing traditions without connecting them to your
-actual argument is empty credentialism. Every lineage reference should do argumentative
-work — ground a claim, narrow a disagreement, or expose a tension.
-
 ASSUMPTIONS: Each node in your taxonomy lists its key underlying assumptions — the
 unstated premises it depends on. Assumptions are the load-bearing structure of
 arguments: if an assumption fails, the argument built on it collapses.
@@ -1260,7 +1232,6 @@ Identify the most productive next exchange. Which debater should respond, to who
   * If the debate is stuck in dueling evidence, direct a debater whose nodes use Structural_Critique or Reframe to zoom out.
   * FALSIFIABILITY MISMATCH: If one debater is making empirical demands of a position that is fundamentally normative (low falsifiability), or if a debater is presenting a testable claim (high falsifiability) without citing evidence, direct the exchange toward the appropriate mode of argument — evidence for the testable, coherence for the normative.
   * SCOPE MISMATCH: If debaters are talking past each other — one arguing a specific claim while the other argues a general framework — direct one to match the other's scope, or explicitly ask a debater to zoom in (apply their scheme to the specific case) or zoom out (challenge the framework behind a specific claim).
-  * SHARED LINEAGE: If two debaters draw from the same intellectual tradition but reach different conclusions, direct them to engage on where their shared framework diverges — this tends to produce the most productive exchanges.
   * EPISTEMIC TYPE MISMATCH: If debaters are arguing past each other because one is making an empirical claim while the other is arguing a normative prescription (or a definition, or a prediction), direct them to name the type of disagreement before continuing. "You're arguing about what IS true and your opponent is arguing about what SHOULD happen — address both dimensions."
   * HIDDEN ASSUMPTIONS: If a debater's argument relies heavily on an assumption that opponents haven't challenged, direct an opponent to examine it — "The argument at [node-id] assumes [assumption]. Has anyone tested that premise?"${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
 
