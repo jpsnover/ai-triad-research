@@ -20,9 +20,11 @@ import { api } from '@bridge';
 const PHASE_LABELS: Record<string, string> = {
   setup: 'Setup',
   clarification: 'Refining',
+  'edit-claims': 'Editing',
   opening: 'Opening',
   debate: 'Active',
   closed: 'Closed',
+  cancelled: 'Cancelled',
 };
 
 const SOURCE_TYPE_LABELS: Record<string, string> = {

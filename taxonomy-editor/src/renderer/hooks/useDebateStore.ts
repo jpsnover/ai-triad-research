@@ -1944,12 +1944,12 @@ interface DebateStore {
   debateLoading: boolean;
   debateGenerating: SpeakerId | null;
   debateError: string | null;
-  responseLength: 'brief' | 'medium' | 'detailed';
-  setResponseLength: (length: 'brief' | 'medium' | 'detailed') => void;
+  responseLength: 'claims' | 'brief' | 'medium' | 'detailed';
+  setResponseLength: (length: 'claims' | 'brief' | 'medium' | 'detailed') => void;
   audience: DebateAudience;
   setAudience: (audience: DebateAudience) => void;
   /** Set display tier for a specific transcript entry (DT-3). */
-  setEntryDisplayTier: (entryId: string, tier: 'brief' | 'medium' | 'detailed') => void;
+  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed') => void;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
@@ -4603,6 +4603,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
         pushWarning(get, set, 'Taxonomy gap analysis skipped');
       }
+
+      // Transition phase to closed now that synthesis and all post-synthesis passes are done
+      get().updatePhase('closed');
     } catch (err) {
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {

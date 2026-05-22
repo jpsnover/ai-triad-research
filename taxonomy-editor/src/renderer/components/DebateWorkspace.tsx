@@ -8,7 +8,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
-import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode } from '../types/debate';
+import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge } from '../types/debate';
+import { computeQbafStrengths } from '@lib/debate/qbaf';
+import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import type { TopicCritique, StructuralScore, FrameScore } from '@lib/debate/topicCritique';
 import type { TabId } from '../types/taxonomy';
 import { DebateSourceViewer } from './DebateSourceViewer';
@@ -163,6 +165,120 @@ function speakerColor(speaker: SpeakerId | 'system' | 'document' | 'moderator'):
   if (speaker === 'moderator') return 'var(--color-moderator, #8b5cf6)';
   const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
   return info?.color;
+}
+
+// ── Claims View (t/52) — arg net subgraph per entry ─────
+
+const STRENGTH_BAND = (v: number) =>
+  v >= 0.8 ? { label: 'Strong', color: '#22c55e' }
+  : v >= 0.5 ? { label: 'Moderate', color: '#3b82f6' }
+  : v >= 0.3 ? { label: 'Weak', color: '#f59e0b' }
+  : { label: 'Very Weak', color: '#ef4444' };
+
+function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
+  node: ArgumentNetworkNode;
+  attacks: ArgumentNetworkEdge[];
+  supports: ArgumentNetworkEdge[];
+  allNodes: ArgumentNetworkNode[];
+  strengthMap: Map<string, number>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasEdges = attacks.length > 0 || supports.length > 0;
+  const base = node.base_strength ?? 0.5;
+  const computed = strengthMap.get(node.id) ?? node.computed_strength ?? base;
+  const delta = computed - base;
+  const band = STRENGTH_BAND(computed);
+
+  return (
+    <div style={{ margin: '4px 0', paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        {hasEdges ? (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1, flexShrink: 0 }}
+          >{expanded ? '\u25BC' : '\u25B6'}</button>
+        ) : <span style={{ width: 10, flexShrink: 0 }} />}
+        <strong style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>{node.id}</strong>
+        <span style={{ fontSize: '0.7rem' }}>{speakerLabel(node.speaker)}</span>
+        {node.bdi_category && (
+          <span style={{ fontSize: '0.7rem' }}>
+            {node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : 'Intention'}
+          </span>
+        )}
+        {!hasEdges && <span style={{ color: '#f59e0b', fontSize: '0.7rem' }}>[unaddressed]</span>}
+        <span style={{
+          fontSize: '0.7rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+          background: `${band.color}22`, color: band.color,
+        }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)})`}>
+          {band.label} {computed.toFixed(2)}
+          {Math.abs(delta) > 0.01 && (
+            <span style={{ color: delta > 0 ? '#22c55e' : '#ef4444', marginLeft: 3 }}>
+              {delta > 0 ? '+' : ''}{delta.toFixed(2)}
+            </span>
+          )}
+        </span>
+        {hasEdges && (
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+            {attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+      <div style={{ paddingLeft: 18, marginTop: 2, fontSize: '0.8rem' }}>{node.text}</div>
+      {expanded && (
+        <div style={{ paddingLeft: 18, marginTop: 4, fontSize: '0.7rem' }}>
+          {attacks.map(e => {
+            const src = allNodes.find(n => n.id === e.source);
+            return (
+              <div key={`a-${e.source}`} style={{ color: '#ef4444', marginBottom: 2 }}>
+                ← <strong>{e.source}</strong> {e.attack_type ?? 'rebut'} ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
+              </div>
+            );
+          })}
+          {supports.map(e => {
+            const src = allNodes.find(n => n.id === e.source);
+            return (
+              <div key={`s-${e.source}`} style={{ color: '#22c55e', marginBottom: 2 }}>
+                ← <strong>{e.source}</strong> support ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClaimsView({ entryId, debate }: { entryId?: string; debate: { argument_network?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }; transcript: TranscriptEntry[] } }) {
+  const an = debate.argument_network;
+  if (!an || an.nodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No argument network yet</div>;
+
+  const entryNodes = entryId ? an.nodes.filter(n => n.source_entry_id === entryId) : an.nodes;
+  if (entryNodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No claims extracted for this statement</div>;
+
+  const qbafNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
+  const qbafEdges: QbafEdge[] = an.edges.map(e => ({
+    source: e.source, target: e.target,
+    type: e.type as 'attacks' | 'supports',
+    weight: e.weight ?? 0.5,
+    attack_type: e.attack_type,
+  }));
+  const { strengths: strengthMap } = computeQbafStrengths(qbafNodes, qbafEdges);
+
+  const caCount = an.edges.filter(e => entryNodes.some(n => n.id === e.target) && e.type === 'attacks').length;
+  const raCount = an.edges.filter(e => entryNodes.some(n => n.id === e.target) && e.type === 'supports').length;
+
+  return (
+    <div className="claims-view" style={{ fontSize: '0.8rem' }}>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+        {entryNodes.length} claim{entryNodes.length !== 1 ? 's' : ''} · {caCount} attack{caCount !== 1 ? 's' : ''} · {raCount} support{raCount !== 1 ? 's' : ''}
+      </div>
+      {entryNodes.map(node => {
+        const attacks = an.edges.filter(e => e.target === node.id && e.type === 'attacks');
+        const supports = an.edges.filter(e => e.target === node.id && e.type === 'supports');
+        return <ClaimNodeRow key={node.id} node={node} attacks={attacks} supports={supports} allNodes={an.nodes} strengthMap={strengthMap} />;
+      })}
+    </div>
+  );
 }
 
 // ── Phase 6: Taxonomy cross-navigation helpers ──────────
@@ -967,14 +1083,14 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         </span>
         {showTierPills && (
           <span className="debate-tier-pills">
-            {(['brief', 'medium', 'detailed'] as const).map(tier => (
+            {(['claims', 'brief', 'medium', 'detailed'] as const).map(tier => (
               <button
                 key={tier}
                 className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
                 onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
-                title={tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : 'Full response'}
+                title={tier === 'claims' ? 'Argument network claims' : tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : 'Full response'}
               >
-                {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
+                {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
               </button>
             ))}
           </span>
@@ -1043,19 +1159,27 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
           ))}
         </div>
       )}
-      <div className="debate-statement-content markdown-body">
-        {findQuery
-          ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(displayContent)}</Markdown>}
-        {isTruncated && (
-          <span
-            className="debate-tier-truncated"
-            onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, 'detailed'); }}
-            title="Click to show full content"
-          >... show full</span>
-        )}
-      </div>
-      <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={activeTier as DetailTier} />
+      {activeTier === 'claims' ? (
+        <div className="debate-statement-content">
+          <ClaimsView entryId={entry.id} debate={activeDebate!} />
+        </div>
+      ) : (
+        <>
+          <div className="debate-statement-content markdown-body">
+            {findQuery
+              ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
+              : <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(displayContent)}</Markdown>}
+            {isTruncated && (
+              <span
+                className="debate-tier-truncated"
+                onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, 'detailed'); }}
+                title="Click to show full content"
+              >... show full</span>
+            )}
+          </div>
+          <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={activeTier as DetailTier} />
+        </>
+      )}
       <EntryCommentBadge entryId={entry.id} />
       {entry.speaker === 'system' && entry.type === 'system' && entry.content.includes('Consider exploring:') && (() => {
         const match = entry.content.match(/Consider exploring:\s*(.+)/s);
@@ -2886,14 +3010,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           <ExportButtonInline onExport={onExport} />
         )}
         <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
-          {(['brief', 'medium', 'detailed'] as const).map(tier => (
+          {(['claims', 'brief', 'medium', 'detailed'] as const).map(tier => (
             <button
               key={tier}
               className={`debate-tier-pill${defaultTier === tier ? ' debate-tier-pill-active' : ''}`}
               onClick={() => setDefaultTier(tier)}
-              title={`Set all turns to ${tier}${tier === 'brief' ? ' (2-3 sentences)' : tier === 'medium' ? ' (key points)' : ' (full content)'}`}
+              title={tier === 'claims' ? 'Show argument network claims' : `Set all turns to ${tier}${tier === 'brief' ? ' (2-3 sentences)' : tier === 'medium' ? ' (key points)' : ' (full content)'}`}
             >
-              {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
+              {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : 'Detail'}
             </button>
           ))}
         </span>
