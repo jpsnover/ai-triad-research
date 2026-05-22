@@ -21,9 +21,12 @@ export async function generateViaClaude(
   const reqBody: Record<string, unknown> = {
     model: apiModelId,
     max_tokens: opts.maxTokens ?? 8192,
-    temperature: opts.temperature ?? 0.7,
     messages: [{ role: 'user', content: userContent }],
   };
+  // Only include temperature when explicitly requested — some models (e.g. claude-opus-4-7) reject it
+  if (opts.temperature != null) {
+    reqBody.temperature = opts.temperature;
+  }
   if (opts.systemMessage) {
     reqBody.system = [{ type: 'text', text: opts.systemMessage, cache_control: { type: 'ephemeral' } }];
   }
@@ -35,14 +38,16 @@ export async function generateViaClaude(
     }));
   }
 
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': apiKey,
+    'anthropic-version': '2023-06-01',
+  };
+
   const response = await withTimeout(
     fetchFn('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
+      headers,
       body: JSON.stringify(reqBody),
     }),
     timeoutMs,
@@ -59,6 +64,29 @@ export async function generateViaClaude(
       nextSteps: ['Wait a minute and retry', 'Switch to a different model', 'Check API quota'],
     });
   }
+  // Some models (e.g. claude-opus-4-7) reject temperature — retry without it
+  if (response.status === 400 && reqBody.temperature != null && bodyText.includes('temperature')) {
+    delete reqBody.temperature;
+    const retryResponse = await withTimeout(
+      fetchFn('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(reqBody),
+      }),
+      timeoutMs,
+      'Claude API request (retry without temperature)',
+    );
+    const retryBodyText = await withTimeout(retryResponse.text(), 60_000, 'Reading Claude retry response');
+    if (!retryResponse.ok) {
+      throw new ActionableError({
+        goal: 'Generate text via Claude',
+        problem: `Claude API error ${retryResponse.status}: ${retryBodyText.slice(0, 500)}`,
+        location: 'ai-client.generateViaClaude',
+        nextSteps: ['Check your API key', 'Verify the model ID', 'Try a different model'],
+      });
+    }
+    return parseClaudeResponse(retryBodyText);
+  }
   if (!response.ok) {
     throw new ActionableError({
       goal: 'Generate text via Claude',
@@ -68,6 +96,10 @@ export async function generateViaClaude(
     });
   }
 
+  return parseClaudeResponse(bodyText);
+}
+
+function parseClaudeResponse(bodyText: string): ProviderResult {
   let json: {
     content?: { type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }[];
     usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
