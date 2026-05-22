@@ -102,8 +102,8 @@ import type { OpeningPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnPipelineInput } from '@lib/debate/turnPipeline';
 import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggestion } from '../types/debate';
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
-import { evaluateLookahead, buildRegenHint } from '@lib/debate/lookaheadGate';
-import type { LookaheadDiagnostics, LookaheadGateResult } from '@lib/debate/lookaheadGate';
+import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
+import type { LookaheadDiagnostics, LookaheadGateResult, ClaimAnalysis, PerClaimResult } from '@lib/debate/lookaheadGate';
 import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique } from '@lib/debate/topicCritique';
 import type { TopicCritique } from '@lib/debate/topicCritique';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
@@ -529,7 +529,10 @@ function checkAnInvariants(label: string, get: () => any, expectedMinCount: numb
  * Runs in the background after each turn — does not block the debate flow.
  */
 /** Callback for lookahead-driven regeneration. Returns new statement + pre-extracted claims, or null to skip retry. */
-type LookaheadRegenCallback = (hint: string) => Promise<{
+type LookaheadRegenCallback = (guidance: {
+  strongFoundations?: ClaimAnalysis['strongFoundations'];
+  avoidClaims?: ClaimAnalysis['avoidClaims'];
+}) => Promise<{
   statement: string;
   debaterClaims?: { claim: string; targets: string[] }[];
 } | null>;
@@ -755,29 +758,39 @@ async function extractClaimsAndUpdateAN(
     let lookaheadDiag: LookaheadDiagnostics | undefined;
     try {
       const lookaheadStart = Date.now();
-      const firstResult = evaluateLookahead({
+      const lookaheadInput = {
         speaker,
         existingNodes: an.nodes,
         existingEdges: an.edges,
         tentativeClaims: newNodes.map(n => ({ text: n.text, base_strength: n.base_strength ?? 0.5 })),
         tentativeEdges: newEdges,
         cruxes: debate.crux_tracker,
-      });
+      };
+      const { batchResult: firstResult, perClaim: firstPerClaim } = evaluateLookaheadPerClaim(lookaheadInput);
 
       const MAX_REGEN_ATTEMPTS = 3;
       let bestResult = firstResult;
       let bestNodes = [...newNodes];
       let bestEdges = [...newEdges];
       let bestStatement: string | null = null;
-      const regenAttempts: import('@lib/debate/lookaheadGate').LookaheadGateResult[] = [];
+      const regenAttempts: LookaheadGateResult[] = [];
+      const perClaimAnalysisLog: { perClaim: PerClaimResult[]; analysis: ClaimAnalysis }[] = [];
 
       if (!firstResult.pass && regenCallback) {
-        for (let attempt = 0; attempt < MAX_REGEN_ATTEMPTS; attempt++) {
-          const hint = buildRegenHint(bestResult);
-          console.log(`[Lookahead] Gate failed (Δu=${bestResult.utility_delta.toFixed(3)}), requesting regen ${attempt + 1}/${MAX_REGEN_ATTEMPTS}`);
-          getGlobalRecorder()?.record({ type: 'lookahead.regen', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Lookahead gate failed, triggering regen attempt ${attempt + 1}`, data: { attempt: attempt + 1, utility_delta: bestResult.utility_delta, threshold: bestResult.threshold } });
+        // Seed cumulative guidance from the first attempt's per-claim analysis
+        const firstAnalysis = buildClaimAnalysis(firstPerClaim);
+        perClaimAnalysisLog.push({ perClaim: firstPerClaim, analysis: firstAnalysis });
+        const cumulativeStrong = [...firstAnalysis.strongFoundations];
+        const cumulativeAvoid = [...firstAnalysis.avoidClaims];
 
-          const regenResult = await regenCallback(hint);
+        for (let attempt = 0; attempt < MAX_REGEN_ATTEMPTS; attempt++) {
+          console.log(`[Lookahead] Gate failed (Δu=${bestResult.utility_delta.toFixed(3)}), requesting regen ${attempt + 1}/${MAX_REGEN_ATTEMPTS} (${cumulativeStrong.length} strong, ${cumulativeAvoid.length} avoid)`);
+          getGlobalRecorder()?.record({ type: 'lookahead.regen', component: 'argument-network-extraction', level: 'info', debate_id: debate.id, turn_id: entryId, speaker, message: `Lookahead gate failed, triggering regen attempt ${attempt + 1}`, data: { attempt: attempt + 1, utility_delta: bestResult.utility_delta, threshold: bestResult.threshold, strong_count: cumulativeStrong.length, avoid_count: cumulativeAvoid.length } });
+
+          const regenResult = await regenCallback({
+            strongFoundations: cumulativeStrong.length > 0 ? cumulativeStrong : undefined,
+            avoidClaims: cumulativeAvoid.length > 0 ? cumulativeAvoid : undefined,
+          });
           if (!regenResult) break; // callback returned null — stop retrying
 
           // Re-extract claims from regenerated response
@@ -827,8 +840,8 @@ async function extractClaimsAndUpdateAN(
               } catch { /* non-blocking */ }
             }
 
-            // Re-evaluate lookahead on retry claims
-            const retryResult = evaluateLookahead({
+            // Per-claim evaluation on retry claims
+            const { batchResult: retryResult, perClaim: retryPerClaim } = evaluateLookaheadPerClaim({
               speaker,
               existingNodes: an.nodes,
               existingEdges: an.edges,
@@ -837,6 +850,19 @@ async function extractClaimsAndUpdateAN(
               cruxes: debate.crux_tracker,
             });
             regenAttempts.push(retryResult);
+
+            // Accumulate analysis from this attempt for subsequent retries
+            const retryAnalysis = buildClaimAnalysis(retryPerClaim);
+            perClaimAnalysisLog.push({ perClaim: retryPerClaim, analysis: retryAnalysis });
+            // Merge: add new strong/avoid items, dedup by text
+            const seenStrong = new Set(cumulativeStrong.map(s => s.text));
+            for (const s of retryAnalysis.strongFoundations) {
+              if (!seenStrong.has(s.text)) { cumulativeStrong.push(s); seenStrong.add(s.text); }
+            }
+            const seenAvoid = new Set(cumulativeAvoid.map(a => a.text));
+            for (const a of retryAnalysis.avoidClaims) {
+              if (!seenAvoid.has(a.text)) { cumulativeAvoid.push(a); seenAvoid.add(a.text); }
+            }
 
             // Track the best attempt — use if it passes or beats previous best
             if (retryResult.pass || retryResult.utility_delta > bestResult.utility_delta) {
@@ -881,15 +907,18 @@ async function extractClaimsAndUpdateAN(
           regen_triggered: true,
           regen_attempt: regenAttempts[regenAttempts.length - 1], // backwards compat
           regen_attempts: regenAttempts,
+          per_claim_analysis: perClaimAnalysisLog,
           final_pass: bestResult !== firstResult && (bestResult.pass || bestResult.utility_delta > firstResult.utility_delta),
           elapsed_ms: Date.now() - lookaheadStart,
         };
       } else {
-        // Gate passed or no regen callback — record as-is
+        // Gate passed or no regen callback — still record per-claim analysis for diagnostics
+        const firstAnalysis = buildClaimAnalysis(firstPerClaim);
         lookaheadDiag = {
           stage: 'lookahead',
           first_attempt: firstResult,
           regen_triggered: false,
+          per_claim_analysis: [{ perClaim: firstPerClaim, analysis: firstAnalysis }],
           final_pass: firstResult.pass,
           elapsed_ms: Date.now() - lookaheadStart,
         };
@@ -3842,10 +3871,15 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           stage_diagnostics: pipelineResult.stage_diagnostics,
         });
         void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims,
-          // Lookahead regen callback: regenerate the debate response with quality feedback
-          async (hint: string) => {
+          // Lookahead regen callback: regenerate with per-claim guidance, frozen Brief
+          async (guidance) => {
             try {
-              const regenPipelineInput = { ...pipelineInput, concessionHint: (pipelineInput.concessionHint ?? '') + '\n\n[MOVE QUALITY FEEDBACK — your previous response weakened your position]\n' + hint };
+              const regenPipelineInput = {
+                ...pipelineInput,
+                frozenBrief: pipelineResult.brief,           // skip Brief stage — situation doesn't change between retries
+                strongFoundations: guidance.strongFoundations, // "base your argument on these"
+                avoidClaims: guidance.avoidClaims,             // "do not use these for these reasons"
+              };
               const regenPipelineResult = await runTurnPipeline(regenPipelineInput, stageGenerate, (_stage, label) => set({ debateActivity: `Regenerating: ${label}` }));
               const regenAssembled = assemblePipelineResult(regenPipelineResult);
               if (!regenAssembled) return null;

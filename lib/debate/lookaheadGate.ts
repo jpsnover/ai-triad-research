@@ -82,6 +82,8 @@ export interface LookaheadDiagnostics {
   regen_attempt?: LookaheadGateResult;
   /** All regen attempt results in order (empty if no regen triggered). */
   regen_attempts?: LookaheadGateResult[];
+  /** Per-claim marginal utility analysis (v2). One entry per retry attempt, indexed same as regen_attempts. */
+  per_claim_analysis?: { perClaim: PerClaimResult[]; analysis: ClaimAnalysis }[];
   /** Final pass status (true if any attempt passed). */
   final_pass: boolean;
   /** Total wall-clock time for the lookahead evaluation (ms). */
@@ -209,6 +211,216 @@ export function buildRegenHint(result: LookaheadGateResult): string {
   }
 
   return parts.join('\n');
+}
+
+// ── Per-claim marginal utility (v2) ───────────────────────
+
+export interface PerClaimResult {
+  /** Index in the original tentativeClaims array. */
+  index: number;
+  /** Claim text. */
+  text: string;
+  /** Base strength assigned during extraction. */
+  base_strength: number;
+  /** Marginal utility delta: utility(all claims) − utility(all claims except this one). */
+  marginal_delta: number;
+  /** Classification based on marginal contribution. */
+  classification: 'STRONG' | 'WEAK';
+  /** Which utility component this claim impacts most (for reason generation). */
+  dominant_component: 'position_strength' | 'attack_effectiveness' | 'crux_engagement';
+}
+
+export interface ClaimAnalysisItem {
+  /** Claim text. */
+  text: string;
+  /** Base strength from extraction scoring. */
+  base_strength: number;
+  /** Marginal utility delta. */
+  marginal_delta: number;
+  /** Human-readable reason for the classification. */
+  reason: string;
+}
+
+export interface ClaimAnalysis {
+  /** Claims with positive marginal utility — "base your argument on these." */
+  strongFoundations: ClaimAnalysisItem[];
+  /** Claims with negative marginal utility — "do not use these." */
+  avoidClaims: ClaimAnalysisItem[];
+}
+
+/**
+ * Evaluate each tentative claim's marginal utility contribution.
+ *
+ * For each claim, computes utility with all claims vs utility without that
+ * specific claim. The difference is the claim's marginal Δu — positive means
+ * the claim helps, negative means it hurts.
+ *
+ * Performance: O(n) QBAF evaluations where n = number of tentative claims.
+ * For 3-6 claims on a 100-node network, ~30-60ms.
+ */
+export function evaluateLookaheadPerClaim(input: LookaheadGateInput): {
+  batchResult: LookaheadGateResult;
+  perClaim: PerClaimResult[];
+} {
+  // First, compute the batch result (all claims together)
+  const batchResult = evaluateLookahead(input);
+
+  if (input.tentativeClaims.length === 0) {
+    return { batchResult, perClaim: [] };
+  }
+
+  // For single claim, marginal delta equals the batch delta
+  if (input.tentativeClaims.length === 1) {
+    const claim = input.tentativeClaims[0];
+    const dominant = identifyDominantComponent(batchResult.utility_before, batchResult.utility_after);
+    return {
+      batchResult,
+      perClaim: [{
+        index: 0,
+        text: claim.text,
+        base_strength: claim.base_strength,
+        marginal_delta: batchResult.utility_delta,
+        classification: batchResult.utility_delta >= 0 ? 'STRONG' : 'WEAK',
+        dominant_component: dominant,
+      }],
+    };
+  }
+
+  // Build tentative node IDs so we can map claims to edges
+  const tentativeNodeIds = buildTentativeNodeIds(input.existingNodes, input.tentativeClaims);
+
+  const perClaim: PerClaimResult[] = [];
+
+  for (let i = 0; i < input.tentativeClaims.length; i++) {
+    // Leave-one-out: all claims except claim[i]
+    const claimsWithout = input.tentativeClaims.filter((_, j) => j !== i);
+    const excludedNodeId = tentativeNodeIds[i];
+
+    // Filter edges: remove any edge touching the excluded node
+    const edgesWithout = input.tentativeEdges.filter(
+      e => e.source !== excludedNodeId && e.target !== excludedNodeId,
+    );
+
+    const withoutResult = evaluateLookahead({
+      ...input,
+      tentativeClaims: claimsWithout,
+      tentativeEdges: edgesWithout,
+    });
+
+    // Marginal delta = utility(all) - utility(all except this one)
+    const marginal_delta = batchResult.utility_after.composite - withoutResult.utility_after.composite;
+
+    const dominant = identifyDominantComponent(withoutResult.utility_after, batchResult.utility_after);
+
+    perClaim.push({
+      index: i,
+      text: input.tentativeClaims[i].text,
+      base_strength: input.tentativeClaims[i].base_strength,
+      marginal_delta,
+      classification: marginal_delta >= 0 ? 'STRONG' : 'WEAK',
+      dominant_component: dominant,
+    });
+  }
+
+  return { batchResult, perClaim };
+}
+
+/**
+ * Generate human-readable claim analysis from per-claim results.
+ * Produces `strongFoundations` and `avoidClaims` arrays with natural
+ * strategic guidance, not raw metric dumps.
+ */
+export function buildClaimAnalysis(perClaim: PerClaimResult[]): ClaimAnalysis {
+  const strongFoundations: ClaimAnalysisItem[] = [];
+  const avoidClaims: ClaimAnalysisItem[] = [];
+
+  for (const claim of perClaim) {
+    const item: ClaimAnalysisItem = {
+      text: claim.text,
+      base_strength: claim.base_strength,
+      marginal_delta: claim.marginal_delta,
+      reason: generateClaimReason(claim),
+    };
+
+    if (claim.classification === 'STRONG') {
+      strongFoundations.push(item);
+    } else {
+      avoidClaims.push(item);
+    }
+  }
+
+  // Sort strong by delta descending, weak by delta ascending (most harmful first)
+  strongFoundations.sort((a, b) => b.marginal_delta - a.marginal_delta);
+  avoidClaims.sort((a, b) => a.marginal_delta - b.marginal_delta);
+
+  return { strongFoundations, avoidClaims };
+}
+
+/** Identify which utility component changed most between two evaluations. */
+function identifyDominantComponent(
+  before: AgentUtility,
+  after: AgentUtility,
+): 'position_strength' | 'attack_effectiveness' | 'crux_engagement' {
+  const deltas = [
+    { name: 'position_strength' as const, delta: Math.abs(after.position_strength - before.position_strength) },
+    { name: 'attack_effectiveness' as const, delta: Math.abs(after.attack_effectiveness - before.attack_effectiveness) },
+    { name: 'crux_engagement' as const, delta: Math.abs(after.crux_engagement - before.crux_engagement) },
+  ];
+  return deltas.reduce((a, b) => a.delta >= b.delta ? a : b).name;
+}
+
+/** Generate a human-readable reason for a claim's classification. */
+function generateClaimReason(claim: PerClaimResult): string {
+  if (claim.classification === 'STRONG') {
+    if (claim.base_strength >= 0.8) {
+      if (claim.dominant_component === 'crux_engagement') {
+        return 'Directly engages a core crux — high-impact move that advances the debate.';
+      }
+      if (claim.dominant_component === 'attack_effectiveness') {
+        return 'Effective attack on opposing position — weakens their strongest arguments.';
+      }
+      return 'Strong declarative claim — anchors your position with high specificity.';
+    }
+    if (claim.dominant_component === 'crux_engagement') {
+      return 'Engages an active crux — keeps the debate focused on key disagreements.';
+    }
+    if (claim.dominant_component === 'attack_effectiveness') {
+      return 'Targets an opposing weak point — useful for shifting the balance.';
+    }
+    return 'Concrete mechanism or evidence — advances the debate with actionable specificity.';
+  }
+
+  // WEAK claim reasons
+  if (claim.base_strength < 0.3) {
+    return 'Too vague to anchor your position — low specificity dilutes otherwise strong claims.';
+  }
+  if (claim.dominant_component === 'position_strength' && claim.marginal_delta < -0.005) {
+    return 'Undermines your own position — this claim weakens your argument network coherence.';
+  }
+  if (claim.dominant_component === 'attack_effectiveness') {
+    return 'Ineffective attack — targets a well-defended position without sufficient support.';
+  }
+  if (claim.dominant_component === 'crux_engagement') {
+    return 'Avoids the core cruxes — tangential argument that distracts from key disagreements.';
+  }
+  if (claim.marginal_delta < -0.005) {
+    return 'Weakens overall position — the cost of this claim outweighs its contribution.';
+  }
+  return 'Marginal contribution — this claim adds little strategic value to your position.';
+}
+
+/** Build the tentative node IDs that would be created for the given claims. */
+function buildTentativeNodeIds(
+  existingNodes: readonly ArgumentNetworkNode[],
+  claims: readonly LookaheadTentativeClaim[],
+): string[] {
+  const startId = existingNodes.length > 0
+    ? Math.max(...existingNodes.map(n => {
+        const match = n.id.match(/^AN-(\d+)$/);
+        return match ? parseInt(match[1], 10) : 0;
+      })) + 1
+    : 1;
+  return claims.map((_, i) => `AN-${startId + i}`);
 }
 
 // ── Helpers ───────────────────────────────────────────────
