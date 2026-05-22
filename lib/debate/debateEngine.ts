@@ -215,6 +215,12 @@ export interface DebateConfig {
   throttleMs?: number;
   /** Perturbation testing config — inject adversarial prompt at a specific turn for resilience evaluation. Evaluation/benchmark only. */
   perturbation?: import('./types').PerturbationConfig;
+  /** Run topic wisdom scoring at setup. Default: true. */
+  enableWisdomEvaluation?: boolean;
+  /** Composite score (0-20) below which topic reframing triggers. Default: 10. */
+  wisdomReframeThreshold?: number;
+  /** Auto-apply rewritten topic when below threshold. Default: true. When false, score is computed but topic is not reframed. */
+  wisdomAutoReframe?: boolean;
 }
 
 export interface DebateProgress {
@@ -334,7 +340,8 @@ export class DebateEngine {
 
     try {
       // Phase 0.5: Topic critique (free-form topics only, before clarification)
-      if (this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
+      if (this.config.enableWisdomEvaluation !== false &&
+          this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
         await this.runTopicCritique();
       }
 
@@ -1342,6 +1349,85 @@ export class DebateEngine {
 
       this.session.topic.critique = critique;
       this.progress('setup', undefined, `Topic quality: ${critique.rating} (${critique.composite_score}/20)`);
+
+      // Reframing: apply rewritten topic when below threshold
+      const threshold = this.config.wisdomReframeThreshold ?? 10;
+      const autoReframe = this.config.wisdomAutoReframe !== false;
+
+      if (critique.composite_score < threshold && critique.rewritten_topic && autoReframe) {
+        this.progress('setup', undefined, 'Reframing topic for productive disagreement');
+
+        // Preserve original in refined, apply rewritten topic
+        this.session.topic.refined = this.session.topic.final;
+        this.session.topic.final = critique.rewritten_topic;
+        critique.reframe_applied = true;
+
+        // Post-reframe re-score (deterministic only) to validate structural improvement
+        if (topicEmbedding && adapter.computeQueryEmbedding) {
+          try {
+            const { vector: reframedEmbedding } = await adapter.computeQueryEmbedding(critique.rewritten_topic);
+            const reframedStructural = computeStructuralScore({
+              topicEmbedding: reframedEmbedding,
+              povNodes,
+              situationNodes: this.taxonomy.situations?.nodes ?? [],
+              embeddings: this.taxonomy.embeddings,
+              evidenceIndex: this.sourceEvidenceIndex ?? undefined,
+            });
+            // Only keep the reframe if structural score didn't regress
+            if (reframedStructural.total < structuralScore.total) {
+              // Revert — reframing made structural coverage worse
+              this.session.topic.final = this.session.topic.refined!;
+              this.session.topic.refined = null;
+              critique.reframe_applied = false;
+              critique.reframe_changes = 'Reverted: structural score regressed after reframing';
+              this.addEntry({
+                type: 'system', speaker: 'system',
+                content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframing reverted: structural score regressed (${reframedStructural.total} < ${structuralScore.total}).`,
+                taxonomy_refs: [], metadata: {},
+              });
+            } else {
+              critique.reframe_changes = `Reframed topic applied (structural: ${structuralScore.total} → ${reframedStructural.total})`;
+              this.addEntry({
+                type: 'system', speaker: 'system',
+                content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframed: ${critique.reframe_changes}`,
+                taxonomy_refs: [], metadata: {},
+              });
+            }
+          } catch {
+            // Re-score failed — keep the reframe, log without validation
+            critique.reframe_changes = 'Reframed topic applied (post-reframe re-score unavailable)';
+            this.addEntry({
+              type: 'system', speaker: 'system',
+              content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframed (re-score skipped).`,
+              taxonomy_refs: [], metadata: {},
+            });
+          }
+        } else {
+          critique.reframe_changes = 'Reframed topic applied (no embedding available for re-score)';
+          this.addEntry({
+            type: 'system', speaker: 'system',
+            content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Reframed (no re-score).`,
+            taxonomy_refs: [], metadata: {},
+          });
+        }
+
+        this.progress('setup', undefined, `Topic reframed: ${critique.reframe_changes}`);
+      } else if (critique.composite_score < threshold && !autoReframe) {
+        // Score-only mode: log but don't reframe
+        this.addEntry({
+          type: 'system', speaker: 'system',
+          content: `Topic wisdom score: ${critique.composite_score}/20 (below ${threshold}). Auto-reframe disabled — topic unchanged.`,
+          taxonomy_refs: [], metadata: {},
+        });
+      } else {
+        // Score above threshold — log for diagnostics
+        const exploratoryNote = critique.exploratory ? ' [exploratory — low evidence coverage]' : '';
+        this.addEntry({
+          type: 'system', speaker: 'system',
+          content: `Topic wisdom score: ${critique.composite_score}/20. No reframing needed.${exploratoryNote}`,
+          taxonomy_refs: [], metadata: {},
+        });
+      }
     } catch (err) {
       this.warn('Topic critique', err, 'Topic quality evaluation skipped — does not affect debate flow');
     }

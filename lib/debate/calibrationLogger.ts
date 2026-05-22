@@ -282,6 +282,14 @@ export interface CalibrationDataPoint {
   /** Premature concession cascades: sequential concessions by different agents within 2 turns. */
   concession_cascades: number;
 
+  // ── Topic wisdom evaluation ──
+  /** Composite topic wisdom score (0-20). Null if evaluation was skipped. */
+  topic_wisdom_total: number | null;
+  /** Whether topic reframing was applied. */
+  topic_reframed: boolean;
+  /** Dimensions that scored 0 (weakest areas). */
+  topic_weakest: string[];
+
   // ── Process reward (PRM-adjacent signal) ──
   /** Per-turn process reward scores for correlation with convergence signals */
   process_reward_series: { round: number; speaker: string; score: number; components: Record<string, number> }[] | null;
@@ -822,6 +830,28 @@ export function extractCalibrationData(
       ? Object.fromEntries(Object.entries(agentUtilities).map(([k, v]) => [k, v.concession_asymmetry]))
       : null,
     concession_cascades: concessionCascades,
+
+    topic_wisdom_total: session.topic.critique?.composite_score ?? null,
+    topic_reframed: session.topic.critique?.reframe_applied ?? false,
+    topic_weakest: (() => {
+      const critique = session.topic.critique;
+      if (!critique) return [];
+      const weak: string[] = [];
+      const ss = critique.structural_score;
+      if (ss.crux_density === 0) weak.push('crux_density');
+      if (ss.evidence_coverage === 0) weak.push('evidence_coverage');
+      if (ss.bdi_heterogeneity === 0) weak.push('bdi_heterogeneity');
+      if (ss.abstraction_level === 0) weak.push('abstraction_level');
+      if (ss.situation_activation === 0) weak.push('situation_activation');
+      if (critique.frame_score) {
+        if (critique.frame_score.conditionality === 0) weak.push('conditionality');
+        if (critique.frame_score.mechanism === 0) weak.push('mechanism');
+        if (critique.frame_score.stakeholder === 0) weak.push('stakeholder');
+        if (critique.frame_score.tension === 0) weak.push('tension');
+        if (critique.frame_score.scope === 0) weak.push('scope');
+      }
+      return weak;
+    })(),
 
     sycophancy_guard_fired: (session.transcript ?? []).some(e => e.type === 'system' && e.content.includes('[Sycophancy guard]')),
     max_sycophancy_score: (session.per_claim_drift ?? []).reduce((max, s) => Math.max(max, s.sycophancy_score), 0),

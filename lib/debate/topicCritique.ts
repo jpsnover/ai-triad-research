@@ -95,6 +95,12 @@ export interface TopicCritique {
   rewritten_topic: string;
   /** Timestamp of when critique was computed. */
   computed_at: string;
+  /** Whether reframing was applied to topic.final. */
+  reframe_applied?: boolean;
+  /** LLM explanation of what was changed during reframing. */
+  reframe_changes?: string;
+  /** True when evidence coverage scored 0 — topic is outside well-documented territory. */
+  exploratory?: boolean;
 }
 
 // ── Constants ─────────────────────────────────────────────
@@ -421,6 +427,7 @@ export function parseTopicCritique(
     reframe_suggestions: parsed.reframe_suggestions ?? [],
     rewritten_topic: parsed.rewritten_topic ?? '',
     computed_at: new Date().toISOString(),
+    exploratory: structuralScore.evidence_coverage === 0,
   };
 }
 
