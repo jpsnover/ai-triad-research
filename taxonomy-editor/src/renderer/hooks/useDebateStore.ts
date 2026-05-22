@@ -2682,23 +2682,72 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     const model = getConfiguredModel();
-    const prompt = buildSynthesisPrompt(activeDebate.topic.original, clarifications, activeDebate.audience, activeDebate.topic.critique);
+    const baselineCritique = activeDebate.topic.critique;
+    const baselineScore = baselineCritique?.composite_score ?? 0;
+
+    // Quality gate: retry refinement if the new topic scores lower than the original
+    const MAX_REFINEMENT_ATTEMPTS = 3;
+    let bestTopic: string | null = null;
+    let bestScore = baselineScore;
+
+    for (let attempt = 0; attempt < MAX_REFINEMENT_ATTEMPTS; attempt++) {
+      const prompt = buildSynthesisPrompt(activeDebate.topic.original, clarifications, activeDebate.audience, baselineCritique);
+      const label = attempt === 0
+        ? `Synthesizing refined topic (${model})`
+        : `Refining topic, attempt ${attempt + 1}/${MAX_REFINEMENT_ATTEMPTS} (${model})`;
+      try {
+        const { text } = await generateTextWithProgress(prompt, model, label, set);
+        if (!isStillValid()) { set({ debateGenerating: null }); return; }
+        const parsed = parseAIJson<{ refined_topic?: string }>(text);
+        const candidate = parsed?.refined_topic || text.trim();
+
+        // Score the candidate if we have a baseline to compare against
+        if (baselineCritique) {
+          try {
+            const critiquePrompt = critiqueTopicPrompt(candidate);
+            const { text: critiqueText } = await generateTextWithProgress(critiquePrompt, model, `Scoring refined topic (${model})`, set);
+            if (!isStillValid()) { set({ debateGenerating: null }); return; }
+            const candidateCritique = parseTopicCritique(critiqueText, baselineCritique.structural_score);
+
+            if (candidateCritique.composite_score >= baselineScore) {
+              bestTopic = candidate;
+              bestScore = candidateCritique.composite_score;
+              console.log(`[TopicRefinement] Attempt ${attempt + 1}: score ${candidateCritique.composite_score} >= baseline ${baselineScore} — accepted`);
+              break;
+            }
+            console.log(`[TopicRefinement] Attempt ${attempt + 1}: score ${candidateCritique.composite_score} < baseline ${baselineScore} — discarding`);
+          } catch (scoreErr) {
+            // Scoring failed — accept the candidate rather than blocking refinement
+            console.warn('[TopicRefinement] Scoring failed, accepting candidate:', scoreErr);
+            bestTopic = candidate;
+            break;
+          }
+        } else {
+          // No baseline critique — accept the first candidate
+          bestTopic = candidate;
+          break;
+        }
+      } catch (genErr) {
+        console.warn(`[TopicRefinement] Attempt ${attempt + 1} generation failed:`, genErr);
+        break;
+      }
+    }
+
+    // If all attempts scored lower, keep the existing topic
+    const refinedTopic = bestTopic ?? activeDebate.topic.final;
+    const keptOriginal = bestTopic === null && baselineCritique != null;
 
     try {
-      const { text } = await generateTextWithProgress(prompt, model, `Synthesizing refined topic (${model})`, set);
-      if (!isStillValid()) { set({ debateGenerating: null }); return; }
-      let refinedTopic: string;
-      const parsed = parseAIJson<{ refined_topic?: string }>(text);
-      refinedTopic = parsed?.refined_topic || text.trim();
-
       get().updateTopic({ refined: refinedTopic, final: refinedTopic });
 
       addTranscriptEntry({
         type: 'system',
         speaker: 'system',
-        content: `Refined topic: "${refinedTopic}"`,
+        content: keptOriginal
+          ? `Topic refinement: all ${MAX_REFINEMENT_ATTEMPTS} attempts scored below baseline (${baselineScore}/20). Keeping original topic.`
+          : `Refined topic: "${refinedTopic}"${bestScore > baselineScore ? ` (score: ${bestScore}/20, was ${baselineScore}/20)` : ''}`,
         taxonomy_refs: [],
-        metadata: { refined_topic: refinedTopic },
+        metadata: { refined_topic: refinedTopic, refinement_kept_original: keptOriginal || undefined, refinement_score: bestScore || undefined },
       });
 
       // Extract user seed claims from Q&A and inject into argument network
