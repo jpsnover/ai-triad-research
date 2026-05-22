@@ -502,8 +502,6 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
   stageDiagnostics?: { stage: string; raw_response: string; work_product: Record<string, unknown> }[];
   forceExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const isExpanded = forceExpanded || expanded;
   const [caveatsExpanded, setCaveatsExpanded] = useState(false);
   const [explainCopied, setExplainCopied] = useState(false);
   const polRefs = metaPolicyRefs || policyRefs || [];
@@ -525,14 +523,6 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
   return (
     <div className="debate-taxonomy-refs-section">
       <div className="debate-taxonomy-refs">
-        {hasReasoning && !forceExpanded && (
-          <button
-            className="debate-reasoning-toggle"
-            onClick={() => setExpanded(e => !e)}
-          >
-            {expanded ? 'Hide reasoning' : 'Show reasoning'}
-          </button>
-        )}
         {entry && (
           explainCopied
             ? <span className="debate-reasoning-toggle" style={{ color: '#22c55e', cursor: 'default' }}>✓ Explain prompt copied to clipboard</span>
@@ -587,7 +577,7 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
           </div>
         );
       })()}
-      {isExpanded && (
+      {forceExpanded && (
         <div className="debate-reasoning-list">
           {briefStage && (
             <details open className="debate-reasoning-section">
@@ -3480,8 +3470,8 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           <DebaterToggles />
         )}
 
-        {/* Refined topic editor + score comparison (shown only during setup/clarification/edit-claims) */}
-        {activeDebate.topic.refined && (activeDebate.phase === 'setup' || activeDebate.phase === 'clarification' || activeDebate.phase === 'edit-claims') && (
+        {/* Refined topic editor + score comparison (hidden once debate has substantive entries) */}
+        {activeDebate.topic.refined && (activeDebate.phase === 'setup' || activeDebate.phase === 'clarification' || activeDebate.phase === 'edit-claims') && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && (
           <>
             <RefinedTopicEditor />
             <TopicScoreComparison />
@@ -3538,7 +3528,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       </div>
 
       {/* Phase-aware action bar (fixed at bottom) */}
-      {isClarificationPhase && <ClarificationActions />}
+      {isClarificationPhase && !activeDebate.transcript.some(e => e.type === 'opening' || e.type === 'statement') && <ClarificationActions />}
       {isEditClaimsPhase && <ClaimsEditor />}
       {isOpeningPhase && <OpeningActions />}
 
