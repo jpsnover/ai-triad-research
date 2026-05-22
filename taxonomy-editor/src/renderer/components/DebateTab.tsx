@@ -78,6 +78,7 @@ export function DebateTab() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Custom sort order (persisted to localStorage)
   const [customOrder, setCustomOrder] = useState<string[]>(() => {
@@ -106,6 +107,15 @@ export function DebateTab() {
     });
     return ordered;
   }, [sessions, customOrder]);
+
+  const filteredSessions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return orderedSessions;
+    return orderedSessions.filter(s =>
+      s.title.toLowerCase().includes(q) ||
+      (s.topic_text && s.topic_text.toLowerCase().includes(q))
+    );
+  }, [orderedSessions, searchQuery]);
 
   const moveSession = useCallback((id: string, direction: 'up' | 'down') => {
     // Build full order array from current display order
@@ -217,6 +227,22 @@ export function DebateTab() {
               )}
             </div>
           </div>
+          {sessions.length > 0 && !editMode && (
+            <div style={{ padding: '4px 10px 2px' }}>
+              <input
+                type="text"
+                placeholder="Search debates..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%', padding: '4px 8px', fontSize: '0.8rem',
+                  border: '1px solid var(--border-color)', borderRadius: 4,
+                  background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                  outline: 'none',
+                }}
+              />
+            </div>
+          )}
           <div className="list-panel-items">
             {sessionsLoading && sessions.length === 0 && (
               <div className="debate-session-empty">Loading...</div>
@@ -228,7 +254,10 @@ export function DebateTab() {
                 Click <strong>+ New</strong> to start one.
               </div>
             )}
-            {orderedSessions.map((s, idx) => (
+            {searchQuery && filteredSessions.length === 0 && sessions.length > 0 && (
+              <div className="debate-session-empty">No debates match &ldquo;{searchQuery}&rdquo;</div>
+            )}
+            {filteredSessions.map((s, idx) => (
               <div
                 key={s.id}
                 className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${editMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
@@ -308,7 +337,7 @@ export function DebateTab() {
                     <button
                       className="debate-edit-btn"
                       onClick={() => moveSession(s.id, 'down')}
-                      disabled={idx === orderedSessions.length - 1}
+                      disabled={idx === filteredSessions.length - 1}
                       title="Move down"
                     >
                       &#9660;

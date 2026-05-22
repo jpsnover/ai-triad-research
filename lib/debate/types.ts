@@ -1206,6 +1206,8 @@ export interface DebateSessionSummary {
   created_at: string;
   updated_at: string;
   phase: DebateSession['phase'];
+  /** The effective topic text (topic.final ?? topic.original) for search/display. */
+  topic_text?: string;
 }
 
 export interface FactCheckResult {

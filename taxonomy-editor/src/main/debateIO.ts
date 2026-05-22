@@ -14,6 +14,7 @@ export interface DebateSessionSummary {
   created_at: string;
   updated_at: string;
   phase: string;
+  topic_text?: string;
 }
 
 function ensureDebatesDir(): void {
@@ -55,6 +56,7 @@ export function listDebateSessions(): DebateSessionSummary[] {
           created_at: data.created_at,
           updated_at: data.updated_at,
           phase: data.phase,
+          topic_text: data.topic?.final ?? data.topic?.original ?? '',
         });
       } catch {
         // Skip corrupt files
