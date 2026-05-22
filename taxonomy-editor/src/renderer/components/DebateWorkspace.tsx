@@ -2640,7 +2640,9 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
   if (!activeDebate) return null;
 
   const isGenerating = !!debateGenerating;
-  const disabled = isGenerating || sending || activeDebate.phase === 'closed';
+  const isClosed = activeDebate.phase === 'closed';
+  const disabled = isGenerating || sending || isClosed;
+  const disableAnalysis = isGenerating || sending;  // post-debate actions remain available when closed
   const isSocratic = (activeDebate.active_povers ?? []).filter(p => p !== 'user').length < 2;
 
   // Filter mention options to active AI povers
@@ -2718,10 +2720,9 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
     setSending(true);
     if (isAdaptive) {
       // Adaptive: run to completion (until phase transitions terminate)
-      const weights = (await import('@lib/debate/phaseTransitions')).loadProvisionalWeights();
-      const pacing = (activeDebate as any)?.adaptive_staging?.pacing ?? 'moderate';
-      const maxRounds = weights.pacing_presets[pacing]?.maxTotalRounds ?? 12;
-      for (let i = 0; i < maxRounds; i++) {
+      // Safety limit only — actual termination is signal-driven (convergence, saturation, health)
+      const maxSafetyRounds = 50;
+      for (let i = 0; i < maxSafetyRounds; i++) {
         const d = useDebateStore.getState().activeDebate;
         if (!d) break;
         if ((d as any).adaptive_staging?.phase_state?.current_phase === 'terminated') break;
@@ -2822,7 +2823,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         <button
           className="btn debate-synthesis-btn"
           onClick={() => void requestSynthesis()}
-          disabled={disabled}
+          disabled={disableAnalysis}
           title="Generate a synthesis of agreements, disagreements, and open questions"
         >
           Synthesize
@@ -2830,7 +2831,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         <button
           className="btn debate-probe-btn"
           onClick={() => void requestProbingQuestions()}
-          disabled={disabled}
+          disabled={disableAnalysis}
           title="Get AI-suggested probing questions to deepen the debate"
         >
           Probe
@@ -2838,7 +2839,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         <button
           className="btn debate-harvest-btn"
           onClick={() => setShowHarvest(true)}
-          disabled={disabled || !hasSynthesis}
+          disabled={disableAnalysis || !hasSynthesis}
           title="Harvest debate findings into the taxonomy"
         >
           Harvest
@@ -2846,7 +2847,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         <button
           className="btn debate-reflections-btn"
           onClick={() => { setShowReflections(true); void requestReflections(); }}
-          disabled={disabled}
+          disabled={disableAnalysis}
           title="Each debater reflects on the debate and proposes taxonomy edits"
         >
           Post-Debate Reflections
@@ -2854,7 +2855,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         <button
           className="btn"
           onClick={() => setShowNewsReport(true)}
-          disabled={disabled || !hasSynthesis}
+          disabled={disableAnalysis || !hasSynthesis}
           title={hasSynthesis ? 'Generate a news-style article from this debate' : 'Synthesis required before generating news report'}
         >
           News Report

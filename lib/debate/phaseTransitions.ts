@@ -553,29 +553,9 @@ export function evaluatePhaseTransition(
     return { action: 'force_transition', new_phase: 'concluding', reason: `Network hard cap (${ctx.network.nodeCount} >= ${w.network.hard_cap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { network_size: ctx.network.nodeCount } };
   }
 
-  // Global: max total rounds — budget-aware
-  // Reserve enough rounds for downstream phases' minimums so all three phases complete.
-  const downstreamMinimums =
-    state.current_phase === 'confrontation' ? pb.min_argumentation_rounds + pb.min_concluding_rounds
-    : state.current_phase === 'argumentation' ? pb.min_concluding_rounds
-    : 0;
-  const budgetDeadline = config.maxTotalRounds - downstreamMinimums;
-
-  if (state.total_rounds_elapsed >= config.maxTotalRounds) {
-    // Absolute ceiling — terminate if in synthesis, otherwise force-advance
-    if (state.current_phase === 'concluding') {
-      return { action: 'terminate', reason: `Max total rounds (${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed } };
-    }
-    const nextPhase: DebatePhase = state.current_phase === 'confrontation' ? 'argumentation' : 'concluding';
-    return { action: 'force_transition', new_phase: nextPhase, reason: `Budget exhausted at round ${state.total_rounds_elapsed}/${config.maxTotalRounds}, forcing advance to ${nextPhase}`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, downstream_reserved: downstreamMinimums } };
-  }
-
-  // Approaching deadline — force-transition to ensure downstream phases get their minimums.
-  // Respect cold start: don't cut a phase short before its minimum rounds, unless at absolute ceiling (above).
-  if (state.current_phase !== 'concluding' && !coldStart && state.total_rounds_elapsed >= budgetDeadline) {
-    const nextPhase: DebatePhase = state.current_phase === 'confrontation' ? 'argumentation' : 'concluding';
-    return { action: 'force_transition', new_phase: nextPhase, reason: `Budget ceiling approaching (${state.total_rounds_elapsed}/${config.maxTotalRounds}), reserving ${downstreamMinimums} rounds for remaining phases`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, budget_deadline: budgetDeadline, downstream_reserved: downstreamMinimums } };
-  }
+  // Note: round-count-based termination (maxTotalRounds hard cap) removed —
+  // debates now run until signal-based exits (convergence, saturation, health,
+  // per-phase max rounds, or API budget) trigger natural termination.
 
   // Confidence gating (with escalation)
   const extractionConf = computeExtractionConfidence(

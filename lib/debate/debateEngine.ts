@@ -2011,7 +2011,7 @@ export class DebateEngine {
 
       const phase = state.current_phase;
       this.progress('debate', undefined,
-        `Round ${round}/${config.maxTotalRounds} [${phase}] (adaptive)`, round);
+        `Round ${round} [${phase}] (adaptive)`, round);
 
       // Run the cross-respond round
       await this.runCrossRespondRound(round, phase);
