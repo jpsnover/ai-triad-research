@@ -1181,7 +1181,7 @@ export class DebateEngine {
       scoringMode,
       embeddingThreshold: 0.48,
       lexicalThreshold: 0.22,
-      minPerCategory: 3,
+      minPerCategory: parseInt(process.env.TAXONOMY_MIN_PER_BDI || '') || 3,
       maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 35,
     };
 
