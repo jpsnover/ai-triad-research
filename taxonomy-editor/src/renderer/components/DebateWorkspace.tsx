@@ -1048,8 +1048,9 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
 
   // Tier display logic (DT-3)
   const hasSummaries = entry.summaries != null;
-  const activeTier = entry.display_tier ?? defaultTier;
   const isSubstantive = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
+  // Moderator interventions and system steps always show full content
+  const activeTier = isSubstantive ? (entry.display_tier ?? defaultTier) : 'detailed';
   const showTierPills = isSubstantive;
   let displayContent: string;
   let isTruncated = false;
@@ -3185,9 +3186,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       // Find the entry in the transcript to determine the active tier
       const entry = activeDebate?.transcript.find(e => e.id === entryId);
       if (entry) {
-        tier = (entry as any).display_tier ?? defaultTier ?? 'detailed';
-        const hasSums = entry.summaries != null;
         const isSub = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
+        tier = isSub ? ((entry as any).display_tier ?? defaultTier ?? 'detailed') : 'detailed';
+        const hasSums = entry.summaries != null;
         let displayContent: string;
         if (hasSums && tier === 'brief') displayContent = entry.summaries!.brief;
         else if (hasSums && tier === 'medium') displayContent = entry.summaries!.medium;
