@@ -3374,6 +3374,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               regen_triggered: boolean;
               regen_attempt?: { pass: boolean; utility_before: { composite: number }; utility_after: { composite: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } };
               regen_attempts?: { pass: boolean; utility_before: { composite: number }; utility_after: { composite: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } }[];
+              per_claim_analysis?: { perClaim: { index: number; text: string; base_strength: number; marginal_delta: number; classification: 'STRONG' | 'WEAK'; dominant_component: string }[]; analysis: { strongFoundations: { text: string; base_strength: number; marginal_delta: number; reason: string }[]; avoidClaims: { text: string; base_strength: number; marginal_delta: number; reason: string }[] } }[];
               final_pass: boolean;
               elapsed_ms: number;
             } | undefined;
@@ -5312,34 +5313,73 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </table>
                       </details>
 
-                      {/* Tentative Claims */}
-                      {lookaheadDiag.first_attempt.tentative_claims.length > 0 && (
-                        <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>Tentative Claims ({lookaheadDiag.first_attempt.tentative_claims.length})</summary>
-                          {lookaheadDiag.first_attempt.tentative_claims.map((c, i) => {
-                            const label = c.strength >= 0.7 ? 'strong' : c.strength >= 0.4 ? 'moderate' : 'weak';
-                            const claimColor = c.strength >= 0.7 ? '#16a34a' : c.strength >= 0.4 ? '#d97706' : '#dc2626';
-                            const assessment = c.strength < 0.4
-                              ? 'Rhetorical or vague \u2014 drags position mean down'
-                              : c.strength >= 0.9
-                              ? 'Strong declarative claim \u2014 anchors position'
-                              : c.strength >= 0.7
-                              ? 'Specific, falsifiable claim'
-                              : 'Moderate \u2014 reframes but lacks new evidence';
-                            return (
-                              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${claimColor}40`, fontSize: '0.7rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                  <span style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: claimColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
-                                  <span style={{ fontSize: '0.58rem', padding: '0 4px', borderRadius: 3, background: `${claimColor}15`, color: claimColor, fontWeight: 600 }}>{label.toUpperCase()}</span>
-                                  <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{assessment}</span>
+                      {/* Tentative Claims with Per-Claim Marginal Utility */}
+                      {lookaheadDiag.first_attempt.tentative_claims.length > 0 && (() => {
+                        const firstPca = lookaheadDiag.per_claim_analysis?.[0];
+                        const claims = lookaheadDiag.first_attempt.tentative_claims;
+                        const strongCount = firstPca ? firstPca.perClaim.filter(pc => pc.classification === 'STRONG').length : claims.filter(c => c.strength >= 0.7).length;
+                        const weakCount = firstPca ? firstPca.perClaim.filter(pc => pc.classification === 'WEAK').length : claims.filter(c => c.strength < 0.4).length;
+                        return (
+                          <details open style={{ marginTop: 6 }}><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem' }}>
+                            Tentative Claims ({claims.length})
+                            <span style={{ fontWeight: 400, fontSize: '0.62rem', marginLeft: 8, color: 'var(--text-muted)' }}>
+                              {strongCount > 0 && <span style={{ color: '#16a34a' }}>{strongCount} strong</span>}
+                              {strongCount > 0 && weakCount > 0 && ', '}
+                              {weakCount > 0 && <span style={{ color: '#dc2626' }}>{weakCount} weak</span>}
+                            </span>
+                          </summary>
+                            {claims.map((c, i) => {
+                              const pca = firstPca?.perClaim[i];
+                              const classification = pca?.classification;
+                              const marginalDelta = pca?.marginal_delta;
+                              const reason = firstPca?.analysis[classification === 'STRONG' ? 'strongFoundations' : 'avoidClaims']
+                                ?.find(a => a.text === c.text)?.reason;
+                              const claimColor = classification === 'STRONG' ? '#16a34a' : classification === 'WEAK' ? '#dc2626' : (c.strength >= 0.7 ? '#16a34a' : c.strength >= 0.4 ? '#d97706' : '#dc2626');
+                              const label = classification ?? (c.strength >= 0.7 ? 'STRONG' : c.strength >= 0.4 ? 'MODERATE' : 'WEAK');
+                              return (
+                                <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${claimColor}40`, fontSize: '0.7rem' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+                                    <span style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: claimColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
+                                    <span style={{ fontSize: '0.58rem', padding: '0 4px', borderRadius: 3, background: `${claimColor}15`, color: claimColor, fontWeight: 600 }}>{label}</span>
+                                    {marginalDelta != null && (
+                                      <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: marginalDelta >= 0 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                                        {'\u0394'}u {marginalDelta >= 0 ? '+' : ''}{marginalDelta.toFixed(4)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <Highlight text={c.text} />
+                                  {reason && (
+                                    <div style={{ fontSize: '0.58rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2, paddingLeft: 4 }}>{reason}</div>
+                                  )}
                                 </div>
-                                <Highlight text={c.text} />
+                              );
+                            })}
+                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                              Tentative network: {lookaheadDiag.first_attempt.tentative_network_size.nodes} nodes, {lookaheadDiag.first_attempt.tentative_network_size.edges} edges
+                            </div>
+                          </details>
+                        );
+                      })()}
+
+                      {/* Attempt Progression Summary */}
+                      {lookaheadDiag.per_claim_analysis && lookaheadDiag.per_claim_analysis.length > 0 && (
+                        <div style={{ margin: '6px 0', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                          {lookaheadDiag.per_claim_analysis.map((pca, idx) => {
+                            const sCount = pca.perClaim.filter(pc => pc.classification === 'STRONG').length;
+                            const wCount = pca.perClaim.filter(pc => pc.classification === 'WEAK').length;
+                            // For attempt 0 (first attempt), use first_attempt delta; for retries, use regen_attempts
+                            const regenAttempts = lookaheadDiag.regen_attempts ?? (lookaheadDiag.regen_attempt ? [lookaheadDiag.regen_attempt] : []);
+                            const delta = idx === 0 ? lookaheadDiag.first_attempt.utility_delta : regenAttempts[idx - 1]?.utility_delta;
+                            const pass = idx === 0 ? lookaheadDiag.first_attempt.pass : regenAttempts[idx - 1]?.pass;
+                            return (
+                              <div key={idx} style={{ display: 'inline-block', marginRight: 12 }}>
+                                <span style={{ fontWeight: 600 }}>Attempt {idx + 1}:</span>{' '}
+                                <span style={{ color: delta != null && delta >= 0 ? '#16a34a' : '#dc2626' }}>{'\u0394'}u = {delta != null ? (delta >= 0 ? '+' : '') + delta.toFixed(3) : '?'}</span>{' '}
+                                ({sCount} strong, {wCount} weak){pass ? ' \u2713' : ''}
                               </div>
                             );
                           })}
-                          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                            Tentative network: {lookaheadDiag.first_attempt.tentative_network_size.nodes} nodes, {lookaheadDiag.first_attempt.tentative_network_size.edges} edges
-                          </div>
-                        </details>
+                        </div>
                       )}
 
                       {/* Regeneration Attempts */}
@@ -5347,32 +5387,80 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         // Support both new regen_attempts[] and legacy regen_attempt
                         const attempts = lookaheadDiag.regen_attempts ?? (lookaheadDiag.regen_attempt ? [lookaheadDiag.regen_attempt] : []);
                         if (attempts.length === 0) return null;
-                        return attempts.map((ra, ai) => (
-                          <div key={ai} style={{ marginTop: 8, padding: 8, borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.06)', borderRadius: 4 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                              <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>REGEN {ai + 1}/{attempts.length}</span>
-                              <span style={{
-                                padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
-                                background: ra.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
-                                color: ra.pass ? '#16a34a' : '#dc2626',
-                              }}>{ra.pass ? '\u2713 PASS' : '\u2717 FAIL'}</span>
+                        // per_claim_analysis[0] is the first attempt analysis (used as guidance for regen 1);
+                        // per_claim_analysis[N] is regen N's analysis (N >= 1)
+                        const pcaLog = lookaheadDiag.per_claim_analysis;
+                        return attempts.map((ra, ai) => {
+                          // Guidance injected into this attempt comes from the analysis of prior attempts
+                          const guidancePca = pcaLog?.[ai]; // analysis[0] → guidance for regen 1, etc.
+                          const regenPca = pcaLog?.[ai + 1]; // analysis[1] → per-claim results of regen 1
+                          return (
+                            <div key={ai} style={{ marginTop: 8, padding: 8, borderLeft: '3px solid #d97706', background: 'rgba(245,158,11,0.06)', borderRadius: 4 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                <span style={{ padding: '1px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.2)', color: '#d97706', fontWeight: 600, fontSize: '0.68rem' }}>REGEN {ai + 1}/{attempts.length}</span>
+                                <span style={{
+                                  padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
+                                  background: ra.pass ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
+                                  color: ra.pass ? '#16a34a' : '#dc2626',
+                                }}>{ra.pass ? '\u2713 PASS' : '\u2717 FAIL'}</span>
+                              </div>
+                              <div style={{ fontSize: '0.72rem' }}>
+                                <span>{'\u0394'}u = {ra.utility_delta >= 0 ? '+' : ''}{ra.utility_delta.toFixed(3)}</span>
+                                <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>threshold: {ra.threshold.toFixed(3)}</span>
+                              </div>
+
+                              {/* Guidance injected into this retry */}
+                              {guidancePca && (guidancePca.analysis.strongFoundations.length > 0 || guidancePca.analysis.avoidClaims.length > 0) && (
+                                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Guidance Injected</summary>
+                                  {guidancePca.analysis.strongFoundations.length > 0 && (
+                                    <div style={{ marginTop: 2 }}>
+                                      <div style={{ fontSize: '0.6rem', fontWeight: 600, color: '#16a34a', marginBottom: 2 }}>STRONG FOUNDATIONS</div>
+                                      {guidancePca.analysis.strongFoundations.map((sf, si) => (
+                                        <div key={si} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(22,163,74,0.3)', fontSize: '0.62rem' }}>
+                                          <span style={{ fontFamily: 'monospace', fontSize: '0.54rem', color: '#16a34a', marginRight: 4 }}>{'\u0394'}u +{sf.marginal_delta.toFixed(4)}</span>
+                                          <span>{sf.text.slice(0, 80)}{sf.text.length > 80 ? '\u2026' : ''}</span>
+                                          <div style={{ fontSize: '0.54rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{sf.reason}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {guidancePca.analysis.avoidClaims.length > 0 && (
+                                    <div style={{ marginTop: 4 }}>
+                                      <div style={{ fontSize: '0.6rem', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>DO NOT USE</div>
+                                      {guidancePca.analysis.avoidClaims.map((ac, aci) => (
+                                        <div key={aci} style={{ margin: '2px 0', paddingLeft: 8, borderLeft: '2px solid rgba(220,38,38,0.3)', fontSize: '0.62rem' }}>
+                                          <span style={{ fontFamily: 'monospace', fontSize: '0.54rem', color: '#dc2626', marginRight: 4 }}>{'\u0394'}u {ac.marginal_delta.toFixed(4)}</span>
+                                          <span>{ac.text.slice(0, 80)}{ac.text.length > 80 ? '\u2026' : ''}</span>
+                                          <div style={{ fontSize: '0.54rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>{ac.reason}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </details>
+                              )}
+
+                              {/* Regen claims with per-claim analysis if available */}
+                              {ra.tentative_claims.length > 0 && (
+                                <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Regen Claims ({ra.tentative_claims.length})</summary>
+                                  {ra.tentative_claims.map((c, ci) => {
+                                    const pc = regenPca?.perClaim[ci];
+                                    const pcColor = pc ? (pc.classification === 'STRONG' ? '#16a34a' : '#dc2626') : 'var(--text-muted)';
+                                    return (
+                                      <div key={ci} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${pcColor}40`, fontSize: '0.68rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 1 }}>
+                                          <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: pcColor, fontWeight: 600 }}>{c.strength.toFixed(2)}</span>
+                                          {pc && <span style={{ fontSize: '0.54rem', padding: '0 3px', borderRadius: 2, background: `${pcColor}15`, color: pcColor, fontWeight: 600 }}>{pc.classification}</span>}
+                                          {pc && <span style={{ fontFamily: 'monospace', fontSize: '0.54rem', color: pcColor }}>{'\u0394'}u {pc.marginal_delta >= 0 ? '+' : ''}{pc.marginal_delta.toFixed(4)}</span>}
+                                        </div>
+                                        <Highlight text={c.text} />
+                                      </div>
+                                    );
+                                  })}
+                                </details>
+                              )}
                             </div>
-                            <div style={{ fontSize: '0.72rem' }}>
-                              <span>{'\u0394'}u = {ra.utility_delta >= 0 ? '+' : ''}{ra.utility_delta.toFixed(3)}</span>
-                              <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>threshold: {ra.threshold.toFixed(3)}</span>
-                            </div>
-                            {ra.tentative_claims.length > 0 && (
-                              <details style={{ marginTop: 4 }}><summary style={{ cursor: 'pointer', fontSize: '0.68rem', color: 'var(--text-muted)' }}>Regen Claims ({ra.tentative_claims.length})</summary>
-                                {ra.tentative_claims.map((c, ci) => (
-                                  <div key={ci} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: '2px solid rgba(245,158,11,0.3)', fontSize: '0.68rem' }}>
-                                    <span style={{ fontFamily: 'monospace', fontSize: '0.58rem', color: 'var(--text-muted)', marginRight: 6 }}>{c.strength.toFixed(2)}</span>
-                                    <Highlight text={c.text} />
-                                  </div>
-                                ))}
-                              </details>
-                            )}
-                          </div>
-                        ));
+                          );
+                        });
                       })()}
 
                       {/* Low Utility Warning */}
