@@ -2437,12 +2437,12 @@ export class DebateEngine {
       : undefined;
 
     // Opponent-aware strategic hints (t/20): computed from AN + commitments, no LLM calls
-    const an = this.session.argument_network;
-    const strategicHints = an && this.session.commitments
+    const anForHints = this.session.argument_network;
+    const strategicHints = anForHints && this.session.commitments
       ? computeStrategicHints(
           responder,
-          an.nodes,
-          an.edges,
+          anForHints.nodes,
+          anForHints.edges,
           this.session.commitments,
           round,
         )
