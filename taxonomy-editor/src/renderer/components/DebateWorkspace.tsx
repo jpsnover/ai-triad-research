@@ -2676,7 +2676,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
   };
 
   const handleSend = async () => {
-    if (!input.trim() || disabled) return;
+    if (!input.trim() || disableAnalysis) return;
     const text = input;
     setInput('');
     setMentionOpen(false);
@@ -2716,22 +2716,28 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
   };
 
   const handleCrossRespond = async () => {
-    if (disabled) return;
+    if (disableAnalysis) return;
     setSending(true);
     if (isAdaptive) {
       // Adaptive: run to completion (until phase transitions terminate)
       // Safety limit only — actual termination is signal-driven (convergence, saturation, health)
       const maxSafetyRounds = 50;
-      for (let i = 0; i < maxSafetyRounds; i++) {
-        const d = useDebateStore.getState().activeDebate;
-        if (!d) break;
-        if ((d as any).adaptive_staging?.phase_state?.current_phase === 'terminated') break;
+      const alreadyTerminated = (activeDebate as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated';
+      if (alreadyTerminated) {
+        // Debate already terminated — run exactly one more round to get remaining responses
         await crossRespond();
-      }
-      // Auto-trigger synthesis when terminated
-      const final = useDebateStore.getState().activeDebate;
-      if ((final as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated') {
-        await requestSynthesis();
+      } else {
+        for (let i = 0; i < maxSafetyRounds; i++) {
+          const d = useDebateStore.getState().activeDebate;
+          if (!d) break;
+          if ((d as any).adaptive_staging?.phase_state?.current_phase === 'terminated') break;
+          await crossRespond();
+        }
+        // Auto-trigger synthesis when terminated
+        const final = useDebateStore.getState().activeDebate;
+        if ((final as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated') {
+          await requestSynthesis();
+        }
       }
     } else {
       for (let i = 0; i < crossRespondTurns; i++) {
