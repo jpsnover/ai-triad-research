@@ -173,4 +173,40 @@ describe('selectRelevantNodes — lineage boost', () => {
     expect(ids).toContain('acc-beliefs-001');
     expect(ids).not.toContain('acc-beliefs-002');
   });
+
+  it('does not boost nodes below the near-miss floor (threshold - 0.06)', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),  // 0.41 — below floor (0.42)
+      makeNode('acc-beliefs-002', 'Beliefs'),  // 0.43 — above floor
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.41],
+      ['acc-beliefs-002', 0.43],
+    ]);
+
+    const lineageBoost: LineageBoostConfig = {
+      traditions: ['ai-safety'],
+      boost: 0.08,
+      lineageByNode: {
+        'acc-beliefs-001': ['AI alignment'],
+        'acc-beliefs-002': ['AI alignment'],
+      },
+      nameToCluster,
+    };
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      lineageBoost,
+    });
+
+    const ids = result.map(r => r.node.id);
+    // 0.43 + 0.08 = 0.51 → promoted; 0.41 is below floor (0.42) → not boosted
+    expect(ids).toContain('acc-beliefs-002');
+    expect(ids).not.toContain('acc-beliefs-001');
+
+    const diag = (result as typeof result & { _lineageBoost?: LineageBoostResult })._lineageBoost;
+    expect(diag!.boostedNodeIds).toEqual(['acc-beliefs-002']);
+    expect(diag!.promotedCount).toBe(1);
+  });
 });

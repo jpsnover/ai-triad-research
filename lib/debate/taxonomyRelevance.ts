@@ -123,10 +123,13 @@ export function selectRelevantNodes(
       });
       if (matches) {
         const base = effectiveScores.get(node.id) ?? 0;
-        const boosted = base + lb.boost;
-        effectiveScores.set(node.id, boosted);
-        boostedIds.push(node.id);
-        if (base < threshold && boosted >= threshold) promoted++;
+        // Only boost near-miss nodes (within 0.06 of threshold) — skip semantically weak ones
+        if (base >= threshold - 0.06) {
+          const boosted = base + lb.boost;
+          effectiveScores.set(node.id, boosted);
+          boostedIds.push(node.id);
+          if (base < threshold && boosted >= threshold) promoted++;
+        }
       }
     }
 
