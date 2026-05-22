@@ -160,9 +160,11 @@ def _load_lineage_categories():
 
     # Build id→label lookup
     cat_labels = {c["id"]: c["label"] for c in data.get("categories", [])}
-    # Build value→label mapping
+    # Build value→label mapping (supports both old flat strings and new {l1, l2} dicts)
     mapping = {}
     for value, cat_id in data.get("mapping", {}).items():
+        if isinstance(cat_id, dict):
+            cat_id = cat_id.get("l1", "")
         mapping[value] = cat_labels.get(cat_id, "Other")
     return mapping
 
