@@ -617,11 +617,10 @@ export async function runTurnPipeline(
     // Build targeted repair block from prior failure — translates hints into
     // specific prompt modifications placed in the recency window, not generic appendix.
     const failedDraftStatement = draftRepairHints.length > 0 && draft?.statement ? draft.statement : undefined;
-    const repairBlock = buildRepairBlock(draftRepairHints, failedDraftStatement);
-
     // Field-level freeze: when hints target only specific fields, instruct the LLM
     // to preserve unflagged fields from the prior draft (prevents unnecessary regression).
     const targetedFields = draftRepairHints.length > 0 ? classifyDraftHintFields(draftRepairHints) : new Set<DraftField>();
+    const repairBlock = buildRepairBlock(draftRepairHints, failedDraftStatement, draft, targetedFields);
     const fieldFreezeBlock = draft && targetedFields.size > 0 && targetedFields.size < ALL_DRAFT_FIELDS.length
       ? buildFieldFreezeBlock(draft, targetedFields)
       : '';
@@ -1458,7 +1457,50 @@ function mergeFrozenDraftFields(
   return merged;
 }
 
-function buildRepairBlock(hints: string[], failedStatement?: string): string {
+/** Harvest concrete data from a prior draft for injection into the retry prompt.
+ *  All framing is self-contained — no references to "your prior attempt". */
+function buildDraftHarvestBlock(
+  priorDraft: DraftWorkProduct,
+  targetedFields: Set<DraftField>,
+): string {
+  const parts: string[] = [];
+
+  // Claim sketches
+  if (priorDraft.claim_sketches?.length > 0) {
+    const claimsTargeted = targetedFields.has('claim_sketches');
+    const header = claimsTargeted
+      ? 'PRIOR CLAIMS (revise per corrections above):'
+      : 'STRONG CLAIMS (build your revised statement around these):';
+    parts.push(header);
+    for (const cs of priorDraft.claim_sketches) {
+      const targets = cs.targets?.length > 0 ? ` → targets: [${cs.targets.join(', ')}]` : '';
+      parts.push(`- "${cs.claim}"${targets}`);
+    }
+  }
+
+  // Statement text (only when statement is targeted — LLM needs to see what to improve)
+  if (targetedFields.has('statement') && priorDraft.statement) {
+    const truncated = priorDraft.statement.length > 800
+      ? priorDraft.statement.slice(0, 800) + '…'
+      : priorDraft.statement;
+    parts.push(
+      `\nPRIOR DRAFT STATEMENT (rejected for reasons listed above):\n` +
+      `"${truncated}"`
+    );
+  }
+
+  // Key assumptions (reinforce freeze with semantic framing when not targeted)
+  if (!targetedFields.has('key_assumptions') && priorDraft.key_assumptions?.length > 0) {
+    parts.push('\nKEEP THESE ASSUMPTIONS:');
+    for (const ka of priorDraft.key_assumptions) {
+      parts.push(`- ${ka.assumption} (if wrong: ${ka.if_wrong})`);
+    }
+  }
+
+  return parts.length > 0 ? parts.join('\n') : '';
+}
+
+function buildRepairBlock(hints: string[], failedStatement?: string, priorDraft?: DraftWorkProduct, targetedFields?: Set<DraftField>): string {
   if (hints.length === 0) return '';
   hints = hints.map(normalizeSpeakerNames);
   const sections: string[] = [];
@@ -1472,7 +1514,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
     sections.push(
       `MANDATORY CORRECTION — DIRECTIVE RESPONSE:\n` +
       (failedFirstParagraph
-        ? `Your prior attempt began with: "${failedFirstParagraph}..."\nThis was REJECTED because it did not address the moderator's directive.\n`
+        ? `The rejected draft began with: "${failedFirstParagraph}..."\nThis was REJECTED because it did not address the moderator's directive.\n`
         : '') +
       `Your FIRST SENTENCE must begin with "I agree that...", "I disagree that...", or "I conditionally agree:..."\n` +
       `This is not optional. Responses that do not start this way will be rejected again.`
@@ -1483,7 +1525,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.some(h => /single paragraph|split into/i.test(h))) {
     sections.push(
       `MANDATORY CORRECTION — PARAGRAPH STRUCTURE:\n` +
-      `Your prior attempt was a single block of text. You MUST use \\n\\n to create 3-5 separate paragraphs. Each paragraph develops ONE idea.`
+      `The rejected draft was a single block of text. You MUST use \\n\\n to create 3-5 separate paragraphs. Each paragraph develops ONE idea.`
     );
   }
 
@@ -1491,7 +1533,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.some(h => /hedge density/i.test(h))) {
     sections.push(
       `MANDATORY CORRECTION — REMOVE HEDGING:\n` +
-      `Your prior attempt had too many qualifiers. Replace "may", "might", "could", "perhaps", "potentially" with definitive claims. Use specific actors, timelines, and numbers.`
+      `The rejected draft had too many qualifiers. Replace "may", "might", "could", "perhaps", "potentially" with definitive claims. Use specific actors, timelines, and numbers.`
     );
   }
 
@@ -1499,7 +1541,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.some(h => /abstract|number.*entity.*timeline|specific/i.test(h))) {
     sections.push(
       `MANDATORY CORRECTION — ADD SPECIFICS:\n` +
-      `Your prior attempt lacked concrete details. Include at least one: a specific number ("≥20%"), a named entity ("the EU AI Act"), or a timeline ("by 2028").`
+      `The rejected draft lacked concrete details. Include at least one: a specific number ("≥20%"), a named entity ("the EU AI Act"), or a timeline ("by 2028").`
     );
   }
 
@@ -1507,7 +1549,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.some(h => /duplicate|repeated text/i.test(h))) {
     sections.push(
       `MANDATORY CORRECTION — NO REPETITION:\n` +
-      `Your prior attempt contained the same text repeated twice. Write each paragraph ONCE. Do not copy content between paragraphs.`
+      `The rejected draft contained the same text repeated twice. Write each paragraph ONCE. Do not copy content between paragraphs.`
     );
   }
 
@@ -1515,7 +1557,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.some(h => /move_types repeat/i.test(h))) {
     sections.push(
       `MANDATORY CORRECTION — VARY MOVES:\n` +
-      `Your prior attempt used the same dialectical moves as your previous turn. Choose different moves this time.`
+      `The rejected draft used the same dialectical moves as the previous turn. Choose different moves this time.`
     );
   }
 
@@ -1523,7 +1565,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.some(h => /constructive move|CONCEDE.*PIVOT.*INTEGRATE/i.test(h))) {
     sections.push(
       `MANDATORY CORRECTION — ADD CONSTRUCTIVE MOVE:\n` +
-      `Your prior attempt used only adversarial moves. Include at least one constructive move: CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY.`
+      `The rejected draft used only adversarial moves. Include at least one constructive move: CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY.`
     );
   }
 
@@ -1531,7 +1573,7 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   if (hints.some(h => /concessions|conditions_for_change|sharpest_disagreements|commitment.*sub-fields/i.test(h))) {
     sections.push(
       `MANDATORY CORRECTION — COMMITMENT STRUCTURE:\n` +
-      `Your prior attempt was missing required commitment fields. Your response MUST include a "commitment" object with ALL THREE sub-fields:\n` +
+      `The rejected draft was missing required commitment fields. Your response MUST include a "commitment" object with ALL THREE sub-fields:\n` +
       `{\n` +
       `  "commitment": {\n` +
       `    "concessions": ["specific point you concede to an opponent"],\n` +
@@ -1551,15 +1593,16 @@ function buildRepairBlock(hints: string[], failedStatement?: string): string {
   );
   if (unmatched.length > 0) {
     sections.push(
-      `CORRECTIONS FROM PRIOR ATTEMPT:\n` +
+      `ADDITIONAL CORRECTIONS:\n` +
       unmatched.map(h => `- ${h}`).join('\n')
     );
   }
 
   return sections.length > 0
-    ? `\n\n=== CORRECTIONS REQUIRED (prior attempt was rejected) ===\n` +
+    ? `\n\n=== CORRECTIONS REQUIRED (draft was rejected) ===\n` +
       `Apply these corrections WHILE executing YOUR ARGUMENT PLAN above. When a correction appears to conflict with a planned move (e.g., a correction faults you for "reframing" but the plan calls for REFRAME), THE PLAN TAKES PRECEDENCE — execute the planned move and treat the correction as guidance on HOW to execute it better, not as a directive to abandon it.\n\n` +
-      `PRESERVE WHAT WORKED: Preserve the claims, citations, structure, and dialectical moves from your prior attempt that were NOT flagged below. Address ONLY the specific issues listed. Do NOT swap an unflagged claim for a new claim just because you are rewriting — that pattern produces lateral motion (new problems replacing old ones), not improvement. If a flagged claim cannot be strengthened with available evidence, prefer narrowing its scope or removing it cleanly over substituting an unrelated claim.\n\n` +
+      `Address ONLY the specific issues listed. Do NOT swap an unflagged claim for a new claim just because you are rewriting — that pattern produces lateral motion (new problems replacing old ones), not improvement. If a flagged claim cannot be strengthened with available evidence, prefer narrowing its scope or removing it cleanly over substituting an unrelated claim.\n\n` +
+      `${priorDraft && targetedFields ? buildDraftHarvestBlock(priorDraft, targetedFields) + '\n\n' : ''}` +
       `${sections.join('\n\n')}\n`
     : '';
 }
