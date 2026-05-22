@@ -383,6 +383,8 @@ Export-ModuleMember -Function @(
     'Get-FlightRecorderDump'
     'Show-FlightRecorder'
     'Update-AITSourceIndex'
+    'Get-PovLineage'
+    'Get-IntellectualLineage'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

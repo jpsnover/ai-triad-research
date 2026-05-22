@@ -97,6 +97,8 @@
         'Get-FlightRecorderDump'
         'Show-FlightRecorder'
         'Update-AITSourceIndex'
+        'Get-PovLineage'
+        'Get-IntellectualLineage'
     )
 
     # Aliases exported from this module
