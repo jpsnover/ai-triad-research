@@ -180,6 +180,8 @@ export interface TurnPipelineInput {
   strongFoundations?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
   /** Weak claims to avoid using — injected into Plan stage with reasons. */
   avoidClaims?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
+  /** Concession claims to preserve — injected into Plan stage as claims to keep. */
+  preserveConcessions?: { text: string; reason: string }[];
 }
 
 export type StageGenerateFn = (
@@ -252,6 +254,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     strategicHints: input.strategicHints,
     strongFoundations: input.strongFoundations,
     avoidClaims: input.avoidClaims,
+    preserveConcessions: input.preserveConcessions,
   };
 }
 

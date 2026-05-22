@@ -1659,6 +1659,8 @@ export interface StagePromptInput {
   strongFoundations?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
   /** Weak claims to avoid using — injected into Plan stage with reasons. */
   avoidClaims?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
+  /** Concession claims to preserve — injected into Plan stage as claims to keep. */
+  preserveConcessions?: { text: string; reason: string }[];
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1762,13 +1764,17 @@ Consider how the moderator's point relates to your own position and plan a brief
     ? `\n=== DO NOT USE THESE ARGUMENTS ===\nThese arguments weaken your overall position. Do not use them or make substantially similar arguments.\n\n${input.avoidClaims.map(c => `- "${c.text}" (strength: ${c.base_strength.toFixed(2)}, Δu: ${c.marginal_delta >= 0 ? '+' : ''}${c.marginal_delta.toFixed(3)})\n  Why weak: ${c.reason}`).join('\n')}\n`
     : '';
 
+  const preserveConcessionsBlock = input.preserveConcessions && input.preserveConcessions.length > 0
+    ? `\n=== CLAIMS TO PRESERVE ===\nThese concessions are valuable — keep them in your revised response.\n\n${input.preserveConcessions.map(c => `- "${c.text}"\n  ${c.reason}`).join('\n')}\n`
+    : '';
+
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
 Your personality: ${input.personality}.
 Your perspective: ${input.pov}.
 ${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
 === SITUATION BRIEF ===
 ${brief}
-${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}
+${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}
 === AVAILABLE DIALECTICAL MOVES ===
 The 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}
 

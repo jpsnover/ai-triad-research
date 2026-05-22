@@ -69,6 +69,8 @@ export interface LookaheadGateResult {
   tentative_claims: { text: string; strength: number }[];
   /** Size of the tentative network (after adding claims). */
   tentative_network_size: { nodes: number; edges: number };
+  /** Indices of tentative claims identified as concessions (exempted from gate delta). */
+  concession_indices?: number[];
 }
 
 export interface LookaheadDiagnostics {
@@ -95,6 +97,27 @@ export interface LookaheadDiagnostics {
 /** Default utility delta threshold. Any non-negative delta passes. */
 const DEFAULT_THRESHOLD = 0.0;
 
+// ── Concession detection ──────────────────────────────────
+
+/**
+ * A tentative claim is a concession when it has a `supports` edge from the
+ * speaker's new claim to an opponent's existing node. This identifies
+ * intellectual honesty moves (CONCEDE-AND-PIVOT) that should not penalize
+ * the utility delta.
+ */
+function isConcessionClaim(
+  claimNodeId: string,
+  speaker: SpeakerId,
+  tentativeEdges: readonly ArgumentNetworkEdge[],
+  existingNodes: readonly ArgumentNetworkNode[],
+): boolean {
+  return tentativeEdges.some(e =>
+    e.source === claimNodeId &&
+    e.type === 'supports' &&
+    existingNodes.some(n => n.id === e.target && n.speaker !== speaker && n.speaker !== 'system' && n.speaker !== 'document')
+  );
+}
+
 // ── Core evaluation ───────────────────────────────────────
 
 /**
@@ -102,6 +125,9 @@ const DEFAULT_THRESHOLD = 0.0;
  *
  * Pure function — does not mutate the existing network. Creates a temporary
  * copy with the tentative claims added, runs QBAF, and computes utility delta.
+ *
+ * Concession claims (supports edges to opponent nodes) are exempted from
+ * the gate delta to avoid penalizing intellectual honesty.
  *
  * Performance: one extra QBAF propagation per call. For a 100-node network
  * this takes <10ms — negligible compared to LLM call latency.
@@ -123,21 +149,57 @@ export function evaluateLookahead(input: LookaheadGateInput): LookaheadGateResul
   const tentativeNodes = buildTentativeNodes(
     input.existingNodes, input.tentativeClaims, input.speaker,
   );
-  const tentativeEdges = [...input.existingEdges, ...input.tentativeEdges];
+  const allTentativeEdges = [...input.existingEdges, ...input.tentativeEdges];
 
-  // Compute tentative utility — augment crux tracker so new claims that
-  // attack/support crux nodes are reflected in crux_engagement scoring.
-  const tentativeStrengths = runQbaf(tentativeNodes, tentativeEdges, input.qbafOptions);
-  const tentativeWithStrengths = applyStrengths(tentativeNodes, tentativeStrengths);
-  const augmentedCruxes = augmentCruxesForTentative(
-    input.cruxes, input.tentativeEdges, tentativeNodes, input.speaker,
-  );
-  const utility_after = computeAgentUtility(
-    input.speaker,
-    tentativeWithStrengths,
-    tentativeEdges as ArgumentNetworkEdge[],
-    augmentedCruxes,
-  );
+  // Identify concession claims — supports edges to opponent nodes
+  const tentativeNodeIds = buildTentativeNodeIds(input.existingNodes, input.tentativeClaims);
+  const concessionIndices: number[] = [];
+  for (let i = 0; i < input.tentativeClaims.length; i++) {
+    if (isConcessionClaim(tentativeNodeIds[i], input.speaker, input.tentativeEdges as ArgumentNetworkEdge[], input.existingNodes as ArgumentNetworkNode[])) {
+      concessionIndices.push(i);
+    }
+  }
+
+  // Gate-evaluation network: exclude concession nodes and their edges
+  // so concessions don't penalize the delta. The full network is still
+  // used for the actual argument network (concessions are real moves).
+  let utility_after: AgentUtility;
+  if (concessionIndices.length > 0 && concessionIndices.length === input.tentativeClaims.length) {
+    // All claims are concessions — nothing to gate. Delta is 0, pass.
+    utility_after = utility_before;
+  } else if (concessionIndices.length > 0) {
+    const concessionNodeIds = new Set(concessionIndices.map(i => tentativeNodeIds[i]));
+    const gateClaims = input.tentativeClaims.filter((_, i) => !concessionIndices.includes(i));
+    const gateEdges = input.tentativeEdges.filter(
+      e => !concessionNodeIds.has(e.source) && !concessionNodeIds.has(e.target),
+    );
+    const gateNodes = buildTentativeNodes(input.existingNodes, gateClaims, input.speaker);
+    const gateAllEdges = [...input.existingEdges, ...gateEdges];
+    const gateStrengths = runQbaf(gateNodes, gateAllEdges, input.qbafOptions);
+    const gateWithStrengths = applyStrengths(gateNodes, gateStrengths);
+    const augmentedCruxes = augmentCruxesForTentative(
+      input.cruxes, gateEdges as ArgumentNetworkEdge[], gateNodes, input.speaker,
+    );
+    utility_after = computeAgentUtility(
+      input.speaker,
+      gateWithStrengths,
+      gateAllEdges as ArgumentNetworkEdge[],
+      augmentedCruxes,
+    );
+  } else {
+    // No concessions (or all concessions) — use full tentative network
+    const tentativeStrengths = runQbaf(tentativeNodes, allTentativeEdges, input.qbafOptions);
+    const tentativeWithStrengths = applyStrengths(tentativeNodes, tentativeStrengths);
+    const augmentedCruxes = augmentCruxesForTentative(
+      input.cruxes, input.tentativeEdges, tentativeNodes, input.speaker,
+    );
+    utility_after = computeAgentUtility(
+      input.speaker,
+      tentativeWithStrengths,
+      allTentativeEdges as ArgumentNetworkEdge[],
+      augmentedCruxes,
+    );
+  }
 
   const utility_delta = utility_after.composite - utility_before.composite;
 
@@ -153,8 +215,9 @@ export function evaluateLookahead(input: LookaheadGateInput): LookaheadGateResul
     })),
     tentative_network_size: {
       nodes: tentativeNodes.length,
-      edges: tentativeEdges.length,
+      edges: allTentativeEdges.length,
     },
+    concession_indices: concessionIndices.length > 0 ? concessionIndices : undefined,
   };
 }
 
@@ -224,8 +287,8 @@ export interface PerClaimResult {
   base_strength: number;
   /** Marginal utility delta: utility(all claims) − utility(all claims except this one). */
   marginal_delta: number;
-  /** Classification based on marginal contribution. */
-  classification: 'STRONG' | 'WEAK';
+  /** Classification based on marginal contribution. PRESERVE = concession claim exempted from gate. */
+  classification: 'STRONG' | 'WEAK' | 'PRESERVE';
   /** Which utility component this claim impacts most (for reason generation). */
   dominant_component: 'position_strength' | 'attack_effectiveness' | 'crux_engagement';
 }
@@ -246,6 +309,8 @@ export interface ClaimAnalysis {
   strongFoundations: ClaimAnalysisItem[];
   /** Claims with negative marginal utility — "do not use these." */
   avoidClaims: ClaimAnalysisItem[];
+  /** Concession claims exempted from the gate — "keep these in your revised response." */
+  preserveConcessions: ClaimAnalysisItem[];
 }
 
 /**
@@ -269,9 +334,24 @@ export function evaluateLookaheadPerClaim(input: LookaheadGateInput): {
     return { batchResult, perClaim: [] };
   }
 
-  // For single claim, marginal delta equals the batch delta
+  // For single claim, check concession first, then use batch delta
   if (input.tentativeClaims.length === 1) {
     const claim = input.tentativeClaims[0];
+    const singleNodeIds = buildTentativeNodeIds(input.existingNodes, input.tentativeClaims);
+    const isConcession = isConcessionClaim(singleNodeIds[0], input.speaker, input.tentativeEdges as ArgumentNetworkEdge[], input.existingNodes as ArgumentNetworkNode[]);
+    if (isConcession) {
+      return {
+        batchResult,
+        perClaim: [{
+          index: 0,
+          text: claim.text,
+          base_strength: claim.base_strength,
+          marginal_delta: 0,
+          classification: 'PRESERVE',
+          dominant_component: 'position_strength',
+        }],
+      };
+    }
     const dominant = identifyDominantComponent(batchResult.utility_before, batchResult.utility_after);
     return {
       batchResult,
@@ -289,9 +369,30 @@ export function evaluateLookaheadPerClaim(input: LookaheadGateInput): {
   // Build tentative node IDs so we can map claims to edges
   const tentativeNodeIds = buildTentativeNodeIds(input.existingNodes, input.tentativeClaims);
 
+  // Identify concession claims upfront
+  const concessionSet = new Set<number>();
+  for (let i = 0; i < input.tentativeClaims.length; i++) {
+    if (isConcessionClaim(tentativeNodeIds[i], input.speaker, input.tentativeEdges as ArgumentNetworkEdge[], input.existingNodes as ArgumentNetworkNode[])) {
+      concessionSet.add(i);
+    }
+  }
+
   const perClaim: PerClaimResult[] = [];
 
   for (let i = 0; i < input.tentativeClaims.length; i++) {
+    // Concession claims are classified PRESERVE regardless of marginal delta
+    if (concessionSet.has(i)) {
+      perClaim.push({
+        index: i,
+        text: input.tentativeClaims[i].text,
+        base_strength: input.tentativeClaims[i].base_strength,
+        marginal_delta: 0, // Neutral — concessions are exempted
+        classification: 'PRESERVE',
+        dominant_component: 'position_strength',
+      });
+      continue;
+    }
+
     // Leave-one-out: all claims except claim[i]
     const claimsWithout = input.tentativeClaims.filter((_, j) => j !== i);
     const excludedNodeId = tentativeNodeIds[i];
@@ -333,6 +434,7 @@ export function evaluateLookaheadPerClaim(input: LookaheadGateInput): {
 export function buildClaimAnalysis(perClaim: PerClaimResult[]): ClaimAnalysis {
   const strongFoundations: ClaimAnalysisItem[] = [];
   const avoidClaims: ClaimAnalysisItem[] = [];
+  const preserveConcessions: ClaimAnalysisItem[] = [];
 
   for (const claim of perClaim) {
     const item: ClaimAnalysisItem = {
@@ -342,7 +444,9 @@ export function buildClaimAnalysis(perClaim: PerClaimResult[]): ClaimAnalysis {
       reason: generateClaimReason(claim),
     };
 
-    if (claim.classification === 'STRONG') {
+    if (claim.classification === 'PRESERVE') {
+      preserveConcessions.push(item);
+    } else if (claim.classification === 'STRONG') {
       strongFoundations.push(item);
     } else {
       avoidClaims.push(item);
@@ -353,7 +457,7 @@ export function buildClaimAnalysis(perClaim: PerClaimResult[]): ClaimAnalysis {
   strongFoundations.sort((a, b) => b.marginal_delta - a.marginal_delta);
   avoidClaims.sort((a, b) => a.marginal_delta - b.marginal_delta);
 
-  return { strongFoundations, avoidClaims };
+  return { strongFoundations, avoidClaims, preserveConcessions };
 }
 
 /** Identify which utility component changed most between two evaluations. */
@@ -371,6 +475,9 @@ function identifyDominantComponent(
 
 /** Generate a human-readable reason for a claim's classification. */
 function generateClaimReason(claim: PerClaimResult): string {
+  if (claim.classification === 'PRESERVE') {
+    return 'Concession to opponent — intellectual honesty that advances wisdom generation.';
+  }
   if (claim.classification === 'STRONG') {
     if (claim.base_strength >= 0.8) {
       if (claim.dominant_component === 'crux_engagement') {

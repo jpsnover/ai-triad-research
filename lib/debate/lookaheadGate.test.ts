@@ -420,5 +420,139 @@ describe('buildClaimAnalysis', () => {
     const analysis = buildClaimAnalysis([]);
     expect(analysis.strongFoundations).toHaveLength(0);
     expect(analysis.avoidClaims).toHaveLength(0);
+    expect(analysis.preserveConcessions).toHaveLength(0);
+  });
+});
+
+// ── Concession exemption ────────────────────────────────
+
+describe('evaluateLookahead — concession exemption', () => {
+  it('exempts concession claims from gate delta', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+    ];
+    const existingEdges: ArgumentNetworkEdge[] = [];
+
+    // Concession: prometheus's new claim supports sentinel's existing node
+    const tentativeEdges = [makeEdge('AN-3', 'AN-2', 'supports', 0.7)];
+
+    const result = evaluateLookahead({
+      speaker: 'prometheus',
+      existingNodes,
+      existingEdges,
+      tentativeClaims: [{ text: 'Fair point that regulation alone cannot prevent misuse', base_strength: 0.6 }],
+      tentativeEdges,
+    });
+
+    // Should be identified as a concession
+    expect(result.concession_indices).toEqual([0]);
+    // A turn that is ALL concession passes — delta ~0 (no non-concession claims to evaluate)
+    expect(result.pass).toBe(true);
+  });
+
+  it('concession + weak claim: gate evaluates only the non-concession claim', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+    ];
+
+    // Claim 0: concession (supports opponent)
+    // Claim 1: weak claim (attacks own node)
+    const tentativeEdges: ArgumentNetworkEdge[] = [
+      makeEdge('AN-3', 'AN-2', 'supports', 0.7), // concession
+      makeEdge('AN-4', 'AN-1', 'attacks', 0.9),   // self-attack
+    ];
+
+    const result = evaluateLookahead({
+      speaker: 'prometheus',
+      existingNodes,
+      existingEdges: [],
+      tentativeClaims: [
+        { text: 'Concession to sentinel', base_strength: 0.5 },
+        { text: 'Self-undermining claim', base_strength: 0.3 },
+      ],
+      tentativeEdges,
+    });
+
+    // Concession at index 0
+    expect(result.concession_indices).toEqual([0]);
+    // Gate delta should reflect only the weak claim, not the concession
+    // The self-attack should make the delta negative or near-zero
+  });
+
+  it('non-concession supports edge is not flagged (supports own node)', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 }),
+      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.6 }),
+    ];
+
+    // Supports OWN node — not a concession
+    const tentativeEdges = [makeEdge('AN-3', 'AN-1', 'supports', 0.8)];
+
+    const result = evaluateLookahead({
+      speaker: 'prometheus',
+      existingNodes,
+      existingEdges: [],
+      tentativeClaims: [{ text: 'Supporting evidence for my claim', base_strength: 0.7 }],
+      tentativeEdges,
+    });
+
+    // Should NOT be identified as a concession — supports own node
+    expect(result.concession_indices).toBeUndefined();
+  });
+});
+
+describe('evaluateLookaheadPerClaim — concession classification', () => {
+  it('classifies concession claims as PRESERVE', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+    ];
+
+    const { perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes,
+      existingEdges: [],
+      tentativeClaims: [
+        { text: 'Strong attack', base_strength: 0.9 },
+        { text: 'Concession to sentinel', base_strength: 0.5 },
+      ],
+      tentativeEdges: [
+        makeEdge('AN-3', 'AN-2', 'attacks', 0.8), // attack
+        makeEdge('AN-4', 'AN-2', 'supports', 0.7), // concession
+      ],
+    });
+
+    expect(perClaim).toHaveLength(2);
+    expect(perClaim[0].classification).toBe('STRONG');
+    expect(perClaim[1].classification).toBe('PRESERVE');
+    expect(perClaim[1].marginal_delta).toBe(0); // Neutral
+  });
+
+  it('PRESERVE concessions go to preserveConcessions in buildClaimAnalysis', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+    ];
+
+    const { perClaim } = evaluateLookaheadPerClaim({
+      speaker: 'prometheus',
+      existingNodes,
+      existingEdges: [],
+      tentativeClaims: [
+        { text: 'Concession to sentinel', base_strength: 0.5 },
+      ],
+      tentativeEdges: [
+        makeEdge('AN-3', 'AN-2', 'supports', 0.7),
+      ],
+    });
+
+    const analysis = buildClaimAnalysis(perClaim);
+    expect(analysis.preserveConcessions).toHaveLength(1);
+    expect(analysis.preserveConcessions[0].text).toBe('Concession to sentinel');
+    expect(analysis.preserveConcessions[0].reason).toContain('Concession to opponent');
+    expect(analysis.strongFoundations).toHaveLength(0);
+    expect(analysis.avoidClaims).toHaveLength(0);
   });
 });

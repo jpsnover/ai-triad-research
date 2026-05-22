@@ -136,6 +136,10 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
     ? `=== DO NOT USE THESE ARGUMENTS ===\nThese arguments weaken your overall position. Do not use them or make substantially similar arguments.\n\n${input.avoidClaims.map(c => `- "${c.text}" (strength: ${c.base_strength.toFixed(2)}, Δu: ${c.marginal_delta >= 0 ? '+' : ''}${c.marginal_delta.toFixed(3)})\n  Why weak: ${c.reason}`).join('\n')}`
     : '';
 
+  const preserveConcessionsBlock = input.preserveConcessions && input.preserveConcessions.length > 0
+    ? `=== CLAIMS TO PRESERVE ===\nThese concessions are valuable — keep them in your revised response.\n\n${input.preserveConcessions.map(c => `- "${c.text}"\n  ${c.reason}`).join('\n')}`
+    : '';
+
   return {
     layer1_static: '',
 
@@ -151,6 +155,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
       strategicHintsBlock,
       strongFoundationsBlock,
       avoidClaimsBlock,
+      preserveConcessionsBlock,
       `=== AVAILABLE DIALECTICAL MOVES ===\nThe 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}\n\nEach move should be an object: {"move": "MOVE_NAME", "target": "AN-ID (optional)", "detail": "what you will do"}`,
       `=== FIELD-AWARE STRATEGY ===
 Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:
