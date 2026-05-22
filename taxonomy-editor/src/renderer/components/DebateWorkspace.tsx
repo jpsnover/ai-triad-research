@@ -175,6 +175,18 @@ const STRENGTH_BAND = (v: number) =>
   : v >= 0.3 ? { label: 'Weak', color: '#f59e0b' }
   : { label: 'Very Weak', color: '#ef4444' };
 
+function groundingLabel(baseStrength: number | undefined): string {
+  if (baseStrength === undefined) return '';
+  if (baseStrength >= 0.65) return 'Grounded';
+  if (baseStrength >= 0.35) return 'Reasoned';
+  return 'Asserted';
+}
+
+const GROUNDING_COLORS: Record<string, string | undefined> = {
+  Grounded: '#22c55e',
+  Asserted: '#f59e0b',
+};
+
 function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
@@ -200,11 +212,16 @@ function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
         ) : <span style={{ width: 10, flexShrink: 0 }} />}
         <strong style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>{node.id}</strong>
         <span style={{ fontSize: '0.7rem' }}>{speakerLabel(node.speaker)}</span>
-        {node.bdi_category && (
-          <span style={{ fontSize: '0.7rem' }}>
-            {node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : 'Intention'}
-          </span>
-        )}
+        {node.bdi_category && (() => {
+          const gl = groundingLabel(node.base_strength);
+          const gc = gl ? GROUNDING_COLORS[gl] : undefined;
+          return (
+            <span style={{ fontSize: '0.7rem' }}>
+              {gl && <span style={gc ? { color: gc } : undefined}>{gl} </span>}
+              {node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : 'Intention'}
+            </span>
+          );
+        })()}
         {!hasEdges && <span style={{ color: '#f59e0b', fontSize: '0.7rem' }}>[unaddressed]</span>}
         <span style={{
           fontSize: '0.7rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
