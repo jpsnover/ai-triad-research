@@ -32,6 +32,27 @@ export interface RelevanceOptions {
   minPerCategory?: number;
   maxTotal?: number;
   scoringMode?: 'embedding' | 'lexical';
+  /** Optional lineage boost configuration — promotes nodes matching the debate's intellectual traditions. */
+  lineageBoost?: LineageBoostConfig;
+}
+
+export interface LineageBoostConfig {
+  /** Level 2 cluster IDs from the debate's lineage_frame. */
+  traditions: string[];
+  /** Score boost for matching nodes (default 0.08). */
+  boost: number;
+  /** Per-node lineage: nodeId → lineage name list. */
+  lineageByNode: Record<string, string[]>;
+  /** Name-to-Level2-cluster mapping. */
+  nameToCluster: Record<string, string>;
+}
+
+/** Result of applying lineage boost — for diagnostics logging. */
+export interface LineageBoostResult {
+  /** Node IDs that received a boost. */
+  boostedNodeIds: string[];
+  /** Number of nodes that crossed the threshold thanks to the boost. */
+  promotedCount: number;
 }
 
 export function cosineSimilarity(a: number[], b: number[]): number {
@@ -83,6 +104,35 @@ export function selectRelevantNodes(
   );
   minPerCategory = opts.minPerCategory ?? minPerCategory;
   maxTotal = opts.maxTotal ?? maxTotal;
+
+  // Apply lineage boost if configured
+  const effectiveScores = new Map(scores);
+  let _lineageBoostResult: LineageBoostResult | undefined;
+  if (opts.lineageBoost && opts.lineageBoost.traditions.length > 0) {
+    const lb = opts.lineageBoost;
+    const tradSet = new Set(lb.traditions);
+    const boostedIds: string[] = [];
+    let promoted = 0;
+
+    for (const node of povNodes) {
+      const names = lb.lineageByNode[node.id];
+      if (!names) continue;
+      const matches = names.some(name => {
+        const cluster = lb.nameToCluster[name];
+        return cluster != null && tradSet.has(cluster);
+      });
+      if (matches) {
+        const base = effectiveScores.get(node.id) ?? 0;
+        const boosted = base + lb.boost;
+        effectiveScores.set(node.id, boosted);
+        boostedIds.push(node.id);
+        if (base < threshold && boosted >= threshold) promoted++;
+      }
+    }
+
+    _lineageBoostResult = { boostedNodeIds: boostedIds, promotedCount: promoted };
+  }
+
   // Group by category
   const groups: Record<string, ScoredPovNode[]> = {
     'Beliefs': [],
@@ -92,7 +142,7 @@ export function selectRelevantNodes(
 
   for (const node of povNodes) {
     const cat = node.category || 'Intentions';
-    const score = scores.get(node.id) || 0;
+    const score = effectiveScores.get(node.id) || 0;
     (groups[cat] ?? groups['Intentions']).push({ node, score });
   }
 
@@ -108,7 +158,12 @@ export function selectRelevantNodes(
     result.push(...selected);
   }
 
-  return maxTotal != null ? result.slice(0, maxTotal) : result;
+  // Stash diagnostics on the result array for callers that want it
+  const sliced = maxTotal != null ? result.slice(0, maxTotal) : result;
+  if (_lineageBoostResult) {
+    (sliced as ScoredPovNode[] & { _lineageBoost?: LineageBoostResult })._lineageBoost = _lineageBoostResult;
+  }
+  return sliced;
 }
 
 /**

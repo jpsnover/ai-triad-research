@@ -1184,6 +1184,33 @@ export class DebateEngine {
       minPerCategory: 3,
       maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 35,
     };
+
+    // Apply lineage boost when lineage_frame is available
+    const lineageFrame = this.session.topic.critique?.lineage_frame;
+    const lc = this.taxonomy.lineageCategories;
+    if (lineageFrame && lineageFrame.length > 0 && lc) {
+      const lineageByNode: Record<string, string[]> = {};
+      for (const povKey of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+        for (const node of this.taxonomy[povKey]?.nodes ?? []) {
+          const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
+          const lineage = ga?.intellectual_lineage;
+          if (lineage && lineage.length > 0) {
+            lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
+          }
+        }
+      }
+      const nameToCluster: Record<string, string> = {};
+      for (const [name, val] of Object.entries(lc.mapping)) {
+        nameToCluster[name] = val.l2;
+      }
+      relevanceOpts.lineageBoost = {
+        traditions: lineageFrame.map(f => f.cluster_id),
+        boost: 0.08,
+        lineageByNode,
+        nameToCluster,
+      };
+    }
+
     const scoredPov = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
     const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, { ...relevanceOpts, maxTotal: undefined }, 3, 15);
     const filteredCtx = {
@@ -1194,6 +1221,15 @@ export class DebateEngine {
     };
     this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
     this._lastInjectionManifest.scoring_mode = scoringMode;
+
+    // Log lineage boost diagnostics
+    const lbResult = (scoredPov as ScoredPovNode[] & { _lineageBoost?: import('./taxonomyRelevance.js').LineageBoostResult })._lineageBoost;
+    if (lbResult && lbResult.boostedNodeIds.length > 0) {
+      (this._lastInjectionManifest as Record<string, unknown>).lineage_boost = {
+        boosted: lbResult.boostedNodeIds.length,
+        promoted: lbResult.promotedCount,
+      };
+    }
     this._lastRelevanceScores = scores;
     return formatTaxonomyContext(filteredCtx, pov);
   }
