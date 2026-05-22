@@ -31,9 +31,9 @@ const situationNodeSchema = z.object({
   label: z.string().min(1, 'Label is required'),
   description: z.string().min(1, 'Description is required'),
   interpretations: z.object({
-    accelerationist: z.string().min(1, 'Accelerationist interpretation is required'),
-    safetyist: z.string().min(1, 'Safetyist interpretation is required'),
-    skeptic: z.string().min(1, 'Skeptic interpretation is required'),
+    accelerationist: z.union([z.string().min(1), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
+    safetyist: z.union([z.string().min(1), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
+    skeptic: z.union([z.string().min(1), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
   }),
   linked_nodes: z.array(z.string()),
   conflict_ids: z.array(z.string()),
