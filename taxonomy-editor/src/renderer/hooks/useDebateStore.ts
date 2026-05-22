@@ -1944,12 +1944,12 @@ interface DebateStore {
   debateLoading: boolean;
   debateGenerating: SpeakerId | null;
   debateError: string | null;
-  responseLength: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning';
-  setResponseLength: (length: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning') => void;
+  responseLength: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence';
+  setResponseLength: (length: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence') => void;
   audience: DebateAudience;
   setAudience: (audience: DebateAudience) => void;
   /** Set display tier for a specific transcript entry (DT-3). */
-  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning') => void;
+  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence') => void;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3

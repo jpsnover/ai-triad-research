@@ -8,7 +8,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
-import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge } from '../types/debate';
+import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge, ConvergenceSignals } from '../types/debate';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import type { TopicCritique, StructuralScore, FrameScore } from '@lib/debate/topicCritique';
@@ -174,6 +174,97 @@ const STRENGTH_BAND = (v: number) =>
   : v >= 0.5 ? { label: 'Moderate', color: '#3b82f6' }
   : v >= 0.3 ? { label: 'Weak', color: '#f59e0b' }
   : { label: 'Very Weak', color: '#ef4444' };
+
+// ── Inline convergence diagnostics card for a single entry ──
+
+function pctFmt(v: number): string { return `${(v * 100).toFixed(0)}%`; }
+
+function ConvergenceInlineCard({ signal }: { signal: ConvergenceSignals | undefined }) {
+  if (!signal) {
+    return <div style={{ padding: 8, color: 'var(--text-muted)', fontSize: '0.8rem' }}>No convergence data for this turn.</div>;
+  }
+  const md = signal.move_polarity;
+  const ed = signal.dialectical_engagement;
+  const rr = signal.argument_redundancy;
+  const so = signal.dominant_counterargument;
+  const co = signal.concession_opportunity;
+  const pd = signal.position_drift;
+  const cr = signal.crux_engagement_rate;
+  const lbl: React.CSSProperties = { color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.03em' };
+  const val: React.CSSProperties = { color: 'var(--text-primary)', fontSize: '0.72rem' };
+  const cell: React.CSSProperties = { padding: '4px 6px', borderRadius: 3, background: 'var(--bg-tertiary, rgba(255,255,255,0.03))' };
+  const badge = (text: string, color: string) => (
+    <span style={{ color, marginLeft: 4, fontSize: '0.62rem' }}>{text}</span>
+  );
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, padding: '4px 0' }}>
+      <div style={cell}>
+        <div style={lbl}>Polarity</div>
+        <div style={val}>
+          <span style={{ color: '#ef4444' }}>{md?.confrontational ?? 0}C</span>{' / '}
+          <span style={{ color: '#22c55e' }}>{md?.collaborative ?? 0}S</span>
+          {' = '}<strong>{pctFmt(md?.ratio ?? 0)}</strong>
+          {(md?.ratio ?? 0) >= 0.5 ? badge('cooperative', '#22c55e') : badge('confrontational', '#ef4444')}
+        </div>
+      </div>
+      <div style={cell}>
+        <div style={lbl}>Dialectical Engagement</div>
+        <div style={val}>
+          {ed?.targeted ?? 0}/{(ed?.targeted ?? 0) + (ed?.standalone ?? 0)} targeted = <strong>{pctFmt(ed?.ratio ?? 0)}</strong>
+          {(ed?.ratio ?? 0) >= 0.7 ? badge('deep', '#22c55e') : (ed?.ratio ?? 0) >= 0.4 ? badge('moderate', '#f59e0b') : badge('standalone', '#ef4444')}
+        </div>
+      </div>
+      <div style={cell}>
+        <div style={lbl}>Argument Redundancy</div>
+        <div style={val}>
+          avg <strong>{pctFmt(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pctFmt(rr?.max_self_overlap ?? 0)}</strong>
+          {rr?.semantic_max_similarity != null && <>, sem <strong>{pctFmt(rr.semantic_max_similarity)}</strong></>}
+          {rr?.semantically_recycled ? badge('semantic repeat', '#ef4444')
+            : (rr?.max_self_overlap ?? 0) >= 0.5 ? badge('repeating', '#f59e0b')
+            : badge('fresh', '#22c55e')}
+        </div>
+      </div>
+      <div style={cell}>
+        <div style={lbl}>Dominant Counterargument</div>
+        <div style={val}>
+          {so ? (
+            <>{so.node_id} str={so.strength?.toFixed(2)}
+              {(so.strength ?? 0) >= 0.7 ? badge('strong', '#ef4444') : (so.strength ?? 0) >= 0.5 ? badge('moderate', '#f59e0b') : badge('weak', '#22c55e')}
+            </>
+          ) : <span style={{ color: 'var(--text-muted)' }}>none</span>}
+        </div>
+      </div>
+      <div style={cell}>
+        <div style={lbl}>Concession</div>
+        <div style={val}>
+          {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} —{' '}
+          <span style={{
+            padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
+            background: co?.outcome === 'taken' ? 'rgba(34,197,94,0.15)' : co?.outcome === 'missed' ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.15)',
+            color: co?.outcome === 'taken' ? '#22c55e' : co?.outcome === 'missed' ? '#ef4444' : '#94a3b8',
+          }}>{co?.outcome === 'taken' ? 'Taken' : co?.outcome === 'missed' ? 'Missed' : 'N/A'}</span>
+        </div>
+      </div>
+      <div style={cell}>
+        <div style={lbl}>Position Drift</div>
+        <div style={val}>
+          opening: <strong>{pctFmt(pd?.overlap_with_opening ?? 0)}</strong>, drift: <strong>{pctFmt(pd?.drift ?? 0)}</strong>
+          {(pd?.overlap_with_opening ?? 0) >= 0.6 ? badge('anchored', '#f59e0b')
+            : (pd?.overlap_with_opening ?? 0) < 0.3 ? badge('shifted', '#3b82f6')
+            : badge('evolved', '#22c55e')}
+        </div>
+      </div>
+      <div style={{ ...cell, gridColumn: '1 / -1' }}>
+        <div style={lbl}>Crux Engagement</div>
+        <div style={val}>
+          this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr?.cumulative_count ?? 0} | follow-through: {cr?.cumulative_follow_through ?? 0}
+          {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) === 0 && badge('no follow-through', '#f59e0b')}
+          {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) > 0 && badge('resolving', '#22c55e')}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function groundingLabel(baseStrength: number | undefined): string {
   if (baseStrength === undefined) return '';
@@ -1103,14 +1194,14 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         </span>
         {showTierPills && (
           <span className="debate-tier-pills">
-            {(['claims', 'brief', 'medium', 'detailed', 'reasoning'] as const).map(tier => (
+            {(['claims', 'brief', 'medium', 'detailed', 'convergence', 'reasoning'] as const).map(tier => (
               <button
                 key={tier}
                 className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
                 onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
-                title={tier === 'claims' ? 'Argument network claims' : tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : tier === 'reasoning' ? 'Brief, plan & BDI (replaces text)' : 'Full response'}
+                title={tier === 'claims' ? 'Argument network claims' : tier === 'convergence' ? 'Convergence diagnostics' : tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : tier === 'reasoning' ? 'Brief, plan & BDI (replaces text)' : 'Full response'}
               >
-                {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'reasoning' ? 'Plan' : 'Detail'}
+                {tier === 'claims' ? 'Claims' : tier === 'convergence' ? 'Conv' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'reasoning' ? 'Plan' : 'Detail'}
               </button>
             ))}
           </span>
@@ -1182,6 +1273,10 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
       {activeTier === 'claims' ? (
         <div className="debate-statement-content">
           <ClaimsView entryId={entry.id} debate={activeDebate!} />
+        </div>
+      ) : activeTier === 'convergence' ? (
+        <div className="debate-statement-content">
+          <ConvergenceInlineCard signal={activeDebate?.convergence_signals?.find(s => s.entry_id === entry.id)} />
         </div>
       ) : activeTier === 'reasoning' ? (
         /* Plan tier: show only the brief/plan/BDI sections, replacing the statement text */
@@ -3284,14 +3379,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           <ExportButtonInline onExport={onExport} />
         )}
         <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
-          {(['claims', 'brief', 'medium', 'detailed', 'reasoning'] as const).map(tier => (
+          {(['claims', 'brief', 'medium', 'detailed', 'convergence', 'reasoning'] as const).map(tier => (
             <button
               key={tier}
               className={`debate-tier-pill${defaultTier === tier ? ' debate-tier-pill-active' : ''}`}
               onClick={() => setDefaultTier(tier)}
-              title={tier === 'claims' ? 'Show argument network claims' : tier === 'reasoning' ? 'Show brief, plan & BDI (replaces text)' : `Set all turns to ${tier}${tier === 'brief' ? ' (2-3 sentences)' : tier === 'medium' ? ' (key points)' : ' (full content)'}`}
+              title={tier === 'claims' ? 'Show argument network claims' : tier === 'convergence' ? 'Show convergence diagnostics' : tier === 'reasoning' ? 'Show brief, plan & BDI (replaces text)' : `Set all turns to ${tier}${tier === 'brief' ? ' (2-3 sentences)' : tier === 'medium' ? ' (key points)' : ' (full content)'}`}
             >
-              {tier === 'claims' ? 'Claims' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'reasoning' ? 'Plan' : 'Detail'}
+              {tier === 'claims' ? 'Claims' : tier === 'convergence' ? 'Conv' : tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'reasoning' ? 'Plan' : 'Detail'}
             </button>
           ))}
         </span>
@@ -3385,8 +3480,8 @@ export function DebateWorkspace({ onExport, exportStatus }: {
           <DebaterToggles />
         )}
 
-        {/* Refined topic editor + score comparison (shown whenever refined topic exists and debate is still active) */}
-        {activeDebate.topic.refined && activeDebate.phase !== 'closed' && activeDebate.phase !== 'cancelled' && (
+        {/* Refined topic editor + score comparison (shown only during setup/clarification/edit-claims) */}
+        {activeDebate.topic.refined && (activeDebate.phase === 'setup' || activeDebate.phase === 'clarification' || activeDebate.phase === 'edit-claims') && (
           <>
             <RefinedTopicEditor />
             <TopicScoreComparison />
