@@ -104,7 +104,7 @@ import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggesti
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
 import type { LookaheadDiagnostics, LookaheadGateResult, ClaimAnalysis, PerClaimResult } from '@lib/debate/lookaheadGate';
-import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique } from '@lib/debate/topicCritique';
+import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatCritiqueForRefinement, formatStructuralContext } from '@lib/debate/topicCritique';
 import type { TopicCritique } from '@lib/debate/topicCritique';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import { usePromptConfigStore } from './usePromptConfigStore';
@@ -1759,6 +1759,7 @@ function buildSynthesisPrompt(
   originalTopic: string,
   clarifications: { speaker: string; questions: string[]; answers: string }[],
   audience?: DebateAudience,
+  critique?: TopicCritique | null,
 ): string {
   let qaPairs = '';
   for (const c of clarifications) {
@@ -1766,7 +1767,8 @@ function buildSynthesisPrompt(
     for (const q of c.questions) qaPairs += `  - ${q}\n`;
     qaPairs += `User answered: ${c.answers}\n`;
   }
-  return concludingPrompt(originalTopic, qaPairs, audience);
+  const critiqueContext = critique ? formatCritiqueForRefinement(critique) : undefined;
+  return concludingPrompt(originalTopic, qaPairs, audience, critiqueContext);
 }
 
 
@@ -2567,8 +2569,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         embeddings: nodeEmbeddings,
       });
 
-      // Phase B: LLM frame analysis
-      const prompt = critiqueTopicPrompt(topic);
+      // Phase B: LLM frame analysis (with structural context from Phase A)
+      const prompt = critiqueTopicPrompt(topic, formatStructuralContext(structuralScore));
       const { text } = await generateTextWithProgress(prompt, model, `Evaluating topic quality (${model})`, set);
       const critique = parseTopicCritique(text, structuralScore);
 
@@ -2680,7 +2682,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     const model = getConfiguredModel();
-    const prompt = buildSynthesisPrompt(activeDebate.topic.original, clarifications, activeDebate.audience);
+    const prompt = buildSynthesisPrompt(activeDebate.topic.original, clarifications, activeDebate.audience, activeDebate.topic.critique);
 
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Synthesizing refined topic (${model})`, set);
