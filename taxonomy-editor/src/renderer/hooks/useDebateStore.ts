@@ -3643,7 +3643,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const poverLabels = aiPovers.map((p) => POVER_INFO[p].label);
 
     // Step 1: Active moderator — delegate to shared orchestration
-    set({ debateGenerating: aiPovers[0] });
+    set({ debateGenerating: 'system' as SpeakerId, debateActivity: 'Moderator selection...' });
 
     const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
     const adaptiveStaging = activeDebate.adaptive_staging;
@@ -4431,7 +4431,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (synthesis._raw_text) {
         lines.push('*Synthesis could not be parsed as structured data. Raw output:*');
         lines.push('');
-        lines.push(synthesis._raw_text);
+        // Break raw text into readable paragraphs at sentence boundaries and bullet markers
+        const formatted = synthesis._raw_text
+          .replace(/([.!?])\s+(?=[A-Z"*-])/g, '$1\n\n')  // paragraph break at sentence ends before capitals
+          .replace(/\s*[-–—•]\s+/g, '\n- ')               // normalize bullet-like markers
+          .replace(/\s*\d+\.\s+/g, (m: string) => '\n' + m.trim() + ' '); // numbered lists
+        lines.push(formatted);
       }
       if (synthesis.areas_of_agreement?.length > 0) {
         lines.push('## Areas of Agreement', '');
