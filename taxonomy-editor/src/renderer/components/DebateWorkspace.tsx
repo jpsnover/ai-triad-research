@@ -1478,6 +1478,13 @@ function DebateContextMenu({
       <button className="debate-context-menu-item" onClick={handleSimilarPovs}>
         Similar Perspectives for &lsquo;{truncatedText}&rsquo;
       </button>
+      <button className="debate-context-menu-item" onClick={() => {
+        void api.clipboardWriteText(`EXPLAIN: ${menu.selectedText}`);
+        void api.openExternal('https://gemini.google.com/app');
+        onClose();
+      }}>
+        Explain&hellip;
+      </button>
       {menu.isPoverStatement && (
         <button
           className="debate-context-menu-item debate-context-menu-fact-check"
