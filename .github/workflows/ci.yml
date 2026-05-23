@@ -47,6 +47,10 @@ jobs:
 
   test-electron:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [taxonomy-editor, poviewer, summary-viewer, workflow-app]
     steps:
       - uses: actions/checkout@v4
 
@@ -54,26 +58,31 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: taxonomy-editor/package-lock.json
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
 
       - name: Install dependencies
-        working-directory: taxonomy-editor
+        working-directory: ${{ matrix.app }}
         run: npm ci
 
       - name: Audit dependencies
-        working-directory: taxonomy-editor
+        working-directory: ${{ matrix.app }}
         run: npm audit --audit-level=high
 
       - name: Lint
-        working-directory: taxonomy-editor
-        run: npm run lint
+        working-directory: ${{ matrix.app }}
+        run: npm run lint --if-present
 
       - name: TypeScript check (main)
-        working-directory: taxonomy-editor
+        working-directory: ${{ matrix.app }}
         run: npx tsc --noEmit -p tsconfig.main.json
 
+      - name: Test
+        working-directory: ${{ matrix.app }}
+        run: npm test --if-present
+
       - name: Build
-        working-directory: taxonomy-editor
+        if: matrix.app == 'taxonomy-editor'
+        working-directory: ${{ matrix.app }}
         run: npm run build
 
   test-container:
