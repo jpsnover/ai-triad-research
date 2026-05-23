@@ -2732,29 +2732,9 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
       const alreadyTerminated = (activeDebate as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated'
         || activeDebate.phase === 'closed';
       if (alreadyTerminated) {
-        // Debate already terminated — find debaters who haven't spoken in the final
-        // round and prompt them directly (bypasses moderator agreement-detection)
-        const transcript = activeDebate.transcript;
-        const lastRoundSpeakers = new Set<string>();
-        // Walk backwards to find speakers in the last round (consecutive statements at end)
-        for (let j = transcript.length - 1; j >= 0; j--) {
-          const e = transcript[j];
-          if (e.type === 'statement') lastRoundSpeakers.add(e.speaker);
-          else if (e.type === 'system' && /\[Phase|Moderator|Round/.test(e.content)) break;
-          else if (e.type !== 'statement' && e.type !== 'system') break;
-        }
-        const missingPovers = (['prometheus', 'sentinel', 'cassandra'] as const).filter(
-          p => activeDebate.active_povers.includes(p) && !lastRoundSpeakers.has(p)
-        );
-        if (missingPovers.length > 0) {
-          // Direct prompt via askQuestion to bypass moderator
-          // Use character names (prometheus/sentinel/cassandra) for @-mention parsing
-          const mentions = missingPovers.map(p => `@${p.charAt(0).toUpperCase() + p.slice(1)}`).join(' ');
-          await askQuestion(`${mentions} Please give your final statement on this debate.`);
-        } else {
-          // All debaters have spoken — try one more crossRespond
-          await crossRespond();
-        }
+        // Debate already terminated — crossRespond handles the bypass internally
+        // (skips moderator, picks missing debaters, runs full pipeline with stage_diagnostics)
+        await crossRespond();
       } else {
         for (let i = 0; i < maxSafetyRounds; i++) {
           const d = useDebateStore.getState().activeDebate;

@@ -3649,6 +3649,140 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const recentTranscript = formatRecentTranscript(activeDebate.transcript, 8, activeDebate.context_summaries);
     const poverLabels = aiPovers.map((p) => POVER_INFO[p].label);
 
+    // Bypass moderator when debate is already terminated/closed — pick missing debater directly
+    const isAlreadyTerminated = activeDebate.phase === 'closed'
+      || (activeDebate as Record<string, unknown>).adaptive_staging
+        && ((activeDebate as Record<string, unknown>).adaptive_staging as Record<string, unknown>)?.phase_state
+        && ((activeDebate as Record<string, unknown>).adaptive_staging as Record<string, unknown> & { phase_state: { current_phase: string } }).phase_state.current_phase === 'terminated';
+    if (isAlreadyTerminated) {
+      // Find debaters who haven't spoken in the last round
+      const lastRoundSpeakers = new Set<string>();
+      for (let j = activeDebate.transcript.length - 1; j >= 0; j--) {
+        const e = activeDebate.transcript[j];
+        if (e.type === 'statement') lastRoundSpeakers.add(e.speaker);
+        else if (e.type === 'system' && /\[Phase|Moderator|Round/.test(e.content)) break;
+        else if (e.type !== 'statement' && e.type !== 'system') break;
+      }
+      const missingPovers = aiPovers.filter(p => !lastRoundSpeakers.has(p));
+      if (missingPovers.length > 0) {
+        // Use the first missing pover and jump straight to step 2 (response generation)
+        const responderPover = missingPovers[0];
+        const crossRespondRound = activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
+        const phase = 'concluding';
+        const focusPoint = 'Give your final statement on this debate.';
+        const addressingLabel = 'all';
+        set({ debateGenerating: responderPover });
+
+        // Jump to step 2 with these values — the rest of crossRespond handles it
+        // We need to skip to the pipeline section; use a goto-like pattern by setting these
+        // and falling through. Instead, extract a helper or inline the pipeline call.
+        // For simplicity: call the pipeline inline here.
+        const info = POVER_INFO[responderPover];
+        const currentTranscript = formatRecentTranscript(get().activeDebate!.transcript, 8, get().activeDebate!.context_summaries);
+        const ctx = await getRelevantTaxonomyContext(info.pov, topic, currentTranscript);
+        const speakerClaims = (activeDebate.argument_network?.nodes || []).filter(n => n.speaker === responderPover);
+        const commitBlock = formatCommitments(
+          activeDebate.commitments?.[responderPover] || { asserted: [], conceded: [], challenged: [] },
+          speakerClaims,
+        );
+        const allANNodes = (activeDebate.argument_network?.nodes || []).map(n => ({
+          id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker,
+        }));
+        const establishedBlock = formatEstablishedPoints(allANNodes, info.label, 10);
+        const edgeBlock = formatDebaterEdgeContext(info.pov);
+        const concessionAN = activeDebate.argument_network;
+        const priorConceded = activeDebate.commitments?.[responderPover]?.conceded ?? [];
+        const concessionHint = concessionAN
+          ? formatConcessionCandidatesHint(concessionAN.nodes, concessionAN.edges, responderPover, priorConceded)
+          : '';
+        const crVocab = get().vocabularyTerms;
+        const crVocabBlock = crVocab
+          ? '\n' + formatVocabularyContext({ pov: info.pov, standardizedTerms: crVocab.standardized, colloquialTerms: crVocab.colloquial })
+          : '';
+        const taxonomyBlock = formatTaxonomyContext(ctx, info.pov) + crVocabBlock;
+        const crDocAnalysis = activeDebate.document_analysis;
+        const priorMoves = activeDebate.transcript
+          .filter(e => e.speaker === responderPover && e.metadata)
+          .flatMap(e => {
+            const mt = (e.metadata as Record<string, unknown>)?.move_types;
+            return Array.isArray(mt) ? mt.map(m => getMoveName(m)) : [];
+          })
+          .slice(-6);
+        const priorRefs = activeDebate.transcript
+          .filter(e => e.speaker === responderPover && e.type !== 'opening')
+          .slice(-2)
+          .flatMap(e => (e.taxonomy_refs ?? []).map(r => r.node_id));
+        const availablePovNodeIds = [...getAllKnownNodeIds()];
+        const debaterGapHint = formatGapHint(activeDebate.gap_injections);
+        const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
+
+        const pipelineInput: TurnPipelineInput = {
+          label: info.label,
+          pov: info.pov,
+          personality: info.personality,
+          topic,
+          taxonomyContext: taxonomyBlock,
+          commitmentContext: commitBlock,
+          establishedPoints: establishedBlock,
+          edgeContext: edgeBlock,
+          concessionHint: concessionHint + debaterGapHint,
+          recentTranscript: currentTranscript,
+          focusPoint,
+          addressing: addressingLabel,
+          phase,
+          priorMoves,
+          priorRefs,
+          availablePovNodeIds,
+          pendingIntervention: undefined,
+          sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
+          documentAnalysis: crDocAnalysis,
+          audience: activeDebate.audience,
+          model,
+          sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
+          docTitles: docTitles as TurnPipelineInput['docTitles'],
+        };
+
+        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
+        const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
+        if (!isStillValid()) { set({ debateGenerating: null }); return; }
+
+        const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text);
+        if (ctx.nodeScores) {
+          for (const ref of taxonomyRefs) {
+            const score = ctx.nodeScores.get(ref.node_id);
+            if (score != null) ref.relevance_score = score;
+          }
+        }
+        const relevanceSources = serializeNodeSourceMap(ctx.nodeSourceMap, taxonomyRefs);
+        addTranscriptEntry({
+          type: 'statement',
+          speaker: responderPover,
+          content: statement,
+          taxonomy_refs: taxonomyRefs,
+          policy_refs: meta.policy_refs,
+          addressing: addressingLabel,
+          metadata: { ...meta, round: crossRespondRound, moderator_trace: { selected: info.label, selection_reason: 'post_termination_final_statement' }, relevance_sources: relevanceSources },
+        });
+        const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
+        if (lastEntry) {
+          const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+          recordDiagnostic(get, set, lastEntry.id, {
+            prompt: draftDiag?.raw_response ?? pipelineResult.final_text,
+            raw_response: pipelineResult.final_text,
+            model,
+            taxonomy_context: taxonomyBlock,
+            commitment_context: commitBlock || undefined,
+            stage_diagnostics: pipelineResult.stage_diagnostics,
+          });
+          void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
+          await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
+        }
+        set({ debateGenerating: null });
+        await saveDebate();
+        return;
+      }
+    }
+
     // Step 1: Active moderator — delegate to shared orchestration
     set({ debateGenerating: 'system' as SpeakerId, debateActivity: 'Moderator selection...' });
 
