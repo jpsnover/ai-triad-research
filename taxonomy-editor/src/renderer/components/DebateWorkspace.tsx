@@ -304,7 +304,8 @@ function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
         <strong style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>{node.id}</strong>
         <span style={{ fontSize: '0.7rem' }}>{speakerLabel(node.speaker)}</span>
         {node.bdi_category && (() => {
-          const gl = groundingLabel(node.base_strength);
+          // Grounded/Reasoned/Asserted labels only apply to Belief claims
+          const gl = node.bdi_category === 'belief' ? groundingLabel(node.base_strength) : '';
           const gc = gl ? GROUNDING_COLORS[gl] : undefined;
           return (
             <span style={{ fontSize: '0.7rem' }}>
