@@ -197,3 +197,21 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. When a script returns 0 results or empty data, suspect a schema mismatch before debugging logic.
 
 **Applies To:** All agents working with taxonomy JSON data or writing data processing scripts.
+
+---
+
+## [Build] Missing CLI Tools in Dev Environment
+
+**Pattern:** Commands fail because expected CLI tools are not installed in the development environment.
+
+**Instances:**
+- 2026-05-23 — DevOps: `az` CLI not found in bash or PowerShell. Used `gh` CLI as fallback for workflow checks (p/26#1).
+
+**Root Cause:** Dev environment setup doesn't include all CLI tools that agents may need. Azure CLI is not installed, though `gh` (GitHub CLI) is available.
+
+**Prevention:**
+1. Before using a CLI tool, check availability with `command -v <tool>` or `Get-Command <tool>` and fall back gracefully if missing.
+2. Document required vs. available CLI tools for the dev environment.
+3. When a tool is unavailable, prefer alternative tools already installed (`gh` instead of `az` for GitHub-hosted workflow checks) over blocking.
+
+**Applies To:** All agents running CLI commands, especially DevOps and CI-related work.

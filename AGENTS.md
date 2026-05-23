@@ -16,7 +16,7 @@ Import-Module ./scripts/AITriad/AITriad.psm1
 Invoke-Pester ./tests/
 
 # Run a single Pester test by name
-Invoke-Pester ./tests/ -FullNameFilter '*test name pattern*'
+Invoke-Pester ./tests/ -Filter @{ FullName = '*test name pattern*' }
 
 # Build distributable module
 ./scripts/Build-Module.ps1 -Clean
@@ -64,10 +64,6 @@ Four POV camps with BDI categories (Beliefs, Desires, Intentions). Node IDs: `{p
 ### AI Backends
 
 Configured in `ai-models.json` (single source of truth for PS and Electron). Backends: Google Gemini (free tier), Anthropic Claude, Groq (free tier). Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback).
-
-## File Editing Rule
-
-When writing or editing files that contain special shell characters (template literals, nested quotes, apostrophes, backticks, `$` variables), **always use Edit/Write tools** instead of Bash `sed`, `awk`, or heredocs. Shell escaping is the #1 source of silent corruption bugs. If Bash is unavoidable, write a temp script via `Write` and execute it — never inline code with complex quoting into heredocs or `bash -c`.
 
 ## Error Handling Convention
 

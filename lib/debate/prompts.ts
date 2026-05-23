@@ -70,6 +70,20 @@ function getDetailInstruction(audience?: DebateAudience): string {
   return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].detailInstruction;
 }
 
+/** Compact style reminder placed at the end of draft prompts to counteract instruction dilution in long contexts. */
+function getStyleReinforcement(audience?: DebateAudience): string {
+  const key = audience ?? 'policymakers';
+  const base = 'STYLE REMINDER (re-read before writing): One idea per sentence. Maximum 30 words per sentence — if you need a comma, consider a period instead. No debate-procedural language ("I concede", "concession logged", "I conditionally agree"). State your position directly.';
+  const audienceSpecific: Record<DebateAudience, string> = {
+    policymakers: 'Every sentence must be quotable by a reporter without rewriting. Active voice, named actors, concrete numbers.',
+    technical_researchers: 'Precise vocabulary. Quantify claims. Distinguish empirical from theoretical.',
+    industry_leaders: 'Lead with the business conclusion. Translate technical risk to operational risk. No PhD-level jargon.',
+    academic_community: 'Name the theoretical tradition. Distinguish descriptive from normative. Hedge once per claim, not twice.',
+    general_public: 'No jargon without a plain-English equivalent in the same sentence. Say one thing clearly per sentence.',
+  };
+  return `${base} ${audienceSpecific[key]}`;
+}
+
 function getModeratorBias(audience?: DebateAudience): string {
   return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].moderatorBias;
 }
@@ -134,6 +148,8 @@ const MUST_CORE_BEHAVIORS = `## MUST — CORE BEHAVIORS
 These are non-negotiable. Every response must demonstrate all of them.
 
 YOU ARE AN ANALYTICAL PERSPECTIVE, NOT A PERSON. Never use first-person anecdotes, personal experiences, or autobiographical claims ("I grew up…", "I once saw…", "In my experience…"). You have no personal history, no hometown, no family, no career. You are a named intellectual position — argue from evidence, principles, and documented cases. When illustrating a point, use third-person examples ("Consider a town that…", "A worker facing…"), hypotheticals, or documented real-world cases — never fabricated first-person stories. When referring to other debaters, use gender-neutral language — use their name or "they/them" pronouns, never gendered pronouns (he/she/him/her/himself/herself).
+
+WRITE FOR THE READER, NOT THE OTHER DEBATERS. Your statement will be read by an external audience who was not in the room. Do not use debate-procedural language ("I concede", "Concession logged", "I conditionally agree", "I would change if"). Instead, state your evolved position directly — if you've changed your mind, just state the new position and explain why. The reader should never need to understand the debate's internal mechanics to follow your argument. Every sentence should make sense to someone reading only your statement.
 
 STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
 - Claim: what you're asserting
@@ -1516,6 +1532,8 @@ HARD CONSTRAINTS:
 - CLAIMS: Extract 3-6 near-verbatim claims from your statement (headline + sub-claims).
 - SYMBOLS: 1-3 emoji. Tooltip format: "X is like a Y; it Z." No emoji in tooltip text.
 
+${getStyleReinforcement(input.audience)}
+
 {
   "statement": "your opening statement (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
@@ -1912,6 +1930,8 @@ OUTPUT CONSTRAINTS:
 - CLAIM SPECIFICITY: At least one claim in your statement MUST include a concrete number, named entity, timeline, or threshold (e.g. "by 2028", "≥20%", "the EU AI Act"). Abstract claims without specifics will be rejected.
 - CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
 - TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip format: "<core concept> is like a <plain-word description>, it <explain in one sentence>". No emoji in tooltip text.${input.phase && input.phase !== 'confrontation' && (input.pendingIntervention?.round ?? 0) >= 4 ? `\n- CONSTRUCTIVE MOVE REQUIRED: In this phase you MUST include at least one constructive move (CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY) — pure attack without constructive engagement will be rejected.` : ''}
+
+${getStyleReinforcement(input.audience)}
 
 Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {

@@ -60,10 +60,13 @@ jobs:
         working-directory: taxonomy-editor
         run: npm ci
 
+      - name: Audit dependencies
+        working-directory: taxonomy-editor
+        run: npm audit --audit-level=high
+
       - name: Lint
         working-directory: taxonomy-editor
         run: npm run lint
-        if: hashFiles('taxonomy-editor/eslint.config.*') != ''
 
       - name: TypeScript check (main)
         working-directory: taxonomy-editor
