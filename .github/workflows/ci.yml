@@ -80,6 +80,11 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: npm test --if-present
 
+      - name: Test with coverage
+        if: matrix.app == 'taxonomy-editor'
+        working-directory: ${{ matrix.app }}
+        run: npx vitest run --coverage
+
       - name: Build
         if: matrix.app == 'taxonomy-editor'
         working-directory: ${{ matrix.app }}

@@ -55,6 +55,17 @@ export default defineConfig({
     globals: false,
     environment: 'jsdom',
     setupFiles: ['./test-setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'lcov'],
+      reportOnFailure: true,
+      thresholds: {
+        statements: 18,
+        branches: 12,
+        functions: 26,
+        lines: 19,
+      },
+    },
   },
   server: {
     port: 5173,
