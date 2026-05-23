@@ -291,6 +291,14 @@ export interface CalibrationDataPoint {
   topic_weakest: string[];
   /** Dominant intellectual traditions from lineage distribution (top 3 at 15%+). Null if unavailable. */
   lineage_frame: { cluster_id: string; label: string; percentage: number }[] | null;
+  /** Lineage boost effectiveness: how often boosted/promoted nodes are actually referenced. */
+  lineage_effectiveness: {
+    boosted_node_count: number;
+    promoted_node_count: number;
+    promoted_referenced_count: number;
+    promoted_reference_rate: number;
+    baseline_reference_rate: number;
+  } | null;
 
   // ── Process reward (PRM-adjacent signal) ──
   /** Per-turn process reward scores for correlation with convergence signals */
@@ -855,6 +863,45 @@ export function extractCalibrationData(
       return weak;
     })(),
     lineage_frame: session.topic.critique?.lineage_frame ?? null,
+    lineage_effectiveness: (() => {
+      const allBoosted = new Set<string>();
+      const allPromoted = new Set<string>();
+      const allInjected = new Set<string>();
+      const allReferenced = new Set<string>();
+
+      for (const entry of session.transcript) {
+        if (entry.type !== 'opening' && entry.type !== 'statement') continue;
+        const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+          lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[] };
+          povNodeIds?: string[];
+        } | undefined;
+        if (!manifest) continue;
+
+        const refs = new Set((entry.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id));
+        for (const id of refs) allReferenced.add(id);
+        for (const id of manifest.povNodeIds ?? []) allInjected.add(id);
+
+        const lb = manifest.lineage_boost;
+        if (lb) {
+          for (const id of lb.boostedNodeIds ?? []) allBoosted.add(id);
+          for (const id of lb.promotedNodeIds ?? []) allPromoted.add(id);
+        }
+      }
+
+      if (allBoosted.size === 0) return null;
+
+      const promotedReferenced = [...allPromoted].filter(id => allReferenced.has(id)).length;
+      const promotedRefRate = allPromoted.size > 0 ? promotedReferenced / allPromoted.size : 0;
+      const baselineRefRate = allInjected.size > 0 ? allReferenced.size / allInjected.size : 0;
+
+      return {
+        boosted_node_count: allBoosted.size,
+        promoted_node_count: allPromoted.size,
+        promoted_referenced_count: promotedReferenced,
+        promoted_reference_rate: Math.round(promotedRefRate * 1000) / 1000,
+        baseline_reference_rate: Math.round(baselineRefRate * 1000) / 1000,
+      };
+    })(),
 
     sycophancy_guard_fired: (session.transcript ?? []).some(e => e.type === 'system' && e.content.includes('[Sycophancy guard]')),
     max_sycophancy_score: (session.per_claim_drift ?? []).reduce((max, s) => Math.max(max, s.sycophancy_score), 0),

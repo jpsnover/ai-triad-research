@@ -51,6 +51,8 @@ export interface LineageBoostConfig {
 export interface LineageBoostResult {
   /** Node IDs that received a boost. */
   boostedNodeIds: string[];
+  /** Node IDs that crossed the threshold thanks to the boost. */
+  promotedNodeIds: string[];
   /** Number of nodes that crossed the threshold thanks to the boost. */
   promotedCount: number;
 }
@@ -112,7 +114,7 @@ export function selectRelevantNodes(
     const lb = opts.lineageBoost;
     const tradSet = new Set(lb.traditions);
     const boostedIds: string[] = [];
-    let promoted = 0;
+    const promotedIds: string[] = [];
 
     for (const node of povNodes) {
       const names = lb.lineageByNode[node.id];
@@ -128,12 +130,12 @@ export function selectRelevantNodes(
           const boosted = base + lb.boost;
           effectiveScores.set(node.id, boosted);
           boostedIds.push(node.id);
-          if (base < threshold && boosted >= threshold) promoted++;
+          if (base < threshold && boosted >= threshold) promotedIds.push(node.id);
         }
       }
     }
 
-    _lineageBoostResult = { boostedNodeIds: boostedIds, promotedCount: promoted };
+    _lineageBoostResult = { boostedNodeIds: boostedIds, promotedNodeIds: promotedIds, promotedCount: promotedIds.length };
   }
 
   // Group by category

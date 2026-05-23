@@ -1228,6 +1228,8 @@ export class DebateEngine {
       (this._lastInjectionManifest as Record<string, unknown>).lineage_boost = {
         boosted: lbResult.boostedNodeIds.length,
         promoted: lbResult.promotedCount,
+        boostedNodeIds: lbResult.boostedNodeIds.slice(0, 20),
+        promotedNodeIds: lbResult.promotedNodeIds.slice(0, 20),
       };
     }
     this._lastRelevanceScores = scores;

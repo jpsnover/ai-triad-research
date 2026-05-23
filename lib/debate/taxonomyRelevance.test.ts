@@ -139,7 +139,8 @@ describe('selectRelevantNodes — lineage boost', () => {
     const diag = (result as typeof result & { _lineageBoost?: LineageBoostResult })._lineageBoost;
     expect(diag).toBeDefined();
     expect(diag!.boostedNodeIds).toHaveLength(2);
-    expect(diag!.promotedCount).toBe(1); // only acc-beliefs-001 was promoted (was below, now above)
+    expect(diag!.promotedNodeIds).toEqual(['acc-beliefs-001']); // only acc-beliefs-001 was promoted (was below, now above)
+    expect(diag!.promotedCount).toBe(1);
   });
 
   it('skips nodes without lineage data', () => {
@@ -207,6 +208,7 @@ describe('selectRelevantNodes — lineage boost', () => {
 
     const diag = (result as typeof result & { _lineageBoost?: LineageBoostResult })._lineageBoost;
     expect(diag!.boostedNodeIds).toEqual(['acc-beliefs-002']);
+    expect(diag!.promotedNodeIds).toEqual(['acc-beliefs-002']);
     expect(diag!.promotedCount).toBe(1);
   });
 });
