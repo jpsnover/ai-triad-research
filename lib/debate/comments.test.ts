@@ -49,7 +49,8 @@ function emptyFile(): CommentsFile {
 describe('commentsPathForDebate', () => {
   it('generates sidecar path from debate file path', () => {
     const result = commentsPathForDebate('/data/debates/debate-abc.json');
-    expect(result).toBe('/data/debates/debate-abc-comments.json');
+    // Normalize separators for cross-platform compatibility (path.join uses OS-native separator)
+    expect(result.replace(/\\/g, '/')).toBe('/data/debates/debate-abc-comments.json');
   });
 });
 

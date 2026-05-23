@@ -394,7 +394,7 @@ describe('crossRespondPrompt', () => {
         TOPIC, TAXONOMY_CONTEXT, TRANSCRIPT, 'Focus.', 'Sentinel',
         undefined, undefined, undefined, undefined, phase,
       );
-      expectContains(result, 'INTEGRATE', 'CONDITIONAL-AGREE');
+      expectContains(result, 'INTEGRATE', 'CONCEDE-AND-PIVOT');
     }
   });
 
@@ -555,7 +555,7 @@ describe('4-stage turn pipeline', () => {
     it('returns a non-empty string with annotation schema', () => {
       const result = citeStagePrompt(input, '{}', 'draft');
       expectNonEmpty(result);
-      expectContains(result, '"taxonomy_refs"', '"move_annotations"', '"grounding_confidence"');
+      expectContains(result, '"taxonomy_refs"', '"grounding_confidence"');
     });
 
     it('includes refs history block when priorRefs are provided', () => {

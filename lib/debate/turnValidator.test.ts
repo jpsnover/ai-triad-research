@@ -92,7 +92,7 @@ describe('resolveTurnValidationConfig', () => {
   it('fills defaults when given undefined', () => {
     const c = resolveTurnValidationConfig(undefined);
     expect(c.enabled).toBe(true);
-    expect(c.maxRetries).toBe(4);
+    expect(c.maxRetries).toBe(1);
     expect(c.deterministicOnly).toBe(false);
     expect(c.judgeModel).toBe('claude-haiku-4-5-20251001');
     expect(c.sampleRate['confrontation']).toBe(1);
@@ -104,7 +104,7 @@ describe('resolveTurnValidationConfig', () => {
   it('fills defaults when given empty object', () => {
     const c = resolveTurnValidationConfig({});
     expect(c.enabled).toBe(true);
-    expect(c.maxRetries).toBe(4);
+    expect(c.maxRetries).toBe(1);
     expect(c.scoreThreshold).toBe(0.75);
   });
 

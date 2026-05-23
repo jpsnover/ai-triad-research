@@ -640,35 +640,9 @@ describe('evaluatePhaseTransition', () => {
       expect(result.action).not.toBe('force_transition');
     });
 
-    it('terminates on max total rounds when in synthesis', () => {
-      const state = makePhaseState({ current_phase: 'concluding', total_rounds_elapsed: 12, rounds_in_phase: 2 });
-      const ctx = makeSignalContext({ phase: { current: 'concluding', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
-      const config = makeConfig({ maxTotalRounds: 12 });
-      const result = evaluatePhaseTransition(state, ctx, signals, config);
-      expect(result.action).toBe('terminate');
-      expect(result.reason).toContain('Max total rounds');
-    });
-
-    it('force-transitions to next phase on max total rounds when not in synthesis', () => {
-      const state = makePhaseState({ current_phase: 'argumentation', total_rounds_elapsed: 12, rounds_in_phase: 5 });
-      const ctx = makeSignalContext();
-      const config = makeConfig({ maxTotalRounds: 12 });
-      const result = evaluatePhaseTransition(state, ctx, signals, config);
-      expect(result.action).toBe('force_transition');
-      expect(result.new_phase).toBe('concluding');
-      expect(result.reason).toContain('Budget exhausted');
-    });
-
-    it('force-transitions when budget deadline approached (reserves downstream minimums)', () => {
-      // moderate pacing (12 rounds): argumentation budget deadline = 12 - min_concluding(2) = 10
-      const state = makePhaseState({ current_phase: 'argumentation', total_rounds_elapsed: 10, rounds_in_phase: 5 });
-      const ctx = makeSignalContext();
-      const config = makeConfig({ maxTotalRounds: 12 });
-      const result = evaluatePhaseTransition(state, ctx, signals, config);
-      expect(result.action).toBe('force_transition');
-      expect(result.new_phase).toBe('concluding');
-      expect(result.reason).toContain('reserving');
-    });
+    // Round-count-based termination (maxTotalRounds hard cap) was removed —
+    // debates now terminate via signal-based exits (convergence, saturation,
+    // health, per-phase max rounds, or API budget).
   });
 
   describe('confrontation phase', () => {

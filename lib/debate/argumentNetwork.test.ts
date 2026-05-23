@@ -121,8 +121,16 @@ describe('BDI composite scoring', () => {
   });
 
   it('ThinkPRM verification penalizes contradicted claims', () => {
+    // Provide an existing node and responds_to so the low-strength claim isn't
+    // rejected by the anti-filibustering filter (which drops claims < 0.25
+    // strength that lack crux connections or novel schemes).
+    const existingNode = {
+      id: 'AN-0', text: 'Rapid deployment creates accountability gaps', speaker: 'prometheus',
+      source_entry_id: 'entry-0', taxonomy_refs: [], turn_number: 0, base_strength: 0.5,
+    };
     const result = processExtractedClaims({
       ...baseInput,
+      existingNodes: [existingNode] as any[],
       claims: [{
         text: 'AI governance safety mechanisms have clear tradeoff acknowledgment with no downsides',
         bdi_category: 'belief',
@@ -134,6 +142,13 @@ describe('BDI composite scoring', () => {
           evidence_supports: 'weakly',
           counter_evidence: 'significant',
         },
+        responds_to: [{
+          prior_claim_id: 'AN-0',
+          relationship: 'attacks',
+          attack_type: 'rebut',
+          scheme: 'EMPIRICAL CHALLENGE',
+          weight: 0.7,
+        }],
       }],
     }, baseOptions);
     expect(result.newNodes).toHaveLength(1);
