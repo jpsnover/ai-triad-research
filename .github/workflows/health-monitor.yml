@@ -10,6 +10,7 @@ permissions:
   issues: write
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   APP_URL: https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io
 
 jobs:

@@ -9,6 +9,7 @@ permissions:
   contents: write
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   NODE_VERSION: '22'
   PWSH_VERSION: '7.5'
 

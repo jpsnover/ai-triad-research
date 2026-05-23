@@ -10,6 +10,9 @@ on:
     paths:
       - 'TAXONOMY_VERSION'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   summarize:
     runs-on: ubuntu-latest

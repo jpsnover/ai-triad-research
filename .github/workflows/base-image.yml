@@ -16,6 +16,7 @@ permissions:
   security-events: write  # For SARIF upload
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/ai-triad-base
 
