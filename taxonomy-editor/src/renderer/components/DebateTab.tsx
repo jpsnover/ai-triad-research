@@ -243,7 +243,27 @@ export function DebateTab() {
               />
             </div>
           )}
-          <div className="list-panel-items">
+          <div
+            className="list-panel-items"
+            tabIndex={0}
+            style={{ outline: 'none' }}
+            onKeyDown={(e) => {
+              if (editMode || filteredSessions.length === 0) return;
+              if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+              e.preventDefault();
+              const currentIdx = filteredSessions.findIndex(s => s.id === activeDebateId);
+              const nextIdx = e.key === 'ArrowUp'
+                ? Math.max(0, currentIdx - 1)
+                : Math.min(filteredSessions.length - 1, currentIdx + 1);
+              if (nextIdx !== currentIdx && filteredSessions[nextIdx]) {
+                void loadDebate(filteredSessions[nextIdx].id);
+                // Scroll the newly selected item into view
+                const container = e.currentTarget;
+                const items = container.querySelectorAll('.debate-session-item');
+                items[nextIdx]?.scrollIntoView({ block: 'nearest' });
+              }
+            }}
+          >
             {sessionsLoading && sessions.length === 0 && (
               <div className="debate-session-empty">Loading...</div>
             )}
