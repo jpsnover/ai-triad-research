@@ -1,0 +1,143 @@
+{
+  "experiment_id": "injection-1779488949152",
+  "timestamp": "2026-05-23T01:20:34.581Z",
+  "config": {
+    "levels": [
+      20,
+      25
+    ],
+    "floors": [
+      3,
+      5,
+      7
+    ],
+    "reps": 1,
+    "topic": "Will narrow AI automation cause structural unemployment that governments are unprepared for, or will new industries absorb displaced workers as they have in previous technological transitions?",
+    "model": "gemini-2.5-flash",
+    "pacing": "tight"
+  },
+  "runs": [
+    {
+      "level": 20,
+      "floor": 5,
+      "rep": 1,
+      "debate_id": "4eff1733-b6e2-40f4-8f8b-8315fea26493",
+      "rounds": 11,
+      "duration_ms": 2667520,
+      "avg_utilization_rate": 0.38181818181818183,
+      "avg_primary_utilization": 0.38181818181818183,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": true,
+      "taxonomy_mapped_ratio": 1,
+      "relevance_score_variance": 0.0006620434563264645,
+      "bdi_distribution": {
+        "beliefs": 5,
+        "desires": 5,
+        "intentions": 5
+      },
+      "total_injected": 15,
+      "total_api_calls": 100,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null
+    },
+    {
+      "level": 20,
+      "floor": 3,
+      "rep": 1,
+      "debate_id": "aacb1f3b-9aa5-4b9c-83a2-619261fc4ffd",
+      "rounds": 11,
+      "duration_ms": 3125557,
+      "avg_utilization_rate": 0.5757575757575758,
+      "avg_primary_utilization": 0.5757575757575758,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": true,
+      "taxonomy_mapped_ratio": 0.9215686274509803,
+      "relevance_score_variance": 0.00031903850315445447,
+      "bdi_distribution": {
+        "beliefs": 3,
+        "desires": 3,
+        "intentions": 3
+      },
+      "total_injected": 9,
+      "total_api_calls": 101,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null
+    },
+    {
+      "level": 25,
+      "floor": 5,
+      "rep": 1,
+      "debate_id": "",
+      "rounds": 0,
+      "duration_ms": 132287,
+      "avg_utilization_rate": null,
+      "avg_primary_utilization": null,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": null,
+      "taxonomy_mapped_ratio": null,
+      "relevance_score_variance": null,
+      "bdi_distribution": {
+        "beliefs": 0,
+        "desires": 0,
+        "intentions": 0
+      },
+      "total_injected": 0,
+      "total_api_calls": 0,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null,
+      "error": "CLI exited with code 1: ,\"model\":\"gemini-2.5-flash\",\"latencyMs\":32261,\"promptTokens\":8466,\"completionTokens\":4920,\"totalTokens\":15537}\n[debate-cli] FATAL: \n  Goal:     Run opening statement pipeline\n  Error:    Brief stage failed to parse — downstream stages would operate on empty context. brief stage parse error: Unexpected non-whitespace character after JSON at position 11509 (line 130 column 1)\n  Location: turnPipeline.runOpeningPipeline\n  Resolve:\n  1. Check the AI model response quality\n  2. Try a different model\n"
+    },
+    {
+      "level": 25,
+      "floor": 3,
+      "rep": 1,
+      "debate_id": "1c815bb1-4a1a-4feb-8b8a-a7c72edcb043",
+      "rounds": 11,
+      "duration_ms": 3443863,
+      "avg_utilization_rate": 0.6161616161616162,
+      "avg_primary_utilization": 0.6161616161616162,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": true,
+      "taxonomy_mapped_ratio": 1,
+      "relevance_score_variance": 0.0007346663762714392,
+      "bdi_distribution": {
+        "beliefs": 3,
+        "desires": 3,
+        "intentions": 3
+      },
+      "total_injected": 9,
+      "total_api_calls": 97,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null
+    },
+    {
+      "level": 25,
+      "floor": 7,
+      "rep": 1,
+      "debate_id": "",
+      "rounds": 0,
+      "duration_ms": 895894,
+      "avg_utilization_rate": null,
+      "avg_primary_utilization": null,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": null,
+      "taxonomy_mapped_ratio": null,
+      "relevance_score_variance": null,
+      "bdi_distribution": {
+        "beliefs": 0,
+        "desires": 0,
+        "intentions": 0
+      },
+      "total_injected": 0,
+      "total_api_calls": 0,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null,
+      "error": "CLI exited with code 1: :\"gemini-2.5-flash\",\"latencyMs\":28137,\"promptTokens\":13507,\"completionTokens\":4023,\"cachedTokens\":13284,\"totalTokens\":19791}\n[debate-cli] FATAL: \n  Goal:     Run debate turn pipeline\n  Error:    Brief stage failed to parse — downstream stages would operate on empty context. brief stage parse error: Unexpected non-whitespace character after JSON at position 8432 (line 114 column 1)\n  Location: turnPipeline.runPipeline\n  Resolve:\n  1. Check the AI model response quality\n  2. Try a different model\n"
+    }
+  ]
+}
