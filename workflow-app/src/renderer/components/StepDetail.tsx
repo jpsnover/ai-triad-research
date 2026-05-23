@@ -3,6 +3,7 @@ import { usePipelineStore } from '../store';
 import { ImportConfig } from './ImportConfig';
 import { GitCommitConfig } from './GitCommitConfig';
 import { ReviewConfig } from './ReviewConfig';
+import { SummarizeConfig } from './SummarizeConfig';
 import { useRunPipeline } from './useRunPipeline';
 
 const PHASE_COLORS: Record<string, string> = {
@@ -123,6 +124,7 @@ export function StepDetail({ stepId }: { stepId: string }) {
       </div>
 
       {def.id === 'import' && <ImportConfig />}
+      {def.id === 'summarize' && <SummarizeConfig />}
       {def.id === 'git-commit' && <GitCommitConfig />}
       {def.id === 'review' && <ReviewConfig />}
 

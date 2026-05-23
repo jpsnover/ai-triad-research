@@ -1,0 +1,430 @@
+{
+  "debate_id": "aacb1f3b-9aa5-4b9c-83a2-619261fc4ffd",
+  "debate_title": "injection-experiment-L20-F3-R1",
+  "conflicts": [
+    {
+      "id": "hc-0",
+      "point": "Debaters fundamentally disagree on whether current AI-driven job displacement represents 'necessary friction' in a positive economic transformation or 'systemic harm' leading to societal instability.",
+      "bdiLayer": "desire",
+      "resolvability": "negotiable_via_tradeoffs",
+      "positions": [
+        {
+          "pover": "Accelerationist",
+          "stance": "Accelerationist frames the 100,000+ job losses linked to AI restructuring in 2025 as 'necessary friction' within an 'accelerated transition' towards novel labor markets and enhanced human capabilities, driven by an 'evolutionary imperative' for a post-biological future."
+        },
+        {
+          "pover": "Skeptic",
+          "stance": "Skeptic views these significant job losses as 'documented present harm' and 'profound structural labor market shifts,' arguing that interpreting them as 'temporary friction' dismisses tangible negative impacts."
+        },
+        {
+          "pover": "Safetyist",
+          "stance": "Safetyist characterizes the widespread displacement as 'Rolling Disruption of AI Advances,' warning it could lead to 'Technological Asymmetry and Social Collapse' rather than minor economic adjustments, emphasizing the need for 'Preventing AI's Systemic Harms'."
+        }
+      ],
+      "linkedNodes": [],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-1",
+      "point": "A core disagreement persists regarding the appropriate regulatory approach for AI, specifically between advocating for agile regulatory sandboxes and implementing precautionary guardrails.",
+      "bdiLayer": "desire",
+      "resolvability": "negotiable_via_tradeoffs",
+      "positions": [
+        {
+          "pover": "Accelerationist",
+          "stance": "Accelerationist champions 'adaptive governance,' including 'agile regulatory sandboxes and temporary waivers,' as pragmatic learning mechanisms to foster innovation and address the 'temporal mismatch in accountability bootstrapping,' arguing they strengthen guardrails dynamically."
+        },
+        {
+          "pover": "Skeptic",
+          "stance": "Skeptic labels 'agile regulatory sandboxes' as 'reckless,' contending they undermine necessary structural reimagining and inherently compromise civil rights and accountability by granting exemptions, allowing 'bias (systemic/social)' to proliferate."
+        },
+        {
+          "pover": "Safetyist",
+          "stance": "Safetyist asserts that 'adaptive governance' fundamentally undermines the stability and enforceability of guardrails, expanding the 'AI-specific attack surface' and impeding 'precautionary regulation' crucial for 'existential safety' by diffusing institutional accountability."
+        }
+      ],
+      "linkedNodes": [],
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hc-2",
+      "point": "The debaters diverge on the long-term impact of AI-assisted learning on human cognition, debating whether it primarily augments skills or leads to cognitive atrophy.",
+      "bdiLayer": "belief",
+      "resolvability": "resolvable_by_evidence",
+      "positions": [
+        {
+          "pover": "Accelerationist",
+          "stance": "Accelerationist believes 'AI-induced skill convergence' profoundly augments human capabilities, democratizing high-level skills and elevating individual potential by offloading rote tasks, thereby fostering 'superhuman adaptable intelligence'."
+        },
+        {
+          "pover": "Skeptic",
+          "stance": "Skeptic fears 'AI-induced skill convergence' is 'cognitive outsourcing' risking 'atrophy in critical human inquiry' and erosion of individual autonomy, citing examples like GPT-4's performance on the Uniform Bar Exam as evidence that AI tools do not confer genuine high-level expertise."
+        },
+        {
+          "pover": "Safetyist",
+          "stance": "Safetyist argues 'AI-assisted worker learning' risks 'speculative future harm' by eroding 'human preservation autonomy' and leading to an atrophy of fundamental human skills, making individuals vulnerable to AI failures, as demonstrated by the colonoscopy study."
+        }
+      ],
+      "linkedNodes": [],
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "steelmans": [],
+  "debate_refs": [
+    {
+      "nodeId": "acc-beliefs-040",
+      "nodeLabel": "AI's Structurally Positive Economic and Societal Impact",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-desires-017",
+      "nodeLabel": "Mitigating Demographic Economic Decline",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-intentions-034",
+      "nodeLabel": "AI-Assisted Worker Learning",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-034",
+      "nodeLabel": "Temporal Mismatch in Accountability Bootstrapping",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-intentions-017",
+      "nodeLabel": "Breaking Down Institutions to Accelerate Progress",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-beliefs-002",
+      "nodeLabel": "Empirical Labor Market Contraction and Displacement by AI",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-desires-006",
+      "nodeLabel": "Valuing Critical Inquiry Over Output Generation",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-desires-071",
+      "nodeLabel": "Reimagining Economic & Social Structures for AI",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-intentions-074",
+      "nodeLabel": "AI Civil Rights Guardrails",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-055",
+      "nodeLabel": "Bitter Lesson of Specialization",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-intentions-078",
+      "nodeLabel": "Enabling Competitive Transparency Through Regulatory Scaffolding",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-desires-016",
+      "nodeLabel": "Preventing AI's Systemic Harms",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "sit-052",
+      "nodeLabel": "AI-Induced Skill Convergence",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-154",
+      "nodeLabel": "Labor Market Structural Shifts",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-058",
+      "nodeLabel": "Skill-Biased Technological Change in Cognitive Work",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-033",
+      "nodeLabel": "Rolling Disruption of AI Advances",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-018",
+      "nodeLabel": "Technological Asymmetry and Social Collapse",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-010",
+      "nodeLabel": "Law-Following AI (LFAI)",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-134",
+      "nodeLabel": "International and Institutional AI Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-013",
+      "nodeLabel": "Ignoring the AI Warning Signs",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-042",
+      "nodeLabel": "AI as Evolutionary and Thermodynamic Imperative",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-026",
+      "nodeLabel": "Digitized Civilization Transformation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-007",
+      "nodeLabel": "Realizing Superhuman Adaptable Intelligence",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-013",
+      "nodeLabel": "Universal Proliferation of Expert Cognition",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-013",
+      "nodeLabel": "Accelerating the Post-Scarcity Economic Transition",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-014",
+      "nodeLabel": "Technological Inevitability of Novel Labor Markets",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-035",
+      "nodeLabel": "Fulfilling Humanity's Cosmic Purpose through AI",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-089",
+      "nodeLabel": "Radical Institutional Transformation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-003",
+      "nodeLabel": "Immediate Productivity Gains from AI",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-003",
+      "nodeLabel": "Democratizing Cognitive Access",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-014",
+      "nodeLabel": "Promoting Unrestricted Permissionless Innovation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-028",
+      "nodeLabel": "AI-Specific Attack Surface Expansion",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-042",
+      "nodeLabel": "Risks from Complex AI Systems",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-007",
+      "nodeLabel": "Psychological Stewardship",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-115",
+      "nodeLabel": "Ecosystem-Dependent AI Trust",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-046",
+      "nodeLabel": "The Talent Availability Gap",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-018",
+      "nodeLabel": "Ghost GDP",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-042",
+      "nodeLabel": "AI's Complex Effects on the Workforce",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-001",
+      "nodeLabel": "Mitigating AI-Driven Labor Displacement",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-068",
+      "nodeLabel": "Redefining Economic Value for Social Benefit",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-092",
+      "nodeLabel": "Developing Public Interest Technologists",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-104",
+      "nodeLabel": "Advocating for Specific AI Policy Interventions",
+      "refCount": 1,
+      "checked": false
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "hv-0",
+      "conflict": "Debaters fundamentally disagree on whether current AI-driven job displacement represents 'necessary friction' in a positive economic transformation or 'systemic harm' leading to societal instability.",
+      "prevails": "Skeptic",
+      "criterion": "empirical_evidence",
+      "rationale": "Skeptic offers concrete, present-day empirical evidence of job displacement, citing IBM's hiring freezes affecting 7,800 positions and 'Project Iceberg' reporting over 100,000 job losses linked to AI restructuring in 2025. This specificity provides a stronger foundation for the claim of 'documented present harm' compared to Accelerationist's forward-looking projections of job creation. \"Skeptic views these significant job losses as 'documented present harm' and 'profound structural labor market shifts'.\"",
+      "whatWouldChange": "Stronger empirical evidence from Accelerationist demonstrating rapid, large-scale re-employment of displaced workers into higher-wage roles within a short timeframe, or evidence that the cited job losses are truly temporary and minimal in overall economic impact.",
+      "claimIds": [
+        "C2",
+        "C5",
+        "C6"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-1",
+      "conflict": "A core disagreement persists regarding the appropriate regulatory approach for AI, specifically between advocating for agile regulatory sandboxes and implementing precautionary guardrails.",
+      "prevails": "Skeptic",
+      "criterion": "empirical_evidence",
+      "rationale": "Skeptic presents stronger empirical evidence of governmental inertia and existing accountability needs, citing the EU AI Act's high-risk system requirements being delayed until 'late 2027 or 2028'. This demonstrates that governments already struggle with timely and robust regulation, undermining Accelerationist's argument for flexible, temporary waivers that 'compromise civil rights and accountability'. \"The accelerationist call for 'agile regulatory sandboxes' isn't just naive; it's reckless, actively undermining the fundamental reimagining of our economic and social structures.\"",
+      "whatWouldChange": "Strong empirical evidence from Accelerationist detailing specific instances where agile regulatory sandboxes for AI systems successfully fostered innovation while simultaneously establishing robust, enforceable guardrails against bias and systemic risks, without significant delays or negative societal impacts.",
+      "claimIds": [
+        "C31",
+        "C34",
+        "C35"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-2",
+      "conflict": "The debaters diverge on the long-term impact of AI-assisted learning on human cognition, debating whether it primarily augments skills or leads to cognitive atrophy.",
+      "prevails": "Safetyist",
+      "criterion": "empirical_evidence",
+      "rationale": "Safetyist provides highly specific empirical evidence from a colonoscopy study where clinicians demonstrated a '6% decrease in tumor detection rates' after several months of performing procedures with AI assistance. This directly supports the argument that AI-assisted learning can lead to an 'atrophy of fundamental human skills,' making individuals vulnerable to AI failures. \"Clinicians experienced a 6% decrease in tumor detection rates after several months of performing procedures with AI assistance.\"",
+      "whatWouldChange": "Strong empirical evidence from Accelerationist demonstrating that, over time, workers using AI assistance improve their core human skills beyond their pre-AI baseline, or that AI assistance reliably leads to the development of genuinely new, higher-order cognitive skills that compensate for any potential atrophy in rote tasks.",
+      "claimIds": [
+        "C13",
+        "C15",
+        "C16"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "concepts": [
+    {
+      "id": "hn-0",
+      "text": "The rapid, uncontrolled advance of AI automation poses an unprecedented threat of systemic societal instability and potential collapse, for which current governmental and societal structures are fundamentally unprepared, demanding a radical shift from managing economic transitions to preventing catastrophic harms.",
+      "speaker": "Safetyist",
+      "sourceEntryId": "92b2f726-8b68-4da5-8881-2d7f96387bd5",
+      "suggestedLabel": "",
+      "suggestedDescription": "",
+      "suggestedPov": "safetyist",
+      "suggestedCategory": "Intentions",
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hn-1",
+      "text": "Focusing on 'job creation in new industries' as a panacea is a dangerous distraction, as these unregulated sectors can introduce novel systemic risks and exacerbate existing vulnerabilities.",
+      "speaker": "Safetyist",
+      "sourceEntryId": "92b2f726-8b68-4da5-8881-2d7f96387bd5",
+      "suggestedLabel": "",
+      "suggestedDescription": "",
+      "suggestedPov": "safetyist",
+      "suggestedCategory": "Intentions",
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hn-2",
+      "text": "Unchecked innovation, especially through approaches like 'agile regulatory sandboxes,' risks 'Ignoring the AI Warning Signs,' allowing nascent hazards to grow into irreversible societal damage.",
+      "speaker": "Safetyist",
+      "sourceEntryId": "92b2f726-8b68-4da5-8881-2d7f96387bd5",
+      "suggestedLabel": "",
+      "suggestedDescription": "",
+      "suggestedPov": "safetyist",
+      "suggestedCategory": "Intentions",
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hn-3",
+      "text": "Proactive measures are not impediments to progress but indispensable prerequisites for any sustainable, beneficial AI integration into society.",
+      "speaker": "Safetyist",
+      "sourceEntryId": "92b2f726-8b68-4da5-8881-2d7f96387bd5",
+      "suggestedLabel": "",
+      "suggestedDescription": "",
+      "suggestedPov": "safetyist",
+      "suggestedCategory": "Intentions",
+      "checked": false,
+      "warnings": []
+    }
+  ]
+}

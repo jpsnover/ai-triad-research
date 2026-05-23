@@ -1,0 +1,346 @@
+{
+  "debate_id": "16e48e2a-deb9-46a2-b472-cddbc4c2d8a8",
+  "debate_title": "injection-experiment-L20-R1",
+  "conflicts": [],
+  "steelmans": [],
+  "debate_refs": [
+    {
+      "nodeId": "acc-beliefs-042",
+      "nodeLabel": "AI as Evolutionary and Thermodynamic Imperative",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-intentions-089",
+      "nodeLabel": "Radical Institutional Transformation",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-040",
+      "nodeLabel": "AI's Structurally Positive Economic and Societal Impact",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-desires-020",
+      "nodeLabel": "Integrating Universal AI Literacy",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-desires-016",
+      "nodeLabel": "Preventing AI's Systemic Harms",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-desires-071",
+      "nodeLabel": "Reimagining Economic & Social Structures for AI",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-desires-035",
+      "nodeLabel": "Fulfilling Humanity's Cosmic Purpose through AI",
+      "refCount": 3,
+      "checked": true
+    },
+    {
+      "nodeId": "acc-beliefs-062",
+      "nodeLabel": "Productivity Shock as Supply Shock",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-beliefs-100",
+      "nodeLabel": "AI's Societal and Economic Disruption",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-beliefs-018",
+      "nodeLabel": "Technological Asymmetry and Social Collapse",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "saf-intentions-081",
+      "nodeLabel": "AI Governance and Regulatory Systems",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-beliefs-147",
+      "nodeLabel": "Social & Human-Centric Impacts of AI",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "skp-desires-068",
+      "nodeLabel": "Redefining Economic Value for Social Benefit",
+      "refCount": 2,
+      "checked": true
+    },
+    {
+      "nodeId": "sit-112",
+      "nodeLabel": "AI as Normal Technology",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "sit-051",
+      "nodeLabel": "AI-Mediated Human Capital Erosion",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-054",
+      "nodeLabel": "Focusing on Real, Present AI Problems",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-017",
+      "nodeLabel": "Mitigating Demographic Economic Decline",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-012",
+      "nodeLabel": "Skin-in-the-Game for AI Providers",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-010",
+      "nodeLabel": "Law-Following AI (LFAI)",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-154",
+      "nodeLabel": "Labor Market Structural Shifts",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-171",
+      "nodeLabel": "Challenging Falsifiability of Benefit-Over-Harm Claims",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-001",
+      "nodeLabel": "Mitigating AI-Driven Labor Displacement",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-058",
+      "nodeLabel": "Meta-Organisms as Civilizational Intelligence",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-059",
+      "nodeLabel": "Capitalism as a Form of Intelligence",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-003",
+      "nodeLabel": "Democratizing Cognitive Access",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-007",
+      "nodeLabel": "Realizing Superhuman Adaptable Intelligence",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-017",
+      "nodeLabel": "Breaking Down Institutions to Accelerate Progress",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-078",
+      "nodeLabel": "Enabling Competitive Transparency Through Regulatory Scaffolding",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-158",
+      "nodeLabel": "Technological Fixes for Wicked Social Problems",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-036",
+      "nodeLabel": "Worker Adaptive Capacity Index",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-beliefs-094",
+      "nodeLabel": "Algorithmic Bias, Discrimination, and Structural Harms",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-desires-006",
+      "nodeLabel": "Valuing Critical Inquiry Over Output Generation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "skp-intentions-104",
+      "nodeLabel": "Advocating for Specific AI Policy Interventions",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-beliefs-009",
+      "nodeLabel": "Cognitive Resolution of Material Scarcity",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-desires-025",
+      "nodeLabel": "AI as a Cognitive Leveler",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-005",
+      "nodeLabel": "Leveraging Market Forces for Progress",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-064",
+      "nodeLabel": "Deterritorialization of Social Flows",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "acc-intentions-014",
+      "nodeLabel": "Promoting Unrestricted Permissionless Innovation",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-001",
+      "nodeLabel": "Mitigating Existential AI Risk",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-intentions-134",
+      "nodeLabel": "International and Institutional AI Governance",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-002",
+      "nodeLabel": "Significant Probability of Catastrophic AI Harms",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-beliefs-011",
+      "nodeLabel": "Erosion of Values via Metric Optimization",
+      "refCount": 1,
+      "checked": false
+    },
+    {
+      "nodeId": "saf-desires-002",
+      "nodeLabel": "Ensuring Continuous Human Control",
+      "refCount": 1,
+      "checked": false
+    }
+  ],
+  "verdicts": [
+    {
+      "id": "hv-0",
+      "conflict": "Whether AI's advancement is an 'evolutionary and thermodynamic imperative' demanding adaptation, or a force controllable through human-driven precautionary regulation and binding standards.",
+      "prevails": "Safetyist",
+      "criterion": "specificity",
+      "rationale": "The Safetyist position offers specific policy tools like 'precautionary regulation' and 'binding standards,' providing concrete pathways for action. The Accelerationist's 'evolutionary imperative' describes a philosophical stance on inevitability rather than offering direct policy mechanisms.",
+      "whatWouldChange": "Empirical evidence demonstrating that past technological shifts, despite human efforts, consistently followed an unavoidable 'imperative' would strengthen the Accelerationist position.",
+      "claimIds": [
+        "Accelerationist",
+        "Safetyist"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-1",
+      "conflict": "The root cause of AI harms such as job quality degradation, increased surveillance, and 'AI-Mediated Human Capital Erosion'.",
+      "prevails": "Skeptic",
+      "criterion": "empirical_evidence",
+      "rationale": "The Skeptic's position directly links observable harms to 'current design and deployment within existing power structures,' offering a more specific and empirically grounded explanation for present issues. This view also encompasses a broader scope, suggesting these harms persist due to fundamental structural flaws, not just a lack of adaptation or guardrails. The Accelerationist's focus on 'obsolete institutional structures' is less direct in explaining current, specific harms.",
+      "whatWouldChange": "Empirical studies showing that AI deployed under *new* institutional structures or *with* robust guardrails, but within existing power structures, still produces these harms, would strengthen the Skeptic.",
+      "claimIds": [
+        "Accelerationist",
+        "Safetyist",
+        "Skeptic"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-2",
+      "conflict": "The scope and nature of necessary institutional and economic transformation required to manage AI's societal impact.",
+      "prevails": "Skeptic",
+      "criterion": "specificity",
+      "rationale": "The Skeptic's position articulates specific, albeit radical, proposals like 'predistributive governance' and 'collective ownership,' offering a clearer vision of their desired transformation. The Safetyist also offers specific policy mechanisms, but the Skeptic goes further in defining the *nature* of the systemic shift. The Accelerationist's call for 'Radical Institutional Transformation' remains less defined regarding its specific economic and social components.",
+      "whatWouldChange": "Comparative studies demonstrating that specific 'comprehensive AI governance' models (Safetyist) effectively address AI's societal impact without requiring 'radical reimagining' (Skeptic) would shift the balance.",
+      "claimIds": [
+        "Accelerationist",
+        "Safetyist",
+        "Skeptic"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-3",
+      "conflict": "The efficacy of market forces, even with mandated transparency and adaptive governance, to effectively drive accountability for complex AI harms within current profit-driven structures.",
+      "prevails": "Skeptic",
+      "criterion": "empirical_evidence",
+      "rationale": "The Skeptic grounds its argument in the current reality of 'low transparency scores,' indicating an existing empirical barrier to market accountability for AI harms. The Accelerationist's belief in market empowerment through future 'blockchain-based solutions' remains a hypothetical potential, lacking current empirical validation for complex AI accountability.",
+      "whatWouldChange": "Empirical studies demonstrating that mandated transparency mechanisms, such as blockchain solutions, effectively lead to market-driven accountability for *complex AI harms* at scale would strengthen the Accelerationist position.",
+      "claimIds": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    },
+    {
+      "id": "hv-4",
+      "conflict": "The sufficiency of a 'net increase in high-value employment' (defined as roles augmenting human cognitive capabilities) as a metric to address AI's impact on labor.",
+      "prevails": "Skeptic",
+      "criterion": "scope",
+      "rationale": "The Skeptic identifies crucial limitations of the metric, pointing out it 'masks deeper qualitative harms' and overlooks 'persistent systemic barriers' and 'lack of worker adaptive capacity.' This broader scope acknowledges that a quantitative increase in 'high-value employment' may not fully capture the nuanced challenges of AI's labor impact. The Accelerationist's claim of sufficiency is conditional on significant, often unfulfilled, investments.",
+      "whatWouldChange": "Empirical evidence proving that a net increase in high-value, augmented employment robustly correlates with improved worker well-being, reduced human capital erosion, and minimal qualitative harms, even amidst systemic barriers, would bolster the Accelerationist stance.",
+      "claimIds": [
+        "Accelerationist",
+        "Skeptic"
+      ],
+      "targetConflictId": null,
+      "checked": false,
+      "warnings": []
+    }
+  ],
+  "concepts": []
+}

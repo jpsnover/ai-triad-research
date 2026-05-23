@@ -1,0 +1,6564 @@
+{
+  "description": "Level 2 intellectual lineage clusters generated via embedding-based agglomerative clustering (k=55, cosine distance, average linkage, all-MiniLM-L6-v2). Cluster labels are auto-generated from top members — needs human review.",
+  "generated_at": "2026-05-22",
+  "algorithm": "AgglomerativeClustering(n_clusters=55, metric=cosine, linkage=average)",
+  "embedding_model": "all-MiniLM-L6-v2",
+  "total_items": 1501,
+  "total_clusters": 55,
+  "clusters": [
+    {
+      "cluster_id": 0,
+      "auto_label": "AI alignment research / adversarial machine learning",
+      "curated_label": "AI Safety & Alignment",
+      "dominant_l1_category": "unmapped",
+      "member_count": 181,
+      "total_frequency": 246,
+      "members": [
+        {
+          "name": "AI alignment research",
+          "frequency": 35
+        },
+        {
+          "name": "adversarial machine learning",
+          "frequency": 6
+        },
+        {
+          "name": "Adversarial machine learning",
+          "frequency": 4
+        },
+        {
+          "name": "AI safety research",
+          "frequency": 3
+        },
+        {
+          "name": "explainable AI (XAI)",
+          "frequency": 3
+        },
+        {
+          "name": "interpretability research",
+          "frequency": 3
+        },
+        {
+          "name": "AI alignment research (inner alignment)",
+          "frequency": 2
+        },
+        {
+          "name": "AI alignment research (objective specification)",
+          "frequency": 2
+        },
+        {
+          "name": "AI containment research",
+          "frequency": 2
+        },
+        {
+          "name": "AI ethics",
+          "frequency": 2
+        },
+        {
+          "name": "AI ethics frameworks",
+          "frequency": 2
+        },
+        {
+          "name": "AI interpretability",
+          "frequency": 2
+        },
+        {
+          "name": "AI safety engineering",
+          "frequency": 2
+        },
+        {
+          "name": "AI safety research (alignment problem)",
+          "frequency": 2
+        },
+        {
+          "name": "AI safety research (alignment)",
+          "frequency": 2
+        },
+        {
+          "name": "Computationalism",
+          "frequency": 2
+        },
+        {
+          "name": "Critical Algorithm Studies",
+          "frequency": 2
+        },
+        {
+          "name": "Explainable AI (XAI)",
+          "frequency": 2
+        },
+        {
+          "name": "Explainable AI (XAI) research",
+          "frequency": 2
+        },
+        {
+          "name": "Reinforcement learning",
+          "frequency": 2
+        },
+        {
+          "name": "Scaling laws in deep learning",
+          "frequency": 2
+        },
+        {
+          "name": "bias in AI research",
+          "frequency": 2
+        },
+        {
+          "name": "mechanistic interpretability",
+          "frequency": 2
+        },
+        {
+          "name": "AI Alignment research",
+          "frequency": 1
+        },
+        {
+          "name": "AI agent research",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment (deceptive alignment)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment (robustness)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment ethics",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment problem (misuse)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment problem (unintended consequences)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (MIRI, FHI)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (e.g., 'inner alignment' problem)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (e.g., MIRI, FHI)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (e.g., instrumental convergence)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (e.g., reward hacking, specification gaming)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (outer alignment)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (positive vision)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (specification gaming, outer alignment)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research (value alignment)",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research on corrigibility and interruptibility",
+          "frequency": 1
+        },
+        {
+          "name": "AI alignment research on truthfulness",
+          "frequency": 1
+        },
+        {
+          "name": "AI capabilities research",
+          "frequency": 1
+        },
+        {
+          "name": "AI capability scaling laws",
+          "frequency": 1
+        },
+        {
+          "name": "AI ethics (accountability problem)",
+          "frequency": 1
+        },
+        {
+          "name": "AI ethics (impact on human cognition)",
+          "frequency": 1
+        },
+        {
+          "name": "AI ethics (responsibility)",
+          "frequency": 1
+        },
+        {
+          "name": "AI governance debates (accountability)",
+          "frequency": 1
+        },
+        {
+          "name": "AI interpretability (XAI)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety (containment problem)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety research (e.g., MIRI, OpenAI Safety)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety research (e.g., MIRI, OpenAI alignment research)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety research (e.g., corrigibility, robust alignment)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety research (misinformation/hallucination)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety research (short-term alignment)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety research (technical branch)",
+          "frequency": 1
+        },
+        {
+          "name": "AI safety research on data quality",
+          "frequency": 1
+        },
+        {
+          "name": "AI security",
+          "frequency": 1
+        },
+        {
+          "name": "Adversarial machine learning research",
+          "frequency": 1
+        },
+        {
+          "name": "Adversarial robustness",
+          "frequency": 1
+        },
+        {
+          "name": "Algorithmic Justice",
+          "frequency": 1
+        },
+        {
+          "name": "Algorithmic Justice League",
+          "frequency": 1
+        },
+        {
+          "name": "Algorithmic Justice movement",
+          "frequency": 1
+        },
+        {
+          "name": "Algorithmic accountability frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Algorithmic accountability movement",
+          "frequency": 1
+        },
+        {
+          "name": "Algorithmic justice",
+          "frequency": 1
+        },
+        {
+          "name": "Applied machine learning optimization and quantization research",
+          "frequency": 1
+        },
+        {
+          "name": "Artificial General Intelligence (AGI) research",
+          "frequency": 1
+        },
+        {
+          "name": "Augmented intelligence",
+          "frequency": 1
+        },
+        {
+          "name": "Augmented intelligence concepts",
+          "frequency": 1
+        },
+        {
+          "name": "Bias in machine learning literature",
+          "frequency": 1
+        },
+        {
+          "name": "Black box problem in machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "Collaborative AI",
+          "frequency": 1
+        },
+        {
+          "name": "Complexity Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Complexity theory",
+          "frequency": 1
+        },
+        {
+          "name": "Complexity theory (system states)",
+          "frequency": 1
+        },
+        {
+          "name": "Computational Complexity Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Computational complexity theory",
+          "frequency": 1
+        },
+        {
+          "name": "Computational social science",
+          "frequency": 1
+        },
+        {
+          "name": "Computing-power-as-proxy theories from AI governance literature (Governing Compute report)",
+          "frequency": 1
+        },
+        {
+          "name": "Contextual AI",
+          "frequency": 1
+        },
+        {
+          "name": "Critical algorithm studies",
+          "frequency": 1
+        },
+        {
+          "name": "Critical algorithm studies and autoregressive bias research",
+          "frequency": 1
+        },
+        {
+          "name": "Critical data studies examining algorithmic assemblages and data infrastructures",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of algorithmic bias",
+          "frequency": 1
+        },
+        {
+          "name": "Curriculum learning",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity threats (e.g., adversarial attacks)",
+          "frequency": 1
+        },
+        {
+          "name": "Distributional robustness literature in machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "Efficiency in machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "Ensemble learning",
+          "frequency": 1
+        },
+        {
+          "name": "Ethical AI frameworks (e.g., AI for Good)",
+          "frequency": 1
+        },
+        {
+          "name": "Ethical AI principles",
+          "frequency": 1
+        },
+        {
+          "name": "Ethics of AI",
+          "frequency": 1
+        },
+        {
+          "name": "Explainable AI (XAI) (focus on process rather than internal architecture)",
+          "frequency": 1
+        },
+        {
+          "name": "Feminist AI studies",
+          "frequency": 1
+        },
+        {
+          "name": "Formal methods in AI safety",
+          "frequency": 1
+        },
+        {
+          "name": "General intelligence research",
+          "frequency": 1
+        },
+        {
+          "name": "Generative adversarial networks (GANs) research (mode collapse)",
+          "frequency": 1
+        },
+        {
+          "name": "Hierarchical task network (HTN) planning from classical AI",
+          "frequency": 1
+        },
+        {
+          "name": "Hubert Dreyfus's critique of AI",
+          "frequency": 1
+        },
+        {
+          "name": "Human-centered AI",
+          "frequency": 1
+        },
+        {
+          "name": "Information flow theory in neural networks",
+          "frequency": 1
+        },
+        {
+          "name": "Intelligence explosion hypothesis (Good, Bostrom)",
+          "frequency": 1
+        },
+        {
+          "name": "Interpretability and explainability (XAI)",
+          "frequency": 1
+        },
+        {
+          "name": "Interpretability research and mechanistic understanding of neural networks",
+          "frequency": 1
+        },
+        {
+          "name": "Interpretability research emphasizing chain-of-thought transparency",
+          "frequency": 1
+        },
+        {
+          "name": "Inverse reinforcement learning and reward decomposition literature",
+          "frequency": 1
+        },
+        {
+          "name": "Large Language Model (LLM) research",
+          "frequency": 1
+        },
+        {
+          "name": "Machine Learning History (Sutton's Bitter Lesson)",
+          "frequency": 1
+        },
+        {
+          "name": "Machine Learning optimization techniques",
+          "frequency": 1
+        },
+        {
+          "name": "Machine Learning theory (model uncertainty, entropy)",
+          "frequency": 1
+        },
+        {
+          "name": "Machine learning (evaluation metrics, adversarial examples)",
+          "frequency": 1
+        },
+        {
+          "name": "Machine learning (transfer learning, self-supervision)",
+          "frequency": 1
+        },
+        {
+          "name": "Machine learning theory",
+          "frequency": 1
+        },
+        {
+          "name": "Machine learning theory (model collapse research)",
+          "frequency": 1
+        },
+        {
+          "name": "Machine unlearning research",
+          "frequency": 1
+        },
+        {
+          "name": "Mechanistic interpretability",
+          "frequency": 1
+        },
+        {
+          "name": "Mechanistic interpretability (technical field)",
+          "frequency": 1
+        },
+        {
+          "name": "Mechanistic interpretability research (Anthropic, OpenAI)",
+          "frequency": 1
+        },
+        {
+          "name": "Mechanistic interpretability research (Anthropic, Redwood Research)",
+          "frequency": 1
+        },
+        {
+          "name": "Meta-learning",
+          "frequency": 1
+        },
+        {
+          "name": "Out-of-distribution generalization research",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of AI (general intelligence vs. narrow AI)",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of AI (symbolic vs. connectionist AI)",
+          "frequency": 1
+        },
+        {
+          "name": "Reflective AI architectures",
+          "frequency": 1
+        },
+        {
+          "name": "Reinforcement Learning from Human Feedback (RLHF)",
+          "frequency": 1
+        },
+        {
+          "name": "Reinforcement Learning theory",
+          "frequency": 1
+        },
+        {
+          "name": "Reinforcement learning (Sutton & Barto)",
+          "frequency": 1
+        },
+        {
+          "name": "Reinforcement learning (for world models)",
+          "frequency": 1
+        },
+        {
+          "name": "Reinforcement learning from human feedback (RLHF)",
+          "frequency": 1
+        },
+        {
+          "name": "Representation engineering and activation steering literature",
+          "frequency": 1
+        },
+        {
+          "name": "Representation learning and manifold alignment theory",
+          "frequency": 1
+        },
+        {
+          "name": "Responsible AI frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Responsible AI research community norms around model cards (Mitchell et al.) and datasheets (Gebru et al.)",
+          "frequency": 1
+        },
+        {
+          "name": "Robustness research in ML",
+          "frequency": 1
+        },
+        {
+          "name": "Robustness theory in ML",
+          "frequency": 1
+        },
+        {
+          "name": "Scaling laws in machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "Skills gap analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Software engineering (robustness and testing)",
+          "frequency": 1
+        },
+        {
+          "name": "Specialized AI architectures",
+          "frequency": 1
+        },
+        {
+          "name": "Statistical classification and binary decision theory from machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "Statistical learning theory regarding sample complexity and generalization",
+          "frequency": 1
+        },
+        {
+          "name": "Superintelligence discourse",
+          "frequency": 1
+        },
+        {
+          "name": "Swarm intelligence",
+          "frequency": 1
+        },
+        {
+          "name": "Symbolic AI critiques of connectionism",
+          "frequency": 1
+        },
+        {
+          "name": "Transfer learning",
+          "frequency": 1
+        },
+        {
+          "name": "Transparency and explainable AI (XAI) principles",
+          "frequency": 1
+        },
+        {
+          "name": "adversarial machine learning research",
+          "frequency": 1
+        },
+        {
+          "name": "algorithmic accountability",
+          "frequency": 1
+        },
+        {
+          "name": "algorithmic justice",
+          "frequency": 1
+        },
+        {
+          "name": "black-box problem in machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "business intelligence",
+          "frequency": 1
+        },
+        {
+          "name": "catastrophic forgetting (in ML)",
+          "frequency": 1
+        },
+        {
+          "name": "catastrophic forgetting in neural networks",
+          "frequency": 1
+        },
+        {
+          "name": "complexity theory",
+          "frequency": 1
+        },
+        {
+          "name": "computational complexity theory",
+          "frequency": 1
+        },
+        {
+          "name": "computational law",
+          "frequency": 1
+        },
+        {
+          "name": "corrigibility research",
+          "frequency": 1
+        },
+        {
+          "name": "critical AI studies",
+          "frequency": 1
+        },
+        {
+          "name": "data leakage in AI",
+          "frequency": 1
+        },
+        {
+          "name": "database theory",
+          "frequency": 1
+        },
+        {
+          "name": "deep learning research (scaling laws)",
+          "frequency": 1
+        },
+        {
+          "name": "desirable difficulties concept",
+          "frequency": 1
+        },
+        {
+          "name": "ethical AI frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "ethical AI principles",
+          "frequency": 1
+        },
+        {
+          "name": "general intelligence research (e.g., AGI community)",
+          "frequency": 1
+        },
+        {
+          "name": "generalization theory",
+          "frequency": 1
+        },
+        {
+          "name": "human-centered AI",
+          "frequency": 1
+        },
+        {
+          "name": "machine learning generalization theory",
+          "frequency": 1
+        },
+        {
+          "name": "machine learning operations (MLOps)",
+          "frequency": 1
+        },
+        {
+          "name": "model memorization research",
+          "frequency": 1
+        },
+        {
+          "name": "model robustness",
+          "frequency": 1
+        },
+        {
+          "name": "organizational intelligence",
+          "frequency": 1
+        },
+        {
+          "name": "out-of-distribution generalization",
+          "frequency": 1
+        },
+        {
+          "name": "reinforcement learning from AI feedback (RLAIF)",
+          "frequency": 1
+        },
+        {
+          "name": "responsible AI principles",
+          "frequency": 1
+        },
+        {
+          "name": "robustness testing",
+          "frequency": 1
+        },
+        {
+          "name": "robustness theory",
+          "frequency": 1
+        },
+        {
+          "name": "symbolic AI (reasoning)",
+          "frequency": 1
+        },
+        {
+          "name": "symbolic AI vs. connectionism debate",
+          "frequency": 1
+        },
+        {
+          "name": "transparency and explainable AI (XAI)",
+          "frequency": 1
+        },
+        {
+          "name": "unlearning algorithms",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 1,
+      "auto_label": "Techno-utopianism / Techno-Optimism",
+      "curated_label": "Technology & Society",
+      "dominant_l1_category": "unmapped",
+      "member_count": 145,
+      "total_frequency": 223,
+      "members": [
+        {
+          "name": "Techno-utopianism",
+          "frequency": 12
+        },
+        {
+          "name": "Techno-Optimism",
+          "frequency": 8
+        },
+        {
+          "name": "Technological determinism",
+          "frequency": 8
+        },
+        {
+          "name": "Automation theory",
+          "frequency": 6
+        },
+        {
+          "name": "Diffusion of innovations theory",
+          "frequency": 6
+        },
+        {
+          "name": "Sociology of technology",
+          "frequency": 5
+        },
+        {
+          "name": "Technological unemployment debates",
+          "frequency": 5
+        },
+        {
+          "name": "Schumpeterian innovation theory",
+          "frequency": 4
+        },
+        {
+          "name": "Creative destruction (Schumpeter)",
+          "frequency": 3
+        },
+        {
+          "name": "Feminist technology studies",
+          "frequency": 3
+        },
+        {
+          "name": "Technological unemployment theory",
+          "frequency": 3
+        },
+        {
+          "name": "sociology of technology",
+          "frequency": 3
+        },
+        {
+          "name": "sociology of work",
+          "frequency": 3
+        },
+        {
+          "name": "Automation and labor economics",
+          "frequency": 2
+        },
+        {
+          "name": "Automation bias studies",
+          "frequency": 2
+        },
+        {
+          "name": "Cognitive psychology of automation",
+          "frequency": 2
+        },
+        {
+          "name": "Democratization of technology",
+          "frequency": 2
+        },
+        {
+          "name": "Feminist Technology Studies",
+          "frequency": 2
+        },
+        {
+          "name": "Feminist critiques of technology",
+          "frequency": 2
+        },
+        {
+          "name": "Feminist economics",
+          "frequency": 2
+        },
+        {
+          "name": "Human capital theory",
+          "frequency": 2
+        },
+        {
+          "name": "Organizational behavior",
+          "frequency": 2
+        },
+        {
+          "name": "Organizational change management",
+          "frequency": 2
+        },
+        {
+          "name": "Organizational learning",
+          "frequency": 2
+        },
+        {
+          "name": "Organizational theory",
+          "frequency": 2
+        },
+        {
+          "name": "Post-structuralism",
+          "frequency": 2
+        },
+        {
+          "name": "Responsible innovation",
+          "frequency": 2
+        },
+        {
+          "name": "Schumpeterian creative destruction",
+          "frequency": 2
+        },
+        {
+          "name": "Sociotechnical systems theory",
+          "frequency": 2
+        },
+        {
+          "name": "Techno-libertarianism",
+          "frequency": 2
+        },
+        {
+          "name": "Technocracy",
+          "frequency": 2
+        },
+        {
+          "name": "Technological Determinism",
+          "frequency": 2
+        },
+        {
+          "name": "Technological determinism critique",
+          "frequency": 2
+        },
+        {
+          "name": "innovation economics",
+          "frequency": 2
+        },
+        {
+          "name": "techno-utopianism",
+          "frequency": 2
+        },
+        {
+          "name": "Asimov's Laws of Robotics (conceptual guardrails)",
+          "frequency": 1
+        },
+        {
+          "name": "Asimov's Laws of Robotics (implicit)",
+          "frequency": 1
+        },
+        {
+          "name": "Automation complacency research",
+          "frequency": 1
+        },
+        {
+          "name": "Change management",
+          "frequency": 1
+        },
+        {
+          "name": "Civic tech movement",
+          "frequency": 1
+        },
+        {
+          "name": "Community development theory",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of techno-solutionism",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of technological solutionism",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of technology in education",
+          "frequency": 1
+        },
+        {
+          "name": "Data feminism",
+          "frequency": 1
+        },
+        {
+          "name": "Determinism",
+          "frequency": 1
+        },
+        {
+          "name": "Diffusion of Innovations theory (Everett Rogers)",
+          "frequency": 1
+        },
+        {
+          "name": "Disruptive innovation theory",
+          "frequency": 1
+        },
+        {
+          "name": "Disruptive innovation theory (Clayton Christensen)",
+          "frequency": 1
+        },
+        {
+          "name": "Dual-use technology debates",
+          "frequency": 1
+        },
+        {
+          "name": "Dual-use technology dilemma",
+          "frequency": 1
+        },
+        {
+          "name": "Dual-use technology ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Educational technology (EdTech)",
+          "frequency": 1
+        },
+        {
+          "name": "Extrapolation of technological trends (e.g., Kurzweil)",
+          "frequency": 1
+        },
+        {
+          "name": "Gender mainstreaming in policy",
+          "frequency": 1
+        },
+        {
+          "name": "General Purpose Technologies (Bresnahan & Trajtenberg)",
+          "frequency": 1
+        },
+        {
+          "name": "General Purpose Technologies framework",
+          "frequency": 1
+        },
+        {
+          "name": "Historical sociology of technology",
+          "frequency": 1
+        },
+        {
+          "name": "History of technology",
+          "frequency": 1
+        },
+        {
+          "name": "Information infrastructure studies examining sociotechnical system evolution",
+          "frequency": 1
+        },
+        {
+          "name": "Innovation economics",
+          "frequency": 1
+        },
+        {
+          "name": "Joseph Schumpeter's concept of creative destruction and entrepreneurial disruption",
+          "frequency": 1
+        },
+        {
+          "name": "Jurisprudence of technology",
+          "frequency": 1
+        },
+        {
+          "name": "Labor economics (automation impact)",
+          "frequency": 1
+        },
+        {
+          "name": "Marxist theories of automation",
+          "frequency": 1
+        },
+        {
+          "name": "Mercantilism (modernized for tech)",
+          "frequency": 1
+        },
+        {
+          "name": "Nick Srnicek and Alex Williams' critique in 'Inventing the Future'",
+          "frequency": 1
+        },
+        {
+          "name": "Organizational development",
+          "frequency": 1
+        },
+        {
+          "name": "Organizational sociology",
+          "frequency": 1
+        },
+        {
+          "name": "Organizational theory (Barnard's Zone of Indifference)",
+          "frequency": 1
+        },
+        {
+          "name": "Organizational theory (information flow)",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of Technology",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of technology",
+          "frequency": 1
+        },
+        {
+          "name": "Political economy critiques of automation",
+          "frequency": 1
+        },
+        {
+          "name": "Political economy of technology and automation (Noble, Eubanks)",
+          "frequency": 1
+        },
+        {
+          "name": "Political sociology",
+          "frequency": 1
+        },
+        {
+          "name": "Post-Structuralism",
+          "frequency": 1
+        },
+        {
+          "name": "Post-Work Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Post-industrial society theories",
+          "frequency": 1
+        },
+        {
+          "name": "Post-structuralism (e.g., Foucault on power/knowledge)",
+          "frequency": 1
+        },
+        {
+          "name": "Post-structuralism (radical interpretations)",
+          "frequency": 1
+        },
+        {
+          "name": "Post-work theory",
+          "frequency": 1
+        },
+        {
+          "name": "Prompt engineering",
+          "frequency": 1
+        },
+        {
+          "name": "Responsible Innovation",
+          "frequency": 1
+        },
+        {
+          "name": "Responsible innovation frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Schumpeterian Economics",
+          "frequency": 1
+        },
+        {
+          "name": "Schumpeterian innovation cycles",
+          "frequency": 1
+        },
+        {
+          "name": "Skill-biased technological change theory",
+          "frequency": 1
+        },
+        {
+          "name": "Social construction of technology",
+          "frequency": 1
+        },
+        {
+          "name": "Societal adaptation theory",
+          "frequency": 1
+        },
+        {
+          "name": "Sociological analysis of professional identity and technological change",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of Technology",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of Work",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of quantification and performativity (MacKenzie, Espeland & Stevens)",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of science and technology",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of science/technology controversies",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of technology adoption",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of work",
+          "frequency": 1
+        },
+        {
+          "name": "Standpoint epistemology and situated knowledge frameworks from feminist science studies",
+          "frequency": 1
+        },
+        {
+          "name": "Strategic Management Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Techno-Libertarianism",
+          "frequency": 1
+        },
+        {
+          "name": "Techno-Skepticism",
+          "frequency": 1
+        },
+        {
+          "name": "Techno-solutionism",
+          "frequency": 1
+        },
+        {
+          "name": "Technological Singularity theories",
+          "frequency": 1
+        },
+        {
+          "name": "Technological singularity",
+          "frequency": 1
+        },
+        {
+          "name": "Technological unemployment debate",
+          "frequency": 1
+        },
+        {
+          "name": "Technological unemployment policy",
+          "frequency": 1
+        },
+        {
+          "name": "Technology adoption lifecycle",
+          "frequency": 1
+        },
+        {
+          "name": "Technology adoption lifecycle (Geoffrey Moore)",
+          "frequency": 1
+        },
+        {
+          "name": "Technology adoption models",
+          "frequency": 1
+        },
+        {
+          "name": "Technology assessment",
+          "frequency": 1
+        },
+        {
+          "name": "Technology determinism and inevitability narratives",
+          "frequency": 1
+        },
+        {
+          "name": "Theories of creativity and innovation",
+          "frequency": 1
+        },
+        {
+          "name": "Workforce development theory",
+          "frequency": 1
+        },
+        {
+          "name": "automation and employment studies",
+          "frequency": 1
+        },
+        {
+          "name": "automation bias research",
+          "frequency": 1
+        },
+        {
+          "name": "automation paradox",
+          "frequency": 1
+        },
+        {
+          "name": "cognitive psychology (automation bias)",
+          "frequency": 1
+        },
+        {
+          "name": "critical studies of automation",
+          "frequency": 1
+        },
+        {
+          "name": "diffusion of innovations theory",
+          "frequency": 1
+        },
+        {
+          "name": "dual-use research ethics",
+          "frequency": 1
+        },
+        {
+          "name": "dual-use technology management",
+          "frequency": 1
+        },
+        {
+          "name": "economic history of technology",
+          "frequency": 1
+        },
+        {
+          "name": "economic theory of innovation",
+          "frequency": 1
+        },
+        {
+          "name": "ethics of automation",
+          "frequency": 1
+        },
+        {
+          "name": "history of technology",
+          "frequency": 1
+        },
+        {
+          "name": "human capital theory",
+          "frequency": 1
+        },
+        {
+          "name": "innovation theory (Schumpeter)",
+          "frequency": 1
+        },
+        {
+          "name": "open innovation principles",
+          "frequency": 1
+        },
+        {
+          "name": "organizational change management theory",
+          "frequency": 1
+        },
+        {
+          "name": "organizational ecology",
+          "frequency": 1
+        },
+        {
+          "name": "organizational learning",
+          "frequency": 1
+        },
+        {
+          "name": "organizational psychology",
+          "frequency": 1
+        },
+        {
+          "name": "organizational theory",
+          "frequency": 1
+        },
+        {
+          "name": "organizational theory (adaptive organizations)",
+          "frequency": 1
+        },
+        {
+          "name": "organizational theory (digital transformation)",
+          "frequency": 1
+        },
+        {
+          "name": "philosophy of technology",
+          "frequency": 1
+        },
+        {
+          "name": "responsible innovation",
+          "frequency": 1
+        },
+        {
+          "name": "social construction of technology (SCOT)",
+          "frequency": 1
+        },
+        {
+          "name": "sociotechnical systems theory",
+          "frequency": 1
+        },
+        {
+          "name": "technical debt concept",
+          "frequency": 1
+        },
+        {
+          "name": "techno-libertarianism",
+          "frequency": 1
+        },
+        {
+          "name": "technological singularity concepts",
+          "frequency": 1
+        },
+        {
+          "name": "technological solutionism",
+          "frequency": 1
+        },
+        {
+          "name": "technology assessment",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 2,
+      "auto_label": "Labor economics / Libertarianism",
+      "curated_label": "Labor & Political Economy",
+      "dominant_l1_category": "unmapped",
+      "member_count": 157,
+      "total_frequency": 211,
+      "members": [
+        {
+          "name": "Labor economics",
+          "frequency": 10
+        },
+        {
+          "name": "Libertarianism",
+          "frequency": 6
+        },
+        {
+          "name": "Marxist critique of capitalism",
+          "frequency": 6
+        },
+        {
+          "name": "Post-scarcity economics",
+          "frequency": 4
+        },
+        {
+          "name": "Supply-side economics",
+          "frequency": 4
+        },
+        {
+          "name": "principal-agent problem",
+          "frequency": 4
+        },
+        {
+          "name": "Labor process theory",
+          "frequency": 3
+        },
+        {
+          "name": "Neoclassical economics",
+          "frequency": 3
+        },
+        {
+          "name": "Neoliberalism",
+          "frequency": 3
+        },
+        {
+          "name": "Principal-agent problem",
+          "frequency": 3
+        },
+        {
+          "name": "Social democracy",
+          "frequency": 3
+        },
+        {
+          "name": "Decentralization theory",
+          "frequency": 2
+        },
+        {
+          "name": "Democratic theory",
+          "frequency": 2
+        },
+        {
+          "name": "Econometrics",
+          "frequency": 2
+        },
+        {
+          "name": "Evolutionary game theory",
+          "frequency": 2
+        },
+        {
+          "name": "Game theory (strategic behavior)",
+          "frequency": 2
+        },
+        {
+          "name": "Industrial organization economics",
+          "frequency": 2
+        },
+        {
+          "name": "Labor Economics",
+          "frequency": 2
+        },
+        {
+          "name": "Labor studies",
+          "frequency": 2
+        },
+        {
+          "name": "Multi-agent systems",
+          "frequency": 2
+        },
+        {
+          "name": "Neoliberal economic theory",
+          "frequency": 2
+        },
+        {
+          "name": "Post-growth economics",
+          "frequency": 2
+        },
+        {
+          "name": "Principal-agent problem in economics",
+          "frequency": 2
+        },
+        {
+          "name": "game theory (strategic behavior)",
+          "frequency": 2
+        },
+        {
+          "name": "labor economics",
+          "frequency": 2
+        },
+        {
+          "name": "social contract theory",
+          "frequency": 2
+        },
+        {
+          "name": "supply-side economics",
+          "frequency": 2
+        },
+        {
+          "name": "Alternative currency movements",
+          "frequency": 1
+        },
+        {
+          "name": "Austrian School of Economics",
+          "frequency": 1
+        },
+        {
+          "name": "Austrian business cycle theory",
+          "frequency": 1
+        },
+        {
+          "name": "Behavioral economics",
+          "frequency": 1
+        },
+        {
+          "name": "Behavioral economics (bubbles)",
+          "frequency": 1
+        },
+        {
+          "name": "Behavioral economics (e.g., irrational exuberance)",
+          "frequency": 1
+        },
+        {
+          "name": "Behavioral economics (loss aversion)",
+          "frequency": 1
+        },
+        {
+          "name": "Behavioral economics (nudging)",
+          "frequency": 1
+        },
+        {
+          "name": "Behavioral economics (risk perception)",
+          "frequency": 1
+        },
+        {
+          "name": "Behavioral finance (investor irrationality)",
+          "frequency": 1
+        },
+        {
+          "name": "Commons theory",
+          "frequency": 1
+        },
+        {
+          "name": "Cost-Benefit Analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Cost-benefit analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Cost-benefit analysis frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Critical labor studies and workplace surveillance theory (Zuboff, Ball)",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of GDP",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of GDP as a measure of progress",
+          "frequency": 1
+        },
+        {
+          "name": "David Autor's work on job polarization",
+          "frequency": 1
+        },
+        {
+          "name": "De-growth (counter-argument to)",
+          "frequency": 1
+        },
+        {
+          "name": "Decentralization theory (for safety)",
+          "frequency": 1
+        },
+        {
+          "name": "Decentralized Governance",
+          "frequency": 1
+        },
+        {
+          "name": "Deliberative democracy theory",
+          "frequency": 1
+        },
+        {
+          "name": "Democratic Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Democratic theory (public vs. private power)",
+          "frequency": 1
+        },
+        {
+          "name": "Demographic economics",
+          "frequency": 1
+        },
+        {
+          "name": "Digital economy frameworks and platform capitalism studies (Zuboff, Srnicek)",
+          "frequency": 1
+        },
+        {
+          "name": "Economic cost-benefit analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Economic growth theory",
+          "frequency": 1
+        },
+        {
+          "name": "Economic indicators theory",
+          "frequency": 1
+        },
+        {
+          "name": "Economics of coordination",
+          "frequency": 1
+        },
+        {
+          "name": "Endogenous growth theory",
+          "frequency": 1
+        },
+        {
+          "name": "Evolutionary Economics",
+          "frequency": 1
+        },
+        {
+          "name": "Evolutionary economics",
+          "frequency": 1
+        },
+        {
+          "name": "Evolutionary ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Evolutionary theory (extended synthesis)",
+          "frequency": 1
+        },
+        {
+          "name": "Financial market theory",
+          "frequency": 1
+        },
+        {
+          "name": "Free-market capitalism",
+          "frequency": 1
+        },
+        {
+          "name": "Game theory",
+          "frequency": 1
+        },
+        {
+          "name": "Game theory (deception)",
+          "frequency": 1
+        },
+        {
+          "name": "Game theory (for competitive pressures)",
+          "frequency": 1
+        },
+        {
+          "name": "Great power competition theory",
+          "frequency": 1
+        },
+        {
+          "name": "Hobbesian view of competition",
+          "frequency": 1
+        },
+        {
+          "name": "Incentive design theory",
+          "frequency": 1
+        },
+        {
+          "name": "Incentive theory",
+          "frequency": 1
+        },
+        {
+          "name": "Industrial Organization economics",
+          "frequency": 1
+        },
+        {
+          "name": "Keynesian economics",
+          "frequency": 1
+        },
+        {
+          "name": "Labor Studies",
+          "frequency": 1
+        },
+        {
+          "name": "Labor Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Labor economics (job displacement/creation)",
+          "frequency": 1
+        },
+        {
+          "name": "Labor market economics",
+          "frequency": 1
+        },
+        {
+          "name": "Labor movement history",
+          "frequency": 1
+        },
+        {
+          "name": "Liberal political philosophy",
+          "frequency": 1
+        },
+        {
+          "name": "Libertarian critiques of state intervention",
+          "frequency": 1
+        },
+        {
+          "name": "Mancur Olson's Logic of Collective Action and theory of selective incentives",
+          "frequency": 1
+        },
+        {
+          "name": "Mancur Olson's theory of distributional coalitions and institutional sclerosis",
+          "frequency": 1
+        },
+        {
+          "name": "Market Liberalism",
+          "frequency": 1
+        },
+        {
+          "name": "Market efficiency theory",
+          "frequency": 1
+        },
+        {
+          "name": "Marxism",
+          "frequency": 1
+        },
+        {
+          "name": "Marxist economics",
+          "frequency": 1
+        },
+        {
+          "name": "Marxist political economy",
+          "frequency": 1
+        },
+        {
+          "name": "Marxist theory of historical materialism",
+          "frequency": 1
+        },
+        {
+          "name": "Materialist economics",
+          "frequency": 1
+        },
+        {
+          "name": "Metrics and indicators development",
+          "frequency": 1
+        },
+        {
+          "name": "Multi-agent systems research",
+          "frequency": 1
+        },
+        {
+          "name": "National competitiveness theory",
+          "frequency": 1
+        },
+        {
+          "name": "Neo-Marxist critiques of capitalism",
+          "frequency": 1
+        },
+        {
+          "name": "Neoclassical economics (productivity growth)",
+          "frequency": 1
+        },
+        {
+          "name": "Neoclassical production theory and factor analysis (Solow, Cobb-Douglas)",
+          "frequency": 1
+        },
+        {
+          "name": "Neoliberalism (extreme market deregulation)",
+          "frequency": 1
+        },
+        {
+          "name": "New Keynesian economics",
+          "frequency": 1
+        },
+        {
+          "name": "Platform capitalism critique",
+          "frequency": 1
+        },
+        {
+          "name": "Polanyi's critique of market fundamentalism and embedded liberalism tradition",
+          "frequency": 1
+        },
+        {
+          "name": "Political science theories of electoral behavior",
+          "frequency": 1
+        },
+        {
+          "name": "Post-Keynesian economics",
+          "frequency": 1
+        },
+        {
+          "name": "Post-capitalist thought",
+          "frequency": 1
+        },
+        {
+          "name": "Post-scarcity economics (implicit)",
+          "frequency": 1
+        },
+        {
+          "name": "Power asymmetry analysis in platform capitalism (Srnicek, Scholz)",
+          "frequency": 1
+        },
+        {
+          "name": "Predistribution economic theory",
+          "frequency": 1
+        },
+        {
+          "name": "Principal-agent theory",
+          "frequency": 1
+        },
+        {
+          "name": "Productivity Paradox (Solow)",
+          "frequency": 1
+        },
+        {
+          "name": "Productivity paradox",
+          "frequency": 1
+        },
+        {
+          "name": "Productivity paradox (Solow paradox)",
+          "frequency": 1
+        },
+        {
+          "name": "Productivity paradox literature (rebuttal)",
+          "frequency": 1
+        },
+        {
+          "name": "Public interest technology and platform governance studies",
+          "frequency": 1
+        },
+        {
+          "name": "Race to the bottom economics",
+          "frequency": 1
+        },
+        {
+          "name": "Regional economics",
+          "frequency": 1
+        },
+        {
+          "name": "Resource Economics",
+          "frequency": 1
+        },
+        {
+          "name": "Resource curse theory (inverted)",
+          "frequency": 1
+        },
+        {
+          "name": "Resource depletion theory",
+          "frequency": 1
+        },
+        {
+          "name": "Resource economics",
+          "frequency": 1
+        },
+        {
+          "name": "Resource-based view of the firm",
+          "frequency": 1
+        },
+        {
+          "name": "Social Democracy",
+          "frequency": 1
+        },
+        {
+          "name": "Social contract theory (e.g., Rousseau, Locke)",
+          "frequency": 1
+        },
+        {
+          "name": "Social democracy (economic equity)",
+          "frequency": 1
+        },
+        {
+          "name": "Social indicators movement",
+          "frequency": 1
+        },
+        {
+          "name": "Socialism/Communism (resource distribution)",
+          "frequency": 1
+        },
+        {
+          "name": "Socialist political economy",
+          "frequency": 1
+        },
+        {
+          "name": "Solow Paradox",
+          "frequency": 1
+        },
+        {
+          "name": "Specialization vs. Generalization in Biology/Economics",
+          "frequency": 1
+        },
+        {
+          "name": "Technological Decentralization",
+          "frequency": 1
+        },
+        {
+          "name": "Tragedy of the commons",
+          "frequency": 1
+        },
+        {
+          "name": "Universal Basic Income (UBI) theories",
+          "frequency": 1
+        },
+        {
+          "name": "bio-liberalism",
+          "frequency": 1
+        },
+        {
+          "name": "classical economics",
+          "frequency": 1
+        },
+        {
+          "name": "delegation theory",
+          "frequency": 1
+        },
+        {
+          "name": "democratic socialism",
+          "frequency": 1
+        },
+        {
+          "name": "economic geography",
+          "frequency": 1
+        },
+        {
+          "name": "economic inequality studies",
+          "frequency": 1
+        },
+        {
+          "name": "evolutionary biology (analogy)",
+          "frequency": 1
+        },
+        {
+          "name": "evolutionary economics",
+          "frequency": 1
+        },
+        {
+          "name": "evolutionary game theory",
+          "frequency": 1
+        },
+        {
+          "name": "game theory",
+          "frequency": 1
+        },
+        {
+          "name": "game theory (deception)",
+          "frequency": 1
+        },
+        {
+          "name": "game theory (e.g., tragedy of the commons)",
+          "frequency": 1
+        },
+        {
+          "name": "game theory (security applications)",
+          "frequency": 1
+        },
+        {
+          "name": "game theory (security dilemma)",
+          "frequency": 1
+        },
+        {
+          "name": "game theory (strategic interaction)",
+          "frequency": 1
+        },
+        {
+          "name": "labor market analysis",
+          "frequency": 1
+        },
+        {
+          "name": "libertarian economic theory",
+          "frequency": 1
+        },
+        {
+          "name": "libertarianism",
+          "frequency": 1
+        },
+        {
+          "name": "multi-agent systems ethics",
+          "frequency": 1
+        },
+        {
+          "name": "multi-agent systems research",
+          "frequency": 1
+        },
+        {
+          "name": "path dependence (economics/sociology)",
+          "frequency": 1
+        },
+        {
+          "name": "political economy",
+          "frequency": 1
+        },
+        {
+          "name": "post-growth economics",
+          "frequency": 1
+        },
+        {
+          "name": "progressive decentralization",
+          "frequency": 1
+        },
+        {
+          "name": "rational choice theory (applied to defense)",
+          "frequency": 1
+        },
+        {
+          "name": "risk-benefit analysis",
+          "frequency": 1
+        },
+        {
+          "name": "social democracy",
+          "frequency": 1
+        },
+        {
+          "name": "socialism",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 3,
+      "auto_label": "Consumer protection law / Regulatory capture theory",
+      "curated_label": "Regulation & Institutional Economics",
+      "dominant_l1_category": "unmapped",
+      "member_count": 130,
+      "total_frequency": 177,
+      "members": [
+        {
+          "name": "Consumer protection law",
+          "frequency": 7
+        },
+        {
+          "name": "Regulatory capture theory",
+          "frequency": 6
+        },
+        {
+          "name": "Institutional Economics",
+          "frequency": 5
+        },
+        {
+          "name": "Public choice theory",
+          "frequency": 4
+        },
+        {
+          "name": "Regulatory economics",
+          "frequency": 4
+        },
+        {
+          "name": "Consumer protection advocacy",
+          "frequency": 3
+        },
+        {
+          "name": "Public Choice Theory",
+          "frequency": 3
+        },
+        {
+          "name": "corporate governance",
+          "frequency": 3
+        },
+        {
+          "name": "public choice theory",
+          "frequency": 3
+        },
+        {
+          "name": "Administrative Law",
+          "frequency": 2
+        },
+        {
+          "name": "Antitrust economics",
+          "frequency": 2
+        },
+        {
+          "name": "Corporate social responsibility critiques",
+          "frequency": 2
+        },
+        {
+          "name": "Data governance",
+          "frequency": 2
+        },
+        {
+          "name": "Evidence-based policy",
+          "frequency": 2
+        },
+        {
+          "name": "Law and Economics",
+          "frequency": 2
+        },
+        {
+          "name": "Law and economics",
+          "frequency": 2
+        },
+        {
+          "name": "Market-based regulation",
+          "frequency": 2
+        },
+        {
+          "name": "Neo-Brandeisian antitrust movement emphasizing structural power over consumer welfare",
+          "frequency": 2
+        },
+        {
+          "name": "Public Interest Technology",
+          "frequency": 2
+        },
+        {
+          "name": "Public administration theory",
+          "frequency": 2
+        },
+        {
+          "name": "Public interest advocacy",
+          "frequency": 2
+        },
+        {
+          "name": "Public interest technology",
+          "frequency": 2
+        },
+        {
+          "name": "Public utility regulation",
+          "frequency": 2
+        },
+        {
+          "name": "Regulatory Capture Theory",
+          "frequency": 2
+        },
+        {
+          "name": "Stakeholder theory",
+          "frequency": 2
+        },
+        {
+          "name": "consumer protection law",
+          "frequency": 2
+        },
+        {
+          "name": "stakeholder theory",
+          "frequency": 2
+        },
+        {
+          "name": "Accountability frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Administrative law",
+          "frequency": 1
+        },
+        {
+          "name": "Anti-monopoly economics",
+          "frequency": 1
+        },
+        {
+          "name": "Antitrust Economics",
+          "frequency": 1
+        },
+        {
+          "name": "Antitrust law principles",
+          "frequency": 1
+        },
+        {
+          "name": "Constitutional AI",
+          "frequency": 1
+        },
+        {
+          "name": "Constitutionalism",
+          "frequency": 1
+        },
+        {
+          "name": "Consumer Protection Law",
+          "frequency": 1
+        },
+        {
+          "name": "Consumer rights advocacy",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate Governance Studies",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate Social Responsibility (CSR) Critique",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate Social Responsibility critique",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate accountability and regulatory capture literature",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate accountability movement",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate accountability movements",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate governance principles",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate governance theory",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate social responsibility (CSR) and stakeholder theory from business ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate social responsibility (CSR) frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate tax avoidance strategies",
+          "frequency": 1
+        },
+        {
+          "name": "Critical data studies tradition examining datafication as multidimensional governance challenge",
+          "frequency": 1
+        },
+        {
+          "name": "Data governance and transparency",
+          "frequency": 1
+        },
+        {
+          "name": "Democratic accountability theory and administrative law traditions emphasizing state regulatory capacity",
+          "frequency": 1
+        },
+        {
+          "name": "Digital Government/E-governance",
+          "frequency": 1
+        },
+        {
+          "name": "Dual-use research of concern (DURC) frameworks in biosecurity governance",
+          "frequency": 1
+        },
+        {
+          "name": "Dual-use research of concern (DURC) governance frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "E-governance",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental regulation (e.g., EPA)",
+          "frequency": 1
+        },
+        {
+          "name": "Evidence-based policy movement",
+          "frequency": 1
+        },
+        {
+          "name": "Evidence-based policy movement and systematic transparency initiatives in public health and finance",
+          "frequency": 1
+        },
+        {
+          "name": "Evidence-based policymaking",
+          "frequency": 1
+        },
+        {
+          "name": "Experimentalist governance frameworks viewing regulation as iterative learning process",
+          "frequency": 1
+        },
+        {
+          "name": "Federalism (US context)",
+          "frequency": 1
+        },
+        {
+          "name": "Financial market regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Financial regulation history (e.g., SEC formation)",
+          "frequency": 1
+        },
+        {
+          "name": "Financial regulatory frameworks (e.g., SEC)",
+          "frequency": 1
+        },
+        {
+          "name": "Governance Engineering",
+          "frequency": 1
+        },
+        {
+          "name": "Grant-making policy",
+          "frequency": 1
+        },
+        {
+          "name": "Industrial regulation frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Informed consent frameworks from medical ethics and consumer protection law",
+          "frequency": 1
+        },
+        {
+          "name": "Institutional Design",
+          "frequency": 1
+        },
+        {
+          "name": "Institutional analysis of organizational sustainability in advocacy contexts",
+          "frequency": 1
+        },
+        {
+          "name": "Institutionalism",
+          "frequency": 1
+        },
+        {
+          "name": "Law and economics movement (Calabresi, Posner) on efficient accident law and deterrence",
+          "frequency": 1
+        },
+        {
+          "name": "Market-Based Regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Market-based regulatory approaches favoring price signals over command-and-control",
+          "frequency": 1
+        },
+        {
+          "name": "New Brandeis antitrust movement",
+          "frequency": 1
+        },
+        {
+          "name": "New Public Management",
+          "frequency": 1
+        },
+        {
+          "name": "Performance-based regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Political economy critique of corporate capitalism and shareholder primacy doctrine",
+          "frequency": 1
+        },
+        {
+          "name": "Political economy of data",
+          "frequency": 1
+        },
+        {
+          "name": "Public Administration Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Public Interest Litigation",
+          "frequency": 1
+        },
+        {
+          "name": "Public Policy",
+          "frequency": 1
+        },
+        {
+          "name": "Public choice theory and institutional capture literature",
+          "frequency": 1
+        },
+        {
+          "name": "Public choice theory and political economy of interest groups",
+          "frequency": 1
+        },
+        {
+          "name": "Public choice theory and regulatory capture literature (George Stigler, James Buchanan)",
+          "frequency": 1
+        },
+        {
+          "name": "Public choice theory's insights on regulatory capture and institutional coordination problems",
+          "frequency": 1
+        },
+        {
+          "name": "Public interest law",
+          "frequency": 1
+        },
+        {
+          "name": "Public interest regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Public interest technology movement",
+          "frequency": 1
+        },
+        {
+          "name": "Public utility theory",
+          "frequency": 1
+        },
+        {
+          "name": "Public-private partnership models from environmental and financial regulatory domains",
+          "frequency": 1
+        },
+        {
+          "name": "Regulation theory",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory Economics",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory Federalism",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory Science",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory arbitrage theory",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory capture",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory competition theory",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory compliance best practices",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory compliance frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory governance",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory harmonization",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory sandboxes",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory sandboxes concept",
+          "frequency": 1
+        },
+        {
+          "name": "Regulatory theory",
+          "frequency": 1
+        },
+        {
+          "name": "Responsive regulation theory (Ayres & Braithwaite) emphasizing regulatory pyramids and graduated enforcement",
+          "frequency": 1
+        },
+        {
+          "name": "Risk-based regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Risk-based regulatory frameworks from environmental and pharmaceutical law",
+          "frequency": 1
+        },
+        {
+          "name": "Rule of law",
+          "frequency": 1
+        },
+        {
+          "name": "Sectoral Regulation theory",
+          "frequency": 1
+        },
+        {
+          "name": "Technocratic Governance",
+          "frequency": 1
+        },
+        {
+          "name": "antitrust economics",
+          "frequency": 1
+        },
+        {
+          "name": "constitutional law",
+          "frequency": 1
+        },
+        {
+          "name": "corporate accountability frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "data governance",
+          "frequency": 1
+        },
+        {
+          "name": "evidence-based policy",
+          "frequency": 1
+        },
+        {
+          "name": "experimental governance",
+          "frequency": 1
+        },
+        {
+          "name": "financial market regulation (circuit breakers)",
+          "frequency": 1
+        },
+        {
+          "name": "global public goods theory",
+          "frequency": 1
+        },
+        {
+          "name": "institutional design",
+          "frequency": 1
+        },
+        {
+          "name": "institutionalism",
+          "frequency": 1
+        },
+        {
+          "name": "law and economics",
+          "frequency": 1
+        },
+        {
+          "name": "public interest theory",
+          "frequency": 1
+        },
+        {
+          "name": "public utility theory",
+          "frequency": 1
+        },
+        {
+          "name": "regulatory arbitrage theory",
+          "frequency": 1
+        },
+        {
+          "name": "regulatory capture theory",
+          "frequency": 1
+        },
+        {
+          "name": "regulatory compliance",
+          "frequency": 1
+        },
+        {
+          "name": "regulatory sandboxes concept",
+          "frequency": 1
+        },
+        {
+          "name": "regulatory theory",
+          "frequency": 1
+        },
+        {
+          "name": "risk-based regulation",
+          "frequency": 1
+        },
+        {
+          "name": "sector-specific regulation",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 4,
+      "auto_label": "Critical legal studies / Ethics of technology",
+      "curated_label": "Legal Theory & Applied Ethics",
+      "dominant_l1_category": "unmapped",
+      "member_count": 99,
+      "total_frequency": 120,
+      "members": [
+        {
+          "name": "Critical legal studies",
+          "frequency": 4
+        },
+        {
+          "name": "Ethics of technology",
+          "frequency": 4
+        },
+        {
+          "name": "Legal Realism",
+          "frequency": 4
+        },
+        {
+          "name": "ethics of technology",
+          "frequency": 3
+        },
+        {
+          "name": "product liability law",
+          "frequency": 3
+        },
+        {
+          "name": "Bioethics",
+          "frequency": 2
+        },
+        {
+          "name": "Copyright law",
+          "frequency": 2
+        },
+        {
+          "name": "Critical Legal Studies",
+          "frequency": 2
+        },
+        {
+          "name": "Data ethics",
+          "frequency": 2
+        },
+        {
+          "name": "Legal philosophy of responsibility",
+          "frequency": 2
+        },
+        {
+          "name": "Tort law",
+          "frequency": 2
+        },
+        {
+          "name": "deontological ethics",
+          "frequency": 2
+        },
+        {
+          "name": "legal philosophy of agency",
+          "frequency": 2
+        },
+        {
+          "name": "Bioethics (Julian Savulescu)",
+          "frequency": 1
+        },
+        {
+          "name": "Bodily autonomy",
+          "frequency": 1
+        },
+        {
+          "name": "Common Law Tradition",
+          "frequency": 1
+        },
+        {
+          "name": "Common law negligence doctrine and the Learned Hand formula for duty of care",
+          "frequency": 1
+        },
+        {
+          "name": "Common law tort tradition emphasizing ex post compensation over ex ante regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Contract law",
+          "frequency": 1
+        },
+        {
+          "name": "Copyright Law (fair use debate)",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate law theory (limited liability critique)",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate liability theory",
+          "frequency": 1
+        },
+        {
+          "name": "Corporate personhood debate",
+          "frequency": 1
+        },
+        {
+          "name": "Data Ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Data privacy ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Deontological ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Deontology (rule-based ethics)",
+          "frequency": 1
+        },
+        {
+          "name": "Digital ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Distributed responsibility theory",
+          "frequency": 1
+        },
+        {
+          "name": "Distributive justice",
+          "frequency": 1
+        },
+        {
+          "name": "Distributive justice theories",
+          "frequency": 1
+        },
+        {
+          "name": "Distributive justice theory",
+          "frequency": 1
+        },
+        {
+          "name": "Due process and transparency in legal systems",
+          "frequency": 1
+        },
+        {
+          "name": "Ethics of autonomous weapons systems",
+          "frequency": 1
+        },
+        {
+          "name": "Ethics of scientific research",
+          "frequency": 1
+        },
+        {
+          "name": "Formal ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Freedom of speech principles",
+          "frequency": 1
+        },
+        {
+          "name": "Human Rights Law",
+          "frequency": 1
+        },
+        {
+          "name": "Human Rights Philosophy",
+          "frequency": 1
+        },
+        {
+          "name": "Human rights discourse",
+          "frequency": 1
+        },
+        {
+          "name": "Human rights law",
+          "frequency": 1
+        },
+        {
+          "name": "Humanitarian law",
+          "frequency": 1
+        },
+        {
+          "name": "Information Ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Intellectual Property rights",
+          "frequency": 1
+        },
+        {
+          "name": "International Humanitarian Law",
+          "frequency": 1
+        },
+        {
+          "name": "International law and governance",
+          "frequency": 1
+        },
+        {
+          "name": "Kantian ethics (autonomy)",
+          "frequency": 1
+        },
+        {
+          "name": "Legal Exceptionalism",
+          "frequency": 1
+        },
+        {
+          "name": "Legal Positivism",
+          "frequency": 1
+        },
+        {
+          "name": "Legal informatics",
+          "frequency": 1
+        },
+        {
+          "name": "Legal liability frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Legal philosophy (agency and liability)",
+          "frequency": 1
+        },
+        {
+          "name": "Legal philosophy (corporate personhood, agency)",
+          "frequency": 1
+        },
+        {
+          "name": "Legal philosophy (liability)",
+          "frequency": 1
+        },
+        {
+          "name": "Legal philosophy (personhood debates)",
+          "frequency": 1
+        },
+        {
+          "name": "Legal philosophy (personhood theory)",
+          "frequency": 1
+        },
+        {
+          "name": "Legal positivism",
+          "frequency": 1
+        },
+        {
+          "name": "Legal realism",
+          "frequency": 1
+        },
+        {
+          "name": "Legal theory (corporate personhood)",
+          "frequency": 1
+        },
+        {
+          "name": "Legal theory of evidence and liability",
+          "frequency": 1
+        },
+        {
+          "name": "Logical Positivism",
+          "frequency": 1
+        },
+        {
+          "name": "Moral philosophy (deontology, virtue ethics)",
+          "frequency": 1
+        },
+        {
+          "name": "Moral philosophy (e.g., Rawlsian principles)",
+          "frequency": 1
+        },
+        {
+          "name": "Product Liability Law",
+          "frequency": 1
+        },
+        {
+          "name": "Product liability law",
+          "frequency": 1
+        },
+        {
+          "name": "Tort Law",
+          "frequency": 1
+        },
+        {
+          "name": "Tort Reform",
+          "frequency": 1
+        },
+        {
+          "name": "Tort law (product liability)",
+          "frequency": 1
+        },
+        {
+          "name": "Tort law (strict liability doctrine)",
+          "frequency": 1
+        },
+        {
+          "name": "Tort law (strict liability)",
+          "frequency": 1
+        },
+        {
+          "name": "Tort law and product liability",
+          "frequency": 1
+        },
+        {
+          "name": "UN Convention on the Rights of the Child",
+          "frequency": 1
+        },
+        {
+          "name": "Whistleblower protection advocacy",
+          "frequency": 1
+        },
+        {
+          "name": "Whistleblower protection laws",
+          "frequency": 1
+        },
+        {
+          "name": "agency theory (law)",
+          "frequency": 1
+        },
+        {
+          "name": "applied ethics",
+          "frequency": 1
+        },
+        {
+          "name": "bioethics",
+          "frequency": 1
+        },
+        {
+          "name": "computer ethics",
+          "frequency": 1
+        },
+        {
+          "name": "corporate law (limited liability entities)",
+          "frequency": 1
+        },
+        {
+          "name": "distributive justice",
+          "frequency": 1
+        },
+        {
+          "name": "ethics of human-computer interaction",
+          "frequency": 1
+        },
+        {
+          "name": "ethics of persuasive technology",
+          "frequency": 1
+        },
+        {
+          "name": "ethics of responsibility",
+          "frequency": 1
+        },
+        {
+          "name": "government procurement law",
+          "frequency": 1
+        },
+        {
+          "name": "human rights advocacy",
+          "frequency": 1
+        },
+        {
+          "name": "human rights law",
+          "frequency": 1
+        },
+        {
+          "name": "human rights philosophy",
+          "frequency": 1
+        },
+        {
+          "name": "intellectual property law (fair use debates)",
+          "frequency": 1
+        },
+        {
+          "name": "international law principles",
+          "frequency": 1
+        },
+        {
+          "name": "legal philosophy of responsibility",
+          "frequency": 1
+        },
+        {
+          "name": "legal theory (agency, liability)",
+          "frequency": 1
+        },
+        {
+          "name": "medical ethics",
+          "frequency": 1
+        },
+        {
+          "name": "moral philosophy (e.g., virtue ethics, deontology)",
+          "frequency": 1
+        },
+        {
+          "name": "philosophy of responsibility",
+          "frequency": 1
+        },
+        {
+          "name": "sovereignty principles",
+          "frequency": 1
+        },
+        {
+          "name": "tort law",
+          "frequency": 1
+        },
+        {
+          "name": "tort law (duty of care)",
+          "frequency": 1
+        },
+        {
+          "name": "tort law (negligence, strict liability)",
+          "frequency": 1
+        },
+        {
+          "name": "whistleblower protection advocacy",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 5,
+      "auto_label": "Cybernetics / cybernetics",
+      "curated_label": "Cybernetics & Systems Theory",
+      "dominant_l1_category": "unmapped",
+      "member_count": 70,
+      "total_frequency": 117,
+      "members": [
+        {
+          "name": "Cybernetics",
+          "frequency": 12
+        },
+        {
+          "name": "cybernetics",
+          "frequency": 10
+        },
+        {
+          "name": "control theory",
+          "frequency": 8
+        },
+        {
+          "name": "Control theory",
+          "frequency": 3
+        },
+        {
+          "name": "Systems theory",
+          "frequency": 3
+        },
+        {
+          "name": "complex systems theory",
+          "frequency": 3
+        },
+        {
+          "name": "human-in-the-loop systems",
+          "frequency": 3
+        },
+        {
+          "name": "systems engineering",
+          "frequency": 3
+        },
+        {
+          "name": "systems theory",
+          "frequency": 3
+        },
+        {
+          "name": "Adaptive learning systems",
+          "frequency": 2
+        },
+        {
+          "name": "Complex Systems Theory",
+          "frequency": 2
+        },
+        {
+          "name": "Systems Engineering",
+          "frequency": 2
+        },
+        {
+          "name": "Systems Theory",
+          "frequency": 2
+        },
+        {
+          "name": "adaptive control systems",
+          "frequency": 2
+        },
+        {
+          "name": "control problem in AI",
+          "frequency": 2
+        },
+        {
+          "name": "expert systems",
+          "frequency": 2
+        },
+        {
+          "name": "systems thinking",
+          "frequency": 2
+        },
+        {
+          "name": "Adaptive control systems",
+          "frequency": 1
+        },
+        {
+          "name": "Adaptive systems theory",
+          "frequency": 1
+        },
+        {
+          "name": "Business process automation",
+          "frequency": 1
+        },
+        {
+          "name": "Command and Control (C2) theory",
+          "frequency": 1
+        },
+        {
+          "name": "Complex adaptive systems",
+          "frequency": 1
+        },
+        {
+          "name": "Complex systems theory",
+          "frequency": 1
+        },
+        {
+          "name": "Control theory (challenges of complex systems)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics (Wiener)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics (control theory)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics (early concepts of human-machine systems)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics (early human-machine systems)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics (human-in-the-loop)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics (societal control)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics (systems thinking)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics and control theory",
+          "frequency": 1
+        },
+        {
+          "name": "Cybernetics and feedback loop theory (Wiener)",
+          "frequency": 1
+        },
+        {
+          "name": "Distributed systems architecture",
+          "frequency": 1
+        },
+        {
+          "name": "Fault-tolerant computing",
+          "frequency": 1
+        },
+        {
+          "name": "Fault-tolerant distributed systems design",
+          "frequency": 1
+        },
+        {
+          "name": "Hierarchical control systems",
+          "frequency": 1
+        },
+        {
+          "name": "Human-in-the-loop systems design",
+          "frequency": 1
+        },
+        {
+          "name": "Incident Reporting Systems",
+          "frequency": 1
+        },
+        {
+          "name": "Mechanism design",
+          "frequency": 1
+        },
+        {
+          "name": "Model-based control",
+          "frequency": 1
+        },
+        {
+          "name": "Multi-objective optimization theory from operations research and control theory",
+          "frequency": 1
+        },
+        {
+          "name": "Optimization theory",
+          "frequency": 1
+        },
+        {
+          "name": "Process supervision research in machine learning (e.g., OpenAI's process reward models)",
+          "frequency": 1
+        },
+        {
+          "name": "Statistical process control",
+          "frequency": 1
+        },
+        {
+          "name": "System design principles",
+          "frequency": 1
+        },
+        {
+          "name": "Systems engineering",
+          "frequency": 1
+        },
+        {
+          "name": "Systems engineering (decomposition)",
+          "frequency": 1
+        },
+        {
+          "name": "Systems engineering (redundancy)",
+          "frequency": 1
+        },
+        {
+          "name": "Systems engineering reliability theory",
+          "frequency": 1
+        },
+        {
+          "name": "Systems thinking",
+          "frequency": 1
+        },
+        {
+          "name": "complex adaptive systems theory",
+          "frequency": 1
+        },
+        {
+          "name": "control problem (cybernetics)",
+          "frequency": 1
+        },
+        {
+          "name": "control problem in cybernetics",
+          "frequency": 1
+        },
+        {
+          "name": "control problem literature",
+          "frequency": 1
+        },
+        {
+          "name": "control theory (emergency stops)",
+          "frequency": 1
+        },
+        {
+          "name": "control theory (misalignment)",
+          "frequency": 1
+        },
+        {
+          "name": "cyber-physical systems (human-in-the-loop)",
+          "frequency": 1
+        },
+        {
+          "name": "cybernetics (control systems)",
+          "frequency": 1
+        },
+        {
+          "name": "cybernetics (early AI in command & control)",
+          "frequency": 1
+        },
+        {
+          "name": "cybernetics control theory",
+          "frequency": 1
+        },
+        {
+          "name": "decision support systems",
+          "frequency": 1
+        },
+        {
+          "name": "dialogue systems",
+          "frequency": 1
+        },
+        {
+          "name": "distributed systems (ACID properties)",
+          "frequency": 1
+        },
+        {
+          "name": "distributed systems management",
+          "frequency": 1
+        },
+        {
+          "name": "dynamic systems theory",
+          "frequency": 1
+        },
+        {
+          "name": "process optimization",
+          "frequency": 1
+        },
+        {
+          "name": "redundancy engineering",
+          "frequency": 1
+        },
+        {
+          "name": "statistical process control",
+          "frequency": 1
+        },
+        {
+          "name": "systems theory of complex adaptive systems",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 6,
+      "auto_label": "Safety Engineering / Critical infrastructure security",
+      "curated_label": "Security Engineering & Infrastructure",
+      "dominant_l1_category": "unmapped",
+      "member_count": 77,
+      "total_frequency": 102,
+      "members": [
+        {
+          "name": "Safety Engineering",
+          "frequency": 5
+        },
+        {
+          "name": "Critical infrastructure security",
+          "frequency": 4
+        },
+        {
+          "name": "Safety engineering",
+          "frequency": 4
+        },
+        {
+          "name": "cybersecurity risk management",
+          "frequency": 4
+        },
+        {
+          "name": "Cybersecurity ethics",
+          "frequency": 3
+        },
+        {
+          "name": "Information warfare studies",
+          "frequency": 3
+        },
+        {
+          "name": "safety-critical systems design",
+          "frequency": 3
+        },
+        {
+          "name": "Cybersecurity defense-in-depth",
+          "frequency": 2
+        },
+        {
+          "name": "Cybersecurity threat modeling",
+          "frequency": 2
+        },
+        {
+          "name": "Information warfare",
+          "frequency": 2
+        },
+        {
+          "name": "Safety-critical systems design",
+          "frequency": 2
+        },
+        {
+          "name": "cybersecurity incident response",
+          "frequency": 2
+        },
+        {
+          "name": "cybersecurity risk assessment",
+          "frequency": 2
+        },
+        {
+          "name": "Biosecurity and biodefense research",
+          "frequency": 1
+        },
+        {
+          "name": "Biosecurity protocols",
+          "frequency": 1
+        },
+        {
+          "name": "Capability-based security systems (Dennis and Van Horn, 1966)",
+          "frequency": 1
+        },
+        {
+          "name": "Control theory and runtime verification from safety-critical systems engineering",
+          "frequency": 1
+        },
+        {
+          "name": "Critical Infrastructure Protection frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Crowdsourcing for security",
+          "frequency": 1
+        },
+        {
+          "name": "Cyber warfare doctrines",
+          "frequency": 1
+        },
+        {
+          "name": "Cyber-physical systems security",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity (defense-in-depth)",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity defense strategies",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity doctrine",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity incident response",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity principles of runtime threat detection and active defense",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity resilience frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Cybersecurity risk management",
+          "frequency": 1
+        },
+        {
+          "name": "Fail-safe engineering principles and defensive programming practices",
+          "frequency": 1
+        },
+        {
+          "name": "Failure Mode and Effects Analysis (FMEA)",
+          "frequency": 1
+        },
+        {
+          "name": "Identity theft prevention",
+          "frequency": 1
+        },
+        {
+          "name": "Infrastructure Theory",
+          "frequency": 1
+        },
+        {
+          "name": "National security doctrine",
+          "frequency": 1
+        },
+        {
+          "name": "National security policy (tech focus)",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear safety engineering",
+          "frequency": 1
+        },
+        {
+          "name": "Organizational psychology (psychological safety)",
+          "frequency": 1
+        },
+        {
+          "name": "Safety Engineering (e.g., aerospace, nuclear)",
+          "frequency": 1
+        },
+        {
+          "name": "Safety Engineering (e.g., aviation safety)",
+          "frequency": 1
+        },
+        {
+          "name": "Safety engineering (e.g., aviation, nuclear)",
+          "frequency": 1
+        },
+        {
+          "name": "Safety engineering principles",
+          "frequency": 1
+        },
+        {
+          "name": "Safety engineering traditions emphasizing fault tree analysis and FMEA",
+          "frequency": 1
+        },
+        {
+          "name": "Security research on attack surface mapping and threat modeling frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Social engineering countermeasures",
+          "frequency": 1
+        },
+        {
+          "name": "Systems security research on attack surface analysis and trust boundaries",
+          "frequency": 1
+        },
+        {
+          "name": "biosecurity (containment labs)",
+          "frequency": 1
+        },
+        {
+          "name": "containment strategies in cybersecurity",
+          "frequency": 1
+        },
+        {
+          "name": "critical infrastructure protection",
+          "frequency": 1
+        },
+        {
+          "name": "cybercrime studies",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity (air-gapping, sandboxing)",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity (e.g., systemic risk in critical infrastructure)",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity (sandboxing, air-gapping)",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity (spoofing attacks)",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity (worm/virus propagation)",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity arms race paradigm",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity arms race theory",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity risk frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity threat modeling",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity vulnerability management (e.g., CVSS)",
+          "frequency": 1
+        },
+        {
+          "name": "cyberwarfare theory",
+          "frequency": 1
+        },
+        {
+          "name": "defense in depth (cybersecurity)",
+          "frequency": 1
+        },
+        {
+          "name": "deterrence theory (cyber)",
+          "frequency": 1
+        },
+        {
+          "name": "high-reliability organizations (HROs)",
+          "frequency": 1
+        },
+        {
+          "name": "national security doctrine",
+          "frequency": 1
+        },
+        {
+          "name": "organizational psychology (safety culture)",
+          "frequency": 1
+        },
+        {
+          "name": "safe interruptibility",
+          "frequency": 1
+        },
+        {
+          "name": "safety culture research",
+          "frequency": 1
+        },
+        {
+          "name": "safety engineering",
+          "frequency": 1
+        },
+        {
+          "name": "safety engineering (fail-safe design)",
+          "frequency": 1
+        },
+        {
+          "name": "safety engineering (failure modes)",
+          "frequency": 1
+        },
+        {
+          "name": "safety engineering principles (e.g., Swiss cheese model)",
+          "frequency": 1
+        },
+        {
+          "name": "safety integrity levels (e.g., IEC 61508)",
+          "frequency": 1
+        },
+        {
+          "name": "security engineering principles",
+          "frequency": 1
+        },
+        {
+          "name": "social engineering",
+          "frequency": 1
+        },
+        {
+          "name": "social vulnerability indices",
+          "frequency": 1
+        },
+        {
+          "name": "system safety engineering",
+          "frequency": 1
+        },
+        {
+          "name": "systems engineering safety analysis",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 7,
+      "auto_label": "Cognitive psychology / Cognitive load theory",
+      "curated_label": "Cognitive Science & Philosophy of Mind",
+      "dominant_l1_category": "unmapped",
+      "member_count": 85,
+      "total_frequency": 98,
+      "members": [
+        {
+          "name": "Cognitive psychology",
+          "frequency": 4
+        },
+        {
+          "name": "Cognitive load theory",
+          "frequency": 3
+        },
+        {
+          "name": "Behaviorism",
+          "frequency": 2
+        },
+        {
+          "name": "Cognitive science",
+          "frequency": 2
+        },
+        {
+          "name": "Cognitive science (human inquiry vs. machine retrieval)",
+          "frequency": 2
+        },
+        {
+          "name": "Cognitive science (human vs. machine intelligence)",
+          "frequency": 2
+        },
+        {
+          "name": "Philosophy of science (e.g., Popper's falsifiability)",
+          "frequency": 2
+        },
+        {
+          "name": "cognitive science",
+          "frequency": 2
+        },
+        {
+          "name": "philosophy of mind",
+          "frequency": 2
+        },
+        {
+          "name": "philosophy of mind (intentionality)",
+          "frequency": 2
+        },
+        {
+          "name": "Behavioral psychology",
+          "frequency": 1
+        },
+        {
+          "name": "Behaviorism (Skinner)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive Science",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive architectures",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive augmentation",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive neuroscience of computation",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (Kahneman & Tversky)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (attention, vigilance)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (confirmation bias, echo chambers)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (human error, bias)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (human perception/bias)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (learning theories)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (learning theory)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology (memory, attention)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive psychology of confirmation bias",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science (e.g., human learning theories)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science (human intelligence vs. AI)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science (human vs. machine perception)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science (learning theory)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science (limitations of human processing)",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science models of self-monitoring and error correction",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science of emergent properties",
+          "frequency": 1
+        },
+        {
+          "name": "Cognitive science of language",
+          "frequency": 1
+        },
+        {
+          "name": "Computational theory of mind",
+          "frequency": 1
+        },
+        {
+          "name": "Consciousness Studies",
+          "frequency": 1
+        },
+        {
+          "name": "Consumer psychology",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of populism",
+          "frequency": 1
+        },
+        {
+          "name": "Distributed cognition",
+          "frequency": 1
+        },
+        {
+          "name": "Educational philosophy",
+          "frequency": 1
+        },
+        {
+          "name": "Emergentism",
+          "frequency": 1
+        },
+        {
+          "name": "Epistemic uncertainty in AI",
+          "frequency": 1
+        },
+        {
+          "name": "Epistemological Realism",
+          "frequency": 1
+        },
+        {
+          "name": "Epistemology",
+          "frequency": 1
+        },
+        {
+          "name": "Epistemology (belief formation)",
+          "frequency": 1
+        },
+        {
+          "name": "Epistemology of digital information",
+          "frequency": 1
+        },
+        {
+          "name": "Extended mind hypothesis (Clark & Chalmers)",
+          "frequency": 1
+        },
+        {
+          "name": "Extended mind theory (critique)",
+          "frequency": 1
+        },
+        {
+          "name": "Gödel's incompleteness theorems (analogy)",
+          "frequency": 1
+        },
+        {
+          "name": "Mind uploading theories",
+          "frequency": 1
+        },
+        {
+          "name": "Pedagogical theory",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of Mind",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of Mind (computationalism)",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of education",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of mind (agency)",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of mind (applied to AI)",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of mind (e.g., tacit knowledge, consciousness)",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of mind (functionalism)",
+          "frequency": 1
+        },
+        {
+          "name": "Philosophy of mind (tacit knowledge)",
+          "frequency": 1
+        },
+        {
+          "name": "Proceduralism",
+          "frequency": 1
+        },
+        {
+          "name": "Psychology of decision-making",
+          "frequency": 1
+        },
+        {
+          "name": "Scientific Skepticism",
+          "frequency": 1
+        },
+        {
+          "name": "Skepticism (philosophical)",
+          "frequency": 1
+        },
+        {
+          "name": "Social psychology",
+          "frequency": 1
+        },
+        {
+          "name": "Social psychology (implicit bias theory)",
+          "frequency": 1
+        },
+        {
+          "name": "Social psychology (stereotype research)",
+          "frequency": 1
+        },
+        {
+          "name": "behavioral psychology of influence",
+          "frequency": 1
+        },
+        {
+          "name": "cognitive psychology",
+          "frequency": 1
+        },
+        {
+          "name": "cognitive psychology (e.g., Kahneman & Tversky)",
+          "frequency": 1
+        },
+        {
+          "name": "cognitive science (human memory models)",
+          "frequency": 1
+        },
+        {
+          "name": "cognitive science (human planning)",
+          "frequency": 1
+        },
+        {
+          "name": "cognitive science of metacognition",
+          "frequency": 1
+        },
+        {
+          "name": "computational theory of mind",
+          "frequency": 1
+        },
+        {
+          "name": "constructivism in education",
+          "frequency": 1
+        },
+        {
+          "name": "developmental psychology",
+          "frequency": 1
+        },
+        {
+          "name": "developmental psychology (scaffolding)",
+          "frequency": 1
+        },
+        {
+          "name": "epidemiology (of ideas/behaviors)",
+          "frequency": 1
+        },
+        {
+          "name": "epistemic uncertainty in AI",
+          "frequency": 1
+        },
+        {
+          "name": "epistemic uncertainty quantification",
+          "frequency": 1
+        },
+        {
+          "name": "epistemology",
+          "frequency": 1
+        },
+        {
+          "name": "epistemology of uncertainty",
+          "frequency": 1
+        },
+        {
+          "name": "philosophy of mind (agency)",
+          "frequency": 1
+        },
+        {
+          "name": "philosophy of mind (cognition comparison)",
+          "frequency": 1
+        },
+        {
+          "name": "philosophy of science (Popper's falsifiability)",
+          "frequency": 1
+        },
+        {
+          "name": "positive psychology",
+          "frequency": 1
+        },
+        {
+          "name": "social psychology",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 8,
+      "auto_label": "Risk management frameworks / Risk management theory",
+      "curated_label": "Risk Assessment & Existential Risk",
+      "dominant_l1_category": "unmapped",
+      "member_count": 59,
+      "total_frequency": 93,
+      "members": [
+        {
+          "name": "Risk management frameworks",
+          "frequency": 8
+        },
+        {
+          "name": "Risk management theory",
+          "frequency": 6
+        },
+        {
+          "name": "risk management frameworks",
+          "frequency": 6
+        },
+        {
+          "name": "Existential risk theory",
+          "frequency": 5
+        },
+        {
+          "name": "Precautionary Principle",
+          "frequency": 5
+        },
+        {
+          "name": "Existential risk studies",
+          "frequency": 4
+        },
+        {
+          "name": "Goodhart's Law",
+          "frequency": 4
+        },
+        {
+          "name": "Precautionary principle",
+          "frequency": 4
+        },
+        {
+          "name": "AI existential risk (race dynamics)",
+          "frequency": 1
+        },
+        {
+          "name": "AI existential risk discourse",
+          "frequency": 1
+        },
+        {
+          "name": "Causal inference",
+          "frequency": 1
+        },
+        {
+          "name": "Consequentialist ethics",
+          "frequency": 1
+        },
+        {
+          "name": "Existential Risk Studies",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk (loss of control)",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk (misuse scenarios)",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk discourse",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk mitigation frameworks (e.g., Bostrom)",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk studies (Nick Bostrom, Martin Rees)",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk studies (e.g., Nick Bostrom, Toby Ord)",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk theory (Bostrom)",
+          "frequency": 1
+        },
+        {
+          "name": "Existential risk theory (Bostrom, Yudkowsky)",
+          "frequency": 1
+        },
+        {
+          "name": "Existentialism",
+          "frequency": 1
+        },
+        {
+          "name": "Precautionary principle (re-interpreted to focus on present harms)",
+          "frequency": 1
+        },
+        {
+          "name": "Precautionary principle (reinterpreted for present harms)",
+          "frequency": 1
+        },
+        {
+          "name": "Precautionary principle applications in emerging technology regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Risk Management Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Risk Management frameworks (ISO 31000)",
+          "frequency": 1
+        },
+        {
+          "name": "Risk assessment and management frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Risk assessment methodologies",
+          "frequency": 1
+        },
+        {
+          "name": "Risk communication theory",
+          "frequency": 1
+        },
+        {
+          "name": "Risk governance",
+          "frequency": 1
+        },
+        {
+          "name": "Risk management (current harms focus)",
+          "frequency": 1
+        },
+        {
+          "name": "Risk management (e.g., FMEA, HAZOP)",
+          "frequency": 1
+        },
+        {
+          "name": "Risk management frameworks (e.g., high-impact, low-probability events)",
+          "frequency": 1
+        },
+        {
+          "name": "Risk management frameworks from enterprise governance and ISO standards",
+          "frequency": 1
+        },
+        {
+          "name": "Risk management in emerging technologies",
+          "frequency": 1
+        },
+        {
+          "name": "Self-fulfilling prophecy concept (Merton)",
+          "frequency": 1
+        },
+        {
+          "name": "Systemic risk analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Unintended consequences in policy",
+          "frequency": 1
+        },
+        {
+          "name": "X-risk discourse",
+          "frequency": 1
+        },
+        {
+          "name": "catastrophic risk assessment",
+          "frequency": 1
+        },
+        {
+          "name": "catastrophic risk studies",
+          "frequency": 1
+        },
+        {
+          "name": "causal inference in ML",
+          "frequency": 1
+        },
+        {
+          "name": "consequentialism (unintended consequences)",
+          "frequency": 1
+        },
+        {
+          "name": "consequentialism in ethics",
+          "frequency": 1
+        },
+        {
+          "name": "existential risk discourse",
+          "frequency": 1
+        },
+        {
+          "name": "existential risk research",
+          "frequency": 1
+        },
+        {
+          "name": "existential risk research (Nick Bostrom, Eliezer Yudkowsky)",
+          "frequency": 1
+        },
+        {
+          "name": "existential risk studies",
+          "frequency": 1
+        },
+        {
+          "name": "existential risk theory",
+          "frequency": 1
+        },
+        {
+          "name": "precautionary principle",
+          "frequency": 1
+        },
+        {
+          "name": "risk assessment methodologies",
+          "frequency": 1
+        },
+        {
+          "name": "risk management",
+          "frequency": 1
+        },
+        {
+          "name": "risk management (continuous monitoring)",
+          "frequency": 1
+        },
+        {
+          "name": "risk management frameworks (e.g., nuclear safety)",
+          "frequency": 1
+        },
+        {
+          "name": "risk management theory",
+          "frequency": 1
+        },
+        {
+          "name": "unintended consequences (Merton)",
+          "frequency": 1
+        },
+        {
+          "name": "unintended consequences in complex systems",
+          "frequency": 1
+        },
+        {
+          "name": "unintended consequences theory",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 9,
+      "auto_label": "Transhumanism / Singularitarianism",
+      "curated_label": "Transhumanism & Moral Philosophy",
+      "dominant_l1_category": "unmapped",
+      "member_count": 50,
+      "total_frequency": 89,
+      "members": [
+        {
+          "name": "Transhumanism",
+          "frequency": 17
+        },
+        {
+          "name": "Singularitarianism",
+          "frequency": 12
+        },
+        {
+          "name": "Empiricism",
+          "frequency": 5
+        },
+        {
+          "name": "Posthumanism",
+          "frequency": 4
+        },
+        {
+          "name": "Anarchism",
+          "frequency": 2
+        },
+        {
+          "name": "Totalitarianism studies",
+          "frequency": 2
+        },
+        {
+          "name": "Utilitarianism",
+          "frequency": 2
+        },
+        {
+          "name": "longtermism",
+          "frequency": 2
+        },
+        {
+          "name": "transhumanism",
+          "frequency": 2
+        },
+        {
+          "name": "Classical utilitarian philosophy (Bentham, Mill, Sidgwick)",
+          "frequency": 1
+        },
+        {
+          "name": "Cornucopianism",
+          "frequency": 1
+        },
+        {
+          "name": "Cosmism and Russian transhumanist thought (Fedorov's common task)",
+          "frequency": 1
+        },
+        {
+          "name": "Critique of moral panics",
+          "frequency": 1
+        },
+        {
+          "name": "Decolonial studies",
+          "frequency": 1
+        },
+        {
+          "name": "Digital well-being movement",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Altruism",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Altruism (critiques of long-termism)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Altruism (long-termism aspect)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Altruism (long-termism)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Altruism (longtermism variant)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Altruism (specific branches focused on health/life extension)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective altruism and longtermism (Bostrom, MacAskill, Ord)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective altruism's focus on quantifiable impact measurement",
+          "frequency": 1
+        },
+        {
+          "name": "Enlightenment ideals of progress",
+          "frequency": 1
+        },
+        {
+          "name": "Extropianism",
+          "frequency": 1
+        },
+        {
+          "name": "Leninist organizational theory and vanguardism",
+          "frequency": 1
+        },
+        {
+          "name": "Longtermism",
+          "frequency": 1
+        },
+        {
+          "name": "Longtermism (competitive race dynamics)",
+          "frequency": 1
+        },
+        {
+          "name": "Longtermism (safeguarding future)",
+          "frequency": 1
+        },
+        {
+          "name": "Moral panic theory",
+          "frequency": 1
+        },
+        {
+          "name": "Nietzschean philosophy (will to power)",
+          "frequency": 1
+        },
+        {
+          "name": "Nietzschean philosophy (will to power, overcoming humanity)",
+          "frequency": 1
+        },
+        {
+          "name": "Operationalism (Percy Bridgman)",
+          "frequency": 1
+        },
+        {
+          "name": "Posthumanism (critical perspectives)",
+          "frequency": 1
+        },
+        {
+          "name": "Revolutionary theory",
+          "frequency": 1
+        },
+        {
+          "name": "Thomas Kuhn's 'The Structure of Scientific Revolutions'",
+          "frequency": 1
+        },
+        {
+          "name": "Transhumanism (ethical dimensions)",
+          "frequency": 1
+        },
+        {
+          "name": "Transhumanism (some strands)",
+          "frequency": 1
+        },
+        {
+          "name": "Transhumanism and extropianism (Bostrom, Pearce, More)",
+          "frequency": 1
+        },
+        {
+          "name": "Transhumanist philosophy and cosmism (Moravec, Kurzweil, Fedorov)",
+          "frequency": 1
+        },
+        {
+          "name": "Utilitarian philosophy (particularly negative utilitarianism and hedonistic imperative)",
+          "frequency": 1
+        },
+        {
+          "name": "Utilitarianism (applied to systems)",
+          "frequency": 1
+        },
+        {
+          "name": "Utilitarianism (focused on aggregate well-being)",
+          "frequency": 1
+        },
+        {
+          "name": "Well-being economics",
+          "frequency": 1
+        },
+        {
+          "name": "effective altruism (longtermism)",
+          "frequency": 1
+        },
+        {
+          "name": "effective altruism (prioritization)",
+          "frequency": 1
+        },
+        {
+          "name": "moral panic theory",
+          "frequency": 1
+        },
+        {
+          "name": "posthumanism",
+          "frequency": 1
+        },
+        {
+          "name": "posthumanism (critiques of technological impact)",
+          "frequency": 1
+        },
+        {
+          "name": "totalitarianism studies (Hannah Arendt)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 10,
+      "auto_label": "Critical theory of technology / Critical theory",
+      "curated_label": "Critical Theory & Social Justice",
+      "dominant_l1_category": "unmapped",
+      "member_count": 48,
+      "total_frequency": 71,
+      "members": [
+        {
+          "name": "Critical theory of technology",
+          "frequency": 6
+        },
+        {
+          "name": "Critical theory",
+          "frequency": 5
+        },
+        {
+          "name": "Critical management studies",
+          "frequency": 4
+        },
+        {
+          "name": "Critical Race Theory",
+          "frequency": 3
+        },
+        {
+          "name": "Critical data studies",
+          "frequency": 3
+        },
+        {
+          "name": "Critical pedagogy",
+          "frequency": 3
+        },
+        {
+          "name": "Critical political economy",
+          "frequency": 2
+        },
+        {
+          "name": "Critical race theory",
+          "frequency": 2
+        },
+        {
+          "name": "Critical technology studies",
+          "frequency": 2
+        },
+        {
+          "name": "Just War Theory",
+          "frequency": 2
+        },
+        {
+          "name": "critical theory of technology",
+          "frequency": 2
+        },
+        {
+          "name": "Brussels Effect literature (critical interpretations)",
+          "frequency": 1
+        },
+        {
+          "name": "Critical Corporate Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Critical Data Studies",
+          "frequency": 1
+        },
+        {
+          "name": "Critical Discourse Analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Critical Management Studies",
+          "frequency": 1
+        },
+        {
+          "name": "Critical Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Critical Theory (e.g., Frankfurt School)",
+          "frequency": 1
+        },
+        {
+          "name": "Critical data studies and function creep analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Critical discourse analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Critical international political economy",
+          "frequency": 1
+        },
+        {
+          "name": "Critical international political economy analyzing regulatory chill and corporate capture through trade regimes",
+          "frequency": 1
+        },
+        {
+          "name": "Critical political economy and world-systems theory",
+          "frequency": 1
+        },
+        {
+          "name": "Critical race theory (focus on systemic harms)",
+          "frequency": 1
+        },
+        {
+          "name": "Critical race theory (focus on vulnerable communities)",
+          "frequency": 1
+        },
+        {
+          "name": "Critical race theory (intersectionality)",
+          "frequency": 1
+        },
+        {
+          "name": "Critical theory of corporations",
+          "frequency": 1
+        },
+        {
+          "name": "Developmental state theory and East Asian industrial policy models",
+          "frequency": 1
+        },
+        {
+          "name": "Frankfurt School critical theory",
+          "frequency": 1
+        },
+        {
+          "name": "Geopolitics",
+          "frequency": 1
+        },
+        {
+          "name": "Geopolitics of critical resources",
+          "frequency": 1
+        },
+        {
+          "name": "Gramscian theory of cultural hegemony and the war of position",
+          "frequency": 1
+        },
+        {
+          "name": "Gramscian theory of hegemony and counter-hegemonic strategy",
+          "frequency": 1
+        },
+        {
+          "name": "International Relations theory (regime theory, global governance)",
+          "frequency": 1
+        },
+        {
+          "name": "International relations theory (e.g., regime theory)",
+          "frequency": 1
+        },
+        {
+          "name": "Just War Theory (jus in bello)",
+          "frequency": 1
+        },
+        {
+          "name": "critical management studies",
+          "frequency": 1
+        },
+        {
+          "name": "critical technology studies",
+          "frequency": 1
+        },
+        {
+          "name": "critical theory",
+          "frequency": 1
+        },
+        {
+          "name": "critical thinking philosophy",
+          "frequency": 1
+        },
+        {
+          "name": "international relations theory (e.g., liberal institutionalism)",
+          "frequency": 1
+        },
+        {
+          "name": "international relations theory (regime formation)",
+          "frequency": 1
+        },
+        {
+          "name": "international relations theory (treaty regimes)",
+          "frequency": 1
+        },
+        {
+          "name": "military-industrial complex (in a defensive context)",
+          "frequency": 1
+        },
+        {
+          "name": "military-industrial complex (modernized)",
+          "frequency": 1
+        },
+        {
+          "name": "military-industrial complex theory",
+          "frequency": 1
+        },
+        {
+          "name": "operations research",
+          "frequency": 1
+        },
+        {
+          "name": "political science (regime stability)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 11,
+      "auto_label": "Supply chain security / software engineering best practices",
+      "curated_label": "Software Engineering & Auditing",
+      "dominant_l1_category": "unmapped",
+      "member_count": 45,
+      "total_frequency": 55,
+      "members": [
+        {
+          "name": "Supply chain security",
+          "frequency": 5
+        },
+        {
+          "name": "software engineering best practices",
+          "frequency": 3
+        },
+        {
+          "name": "Algorithmic auditing",
+          "frequency": 2
+        },
+        {
+          "name": "Software engineering principles",
+          "frequency": 2
+        },
+        {
+          "name": "auditing and accountability frameworks",
+          "frequency": 2
+        },
+        {
+          "name": "formal methods in software engineering",
+          "frequency": 2
+        },
+        {
+          "name": "Algorithmic auditing and evaluation",
+          "frequency": 1
+        },
+        {
+          "name": "Auditing and accountability frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Auditing and accounting principles",
+          "frequency": 1
+        },
+        {
+          "name": "Auditing and compliance frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "DevSecOps and continuous integration security practices",
+          "frequency": 1
+        },
+        {
+          "name": "Formal verification",
+          "frequency": 1
+        },
+        {
+          "name": "Formal verification and correctness theory from computer science",
+          "frequency": 1
+        },
+        {
+          "name": "Pragmatic engineering approaches prioritizing deployability over theoretical purity",
+          "frequency": 1
+        },
+        {
+          "name": "Quality control and inspection paradigms from manufacturing",
+          "frequency": 1
+        },
+        {
+          "name": "Secure software development lifecycle (SSDLC)",
+          "frequency": 1
+        },
+        {
+          "name": "Software Assurance and Certification",
+          "frequency": 1
+        },
+        {
+          "name": "Software architecture theory on non-functional requirements and quality attributes",
+          "frequency": 1
+        },
+        {
+          "name": "Software engineering (access control, sandboxing)",
+          "frequency": 1
+        },
+        {
+          "name": "Software engineering best practices",
+          "frequency": 1
+        },
+        {
+          "name": "Software engineering principles (bottleneck analysis)",
+          "frequency": 1
+        },
+        {
+          "name": "Software engineering principles of modularity and separation of concerns",
+          "frequency": 1
+        },
+        {
+          "name": "Software engineering quality assurance",
+          "frequency": 1
+        },
+        {
+          "name": "Software engineering verification and validation",
+          "frequency": 1
+        },
+        {
+          "name": "Software quality assurance methodologies",
+          "frequency": 1
+        },
+        {
+          "name": "Software supply chain security literature (SolarWinds analysis, dependency confusion attacks)",
+          "frequency": 1
+        },
+        {
+          "name": "Software supply chain security research (e.g., Sonatype, SLSA framework)",
+          "frequency": 1
+        },
+        {
+          "name": "Software testing and quality assurance",
+          "frequency": 1
+        },
+        {
+          "name": "Software verification and runtime monitoring traditions in computer science",
+          "frequency": 1
+        },
+        {
+          "name": "Supply Chain Management theory",
+          "frequency": 1
+        },
+        {
+          "name": "Supply chain security (general IT)",
+          "frequency": 1
+        },
+        {
+          "name": "auditing standards (general)",
+          "frequency": 1
+        },
+        {
+          "name": "high-assurance computing",
+          "frequency": 1
+        },
+        {
+          "name": "modular design principles",
+          "frequency": 1
+        },
+        {
+          "name": "software engineering (transaction management)",
+          "frequency": 1
+        },
+        {
+          "name": "software engineering design patterns",
+          "frequency": 1
+        },
+        {
+          "name": "software engineering principles (e.g., 'no silver bullet')",
+          "frequency": 1
+        },
+        {
+          "name": "software maturity models (e.g., CMMI)",
+          "frequency": 1
+        },
+        {
+          "name": "software provenance",
+          "frequency": 1
+        },
+        {
+          "name": "software quality assurance",
+          "frequency": 1
+        },
+        {
+          "name": "software security (API security, sandbox design)",
+          "frequency": 1
+        },
+        {
+          "name": "software security best practices",
+          "frequency": 1
+        },
+        {
+          "name": "software supply chain security",
+          "frequency": 1
+        },
+        {
+          "name": "supply chain management",
+          "frequency": 1
+        },
+        {
+          "name": "supply chain transparency",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 12,
+      "auto_label": "Human-computer interaction (HCI) / human factors engineering",
+      "curated_label": "Human-Computer Interaction & Design",
+      "dominant_l1_category": "unmapped",
+      "member_count": 24,
+      "total_frequency": 50,
+      "members": [
+        {
+          "name": "Human-computer interaction (HCI)",
+          "frequency": 12
+        },
+        {
+          "name": "human factors engineering",
+          "frequency": 6
+        },
+        {
+          "name": "human-centered design",
+          "frequency": 5
+        },
+        {
+          "name": "Human factors engineering",
+          "frequency": 3
+        },
+        {
+          "name": "Human-centered design principles",
+          "frequency": 2
+        },
+        {
+          "name": "Human-computer interaction",
+          "frequency": 2
+        },
+        {
+          "name": "Participatory design",
+          "frequency": 2
+        },
+        {
+          "name": "User experience (UX) design",
+          "frequency": 2
+        },
+        {
+          "name": "Critical technology studies analyzing design affordances and constraints",
+          "frequency": 1
+        },
+        {
+          "name": "Critiques of technological deskilling",
+          "frequency": 1
+        },
+        {
+          "name": "Ergonomics",
+          "frequency": 1
+        },
+        {
+          "name": "Human-Computer Interaction (HCI)",
+          "frequency": 1
+        },
+        {
+          "name": "Human-Computer Interaction (HCI) principles",
+          "frequency": 1
+        },
+        {
+          "name": "Human-centered design",
+          "frequency": 1
+        },
+        {
+          "name": "Human-computer interaction (HCI) research on usable security and privacy",
+          "frequency": 1
+        },
+        {
+          "name": "Participatory Democracy",
+          "frequency": 1
+        },
+        {
+          "name": "Participatory Design",
+          "frequency": 1
+        },
+        {
+          "name": "Participatory action research traditions emphasizing community-driven problem definition",
+          "frequency": 1
+        },
+        {
+          "name": "Phenomenology of human experience",
+          "frequency": 1
+        },
+        {
+          "name": "deskilling theory (Braverman)",
+          "frequency": 1
+        },
+        {
+          "name": "human factors engineering (Endsley's model)",
+          "frequency": 1
+        },
+        {
+          "name": "human-computer interaction",
+          "frequency": 1
+        },
+        {
+          "name": "human-computer interaction (HCI)",
+          "frequency": 1
+        },
+        {
+          "name": "human-computer interaction principles",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 13,
+      "auto_label": "Algorithmic fairness research / Differential privacy theory",
+      "curated_label": "Algorithmic Fairness & Privacy",
+      "dominant_l1_category": "unmapped",
+      "member_count": 39,
+      "total_frequency": 47,
+      "members": [
+        {
+          "name": "Algorithmic fairness research",
+          "frequency": 7
+        },
+        {
+          "name": "Differential privacy theory",
+          "frequency": 2
+        },
+        {
+          "name": "Privacy as contextual integrity (Helen Nissenbaum)",
+          "frequency": 2
+        },
+        {
+          "name": "Anti-trust movements",
+          "frequency": 1
+        },
+        {
+          "name": "Biometric privacy law",
+          "frequency": 1
+        },
+        {
+          "name": "Critical scholarship on 'notice and choice' paradigms in privacy regulation",
+          "frequency": 1
+        },
+        {
+          "name": "Cryptographic privacy-preserving computation paradigms",
+          "frequency": 1
+        },
+        {
+          "name": "Data privacy frameworks (e.g., GDPR)",
+          "frequency": 1
+        },
+        {
+          "name": "Differential privacy",
+          "frequency": 1
+        },
+        {
+          "name": "Differential privacy and cryptographic protocol design",
+          "frequency": 1
+        },
+        {
+          "name": "Fairness, Accountability, and Transparency (FAT/ML)",
+          "frequency": 1
+        },
+        {
+          "name": "Fairness, Accountability, and Transparency (FAT/ML) research",
+          "frequency": 1
+        },
+        {
+          "name": "Fairness, Accountability, and Transparency (FAccT) research",
+          "frequency": 1
+        },
+        {
+          "name": "Fairness, accountability, and transparency (FAT) in AI",
+          "frequency": 1
+        },
+        {
+          "name": "GDPR principles",
+          "frequency": 1
+        },
+        {
+          "name": "Information security principles (data exfiltration)",
+          "frequency": 1
+        },
+        {
+          "name": "Machine learning fairness research",
+          "frequency": 1
+        },
+        {
+          "name": "Privacy by Design principles",
+          "frequency": 1
+        },
+        {
+          "name": "Privacy by design",
+          "frequency": 1
+        },
+        {
+          "name": "Privacy by design principles",
+          "frequency": 1
+        },
+        {
+          "name": "Privacy engineering",
+          "frequency": 1
+        },
+        {
+          "name": "Privacy engineering principles of data minimization and purpose limitation",
+          "frequency": 1
+        },
+        {
+          "name": "Privacy-enhancing technologies (PETs) research tradition",
+          "frequency": 1
+        },
+        {
+          "name": "Privacy-preserving machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "Public interest technology movement advocating for transparency in automated decision systems",
+          "frequency": 1
+        },
+        {
+          "name": "Reputation management",
+          "frequency": 1
+        },
+        {
+          "name": "Science and Technology Studies (STS) on transparency",
+          "frequency": 1
+        },
+        {
+          "name": "Secure multi-party computation",
+          "frequency": 1
+        },
+        {
+          "name": "Statistical parity and equalized odds frameworks from algorithmic fairness literature",
+          "frequency": 1
+        },
+        {
+          "name": "Transparency and accountability principles",
+          "frequency": 1
+        },
+        {
+          "name": "Transparency-enhancing technologies (TETs) in privacy engineering",
+          "frequency": 1
+        },
+        {
+          "name": "Zero-trust security architecture and principle of least privilege",
+          "frequency": 1
+        },
+        {
+          "name": "child protection frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "data privacy in machine learning",
+          "frequency": 1
+        },
+        {
+          "name": "data protection frameworks (e.g., GDPR)",
+          "frequency": 1
+        },
+        {
+          "name": "machine learning privacy (e.g., differential privacy)",
+          "frequency": 1
+        },
+        {
+          "name": "privacy-by-design",
+          "frequency": 1
+        },
+        {
+          "name": "transparency ethics",
+          "frequency": 1
+        },
+        {
+          "name": "trust and reputation systems",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 14,
+      "auto_label": "Environmental economics / Environmental ethics",
+      "curated_label": "Environmental & Climate Governance",
+      "dominant_l1_category": "unmapped",
+      "member_count": 28,
+      "total_frequency": 32,
+      "members": [
+        {
+          "name": "Environmental economics",
+          "frequency": 4
+        },
+        {
+          "name": "Environmental ethics",
+          "frequency": 2
+        },
+        {
+          "name": "Adverse Impact Ratio (Four-Fifths Rule)",
+          "frequency": 1
+        },
+        {
+          "name": "Climate Change governance models",
+          "frequency": 1
+        },
+        {
+          "name": "Climate change accords (e.g., Paris Agreement)",
+          "frequency": 1
+        },
+        {
+          "name": "Climate justice",
+          "frequency": 1
+        },
+        {
+          "name": "Critical accounting research on sustainability reporting as legitimation strategy",
+          "frequency": 1
+        },
+        {
+          "name": "Deep ecology",
+          "frequency": 1
+        },
+        {
+          "name": "Ecological economics (critique of)",
+          "frequency": 1
+        },
+        {
+          "name": "Ecological economics (resource depletion)",
+          "frequency": 1
+        },
+        {
+          "name": "Economic impact assessment",
+          "frequency": 1
+        },
+        {
+          "name": "Ecotheology",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental Justice",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental impact assessment",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental impact assessment (EIA)",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental justice",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental justice movement",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental justice movement and the principle of differential exposure to technological harms",
+          "frequency": 1
+        },
+        {
+          "name": "Environmental sociology literature on symbolic corporate environmentalism and decoupling",
+          "frequency": 1
+        },
+        {
+          "name": "Greenwashing Critique",
+          "frequency": 1
+        },
+        {
+          "name": "Indigenous ecological knowledge",
+          "frequency": 1
+        },
+        {
+          "name": "Sustainability science",
+          "frequency": 1
+        },
+        {
+          "name": "Sustainable development goals",
+          "frequency": 1
+        },
+        {
+          "name": "ecological economics",
+          "frequency": 1
+        },
+        {
+          "name": "ecological psychology",
+          "frequency": 1
+        },
+        {
+          "name": "environmental economics",
+          "frequency": 1
+        },
+        {
+          "name": "social impact assessment",
+          "frequency": 1
+        },
+        {
+          "name": "sustainability science",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 15,
+      "auto_label": "Open-source movement / Digital rights advocacy",
+      "curated_label": "Open Source & Digital Rights",
+      "dominant_l1_category": "unmapped",
+      "member_count": 21,
+      "total_frequency": 31,
+      "members": [
+        {
+          "name": "Open-source movement",
+          "frequency": 7
+        },
+        {
+          "name": "Digital rights advocacy",
+          "frequency": 3
+        },
+        {
+          "name": "Civil rights movement",
+          "frequency": 2
+        },
+        {
+          "name": "digital rights advocacy",
+          "frequency": 2
+        },
+        {
+          "name": "Civil Rights Movement",
+          "frequency": 1
+        },
+        {
+          "name": "Information liberation movements",
+          "frequency": 1
+        },
+        {
+          "name": "Open Source Advocacy",
+          "frequency": 1
+        },
+        {
+          "name": "Open Source Movement",
+          "frequency": 1
+        },
+        {
+          "name": "Open Source movement (extreme interpretation)",
+          "frequency": 1
+        },
+        {
+          "name": "Open science movement",
+          "frequency": 1
+        },
+        {
+          "name": "Open-source movement principles",
+          "frequency": 1
+        },
+        {
+          "name": "Open-source software ethics (critical perspectives)",
+          "frequency": 1
+        },
+        {
+          "name": "Social justice movements",
+          "frequency": 1
+        },
+        {
+          "name": "Social movements theory",
+          "frequency": 1
+        },
+        {
+          "name": "Youth empowerment movements",
+          "frequency": 1
+        },
+        {
+          "name": "civil rights law",
+          "frequency": 1
+        },
+        {
+          "name": "cybersecurity and digital rights movements",
+          "frequency": 1
+        },
+        {
+          "name": "internet freedom movements",
+          "frequency": 1
+        },
+        {
+          "name": "open science movement",
+          "frequency": 1
+        },
+        {
+          "name": "open-source security philosophy",
+          "frequency": 1
+        },
+        {
+          "name": "open-source software security",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 16,
+      "auto_label": "Information theory / Information Theory",
+      "curated_label": "Information Theory & Knowledge",
+      "dominant_l1_category": "unmapped",
+      "member_count": 23,
+      "total_frequency": 29,
+      "members": [
+        {
+          "name": "Information theory",
+          "frequency": 4
+        },
+        {
+          "name": "Information Theory",
+          "frequency": 2
+        },
+        {
+          "name": "Information economics",
+          "frequency": 2
+        },
+        {
+          "name": "knowledge management",
+          "frequency": 2
+        },
+        {
+          "name": "Consumer protection theory emphasizing information asymmetry correction",
+          "frequency": 1
+        },
+        {
+          "name": "Hayek's 'Knowledge Problem'",
+          "frequency": 1
+        },
+        {
+          "name": "Hayek's 'The Use of Knowledge in Society'",
+          "frequency": 1
+        },
+        {
+          "name": "Information Age analogies (e.g., internet's impact)",
+          "frequency": 1
+        },
+        {
+          "name": "Information Asymmetry Theory",
+          "frequency": 1
+        },
+        {
+          "name": "Information asymmetry theory",
+          "frequency": 1
+        },
+        {
+          "name": "Information asymmetry theory and market failure remediation through disclosure requirements",
+          "frequency": 1
+        },
+        {
+          "name": "Information asymmetry theory in economics",
+          "frequency": 1
+        },
+        {
+          "name": "Information economics and the economics of nonrival goods (Romer, Stiglitz)",
+          "frequency": 1
+        },
+        {
+          "name": "Information quality management",
+          "frequency": 1
+        },
+        {
+          "name": "Information theory (diversity metrics)",
+          "frequency": 1
+        },
+        {
+          "name": "Information theory and Shannon entropy bounds on lossy compression",
+          "frequency": 1
+        },
+        {
+          "name": "Information theory of degradation",
+          "frequency": 1
+        },
+        {
+          "name": "Integrated Information Theory (Tononi)",
+          "frequency": 1
+        },
+        {
+          "name": "Knowledge management",
+          "frequency": 1
+        },
+        {
+          "name": "Learning management systems (LMS)",
+          "frequency": 1
+        },
+        {
+          "name": "democratization of knowledge (e.g., Wikipedia)",
+          "frequency": 1
+        },
+        {
+          "name": "information asymmetry in governance",
+          "frequency": 1
+        },
+        {
+          "name": "information quality management",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 17,
+      "auto_label": "Disinformation studies / Media effects theory",
+      "curated_label": "Media, Disinformation & Surveillance",
+      "dominant_l1_category": "unmapped",
+      "member_count": 25,
+      "total_frequency": 28,
+      "members": [
+        {
+          "name": "Disinformation studies",
+          "frequency": 2
+        },
+        {
+          "name": "Media effects theory",
+          "frequency": 2
+        },
+        {
+          "name": "Surveillance capitalism critique",
+          "frequency": 2
+        },
+        {
+          "name": "Content moderation research",
+          "frequency": 1
+        },
+        {
+          "name": "Critical media theory",
+          "frequency": 1
+        },
+        {
+          "name": "Critical theory of media",
+          "frequency": 1
+        },
+        {
+          "name": "Cultural studies of media production",
+          "frequency": 1
+        },
+        {
+          "name": "Media studies",
+          "frequency": 1
+        },
+        {
+          "name": "Media studies (disinformation research)",
+          "frequency": 1
+        },
+        {
+          "name": "Misinformation studies",
+          "frequency": 1
+        },
+        {
+          "name": "Post-truth politics analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Propaganda studies",
+          "frequency": 1
+        },
+        {
+          "name": "Public health surveillance models",
+          "frequency": 1
+        },
+        {
+          "name": "Public opinion research",
+          "frequency": 1
+        },
+        {
+          "name": "Public relations history",
+          "frequency": 1
+        },
+        {
+          "name": "Sociology of media bias",
+          "frequency": 1
+        },
+        {
+          "name": "Surveillance Capitalism critique",
+          "frequency": 1
+        },
+        {
+          "name": "Surveillance capitalism theory (Shoshana Zuboff)",
+          "frequency": 1
+        },
+        {
+          "name": "Surveillance studies",
+          "frequency": 1
+        },
+        {
+          "name": "Surveillance studies tradition (Lyon, Zuboff) emphasizing totalizing effects of combined monitoring",
+          "frequency": 1
+        },
+        {
+          "name": "disinformation studies",
+          "frequency": 1
+        },
+        {
+          "name": "media ecology",
+          "frequency": 1
+        },
+        {
+          "name": "media ecology (McLuhan)",
+          "frequency": 1
+        },
+        {
+          "name": "media effects research",
+          "frequency": 1
+        },
+        {
+          "name": "media effects theory",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 18,
+      "auto_label": "Science and Technology Studies (STS) / Science and technology studies (STS)",
+      "curated_label": "Science & Technology Studies",
+      "dominant_l1_category": "unmapped",
+      "member_count": 15,
+      "total_frequency": 22,
+      "members": [
+        {
+          "name": "Science and Technology Studies (STS)",
+          "frequency": 6
+        },
+        {
+          "name": "Science and technology studies (STS)",
+          "frequency": 2
+        },
+        {
+          "name": "Teleology",
+          "frequency": 2
+        },
+        {
+          "name": "Bioenergetics",
+          "frequency": 1
+        },
+        {
+          "name": "Future of work studies",
+          "frequency": 1
+        },
+        {
+          "name": "Futures studies (scenario planning)",
+          "frequency": 1
+        },
+        {
+          "name": "Metascience (replication crisis, research integrity)",
+          "frequency": 1
+        },
+        {
+          "name": "Science communication",
+          "frequency": 1
+        },
+        {
+          "name": "Scientific Management",
+          "frequency": 1
+        },
+        {
+          "name": "Scientific method (reproducibility)",
+          "frequency": 1
+        },
+        {
+          "name": "Scientific moratoria (e.g., recombinant DNA research)",
+          "frequency": 1
+        },
+        {
+          "name": "biogerontology",
+          "frequency": 1
+        },
+        {
+          "name": "futures studies",
+          "frequency": 1
+        },
+        {
+          "name": "problem-oriented research",
+          "frequency": 1
+        },
+        {
+          "name": "progress studies",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 19,
+      "auto_label": "nuclear nonproliferation analogy / Nuclear nonproliferation treaties",
+      "curated_label": "Nuclear Nonproliferation Analogies",
+      "dominant_l1_category": "unmapped",
+      "member_count": 14,
+      "total_frequency": 20,
+      "members": [
+        {
+          "name": "nuclear nonproliferation analogy",
+          "frequency": 6
+        },
+        {
+          "name": "Nuclear nonproliferation treaties",
+          "frequency": 2
+        },
+        {
+          "name": "Arms control treaties (e.g., nuclear non-proliferation)",
+          "frequency": 1
+        },
+        {
+          "name": "Domain-specific risk assessment traditions from nuclear and biological weapons nonproliferation",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear Non-Proliferation Treaty framework",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear arms race analogy",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear deterrence theory",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear non-proliferation material control strategies",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear nonproliferation analogy",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear nonproliferation discourse",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear nonproliferation frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Nuclear nonproliferation movement",
+          "frequency": 1
+        },
+        {
+          "name": "nuclear security protocols",
+          "frequency": 1
+        },
+        {
+          "name": "weapons of mass destruction nonproliferation",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 20,
+      "auto_label": "Pragmatism / Regulatory pragmatism",
+      "curated_label": "Pragmatism & Policy Debate",
+      "dominant_l1_category": "unmapped",
+      "member_count": 13,
+      "total_frequency": 16,
+      "members": [
+        {
+          "name": "Pragmatism",
+          "frequency": 3
+        },
+        {
+          "name": "Regulatory pragmatism",
+          "frequency": 2
+        },
+        {
+          "name": "AI winter debates",
+          "frequency": 1
+        },
+        {
+          "name": "Digital distraction debates",
+          "frequency": 1
+        },
+        {
+          "name": "Engineering Pragmatism",
+          "frequency": 1
+        },
+        {
+          "name": "Legal Pragmatism",
+          "frequency": 1
+        },
+        {
+          "name": "Minimum wage debates",
+          "frequency": 1
+        },
+        {
+          "name": "Rhetoric and argumentation theory",
+          "frequency": 1
+        },
+        {
+          "name": "Rhetorical theory (ad hominem, straw man)",
+          "frequency": 1
+        },
+        {
+          "name": "Secular stagnation debate",
+          "frequency": 1
+        },
+        {
+          "name": "dialectical thinking",
+          "frequency": 1
+        },
+        {
+          "name": "fair use doctrine debates",
+          "frequency": 1
+        },
+        {
+          "name": "pragmatism",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 21,
+      "auto_label": "Accelerationism (general) / Accelerationism",
+      "curated_label": "Accelerationism",
+      "dominant_l1_category": "unmapped",
+      "member_count": 12,
+      "total_frequency": 16,
+      "members": [
+        {
+          "name": "Accelerationism (general)",
+          "frequency": 4
+        },
+        {
+          "name": "Accelerationism",
+          "frequency": 2
+        },
+        {
+          "name": "Accelerationism (Nick Land)",
+          "frequency": 1
+        },
+        {
+          "name": "Accelerationism (Nick Land, CCRU)",
+          "frequency": 1
+        },
+        {
+          "name": "Accelerationism (Nick Land, Srnicek & Williams)",
+          "frequency": 1
+        },
+        {
+          "name": "Accelerationism (left-wing)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Accelerationism",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Accelerationism (e/acc)",
+          "frequency": 1
+        },
+        {
+          "name": "Effective Accelerationism (e/acc) movement and techno-optimist counter-narratives",
+          "frequency": 1
+        },
+        {
+          "name": "Nick Land's accelerationism",
+          "frequency": 1
+        },
+        {
+          "name": "Slippery slope arguments",
+          "frequency": 1
+        },
+        {
+          "name": "critiques of 'move fast and break things' culture",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 22,
+      "auto_label": "chaos theory / Catastrophe theory",
+      "curated_label": "Complexity & Network Theory",
+      "dominant_l1_category": "unmapped",
+      "member_count": 11,
+      "total_frequency": 12,
+      "members": [
+        {
+          "name": "chaos theory",
+          "frequency": 2
+        },
+        {
+          "name": "Catastrophe theory",
+          "frequency": 1
+        },
+        {
+          "name": "Connectionism",
+          "frequency": 1
+        },
+        {
+          "name": "Disruption theory and institutional inertia frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Network effects theory",
+          "frequency": 1
+        },
+        {
+          "name": "black swan theory",
+          "frequency": 1
+        },
+        {
+          "name": "fragility theory",
+          "frequency": 1
+        },
+        {
+          "name": "intersectionality theory",
+          "frequency": 1
+        },
+        {
+          "name": "network theory",
+          "frequency": 1
+        },
+        {
+          "name": "network theory (cascading failures)",
+          "frequency": 1
+        },
+        {
+          "name": "simulation theory",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 23,
+      "auto_label": "Moore's Law extrapolation / Moore's Law",
+      "curated_label": "Scaling Laws & Compute",
+      "dominant_l1_category": "unmapped",
+      "member_count": 5,
+      "total_frequency": 10,
+      "members": [
+        {
+          "name": "Moore's Law extrapolation",
+          "frequency": 5
+        },
+        {
+          "name": "Moore's Law",
+          "frequency": 2
+        },
+        {
+          "name": "Moore's Law (and its limits)",
+          "frequency": 1
+        },
+        {
+          "name": "Orthogonality thesis",
+          "frequency": 1
+        },
+        {
+          "name": "due diligence principles",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 24,
+      "auto_label": "Value alignment problem / Value alignment research",
+      "curated_label": "Value Alignment",
+      "dominant_l1_category": "unmapped",
+      "member_count": 6,
+      "total_frequency": 10,
+      "members": [
+        {
+          "name": "Value alignment problem",
+          "frequency": 3
+        },
+        {
+          "name": "Value alignment research",
+          "frequency": 3
+        },
+        {
+          "name": "Constitutional AI and RLHF research on value alignment through natural language specifications",
+          "frequency": 1
+        },
+        {
+          "name": "value alignment",
+          "frequency": 1
+        },
+        {
+          "name": "value alignment problem",
+          "frequency": 1
+        },
+        {
+          "name": "value loading problem",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 25,
+      "auto_label": "Digital commons / Child psychology and digital literacy",
+      "curated_label": "Digital Commons & Literacy",
+      "dominant_l1_category": "unmapped",
+      "member_count": 7,
+      "total_frequency": 10,
+      "members": [
+        {
+          "name": "Digital commons",
+          "frequency": 4
+        },
+        {
+          "name": "Child psychology and digital literacy",
+          "frequency": 1
+        },
+        {
+          "name": "Digital forensics",
+          "frequency": 1
+        },
+        {
+          "name": "Digital literacy movement",
+          "frequency": 1
+        },
+        {
+          "name": "Digital preservation",
+          "frequency": 1
+        },
+        {
+          "name": "digital humanities",
+          "frequency": 1
+        },
+        {
+          "name": "digital literacy studies",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 26,
+      "auto_label": "Discrimination testing (social science) / Psychometrics",
+      "curated_label": "Statistical Fairness & Psychometrics",
+      "dominant_l1_category": "unmapped",
+      "member_count": 9,
+      "total_frequency": 9,
+      "members": [
+        {
+          "name": "Discrimination testing (social science)",
+          "frequency": 1
+        },
+        {
+          "name": "Psychometrics",
+          "frequency": 1
+        },
+        {
+          "name": "Statistical discrimination theory",
+          "frequency": 1
+        },
+        {
+          "name": "Statistical hypothesis testing",
+          "frequency": 1
+        },
+        {
+          "name": "Statistical measurement theory",
+          "frequency": 1
+        },
+        {
+          "name": "anti-discrimination law",
+          "frequency": 1
+        },
+        {
+          "name": "implicit association test (IAT)",
+          "frequency": 1
+        },
+        {
+          "name": "psychology of deception detection",
+          "frequency": 1
+        },
+        {
+          "name": "psychometric testing",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 27,
+      "auto_label": "Information Retrieval research / Information retrieval and nearest-neighbor search literature",
+      "curated_label": "NLP & Information Retrieval",
+      "dominant_l1_category": "unmapped",
+      "member_count": 8,
+      "total_frequency": 8,
+      "members": [
+        {
+          "name": "Information Retrieval research",
+          "frequency": 1
+        },
+        {
+          "name": "Information retrieval and nearest-neighbor search literature",
+          "frequency": 1
+        },
+        {
+          "name": "Natural Language Processing (NLP)",
+          "frequency": 1
+        },
+        {
+          "name": "Natural Language Processing (NLP) research",
+          "frequency": 1
+        },
+        {
+          "name": "Taxonomy Development",
+          "frequency": 1
+        },
+        {
+          "name": "Taxonomy development",
+          "frequency": 1
+        },
+        {
+          "name": "computational linguistics",
+          "frequency": 1
+        },
+        {
+          "name": "natural language processing",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 28,
+      "auto_label": "Fiduciary duty / Fiduciary duty in law",
+      "curated_label": "Fiduciary Law & Foucault",
+      "dominant_l1_category": "unmapped",
+      "member_count": 8,
+      "total_frequency": 8,
+      "members": [
+        {
+          "name": "Fiduciary duty",
+          "frequency": 1
+        },
+        {
+          "name": "Fiduciary duty in law",
+          "frequency": 1
+        },
+        {
+          "name": "Foucault's discourse analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Foucault's panopticism",
+          "frequency": 1
+        },
+        {
+          "name": "Governmentality (Foucault)",
+          "frequency": 1
+        },
+        {
+          "name": "Power/knowledge (Foucault)",
+          "frequency": 1
+        },
+        {
+          "name": "fiduciary duty",
+          "frequency": 1
+        },
+        {
+          "name": "fiduciary law",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 29,
+      "auto_label": "Cosmic evolution (Sagan, Chaisson) / Cosmic evolution (e.g., Teilhard de Chardin)",
+      "curated_label": "Cosmic Evolution & Naturalism",
+      "dominant_l1_category": "unmapped",
+      "member_count": 8,
+      "total_frequency": 8,
+      "members": [
+        {
+          "name": "Cosmic evolution (Sagan, Chaisson)",
+          "frequency": 1
+        },
+        {
+          "name": "Cosmic evolution (e.g., Teilhard de Chardin)",
+          "frequency": 1
+        },
+        {
+          "name": "Cosmic evolution theories (philosophical interpretations)",
+          "frequency": 1
+        },
+        {
+          "name": "Cosmic evolution theory",
+          "frequency": 1
+        },
+        {
+          "name": "Cosmicism (Lovecraftian)",
+          "frequency": 1
+        },
+        {
+          "name": "Cosmological naturalism",
+          "frequency": 1
+        },
+        {
+          "name": "Naturalistic philosophy",
+          "frequency": 1
+        },
+        {
+          "name": "abundance theory",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 30,
+      "auto_label": "Technological forecasting / AI forecasting literature",
+      "curated_label": "Technological Forecasting",
+      "dominant_l1_category": "unmapped",
+      "member_count": 7,
+      "total_frequency": 8,
+      "members": [
+        {
+          "name": "Technological forecasting",
+          "frequency": 2
+        },
+        {
+          "name": "AI forecasting literature",
+          "frequency": 1
+        },
+        {
+          "name": "Predictive analytics",
+          "frequency": 1
+        },
+        {
+          "name": "Ray Kurzweil's predictions",
+          "frequency": 1
+        },
+        {
+          "name": "Skepticism of long-term forecasting",
+          "frequency": 1
+        },
+        {
+          "name": "machine learning for forecasting",
+          "frequency": 1
+        },
+        {
+          "name": "real-time analytics",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 31,
+      "auto_label": "Hyman Minsky's financial instability hypothesis / Critiques of speculative bubbles",
+      "curated_label": "Financial Instability & Bubbles",
+      "dominant_l1_category": "unmapped",
+      "member_count": 6,
+      "total_frequency": 7,
+      "members": [
+        {
+          "name": "Hyman Minsky's financial instability hypothesis",
+          "frequency": 2
+        },
+        {
+          "name": "Critiques of speculative bubbles",
+          "frequency": 1
+        },
+        {
+          "name": "Economic history (tech bubbles)",
+          "frequency": 1
+        },
+        {
+          "name": "Economic history of bubbles (e.g., dot-com bubble)",
+          "frequency": 1
+        },
+        {
+          "name": "Financial crisis analysis (e.g., 2008 subprime crisis)",
+          "frequency": 1
+        },
+        {
+          "name": "filter bubble/echo chamber research",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 32,
+      "auto_label": "Agile Development / Agile development methodologies",
+      "curated_label": "Agile & Project Management",
+      "dominant_l1_category": "unmapped",
+      "member_count": 7,
+      "total_frequency": 7,
+      "members": [
+        {
+          "name": "Agile Development",
+          "frequency": 1
+        },
+        {
+          "name": "Agile development methodologies",
+          "frequency": 1
+        },
+        {
+          "name": "IT project management literature",
+          "frequency": 1
+        },
+        {
+          "name": "Lean startup methodology",
+          "frequency": 1
+        },
+        {
+          "name": "Project management methodologies",
+          "frequency": 1
+        },
+        {
+          "name": "agile development methodologies",
+          "frequency": 1
+        },
+        {
+          "name": "agile management",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 33,
+      "auto_label": "Instrumental convergence theory / Coase theorem",
+      "curated_label": "Instrumental Convergence",
+      "dominant_l1_category": "unmapped",
+      "member_count": 5,
+      "total_frequency": 6,
+      "members": [
+        {
+          "name": "Instrumental convergence theory",
+          "frequency": 2
+        },
+        {
+          "name": "Coase theorem",
+          "frequency": 1
+        },
+        {
+          "name": "Instrumental convergence (AI safety)",
+          "frequency": 1
+        },
+        {
+          "name": "instrumental convergence theory",
+          "frequency": 1
+        },
+        {
+          "name": "instrumental convergence theory (Nick Bostrom)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 34,
+      "auto_label": "Transformer circuits thread and attention head analysis / Turing Test",
+      "curated_label": "Transformer circuits thread and attentio",
+      "dominant_l1_category": "unmapped",
+      "member_count": 4,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Transformer circuits thread and attention head analysis",
+          "frequency": 1
+        },
+        {
+          "name": "Turing Test",
+          "frequency": 1
+        },
+        {
+          "name": "Turing Test critique",
+          "frequency": 1
+        },
+        {
+          "name": "instruction tuning",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 35,
+      "auto_label": "Dissipative structures theory (Prigogine) / Free energy principle (Friston)",
+      "curated_label": "Dissipative structures theory (Prigogine",
+      "dominant_l1_category": "unmapped",
+      "member_count": 4,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Dissipative structures theory (Prigogine)",
+          "frequency": 1
+        },
+        {
+          "name": "Free energy principle (Friston)",
+          "frequency": 1
+        },
+        {
+          "name": "Non-equilibrium thermodynamics",
+          "frequency": 1
+        },
+        {
+          "name": "Thermodynamics",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 36,
+      "auto_label": "Harm reduction approaches in public health policy / Harm reduction frameworks",
+      "curated_label": "Harm reduction approaches in public heal",
+      "dominant_l1_category": "unmapped",
+      "member_count": 4,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Harm reduction approaches in public health policy",
+          "frequency": 1
+        },
+        {
+          "name": "Harm reduction frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Public health communication",
+          "frequency": 1
+        },
+        {
+          "name": "Victimology studies of online harm",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 37,
+      "auto_label": "Teilhard de Chardin (Omega Point) / Deleuze and Guattari's Anti-Oedipus",
+      "curated_label": "Teilhard de Chardin (Omega Point)",
+      "dominant_l1_category": "unmapped",
+      "member_count": 3,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Teilhard de Chardin (Omega Point)",
+          "frequency": 2
+        },
+        {
+          "name": "Deleuze and Guattari's Anti-Oedipus",
+          "frequency": 1
+        },
+        {
+          "name": "Teilhard de Chardin's Omega Point",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 38,
+      "auto_label": "Enterprise architecture frameworks / IT asset management frameworks",
+      "curated_label": "Enterprise architecture frameworks",
+      "dominant_l1_category": "unmapped",
+      "member_count": 4,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Enterprise architecture frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "IT asset management frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "OAuth 2.0 and token-based authentication frameworks",
+          "frequency": 1
+        },
+        {
+          "name": "Web architecture and protocol design literature (Berners-Lee, Fielding)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 39,
+      "auto_label": "Conditional spending doctrine / Dependency hell literature in package management theory",
+      "curated_label": "Conditional spending doctrine",
+      "dominant_l1_category": "unmapped",
+      "member_count": 4,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Conditional spending doctrine",
+          "frequency": 1
+        },
+        {
+          "name": "Dependency hell literature in package management theory",
+          "frequency": 1
+        },
+        {
+          "name": "Dependency theory",
+          "frequency": 1
+        },
+        {
+          "name": "universal library concept",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 40,
+      "auto_label": "Philosophy of mind (e.g., Searle's Chinese Room) / Plain language movement",
+      "curated_label": "Philosophy of mind (e.g., Searle's Chine",
+      "dominant_l1_category": "unmapped",
+      "member_count": 4,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Philosophy of mind (e.g., Searle's Chinese Room)",
+          "frequency": 1
+        },
+        {
+          "name": "Plain language movement",
+          "frequency": 1
+        },
+        {
+          "name": "Searle's Chinese Room argument",
+          "frequency": 1
+        },
+        {
+          "name": "philosophy of language (Gricean maxims)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 41,
+      "auto_label": "Bastiat's Broken Window Fallacy / Luddism",
+      "curated_label": "Bastiat's Broken Window Fallacy",
+      "dominant_l1_category": "unmapped",
+      "member_count": 4,
+      "total_frequency": 4,
+      "members": [
+        {
+          "name": "Bastiat's Broken Window Fallacy",
+          "frequency": 1
+        },
+        {
+          "name": "Luddism",
+          "frequency": 1
+        },
+        {
+          "name": "Luddite fallacy (historical analogy)",
+          "frequency": 1
+        },
+        {
+          "name": "Luddite fallacy rebuttal",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 42,
+      "auto_label": "ISO standardization principles / Standardization bodies (e.g., NIST)",
+      "curated_label": "ISO standardization principles",
+      "dominant_l1_category": "unmapped",
+      "member_count": 3,
+      "total_frequency": 3,
+      "members": [
+        {
+          "name": "ISO standardization principles",
+          "frequency": 1
+        },
+        {
+          "name": "Standardization bodies (e.g., NIST)",
+          "frequency": 1
+        },
+        {
+          "name": "Standardization bodies (e.g., NIST, ISO)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 43,
+      "auto_label": "Degrowth movement / degrowth movement",
+      "curated_label": "Degrowth movement",
+      "dominant_l1_category": "Ethics & Moral Philosophy",
+      "member_count": 2,
+      "total_frequency": 3,
+      "members": [
+        {
+          "name": "Degrowth movement",
+          "frequency": 2
+        },
+        {
+          "name": "degrowth movement",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 44,
+      "auto_label": "Checks and balances (separation of powers) / Checks and balances in constitutional law",
+      "curated_label": "Checks and balances (separation of power",
+      "dominant_l1_category": "unmapped",
+      "member_count": 3,
+      "total_frequency": 3,
+      "members": [
+        {
+          "name": "Checks and balances (separation of powers)",
+          "frequency": 1
+        },
+        {
+          "name": "Checks and balances in constitutional law",
+          "frequency": 1
+        },
+        {
+          "name": "Checks and balances principle",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 45,
+      "auto_label": "Red teaming / red teaming",
+      "curated_label": "Red teaming",
+      "dominant_l1_category": "Risk, Security & Resilience",
+      "member_count": 2,
+      "total_frequency": 3,
+      "members": [
+        {
+          "name": "Red teaming",
+          "frequency": 2
+        },
+        {
+          "name": "red teaming",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 46,
+      "auto_label": "King Midas problem / King Midas problem (folklore/philosophy)",
+      "curated_label": "King Midas problem",
+      "dominant_l1_category": "unmapped",
+      "member_count": 3,
+      "total_frequency": 3,
+      "members": [
+        {
+          "name": "King Midas problem",
+          "frequency": 1
+        },
+        {
+          "name": "King Midas problem (folklore/philosophy)",
+          "frequency": 1
+        },
+        {
+          "name": "Wicked problems theory (Rittel & Webber)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 47,
+      "auto_label": "Realpolitik / synthetic data generation",
+      "curated_label": "Realpolitik",
+      "dominant_l1_category": "unmapped",
+      "member_count": 2,
+      "total_frequency": 2,
+      "members": [
+        {
+          "name": "Realpolitik",
+          "frequency": 1
+        },
+        {
+          "name": "synthetic data generation",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 48,
+      "auto_label": "Cypherpunk / science fiction (Skynet, Matrix)",
+      "curated_label": "Cypherpunk",
+      "dominant_l1_category": "unmapped",
+      "member_count": 2,
+      "total_frequency": 2,
+      "members": [
+        {
+          "name": "Cypherpunk",
+          "frequency": 1
+        },
+        {
+          "name": "science fiction (Skynet, Matrix)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 49,
+      "auto_label": "Hayekian spontaneous order",
+      "curated_label": "Hayekian spontaneous order",
+      "dominant_l1_category": "unmapped",
+      "member_count": 1,
+      "total_frequency": 2,
+      "members": [
+        {
+          "name": "Hayekian spontaneous order",
+          "frequency": 2
+        }
+      ]
+    },
+    {
+      "cluster_id": 50,
+      "auto_label": "Post-hoc calibration methods from machine learning operations and model deployment practices",
+      "curated_label": "Post-hoc calibration methods from machin",
+      "dominant_l1_category": "unmapped",
+      "member_count": 1,
+      "total_frequency": 1,
+      "members": [
+        {
+          "name": "Post-hoc calibration methods from machine learning operations and model deployment practices",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 51,
+      "auto_label": "Drug approval processes (FDA model)",
+      "curated_label": "Drug approval processes (FDA model)",
+      "dominant_l1_category": "unmapped",
+      "member_count": 1,
+      "total_frequency": 1,
+      "members": [
+        {
+          "name": "Drug approval processes (FDA model)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 52,
+      "auto_label": "Pre-mortem technique (Gary Klein)",
+      "curated_label": "Pre-mortem technique (Gary Klein)",
+      "dominant_l1_category": "unmapped",
+      "member_count": 1,
+      "total_frequency": 1,
+      "members": [
+        {
+          "name": "Pre-mortem technique (Gary Klein)",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 53,
+      "auto_label": "Kondratiev waves",
+      "curated_label": "Kondratiev waves",
+      "dominant_l1_category": "Economics & Political Economy",
+      "member_count": 1,
+      "total_frequency": 1,
+      "members": [
+        {
+          "name": "Kondratiev waves",
+          "frequency": 1
+        }
+      ]
+    },
+    {
+      "cluster_id": 54,
+      "auto_label": "Socratic method",
+      "curated_label": "Socratic method",
+      "dominant_l1_category": "Social & Behavioral Sciences",
+      "member_count": 1,
+      "total_frequency": 1,
+      "members": [
+        {
+          "name": "Socratic method",
+          "frequency": 1
+        }
+      ]
+    }
+  ]
+}

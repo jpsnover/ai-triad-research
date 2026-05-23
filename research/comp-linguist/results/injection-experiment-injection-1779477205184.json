@@ -1,0 +1,87 @@
+{
+  "experiment_id": "injection-1779477205184",
+  "timestamp": "2026-05-22T21:17:39.059Z",
+  "config": {
+    "levels": [
+      10,
+      20,
+      35
+    ],
+    "reps": 1,
+    "topic": "Will narrow AI automation cause structural unemployment that governments are unprepared for, or will new industries absorb displaced workers as they have in previous technological transitions?",
+    "model": "gemini-2.5-flash",
+    "pacing": "tight"
+  },
+  "runs": [
+    {
+      "level": 35,
+      "rep": 1,
+      "debate_id": "",
+      "rounds": 0,
+      "duration_ms": 240850,
+      "avg_utilization_rate": null,
+      "avg_primary_utilization": null,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": null,
+      "taxonomy_mapped_ratio": null,
+      "relevance_score_variance": null,
+      "bdi_distribution": {
+        "beliefs": 0,
+        "desires": 0,
+        "intentions": 0
+      },
+      "total_injected": 0,
+      "total_api_calls": 0,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null,
+      "error": "CLI exited with code 1: ,\"model\":\"gemini-2.5-flash\",\"latencyMs\":34689,\"promptTokens\":6882,\"completionTokens\":4948,\"totalTokens\":14377}\n[debate-cli] FATAL: \n  Goal:     Run opening statement pipeline\n  Error:    Brief stage failed to parse — downstream stages would operate on empty context. brief stage parse error: Unexpected non-whitespace character after JSON at position 12094 (line 125 column 1)\n  Location: turnPipeline.runOpeningPipeline\n  Resolve:\n  1. Check the AI model response quality\n  2. Try a different model\n"
+    },
+    {
+      "level": 10,
+      "rep": 1,
+      "debate_id": "5b0736a4-06b2-45f7-9d2c-7aa2bd3ba58d",
+      "rounds": 11,
+      "duration_ms": 4287975,
+      "avg_utilization_rate": 0.5656565656565656,
+      "avg_primary_utilization": 0.5656565656565656,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": true,
+      "taxonomy_mapped_ratio": 1,
+      "relevance_score_variance": 0.0008418668426536369,
+      "bdi_distribution": {
+        "beliefs": 3,
+        "desires": 3,
+        "intentions": 3
+      },
+      "total_injected": 9,
+      "total_api_calls": 94,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null
+    },
+    {
+      "level": 20,
+      "rep": 1,
+      "debate_id": "16e48e2a-deb9-46a2-b472-cddbc4c2d8a8",
+      "rounds": 11,
+      "duration_ms": 2914814,
+      "avg_utilization_rate": 0.595959595959596,
+      "avg_primary_utilization": 0.595959595959596,
+      "crux_addressed_ratio": null,
+      "engaging_real_disagreement": true,
+      "taxonomy_mapped_ratio": 1,
+      "relevance_score_variance": 0.0007507586974959907,
+      "bdi_distribution": {
+        "beliefs": 3,
+        "desires": 3,
+        "intentions": 3
+      },
+      "total_injected": 9,
+      "total_api_calls": 100,
+      "low_value_claims_rejected": 0,
+      "topic_coherence_per_speaker": null,
+      "agent_utilities": null
+    }
+  ]
+}

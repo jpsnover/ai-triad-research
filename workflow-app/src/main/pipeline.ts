@@ -180,8 +180,11 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
       });
       return `${moduleImport}; ${commands.join('; ')}`;
     }
-    case 'summarize':
-      return `${moduleImport}; Invoke-BatchSummary -Verbose`;
+    case 'summarize': {
+      let cmd = `${moduleImport}; Invoke-BatchSummary -Verbose`;
+      if (config.importedToday) cmd += ' -ImportedToday';
+      return cmd;
+    }
     case 'conflicts':
       return `${moduleImport}; Invoke-QbafConflictAnalysis -Verbose`;
     case 'health':

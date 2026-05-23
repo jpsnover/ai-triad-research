@@ -30,6 +30,12 @@ function Invoke-BatchSummary {
     .PARAMETER AutoFire
         Use two-stage AutoFire sniff per document. Routes each document through
         Invoke-POVSummary with -AutoFire. Incompatible with -MaxConcurrent > 1.
+    .PARAMETER ImportedToday
+        Process only documents whose date_ingested matches today's date.
+        Useful after importing a batch to summarize just the new documents.
+    .EXAMPLE
+        Invoke-BatchSummary -ImportedToday
+        # Summarize only documents imported today.
     .EXAMPLE
         Invoke-BatchSummary
     .EXAMPLE
@@ -67,7 +73,10 @@ function Invoke-BatchSummary {
 
         [switch]$IterativeExtraction,
 
-        [switch]$AutoFire
+        [switch]$AutoFire,
+
+        [Parameter(HelpMessage = 'Process only documents imported today (date_ingested = today)')]
+        [switch]$ImportedToday
     )
 
     begin {
@@ -163,6 +172,7 @@ function Invoke-BatchSummary {
     if ($ForceAll)              { Write-Warn "FORCE ALL — every document will be reprocessed" }
     if ($HasDocFilter)          { Write-Info "Doc filter ($($DocIdFilter.Count)): $($DocIdFilter -join ', ')" }
     if ($SkipConflictDetection) { Write-Info "Conflict detection: skipped" }
+    if ($ImportedToday)         { Write-Info "Filtering to documents imported today" }
 
     # -- STEP 1 — Load the full taxonomy -------------------------------------
     Write-Step "Loading taxonomy"
@@ -254,6 +264,15 @@ function Invoke-BatchSummary {
 
     $AllMetaFiles = @(Get-ChildItem -Path $SourcesDir -Filter 'metadata.json' -Recurse |
                     Where-Object { $_.FullName -notmatch '_inbox' })
+
+    if ($ImportedToday) {
+        $TodayDate = Get-Date -Format 'yyyy-MM-dd'
+        $AllMetaFiles = @($AllMetaFiles | Where-Object {
+            $m = Get-Content $_.FullName -Raw | ConvertFrom-Json
+            $m.date_ingested -eq $TodayDate
+        })
+        Write-Info "ImportedToday filter: $($AllMetaFiles.Count) documents ingested on $TodayDate"
+    }
 
     if ($AllMetaFiles.Count -eq 0) {
         Write-Warn "No source documents found in $SourcesDir"
