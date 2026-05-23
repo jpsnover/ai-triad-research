@@ -1182,7 +1182,7 @@ export class DebateEngine {
       embeddingThreshold: 0.48,
       lexicalThreshold: 0.22,
       minPerCategory: parseInt(process.env.TAXONOMY_MIN_PER_BDI || '') || 3,
-      maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 35,
+      maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 25,
     };
 
     // Apply lineage boost when lineage_frame is available
