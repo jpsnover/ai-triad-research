@@ -164,6 +164,58 @@
   --chip-bg: #311632;
 }
 
+[data-theme="harvard"] {
+  /* POV colors */
+  --color-acc: #2D6A4F;
+  --color-saf: #A51C30;
+  --color-skp: #B8860B;
+  --color-sit: #5B2C87;
+  --color-conflicts: #6B705C;
+
+  /* Category accent colors */
+  --cat-desires: #1B7A6D;
+  --cat-beliefs: #2B5797;
+  --cat-intentions: #7B3F9E;
+
+  /* Surfaces */
+  --bg-primary: #FAF8F5;
+  --bg-secondary: #F3F0EB;
+  --bg-panel: #E5DFD6;
+  --bg-input: #FFFFFF;
+  --bg-hover: #EDE8E0;
+
+  /* Text */
+  --text-primary: #1C1C1C;
+  --text-secondary: #4A4541;
+  --text-muted: #8A8278;
+  --border-color: #D6CFC5;
+
+  /* Category detail backgrounds */
+  --bg-detail-desires: #F0F7F5;
+  --bg-detail-beliefs: #EFF3FA;
+  --bg-detail-intentions: #F5F0F8;
+
+  /* Search highlight */
+  --hl-mark-bg: rgba(212, 168, 67, 0.35);
+  --hl-mark-color: #6B4E0A;
+
+  /* Semantic */
+  --danger: #C53B4A;
+  --success: #2D6A4F;
+  --focus-ring: #A51C30;
+
+  /* Scrollbar */
+  --scrollbar-track: #F3F0EB;
+  --scrollbar-thumb: #C9C1B5;
+  --scrollbar-thumb-hover: #8A8278;
+
+  /* Dialog overlay */
+  --dialog-shadow: rgba(28, 28, 28, 0.18);
+
+  /* Chip */
+  --chip-bg: #E5DFD6;
+}
+
 * {
   margin: 0;
   padding: 0;

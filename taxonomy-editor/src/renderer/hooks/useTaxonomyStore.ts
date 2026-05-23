@@ -52,7 +52,7 @@ export type PinnedData =
 
 export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
-export type ColorScheme = 'light' | 'dark' | 'bkc' | 'system';
+export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 
 export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
 
@@ -238,7 +238,7 @@ function saveAnalysisCache(cache: Map<string, AnalysisCacheEntry>): void {
 function getStoredTheme(): ColorScheme {
   try {
     const stored = localStorage.getItem('taxonomy-editor-theme');
-    if (stored === 'light' || stored === 'dark' || stored === 'bkc' || stored === 'system') return stored;
+    if (stored === 'light' || stored === 'dark' || stored === 'bkc' || stored === 'harvard' || stored === 'system') return stored;
   } catch { /* ignore */ }
   return 'light';
 }

@@ -255,6 +255,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <option value="light">Light</option>
             <option value="dark">Dark</option>
             <option value="bkc">BKC</option>
+            <option value="harvard">Harvard</option>
             <option value="system">System</option>
           </select>
         </div>
