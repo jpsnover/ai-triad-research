@@ -42,6 +42,7 @@ serverRecorder.intern('component', 'cache');
 serverRecorder.intern('component', 'session');
 serverRecorder.intern('component', 'storage');
 
+/* eslint-disable @typescript-eslint/no-use-before-define -- callback runs after module init; SERVER_VERSION, SERVER_START_TIME, githubBackend all safe at call-time */
 serverRecorder.setContextProvider(() => {
   const ctx: Record<string, unknown> = {
     server: {
@@ -87,6 +88,7 @@ serverRecorder.setContextProvider(() => {
 
   return ctx;
 });
+/* eslint-enable @typescript-eslint/no-use-before-define */
 
 export { serverRecorder };
 

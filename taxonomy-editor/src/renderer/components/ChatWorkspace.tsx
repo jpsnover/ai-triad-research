@@ -208,7 +208,7 @@ export function ChatWorkspace() {
           <span className="chat-header-pover" style={{ color: poverInfo.color }}>
             {poverInfo.label}
           </span>
-          <ModeSelector mode={activeChat.mode} onChange={(m) => { getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.mode_switch', data: { chat_id: activeChat.id, from: activeChat.mode, to: m } }); changeMode(m); }} />
+          <ModeSelector mode={activeChat.mode} onChange={(m) => { getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.mode_switch', data: { chat_id: activeChat.id, from: activeChat.mode, to: m } }); void changeMode(m); }} />
         </div>
         <div className="chat-header-topic" title={activeChat.topic}>
           {activeChat.topic}

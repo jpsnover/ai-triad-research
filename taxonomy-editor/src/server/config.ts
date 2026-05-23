@@ -93,6 +93,7 @@ export function getSourcesRoot(): string | null {
   if (envRoot) {
     const resolved = path.resolve(envRoot);
     // In API mode the backend handles existence — skip local filesystem check
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- STORAGE_MODE is module-level const, safe at call-time
     return (STORAGE_MODE === 'github-api' || fs.existsSync(resolved)) ? resolved : null;
   }
 
@@ -101,6 +102,7 @@ export function getSourcesRoot(): string | null {
     const resolved = path.isAbsolute(config.sources_root)
       ? config.sources_root
       : path.resolve(PROJECT_ROOT, config.sources_root);
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
     return (STORAGE_MODE === 'github-api' || fs.existsSync(resolved)) ? resolved : null;
   }
 

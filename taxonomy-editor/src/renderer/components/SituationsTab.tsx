@@ -91,9 +91,11 @@ export function SituationsTab() {
 
   // Auto-refresh related edges when selection changes while panel is open
   useEffect(() => {
+    /* eslint-disable @typescript-eslint/no-use-before-define -- selectedNode defined after early return guard */
     if (showRelatedPanel && selectedNode) {
       showRelatedEdges(selectedNode.id);
     }
+    /* eslint-enable @typescript-eslint/no-use-before-define */
   }, [selectedNodeId]);
 
   const toggleHierarchy = useCallback(() => {

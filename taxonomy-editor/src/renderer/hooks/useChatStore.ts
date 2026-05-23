@@ -32,6 +32,7 @@ function nowISO(): string {
 }
 
 function getConfiguredModel(): string {
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define -- store defined below, safe at call-time
   const chatModel = useChatStore.getState().chatModel;
   if (chatModel) return chatModel;
   try {

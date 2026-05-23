@@ -108,12 +108,14 @@ class CommitMutex {
     const existing = this.locks.get(userId);
     if (existing) {
       const timeoutPromise = new Promise<never>((_, reject) => {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define -- class defined below, safe at call-time
         setTimeout(() => reject(new LockTimeoutError(userId, Date.now() - startMs)), LOCK_ACQUIRE_TIMEOUT_MS);
       });
 
       try {
         await Promise.race([existing.promise, timeoutPromise]);
       } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         if (err instanceof LockTimeoutError) {
           this.recordLockEvent('lock.timeout', userId, requestId, {
             wait_duration_ms: Date.now() - startMs,

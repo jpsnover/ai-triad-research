@@ -2200,7 +2200,7 @@ function ClarificationActions() {
       critiqueTriggered.current = true;
       void runTopicCritique();
     }
-  }, [activeDebate?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeDebate?.id]); // intentionally limited deps — only re-run on debate change
   const [answer, setAnswer] = useState('');
   const [selections, setSelections] = useState<Record<number, string>>({});
   const [otherTexts, setOtherTexts] = useState<Record<number, string>>({});

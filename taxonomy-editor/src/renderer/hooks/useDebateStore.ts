@@ -114,6 +114,7 @@ import { api } from '@bridge';
  *  Priority: debate-specific override > global Settings model > default */
 function getConfiguredModel(): string {
   // Check debate-specific model first
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define -- store defined below, safe at call-time
   const debateModel = useDebateStore.getState().debateModel;
   if (debateModel) {
     console.log(`[model] Using debate-specific model: ${debateModel}`);
@@ -235,8 +236,10 @@ async function summarizeTranscriptEntry(
   }
   console.warn(`[debate] summarizeEntry: all ${MAX_RETRIES} attempts failed for entry ${entryId}. Detail level pills will be unavailable for this entry.`);
   try {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- store defined below, safe at call-time
     const s = useDebateStore.getState();
     if (s.debateWarnings.length < 50) {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Entry summarization failed — detail level pills unavailable'] });
     }
   } catch { /* store may not be ready */ }
@@ -250,6 +253,7 @@ async function summarizeTranscriptEntry(
 function createDebateGuard(get: () => { activeDebateId: string | null }): () => boolean {
   const capturedId = get().activeDebateId;
   return () => {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- module-level var, safe at call-time
     if (_abortController?.signal.aborted) return false;
     if (capturedId !== get().activeDebateId) {
       console.warn(`[debate] Active debate changed during async operation (was ${capturedId}, now ${get().activeDebateId}). Discarding stale results.`);
@@ -1554,6 +1558,7 @@ async function getRelevantTaxonomyContext(
     }
 
     // Collect AN claims and embed them for multi-claim relevance scoring
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define -- store defined below, safe at call-time
     const debate = useDebateStore.getState().activeDebate;
     const anNodes = debate?.argument_network?.nodes ?? [];
     let scores: Map<string, number>;
@@ -1630,8 +1635,10 @@ async function getRelevantTaxonomyContext(
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
     // Surface warning via store — useDebateStore is defined below but accessible at call time
     try {
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       const s = useDebateStore.getState();
       if (s.debateWarnings.length < 50) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Taxonomy relevance scoring unavailable'] });
       }
     } catch { /* store may not be ready during init */ }
