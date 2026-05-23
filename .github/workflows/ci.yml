@@ -31,13 +31,16 @@ jobs:
         shell: pwsh
         run: Install-Module Pester -Force -Scope CurrentUser
 
-      - name: Run Pester tests
+      - name: Run Pester tests with coverage
         shell: pwsh
         run: |
           $config = New-PesterConfiguration
           $config.Run.Path = './tests/'
           $config.Output.Verbosity = 'Detailed'
           $config.Run.Exit = $true
+          $config.CodeCoverage.Enabled = $true
+          $config.CodeCoverage.Path = @('./scripts/AITriad/Public/*.ps1')
+          $config.CodeCoverage.CoveragePercentTarget = 50
           Invoke-Pester -Configuration $config
 
       - name: Build module
