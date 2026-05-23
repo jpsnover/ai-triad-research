@@ -2061,7 +2061,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'adaptive' | 'pov-progression' | 'fr-context';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
   // Detail pane now takes full height when an entry is selected (no resize needed).
@@ -2231,6 +2231,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       'reflections': debate.transcript.some(e => e.type === 'reflection'),
       'gaps': !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)),
       'grounding': debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0),
+      'lineage': !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0),
       'adaptive': !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics,
       'pov-progression': true,
     };
@@ -2306,7 +2307,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'adaptive', 'pov-progression'];
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression'];
           const visible = OVERVIEW_TABS.filter(id => {
             if (id === 'argument-network') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
@@ -2415,6 +2416,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'reflections', label: 'Post-Debate Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
               { id: 'gaps', label: 'Gaps', visible: !!(debate.taxonomy_gap_analysis || (debate.gap_injections && debate.gap_injections.length > 0) || (debate.cross_cutting_proposals && debate.cross_cutting_proposals.length > 0)) },
               { id: 'grounding', label: `Grounding (${debate.transcript.reduce((n, e) => n + (e.taxonomy_refs?.length ? 1 : 0), 0)})`, visible: debate.transcript.some(e => e.taxonomy_refs && e.taxonomy_refs.length > 0) },
+              { id: 'lineage', label: `Lineage (${debate.topic.critique?.lineage_frame?.length ?? 0})`, visible: !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0) },
               { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
               { id: 'pov-progression', label: 'Perspective Progression', visible: true },
               { id: 'fr-context', label: 'Flight Recorder', visible: true },
@@ -2497,6 +2499,79 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           {effectiveOverviewTab === 'grounding' && (
             <GroundingPanel debate={debate} />
           )}
+
+          {/* Lineage Frame — intellectual tradition distribution from topic critique */}
+          {effectiveOverviewTab === 'lineage' && (() => {
+            const frame = debate.topic.critique?.lineage_frame;
+            if (!frame || frame.length === 0) return <div style={{ padding: 16, color: 'var(--text-muted)' }}>No lineage data for this debate.</div>;
+            const maxPct = Math.max(...frame.map(f => f.percentage));
+            // Check if any transcript entry had lineage boost data
+            const boostActive = debate.transcript.some(e => {
+              const manifest = (e.metadata as Record<string, unknown>)?.injection_manifest as { lineage_boost?: unknown } | undefined;
+              return !!manifest?.lineage_boost;
+            });
+            // Aggregate per-turn boost stats from injection manifests
+            let totalBoosted = 0;
+            let totalPromoted = 0;
+            let turnsWithBoost = 0;
+            for (const e of debate.transcript) {
+              const manifest = (e.metadata as Record<string, unknown>)?.injection_manifest as {
+                lineage_boost?: { boosted?: number; promoted?: number };
+              } | undefined;
+              if (manifest?.lineage_boost) {
+                turnsWithBoost++;
+                totalBoosted += manifest.lineage_boost.boosted ?? 0;
+                totalPromoted += manifest.lineage_boost.promoted ?? 0;
+              }
+            }
+            return (
+              <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem' }}>Intellectual Lineage Frame</h4>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 12px' }}>
+                  Dominant intellectual traditions detected from activated taxonomy nodes. These traditions shape which nodes receive relevance boosts during context injection.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                  {frame.map(f => (
+                    <div key={f.cluster_id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 160, textAlign: 'right' }}>{f.label}</span>
+                      <div style={{ flex: 1, height: 14, background: 'var(--bg-secondary, #222)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+                        <div style={{
+                          width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`,
+                          height: '100%',
+                          background: 'linear-gradient(90deg, #f59e0b, #f97316)',
+                          borderRadius: 3,
+                          transition: 'width 0.3s ease',
+                        }} />
+                      </div>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, minWidth: 40, textAlign: 'right', color: '#f59e0b' }}>
+                        {(f.percentage * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: '0.7rem' }}>
+                  <div style={{
+                    padding: '6px 12px', borderRadius: 6,
+                    background: boostActive ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.08)',
+                    color: boostActive ? '#16a34a' : '#888',
+                    fontWeight: 600,
+                  }}>
+                    Lineage Boost: {boostActive ? 'Active' : 'Inactive'}
+                  </div>
+                  {boostActive && turnsWithBoost > 0 && (
+                    <>
+                      <div style={{ padding: '6px 12px', borderRadius: 6, background: 'rgba(59,130,246,0.1)', color: '#3b82f6', fontWeight: 600 }}>
+                        Turns with boost: {turnsWithBoost}
+                      </div>
+                      <div style={{ padding: '6px 12px', borderRadius: 6, background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', fontWeight: 600 }}>
+                        Nodes boosted: {totalBoosted} · Promoted: {totalPromoted}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Adaptive Staging — signal telemetry, phase transitions, GC events */}
           {effectiveOverviewTab === 'adaptive' && (() => {
