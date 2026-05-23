@@ -30,6 +30,8 @@ import {
   type GroundingCitation as SharedGroundingCitation,
 } from '../../../lib/ai-client';
 
+import { log } from './logger.js';
+
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
 // ── Constants ──
@@ -71,10 +73,10 @@ function loadModelMap(): Record<string, string> {
       const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
       _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
       _modelMapMtime = stat.mtimeMs;
-      console.log(`[aiBackends] Reloaded model map (${Object.keys(_modelMapCache!).length} mappings)`);
+      log.api.debug({ count: Object.keys(_modelMapCache!).length }, 'Reloaded model map');
     }
   } catch (err) {
-    console.warn(`[aiBackends] Failed to load model map:`, err);
+    log.api.warn({ err }, 'Failed to load model map');
     if (!_modelMapCache) _modelMapCache = {};
   }
   return _modelMapCache!;
@@ -84,7 +86,7 @@ function getApiModelId(friendlyId: string): string {
   const map = loadModelMap();
   const mapped = getApiModelIdFromMap(map, friendlyId);
   if (mapped === friendlyId && /^(openai|claude|groq)-/.test(friendlyId)) {
-    console.warn(`[aiBackends] No API model mapping for '${friendlyId}' — sending as-is (this may fail)`);
+    log.api.warn({ friendlyId }, 'No API model mapping — sending as-is (this may fail)');
   }
   return mapped;
 }
@@ -180,7 +182,7 @@ export async function generateTextWithSearch(
     const tavilyKey = await getApiKey('tavily');
     if (tavilyKey) {
       const searchQuery = prompt.length > 400 ? prompt.slice(0, 400) : prompt;
-      console.log(`[AI] Tavily search for model=${resolved}, query length=${searchQuery.length}`);
+      log.api.info({ model: resolved, queryLength: searchQuery.length }, 'Tavily search');
       const searchResult = await tavilySearch(searchQuery, tavilyKey, {
         maxResults: 5,
         includeAnswer: true,

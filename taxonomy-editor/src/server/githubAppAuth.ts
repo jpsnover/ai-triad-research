@@ -23,6 +23,7 @@
  */
 
 import crypto from 'crypto';
+import { log } from './logger.js';
 
 const GITHUB_API = 'https://api.github.com';
 const USER_AGENT = 'ai-triad-taxonomy-editor';
@@ -71,7 +72,7 @@ async function loadPrivateKey(): Promise<string | null> {
         return cachedPrivateKey;
       }
     } catch (err) {
-      console.warn('[githubAppAuth] failed to load private key from Key Vault:', err);
+      log.auth.warn({ err }, 'Failed to load private key from Key Vault');
     }
   }
 
@@ -132,7 +133,7 @@ async function getInstallationToken(): Promise<string | null> {
 
   const privateKey = await loadPrivateKey();
   if (!privateKey) {
-    console.warn('[githubAppAuth] GITHUB_APP_ID set but no private key available');
+    log.auth.warn('GITHUB_APP_ID set but no private key available');
     return null;
   }
 
@@ -149,7 +150,7 @@ async function getInstallationToken(): Promise<string | null> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    console.warn(`[githubAppAuth] installation token mint failed: ${res.status} ${body}`);
+    log.auth.warn({ status: res.status }, 'Installation token mint failed');
     return null;
   }
 

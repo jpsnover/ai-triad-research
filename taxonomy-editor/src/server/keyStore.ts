@@ -19,6 +19,7 @@ import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
 import type { AIBackend } from './config';
+import { log } from './logger.js';
 
 export interface KeyStore {
   get(backend: AIBackend, userId: string): Promise<string | null>;
@@ -79,10 +80,10 @@ class LocalFileKeyStore implements KeyStore {
       try {
         const value = this.decrypt(p, this.legacyDerivedKey());
         await this.set(backend, _userId, value);
-        console.log(`[keyStore/local] Migrated ${backend} key to new key material`);
+        log.server.info({ backend }, 'Migrated key to new key material');
         return value;
       } catch (err) {
-        console.warn(`[keyStore/local] Failed to decrypt ${p} with current and legacy keys:`, err);
+        log.server.warn({ path: p, err }, 'Failed to decrypt with current and legacy keys');
         return null;
       }
     }
@@ -146,7 +147,7 @@ class AzureKeyVaultKeyStore implements KeyStore {
       const code = (err as { code?: string; statusCode?: number })?.code;
       const status = (err as { statusCode?: number })?.statusCode;
       if (code === 'SecretNotFound' || status === 404) return null;
-      console.warn(`[keyStore/kv] getSecret(${name}) failed:`, err);
+      log.server.warn({ secretName: name, err }, 'Key Vault getSecret failed');
       return null;
     }
   }
@@ -166,10 +167,10 @@ export function getKeyStore(resolveDataRoot: () => string): KeyStore {
   if (_store) return _store;
   const vaultUrl = process.env.AZURE_KEYVAULT_URL;
   if (vaultUrl) {
-    console.log(`[keyStore] Using Azure Key Vault: ${vaultUrl}`);
+    log.server.info({ vaultUrl }, 'Using Azure Key Vault');
     _store = new AzureKeyVaultKeyStore(vaultUrl);
   } else {
-    console.log('[keyStore] Using local encrypted file store');
+    log.server.info('Using local encrypted file store');
     _store = new LocalFileKeyStore(resolveDataRoot);
   }
   return _store;

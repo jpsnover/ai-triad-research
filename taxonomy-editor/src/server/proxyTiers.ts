@@ -4,6 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getDataRoot } from './config';
+import { log } from './logger.js';
 
 // ── Types ──
 
@@ -68,7 +69,7 @@ function loadTierConfig(): TierConfig {
         users: data.users ?? [],
       };
       _cacheMtime = stat.mtimeMs;
-      console.log(`[proxy] Loaded ${_cache.users.length} tier entries from ${p}`);
+      log.server.debug({ count: _cache.users.length, path: p }, 'Loaded tier entries');
       return _cache;
     } catch { /* try next */ }
   }

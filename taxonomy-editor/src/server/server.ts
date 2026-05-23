@@ -29,6 +29,7 @@ import * as proxyTiers from './proxyTiers';
 import * as rateLimiter from './rateLimiter';
 import * as analytics from './analytics';
 import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder';
+import { log, runWithRequestContext, generateRequestId } from './logger.js';
 
 // ── Server-side flight recorder ──
 const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
@@ -118,7 +119,7 @@ if (STORAGE_MODE === 'github-api') {
   });
 }
 
-console.log(`[server] Storage mode: ${STORAGE_MODE}`);
+log.storage.info({ mode: STORAGE_MODE }, 'Storage mode selected');
 
 /**
  * Ensure a session branch exists before any write operation.
@@ -463,27 +464,27 @@ post('/api/data/pull', async (_req, res) => {
     const runGit = (args: string[], timeoutMs = 120_000): Promise<string> => new Promise((resolve, reject) => {
       execFile('git', args, { cwd: dataRoot, timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (err) {
-          console.error(`[data-pull] git ${args.join(' ')} failed:`, err.message, stderr);
+          log.dataPull.error({ cmd: `git ${args.join(' ')}`, stderr: stderr?.trim() }, err.message);
           reject(new Error(`git ${args[0]}: ${err.message}${stderr ? ' — ' + stderr.trim() : ''}`));
         } else {
-          if (stderr) console.log(`[data-pull] git ${args[0]} stderr:`, stderr.trim());
+          if (stderr) log.dataPull.debug({ cmd: `git ${args[0]}`, stderr: stderr.trim() }, 'git stderr');
           resolve(stdout.trim());
         }
       });
     });
 
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.start', data: { dataRoot } });
-    console.log('[data-pull] Starting pull in', dataRoot);
+    log.dataPull.info({ dataRoot }, 'Starting pull');
     progress('Starting data update...');
 
     // Fix: Strip stale tokens from origin URL to avoid 401 on expired GitHub App tokens.
     // Public repos work fine with plain HTTPS; embedded tokens cause auth failures when expired.
     let remoteUrl = await runGit(['remote', 'get-url', 'origin']);
-    console.log('[data-pull] Remote URL:', remoteUrl.replace(/:\/\/[^@]+@/, '://<redacted>@'));
+    log.dataPull.info({ remoteUrl: remoteUrl.replace(/:\/\/[^@]+@/, '://<redacted>@') }, 'Remote URL');
 
     if (remoteUrl.includes('x-access-token:')) {
       const cleanUrl = remoteUrl.replace(/:\/\/x-access-token:[^@]+@/, '://');
-      console.log('[data-pull] Stripping stale token from origin URL');
+      log.dataPull.info('Stripping stale token from origin URL');
       await runGit(['remote', 'set-url', 'origin', cleanUrl]);
       remoteUrl = cleanUrl;
     }
@@ -491,14 +492,14 @@ post('/api/data/pull', async (_req, res) => {
     // If remote is SSH, convert to HTTPS for public repo access without keys
     if (remoteUrl.startsWith('git@github.com:')) {
       const httpsUrl = remoteUrl.replace('git@github.com:', 'https://github.com/').replace(/\.git$/, '.git');
-      console.log('[data-pull] Converting SSH remote to HTTPS:', httpsUrl);
+      log.dataPull.info({ httpsUrl }, 'Converting SSH remote to HTTPS');
       await runGit(['remote', 'set-url', 'origin', httpsUrl]);
     }
 
     // Ensure we're on main before resetting — avoid clobbering a session branch
     const currentBranch = await runGit(['rev-parse', '--abbrev-ref', 'HEAD']).catch(() => 'unknown');
     if (currentBranch !== 'main') {
-      console.log(`[data-pull] On branch '${currentBranch}', switching to main first`);
+      log.dataPull.info({ branch: currentBranch }, 'Switching to main before pull');
       await runGit(['checkout', 'main']);
     }
 
@@ -508,24 +509,24 @@ post('/api/data/pull', async (_req, res) => {
 
     progress('Fetching updates from GitHub...');
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_start' });
-    console.log('[data-pull] Fetching origin...');
+    log.dataPull.info('Fetching origin');
     const fetchStart = Date.now();
     await runGit(['fetch', 'origin'], 600_000);
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.fetch_ok', duration_ms: Date.now() - fetchStart });
 
     progress('Applying updates...');
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_start' });
-    console.log('[data-pull] Resetting to origin/main...');
+    log.dataPull.info('Resetting to origin/main');
     const resetStart = Date.now();
     await runGit(['reset', '--hard', 'origin/main'], 600_000);
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.reset_ok', duration_ms: Date.now() - resetStart });
 
-    console.log('[data-pull] Success');
+    log.dataPull.info('Pull completed successfully');
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.ok', duration_ms: Date.now() - pullStart });
     res.write(JSON.stringify({ success: true, message: 'Data updated.' }) + '\n');
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[data-pull] FAILED:', msg);
+    log.dataPull.error({ err: msg }, 'Pull failed');
     serverRecorder.record({ type: 'system.error', component: 'data-pull', level: 'error', message: 'pull.failed', error: { name: 'Error', message: msg }, duration_ms: Date.now() - pullStart });
     res.write(JSON.stringify({ success: false, message: msg }) + '\n');
   } finally {
@@ -708,7 +709,7 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
     } catch { /* retention cleanup is best-effort */ }
 
     const filename = path.basename(filePath);
-    console.log(`[flight-recorder] Dump written: ${filePath}`);
+    log.fr.info({ filePath }, 'Dump written');
     json(res, { filePath, filename });
   } catch (err) { error(res, String(err)); }
 });
@@ -723,7 +724,7 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
     const filename = `server-flight-recorder-${ts}.jsonl`;
     const filePath = path.join(dumpDir, filename);
     fs.writeFileSync(filePath, ndjson, 'utf-8');
-    console.log(`[flight-recorder] Server dump written: ${filePath}`);
+    log.fr.info({ filePath }, 'Server dump written');
     json(res, { filePath, filename });
   } catch (err) { error(res, String(err)); }
 });
@@ -1023,7 +1024,7 @@ post('/api/source-evidence', async (_req, res, body) => {
     const docTitles = loadDocTitles() ?? undefined;
     json(res, retrieveSourceEvidence(nodeIds, pov, index, 3, 2, docTitles));
   } catch (err) {
-    console.warn(`[api] source-evidence failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
+    log.api.warn({ err }, 'source-evidence failed');
     json(res, emptyResult);
   }
 });
@@ -1380,7 +1381,7 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
     const pr = parsed.pull_request as { merged?: boolean; base?: { ref?: string } } | undefined;
     if (action === 'closed' && pr?.merged === true && pr.base?.ref === 'main') {
       // In API mode, behind_by is detected dynamically via compareBranches.
-      console.log('[sync] webhook: main merged');
+      log.github.info('Webhook: main merged');
     }
   }
 
@@ -1474,7 +1475,7 @@ post('/debug/events', (_req, res, body) => {
     const accepted = events.slice(0, TRACE_MAX_EVENTS_PER_BATCH);
     for (const ev of accepted) {
       // Single-line JSON so the log ingestion splits on newlines cleanly.
-      console.log('[trace] ' + JSON.stringify(ev));
+      log.trace.debug({ event: ev }, 'Client trace event');
     }
     json(res, { received: accepted.length, dropped: Math.max(0, events.length - accepted.length) });
   } catch (err) {
@@ -1573,7 +1574,7 @@ const ALLOWED_ORIGINS = (() => {
     return process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
   }
   if (process.env.NODE_ENV === 'production') {
-    console.warn('[security] ALLOWED_ORIGINS not set in production — CORS will reject cross-origin requests');
+    log.security.warn('ALLOWED_ORIGINS not set in production — CORS will reject cross-origin requests');
     return [];
   }
   return null; // null = allow all (development mode)
@@ -1621,11 +1622,11 @@ function loadAuthorizedUsers(): AuthorizedUsersFile | null {
     try {
       if (fs.existsSync(p)) {
         const data = JSON.parse(fs.readFileSync(p, 'utf-8')) as AuthorizedUsersFile;
-        console.log(`[auth] Loaded ${data.users.length} authorized users from ${p}`);
+        log.auth.info({ count: data.users.length, path: p }, 'Loaded authorized users');
         return data;
       }
     } catch (err) {
-      console.error(`[auth] Failed to parse ${p}:`, err);
+      log.auth.error({ path: p, err }, 'Failed to parse authorized users file');
     }
   }
   return null; // No file found = no restriction
@@ -1785,6 +1786,42 @@ function isAdminRequest(req: http.IncomingMessage): boolean {
 
 const server = http.createServer((req, res) => { void handleRequest(req, res); });
 async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
+  // Correlation ID: use incoming header or generate a new one
+  const requestId = (req.headers['x-request-id'] as string) || generateRequestId();
+  res.setHeader('X-Request-Id', requestId);
+
+  const requestStart = Date.now();
+  const urlPath = req.url?.split('?')[0] || '';
+
+  return runWithRequestContext(
+    { requestId, method: req.method, path: urlPath },
+    () => handleRequestInner(req, res, requestId, requestStart),
+  );
+}
+
+async function handleRequestInner(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  requestId: string,
+  requestStart: number,
+) {
+  // Log request completion when response finishes
+  res.on('finish', () => {
+    const duration = Date.now() - requestStart;
+    const urlPath = req.url?.split('?')[0] || '';
+    // Skip noisy static asset and health check logging
+    const isQuiet = urlPath.startsWith('/assets/') || urlPath === '/health' || urlPath === '/healthz';
+    if (!isQuiet) {
+      log.server.info({
+        requestId,
+        method: req.method,
+        path: urlPath,
+        status: res.statusCode,
+        duration_ms: duration,
+      }, 'Request completed');
+    }
+  });
+
   // S10: Security headers on all responses
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -1893,7 +1930,7 @@ async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse
         const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);
       } catch (err) {
-        console.error(`[server] Error handling ${req.method} ${url.pathname}:`, err);
+        log.server.error({ err, method: req.method, path: url.pathname }, 'Error handling request');
         error(res, String(err));
       }
       return;
@@ -1955,7 +1992,7 @@ server.on('upgrade', (req, socket, head) => {
   if (ALLOWED_ORIGINS) {
     const origin = (req.headers.origin || '') as string;
     if (!ALLOWED_ORIGINS.includes(origin)) {
-      console.warn(`[security] Blocked WebSocket upgrade from disallowed origin: ${origin}`);
+      log.security.warn({ origin }, 'Blocked WebSocket upgrade from disallowed origin');
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
       return;
@@ -2063,7 +2100,7 @@ let isShuttingDown = false;
 function shutdown(signal: string) {
   if (isShuttingDown) return; // Prevent double-shutdown
   isShuttingDown = true;
-  console.log(`[server] Received ${signal}, shutting down gracefully...`);
+  log.server.info({ signal }, 'Shutting down gracefully');
 
   // Dump server flight recorder on shutdown
   try {
@@ -2081,7 +2118,7 @@ function shutdown(signal: string) {
 
   // 1. Kill terminal PTY
   if (terminalProcess) {
-    console.log('[server] Terminating PTY process');
+    log.server.info('Terminating PTY process');
     terminalProcess.kill();
     terminalProcess = null;
   }
@@ -2094,13 +2131,13 @@ function shutdown(signal: string) {
 
   // 3. Stop accepting new connections and wait for in-flight requests
   server.close(() => {
-    console.log('[server] All connections closed. Exiting.');
+    log.server.info('All connections closed, exiting');
     process.exit(0);
   });
 
   // 4. Force exit after 10s if graceful shutdown stalls
   setTimeout(() => {
-    console.error('[server] Graceful shutdown timed out after 10s, forcing exit.');
+    log.server.error('Graceful shutdown timed out after 10s, forcing exit');
     process.exit(1);
   }, 10_000).unref();
 }
@@ -2117,7 +2154,7 @@ process.on('uncaughtException', (err) => {
     fs.mkdirSync(dumpDir, { recursive: true });
     fs.writeFileSync(path.join(dumpDir, `server-crash-${Date.now()}.jsonl`), ndjson);
   } catch { /* best effort */ }
-  console.error('[server] Uncaught exception:', err);
+  log.server.fatal({ err }, 'Uncaught exception');
   process.exit(1);
 });
 
@@ -2130,20 +2167,20 @@ process.on('unhandledRejection', (reason) => {
 
 server.listen(PORT, () => {
   serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
-  console.log(`[server] Taxonomy Editor running at http://localhost:${PORT}`);
-  console.log(`[server] Data root: ${getDataRoot()}`);
+  log.server.info({ port: PORT }, 'Taxonomy Editor running');
+  log.server.info({ dataRoot: getDataRoot() }, 'Data root');
 
   // Initialize analytics storage (daily NDJSON files + 90-day pruning)
-  try { analytics.initAnalytics(getDataRoot()); } catch (e) { console.warn('[server] Analytics init failed:', e); }
+  try { analytics.initAnalytics(getDataRoot()); } catch (e) { log.analytics.warn({ err: e }, 'Analytics init failed'); }
 
   if (githubBackend) {
     // Initialize GitHubAPIBackend (token + cache check) AFTER health check is
     // ready. Health passes immediately, then async init.
-    console.log('[server] Initializing GitHubAPIBackend...');
+    log.storage.info('Initializing GitHubAPIBackend');
     githubBackend.initialize().then(() => {
-      console.log('[server] GitHubAPIBackend initialized');
+      log.storage.info('GitHubAPIBackend initialized');
     }).catch((err) => {
-      console.error('[server] GitHubAPIBackend initialization failed:', err);
+      log.storage.error({ err }, 'GitHubAPIBackend initialization failed');
       serverRecorder.record({
         type: 'storage.fallback', component: 'storage', level: 'warn',
         message: `GitHubAPIBackend init failed: ${err instanceof Error ? err.message : String(err)}`,

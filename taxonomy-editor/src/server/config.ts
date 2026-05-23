@@ -8,6 +8,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { log } from './logger.js';
 
 // ── Data path resolution ──
 
@@ -59,7 +60,7 @@ export function loadDataConfig(): AiTriadConfig {
       const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       const merged = { ...DEFAULT_CONFIG, ...raw };
       _configCache = merged;
-      console.log(`[config] Loaded config from ${configPath}`);
+      log.server.debug({ configPath }, 'Loaded config');
       return merged;
     }
   } catch { /* use defaults */ }
@@ -144,7 +145,7 @@ export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string |
     const stored = await getKeyStore(getDataRoot).get(backend, getCurrentUserId());
     if (stored) return stored;
   } catch (err) {
-    console.warn(`[config] getApiKey(${backend}) failed:`, err);
+    log.server.warn({ backend, err }, 'getApiKey failed');
   }
 
   if (process.env.AI_API_KEY) return process.env.AI_API_KEY;

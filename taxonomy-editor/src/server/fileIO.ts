@@ -19,6 +19,7 @@ import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSource
 import { ActionableError } from '../../../lib/debate/errors';
 import { POV_KEYS } from '../../../lib/debate/types';
 import type { StorageBackend } from './storageBackend';
+import { log } from './logger.js';
 import { FilesystemBackend } from './filesystemBackend';
 // ── Backend injection ──
 
@@ -113,10 +114,10 @@ export async function isDataAvailable(): Promise<boolean> {
   try {
     const files = await backend.listDirectory(taxDir);
     const hasData = files.some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
-    console.log(`[isDataAvailable] taxDir=${taxDir} files=${files.length} hasData=${hasData}`);
+    log.server.debug({ taxDir, fileCount: files.length, hasData }, 'isDataAvailable check');
     return hasData;
   } catch (err) {
-    console.log(`[isDataAvailable] taxDir=${taxDir} error=${String(err)}`);
+    log.server.debug({ taxDir, err: String(err) }, 'isDataAvailable error');
     return false;
   }
 }
@@ -235,15 +236,15 @@ export async function readPolicyRegistry(): Promise<unknown | null> {
     const taxDir = getTaxonomyDir();
     const p = path.join(taxDir, 'policy_actions.json');
     const exists = await backend.fileExists(p);
-    console.log(`[fileIO] readPolicyRegistry: taxDir=${taxDir}, path=${p}, exists=${exists}`);
+    log.server.debug({ taxDir, path: p, exists }, 'readPolicyRegistry');
     const raw = await backend.readFile(p);
     if (raw === null) return null;
     const data = JSON.parse(raw);
     const count = (data as { policies?: unknown[] })?.policies?.length ?? 0;
-    console.log(`[fileIO] readPolicyRegistry: loaded ${count} policies`);
+    log.server.debug({ count }, 'readPolicyRegistry loaded');
     return data;
   } catch (err) {
-    console.error(`[fileIO] readPolicyRegistry failed:`, err);
+    log.server.error({ err }, 'readPolicyRegistry failed');
     return null;
   }
 }
