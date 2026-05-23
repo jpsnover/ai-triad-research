@@ -1122,6 +1122,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   const deleteTranscriptEntries = useDebateStore(s => s.deleteTranscriptEntries);
   const qbafEnabled = useTaxonomyStore(s => s.qbafEnabled);
   const [deleteConfirm, setDeleteConfirm] = useState<'single' | 'after' | null>(null);
+  const [showSymbolTooltips, setShowSymbolTooltips] = useState(false);
   const anNodeId = activeDebate?.argument_network?.nodes?.find(
     n => n.source_entry_id === entry.id
   )?.id ?? null;
@@ -1253,13 +1254,28 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         </div>
       )}
       {turnSymbols && turnSymbols.length > 0 && (
-        <div className="debate-turn-symbols">
-          {turnSymbols.map((s, i) => (
-            <span key={i} className="debate-turn-symbol" title={s.tooltip}>
-              {s.symbol}
-            </span>
-          ))}
-        </div>
+        <>
+          <div className="debate-turn-symbols">
+            {turnSymbols.map((s, i) => (
+              <span
+                key={i}
+                className="debate-turn-symbol"
+                title={s.tooltip}
+                style={{ cursor: 'pointer' }}
+                onClick={() => setShowSymbolTooltips(v => !v)}
+              >
+                {s.symbol}
+              </span>
+            ))}
+          </div>
+          {showSymbolTooltips && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '2px 8px 4px', lineHeight: 1.5 }}>
+              {turnSymbols.map((s, i) => (
+                <div key={i}>{s.symbol} — {s.tooltip}</div>
+              ))}
+            </div>
+          )}
+        </>
       )}
       {activeTier === 'claims' ? (
         <div className="debate-statement-content">
