@@ -113,8 +113,69 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
   const sortArrow = (col: typeof sortCol) => sortCol === col ? (sortAsc ? ' ▲' : ' ▼') : '';
   const statementsWithRefs = debate.transcript.filter(e => e.taxonomy_refs?.length > 0).length;
 
+  // Compute lineage effectiveness from injection manifests (same logic as calibrationLogger)
+  const lineageEffectiveness = useMemo(() => {
+    const allBoosted = new Set<string>();
+    const allPromoted = new Set<string>();
+    const allInjected = new Set<string>();
+    const allReferenced = new Set<string>();
+
+    for (const entry of debate.transcript) {
+      if (entry.type !== 'opening' && entry.type !== 'statement') continue;
+      const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+        lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[] };
+        povNodeIds?: string[];
+      } | undefined;
+      if (!manifest) continue;
+
+      for (const id of (entry.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id)) allReferenced.add(id);
+      for (const id of manifest.povNodeIds ?? []) allInjected.add(id);
+
+      const lb = manifest.lineage_boost;
+      if (lb) {
+        for (const id of lb.boostedNodeIds ?? []) allBoosted.add(id);
+        for (const id of lb.promotedNodeIds ?? []) allPromoted.add(id);
+      }
+    }
+
+    if (allBoosted.size === 0) return null;
+
+    const promotedReferenced = [...allPromoted].filter(id => allReferenced.has(id)).length;
+    const promotedRefRate = allPromoted.size > 0 ? promotedReferenced / allPromoted.size : 0;
+    const baselineRefRate = allInjected.size > 0 ? allReferenced.size / allInjected.size : 0;
+
+    return {
+      boosted: allBoosted.size,
+      promoted: allPromoted.size,
+      promotedReferenced,
+      promotedRefRate,
+      baselineRefRate,
+    };
+  }, [debate.transcript]);
+
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+      {lineageEffectiveness && (
+        <div style={{
+          padding: '8px 12px', marginBottom: 8, borderRadius: 6,
+          background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)',
+          fontSize: '0.7rem', lineHeight: 1.6,
+        }}>
+          <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>Lineage Boost Effectiveness</div>
+          <div>
+            Lineage boost promoted <strong>{lineageEffectiveness.promoted}</strong> node{lineageEffectiveness.promoted !== 1 ? 's' : ''};{' '}
+            <strong style={{ color: '#22c55e' }}>{lineageEffectiveness.promotedReferenced}</strong> cited ({(lineageEffectiveness.promotedRefRate * 100).toFixed(0)}%)
+            {' vs. '}<strong>{(lineageEffectiveness.baselineRefRate * 100).toFixed(0)}%</strong> baseline reference rate
+          </div>
+          <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+            {lineageEffectiveness.promotedRefRate > lineageEffectiveness.baselineRefRate
+              ? `Promoted nodes cited ${(lineageEffectiveness.promotedRefRate / Math.max(lineageEffectiveness.baselineRefRate, 0.001)).toFixed(1)}× more than baseline — boost is effective`
+              : lineageEffectiveness.promotedRefRate === lineageEffectiveness.baselineRefRate
+                ? 'Promoted node citation rate matches baseline'
+                : 'Promoted nodes cited less than baseline — boost had limited effect'}
+          </div>
+        </div>
+      )}
       <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
         {rows.length} taxonomy nodes referenced across {statementsWithRefs} statement{statementsWithRefs !== 1 ? 's' : ''}
       </div>

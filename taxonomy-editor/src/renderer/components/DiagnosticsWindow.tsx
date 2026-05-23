@@ -3848,13 +3848,54 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '8px 10px' }}>No taxonomy refs for this entry.</div>
                     );
                   })()}
-                  {activeTab === 'tax-context' && (
-                    taxContext ? (
-                      <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={taxContext} /></pre>
-                    ) : (
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No taxonomy context captured for this entry.</div>
-                    )
-                  )}
+                  {activeTab === 'tax-context' && (() => {
+                    const lbManifest = (meta?.injection_manifest as Record<string, unknown> | undefined)?.lineage_boost as {
+                      boosted?: number; promoted?: number;
+                      boostedNodeIds?: string[]; promotedNodeIds?: string[];
+                    } | undefined;
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                        {lbManifest && (
+                          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', fontSize: '0.7rem' }}>
+                            <div style={{ fontWeight: 700, marginBottom: 4, color: '#f59e0b' }}>Lineage Boost</div>
+                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
+                              <span>Nodes boosted: <strong>{lbManifest.boosted ?? 0}</strong></span>
+                              <span>Nodes promoted: <strong style={{ color: lbManifest.promoted ? '#22c55e' : 'inherit' }}>{lbManifest.promoted ?? 0}</strong></span>
+                            </div>
+                            {lbManifest.promotedNodeIds && lbManifest.promotedNodeIds.length > 0 && (
+                              <div style={{ marginTop: 2 }}>
+                                <span style={{ color: 'var(--text-muted)' }}>Promoted: </span>
+                                {lbManifest.promotedNodeIds.map(id => (
+                                  <span key={id} style={{
+                                    display: 'inline-block', padding: '1px 5px', borderRadius: 3, marginRight: 4, marginBottom: 2,
+                                    background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontSize: '0.65rem', fontWeight: 600,
+                                  }}>{id}</span>
+                                ))}
+                              </div>
+                            )}
+                            {lbManifest.boostedNodeIds && lbManifest.boostedNodeIds.length > 0 && (
+                              <details style={{ marginTop: 4 }}>
+                                <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.65rem' }}>All boosted node IDs ({lbManifest.boostedNodeIds.length})</summary>
+                                <div style={{ marginTop: 2, lineHeight: 1.8 }}>
+                                  {lbManifest.boostedNodeIds.map(id => (
+                                    <span key={id} style={{
+                                      display: 'inline-block', padding: '1px 5px', borderRadius: 3, marginRight: 4, marginBottom: 2,
+                                      background: 'rgba(249,115,22,0.1)', color: '#f97316', fontSize: '0.6rem',
+                                    }}>{id}</span>
+                                  ))}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        )}
+                        {taxContext ? (
+                          <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0, flex: 1 }}><Highlight text={taxContext} /></pre>
+                        ) : (
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No taxonomy context captured for this entry.</div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {activeTab === 'response' && (
                     response ? (
                       <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={response} /></pre>
