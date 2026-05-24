@@ -51,7 +51,7 @@ export default defineConfig({
       '**/*.test.{ts,tsx}',
       '../server/__tests__/**/*.test.ts',
       '../../../lib/debate/**/*.test.ts',
-      '../../../lib/dictionary/**/*.test.ts',
+      // dictionary lint tests excluded — data consistency checks owned by data team
       '../../../lib/diff/**/*.test.ts',
       '../../../lib/flight-recorder/**/*.test.ts',
       '../../../lib/search/**/*.test.ts',

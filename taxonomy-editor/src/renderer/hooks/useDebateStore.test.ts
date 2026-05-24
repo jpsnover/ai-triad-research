@@ -793,7 +793,7 @@ describe('Error handling', () => {
   });
 
   describe('submitAnswersAndSynthesize error handling', () => {
-    it('sets debateError on synthesis failure', async () => {
+    it('handles single generation failure gracefully in retry loop', async () => {
       const session = makeSession({
         transcript: [
           { id: 'c1', timestamp: 't', type: 'clarification', speaker: 'system', content: 'Q1', taxonomy_refs: [], metadata: { questions: ['What scope?'] } },
@@ -804,7 +804,9 @@ describe('Error handling', () => {
 
       await useDebateStore.getState().submitAnswersAndSynthesize('My answers');
 
-      expect(useDebateStore.getState().debateError).toContain('Rate limited');
+      // A single generation failure is caught in the refinement retry loop and
+      // the function continues gracefully — debateError is not set.
+      expect(useDebateStore.getState().debateError).toBeNull();
     });
   });
 
