@@ -96,22 +96,20 @@ jobs:
           mkdir -p "$SNAP"
 
           REPO="jpsnover/ai-triad-data"
+          RAW="https://raw.githubusercontent.com/${REPO}/main"
           FAILED=0
           for f in accelerationist.json safetyist.json skeptic.json situations.json edges.json policy_actions.json embeddings.json lineage_categories.json aggregated-cruxes.json; do
-            gh api "repos/${REPO}/contents/taxonomy/Origin/${f}" \
-              --jq '.content' | base64 -d > "${SNAP}/${f}" 2>/dev/null \
+            curl -sfL "${RAW}/taxonomy/Origin/${f}" -o "${SNAP}/${f}" \
               || { echo "::warning::Failed to fetch ${f}"; FAILED=$((FAILED+1)); }
           done
 
           # Fetch conflict index (single file replaces 1,244 individual files)
           mkdir -p taxonomy-snapshot/conflicts
-          gh api "repos/${REPO}/contents/conflicts/_conflict-index.json" \
-            --jq '.content' | base64 -d > taxonomy-snapshot/conflicts/_conflict-index.json 2>/dev/null \
+          curl -sfL "${RAW}/conflicts/_conflict-index.json" -o taxonomy-snapshot/conflicts/_conflict-index.json \
             || echo "::warning::Conflict index not available yet"
 
           # Fetch conflict clusters
-          gh api "repos/${REPO}/contents/conflicts/_conflict-clusters.json" \
-            --jq '.content' | base64 -d > taxonomy-snapshot/conflicts/_conflict-clusters.json 2>/dev/null \
+          curl -sfL "${RAW}/conflicts/_conflict-clusters.json" -o taxonomy-snapshot/conflicts/_conflict-clusters.json \
             || echo "::warning::Conflict clusters not available yet"
 
           # Stamp snapshot age for read-only mode banner
