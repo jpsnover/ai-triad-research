@@ -5371,19 +5371,32 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }>;
         }>(text);
 
-        const edits: ReflectionEdit[] = (parsed?.edits ?? []).map(e => ({
-          edit_type: (e.edit_type || 'revise') as ReflectionEdit['edit_type'],
-          node_id: e.node_id,
-          category: (e.category || 'Beliefs') as ReflectionEdit['category'],
-          current_label: e.current_label,
-          proposed_label: e.proposed_label || '',
-          current_description: e.current_description,
-          proposed_description: e.proposed_description || '',
-          rationale: e.rationale || '',
-          confidence: (['high', 'medium', 'low'].includes(e.confidence || '') ? e.confidence : 'medium') as ReflectionEdit['confidence'],
-          evidence_entries: Array.isArray(e.evidence_entries) ? e.evidence_entries : [],
-          status: 'pending' as const,
-        }));
+        const taxState = useTaxonomyStore.getState();
+        const edits: ReflectionEdit[] = (parsed?.edits ?? []).map(e => {
+          // Ground-truth: override AI-provided current_label/current_description
+          // with actual taxonomy values to prevent hallucinated labels.
+          let currentLabel = e.current_label;
+          let currentDescription = e.current_description;
+          if (e.node_id) {
+            const realLabel = taxState.getLabelForId(e.node_id);
+            const realDesc = taxState.getDescriptionForId(e.node_id);
+            if (realLabel && realLabel !== e.node_id) currentLabel = realLabel;
+            if (realDesc) currentDescription = realDesc;
+          }
+          return {
+            edit_type: (e.edit_type || 'revise') as ReflectionEdit['edit_type'],
+            node_id: e.node_id,
+            category: (e.category || 'Beliefs') as ReflectionEdit['category'],
+            current_label: currentLabel,
+            proposed_label: e.proposed_label || '',
+            current_description: currentDescription,
+            proposed_description: e.proposed_description || '',
+            rationale: e.rationale || '',
+            confidence: (['high', 'medium', 'low'].includes(e.confidence || '') ? e.confidence : 'medium') as ReflectionEdit['confidence'],
+            evidence_entries: Array.isArray(e.evidence_entries) ? e.evidence_entries : [],
+            status: 'pending' as const,
+          };
+        });
 
         // DOLCE compliance retry — fix non-compliant descriptions up to 3 times
         for (let ei = 0; ei < edits.length; ei++) {
