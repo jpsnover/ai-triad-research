@@ -809,13 +809,18 @@ export function clarificationPrompt(
   topic: string,
   debateSourceContent?: string,
   audience?: DebateAudience,
+  lineageContext?: string,
 ): string {
+  const lineageBlock = lineageContext
+    ? `\n\n=== INTELLECTUAL TRADITIONS IN PLAY ===\nThis topic intersects the following intellectual traditions (ranked by relevance across the taxonomy):\n${lineageContext}\nConsider how these traditions frame the core tensions differently.\n`
+    : '';
+
   return `You are a neutral debate facilitator preparing a multi-perspective debate on AI policy.
 ${getReadingLevel(audience)}
 
 A user wants to debate the following topic:
 
-"${topic}"${sourceContext(debateSourceContent)}
+"${topic}"${sourceContext(debateSourceContent)}${lineageBlock}
 
 Generate 1 to 3 concise clarifying questions that would help sharpen the debate. Your questions should:
 - Help narrow the scope so the debate stays focused
@@ -838,9 +843,14 @@ export function concludingPrompt(
   qaPairs: string,
   audience?: DebateAudience,
   critiqueContext?: string,
+  lineageContext?: string,
 ): string {
   const critiqueBlock = critiqueContext
     ? `\n\n=== QUALITY ANALYSIS ===\n${critiqueContext}\n\nYour refined topic MUST address the issues listed above. Specifically:\n- If perspectives are imbalanced, add language that gives underrepresented viewpoints a clear entry point.\n- If BDI coverage is narrow, broaden to engage missing layers (add "is it true..." for Beliefs, "what should we prioritize..." for Desires, "how should we implement..." for Intentions).\n- If frame dimensions score below 2, apply the suggested improvements.\n- Prefer conditional framing ("under what conditions...") over binary framing ("should we...").\n- Name specific mechanisms, stakeholders, or policy artifacts rather than abstract categories.\n`
+    : '';
+
+  const lineageBlock = lineageContext
+    ? `\n=== INTELLECTUAL TRADITIONS IN PLAY ===\nThis topic sits at the intersection of these intellectual traditions:\n${lineageContext}\nThe refined topic should acknowledge these framing traditions where relevant — e.g., "from a ${'{tradition}'} perspective..." or by naming the specific tension between traditions.\n`
     : '';
 
   return `A debate moderator proposed this topic:
@@ -849,7 +859,7 @@ export function concludingPrompt(
 
 Several debaters asked clarifying questions and the moderator answered:
 ${qaPairs}
-${critiqueBlock}
+${critiqueBlock}${lineageBlock}
 Synthesize the original topic and the answers into a clear, specific debate topic statement.
 One to three sentences. Incorporate the key constraints and scope clarifications from the answers.
 The refined topic should be specific enough to produce falsifiable claims but broad enough to sustain 6-10 rounds of multi-perspective debate.
@@ -2592,10 +2602,15 @@ export function documentClarificationPrompt(
   topic: string,
   sourceContent: string,
   audience?: DebateAudience,
+  lineageContext?: string,
 ): string {
   const content = sourceContent.length > 50000
     ? sourceContent.slice(0, 50000) + truncationNotice(sourceContent, 50000)
     : sourceContent;
+
+  const lineageBlock = lineageContext
+    ? `\n=== INTELLECTUAL TRADITIONS IN PLAY ===\nThis topic intersects the following intellectual traditions (ranked by relevance across the taxonomy):\n${lineageContext}\nConsider how these traditions frame the document's claims differently.\n`
+    : '';
 
   return `You are a neutral debate facilitator preparing a multi-perspective debate grounded in a specific document.
 ${getReadingLevel(audience)}
@@ -2606,7 +2621,7 @@ The user wants to debate:
 
 === SOURCE DOCUMENT ===
 ${content}
-=== END SOURCE DOCUMENT ===
+=== END SOURCE DOCUMENT ===${lineageBlock}
 
 Before the debate begins, you need to help the user focus. Generate 1 to 3 clarifying questions that:
 - Identify the document's 2-3 most debatable claims — the ones where the three AI policy perspectives (accelerationist, safetyist, skeptic) would disagree most sharply
@@ -2630,7 +2645,12 @@ export function situationClarificationPrompt(
   topic: string,
   ccContext: string,
   audience?: DebateAudience,
+  lineageContext?: string,
 ): string {
+  const lineageBlock = lineageContext
+    ? `\n=== INTELLECTUAL TRADITIONS IN PLAY ===\nThis topic intersects the following intellectual traditions (ranked by relevance across the taxonomy):\n${lineageContext}\nConsider how these traditions shape each perspective's interpretation.\n`
+    : '';
+
   return `You are a neutral debate facilitator preparing a structured debate grounded in a situation from an AI policy taxonomy.
 ${getReadingLevel(audience)}
 
@@ -2638,7 +2658,7 @@ The user wants to debate this topic:
 
 "${topic}"
 
-${ccContext}
+${ccContext}${lineageBlock}
 
 The three POV interpretations above show where the perspectives already diverge. Generate 1 to 3 clarifying questions that would help focus the debate. Your questions should:
 - Identify which specific dimension of this concern the user most wants to explore (e.g., the timeline question vs. the policy response vs. the epistemic disagreement)

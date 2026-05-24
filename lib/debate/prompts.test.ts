@@ -136,6 +136,17 @@ describe('clarificationPrompt', () => {
     expectNonEmpty(result);
     expectContains(result, '""');
   });
+
+  it('includes lineage context when provided', () => {
+    const lineage = '  - Rawlsian Justice (45%)\n  - Chicago School Economics (30%)';
+    const result = clarificationPrompt(TOPIC, undefined, undefined, lineage);
+    expectContains(result, 'INTELLECTUAL TRADITIONS IN PLAY', 'Rawlsian Justice', 'Chicago School Economics');
+  });
+
+  it('omits lineage block when lineageContext is undefined', () => {
+    const result = clarificationPrompt(TOPIC);
+    expect(result).not.toContain('INTELLECTUAL TRADITIONS IN PLAY');
+  });
 });
 
 describe('concludingPrompt', () => {
@@ -148,6 +159,12 @@ describe('concludingPrompt', () => {
   it('handles empty Q&A pairs', () => {
     const result = concludingPrompt(TOPIC, '');
     expectNonEmpty(result);
+  });
+
+  it('includes lineage context when provided', () => {
+    const lineage = '  - Utilitarian Ethics (55%)';
+    const result = concludingPrompt(TOPIC, 'Q: x? A: y', undefined, undefined, lineage);
+    expectContains(result, 'INTELLECTUAL TRADITIONS IN PLAY', 'Utilitarian Ethics');
   });
 });
 

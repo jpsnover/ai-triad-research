@@ -1515,19 +1515,66 @@ export class DebateEngine {
     }
   }
 
+  // ── Lineage context for topic framing ────────────────────
+
+  private buildLineageContext(): string | undefined {
+    // Prefer pre-computed lineage frame from topic critique (free-form debates)
+    const lineageFrame = this.session.topic.critique?.lineage_frame;
+    if (lineageFrame && lineageFrame.length > 0) {
+      return formatLineageContext(lineageFrame);
+    }
+
+    // Fallback: compute from all taxonomy nodes (document/situation debates)
+    const lc = this.taxonomy.lineageCategories;
+    if (!lc) return undefined;
+
+    const allNodeIds: string[] = [];
+    const lineageByNode: Record<string, string[]> = {};
+    for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+      for (const node of this.taxonomy[pov]?.nodes ?? []) {
+        allNodeIds.push(node.id);
+        const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
+        const lineage = ga?.intellectual_lineage;
+        if (lineage && lineage.length > 0) {
+          lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
+        }
+      }
+    }
+
+    const nameToCluster: Record<string, string> = {};
+    for (const [name, val] of Object.entries(lc.mapping)) {
+      nameToCluster[name] = val.l2;
+    }
+    const clusterLabels: Record<string, string> = {};
+    for (const cat of lc.level2_categories) {
+      clusterLabels[cat.id] = cat.label;
+    }
+
+    const frame = computeLineageDistribution({
+      activatedNodeIds: allNodeIds,
+      lineageByNode,
+      nameToCluster,
+      clusterLabels,
+    });
+    if (frame.length === 0) return undefined;
+    return formatLineageContext(frame);
+  }
+
   // ── Phase: Clarification ───────────────────────────────────
 
   private async runClarification(): Promise<void> {
     this.progress('clarification', undefined, 'Generating clarifying questions');
     this.session.phase = 'clarification';
 
+    const lineageCtx = this.buildLineageContext();
+
     let prompt: string;
     if (this.config.sourceType === 'document' || this.config.sourceType === 'url') {
-      prompt = documentClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience);
+      prompt = documentClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience, lineageCtx);
     } else if (this.config.sourceType === 'situations') {
-      prompt = situationClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience);
+      prompt = situationClarificationPrompt(this.config.topic, this.config.sourceContent ?? '', this.config.audience, lineageCtx);
     } else {
-      prompt = clarificationPrompt(this.config.topic, this.config.sourceContent, this.config.audience);
+      prompt = clarificationPrompt(this.config.topic, this.config.sourceContent, this.config.audience, lineageCtx);
     }
 
     const text = await this.generate(prompt, 'Clarification questions', 30_000);
@@ -1560,7 +1607,7 @@ export class DebateEngine {
     // Auto-generate answers and synthesize refined topic
     this.progress('clarification', undefined, 'Synthesizing refined topic');
     const qaPairs = questionTexts.map(q => `Q: ${q}\nA: [Automated: The debate should explore this from all three perspectives.]`).join('\n\n');
-    const concludingPromptText = concludingPrompt(this.config.topic, qaPairs, this.config.audience);
+    const concludingPromptText = concludingPrompt(this.config.topic, qaPairs, this.config.audience, undefined, lineageCtx);
     const synthText = await this.generate(concludingPromptText, 'Topic synthesis', 60_000);
 
     try {
