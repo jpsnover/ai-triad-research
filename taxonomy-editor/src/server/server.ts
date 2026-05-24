@@ -1,6 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+// Azure Application Insights — must be initialized before other imports
+// so OpenTelemetry can auto-instrument HTTP, exceptions, and dependencies.
+import { useAzureMonitor } from '@azure/monitor-opentelemetry';
+if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
+  useAzureMonitor({ azureMonitorExporterOptions: { connectionString: process.env.APPLICATIONINSIGHTS_CONNECTION_STRING } });
+}
+
 /**
  * Web server for the Taxonomy Editor.
  * Serves the React SPA and provides REST + WebSocket APIs that mirror
