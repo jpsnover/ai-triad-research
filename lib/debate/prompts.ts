@@ -946,13 +946,13 @@ ${isFirst ? 'You are delivering the first opening statement.' : `You have read t
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
 ${buildRecapSection(taxonomyContext)}
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
@@ -1014,13 +1014,13 @@ ${question}
 ${documentBlock}
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
 ${buildRecapSection(taxonomyContext)}
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. Format: "<core concept> is like a <plain-word description of symbol>, it <explains the analogy>" — make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<core concept> is like a <word describing the symbol>, it <explain the analogy in one sentence>"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
@@ -1540,14 +1540,14 @@ HARD CONSTRAINTS:
 - NODE-IDs: Never surface taxonomy node IDs in statement text. Use plain language.
 - ASSUMPTIONS: State 1-2 key assumptions your position depends on, with what changes if wrong.
 - CLAIMS: Extract 3-6 near-verbatim claims from your statement (headline + sub-claims).
-- SYMBOLS: 1-3 emoji. Tooltip format: "X is like a Y; it Z." No emoji in tooltip text.
+- SYMBOLS: 1-3 emoji. Tooltip format: "[debate idea] is like a [what emoji depicts]; it [analogy]." Debate concept comes FIRST, symbol referent SECOND. No emoji in tooltip text.
 
 ${getStyleReinforcement(input.audience)}
 
 {
   "statement": "your opening statement (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "X is like a Y; it Z"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>; it <analogy>"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim headline assertion from your statement", "targets": []},
@@ -1939,7 +1939,7 @@ OUTPUT CONSTRAINTS:
 - NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
 - CLAIM SPECIFICITY: At least one claim in your statement MUST include a concrete number, named entity, timeline, or threshold (e.g. "by 2028", "≥20%", "the EU AI Act"). Abstract claims without specifics will be rejected.
 - CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
-- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip format: "<core concept> is like a <plain-word description>, it <explain in one sentence>". No emoji in tooltip text.${input.phase && input.phase !== 'confrontation' && (input.pendingIntervention?.round ?? 0) >= 4 ? `\n- CONSTRUCTIVE MOVE REQUIRED: In this phase you MUST include at least one constructive move (CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY) — pure attack without constructive engagement will be rejected.` : ''}
+- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip: "[debate idea] is like a [what emoji depicts], it [analogy]" — debate concept FIRST, symbol referent SECOND. No emoji in tooltip text.${input.phase && input.phase !== 'confrontation' && (input.pendingIntervention?.round ?? 0) >= 4 ? `\n- CONSTRUCTIVE MOVE REQUIRED: In this phase you MUST include at least one constructive move (CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY) — pure attack without constructive engagement will be rejected.` : ''}
 
 ${getStyleReinforcement(input.audience)}
 
@@ -1947,7 +1947,7 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
 {
   "statement": "your full debate response (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<concept> is like a <word>, it <analogy>"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>, it <analogy>"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
