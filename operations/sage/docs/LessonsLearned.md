@@ -215,3 +215,22 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. When a tool is unavailable, prefer alternative tools already installed (`gh` instead of `az` for GitHub-hosted workflow checks) over blocking.
 
 **Applies To:** All agents running CLI commands, especially DevOps and CI-related work.
+
+---
+
+## [Build] Node.js Cannot Directly Execute TypeScript Source Files
+
+**Pattern:** `node -e` or `node <file>` fails when importing TypeScript `.ts` files or referencing `.js` extensions for files that only exist as `.ts` — there are no compiled `.js` outputs.
+
+**Instances:**
+- 2026-05-23 — Shared Lib: `node -e` with ESM import of `.js` extension failed because the TypeScript source files aren't compiled to `.js`. Vitest handles transpilation internally but raw Node.js doesn't (p/5#5).
+
+**Root Cause:** This project uses vitest for testing, which transpiles TypeScript on the fly. There is no build step that produces `.js` files. Raw `node` commands cannot import `.ts` files or resolve `.js` imports that don't exist on disk.
+
+**Prevention:**
+1. Use `npx tsx <file>` or `npx ts-node <file>` to execute TypeScript files directly.
+2. For debugging, read the source code with the Read tool rather than trying to execute it with `node -e`.
+3. Run tests through vitest (`npm test`), not by invoking node directly on test files.
+4. Do not assume `.js` files exist — check for a build/dist directory first.
+
+**Applies To:** All agents working with TypeScript source in the Electron apps or debate engine.

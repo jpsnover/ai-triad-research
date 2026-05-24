@@ -222,7 +222,7 @@ foreach ($_name in @('DocConverters', 'AIEnrich')) {
 $TaxonomyDir = Get-TaxonomyDir
 if (Test-Path $TaxonomyDir) {
     foreach ($File in Get-ChildItem -Path $TaxonomyDir -Filter '*.json' -File) {
-        if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json') { continue }
+        if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json', '_archived_edges.json', 'lineage_categories.json') { continue }
         if ($File.Length -gt 10MB) {
             Write-Warning "Taxonomy: skipping $($File.Name) — file is $([math]::Round($File.Length / 1MB, 1)) MB (likely corrupted, max 10 MB)."
             continue

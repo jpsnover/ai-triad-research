@@ -16,7 +16,11 @@ export type DebatePhase = 'confrontation' | 'argumentation' | 'concluding' | 'te
  * Retained as the fixed-round fallback when useAdaptiveStaging is false. */
 export function getDebatePhase(round: number, totalRounds: number): DebatePhase {
   if (round <= 2) return 'confrontation';
-  if (round > totalRounds - 2) return 'concluding';
+  // Guarantee at least 6 argumentation statements (2 full rounds of 3 debaters)
+  // before allowing concluding phase, regardless of totalRounds setting.
+  const minArgRounds = 6;
+  const concludingThreshold = Math.max(totalRounds - 2, minArgRounds + 2);
+  if (round > concludingThreshold) return 'concluding';
   return 'argumentation';
 }
 

@@ -62,12 +62,13 @@ export function DebatePopoutWindow() {
     const unsub = api.onDebateWindowLoad((debateId: string) => {
       console.log('[DebatePopout] Received debate-window-load IPC:', debateId);
       setError(null);
-      useDebateStore.getState().loadDebate(debateId).catch(err => {
+      useDebateStore.getState().loadDebate(debateId).then(() => {
+        const title = useDebateStore.getState().activeDebate?.title;
+        document.title = title ? `Debate — ${title}` : `Debate — ${debateId.slice(0, 8)}`;
+      }).catch(err => {
         console.error('[DebatePopout] loadDebate failed:', err);
         setError(`Failed to load debate: ${err}`);
       });
-      // Update window title
-      document.title = `Debate — ${debateId.slice(0, 8)}`;
     });
 
     return unsub;
