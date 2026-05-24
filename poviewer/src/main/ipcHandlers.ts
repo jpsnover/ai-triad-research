@@ -122,7 +122,10 @@ export function registerIpcHandlers(): void {
     return extractPdfText(filePath);
   });
 
-  validatedHandle('open-external-url', z.tuple([z.string().regex(/^https?:\/\//i)]), (_event, url) => {
+  validatedHandle('open-external-url', oneString, (_event, url) => {
+    if (!/^https?:\/\//i.test(url)) {
+      throw new Error(`Blocked non-HTTP URL: ${url}`);
+    }
     shell.openExternal(url);
   });
 
