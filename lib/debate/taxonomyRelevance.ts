@@ -328,7 +328,14 @@ export function scoreNodesViaAN(
   return scores;
 }
 
-// ── Adaptive situation re-scoring (t/23) ────────────────────────────
+// ── Adaptive situation re-scoring (t/23, t/35) ─────────────────────
+
+import {
+  computeCruxRelevance,
+  computeDiversityComponent,
+  computeMidDebateFreshness,
+  type SituationScoreComponents,
+} from './situationScoring.js';
 
 /** Diversity bonus for situations covering all three disagreement types. */
 const DIVERSITY_BONUS = 0.15;
@@ -346,21 +353,34 @@ export interface SituationReScoreInput {
   referencedSitIds: ReadonlySet<string>;
 }
 
+export interface SituationReScoreResult {
+  adjustments: Map<string, number>;
+  /** Per-situation shared scoring components (for diagnostics / reconciliation with pre-debate scoring). */
+  components: Map<string, SituationScoreComponents>;
+}
+
 /**
  * Re-score situation nodes against emerging cruxes at phase transitions.
  *
- * Three adjustment components:
- * 1. Crux alignment: max cosine similarity of the situation's embedding
- *    to any crux-related AN claim embedding (via attacking_claim_ids).
- * 2. Diversity bonus: +0.15 for situations whose disagreement_type is
- *    underrepresented in the current selection (covers all 3 types).
- * 3. Stale penalty: -0.20 for situations that were injected but never
- *    referenced by any debater.
+ * Uses shared scoring components (t/35) with mid-debate-specific computation:
+ * 1. Crux alignment (relevance): max cosine similarity to crux-related AN claims, scaled to [0, 0.25].
+ * 2. Diversity bonus: +0.15 for underrepresented disagreement types.
+ * 3. Stale penalty (freshness): -0.20 for injected but never-referenced situations.
  *
  * Returns a Map of situation node ID → score adjustment to add to base scores.
  */
 export function reScoreSituationsForCruxes(input: SituationReScoreInput): Map<string, number> {
+  const result = reScoreSituationsForCruxesDetailed(input);
+  return result.adjustments;
+}
+
+/**
+ * Detailed variant that also returns per-situation shared scoring components.
+ * Callers that want diagnostics or component-level analysis should use this.
+ */
+export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput): SituationReScoreResult {
   const adjustments = new Map<string, number>();
+  const components = new Map<string, SituationScoreComponents>();
 
   // Build crux-related claim embeddings from AN nodes
   const cruxClaimIds = new Set<string>();
@@ -383,39 +403,33 @@ export function reScoreSituationsForCruxes(input: SituationReScoreInput): Map<st
   for (const sit of input.situationNodes) {
     if (sit.disagreement_type) typePresence.add(sit.disagreement_type);
   }
-  const allTypesPresent = typePresence.size >= 3;
 
   for (const sit of input.situationNodes) {
+    // Compute shared components
+    const sitEmbedding = input.nodeEmbeddings[sit.id]?.vector;
+    const relevance = computeCruxRelevance(sitEmbedding, cruxEmbeddings);
+    const diversity = computeDiversityComponent(sit, typePresence);
+    const freshness = computeMidDebateFreshness(sit.id, input.injectedSitIds, input.referencedSitIds);
+
+    const comp: SituationScoreComponents = {
+      relevance,
+      diversity,
+      freshness,
+      bdi_entropy: 0, // not computed in mid-debate context
+      conflict_openness: 0, // not computed in mid-debate context
+    };
+    components.set(sit.id, comp);
+
+    // Convert to adjustment (preserving original numeric behavior)
     let adjustment = 0;
-
-    // 1. Crux alignment: max cosine similarity to crux-related claims
-    if (cruxEmbeddings.length > 0) {
-      const sitEmbedding = input.nodeEmbeddings[sit.id]?.vector;
-      if (sitEmbedding && sitEmbedding.length > 0) {
-        let maxSim = 0;
-        for (const cruxEmb of cruxEmbeddings) {
-          const sim = cosineSimilarity(sitEmbedding, cruxEmb.vector);
-          if (sim > maxSim) maxSim = sim;
-        }
-        // Scale crux alignment to a meaningful bonus range [0, 0.25]
-        adjustment += maxSim * 0.25;
-      }
-    }
-
-    // 2. Diversity bonus: boost underrepresented disagreement types
-    if (!allTypesPresent && sit.disagreement_type && !typePresence.has(sit.disagreement_type)) {
-      adjustment += DIVERSITY_BONUS;
-    }
-
-    // 3. Stale penalty: injected but never referenced
-    if (input.injectedSitIds.has(sit.id) && !input.referencedSitIds.has(sit.id)) {
-      adjustment += STALE_PENALTY;
-    }
+    adjustment += relevance * 0.25; // crux alignment scaled to [0, 0.25]
+    if (diversity > 0) adjustment += DIVERSITY_BONUS;
+    if (freshness === 0) adjustment += STALE_PENALTY;
 
     if (adjustment !== 0) {
       adjustments.set(sit.id, adjustment);
     }
   }
 
-  return adjustments;
+  return { adjustments, components };
 }
