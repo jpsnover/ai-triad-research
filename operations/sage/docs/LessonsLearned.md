@@ -237,18 +237,40 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## [Data] Push Rejected Due to Stale Local in ai-triad-data
+## [Build] Push Rejected Due to Stale Local (Multi-Agent Contention)
 
-**Pattern:** `git push` to `ai-triad-data` rejected because remote has newer commits, especially on frequently-modified large files like `embeddings.json`.
+**Pattern:** `git push` rejected (non-fast-forward) because remote has newer commits from other agents working in parallel.
 
 **Instances:**
-- 2026-05-24 — Project Manager: push rejected after `embeddings.json` was modified both locally and remotely between commit and push. Resolved with stash/pull --rebase/resolve conflict (take theirs)/push (p/31#1).
+- 2026-05-24 — Project Manager: push to `ai-triad-data` rejected after `embeddings.json` modified both locally and remotely. Resolved with stash/pull --rebase/take theirs/push (p/31#1).
+- 2026-05-24 — Technical Lead: push to code repo main rejected with 3 unpushed CI fixes. Resolved with stash/pull --rebase, merge conflict in `logger.ts` (kept cached `usePretty` approach), rebase --continue/stash pop/push (p/8#11).
 
-**Root Cause:** The data repo (`ai-triad-data`) is shared across multiple agents and workflows. Large generated files like `embeddings.json` are modified frequently, creating a high likelihood of conflicts between commit and push — especially when there's a time gap.
+**Root Cause:** Multiple agents work in parallel on the same branches. The window between local commits and push allows remote to advance, causing non-fast-forward rejections. More agents = more contention.
 
 **Prevention:**
-1. Pull immediately before committing to the data repo: `git pull --rebase` then commit and push without delay.
-2. For large generated files (`embeddings.json`, `policy_actions.json`), prefer "take theirs" conflict resolution unless your changes are the authoritative regeneration.
-3. Minimize the window between commit and push in the data repo — do both in quick succession.
+1. Pull immediately before committing: `git pull --rebase` then commit and push without delay.
+2. For generated data files (`embeddings.json`, `policy_actions.json`), prefer "take theirs" conflict resolution unless your changes are the authoritative regeneration.
+3. For code conflicts, understand the intent of both changes before resolving — don't blindly take either side.
+4. Minimize the commit-to-push window — do both in quick succession.
+5. Standard resolution flow: `git stash && git pull --rebase origin main` → resolve conflicts → `git rebase --continue && git stash pop && git push`.
 
-**Applies To:** All agents committing to `ai-triad-data`, especially those modifying embeddings or other generated data files.
+**Applies To:** All agents pushing to shared branches in either repo.
+
+---
+
+## [Type System] Zod v4 Inline Schemas Can Cause TypeScript OOM
+
+**Pattern:** Zod v4's inline composed schemas (e.g., `z.tuple([z.string().regex(...)])`) trigger TS2589 (infinite type recursion), causing `tsc --noEmit` to exhaust the heap (4GB+) before it can even report the error.
+
+**Instances:**
+- 2026-05-24 — Taxonomy Editor: poviewer `tsc --noEmit` OOM at `ipcHandlers.ts:125` due to `z.tuple([z.string().regex(...)])` inline schema. Fixed by extracting to a pre-defined `oneString` schema with runtime regex check. Commit 588ca0a (p/6#3).
+
+**Root Cause:** Zod v4's TypeScript type inference for composed schemas (tuple + regex) creates deeply recursive conditional types. When inlined, the TypeScript compiler attempts to resolve the full type tree and enters infinite recursion, consuming all available memory before producing a diagnostic.
+
+**Prevention:**
+1. Pre-define complex Zod schemas as named constants rather than inlining them in function signatures or handlers.
+2. Separate validation concerns: use simple Zod types (`z.string()`) for shape validation, then apply regex/format checks at runtime.
+3. If `tsc` hangs or OOMs with no error output, suspect recursive type inference — bisect by commenting out Zod schemas to isolate the culprit.
+4. Monitor `tsc --noEmit` memory usage in CI; an unexplained spike is likely a type recursion issue.
+
+**Applies To:** All agents working with Zod v4 schemas in the Electron apps (taxonomy-editor, poviewer, summary-viewer).
