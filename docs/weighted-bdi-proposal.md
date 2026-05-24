@@ -82,17 +82,83 @@ Rate your confidence in this claim on a 0.0-1.0 scale:
 - Below 0.3: Speculative or actively contested by significant evidence
 ```
 
+### Per-Claim Taxonomy Attribution (prerequisite for confidence evolution)
+
+The confidence evolution mechanism below requires knowing which specific taxonomy Belief a given AN claim instantiates. Currently, AN claims inherit `taxonomy_refs` from their parent transcript entry — every claim extracted from a statement gets the **same** set of taxonomy refs, even though individual claims may only relate to one of them. This makes it impossible to attribute a QBAF outcome (attack, defeat, survival) to a specific taxonomy Belief.
+
+**Solution: post-extraction embedding-based attribution.**
+
+After claims are extracted and embedded (all-MiniLM-L6-v2, 384-dim — already computed), compute cosine similarity between each claim's embedding and the embeddings of the parent statement's taxonomy refs. Assign each claim its best-matching taxonomy node(s):
+
+```typescript
+interface ClaimTaxonomyAttribution {
+  /** The taxonomy node ID this claim most closely instantiates. */
+  primary_ref: string;
+  /** Cosine similarity between claim embedding and node embedding. */
+  attribution_confidence: number;
+  /** Secondary refs above a minimum threshold (0.40). */
+  secondary_refs?: { node_id: string; similarity: number }[];
+}
+```
+
+**Process:**
+
+1. For each AN claim, retrieve its 384-dim embedding (already computed at extraction).
+2. For each taxonomy ref on the parent statement, retrieve its embedding from `embeddings.json`.
+3. Compute cosine similarity between the claim and each ref.
+4. Assign `primary_ref` = highest-similarity ref. Record `attribution_confidence` = that similarity score.
+5. Any additional refs with similarity > 0.40 become `secondary_refs`.
+6. If no ref exceeds 0.35 similarity, the claim is **unattributed** — it may represent a novel argument not grounded in any injected taxonomy node.
+
+**Why embedding-based, not prompt-based:** The embeddings already exist on both sides (claim embeddings for AN-based relevance scoring, node embeddings for taxonomy matching). The computation is a dot product — sub-millisecond per claim. No additional LLM call, no prompt complexity increase, no extraction latency.
+
+**Storage:** Add `claim_taxonomy_attribution: ClaimTaxonomyAttribution` to `ArgumentNetworkNode`. This is a new optional field — absent in pre-attribution debates, populated going forward.
+
 ### Evolution Through Debates
 
 This is where the system gets powerful. Confidence and priority should **change based on debate outcomes**.
 
-**Confidence updates:**
-- After a debate where a Belief is successfully attacked (AN claim with `computed_strength < 0.3` after QBAF propagation), reduce confidence by 0.05-0.10
-- After a debate where a Belief survives attack (AN claim maintains `computed_strength > 0.7` despite attacks), increase confidence by 0.05
-- After a debate where a Belief is cited as evidence by the *opposing* camp (cross-POV validation), increase confidence by 0.10
-- When a source document directly contradicts a Belief with empirical data, reduce confidence by 0.15
+**Confidence updates (refined — AN-to-taxonomy attribution required):**
+
+An AN claim being attacked is not the same as its parent taxonomy Belief being attacked. The update should only fire when the attack targets the Belief's *substance*, not its *expression*. Three conditions must hold:
+
+1. The AN claim must have `attribution_confidence > 0.60` for the target Belief — the claim genuinely instantiates this Belief, not a loose association.
+2. The attack must be an `undermine` type (attacks the premise/evidence) rather than a `rebut` (attacks the conclusion) or `undercut` (attacks the inference) — undermines target the Belief's evidential foundation, which is what confidence measures.
+3. The attack claim itself must have QBAF `computed_strength > 0.5` — a weak attack shouldn't reduce confidence even if the defender failed to respond.
+
+When all three conditions hold:
+- AN claim with `attribution_confidence > 0.60` to Belief X, **undermined** by attack with `computed_strength > 0.5`, and AN claim's strength drops below 0.3 → reduce Belief X's confidence by 0.05-0.10
+- AN claim with `attribution_confidence > 0.60` to Belief X survives attack (maintains `computed_strength > 0.7` despite attacks) → increase confidence by 0.05
+- AN claim attributed to Belief X is cited as evidence by the *opposing* camp (cross-POV validation) → increase confidence by 0.10
+- When a source document directly contradicts a Belief with empirical data → reduce confidence by 0.15 (this path doesn't require AN attribution — it's document-level)
 
 The update formula should be conservative — Bayesian updating with a strong prior. Single debates shouldn't flip a node from 0.8 to 0.3. But accumulated evidence across many debates should gradually shift confidence toward the empirical reality.
+
+**Cross-debate deduplication (critical for multi-model workflows):**
+
+Researchers often run the same debate topic multiple times with different AI models. Without deduplication, the same Belief gets attacked by structurally identical arguments from each model, compounding confidence reductions for what is essentially one piece of evidence. Three models making the same attack is confirmation of robustness, not three independent reasons to reduce confidence.
+
+Three safeguards:
+
+1. **Topic-based deduplication.** Before applying a confidence update from debate N, check whether a prior debate on a sufficiently similar topic (cosine similarity > 0.80 on the topic embedding) already updated this same Belief node. If so, take the max magnitude of the two updates, don't sum them. The `confidence_history` entry should record `supersedes: "debate-id"` when a prior update is replaced.
+
+2. **Attack-vector deduplication.** Each confidence update records the AN claim text that drove the strength change. Before applying an update, compute cosine similarity between the new attack claim and all prior attack claims on this Belief. If similarity > 0.85, the attacks represent the same argument — the new update replaces the prior one (if stronger) or is discarded (if weaker). Only genuinely novel attack vectors (similarity < 0.85 to all prior attacks) warrant additional confidence reduction.
+
+3. **Cross-model robustness scoring.** When the same Belief is attacked successfully across multiple models on similar topics, record this as a `robustness` field on the confidence history entry rather than as additional reductions:
+   ```jsonc
+   {
+     "date": "2026-05-24",
+     "value": 0.42,
+     "delta": -0.08,
+     "reason": "Debate deb-xyz: claim attacked below 0.3 (QBAF strength 0.22)",
+     "attack_claim": "Recursive self-improvement requires capability gains that scaling laws do not predict",
+     "robustness": 3,  // Confirmed by 3 different models
+     "model_confirmations": ["gemini-2.0-flash", "claude-sonnet-4-20250514", "llama-3.3-70b"]
+   }
+   ```
+   A robustness score of 3+ means the attack is model-independent — strong evidence. But confidence is reduced once, not three times.
+
+The deduplication key is: `(Belief node ID, topic embedding cluster, attack vector embedding cluster)`. Same key = same evidence, regardless of how many models or debate runs produced it.
 
 **Priority updates:**
 - After a reflection where a debater concedes a Desire is less important than they thought, reduce priority by 1
@@ -174,6 +240,54 @@ Treating a 0.41-confidence claim as settled fact is a weakness.
 Honestly hedging a low-confidence claim is a strength.
 ```
 
+### Debate Engine — Doctrinal Boundary Integration with Belief Confidence
+
+Each debater has **doctrinal boundaries** — non-negotiable positions defined in `POVER_INFO.doctrinal_boundaries` and injected into every debate prompt as "positions you must NEVER adopt." These are the system's existing "must not concede" items:
+
+- **Prometheus:** REJECT precautionary principle as default, capability limitations as permanent, regulatory capture framing of all governance, AI progress as inherently zero-sum
+- **Sentinel:** REJECT dismissing existential risk as speculative, speed-over-safety framing, market self-regulation as sufficient, competitive pressure justifying unverified deployment
+- **Cassandra:** REJECT binary framing (existential vs trivial), techno-determinism, insider expertise as sole legitimate view, future hypotheticals overriding present documented harms
+
+These doctrinal boundaries should **anchor Belief confidence scoring**. Specifically:
+
+**Beliefs that are cosine-similar to a debater's doctrinal boundaries should receive the highest confidence priority.** A Belief that directly supports or instantiates a doctrinal boundary is, by definition, one the debater considers foundational — it should be treated as high-confidence regardless of its empirical grounding score, because it represents a load-bearing commitment that the debater will defend maximally.
+
+**Implementation:**
+
+1. **Embed the doctrinal boundary strings** for each POV using the same all-MiniLM-L6-v2 model used for taxonomy embeddings. Each POV has 4 boundaries, producing 4 x 384-dim vectors per debater.
+
+2. **For each Belief node**, compute cosine similarity against the POV's boundary embeddings. If any boundary similarity exceeds a threshold (e.g., 0.55), the node is **doctrinally anchored**.
+
+3. **Doctrinally anchored Beliefs get a confidence floor.** Even if the evidential grounding classifier rates them as "asserted" (0.20), a doctrinally anchored Belief should not score below 0.60. The debater will fight hardest for these claims — treating them as weak in QBAF propagation misrepresents their actual strategic importance.
+
+4. **Doctrinally anchored Beliefs get injection priority.** In the weighted taxonomy context injection, these nodes should appear in the primary tier alongside high-relevance nodes, even if their topic-relevance score is moderate. The debater needs to see its doctrinal foundations to defend them.
+
+5. **The lookahead gate should treat attacks on doctrinally anchored Beliefs as high-value.** When computing `attack_effectiveness`, weakening an opponent's doctrinally anchored node should count more than weakening a peripheral node. Similarly, when evaluating a speaker's own turn, claims that defend doctrinally anchored Beliefs should receive a utility bonus.
+
+**Connection to the concession exemption (t/58):** The lookahead gate already exempts concession claims from the utility delta to avoid penalizing intellectual honesty. Doctrinally anchored Beliefs represent the flip side — these are claims where concession is *not* honest updating but *structural capitulation*. The anti-sycophancy guard should weight doctrinal boundary violations higher than generic position drift.
+
+**Example:**
+
+Sentinel's doctrinal boundary: "REJECT: Dismissing existential risk as speculative"
+
+Taxonomy node `saf-beliefs-012`: "Current alignment techniques are insufficient for systems exhibiting emergent goal-directed behavior" — cosine similarity to the boundary embedding: 0.68.
+
+This node is doctrinally anchored. Even if it scores "reasoned" (0.50) on evidential grounding, its effective confidence floor is 0.60. It appears in primary-tier context injection. If Sentinel concedes this Belief without explicit, well-reasoned justification, the sycophancy guard treats it as a doctrinal violation, not a legitimate update.
+
+**Data flow:**
+
+```
+POVER_INFO.doctrinal_boundaries (4 strings per POV)
+  → embed once at debate setup (4 x 384-dim vectors)
+  → for each Belief node: max cosine sim against boundary embeddings
+  → if sim > 0.55: set doctrinally_anchored = true, confidence_floor = 0.60
+  → inject into relevance scoring as a boost (same pattern as lineage boost)
+  → inject into lookahead gate as attack-value multiplier
+  → inject into sycophancy guard as violation severity weight
+```
+
+This connects the existing "must not concede" infrastructure (prompt-level instruction) to the weighted BDI system (data-level scoring), closing the gap between what the debater is *told* to defend and what the system *scores* as defensible.
+
 ### Debate Engine — Concession Logic
 
 Currently, concessions are driven by moderator prompts and move selection. With priority:
@@ -181,6 +295,7 @@ Currently, concessions are driven by moderator prompts and move selection. With 
 - Debaters should concede low-priority Desires more readily than high-priority ones
 - The moderator can reference priority when forcing engagement: "Sentinel, this is your priority-5 value — defend it specifically, not generically."
 - Concession of a priority-5 Desire is a major event — it should be flagged prominently in the transcript
+- **Concession of a doctrinally anchored Belief should trigger a doctrinal violation warning** — the debater has crossed a line it was explicitly told not to cross. This is distinct from a low-priority concession (acceptable) or even a high-priority concession (significant but legitimate). A doctrinal boundary violation suggests the prompt constraints failed, not that the debater genuinely updated.
 
 ### Edge Discovery
 
@@ -247,6 +362,54 @@ tactical concession.
 - When a debater cites a low-confidence Belief, the transcript could show a subtle indicator
 - The Caveats panel already exists — low-confidence claims would appear there automatically
 
+### Diagnostics Window — Per-Claim Taxonomy Attribution Display
+
+Every AN claim in the diagnostics view should show its taxonomy attribution, making it immediately visible which taxonomy node a claim instantiates and how confident that mapping is.
+
+**Claims tab (per-turn entry diagnostics):**
+
+Update the existing AN claim display (currently shows: ID, speaker, BDI category, grounding adjective, strength) to include:
+
+```
+AN-8  Safetyist Asserted Belief  Very Weak 0.10  [unaddressed]
+      → saf-beliefs-012 (0.72)  "Insufficient alignment techniques for emergent goal-directed behavior"
+```
+
+The second line shows:
+- `primary_ref` node ID (e.g., `saf-beliefs-012`)
+- `attribution_confidence` in parentheses (e.g., `0.72`)
+- The taxonomy node's label (truncated to ~70 chars)
+
+**Color coding for attribution confidence:**
+- Green (>= 0.60): strong attribution — high confidence this claim instantiates this Belief
+- Amber (0.40 - 0.59): moderate — plausible but the claim may be paraphrasing loosely
+- Red (< 0.40): weak — the claim may not genuinely instantiate any injected taxonomy node
+- Gray: unattributed — no taxonomy ref exceeded the 0.35 minimum threshold
+
+**Argument network overview tab:**
+
+In the full argument network graph view, each node's tooltip or detail panel should show:
+- Primary taxonomy attribution (node ID + label + confidence)
+- Whether the node is doctrinally anchored (for Belief claims)
+- The grounding classification (Grounded/Reasoned/Asserted)
+
+**Filtering:**
+
+Add a filter control to the claims and argument network views:
+- "Show only claims attributed to [taxonomy node ID]" — useful for tracing how a specific Belief is represented across the debate
+- "Show only unattributed claims" — identifies novel arguments not grounded in the injected taxonomy
+- "Show only doctrinally anchored claims" — highlights the debate's load-bearing commitments
+
+**Confidence evolution trace:**
+
+When confidence updates are implemented (Phase 3), the diagnostics should show:
+- Which AN claims triggered a confidence update on which taxonomy Belief
+- The attack type (undermine/rebut/undercut) and attack strength
+- Whether the update was deduplicated against a prior debate
+- The before/after confidence values
+
+This creates end-to-end traceability: taxonomy Belief → injected into context → instantiated as AN claim → attacked/defended → confidence updated → fed back to taxonomy.
+
 ## Implementation Phases
 
 ### Phase 1: Schema + Initial Assignment
@@ -254,11 +417,13 @@ tactical concession.
 - Add `confidence_history` and `priority_history` arrays
 - Run initial assignment script using existing `graph_attributes`
 - Display in Node Detail panel
+- **Add per-claim taxonomy attribution** (`claim_taxonomy_attribution` on ArgumentNetworkNode) via post-extraction embedding similarity
 
 ### Phase 2: Debate Engine Integration
 - Weighted taxonomy context injection
 - Judge awareness of confidence levels
 - Priority-aware concession logic
+- **Display per-claim attribution in diagnostics** (claims tab, AN overview, filtering)
 
 ### Phase 3: Automated Evolution
 - Post-debate confidence updates from QBAF outcomes
