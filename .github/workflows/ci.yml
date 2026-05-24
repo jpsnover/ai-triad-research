@@ -67,6 +67,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          fetch-depth: 1
+
+      - name: Symlink data repo to expected location
+        run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
+        continue-on-error: true
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
