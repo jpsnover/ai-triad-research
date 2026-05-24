@@ -77,6 +77,10 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: npm ci
 
+      - name: Install shared lib dependencies
+        working-directory: lib
+        run: npm ci
+
       - name: Audit dependencies
         working-directory: ${{ matrix.app }}
         run: npm audit --audit-level=high
