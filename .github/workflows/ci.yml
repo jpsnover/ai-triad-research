@@ -20,10 +20,10 @@ jobs:
   test-powershell:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Checkout data repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         continue-on-error: true
         with:
           repository: jpsnover/ai-triad-data
@@ -65,10 +65,10 @@ jobs:
       matrix:
         app: [taxonomy-editor, poviewer, summary-viewer, workflow-app]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Checkout data repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         continue-on-error: true
         with:
           repository: jpsnover/ai-triad-data
@@ -123,7 +123,7 @@ jobs:
     needs: [test-powershell, test-electron]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Lint Dockerfiles
         uses: hadolint/hadolint-action@v3.1.0

@@ -24,12 +24,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 2    # Need parent commit to diff taxonomy changes
 
       - name: Checkout sources repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: jpsnover/ai-triad-sources
           path: ai-triad-sources
