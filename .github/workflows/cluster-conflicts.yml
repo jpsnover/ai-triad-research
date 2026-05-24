@@ -1,3 +1,11 @@
+# ─── Cluster Conflicts ───
+# What:  Computes conflict clusters, regenerates taxonomy embeddings, and builds
+#        the conflict index. Commits results to the ai-triad-data repo.
+# Before: Requires GEMINI_API_KEY and DATA_REPO_TOKEN secrets. Runs automatically
+#         after Batch POV Summarization completes, weekly on Sunday, or manually.
+# After:  Updated clusters, embeddings, and conflict index are committed to
+#         ai-triad-data. The deployed app picks up changes on next poll cycle.
+
 name: Cluster Conflicts
 
 on:

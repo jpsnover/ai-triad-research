@@ -1,3 +1,9 @@
+# ─── GHCR Cleanup ───
+# What:  Deletes untagged container images older than 30 days from GHCR to
+#        control storage costs. Keeps the 5 most recent untagged images.
+# Before: Runs weekly on Sunday at 04:00 UTC or manually. No prerequisites.
+# After:  Old untagged images are deleted. Tagged images (releases) are preserved.
+
 name: GHCR Cleanup
 
 on:

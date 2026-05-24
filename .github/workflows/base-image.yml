@@ -1,3 +1,11 @@
+# ─── Base Image ───
+# What:  Builds and pushes the shared Node.js base image to GHCR. Includes
+#        Hadolint linting, Trivy security scanning, and SBOM generation.
+# Before: Update deploy/azure/Dockerfile.base or scripts/requirements*.txt
+#         as needed. Runs automatically monthly or on push to those files.
+# After:  The new base image tag is available in GHCR. Update the taxonomy-editor
+#         Dockerfile's FROM line if using a specific tag (not :latest).
+
 name: Base Image
 
 on:

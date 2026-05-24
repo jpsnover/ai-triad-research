@@ -1,3 +1,10 @@
+# ─── Health Monitor ───
+# What:  Checks the production app's /health and /api/data/available endpoints
+#        every 15 minutes. Creates a GitHub issue on failure, auto-closes on recovery.
+# Before: Runs on schedule. The production app must be deployed and accessible.
+# After:  If unhealthy, a GitHub issue with label "health-alert" is created.
+#         Investigate container logs and redeploy if needed.
+
 name: Health Monitor
 
 on:

@@ -1,6 +1,10 @@
-# batch-summarize.yml
-# Triggered when TAXONOMY_VERSION is updated.
-# Runs the smart batch summarization script.
+# ─── Batch POV Summarization ───
+# What:  Runs Invoke-BatchSummary to regenerate POV summaries using AI when
+#        the TAXONOMY_VERSION file changes on main.
+# Before: Bump TAXONOMY_VERSION in a commit to main. Ensure AI_API_KEY secret
+#         is set and the AI backend is reachable.
+# After:  Updated summaries are auto-committed to main. The Cluster Conflicts
+#         workflow fires automatically on completion.
 
 name: Batch POV Summarization
 

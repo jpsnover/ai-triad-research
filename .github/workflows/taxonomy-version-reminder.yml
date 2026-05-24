@@ -1,6 +1,9 @@
-# taxonomy-version-reminder.yml
-# Advisory check: warns if a PR modifies taxonomy files without bumping TAXONOMY_VERSION.
-# This is a warning, NOT a hard block — human reviewers make the final call.
+# ─── Taxonomy Version Reminder ───
+# What:  Posts a PR comment reminding authors to bump TAXONOMY_VERSION when
+#        taxonomy/Origin/ files are modified. Advisory only — does not block merge.
+# Before: Triggers automatically on PRs that touch taxonomy/Origin/ files.
+# After:  If TAXONOMY_VERSION was not bumped, a comment explains the MAJOR/MINOR/PATCH
+#         semantics. Authors should bump the version if the change warrants it.
 
 name: Taxonomy Version Reminder
 

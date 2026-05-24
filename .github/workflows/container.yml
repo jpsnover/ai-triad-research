@@ -1,3 +1,11 @@
+# ─── Container Image ───
+# What:  Builds the taxonomy-editor Docker image with baked-in taxonomy snapshot
+#        for fallback data. Pushes to GHCR. Includes Trivy scan and SBOM.
+# Before: Ensure the base image exists in GHCR (run base-image workflow if needed).
+#         Triggers on version tag push (v*) or manual dispatch.
+# After:  Image is available in GHCR. Auto-Deploy to Staging fires automatically.
+#         For production, manually trigger the Deploy to Azure workflow.
+
 name: Container Image
 
 on:

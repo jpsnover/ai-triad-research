@@ -1,3 +1,11 @@
+# ─── Release ───
+# What:  Full release pipeline: Pester tests, PowerShell module build + PSGallery
+#        publish, Electron app builds for macOS/Windows/Linux, and GitHub Release.
+# Before: Create and push a version tag (e.g., git tag v0.9.0 && git push --tags).
+#         Ensure PSGALLERY_API_KEY is set for PSGallery publishing.
+# After:  GitHub Release is created with multi-platform artifacts (.dmg, .exe,
+#         .AppImage, .deb). Module is published to PSGallery if key is configured.
+
 name: Release
 
 on:

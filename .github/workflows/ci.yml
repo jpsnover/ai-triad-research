@@ -1,3 +1,10 @@
+# ─── CI ───
+# What:  Runs all quality gates: Pester tests with coverage, ESLint + TypeScript
+#        checks for all 4 Electron apps (matrix), and a container smoke test.
+# Before: Triggers automatically on push/PR to main. No manual setup needed.
+# After:  All checks must pass before merging. The test-container job depends on
+#         test-powershell and test-electron completing successfully.
+
 name: CI
 
 on:

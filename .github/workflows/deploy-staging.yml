@@ -1,7 +1,12 @@
-name: Auto-Deploy to Staging
+# ─── Auto-Deploy to Staging ───
+# What:  Automatically deploys to the staging container app after a successful
+#        Container Image build. No manual trigger needed.
+# Before: Fires automatically when the Container Image workflow completes
+#         successfully. Requires AZURE_* OIDC secrets.
+# After:  Verify staging health at the staging URL. Use staging to validate
+#         changes before triggering a production deploy.
 
-# Automatically deploys to staging after a successful container image build.
-# Production deploys remain manual (via deploy-azure.yml workflow_dispatch).
+name: Auto-Deploy to Staging
 
 on:
   workflow_run:

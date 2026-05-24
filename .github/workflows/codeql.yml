@@ -1,3 +1,11 @@
+# ─── CodeQL SAST ───
+# What:  Static application security testing for TypeScript/JavaScript using
+#        GitHub CodeQL with security-extended queries (OWASP Top 10 coverage).
+# Before: Triggers on push/PR to main for TS/JS files, plus weekly Monday scan.
+#         No manual setup needed.
+# After:  SARIF results appear in the GitHub Security tab. Review any new alerts
+#         and fix high-severity findings before merging.
+
 name: CodeQL SAST
 
 on:

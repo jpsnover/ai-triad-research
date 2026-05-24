@@ -1,3 +1,12 @@
+# ─── Deploy to Azure ───
+# What:  Blue-green production deployment to Azure Container Apps via Bicep.
+#        Deploys new revision at 0% traffic, health checks, then shifts to 100%.
+#        Auto-rollback on health failure.
+# Before: Container image must exist in GHCR (run Container Image workflow first).
+#         Requires AZURE_* OIDC secrets and OAuth secrets configured.
+# After:  Verify the app is healthy at the production URL. Check Azure Log Analytics
+#         for any startup errors. Monitor costs against the $5/month target.
+
 name: Deploy to Azure
 
 on:

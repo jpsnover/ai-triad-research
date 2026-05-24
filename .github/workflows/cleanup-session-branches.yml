@@ -1,3 +1,10 @@
+# ─── Cleanup Stale Session Branches ───
+# What:  Deletes api-session/* branches older than 30 days that have no open PRs.
+#        Prevents branch proliferation from the web editor's per-user branches.
+# Before: Runs daily at 04:00 UTC or manually. No prerequisites.
+# After:  Stale branches are deleted. Active branches (with open PRs or recent
+#         commits) are preserved.
+
 name: Cleanup stale session branches
 
 on:
