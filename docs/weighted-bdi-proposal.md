@@ -104,15 +104,24 @@ interface ClaimTaxonomyAttribution {
 **Process:**
 
 1. For each AN claim, retrieve its 384-dim embedding (already computed at extraction).
-2. For each taxonomy ref on the parent statement, retrieve its embedding from `embeddings.json`.
-3. Compute cosine similarity between the claim and each ref.
-4. Assign `primary_ref` = highest-similarity ref. Record `attribution_confidence` = that similarity score.
-5. Any additional refs with similarity > 0.40 become `secondary_refs`.
-6. If no ref exceeds 0.35 similarity, the claim is **unattributed** — it may represent a novel argument not grounded in any injected taxonomy node.
+2. Compare against **all same-POV Belief nodes** (not just the parent statement's taxonomy refs). The parent statement's refs are too narrow — the claim may instantiate a Belief that wasn't explicitly cited. With ~300 nodes per POV and 384-dim vectors, this is ~300 dot products per claim — trivial. *(Per Technical Lead review, p/35.)*
+3. Compute cosine similarity between the claim and each candidate node.
+4. Assign `primary_ref` = highest-similarity node. Record `attribution_confidence` = that similarity score.
+5. Any additional nodes with similarity > 0.40 become `secondary_refs`.
+6. If no node exceeds 0.35 similarity, the claim is **unattributed**. Record the reason:
+   - `"novel_argument"` — the claim represents a genuinely new argument not grounded in any taxonomy node
+   - `"no_embedding"` — the claim or candidate nodes are missing embeddings (data issue, not semantic)
+   *(Per Diagnostics review, p/36#3: distinguish missing data from genuine novelty.)*
 
-**Why embedding-based, not prompt-based:** The embeddings already exist on both sides (claim embeddings for AN-based relevance scoring, node embeddings for taxonomy matching). The computation is a dot product — sub-millisecond per claim. No additional LLM call, no prompt complexity increase, no extraction latency.
+**Failure mode handling:** *(Per Diagnostics review, p/36#3.)*
+- **Missing embeddings:** Log a flight recorder event (`type: "attribution.missing-embedding"`, `claim_id`). Mark as unattributed with reason `"no_embedding"`.
+- **Zero taxonomy_refs on parent statement:** Not a blocker (we now compare against all same-POV nodes), but log a flight recorder event (`type: "attribution.no-statement-refs"`) — it indicates taxonomy context injection may have failed upstream.
+- **High unattributed rate:** Track a debate-level metric `unattributed_claim_ratio`. If >50% of claims in a debate are unattributed, log a warning — this signals a systemic problem (bad topic framing, stale taxonomy, or broken injection), not per-claim noise.
+- **Flight recorder:** Every attribution decision should be recorded: `{ type: "attribution.computed", claim_id, primary_ref, attribution_confidence, secondary_refs_count, doctrinally_anchored, unattributed_reason }`. Without this, post-hoc debugging of "why was this claim attributed to node X?" is impossible.
 
-**Storage:** Add `claim_taxonomy_attribution: ClaimTaxonomyAttribution` to `ArgumentNetworkNode`. This is a new optional field — absent in pre-attribution debates, populated going forward.
+**Why embedding-based, not prompt-based:** The embeddings already exist on both sides (claim embeddings for AN-based relevance scoring, node embeddings for taxonomy matching). The computation is a dot product — sub-millisecond per claim. No additional LLM call, no prompt complexity increase, no extraction latency. Post-extraction attribution is deterministic, auditable, and reproducible — you can inspect the similarity score rather than trusting the AI to self-report. *(Per Technical Lead review, p/35.)*
+
+**Storage:** Add `claim_taxonomy_attribution: ClaimTaxonomyAttribution` to `ArgumentNetworkNode`. This is a new optional field — absent in pre-attribution debates, populated going forward. Storage cost: ~150 bytes per AN node (~2-4KB per debate, negligible). Any code path reading AN nodes must handle the missing field (type guard or default). Add orphaned attribution ref detection to `Test-TaxonomyIntegrity` — if a taxonomy node is renamed or deleted, attributions referencing it become stale. *(Per Technical Lead review, p/35.)*
 
 ### Evolution Through Debates
 
@@ -159,6 +168,24 @@ Three safeguards:
    A robustness score of 3+ means the attack is model-independent — strong evidence. But confidence is reduced once, not three times.
 
 The deduplication key is: `(Belief node ID, topic embedding cluster, attack vector embedding cluster)`. Same key = same evidence, regardless of how many models or debate runs produced it.
+
+**Cross-debate state implementation:** *(Per Technical Lead review, p/35 and Diagnostics review, p/36#3.)*
+
+This is the first feature requiring cross-debate queries, which introduces new failure modes:
+
+- **Storage:** Use a lightweight `debate-confidence-index.json` alongside the debates directory: `{ belief_node_id: [{ debate_id, topic_embedding_hash, attack_claim_embedding, delta, date, embedding_model }] }`. This avoids loading full debate JSON files for comparison (~50KB even at 100+ debates). *(Per Technical Lead.)*
+- **Embedding model versioning:** If the embedding model changes (e.g., from all-MiniLM-L6-v2 to a newer model), prior debate embeddings are incomparable. Add `embedding_model` to debate sessions and **skip cross-debate comparison when models differ**. *(Per Diagnostics.)*
+- **Idempotent dedup:** The dedup logic must be recomputable from current state, not dependent on the supersession chain being intact. If a debate is deleted or a confidence update is manually overridden, the remaining updates should still be consistent. *(Per Diagnostics.)*
+- **Corruption resilience:** If the dedup index is corrupted or missing, the system should rebuild it from debate files (one-time scan) rather than failing. Log a flight recorder event: `type: "confidence.dedup-index-rebuild"`.
+- **Flight recorder:** Every deduplication decision needs a flight recorder event with the similarity scores that drove it: `{ type: "confidence.dedup-applied", belief_id, superseded_debate_id, similarity_topic, similarity_attack }`. This is the hardest thing to debug after the fact without explicit logging.
+
+**Three-condition gate monitoring:** *(Per Diagnostics review, p/36#3.)*
+
+The conjunction of three conditions (attribution_confidence > 0.60 AND undermine type AND attack strength > 0.5) means very few updates will fire. Track the **near-miss rate**: how often do 2-of-3 conditions hold? If it's high, the thresholds may be too strict and the system appears "stuck" — Beliefs never update despite being debated. Log: `{ type: "confidence.near-miss", belief_id, conditions_met: ["attribution", "attack_strength"], missing: "undermine_type" }`.
+
+**`confidence_history` retention policy:** *(Per Diagnostics review, p/36#3.)*
+
+Cap history at the last 30 entries or 12-month window. When pruning, store a summary: `{ "pruned_count": 47, "earliest_pruned": "2026-03-01", "net_delta_pruned": -0.12 }`. This prevents unbounded growth while preserving the audit trail's essential information.
 
 **Priority updates:**
 - After a reflection where a debater concedes a Desire is less important than they thought, reduce priority by 1
@@ -254,11 +281,11 @@ These doctrinal boundaries should **anchor Belief confidence scoring**. Specific
 
 **Implementation:**
 
-1. **Embed the doctrinal boundary strings** for each POV using the same all-MiniLM-L6-v2 model used for taxonomy embeddings. Each POV has 4 boundaries, producing 4 x 384-dim vectors per debater.
+1. **Embed the doctrinal boundary strings** for each POV using the same all-MiniLM-L6-v2 model used for taxonomy embeddings. Each POV has 4 boundaries, producing 4 x 384-dim vectors per debater. Compute once at debate setup and cache on the session object — do not recompute per turn. *(Per Technical Lead review, p/35.)*
 
-2. **For each Belief node**, compute cosine similarity against the POV's boundary embeddings. If any boundary similarity exceeds a threshold (e.g., 0.55), the node is **doctrinally anchored**.
+2. **For each Belief node**, compute cosine similarity against the POV's boundary embeddings. If any boundary similarity exceeds a threshold (e.g., 0.55), the node is **doctrinally anchored**. **Calibration prerequisite:** Before committing to 0.55, run a dry-run of all 12 boundary embeddings against all Belief nodes and inspect the similarity distribution. The boundary strings are short (5-15 words each) which produces less discriminative vectors — the threshold may need adjustment. Add a sanity check at debate setup: if doctrinally anchored count is <3 or >30% of Belief nodes for a POV, log a warning (`type: "doctrinal.threshold-anomaly"`). *(Per Diagnostics review, p/36#3.)*
 
-3. **Doctrinally anchored Beliefs get a confidence floor.** Even if the evidential grounding classifier rates them as "asserted" (0.20), a doctrinally anchored Belief should not score below 0.60. The debater will fight hardest for these claims — treating them as weak in QBAF propagation misrepresents their actual strategic importance.
+3. **Doctrinally anchored Beliefs get a confidence floor.** Even if the evidential grounding classifier rates them as "asserted" (0.20), a doctrinally anchored Belief should not score below 0.60 (configurable via prompt config, same pattern as debate temperature — not hardcoded). The debater will fight hardest for these claims — treating them as weak in QBAF propagation misrepresents their actual strategic importance. **Important:** The confidence floor creates a value discontinuity — the confidence no longer represents evidential support, it represents strategic importance. The diagnostics MUST show both values: `confidence: 0.60 (floor applied, evidential: 0.20)`. Without this, a researcher looking at confidence values cannot distinguish "well-supported" (evidential 0.60) from "doctrinally protected" (floor 0.60). *(Per Diagnostics review, p/36#3.)*
 
 4. **Doctrinally anchored Beliefs get injection priority.** In the weighted taxonomy context injection, these nodes should appear in the primary tier alongside high-relevance nodes, even if their topic-relevance score is moderate. The debater needs to see its doctrinal foundations to defend them.
 
