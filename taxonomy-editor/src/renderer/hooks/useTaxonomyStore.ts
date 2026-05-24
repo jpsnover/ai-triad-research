@@ -1145,7 +1145,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   loadAll: async () => {
     const steps = [
       'Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
-      'Policy Registry', 'Conflict Clusters', 'Cruxes',
+      'Policy Registry',
     ];
     set({ loading: true, backgroundLoading: false, loadingProgress: { completed: [], total: steps.length } });
 
@@ -1179,16 +1179,24 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       });
 
       // Phase 2: Load remaining POVs and data files in the background
-      const [saf, skp, cc, polReg, conflictClusterData, cruxData] = await Promise.all([
+      const [saf, skp, cc, polReg] = await Promise.all([
         track(steps[1], api.loadTaxonomyFile('safetyist')),
         track(steps[2], api.loadTaxonomyFile('skeptic')),
         track(steps[3], api.loadTaxonomyFile('situations')),
         track(steps[4], api.loadPolicyRegistry()),
-        track(steps[5], api.loadConflictClusters().catch(() => null)),
-        track(steps[6], api.loadAggregatedCruxes().catch(() => null)),
       ]);
-      // Defer conflict files — only needed for new debates, not startup
+      // Defer conflict-related data — not needed for startup or debate viewing
       void api.loadConflictFiles().then((c) => set({ conflicts: c as ConflictFile[] })).catch(() => {});
+      void api.loadConflictClusters().then((d) => {
+        const clusters = d && typeof d === 'object' && Array.isArray((d as { clusters: unknown }).clusters)
+          ? (d as { clusters: { label: string; nodeIds: string[] }[] }).clusters : null;
+        set({ conflictClusters: clusters });
+      }).catch(() => {});
+      void api.loadAggregatedCruxes().then((d) => {
+        const cruxes = d && typeof d === 'object' && Array.isArray((d as { cruxes: unknown }).cruxes)
+          ? (d as { cruxes: AggregatedCrux[] }).cruxes : null;
+        set({ aggregatedCruxes: cruxes });
+      }).catch(() => {});
       // Load L2 lineage categories (non-blocking, used by LineagePanel)
       void loadLineageCategoriesData();
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
@@ -1199,25 +1207,11 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           }
         }
       }
-      const precomputedClusters = conflictClusterData &&
-        typeof conflictClusterData === 'object' &&
-        Array.isArray((conflictClusterData as { clusters: unknown }).clusters)
-        ? (conflictClusterData as { clusters: { label: string; nodeIds: string[] }[] }).clusters
-        : null;
-
-      const parsedCruxes = cruxData &&
-        typeof cruxData === 'object' &&
-        Array.isArray((cruxData as { cruxes: unknown }).cruxes)
-        ? (cruxData as { cruxes: AggregatedCrux[] }).cruxes
-        : null;
-
       set({
         safetyist: saf as PovTaxonomyFile,
         skeptic: skp as PovTaxonomyFile,
         situations: cc as SituationsFile,
         policyRegistry: regData?.policies ?? null,
-        conflictClusters: precomputedClusters,
-        aggregatedCruxes: parsedCruxes,
         backgroundLoading: false,
         embeddingDirty: true,
       });
