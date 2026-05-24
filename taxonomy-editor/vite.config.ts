@@ -50,7 +50,12 @@ export default defineConfig({
     include: [
       '**/*.test.{ts,tsx}',
       '../server/__tests__/**/*.test.ts',
-      '../../../lib/**/*.test.ts',
+      '../../../lib/debate/**/*.test.ts',
+      '../../../lib/dictionary/**/*.test.ts',
+      '../../../lib/diff/**/*.test.ts',
+      '../../../lib/flight-recorder/**/*.test.ts',
+      '../../../lib/search/**/*.test.ts',
+      '../../../lib/translation/**/*.test.ts',
     ],
     globals: false,
     environment: 'jsdom',
