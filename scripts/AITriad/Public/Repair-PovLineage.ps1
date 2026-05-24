@@ -9,7 +9,7 @@ function Repair-PovLineage {
     .DESCRIPTION
         Scans all taxonomy nodes' graph_attributes.intellectual_lineage arrays.
         Bare string entries (e.g., "Effective Altruism") are enriched with:
-          - description: 1-2 sentence definition
+          - description: 2-5 sentence definition
           - url: Wikipedia or authoritative URL (validated via HEAD request)
           - category: philosophical_movement, economic_theory, etc.
 
@@ -28,6 +28,9 @@ function Repair-PovLineage {
         Number of lineage values per AI call. Default: 25.
     .PARAMETER SkipUrlValidation
         Skip HTTP HEAD URL validation (faster for testing).
+    .PARAMETER Force
+        Convert existing rich lineage objects (name/description/url/category)
+        back to bare strings before processing, forcing full re-enrichment.
     .EXAMPLE
         Repair-PovLineage -WhatIf
     .EXAMPLE
@@ -36,6 +39,9 @@ function Repair-PovLineage {
         Get-Tax -POV accelerationist | Repair-PovLineage -SkipUrlValidation
     .EXAMPLE
         Repair-PovLineage -POV accelerationist -BatchSize 10
+    .EXAMPLE
+        Repair-PovLineage -Force
+        # Re-enrich all lineage entries from scratch.
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -57,7 +63,10 @@ function Repair-PovLineage {
 
         [switch]$SkipUrlValidation,
 
-        [switch]$FixUrls
+        [switch]$FixUrls,
+
+        [Parameter(HelpMessage = 'Convert existing rich lineage objects back to bare strings for re-enrichment')]
+        [switch]$Force
     )
 
     begin {
@@ -96,132 +105,120 @@ function Repair-PovLineage {
         Write-Verbose "Loaded $($Cache.Count) cached enrichments"
     }
 
-    # ── FixUrls mode: repair broken URLs from error file ──────────────────────
+    # ── URL validation helper (GET-based, soft 404 detection) ────────────────
+    function Test-LineageUrl {
+        param([string]$Url)
+        if ([string]::IsNullOrWhiteSpace($Url) -or $Url -notmatch '^https?://') { return $false }
+        try {
+            $Resp = Invoke-WebRequest -Uri $Url -Method Get -TimeoutSec 8 -MaximumRedirection 5 `
+                -ErrorAction Stop -UseBasicParsing
+            if ($Resp.StatusCode -ne 200) { return $false }
+            # Soft 404 detection: check first 1KB of body for "not found" signals
+            $BodySnippet = if ($Resp.Content.Length -gt 1024) { $Resp.Content.Substring(0, 1024) } else { $Resp.Content }
+            if ($BodySnippet -match '(?i)(page not found|does not exist|no article|404 error|there is no page)') {
+                return $false
+            }
+            return $true
+        } catch { return $false }
+    }
+
+    function Get-WikipediaFallbackUrl {
+        param([string]$Name)
+        $WikiName = ($Name -replace '\s*\([^)]+\)\s*$', '').Trim() -replace '\s+', '_'
+        $WikiUrl = "https://en.wikipedia.org/wiki/$WikiName"
+        if (Test-LineageUrl $WikiUrl) { return $WikiUrl }
+        return $null
+    }
+
+    # ── FixUrls mode: scan cache, validate via GET, Wikipedia fallback ────────
     if ($FixUrls) {
-        $ErrorFilePath = Join-Path $CacheDir 'lineage-url-errors.json'
-        if (-not (Test-Path $ErrorFilePath)) {
-            Write-Warning "No URL error file found at $ErrorFilePath — run without -FixUrls first to generate it"
+        if ($Cache.Count -eq 0) {
+            Write-Warning 'Cache is empty — run Repair-PovLineage first to populate it'
             return
         }
 
-        $UrlErrors = Get-Content $ErrorFilePath -Raw | ConvertFrom-Json
-        $Err404 = @($UrlErrors | Where-Object { $_.status -eq 404 })
-        $Err429 = @($UrlErrors | Where-Object { $_.status -eq 429 })
+        Write-Host '=== Fix Broken URLs ===' -ForegroundColor Cyan
 
-        Write-Host "=== Fix Broken URLs ===" -ForegroundColor Cyan
-        Write-Host "  404 (need new URL): $($Err404.Count)"
-        Write-Host "  429 (retry): $($Err429.Count)"
+        # Collect entries needing validation: error status, missing status, or no URL
+        $ToCheck = @($Cache.GetEnumerator() | Where-Object {
+            $v = $_.Value
+            ($v.ContainsKey('url_status') -and $v['url_status'] -ne 200) -or
+            (-not $v.ContainsKey('url_status')) -or
+            [string]::IsNullOrWhiteSpace($v['url'])
+        })
+        Write-Host "  Entries to check: $($ToCheck.Count) / $($Cache.Count)"
 
-        # Retry 429s with longer delay
-        if ($Err429.Count -gt 0 -and -not $WhatIfPreference) {
-            Write-Host "`nRetrying $($Err429.Count) rate-limited URLs..." -ForegroundColor Gray
-            $Still429 = [System.Collections.Generic.List[object]]::new()
-            foreach ($Err in $Err429) {
-                Start-Sleep -Seconds 3
-                try {
-                    $Resp = Invoke-WebRequest -Uri $Err.url -Method Head -TimeoutSec 10 -ErrorAction Stop -UseBasicParsing
-                    if ($Resp.StatusCode -eq 200) {
-                        Write-Host "  OK: $($Err.name)" -ForegroundColor Green
-                    } else {
-                        $Still429.Add($Err)
-                    }
-                } catch { $Still429.Add($Err) }
+        if ($WhatIfPreference) {
+            Write-Host "`nWhatIf: Would validate $($ToCheck.Count) URLs via GET with Wikipedia fallback"
+            $ToCheck | Select-Object -First 10 | ForEach-Object {
+                Write-Host "  $($_.Key): $($_.Value['url'])" -ForegroundColor DarkGray
             }
-            if ($Still429.Count -gt 0) { Write-Host "  Still failing: $($Still429.Count)" -ForegroundColor Yellow }
+            return
         }
 
-        # Fix 404s via AI
-        if ($Err404.Count -gt 0) {
-            if ($WhatIfPreference) {
-                Write-Host "`nWhatIf: Would fix $($Err404.Count) broken URLs in $([Math]::Ceiling($Err404.Count / $BatchSize)) AI batches"
-                Write-Host "Sample broken URLs:"
-                $Err404 | Select-Object -First 10 | ForEach-Object {
-                    Write-Host "  $($_.name): $($_.url)" -ForegroundColor DarkGray
-                }
-                return
+        $FixedWiki = 0; $FixedValid = 0; $Cleared = 0
+        foreach ($Entry in $ToCheck) {
+            $Name = $Entry.Key
+            $Data = $Entry.Value
+            $Url  = $Data['url']
+
+            # Try existing URL first
+            if (-not [string]::IsNullOrWhiteSpace($Url) -and (Test-LineageUrl $Url)) {
+                $Data['url_status'] = 200
+                $FixedValid++
+                continue
             }
 
-            if ($Model -match '^gemini') { $Backend = 'gemini' }
-            elseif ($Model -match '^claude') { $Backend = 'claude' }
-            else { $Backend = 'gemini' }
-            $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
-            if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
-                Write-Warning "No API key — cannot fix URLs"
-                return
+            # Try Wikipedia fallback
+            $WikiUrl = Get-WikipediaFallbackUrl $Name
+            if ($WikiUrl) {
+                $Data['url'] = $WikiUrl
+                $Data['url_status'] = 200
+                $FixedWiki++
+                Write-Verbose "  Wiki fallback: $Name → $WikiUrl"
+            } else {
+                $Data['url'] = $null
+                $Data['url_status'] = 'cleared'
+                $Cleared++
+                Write-Verbose "  Cleared: $Name (no valid URL found)"
             }
-
-            $FixedCount = 0
-            $UrlBatches = [Math]::Ceiling($Err404.Count / $BatchSize)
-            for ($bi = 0; $bi -lt $Err404.Count; $bi += $BatchSize) {
-                $Batch = @($Err404[$bi..[Math]::Min($bi + $BatchSize - 1, $Err404.Count - 1)])
-                $BatchNum = [Math]::Floor($bi / $BatchSize) + 1
-                Write-Host "  URL batch $BatchNum/$UrlBatches ($($Batch.Count) URLs)..." -ForegroundColor Gray -NoNewline
-
-                $UrlList = ($Batch | ForEach-Object { "- $($_.name) (broken: $($_.url))" }) -join "`n"
-                $Prompt = @"
-For each intellectual lineage entry, find the correct URL. Prefer Wikipedia. If no Wikipedia article exists, suggest Stanford Encyclopedia of Philosophy, official project page, or seminal paper DOI.
-
-Broken URLs to fix:
-$UrlList
-
-Return JSON array: [{"name": "...", "url": "https://..."}]
-No markdown, no explanation.
-"@
-                try {
-                    $Result = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ResolvedKey `
-                        -Temperature 0.1 -MaxTokens 4096 -JsonMode -TimeoutSec 30
-                    if ($Result -and $Result.Text) {
-                        $Fixed = ($Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', '') | ConvertFrom-Json
-                        foreach ($F in @($Fixed)) {
-                            if ($F.name -and $F.url -and $Cache.ContainsKey($F.name)) {
-                                $Cache[$F.name].url = $F.url
-                                if ($Cache[$F.name].ContainsKey('url_status')) { $Cache[$F.name].Remove('url_status') }
-                                $FixedCount++
-                            }
-                        }
-                        Write-Host " $(@($Fixed).Count) fixed" -ForegroundColor Green
-                    }
-                } catch {
-                    Write-Host " failed: $($_.Exception.Message)" -ForegroundColor Red
-                }
-                if ($BatchNum -lt $UrlBatches) { Start-Sleep -Seconds 2 }
-            }
-
-            # Save updated cache
-            $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
-            Write-Host "`nFixed $FixedCount URLs in cache" -ForegroundColor Green
-
-            # Update taxonomy files with fixed URLs
-            $TaxUpdated = 0
-            foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
-                $FilePath = Join-Path $TaxDir "$PovName.json"
-                if (-not (Test-Path $FilePath)) { continue }
-                $Data = Get-Content $FilePath -Raw | ConvertFrom-Json
-                $PovMod = $false
-                foreach ($Node in $Data.nodes) {
-                    if (-not $Node.PSObject.Properties['graph_attributes'] -or -not $Node.graph_attributes) { continue }
-                    $GA = $Node.graph_attributes
-                    if (-not $GA.PSObject.Properties['intellectual_lineage']) { continue }
-                    $Lin = @($GA.intellectual_lineage)
-                    $Changed = $false
-                    $NewLin = @(foreach ($Entry in $Lin) {
-                        if ($Entry -is [PSCustomObject] -and $Entry.PSObject.Properties['name'] -and $Cache.ContainsKey($Entry.name)) {
-                            $Cached = $Cache[$Entry.name]
-                            if ($Cached.url -and $Entry.url -ne $Cached.url) {
-                                $Entry.url = $Cached.url
-                                $Changed = $true
-                            }
-                        }
-                        $Entry
-                    })
-                    if ($Changed) { $PovMod = $true; $TaxUpdated++ }
-                }
-                if ($PovMod) {
-                    $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
-                }
-            }
-            Write-Host "Updated $TaxUpdated node lineage entries in taxonomy files" -ForegroundColor Green
         }
+
+        Write-Host "  Already valid: $FixedValid | Wikipedia fallback: $FixedWiki | Cleared: $Cleared"
+
+        # Save updated cache
+        $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+        Write-Host "Cache saved" -ForegroundColor Green
+
+        # Update taxonomy files with fixed URLs
+        $TaxUpdated = 0
+        foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic', 'situations')) {
+            $FilePath = Join-Path $TaxDir "$PovName.json"
+            if (-not (Test-Path $FilePath)) { continue }
+            $TaxFileData = Get-Content $FilePath -Raw | ConvertFrom-Json
+            $PovMod = $false
+            foreach ($Node in $TaxFileData.nodes) {
+                if (-not $Node.PSObject.Properties['graph_attributes'] -or -not $Node.graph_attributes) { continue }
+                $GA = $Node.graph_attributes
+                if (-not $GA.PSObject.Properties['intellectual_lineage']) { continue }
+                foreach ($LinEntry in @($GA.intellectual_lineage)) {
+                    if ($LinEntry -isnot [string] -and $LinEntry.PSObject.Properties['name'] -and $Cache.ContainsKey($LinEntry.name)) {
+                        $Cached = $Cache[$LinEntry.name]
+                        $NewUrl = if ($Cached['url']) { $Cached['url'] } else { $null }
+                        if ($LinEntry.url -ne $NewUrl) {
+                            $LinEntry.url = $NewUrl
+                            $PovMod = $true
+                            $TaxUpdated++
+                        }
+                    }
+                }
+            }
+            if ($PovMod) {
+                $TaxFileData | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
+                Write-Host "  Saved $PovName.json" -ForegroundColor Green
+            }
+        }
+        Write-Host "Updated $TaxUpdated lineage entries in taxonomy files" -ForegroundColor Green
         return
     }
 
@@ -243,12 +240,31 @@ No markdown, no explanation.
             if (-not $Node.PSObject.Properties['graph_attributes'] -or -not $Node.graph_attributes) { continue }
             $GA = $Node.graph_attributes
             if (-not $GA.PSObject.Properties['intellectual_lineage']) { continue }
+
+            # -Force: convert rich objects back to bare strings for re-enrichment
+            if ($Force) {
+                $Converted = 0
+                $NewLin = @(foreach ($Entry in @($GA.intellectual_lineage)) {
+                    if ($Entry -is [string]) { $Entry }
+                    elseif ($Entry.PSObject.Properties['name'] -and $Entry.name) {
+                        $Converted++
+                        [string]$Entry.name
+                    }
+                    else { $Entry }
+                })
+                if ($Converted -gt 0) { $GA.intellectual_lineage = $NewLin }
+            }
+
             foreach ($Entry in @($GA.intellectual_lineage)) {
                 if ($Entry -is [string] -and -not [string]::IsNullOrWhiteSpace($Entry)) {
                     [void]$UniqueValues.Add($Entry)
                 }
             }
         }
+    }
+
+    if ($Force) {
+        Write-Info 'Force mode: rich lineage objects converted to bare strings for re-enrichment'
     }
 
     if ($null -ne $FilterNodeIds -and $FilterNodeIds.Count -gt 0) {
@@ -296,7 +312,10 @@ No markdown, no explanation.
 
         foreach ($Val in $UniqueList) {
             if (-not $Embeddings.ContainsKey($Val)) {
+                # No embedding — add as canonical but skip similarity checks.
+                # Use a zero vector so $Canonicals and $CanonicalVecs stay in sync.
                 $Canonicals.Add($Val)
+                $CanonicalVecs.Add($null)
                 continue
             }
             $Vec = $Embeddings[$Val]
@@ -304,35 +323,50 @@ No markdown, no explanation.
 
             for ($j = 0; $j -lt $Canonicals.Count; $j++) {
                 $CanVec = $CanonicalVecs[$j]
+                if ($null -eq $CanVec) { continue }  # no embedding for this canonical
                 # Cosine similarity (vectors are normalized)
                 $Dot = 0.0
                 for ($k = 0; $k -lt $Vec.Count; $k++) { $Dot += $Vec[$k] * $CanVec[$k] }
                 if ($Dot -ge $DedupThreshold) {
-                    # Guard: don't merge parenthetical-qualified variants — qualifiers
-                    # are semantically meaningful (e.g., "AI alignment research (positive vision)"
-                    # vs "AI alignment research" represent different intellectual traditions)
                     $CanName = $Canonicals[$j]
+                    # Parenthetical variants: merge to the base name.
+                    # "Asimov's Laws (conceptual)" + "Asimov's Laws (implicit)" → "Asimov's Laws"
+                    $BaseName = $null
                     # Case 1: one is qualified, other is the bare base
-                    $IsParenVariant = ($Val -match '^(.+?)\s*\(' -and $CanName -eq $Matches[1].Trim()) -or
-                                     ($CanName -match '^(.+?)\s*\(' -and $Val -eq $Matches[1].Trim())
-                    # Case 2: both are qualified variants of the same base (different qualifiers)
-                    if (-not $IsParenVariant -and $Val -match '^(.+?)\s*\(' -and $CanName -match '^(.+?)\s*\(') {
+                    if ($Val -match '^(.+?)\s*\(' -and $CanName -eq $Matches[1].Trim()) {
+                        $BaseName = $CanName  # canonical is already the base
+                    }
+                    elseif ($CanName -match '^(.+?)\s*\(' -and $Val -eq $Matches[1].Trim()) {
+                        $BaseName = $Val  # new value is the base
+                    }
+                    # Case 2: both are qualified variants of the same base
+                    if (-not $BaseName -and $Val -match '^(.+?)\s*\(' -and $CanName -match '^(.+?)\s*\(') {
                         $ValBase = ($Val -replace '\s*\([^)]+\)\s*$','').Trim()
                         $CanBase = ($CanName -replace '\s*\([^)]+\)\s*$','').Trim()
-                        if ($ValBase -eq $CanBase) { $IsParenVariant = $true }
+                        if ($ValBase -eq $CanBase) { $BaseName = $ValBase }
                     }
-                    if ($IsParenVariant) { continue }
-                    # Merge: pick the one with higher frequency as canonical
-                    $CanFreq = $FreqMap[$CanName] ?? 0
-                    $ValFreq = $FreqMap[$Val] ?? 0
-                    if ($ValFreq -gt $CanFreq) {
-                        # New value is more popular — swap canonical
-                        $DedupMap[$CanName] = $Val
-                        $Canonicals[$j] = $Val
-                        $CanonicalVecs[$j] = $Vec
+                    if ($BaseName) {
+                        # Merge both to the base name
+                        if ($CanName -ne $BaseName) { $DedupMap[$CanName] = $BaseName }
+                        $DedupMap[$Val] = $BaseName
+                        $Canonicals[$j] = $BaseName
+                        # Re-fetch base embedding if available, otherwise keep canonical's
+                        if ($Embeddings.ContainsKey($BaseName)) {
+                            $CanonicalVecs[$j] = $Embeddings[$BaseName]
+                        }
                     }
                     else {
-                        $DedupMap[$Val] = $CanName
+                        # Non-parenthetical merge: pick the one with higher frequency
+                        $CanFreq = $FreqMap[$CanName] ?? 0
+                        $ValFreq = $FreqMap[$Val] ?? 0
+                        if ($ValFreq -gt $CanFreq) {
+                            $DedupMap[$CanName] = $Val
+                            $Canonicals[$j] = $Val
+                            $CanonicalVecs[$j] = $Vec
+                        }
+                        else {
+                            $DedupMap[$Val] = $CanName
+                        }
                     }
                     $ClustersMerged++
                     $Merged = $true
@@ -398,7 +432,10 @@ No markdown, no explanation.
         Write-Host "  Embedding unavailable — skipping dedup" -ForegroundColor Yellow
     }
 
-    $NeedEnrichment = @($UniqueValues | Where-Object { -not $Cache.ContainsKey($_) })
+    $NeedEnrichment = @($UniqueValues | Where-Object {
+        -not $Cache.ContainsKey($_) -or
+        [string]::IsNullOrWhiteSpace($Cache[$_].description)
+    })
     $AlreadyCached  = $UniqueValues.Count - $NeedEnrichment.Count
 
     Write-Host "Post-dedup unique: $($UniqueValues.Count)"
@@ -483,7 +520,7 @@ Enrich each intellectual lineage entry with a description, URL, and category.
 
 For each entry, provide:
 - name: the original name (verbatim)
-- description: 1-2 sentence definition accessible to a policy audience
+- description: 2-5 sentence definition accessible to a policy audience
 - url: Wikipedia or authoritative URL (prefer Wikipedia when available)
 - category: one of: philosophical_movement, economic_theory, political_philosophy, social_theory, scientific_paradigm, legal_framework, technology_movement, ethical_framework, academic_discipline, cultural_movement, other
 
@@ -528,9 +565,24 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
                             Write-Verbose "  Dedup guard: '$($E.name)' → existing '$ExistingMatch'"
                         }
                     } else {
+                        # Validate URL before caching — never store hallucinated URLs
+                        $ValidatedUrl = $E.url
+                        if (-not $SkipUrlValidation -and -not [string]::IsNullOrWhiteSpace($ValidatedUrl)) {
+                            if (-not (Test-LineageUrl $ValidatedUrl)) {
+                                $WikiFallback = Get-WikipediaFallbackUrl $E.name
+                                if ($WikiFallback) {
+                                    Write-Verbose "  URL fallback: '$($E.name)' → Wikipedia"
+                                    $ValidatedUrl = $WikiFallback
+                                } else {
+                                    Write-Verbose "  URL cleared: '$($E.name)' (invalid, no Wikipedia)"
+                                    $ValidatedUrl = $null
+                                }
+                            }
+                        }
                         $Cache[$E.name] = @{
                             description = $E.description
-                            url         = $E.url
+                            url         = $ValidatedUrl
+                            url_status  = if ($ValidatedUrl) { 200 } else { 'cleared' }
                             category    = $E.category
                         }
                         $DescPreview = if ($E.description.Length -gt 60) { $E.description.Substring(0, 60) + '...' } else { $E.description }
@@ -557,30 +609,42 @@ Example: [{"name":"Effective Altruism","description":"A philosophical movement..
         Write-Host "Cache saved: $($Cache.Count) entries → $CachePath" -ForegroundColor Green
     }
 
-    # ── URL validation ────────────────────────────────────────────────────────
-    $UrlValid = 0; $UrlInvalid = 0; $UrlSkipped = 0
+    # ── URL validation (GET-based, soft 404 detection, Wikipedia fallback) ───
+    $UrlValid = 0; $UrlInvalid = 0; $UrlSkipped = 0; $UrlWikiFallback = 0
     if (-not $SkipUrlValidation) {
-        Write-Host "`nValidating URLs..." -ForegroundColor Cyan
-        foreach ($Key in @($Cache.Keys)) {
-            $Entry = $Cache[$Key]
-            if (-not $Entry.url -or $Entry.url -notmatch '^https?://') {
-                $UrlSkipped++
-                continue
+        # Only validate entries not already checked in this run
+        $ToValidate = @($Cache.GetEnumerator() | Where-Object { -not $_.Value.ContainsKey('url_status') })
+        if ($ToValidate.Count -gt 0) {
+            Write-Host "`nValidating $($ToValidate.Count) URLs (GET)..." -ForegroundColor Cyan
+            foreach ($KV in $ToValidate) {
+                $Entry = $KV.Value
+                if (-not $Entry['url'] -or $Entry['url'] -notmatch '^https?://') {
+                    $UrlSkipped++
+                    $Entry['url_status'] = 'cleared'
+                    continue
+                }
+                if (Test-LineageUrl $Entry['url']) {
+                    $UrlValid++
+                    $Entry['url_status'] = 200
+                } else {
+                    # Try Wikipedia fallback
+                    $WikiUrl = Get-WikipediaFallbackUrl $KV.Key
+                    if ($WikiUrl) {
+                        $Entry['url'] = $WikiUrl
+                        $Entry['url_status'] = 200
+                        $UrlWikiFallback++
+                    } else {
+                        $Entry['url'] = $null
+                        $Entry['url_status'] = 'cleared'
+                        $UrlInvalid++
+                    }
+                }
             }
-            try {
-                $Resp = Invoke-WebRequest -Uri $Entry.url -Method Head -TimeoutSec 5 -ErrorAction Stop -UseBasicParsing
-                if ($Resp.StatusCode -eq 200) { $UrlValid++ }
-                else { $UrlInvalid++; $Entry['url_status'] = $Resp.StatusCode }
-            }
-            catch {
-                $UrlInvalid++
-                $Entry['url_status'] = 'error'
-            }
-        }
-        Write-Host "  Valid: $UrlValid | Invalid: $UrlInvalid | Skipped: $UrlSkipped"
+            Write-Host "  Valid: $UrlValid | Wiki fallback: $UrlWikiFallback | Cleared: $UrlInvalid | Skipped: $UrlSkipped"
 
-        # Re-save cache with url_status
-        $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+            # Re-save cache with url_status
+            $Cache | ConvertTo-Json -Depth 5 | Set-Content -Path $CachePath -Encoding UTF8
+        }
     }
 
     # ── Apply enrichments to taxonomy files ───────────────────────────────────

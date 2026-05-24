@@ -28,12 +28,13 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ## [Build] Bash Heredoc Failures with Nested Quotes
 
-**Pattern:** Bash heredocs fail when the embedded code contains nested single quotes, especially common with Python code that manipulates TSX/JSX string literals.
+**Pattern:** Bash heredocs and `bash -c`/`pwsh -Command` wrappers fail when the embedded code contains nested single quotes — common across Python, PowerShell, and TSX/JSX string literals.
 
 **Instances:**
 - 2026-05-21 — Taxonomy Editor agent hit heredoc failures twice when running Python code containing TSX string literals with nested single quotes (p/6#1).
+- 2026-05-24 — PowerShell agent: `pwsh -Command '...'` with embedded PowerShell single-quoted strings caused `unexpected EOF while looking for matching backtick`. Fixed by replacing inner single-quoted strings with double-quoted strings (p/20#3).
 
-**Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. When Python code uses single-quoted strings containing TSX markup, or markdown contains apostrophes, the heredoc termination or inner quoting breaks. The bash -c wrapper compounds this by adding another quoting layer.
+**Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Any nested single quotes inside a single-quoted outer wrapper will break the shell parser.
 
 **Prevention:**
 1. Split complex multi-step scripts into sequential small `python3 -c` commands, isolating steps that do not have quote conflicts.

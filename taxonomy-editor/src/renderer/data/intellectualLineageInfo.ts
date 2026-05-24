@@ -18,7 +18,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears primarily in accelerationist and cross-cutting nodes discussing political economy of AI.",
   links: [
     { label: "Wikipedia: Accelerationism", url: "https://en.wikipedia.org/wiki/Accelerationism" },
-    { label: "Srnicek & Williams: Inventing the Future", url: "https://en.wikipedia.org/wiki/Inventing_the_Future_(book)" }
+    { label: "Srnicek & Williams: Inventing the Future", url: "https://en.wikipedia.org/w/index.php?search=Inventing%20the%20Future%20(book)" }
   ]
 },
 "Accelerationism (Marxist and post-left variants)": {
@@ -28,7 +28,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Found in accelerationist nodes and some cross-cutting theoretical discussions.",
   links: [
     { label: "Wikipedia: Accelerationism", url: "https://en.wikipedia.org/wiki/Accelerationism" },
-    { label: "Marx\'s Fragment on Machines", url: "https://en.wikipedia.org/wiki/Fragment_on_Machines" }
+    { label: "Marx\'s Fragment on Machines", url: "https://en.wikipedia.org/wiki/Grundrisse" }
   ]
 },
 "Accelerationism (Nick Land)": {
@@ -67,7 +67,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node advocates for AI regulatory sandboxes that adjust rules based on observed outcomes.",
   frequency: "Prominent in cross-cutting and safetyist nodes; some accelerationist nodes accept it as a compromise.",
   links: [
-    { label: "Wikipedia: Adaptive Governance", url: "https://en.wikipedia.org/wiki/Adaptive_governance" },
+    { label: "Wikipedia: Adaptive Governance", url: "https://en.wikipedia.org/wiki/Climate_governance" },
     { label: "OECD AI Policy Observatory", url: "https://oecd.ai/en/ai-principles" }
   ]
 },
@@ -118,7 +118,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node references the containment problem to argue that \'just keep it in a box\' is not a viable safety strategy.",
   frequency: "Safetyist nodes primarily; cross-cutting nodes discussing feasibility of control measures.",
   links: [
-    { label: "Wikipedia: AI Box Experiment", url: "https://en.wikipedia.org/wiki/AI_box" },
+    { label: "Wikipedia: AI Box Experiment", url: "https://en.wikipedia.org/wiki/AI_capability_control" },
     { label: "Bostrom: Superintelligence", url: "https://en.wikipedia.org/wiki/Superintelligence:_Paths,_Dangers,_Strategies" }
   ]
 },
@@ -138,7 +138,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node frames the control problem as the overarching challenge that subsumes alignment, interpretability, and governance.",
   frequency: "Central in safetyist nodes; discussed in all POVs with varying levels of concern.",
   links: [
-    { label: "Wikipedia: Control Problem", url: "https://en.wikipedia.org/wiki/AI_control_problem" },
+    { label: "Wikipedia: Control Problem", url: "https://en.wikipedia.org/wiki/AI_alignment" },
     { label: "Bostrom: Superintelligence", url: "https://en.wikipedia.org/wiki/Superintelligence:_Paths,_Dangers,_Strategies" }
   ]
 },
@@ -272,7 +272,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Safetyist nodes extensively; cross-cutting nodes discuss implementation challenges.",
   links: [
     { label: "Soares et al. - Corrigibility", url: "https://intelligence.org/files/Corrigibility.pdf" },
-    { label: "Wikipedia: AI Control Problem", url: "https://en.wikipedia.org/wiki/AI_control_problem" }
+    { label: "Wikipedia: AI Control Problem", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
 "AI safety research (e.g., scalable oversight)": {
@@ -301,7 +301,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node advocates for mandatory third-party algorithmic audits before deploying AI in high-stakes decision-making.",
   frequency: "Cross-cutting and safetyist nodes; skeptic nodes question audit methodology rigor.",
   links: [
-    { label: "Wikipedia: Algorithmic Auditing", url: "https://en.wikipedia.org/wiki/Algorithm_audit" },
+    { label: "Wikipedia: Algorithmic Auditing", url: "https://en.wikipedia.org/w/index.php?search=Algorithm%20audit" },
     { label: "AI Now Institute", url: "https://ainowinstitute.org/" }
   ]
 },
@@ -381,7 +381,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node proposes that any AI used in public-sector decisions must maintain auditable logs of inputs and outputs.",
   frequency: "Cross-cutting and safetyist nodes; connects to algorithmic fairness and governance discussions.",
   links: [
-    { label: "Wikipedia: Algorithm Audit", url: "https://en.wikipedia.org/wiki/Algorithm_audit" },
+    { label: "Wikipedia: Algorithm Audit", url: "https://en.wikipedia.org/w/index.php?search=Algorithm%20audit" },
     { label: "Ada Lovelace Institute", url: "https://www.adalovelaceinstitute.org/" }
   ]
 },
@@ -402,7 +402,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Cross-cutting and accelerationist nodes; safetyist nodes may view as insufficient for high-autonomy systems.",
   links: [
     { label: "Wikipedia: Intelligence Amplification", url: "https://en.wikipedia.org/wiki/Intelligence_amplification" },
-    { label: "Engelbart: Augmenting Human Intellect", url: "https://en.wikipedia.org/wiki/Augmenting_Human_Intellect" }
+    { label: "Engelbart: Augmenting Human Intellect", url: "https://en.wikipedia.org/wiki/Intelligence_amplification" }
   ]
 },
 "Austrian School of Economics": {
@@ -411,7 +411,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node invokes Hayek\'s knowledge problem to argue that regulators cannot predict which AI applications will be beneficial.",
   frequency: "Accelerationist and skeptic nodes opposing regulation; critiqued in cross-cutting governance discussions.",
   links: [
-    { label: "Wikipedia: Austrian School", url: "https://en.wikipedia.org/wiki/Austrian_School" },
+    { label: "Wikipedia: Austrian School", url: "https://en.wikipedia.org/wiki/Austrian_school_of_economics" },
     { label: "Hayek: The Use of Knowledge in Society", url: "https://en.wikipedia.org/wiki/The_Use_of_Knowledge_in_Society" }
   ]
 },
@@ -663,7 +663,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Safetyist and cross-cutting nodes discussing AI-enabled cybersecurity threats.",
   links: [
     { label: "Wikipedia: Computer Worm", url: "https://en.wikipedia.org/wiki/Computer_worm" },
-    { label: "Wikipedia: Epidemiological Modeling", url: "https://en.wikipedia.org/wiki/Compartmental_models_in_epidemiology" }
+    { label: "Wikipedia: Epidemiological Modeling", url: "https://en.wikipedia.org/wiki/Compartmental_models_(epidemiology)" }
   ]
 },
 "Conspiracy theories (in its extreme framing of motives)": {
@@ -712,7 +712,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node frames the control problem as the central challenge for AI governance that must be solved before deploying highly autonomous systems.",
   frequency: "Safetyist nodes centrally; discussed across all POVs with varying urgency.",
   links: [
-    { label: "Wikipedia: AI Control Problem", url: "https://en.wikipedia.org/wiki/AI_control_problem" },
+    { label: "Wikipedia: AI Control Problem", url: "https://en.wikipedia.org/wiki/AI_alignment" },
     { label: "Russell: Human Compatible", url: "https://en.wikipedia.org/wiki/Human_Compatible" }
   ]
 },
@@ -752,8 +752,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node invokes cornucopianism to argue that AI-driven productivity gains will more than compensate for displacement costs.",
   frequency: "Accelerationist nodes primarily; critiqued in safetyist and skeptic nodes.",
   links: [
-    { label: "Wikipedia: Cornucopianism", url: "https://en.wikipedia.org/wiki/Cornucopian" },
-    { label: "Wikipedia: Technological Optimism", url: "https://en.wikipedia.org/wiki/Technological_optimism" }
+    { label: "Wikipedia: Cornucopianism", url: "https://en.wikipedia.org/wiki/Cornucopianism" },
+    { label: "Wikipedia: Technological Optimism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" }
   ]
 },
 "Cosmic evolution theories": {
@@ -762,7 +762,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node frames superintelligence as the inevitable next stage of cosmic evolution, beyond human control or moral objection.",
   frequency: "Accelerationist nodes; critiqued in skeptic and safetyist nodes as unfalsifiable teleology.",
   links: [
-    { label: "Wikipedia: Cosmic Evolution", url: "https://en.wikipedia.org/wiki/Cosmic_evolution" },
+    { label: "Wikipedia: Cosmic Evolution", url: "https://en.wikipedia.org/wiki/Chronology_of_the_universe" },
     { label: "Kurzweil: The Singularity Is Near", url: "https://en.wikipedia.org/wiki/The_Singularity_Is_Near" }
   ]
 },
@@ -772,7 +772,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node frames superintelligence as the inevitable next stage of cosmic evolution, beyond human control or moral objection.",
   frequency: "Accelerationist nodes; critiqued in skeptic and safetyist nodes as unfalsifiable teleology.",
   links: [
-    { label: "Wikipedia: Cosmic Evolution", url: "https://en.wikipedia.org/wiki/Cosmic_evolution" },
+    { label: "Wikipedia: Cosmic Evolution", url: "https://en.wikipedia.org/wiki/Chronology_of_the_universe" },
     { label: "Kurzweil: The Singularity Is Near", url: "https://en.wikipedia.org/wiki/The_Singularity_Is_Near" }
   ]
 },
@@ -923,7 +923,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node applies vulnerability disclosure norms to propose a framework for responsibly sharing AI capability evaluations.",
   frequency: "Cross-cutting and safetyist nodes discussing information sharing norms for AI safety.",
   links: [
-    { label: "Wikipedia: Responsible Disclosure", url: "https://en.wikipedia.org/wiki/Responsible_disclosure" },
+    { label: "Wikipedia: Responsible Disclosure", url: "https://en.wikipedia.org/wiki/Coordinated_vulnerability_disclosure" },
     { label: "Wikipedia: Full Disclosure (security)", url: "https://en.wikipedia.org/wiki/Full_disclosure_(computer_security)" }
   ]
 },
@@ -1014,7 +1014,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Accelerationist and cross-cutting nodes; some skeptic nodes also favor decentralized approaches.",
   links: [
     { label: "Wikipedia: Decentralization", url: "https://en.wikipedia.org/wiki/Decentralization" },
-    { label: "Wikipedia: Distributed Governance", url: "https://en.wikipedia.org/wiki/Distributed_governance" }
+    { label: "Wikipedia: Distributed Governance", url: "https://en.wikipedia.org/w/index.php?search=Distributed%20governance" }
   ]
 },
 "Decentralization philosophy": {
@@ -1024,7 +1024,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Accelerationist and cross-cutting nodes; some skeptic nodes also favor decentralized approaches.",
   links: [
     { label: "Wikipedia: Decentralization", url: "https://en.wikipedia.org/wiki/Decentralization" },
-    { label: "Wikipedia: Distributed Governance", url: "https://en.wikipedia.org/wiki/Distributed_governance" }
+    { label: "Wikipedia: Distributed Governance", url: "https://en.wikipedia.org/w/index.php?search=Distributed%20governance" }
   ]
 },
 "Decentralized governance theories": {
@@ -1033,8 +1033,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node applies Ostrom\'s commons governance principles to propose community-managed oversight of shared AI resources.",
   frequency: "Cross-cutting nodes; relevant to governance discussions across all POVs.",
   links: [
-    { label: "Wikipedia: Polycentric Governance", url: "https://en.wikipedia.org/wiki/Polycentric_governance" },
-    { label: "Ostrom: Governing the Commons", url: "https://en.wikipedia.org/wiki/Governing_the_Commons" }
+    { label: "Wikipedia: Polycentric Governance", url: "https://en.wikipedia.org/w/index.php?search=Polycentric%20governance" },
+    { label: "Ostrom: Governing the Commons", url: "https://en.wikipedia.org/w/index.php?search=Governing%20the%20Commons" }
   ]
 },
 "Decision theory": {
@@ -1054,7 +1054,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Cross-cutting and skeptic nodes; directly challenges accelerationist growth narratives.",
   links: [
     { label: "Wikipedia: Degrowth", url: "https://en.wikipedia.org/wiki/Degrowth" },
-    { label: "Hickel: Less Is More", url: "https://en.wikipedia.org/wiki/Less_Is_More_(book)" }
+    { label: "Hickel: Less Is More", url: "https://en.wikipedia.org/w/index.php?search=Less%20Is%20More%20(book)" }
   ]
 },
 "Deleuze and Guattari (deterritorialization)": {
@@ -1103,7 +1103,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node proposes that publicly funded AI research and training data should be released as digital commons resources.",
   frequency: "Cross-cutting and accelerationist nodes supporting open-source AI; relevant to governance discussions.",
   links: [
-    { label: "Wikipedia: Digital Commons", url: "https://en.wikipedia.org/wiki/Digital_commons_(economics)" },
+    { label: "Wikipedia: Digital Commons", url: "https://en.wikipedia.org/wiki/Digital_commons" },
     { label: "Creative Commons", url: "https://creativecommons.org/" }
   ]
 },
@@ -1278,7 +1278,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Prominent in safetyist POV; cross-cutting nodes discuss applicability limitations.",
   links: [
     { label: "Wikipedia: Safety Engineering", url: "https://en.wikipedia.org/wiki/Safety_engineering" },
-    { label: "Wikipedia: Defense in Depth", url: "https://en.wikipedia.org/wiki/Defense_in_depth_(nuclear)" }
+    { label: "Wikipedia: Defense in Depth", url: "https://en.wikipedia.org/w/index.php?search=Defense%20in%20depth%20(nuclear)" }
   ]
 },
 "Environmental impact assessment": {
@@ -1347,7 +1347,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A safetyist node might cite Ord\'s estimate of a 1-in-6 chance of existential catastrophe this century to motivate AI governance interventions.",
   frequency: "Central to safetyist POV; frequently debated in skeptic and cross-cutting nodes.",
   links: [
-    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Existential_risk" },
+    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" },
     { label: "Toby Ord: The Precipice", url: "https://theprecipice.com/" },
     { label: "Nick Bostrom: Superintelligence", url: "https://en.wikipedia.org/wiki/Superintelligence:_Paths,_Dangers,_Strategies" }
   ]
@@ -1358,7 +1358,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A safetyist node might categorize existential risk from AI as the highest-priority cause area for technical alignment research.",
   frequency: "Dominant in safetyist POV; contested by skeptic POV; discussed in cross-cutting governance nodes.",
   links: [
-    { label: "Wikipedia: Existential Risk from AI", url: "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_general_intelligence" },
+    { label: "Wikipedia: Existential Risk from AI", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence" },
     { label: "Center for AI Safety: Statement on AI Risk", url: "https://www.safe.ai/statement-on-ai-risk" }
   ]
 },
@@ -1378,7 +1378,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A safetyist node might list alignment research, interpretability tools, and international AI treaties as complementary existential risk mitigation strategies.",
   frequency: "Core to safetyist POV; cross-cutting nodes discuss implementation challenges.",
   links: [
-    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Existential_risk" },
+    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" },
     { label: "Future of Humanity Institute", url: "https://www.fhi.ox.ac.uk/" }
   ]
 },
@@ -1388,7 +1388,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A safetyist node might ground its analysis in the existential risk studies literature to justify prioritizing AI alignment over near-term policy concerns.",
   frequency: "Prominent in safetyist POV; referenced in cross-cutting academic discussions.",
   links: [
-    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Existential_risk" },
+    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" },
     { label: "Centre for the Study of Existential Risk", url: "https://www.cser.ac.uk/" },
     { label: "Global Catastrophic Risk Institute", url: "https://gcrinstitute.org/" }
   ]
@@ -1400,7 +1400,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Core to safetyist POV; skeptic nodes question the theory\'s empirical grounding.",
   links: [
     { label: "Bostrom: Existential Risk Prevention as Global Priority", url: "https://existential-risk.org/concept" },
-    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Existential_risk" }
+    { label: "Wikipedia: Existential Risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" }
   ]
 },
 "Explainable AI (XAI) - focusing on post-hoc explanations": {
@@ -1441,7 +1441,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Common in skeptic and cross-cutting POVs; accelerationist nodes also reference forecasting for growth projections.",
   links: [
     { label: "Wikipedia: Forecasting", url: "https://en.wikipedia.org/wiki/Forecasting" },
-    { label: "Wikipedia: Superforecasting", url: "https://en.wikipedia.org/wiki/Superforecasting" }
+    { label: "Wikipedia: Superforecasting", url: "https://en.wikipedia.org/wiki/The_Good_Judgment_Project" }
   ]
 },
 "Formal verification": {
@@ -1470,7 +1470,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A skeptic node might invoke Foucault\'s panopticon to critique AI-powered surveillance as creating pervasive disciplinary effects on public behavior.",
   frequency: "Found in skeptic and cross-cutting POVs examining power dynamics in AI deployment.",
   links: [
-    { label: "Wikipedia: Panopticism", url: "https://en.wikipedia.org/wiki/Panopticism" },
+    { label: "Wikipedia: Panopticism", url: "https://en.wikipedia.org/wiki/Panopticon" },
     { label: "Wikipedia: Discipline and Punish", url: "https://en.wikipedia.org/wiki/Discipline_and_Punish" }
   ]
 },
@@ -1490,7 +1490,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A cross-cutting node might cite OECD estimates of jobs at risk of automation to motivate workforce transition policies.",
   frequency: "Widespread across all POVs, with different interpretations of automation\'s labor implications.",
   links: [
-    { label: "Wikipedia: Future of Work", url: "https://en.wikipedia.org/wiki/Future_of_work" },
+    { label: "Wikipedia: Future of Work", url: "https://en.wikipedia.org/w/index.php?search=Future%20of%20work" },
     { label: "OECD: Future of Work", url: "https://www.oecd.org/future-of-work/" }
   ]
 },
@@ -1701,7 +1701,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A cross-cutting node might evaluate regulatory sandboxes as an innovation policy tool that allows AI experimentation while maintaining oversight.",
   frequency: "Common across all POVs, with disagreements about the optimal regulatory stringency.",
   links: [
-    { label: "Wikipedia: Innovation Policy", url: "https://en.wikipedia.org/wiki/Innovation_policy" },
+    { label: "Wikipedia: Innovation Policy", url: "https://en.wikipedia.org/wiki/Innovation_management" },
     { label: "OECD: Science, Technology and Innovation", url: "https://www.oecd.org/en/topics/science-technology-and-innovation.html" }
   ]
 },
@@ -1752,8 +1752,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A safetyist node might cite the intelligence explosion hypothesis to argue that we may have only one chance to solve alignment before a superintelligence is created.",
   frequency: "Central to safetyist POV; contested by skeptic nodes questioning its plausibility.",
   links: [
-    { label: "Wikipedia: Intelligence Explosion", url: "https://en.wikipedia.org/wiki/Intelligence_explosion" },
-    { label: "I.J. Good: Speculations on the First Ultraintelligent Machine", url: "https://en.wikipedia.org/wiki/Ultraintelligent_machine" }
+    { label: "Wikipedia: Intelligence Explosion", url: "https://en.wikipedia.org/wiki/Technological_singularity" },
+    { label: "I.J. Good: Speculations on the First Ultraintelligent Machine", url: "https://en.wikipedia.org/wiki/I._J._Good" }
   ]
 },
 "International relations theory": {
@@ -1772,7 +1772,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A cross-cutting node might draw on cooperation-under-anarchy theory to evaluate whether an international AI safety treaty could achieve credible compliance mechanisms.",
   frequency: "Found in cross-cutting and safetyist POVs discussing international AI coordination.",
   links: [
-    { label: "Wikipedia: International Cooperation", url: "https://en.wikipedia.org/wiki/International_cooperation" },
+    { label: "Wikipedia: International Cooperation", url: "https://en.wikipedia.org/wiki/Multilateralism" },
     { label: "Keohane: After Hegemony", url: "https://en.wikipedia.org/wiki/After_Hegemony" }
   ]
 },
@@ -1782,7 +1782,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A cross-cutting node might invoke liberal institutionalism to advocate for an international AI safety organization modeled on the IAEA or WHO.",
   frequency: "Found in cross-cutting and safetyist POVs discussing international AI governance architectures.",
   links: [
-    { label: "Wikipedia: Liberal Institutionalism", url: "https://en.wikipedia.org/wiki/Neoliberalism_(international_relations)" },
+    { label: "Wikipedia: Liberal Institutionalism", url: "https://en.wikipedia.org/wiki/Liberal_institutionalism" },
     { label: "Wikipedia: Regime Theory", url: "https://en.wikipedia.org/wiki/Regime_theory" }
   ]
 },
@@ -1883,7 +1883,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A safetyist node might argue that long-term AI risk should receive priority funding even if near-term AI harms are more certain and immediate.",
   frequency: "Central to safetyist POV; contested by skeptic nodes favoring near-term focus.",
   links: [
-    { label: "Wikipedia: Existential Risk from AI", url: "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_general_intelligence" },
+    { label: "Wikipedia: Existential Risk from AI", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence" },
     { label: "Future of Life Institute", url: "https://futureoflife.org/" }
   ]
 },
@@ -1937,7 +1937,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may cite privacy attacks as evidence that deploying AI systems without robust safeguards exposes individuals\' personal data.",
     frequency: "Safetyist and cross-cutting nodes primarily; skeptics reference them to challenge claims of secure AI deployment.",
     links: [
-      { label: "Membership Inference Attacks (Wikipedia)", url: "https://en.wikipedia.org/wiki/Membership_inference_attack" },
+      { label: "Membership Inference Attacks (Wikipedia)", url: "https://en.wikipedia.org/w/index.php?search=Membership%20inference%20attack" },
       { label: "Model Inversion (Wikipedia)", url: "https://en.wikipedia.org/wiki/Model_inversion_attack" },
       { label: "Extracting Training Data from LLMs — Carlini et al.", url: "https://arxiv.org/abs/2012.07805" }
     ]
@@ -1948,7 +1948,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node might advocate for market-based regulation as a flexible alternative to prescriptive AI licensing regimes.",
     frequency: "Accelerationist and cross-cutting nodes; skeptics sometimes invoke it to argue against heavy-handed AI regulation.",
     links: [
-      { label: "Market-Based Instruments (Wikipedia)", url: "https://en.wikipedia.org/wiki/Market-based_instruments" },
+      { label: "Market-Based Instruments (Wikipedia)", url: "https://en.wikipedia.org/wiki/Market-based_environmental_policy_instruments" },
       { label: "Regulatory Economics (Wikipedia)", url: "https://en.wikipedia.org/wiki/Regulatory_economics" }
     ]
   },
@@ -1958,7 +1958,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may use Marxist class analysis to argue that AI-driven productivity gains primarily accrue to capital owners rather than workers.",
     frequency: "Cross-cutting and skeptic nodes; occasionally referenced critically in accelerationist discussions.",
     links: [
-      { label: "Class Conflict (Wikipedia)", url: "https://en.wikipedia.org/wiki/Class_conflict" },
+      { label: "Class Conflict (Wikipedia)", url: "https://en.wikipedia.org/wiki/Class_struggle" },
       { label: "Marxian Economics (Wikipedia)", url: "https://en.wikipedia.org/wiki/Marxian_economics" }
     ]
   },
@@ -1998,7 +1998,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may reference media effects theory to explain how science fiction tropes shape public perceptions of AI risk.",
     frequency: "Skeptic and cross-cutting POVs primarily; used to critique both accelerationist hype and safetyist alarm.",
     links: [
-      { label: "Media Influence (Wikipedia)", url: "https://en.wikipedia.org/wiki/Media_influence" },
+      { label: "Media Influence (Wikipedia)", url: "https://en.wikipedia.org/wiki/Influence_of_mass_media" },
       { label: "Agenda-Setting Theory (Wikipedia)", url: "https://en.wikipedia.org/wiki/Agenda-setting_theory" }
     ]
   },
@@ -2008,7 +2008,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node might invoke the limited effects model to argue that media coverage of AI risks has less policy impact than direct economic experience with automation.",
     frequency: "Skeptic POV primarily; cross-cutting nodes use it to temper claims about media-driven AI policy.",
     links: [
-      { label: "Limited Effects Theory (Wikipedia)", url: "https://en.wikipedia.org/wiki/Limited_effects_theory" },
+      { label: "Limited Effects Theory (Wikipedia)", url: "https://en.wikipedia.org/w/index.php?search=Limited%20effects%20theory" },
       { label: "Two-Step Flow of Communication (Wikipedia)", url: "https://en.wikipedia.org/wiki/Two-step_flow_of_communication" }
     ]
   },
@@ -2039,7 +2039,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Accelerationist POV primarily; skeptics critique it as unfounded speculation; safetyists may reference it in discussions of moral status.",
     links: [
       { label: "Mind Uploading (Wikipedia)", url: "https://en.wikipedia.org/wiki/Mind_uploading" },
-      { label: "Whole Brain Emulation (Wikipedia)", url: "https://en.wikipedia.org/wiki/Whole_brain_emulation" }
+      { label: "Whole Brain Emulation (Wikipedia)", url: "https://en.wikipedia.org/wiki/Mind_uploading" }
     ]
   },
   "Moore's Law (analogous)": {
@@ -2069,7 +2069,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Safetyist and cross-cutting POVs; accelerationists discuss them as a path to more capable AI ecosystems.",
     links: [
       { label: "Multi-Agent System (Wikipedia)", url: "https://en.wikipedia.org/wiki/Multi-agent_system" },
-      { label: "Emergent Behavior (Wikipedia)", url: "https://en.wikipedia.org/wiki/Emergent_behavior" }
+      { label: "Emergent Behavior (Wikipedia)", url: "https://en.wikipedia.org/wiki/Emergence" }
     ]
   },
   "Multi-stakeholder governance models": {
@@ -2078,7 +2078,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may advocate for multi-stakeholder governance as the most legitimate approach to setting international AI standards.",
     frequency: "Cross-cutting POV primarily; all POVs engage with governance structure debates.",
     links: [
-      { label: "Multistakeholder Governance (Wikipedia)", url: "https://en.wikipedia.org/wiki/Multistakeholder_governance_model" },
+      { label: "Multistakeholder Governance (Wikipedia)", url: "https://en.wikipedia.org/wiki/Multistakeholder_governance" },
       { label: "OECD AI Policy Observatory", url: "https://oecd.ai/" },
       { label: "Internet Governance Forum (Wikipedia)", url: "https://en.wikipedia.org/wiki/Internet_Governance_Forum" }
     ]
@@ -2219,7 +2219,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node might invoke the open source movement to argue that open AI models enable broader safety research and reduce corporate gatekeeping.",
     frequency: "Accelerationist POV strongly; cross-cutting nodes weigh tradeoffs; safetyists debate open-source risks.",
     links: [
-      { label: "Open-Source Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source-software_movement" },
+      { label: "Open-Source Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source_software_movement" },
       { label: "Open Source Initiative", url: "https://opensource.org/" }
     ]
   },
@@ -2229,7 +2229,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node might reference the open source software movement to argue that transparent AI development produces safer, more trustworthy systems.",
     frequency: "Accelerationist POV strongly; cross-cutting nodes weigh tradeoffs; safetyists debate open-source risks.",
     links: [
-      { label: "Open-Source Software Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source-software_movement" },
+      { label: "Open-Source Software Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source_software_movement" },
       { label: "Open Source Initiative", url: "https://opensource.org/" }
     ]
   },
@@ -2239,7 +2239,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node might cite the open-source movement as essential for preventing monopolistic control over AI capabilities.",
     frequency: "Accelerationist POV strongly; cross-cutting nodes weigh tradeoffs; safetyists debate open-source risks.",
     links: [
-      { label: "Open-Source Software Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source-software_movement" },
+      { label: "Open-Source Software Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source_software_movement" },
       { label: "Open Source Initiative", url: "https://opensource.org/" }
     ]
   },
@@ -2249,7 +2249,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may invoke open-source philosophy to argue that proprietary AI models used in high-stakes decisions violate principles of democratic accountability.",
     frequency: "Accelerationist and cross-cutting POVs; safetyists engage with the philosophy when debating responsible disclosure of AI capabilities.",
     links: [
-      { label: "Open-Source Software Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source-software_movement" },
+      { label: "Open-Source Software Movement (Wikipedia)", url: "https://en.wikipedia.org/wiki/Open-source_software_movement" },
       { label: "Free Software Foundation", url: "https://www.fsf.org/" },
       { label: "The Cathedral and the Bazaar (Wikipedia)", url: "https://en.wikipedia.org/wiki/The_Cathedral_and_the_Bazaar" }
     ]
@@ -2361,7 +2361,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may reference post-scarcity economics to argue that AI-driven abundance requires new distributive institutions beyond market mechanisms.",
     frequency: "Accelerationist POV primarily; cross-cutting nodes examine distributional challenges; skeptics question the premise.",
     links: [
-      { label: "Post-Scarcity Economy (Wikipedia)", url: "https://en.wikipedia.org/wiki/Post-scarcity_economy" },
+      { label: "Post-Scarcity Economy (Wikipedia)", url: "https://en.wikipedia.org/wiki/Post-scarcity" },
       { label: "Universal Basic Income (Wikipedia)", url: "https://en.wikipedia.org/wiki/Universal_basic_income" }
     ]
   },
@@ -2422,7 +2422,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Cross-cutting and safetyist POVs; economic analyses across all perspectives.",
     links: [
       { label: "Principal-Agent Problem (Wikipedia)", url: "https://en.wikipedia.org/wiki/Principal%E2%80%93agent_problem" },
-      { label: "Agency Theory (Wikipedia)", url: "https://en.wikipedia.org/wiki/Agency_theory" }
+      { label: "Agency Theory (Wikipedia)", url: "https://en.wikipedia.org/wiki/Principal%E2%80%93agent_problem" }
     ]
   },
   "product liability": {
@@ -2452,7 +2452,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Skeptic POV primarily; cross-cutting economic analyses; accelerationists argue AI will finally resolve the paradox.",
     links: [
       { label: "Productivity Paradox (Wikipedia)", url: "https://en.wikipedia.org/wiki/Productivity_paradox" },
-      { label: "Solow Computer Paradox (Wikipedia)", url: "https://en.wikipedia.org/wiki/Solow_computer_paradox" }
+      { label: "Solow Computer Paradox (Wikipedia)", url: "https://en.wikipedia.org/wiki/Productivity_paradox" }
     ]
   },
   "Progress narrative": {
@@ -2461,7 +2461,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may critique the progress narrative for assuming AI advancement is inherently beneficial without examining who gains and who loses.",
     frequency: "Accelerationist POV embodies it; skeptics and cross-cutting nodes critique it as ideological rather than empirical.",
     links: [
-      { label: "Idea of Progress (Wikipedia)", url: "https://en.wikipedia.org/wiki/Idea_of_progress" },
+      { label: "Idea of Progress (Wikipedia)", url: "https://en.wikipedia.org/wiki/Progress" },
       { label: "Technological Determinism (Wikipedia)", url: "https://en.wikipedia.org/wiki/Technological_determinism" }
     ]
   },
@@ -2481,7 +2481,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "A node may frame AI safety research as a public good that requires government funding because market incentives alone will not produce sufficient investment.",
     frequency: "Cross-cutting and safetyist POVs; economic analyses across all perspectives.",
     links: [
-      { label: "Public Good (Wikipedia)", url: "https://en.wikipedia.org/wiki/Public_good_(economics)" },
+      { label: "Public Good (Wikipedia)", url: "https://en.wikipedia.org/wiki/Public_good" },
       { label: "Free-Rider Problem (Wikipedia)", url: "https://en.wikipedia.org/wiki/Free-rider_problem" }
     ]
   },
@@ -2504,7 +2504,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "Appears in nodes analyzing geopolitical AI competition and strategic decision-making frameworks.",
     frequency: "Common in accelerationist and cross-cutting nodes discussing AI races and strategic dynamics.",
     links: [
-      { label: "Wikipedia: Rational Choice Theory", url: "https://en.wikipedia.org/wiki/Rational_choice_theory" },
+      { label: "Wikipedia: Rational Choice Theory", url: "https://en.wikipedia.org/wiki/Rational_choice_model" },
       { label: "Stanford Encyclopedia: Rational Choice", url: "https://plato.stanford.edu/entries/rationality-instrumental/" }
     ]
   },
@@ -2514,7 +2514,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "Referenced in nodes about economic incentives driving AI development and adoption decisions.",
     frequency: "Common in accelerationist and cross-cutting nodes discussing market dynamics and policy incentives.",
     links: [
-      { label: "Wikipedia: Rational Choice Theory", url: "https://en.wikipedia.org/wiki/Rational_choice_theory" },
+      { label: "Wikipedia: Rational Choice Theory", url: "https://en.wikipedia.org/wiki/Rational_choice_model" },
       { label: "Stanford Encyclopedia: Rational Choice", url: "https://plato.stanford.edu/entries/rationality-instrumental/" }
     ]
   },
@@ -2555,7 +2555,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Heavily used in safetyist and accelerationist nodes; skeptic nodes question its plausibility.",
     links: [
       { label: "Wikipedia: Recursive Self-Improvement", url: "https://en.wikipedia.org/wiki/Recursive_self-improvement" },
-      { label: "Wikipedia: Intelligence Explosion", url: "https://en.wikipedia.org/wiki/Intelligence_explosion" }
+      { label: "Wikipedia: Intelligence Explosion", url: "https://en.wikipedia.org/wiki/Technological_singularity" }
     ]
   },
   "Regulatory capture theory": {
@@ -2594,7 +2594,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "Cited in nodes proposing flexible AI governance frameworks that balance innovation and safety.",
     frequency: "Common in cross-cutting and skeptic nodes; some accelerationist support.",
     links: [
-      { label: "Wikipedia: Regulatory Sandbox", url: "https://en.wikipedia.org/wiki/Regulatory_sandbox" },
+      { label: "Wikipedia: Regulatory Sandbox", url: "https://en.wikipedia.org/wiki/Regulatory_technology" },
       { label: "World Bank: Regulatory Sandboxes", url: "https://www.worldbank.org/en/topic/fintech/brief/key-data-from-regulatory-sandboxes-across-the-globe" }
     ]
   },
@@ -2645,7 +2645,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "Appears in cross-cutting and skeptic nodes discussing societal adaptation to AI-driven change.",
     frequency: "Cross-cutting and skeptic nodes; some safetyist applications.",
     links: [
-      { label: "Wikipedia: Resilience (ecology)", url: "https://en.wikipedia.org/wiki/Resilience_(ecology)" },
+      { label: "Wikipedia: Resilience (ecology)", url: "https://en.wikipedia.org/wiki/Ecological_resilience" },
       { label: "Stockholm Resilience Centre", url: "https://www.stockholmresilience.org/research/resilience.html" }
     ]
   },
@@ -2860,7 +2860,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Primarily in skeptic nodes; some accelerationist alignment.",
     links: [
       { label: "Wikipedia: Moral Panic", url: "https://en.wikipedia.org/wiki/Moral_panic" },
-      { label: "Wikipedia: Techno-panic", url: "https://en.wikipedia.org/wiki/Technopanic" }
+      { label: "Wikipedia: Techno-panic", url: "https://en.wikipedia.org/w/index.php?search=Technopanic" }
     ]
   },
   "social safety net philosophy": {
@@ -2939,7 +2939,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "Appears in skeptic and cross-cutting nodes examining the social shaping of AI development trajectories.",
     frequency: "Found in skeptic and cross-cutting nodes.",
     links: [
-      { label: "Wikipedia: Sociology of Technology", url: "https://en.wikipedia.org/wiki/Sociology_of_technology" },
+      { label: "Wikipedia: Sociology of Technology", url: "https://en.wikipedia.org/w/index.php?search=Sociology%20of%20technology" },
       { label: "Wikipedia: Social Construction of Technology", url: "https://en.wikipedia.org/wiki/Social_construction_of_technology" }
     ]
   },
@@ -3041,7 +3041,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Core to accelerationist nodes; critically examined across all other POVs.",
     links: [
       { label: "Wikipedia: Technological Utopianism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" },
-      { label: "Wikipedia: Techno-optimism", url: "https://en.wikipedia.org/wiki/Techno-optimism" }
+      { label: "Wikipedia: Techno-optimism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" }
     ]
   },
   "technological determinism (soft version)": {
@@ -3112,7 +3112,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Core to accelerationist nodes; critiqued in skeptic and cross-cutting nodes.",
     links: [
       { label: "Wikipedia: Technological Utopianism", url: "https://en.wikipedia.org/wiki/Technological_utopianism" },
-      { label: "Wikipedia: Post-scarcity Economy", url: "https://en.wikipedia.org/wiki/Post-scarcity_economy" }
+      { label: "Wikipedia: Post-scarcity Economy", url: "https://en.wikipedia.org/wiki/Post-scarcity" }
     ]
   },
   "Technology assessment": {
@@ -3142,7 +3142,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "Referenced in accelerationist nodes with philosophical framings of AI as evolutionary culmination.",
     frequency: "Occasionally in accelerationist nodes; critically noted in skeptic analyses.",
     links: [
-      { label: "Wikipedia: Omega Point", url: "https://en.wikipedia.org/wiki/Omega_point" },
+      { label: "Wikipedia: Omega Point", url: "https://en.wikipedia.org/wiki/Omega_Point" },
       { label: "Wikipedia: Pierre Teilhard de Chardin", url: "https://en.wikipedia.org/wiki/Pierre_Teilhard_de_Chardin" }
     ]
   },
@@ -3152,7 +3152,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     example: "Referenced in accelerationist nodes with philosophical framings of AI as evolutionary culmination.",
     frequency: "Occasionally in accelerationist nodes; critically noted in skeptic analyses.",
     links: [
-      { label: "Wikipedia: Omega Point", url: "https://en.wikipedia.org/wiki/Omega_point" },
+      { label: "Wikipedia: Omega Point", url: "https://en.wikipedia.org/wiki/Omega_Point" },
       { label: "Wikipedia: Pierre Teilhard de Chardin", url: "https://en.wikipedia.org/wiki/Pierre_Teilhard_de_Chardin" }
     ]
   },
@@ -3233,7 +3233,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Found in cross-cutting and skeptic nodes on practical governance.",
     links: [
       { label: "Wikipedia: Triage", url: "https://en.wikipedia.org/wiki/Triage" },
-      { label: "Wikipedia: Medical Prioritization", url: "https://en.wikipedia.org/wiki/Priority_dispatch" }
+      { label: "Wikipedia: Medical Prioritization", url: "https://en.wikipedia.org/w/index.php?search=Priority%20dispatch" }
     ]
   },
   "Uncertainty quantification in ML": {
@@ -3314,7 +3314,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
     frequency: "Occasionally in cross-cutting nodes discussing economic democracy and AI.",
     links: [
       { label: "Wikipedia: Worker Cooperative", url: "https://en.wikipedia.org/wiki/Worker_cooperative" },
-      { label: "Wikipedia: Platform Cooperativism", url: "https://en.wikipedia.org/wiki/Platform_cooperativism" },
+      { label: "Wikipedia: Platform Cooperativism", url: "https://en.wikipedia.org/wiki/Platform_cooperative" },
       { label: "International Co-operative Alliance", url: "https://www.ica.coop/" }
     ]
   },
@@ -3342,7 +3342,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute could explore whether autonomous AI weapons might create a new form of deterrence, or conversely, destabilize existing deterrence frameworks.",
   frequency: "Appears in national security, military strategy, and arms control nodes discussing the strategic implications of AI.",
   links: [
-    { label: "Nuclear deterrence", url: "https://en.wikipedia.org/wiki/Nuclear_deterrence" }
+    { label: "Nuclear deterrence", url: "https://en.wikipedia.org/wiki/Deterrence_theory" }
   ]
 },
 "Science and Technology Studies (STS)": {
@@ -3351,7 +3351,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how public perceptions and social values influence the ethical guidelines for AI development.",
   frequency: "Appears in critical theory nodes discussing the social and political dimensions of AI.",
   links: [
-    { label: "Science and Technology Studies", url: "https://en.wikipedia.org/wiki/Science_and_Technology_Studies" }
+    { label: "Science and Technology Studies", url: "https://en.wikipedia.org/wiki/Science_and_technology_studies" }
   ]
 },
 
@@ -3398,7 +3398,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a method for analyzing and addressing the most severe potential harms from advanced AI.",
   frequency: "Understanding this helps policymakers develop preventative measures and international cooperation strategies for extreme AI risks.",
   links: [
-    { label: "Existential risk from artificial general intelligence", url: "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_general_intelligence" }
+    { label: "Existential risk from artificial general intelligence", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence" }
   ]
 },
 "AI safety research": {
@@ -3480,7 +3480,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a framework for evaluating the fairness, transparency, and compliance of AI systems.",
   frequency: "Understanding this helps policymakers establish requirements for independent verification and accountability of AI systems.",
   links: [
-    { label: "Auditing standards", url: "https://en.wikipedia.org/wiki/Auditing_standards" }
+    { label: "Auditing standards", url: "https://en.wikipedia.org/w/index.php?search=Auditing%20standards" }
   ]
 },
 "Authentic assessment movement": {
@@ -3507,7 +3507,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as the study of how automation can sometimes lead to new human errors or skill degradation.",
   frequency: "Understanding this helps policymakers design AI systems and regulations that maintain human oversight and critical skills, especially in high-stakes environments.",
   links: [
-    { label: "Automation paradox", url: "https://en.wikipedia.org/wiki/Automation_paradox" }
+    { label: "Automation paradox", url: "https://en.wikipedia.org/wiki/Automation" }
   ]
 },
 "Automation theory": {
@@ -3543,7 +3543,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a strategy for fundamentally redesigning organizational processes, often with AI integration.",
   frequency: "Understanding this helps policymakers anticipate AI's impact on industries and design policies for workforce adaptation and ethical business transformation.",
   links: [
-    { label: "Business process reengineering", url: "https://en.wikipedia.org/wiki/Business_process_reengineering" }
+    { label: "Business process reengineering", url: "https://en.wikipedia.org/wiki/Business_process_re-engineering" }
   ]
 },
 "Cascading failure analysis": {
@@ -3590,7 +3590,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a theory explaining how information processing capacity affects human learning and interaction with AI.",
   frequency: "Understanding this helps policymakers design AI interfaces and training to optimize human-AI collaboration and reduce errors.",
   links: [
-    { label: "Cognitive load theory", url: "https://en.wikipedia.org/wiki/Cognitive_load_theory" }
+    { label: "Cognitive load theory", url: "https://en.wikipedia.org/wiki/Cognitive_load" }
   ]
 },
 "Cognitive psychology of learning": {
@@ -3676,7 +3676,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a legal principle allowing federal influence over state AI policies through funding conditions.",
   frequency: "Understanding this helps policymakers explore mechanisms for federal influence and standardization of AI policies across states.",
   links: [
-    { label: "Spending Clause", url: "https://en.wikipedia.org/wiki/Spending_Clause" }
+    { label: "Spending Clause", url: "https://en.wikipedia.org/wiki/Taxing_and_Spending_Clause" }
   ]
 },
 "Constitutional AI": {
@@ -3703,7 +3703,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a theory of learning where knowledge is actively built through experience, relevant to AI learning and education.",
   frequency: "Understanding this helps policymakers guide AI development for educational tools and understand how AI systems acquire knowledge through interaction.",
   links: [
-    { label: "Constructivism (learning theory)", url: "https://en.wikipedia.org/wiki/Constructivism_(learning_theory)" }
+    { label: "Constructivism (learning theory)", url: "https://en.wikipedia.org/wiki/Constructivism_(philosophy_of_education)" }
   ]
 },
 "Contract Law principles": {
@@ -3712,7 +3712,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as the legal framework governing agreements, applied to AI's role in commercial transactions.",
   frequency: "Understanding this helps policymakers adapt legal frameworks to address AI's involvement in contract formation, liability, and commercial agreements.",
   links: [
-    { label: "Contract law", url: "https://en.wikipedia.org/wiki/Contract_law" }
+    { label: "Contract law", url: "https://en.wikipedia.org/wiki/Contract" }
   ]
 },
 "Corporate governance studies": {
@@ -3749,7 +3749,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a framework for analyzing the social and political implications of AI design and deployment.",
   frequency: "",
   links: [
-    { label: "Critical theory of technology", url: "https://en.wikipedia.org/wiki/Critical_theory_of_technology" }
+    { label: "Critical theory of technology", url: "https://en.wikipedia.org/w/index.php?search=Critical%20theory%20of%20technology" }
   ]
 },
 "Critical thinking pedagogy": {
@@ -3786,7 +3786,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a model for establishing standards and best practices for AI security and risk management.",
   frequency: "",
   links: [
-    { label: "Cybersecurity framework", url: "https://en.wikipedia.org/wiki/Cybersecurity_framework" }
+    { label: "Cybersecurity framework", url: "https://en.wikipedia.org/wiki/Computer_security_framework" }
   ]
 },
 "Cybersecurity incident response": {
@@ -3795,7 +3795,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a critical component for managing failures, breaches, and harmful outputs of AI systems.",
   frequency: "",
   links: [
-    { label: "Incident response", url: "https://en.wikipedia.org/wiki/Incident_response" }
+    { label: "Incident response", url: "https://en.wikipedia.org/wiki/Incident_management" }
   ]
 },
 "David Autor's work on labor polarization": {
@@ -3805,7 +3805,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "David Autor", url: "https://en.wikipedia.org/wiki/David_Autor" },
-    { label: "Job polarization", url: "https://en.wikipedia.org/wiki/Job_polarization" }
+    { label: "Job polarization", url: "https://en.wikipedia.org/wiki/Polarization_(economics)" }
   ]
 },
 "Deontological ethics": {
@@ -3823,7 +3823,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a technical challenge and risk factor in the development and deployment of complex AI systems.",
   frequency: "",
   links: [
-    { label: "Dependency (computer science)", url: "https://en.wikipedia.org/wiki/Dependency_(computer_science)" },
+    { label: "Dependency (computer science)", url: "https://en.wikipedia.org/wiki/Coupling_(computer_programming)" },
     { label: "Software supply chain", url: "https://en.wikipedia.org/wiki/Software_supply_chain" }
   ]
 },
@@ -3833,8 +3833,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a principle from cognitive psychology relevant to AI literacy and human-AI interaction design.",
   frequency: "",
   links: [
-    { label: "Desirable difficulties", url: "https://en.wikipedia.org/wiki/Desirable_difficulties" },
-    { label: "Robert Bjork", url: "https://en.wikipedia.org/wiki/Robert_Bjork" }
+    { label: "Desirable difficulties", url: "https://en.wikipedia.org/wiki/Desirable_difficulty" },
+    { label: "Robert Bjork", url: "https://en.wikipedia.org/wiki/Robert_A._Bjork" }
   ]
 },
 "Diffusion of Innovations theory (Rogers)": {
@@ -3853,7 +3853,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a foundational ethical framework for guiding the development and use of AI technologies.",
   frequency: "",
   links: [
-    { label: "Digital ethics", url: "https://en.wikipedia.org/wiki/Digital_ethics" }
+    { label: "Digital ethics", url: "https://en.wikipedia.org/wiki/Information_ethics" }
   ]
 },
 "Digital reputation management": {
@@ -3862,7 +3862,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a concern regarding how AI systems can impact individual and organizational online identities and perceptions.",
   frequency: "",
   links: [
-    { label: "Online reputation management", url: "https://en.wikipedia.org/wiki/Online_reputation_management" }
+    { label: "Online reputation management", url: "https://en.wikipedia.org/wiki/Reputation_management" }
   ]
 },
 "Disinformation studies": {
@@ -3880,7 +3880,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a challenge in assigning accountability for AI system outcomes across multiple stakeholders.",
   frequency: "",
   links: [
-    { label: "Distributed responsibility", url: "https://en.wikipedia.org/wiki/Distributed_responsibility" }
+    { label: "Distributed responsibility", url: "https://en.wikipedia.org/w/index.php?search=Distributed%20responsibility" }
   ]
 },
 "Distributive Justice": {
@@ -3945,7 +3945,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "Economic indicator", url: "https://en.wikipedia.org/wiki/Economic_indicator" },
-    { label: "Measurement (economics)", url: "https://en.wikipedia.org/wiki/Measurement_(economics)" }
+    { label: "Measurement (economics)", url: "https://en.wikipedia.org/w/index.php?search=Measurement%20(economics)" }
   ]
 },
 "Economic nationalism": {
@@ -3972,7 +3972,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "In the taxonomy, this appears as a framework for understanding the drivers and impacts of AI innovation on economic growth and market dynamics.",
   frequency: "",
   links: [
-    { label: "Economics of innovation", url: "https://en.wikipedia.org/wiki/Economics_of_innovation" }
+    { label: "Economics of innovation", url: "https://en.wikipedia.org/wiki/Innovation" }
   ]
 },
 "Educational psychology": {
@@ -4000,7 +4000,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "Environmental impact assessment", url: "https://en.wikipedia.org/wiki/Environmental_impact_assessment" },
-    { label: "Environmental impact of computing", url: "https://en.wikipedia.org/wiki/Environmental_impact_of_computing" }
+    { label: "Environmental impact of computing", url: "https://en.wikipedia.org/wiki/Green_computing" }
   ]
 },
 "Ergonomics": {
@@ -4119,7 +4119,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy under market concentration, competition policy, and regulatory frameworks for AI.",
   frequency: "",
   links: [
-    { label: "Antitrust law", url: "https://en.wikipedia.org/wiki/Antitrust_law" },
+    { label: "Antitrust law", url: "https://en.wikipedia.org/wiki/Competition_law" },
     { label: "Regulation", url: "https://en.wikipedia.org/wiki/Regulation" }
   ]
 },
@@ -4138,7 +4138,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy under topics like human-AI collaboration, user interface design for AI, and AI safety and reliability.",
   frequency: "",
   links: [
-    { label: "Human factors and ergonomics", url: "https://en.wikipedia.org/wiki/Human_factors_and_ergonomics" }
+    { label: "Human factors and ergonomics", url: "https://en.wikipedia.org/wiki/Ergonomics" }
   ]
 },
 "Human-Computer Interaction design principles": {
@@ -4157,7 +4157,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "Human-centered design", url: "https://en.wikipedia.org/wiki/Human-centered_design" },
-    { label: "Ethical artificial intelligence", url: "https://en.wikipedia.org/wiki/Ethical_artificial_intelligence" }
+    { label: "Ethical artificial intelligence", url: "https://en.wikipedia.org/w/index.php?search=Ethical%20artificial%20intelligence" }
   ]
 },
 "Human-computer interaction (HCI)": {
@@ -4176,7 +4176,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "Human–computer interaction", url: "https://en.wikipedia.org/wiki/Human%E2%80%93computer_interaction" },
-    { label: "Workload", url: "https://en.wikipedia.org/wiki/Workload_(psychology)" }
+    { label: "Workload", url: "https://en.wikipedia.org/w/index.php?search=Workload%20(psychology)" }
   ]
 },
 "IT failure studies": {
@@ -4185,7 +4185,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy under AI risk management, project governance for AI, and accountability for AI system failures.",
   frequency: "",
   links: [
-    { label: "Project failure", url: "https://en.wikipedia.org/wiki/Project_failure" }
+    { label: "Project failure", url: "https://en.wikipedia.org/w/index.php?search=Project%20failure" }
   ]
 },
 "IT project management failures literature": {
@@ -4195,7 +4195,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "Project management", url: "https://en.wikipedia.org/wiki/Project_management" },
-    { label: "Project failure", url: "https://en.wikipedia.org/wiki/Project_failure" }
+    { label: "Project failure", url: "https://en.wikipedia.org/w/index.php?search=Project%20failure" }
   ]
 },
 "Information pollution": {
@@ -4240,7 +4240,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy under international AI governance, federalism in AI regulation, and multi-stakeholder approaches to AI policy.",
   frequency: "",
   links: [
-    { label: "Intergovernmental relations", url: "https://en.wikipedia.org/wiki/Intergovernmental_relations" }
+    { label: "Intergovernmental relations", url: "https://en.wikipedia.org/w/index.php?search=Intergovernmental%20relations" }
   ]
 },
 "Keynesian economics": {
@@ -4285,7 +4285,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy under AI liability, accountability frameworks, and the legal personhood of AI.",
   frequency: "",
   links: [
-    { label: "Legal philosophy", url: "https://en.wikipedia.org/wiki/Philosophy_of_law" },
+    { label: "Legal philosophy", url: "https://en.wikipedia.org/wiki/Jurisprudence" },
     { label: "Legal liability", url: "https://en.wikipedia.org/wiki/Legal_liability" }
   ]
 },
@@ -4304,7 +4304,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy under economic impacts of AI, labor market dynamics, and education and workforce development policies.",
   frequency: "",
   links: [
-    { label: "Luddite fallacy", url: "https://en.wikipedia.org/wiki/Luddite_fallacy" }
+    { label: "Luddite fallacy", url: "https://en.wikipedia.org/wiki/Technological_unemployment" }
   ]
 },
 "Machine learning research": {
@@ -4340,8 +4340,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy under ethical AI frameworks, AI governance principles, and human values in AI design.",
   frequency: "",
   links: [
-    { label: "Moral philosophy", url: "https://en.wikipedia.org/wiki/Moral_philosophy" },
-    { label: "Principles of biomedical ethics", url: "https://en.wikipedia.org/wiki/Principles_of_biomedical_ethics" }
+    { label: "Moral philosophy", url: "https://en.wikipedia.org/wiki/Ethics" },
+    { label: "Principles of biomedical ethics", url: "https://en.wikipedia.org/w/index.php?search=Principles%20of%20biomedical%20ethics" }
   ]
 },
 "National security doctrine": {
@@ -4405,7 +4405,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "Philosophy of mind", url: "https://en.wikipedia.org/wiki/Philosophy_of_mind" },
-    { label: "Chinese room argument", url: "https://en.wikipedia.org/wiki/Chinese_room_argument" }
+    { label: "Chinese room argument", url: "https://en.wikipedia.org/wiki/Chinese_room" }
   ]
 },
 "Philosophy of Science (e.g., Popper's falsificationism)": {
@@ -4491,7 +4491,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a framework for understanding global governance challenges that extend beyond the traditional nation-state model.",
   frequency: "",
   links: [
-    { label: "Westphalian sovereignty", url: "https://en.wikipedia.org/wiki/Westphalian_sovereignty" },
+    { label: "Westphalian sovereignty", url: "https://en.wikipedia.org/wiki/Westphalian_system" },
     { label: "International relations theory", url: "https://en.wikipedia.org/wiki/International_relations_theory" }
   ]
 },
@@ -4549,7 +4549,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "",
   links: [
     { label: "Public choice", url: "https://en.wikipedia.org/wiki/Public_choice" },
-    { label: "Interest group", url: "https://en.wikipedia.org/wiki/Interest_group" }
+    { label: "Interest group", url: "https://en.wikipedia.org/wiki/Advocacy_group" }
   ]
 },
 "Public health frameworks": {
@@ -4586,7 +4586,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a specific machine learning technique for aligning AI behavior with human preferences.",
   frequency: "",
   links: [
-    { label: "Reinforcement Learning from Human Feedback", url: "https://en.wikipedia.org/wiki/Reinforcement_Learning_from_Human_Feedback" }
+    { label: "Reinforcement Learning from Human Feedback", url: "https://en.wikipedia.org/w/index.php?search=Reinforcement%20Learning%20from%20Human%20Feedback" }
   ]
 },
 "Reinforcement learning": {
@@ -4632,7 +4632,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a theoretical framework for understanding how societies manage and control risks through policy and governance.",
   frequency: "",
   links: [
-    { label: "Risk regulation", url: "https://en.wikipedia.org/wiki/Risk_regulation" }
+    { label: "Risk regulation", url: "https://en.wikipedia.org/w/index.php?search=Risk%20regulation" }
   ]
 },
 "Risk society critique (Beck)": {
@@ -4651,7 +4651,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a regulatory strategy that tailors oversight based on the assessed level of risk posed by an activity or technology.",
   frequency: "",
   links: [
-    { label: "Risk-based regulation", url: "https://en.wikipedia.org/wiki/Risk-based_regulation" },
+    { label: "Risk-based regulation", url: "https://en.wikipedia.org/w/index.php?search=Risk-based%20regulation" },
     { label: "Artificial Intelligence Act", url: "https://en.wikipedia.org/wiki/Artificial_Intelligence_Act" }
   ]
 },
@@ -4670,7 +4670,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a cognitive and educational research area focused on how humans learn and develop expertise.",
   frequency: "",
   links: [
-    { label: "Skill acquisition", url: "https://en.wikipedia.org/wiki/Skill_acquisition" }
+    { label: "Skill acquisition", url: "https://en.wikipedia.org/w/index.php?search=Skill%20acquisition" }
   ]
 },
 "Skill-Biased Technological Change (SBTC) theory": {
@@ -4679,7 +4679,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as an economic theory explaining how technological advancements affect labor demand and wage inequality.",
   frequency: "",
   links: [
-    { label: "Skill-biased technological change", url: "https://en.wikipedia.org/wiki/Skill-biased_technological_change" }
+    { label: "Skill-biased technological change", url: "https://en.wikipedia.org/wiki/Causes_of_income_inequality_in_the_United_States" }
   ]
 },
 "Social Contract Theory": {
@@ -4755,8 +4755,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This appears in the taxonomy as a cybersecurity domain focused on protecting software integrity across its entire development and deployment lifecycle.",
   frequency: "",
   links: [
-    { label: "Software supply chain attack", url: "https://en.wikipedia.org/wiki/Software_supply_chain_attack" },
-    { label: "SolarWinds cyberattack", url: "https://en.wikipedia.org/wiki/SolarWinds_cyberattack" }
+    { label: "Software supply chain attack", url: "https://en.wikipedia.org/w/index.php?search=Software%20supply%20chain%20attack" },
+    { label: "SolarWinds cyberattack", url: "https://en.wikipedia.org/w/index.php?search=SolarWinds%20cyberattack" }
   ]
 },
 "Solow paradox": {
@@ -4822,7 +4822,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This theory helps frame discussions around AI's broader societal impacts and risks, particularly emergent behaviors.",
   frequency: "Policymakers must consider systemic risks and potential negative externalities when regulating AI, fostering adaptive governance.",
   links: [
-    { label: "Unintended consequences", url: "https://en.wikipedia.org/wiki/Unintended_consequences" },
+    { label: "Unintended consequences", url: "https://en.wikipedia.org/wiki/Unintended_consequencess" },
     { label: "Systems theory", url: "https://en.wikipedia.org/wiki/Systems_theory" }
   ]
 },
@@ -4850,7 +4850,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "It serves as a cautionary lens when evaluating the scope and limits of AI's problem-solving capabilities.",
   frequency: "Policymakers should avoid techno-solutionist pitfalls by adopting holistic approaches to societal challenges, not just technological ones.",
   links: [
-    { label: "Solutionism", url: "https://en.wikipedia.org/wiki/Solutionism" }
+    { label: "Solutionism", url: "https://en.wikipedia.org/wiki/Technological_fix" }
   ]
 },
 "Technological S-curves": {
@@ -4859,7 +4859,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "This concept helps model the diffusion and maturation of AI technologies over time, informing strategic planning.",
   frequency: "Policymakers can use S-curves to anticipate future AI capabilities and societal impacts, informing proactive regulation.",
   links: [
-    { label: "S-curve (technology)", url: "https://en.wikipedia.org/wiki/S-curve_(technology)" }
+    { label: "S-curve (technology)", url: "https://en.wikipedia.org/w/index.php?search=S-curve%20(technology)" }
   ]
 },
 "Technological determinism (soft)": {
@@ -4886,7 +4886,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "It describes the process by which AI technologies are integrated into society and various sectors.",
   frequency: "Policies can be tailored to different stages of AI adoption to maximize benefits and minimize risks for various user groups.",
   links: [
-    { label: "Technology adoption lifecycle", url: "https://en.wikipedia.org/wiki/Technology_adoption_lifecycle" }
+    { label: "Technology adoption lifecycle", url: "https://en.wikipedia.org/w/index.php?search=Technology%20adoption_life_cycle" }
   ]
 },
 "Technology adoption lifecycle models": {
@@ -4895,7 +4895,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "These models offer structured ways to analyze and predict the spread of AI technologies and their societal integration.",
   frequency: "Policymakers can leverage these models to craft targeted strategies for promoting responsible AI adoption and mitigating associated risks.",
   links: [
-    { label: "Technology adoption lifecycle", url: "https://en.wikipedia.org/wiki/Technology_adoption_lifecycle" },
+    { label: "Technology adoption lifecycle", url: "https://en.wikipedia.org/w/index.php?search=Technology%20adoption_life_cycle" },
     { label: "Diffusion of innovations", url: "https://en.wikipedia.org/wiki/Diffusion_of_innovations" }
   ]
 },
@@ -4960,7 +4960,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "It addresses the need for transparency and accountability mechanisms within AI development and deployment.",
   frequency: "Policies must ensure robust protections for individuals who report risks or misconduct related to AI systems.",
   links: [
-    { label: "Whistleblower protection", url: "https://en.wikipedia.org/wiki/Whistleblower_protection" }
+    { label: "Whistleblower protection", url: "https://en.wikipedia.org/wiki/Whistleblowing" }
   ]
 },
 "economic growth theory": {
@@ -5060,7 +5060,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss policies aimed at using AI to automate labor and redistribute wealth, leading to a more egalitarian society.",
   frequency: "Appears in *critical theory* or *socialist thought* nodes discussing *post-capitalist futures* or *technological liberation*.",
   links: [
-    { label: "Left-accelerationism", url: "https://en.wikipedia.org/wiki/Left-accelerationism" }
+    { label: "Left-accelerationism", url: "https://en.wikipedia.org/wiki/Accelerationism" }
   ]
 },
 "Active learning": {
@@ -5105,7 +5105,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze legal precedents for assigning liability when an autonomous vehicle (agent) causes an accident, considering the manufacturer or owner as the principal.",
   frequency: "Appears in *legal theory* or *liability frameworks* nodes discussing *AI accountability* or *autonomous systems*.",
   links: [
-    { label: "Agency (law)", url: "https://en.wikipedia.org/wiki/Agency_(law)" },
+    { label: "Agency (law)", url: "https://en.wikipedia.org/wiki/Law_of_agency" },
     { label: "Principal–agent problem", url: "https://en.wikipedia.org/wiki/Principal%E2%80%93agent_problem" }
   ]
 },
@@ -5124,7 +5124,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might explore how existing legal concepts of agency can be adapted to assign liability for decisions made by autonomous AI systems.",
   frequency: "Appears in *legal frameworks* or *AI governance* nodes discussing *liability* or *legal personhood*.",
   links: [
-    { label: "Agency (law)", url: "https://en.wikipedia.org/wiki/Agency_(law)" },
+    { label: "Agency (law)", url: "https://en.wikipedia.org/wiki/Law_of_agency" },
     { label: "Principal–agent problem", url: "https://en.wikipedia.org/wiki/Principal%E2%80%93agent_problem" }
   ]
 },
@@ -5162,7 +5162,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in *AI safety research* or *existential risk* nodes discussing *superintelligence* or *human oversight*.",
   links: [
     { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" },
-    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_control_problem" }
+    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
 "AI alignment (instrumental convergence)": {
@@ -5192,7 +5192,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in *AI safety research* or *long-term AI risk* nodes discussing *superintelligence governance* or *fail-safe mechanisms*.",
   links: [
     { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" },
-    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_control_problem" }
+    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
 "AI alignment problem (misalignment with societal values)": {
@@ -5202,7 +5202,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in *AI ethics* or *responsible AI* nodes discussing *bias mitigation* or *value loading*.",
   links: [
     { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" },
-    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "AI alignment research (interpretability)": {
@@ -5211,7 +5211,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss policies requiring AI models used in loan applications to provide clear, human-understandable reasons for their decisions.",
   frequency: "Appears in *AI safety* or *explainable AI (XAI)* nodes discussing *transparency* or *auditing AI*.",
   links: [
-    { label: "Explainable AI", url: "https://en.wikipedia.org/wiki/Explainable_AI" },
+    { label: "Explainable AI", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" },
     { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
@@ -5239,7 +5239,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss regulations that assign clear liability to manufacturers or operators for accidents caused by autonomous vehicles.",
   frequency: "Appears in *AI governance* or *legal frameworks* nodes discussing *liability* or *ethical guidelines*.",
   links: [
-    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" },
+    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" },
     { label: "Accountability", url: "https://en.wikipedia.org/wiki/Accountability" }
   ]
 },
@@ -5249,7 +5249,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss philosophical arguments for or against granting legal rights to highly advanced, potentially sentient AI systems.",
   frequency: "Appears in *AI philosophy* or *long-term AI ethics* nodes discussing *sentience* or *moral status*.",
   links: [
-    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" },
+    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" },
     { label: "Philosophy of artificial intelligence", url: "https://en.wikipedia.org/wiki/Philosophy_of_artificial_intelligence" }
   ]
 },
@@ -5259,8 +5259,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss policies requiring human operators to always retain the ability to override or shut down an autonomous weapon system.",
   frequency: "Appears in *AI safety* or *AI governance* nodes discussing *liability* or *human oversight*.",
   links: [
-    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" },
-    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_control_problem" }
+    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" },
+    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
 "AI ethics (value alignment, moral AI)": {
@@ -5269,7 +5269,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss guidelines for training AI to prioritize human well-being in autonomous decision-making scenarios, such as in self-driving cars.",
   frequency: "Appears in *responsible AI* or *AI safety* nodes discussing *ethical design* or *bias mitigation*.",
   links: [
-    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" },
+    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" },
     { label: "AI alignment", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
@@ -5308,7 +5308,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in *AI governance* or *risk mitigation* nodes discussing *human oversight* or *fail-safe design*.",
   links: [
     { label: "AI safety", url: "https://en.wikipedia.org/wiki/AI_safety" },
-    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_control_problem" }
+    { label: "AI control problem", url: "https://en.wikipedia.org/wiki/AI_alignment" }
   ]
 },
 "AI safety and alignment research": {
@@ -5410,7 +5410,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how antitrust regulators could investigate mergers between large AI firms or examine whether dominant AI platforms are unfairly stifling competition.",
   frequency: "Appears in economic and regulatory nodes discussing market concentration and competition in the AI industry.",
   links: [
-    { label: "Antitrust law", url: "https://en.wikipedia.org/wiki/Antitrust_law" }
+    { label: "Antitrust law", url: "https://en.wikipedia.org/wiki/Competition_law" }
   ]
 },
 "Arms control agreements": {
@@ -5475,7 +5475,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss arguments that market competition among AI developers will naturally lead to safer and more ethical AI, or critiques of government attempts to dictate AI research priorities.",
   frequency: "Appears in libertarian and economic policy nodes discussing market-based approaches to AI governance.",
   links: [
-    { label: "Austrian School", url: "https://en.wikipedia.org/wiki/Austrian_School" },
+    { label: "Austrian School", url: "https://en.wikipedia.org/wiki/Austrian_school_of_economics" },
     { label: "Friedrich Hayek", url: "https://en.wikipedia.org/wiki/Friedrich_Hayek" }
   ]
 },
@@ -5503,7 +5503,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss policy recommendations for reskilling programs to prepare workers for AI-driven jobs or analyses of how AI could change the demand for human creativity and problem-solving skills.",
   frequency: "Appears in economic and social policy nodes discussing labor market impacts and societal adaptation to AI.",
   links: [
-    { label: "Future of work", url: "https://en.wikipedia.org/wiki/Future_of_work" }
+    { label: "Future of work", url: "https://en.wikipedia.org/w/index.php?search=Future%20of%20work" }
   ]
 },
 "Automation and labor economics": {
@@ -5652,7 +5652,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might explore the philosophical underpinnings of AI consciousness and its implications for legal personhood or ethical treatment of advanced AI.",
   frequency: "Appears in philosophical nodes discussing AI consciousness, sentience, and the nature of intelligence.",
   links: [
-    { label: "Chinese room argument", url: "https://en.wikipedia.org/wiki/Chinese_room_argument" },
+    { label: "Chinese room argument", url: "https://en.wikipedia.org/wiki/Chinese_room" },
     { label: "John Searle", url: "https://en.wikipedia.org/wiki/John_Searle" }
   ]
 },
@@ -5756,7 +5756,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in human-AI interaction nodes, AI safety nodes, and human factors engineering discussions, especially for autonomous systems.",
   links: [
     { label: "Automation", url: "https://en.wikipedia.org/wiki/Automation" },
-    { label: "Human factors and ergonomics", url: "https://en.wikipedia.org/wiki/Human_factors_and_ergonomics" }
+    { label: "Human factors and ergonomics", url: "https://en.wikipedia.org/wiki/Ergonomics" }
   ]
 },
 "Cognitive psychology of memory (primacy/recency effects)": {
@@ -5835,7 +5835,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how AI-powered training simulations could be designed based on principles of skill acquisition to prepare workers for AI-augmented jobs, influencing educational policy.",
   frequency: "Appears in future-of-work nodes, AI education nodes, and human-AI collaboration nodes discussing training and expertise.",
   links: [
-    { label: "Skill acquisition", url: "https://en.wikipedia.org/wiki/Skill_acquisition" },
+    { label: "Skill acquisition", url: "https://en.wikipedia.org/w/index.php?search=Skill%20acquisition" },
     { label: "Cognitive science", url: "https://en.wikipedia.org/wiki/Cognitive_science" }
   ]
 },
@@ -5986,7 +5986,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might explore how AI-powered educational tools can be designed to facilitate students\' active construction of knowledge.",
   frequency: "Appears in education policy nodes discussing AI\'s role in learning and pedagogical approaches.",
   links: [
-    { label: "Constructivism (Learning Theory)", url: "https://en.wikipedia.org/wiki/Constructivism_(learning_theory)" }
+    { label: "Constructivism (Learning Theory)", url: "https://en.wikipedia.org/wiki/Constructivism_(philosophy_of_education)" }
   ]
 },
 "Contract law": {
@@ -5995,7 +5995,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might explore the legal enforceability of agreements made or executed by autonomous AI agents.",
   frequency: "Appears in legal nodes discussing agreements, liability, and transactions involving AI systems.",
   links: [
-    { label: "Contract Law", url: "https://en.wikipedia.org/wiki/Contract_law" }
+    { label: "Contract Law", url: "https://en.wikipedia.org/wiki/Contract" }
   ]
 },
 "Control problem in AI safety": {
@@ -6251,7 +6251,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss adapting the NIST Cybersecurity Framework to address risks specific to AI model deployment.",
   frequency: "Appears in *AI Security* and *Governance* nodes discussing *systematic risk mitigation for AI*.",
   links: [
-    { label: "Cybersecurity framework", url: "https://en.wikipedia.org/wiki/Cybersecurity_framework" },
+    { label: "Cybersecurity framework", url: "https://en.wikipedia.org/wiki/Computer_security_framework" },
     { label: "Risk management", url: "https://en.wikipedia.org/wiki/Risk_management" }
   ]
 },
@@ -6262,7 +6262,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in *Law Enforcement* and *Ethical AI* nodes discussing *AI\'s role in online harm and responsible conduct*.",
   links: [
     { label: "Cybercrime", url: "https://en.wikipedia.org/wiki/Cybercrime" },
-    { label: "Digital ethics", url: "https://en.wikipedia.org/wiki/Digital_ethics" }
+    { label: "Digital ethics", url: "https://en.wikipedia.org/wiki/Information_ethics" }
   ]
 },
 "Cybernetics (Wiener)": {
@@ -6301,7 +6301,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in *AI Security Operations* and *Incident Management* nodes discussing *protecting AI from attacks*.",
   links: [
     { label: "Intrusion detection system", url: "https://en.wikipedia.org/wiki/Intrusion_detection_system" },
-    { label: "Incident response", url: "https://en.wikipedia.org/wiki/Incident_response" }
+    { label: "Incident response", url: "https://en.wikipedia.org/wiki/Incident_management" }
   ]
 },
 "Cybersecurity (worm propagation analogies)": {
@@ -6339,7 +6339,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how a national AI strategy incorporates elements of the NIST Cybersecurity Framework for AI development.",
   frequency: "Appears in *Regulatory Policy* and *Organizational Security* nodes discussing *structured management of AI security*.",
   links: [
-    { label: "Cybersecurity framework", url: "https://en.wikipedia.org/wiki/Cybersecurity_framework" },
+    { label: "Cybersecurity framework", url: "https://en.wikipedia.org/wiki/Computer_security_framework" },
     { label: "IT governance", url: "https://en.wikipedia.org/wiki/IT_governance" }
   ]
 },
@@ -6389,7 +6389,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in *Labor Economics* and *Future of Work* nodes discussing *AI\'s impact on employment and inequality*.",
   links: [
     { label: "David Autor", url: "https://en.wikipedia.org/wiki/David_Autor" },
-    { label: "Job polarization", url: "https://en.wikipedia.org/wiki/Job_polarization" }
+    { label: "Job polarization", url: "https://en.wikipedia.org/wiki/Polarization_(economics)" }
   ]
 },
 "Decentralization theory": {
@@ -6454,7 +6454,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how AI tutors should be designed to introduce challenges rather than always providing immediate answers, fostering deeper cognitive engagement.",
   frequency: "Appears in `Educational Psychology` nodes discussing `AI-driven learning design` and `cognitive development`.",
   links: [
-    { label: "Desirable Difficulties", url: "https://en.wikipedia.org/wiki/Desirable_difficulties" }
+    { label: "Desirable Difficulties", url: "https://en.wikipedia.org/wiki/Desirable_difficulty" }
   ]
 },
 "Deskilling theory (Braverman)": {
@@ -6643,7 +6643,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might outline a requirement for AI systems to incorporate a \'human-in-the-loop\' mechanism, reflecting the principle of human oversight.",
   frequency: "Appears in `AI Ethics Guidelines` nodes discussing `responsible AI development` and `regulatory standards`.",
   links: [
-    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "Ethical AI frameworks": {
@@ -6652,7 +6652,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might compare the European Union\'s AI Act with the OECD\'s AI Principles, analyzing their different approaches to ethical AI governance.",
   frequency: "Appears in `AI Governance` nodes discussing `policy development` and `international standards`.",
   links: [
-    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "Ethical AI movements": {
@@ -6661,7 +6661,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how advocacy groups successfully lobbied for stricter regulations on facial recognition technology, highlighting the impact of ethical AI movements.",
   frequency: "Appears in `Civil Society Advocacy` nodes discussing `AI regulation` and `public awareness`.",
   links: [
-    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "Ethics (moral philosophy)": {
@@ -6679,7 +6679,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the ethical implications of using AI in judicial sentencing, focusing on fairness and potential for bias.",
   frequency: "Appears in `Applied Ethics` nodes discussing `AI governance` and `societal impact`.",
   links: [
-    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "Ethics of AI (responsibility, explainability)": {
@@ -6689,7 +6689,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in `AI Accountability` nodes discussing `regulatory compliance` and `trust in AI`.",
   links: [
     { label: "Explainable AI", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" },
-    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "Ethics of AI autonomy": {
@@ -6699,7 +6699,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in `Autonomous Systems Ethics` nodes discussing `human control` and `moral agency of AI`.",
   links: [
     { label: "Autonomous Agent", url: "https://en.wikipedia.org/wiki/Autonomous_agent" },
-    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "ethics of autonomous systems": {
@@ -6709,7 +6709,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in `Robotics Ethics` nodes discussing `safety regulations` and `human-machine interaction`.",
   links: [
     { label: "Autonomous System", url: "https://en.wikipedia.org/wiki/Autonomous_system" },
-    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI Ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "Everett Rogers' Diffusion of Innovations": {
@@ -6773,7 +6773,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the dangers of a global AI arms race leading to an unstable world order and the erosion of human agency.",
   frequency: "Appears in AI safety and international relations nodes discussing catastrophic AI scenarios.",
   links: [
-    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Existential_risk" }
+    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" }
   ]
 },
 "Existential risk assessment": {
@@ -6782,7 +6782,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute could outline methodologies for quantifying the probability of an AI-induced societal collapse or human extinction.",
   frequency: "Appears in AI safety and risk management nodes discussing methods for evaluating extreme AI threats.",
   links: [
-    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Existential_risk" }
+    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" }
   ]
 },
 "existential risk discourse": {
@@ -6791,7 +6791,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze how media portrayals of AI doom scenarios shape public opinion on AI regulation and funding for safety research.",
   frequency: "Appears in AI ethics and public policy nodes discussing the framing and impact of AI risk narratives.",
   links: [
-    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Existential_risk" }
+    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" }
   ]
 },
 "existential risk framework": {
@@ -6800,7 +6800,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might propose a multi-layered framework for assessing and addressing AI safety concerns across different development stages, from research to deployment.",
   frequency: "Appears in AI governance and risk management nodes discussing structured approaches to extreme AI threats.",
   links: [
-    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Existential_risk" }
+    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" }
   ]
 },
 "Existential risk philosophy": {
@@ -6809,7 +6809,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute could explore the ethical imperative to prioritize AI safety research given the potential for existential outcomes and the value of humanity\'s future.",
   frequency: "Appears in AI ethics and long-term AI strategy nodes discussing the moral foundations of AI risk mitigation.",
   links: [
-    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Existential_risk" }
+    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" }
   ]
 },
 "existential risk theory (Bostrom)": {
@@ -6829,7 +6829,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in AI governance and social impact nodes discussing severe but non-extinction AI risks.",
   links: [
     { label: "Societal collapse", url: "https://en.wikipedia.org/wiki/Societal_collapse" },
-    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Existential_risk" }
+    { label: "Existential risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" }
   ]
 },
 "Existentialism": {
@@ -7202,7 +7202,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in ethical AI and design policy nodes discussing responsible AI development and user protection.",
   links: [
     { label: "Human–computer interaction", url: "https://en.wikipedia.org/wiki/Human%E2%80%93computer_interaction" },
-    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/AI_ethics" }
+    { label: "AI ethics", url: "https://en.wikipedia.org/wiki/Ethics_of_artificial_intelligence" }
   ]
 },
 "Human-computer interaction (HCI) research": {
@@ -7371,7 +7371,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how international institutions could facilitate cooperation among states to establish global norms for AI development.",
   frequency: "Appears in global governance and AI ethics nodes discussing multilateral agreements and shared standards.",
   links: [
-    { label: "International cooperation", url: "https://en.wikipedia.org/wiki/International_cooperation" },
+    { label: "International cooperation", url: "https://en.wikipedia.org/wiki/Multilateralism" },
     { label: "Liberalism (international relations)", url: "https://en.wikipedia.org/wiki/Liberalism_(international_relations)" }
   ]
 },
@@ -7438,8 +7438,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how labor unions are advocating for retraining programs and severance packages for workers whose jobs are automated by AI.",
   frequency: "Appears in workforce policy and social justice nodes discussing worker rights and technological change.",
   links: [
-    { label: "Labor union", url: "https://en.wikipedia.org/wiki/Labor_union" },
-    { label: "Labor movement", url: "https://en.wikipedia.org/wiki/Labor_movement" }
+    { label: "Labor union", url: "https://en.wikipedia.org/wiki/Trade_union" },
+    { label: "Labor movement", url: "https://en.wikipedia.org/wiki/Labour_movement" }
   ]
 },
 "Laboratories of democracy concept": {
@@ -7485,7 +7485,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how legal philosophy\'s treatment of \'legal fictions\' could inform how we assign liability to AI systems without granting them full personhood.",
   frequency: "Appears in legal theory and AI ethics nodes discussing the foundations of law and new legal categories.",
   links: [
-    { label: "Legal philosophy", url: "https://en.wikipedia.org/wiki/Legal_philosophy" },
+    { label: "Legal philosophy", url: "https://en.wikipedia.org/wiki/Jurisprudence" },
     { label: "Hans Kelsen", url: "https://en.wikipedia.org/wiki/Hans_Kelsen" }
   ]
 },
@@ -7496,7 +7496,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in legal frameworks and AI safety nodes discussing accountability and compensation for harm.",
   links: [
     { label: "Tort", url: "https://en.wikipedia.org/wiki/Tort" },
-    { label: "Liability (legal)", url: "https://en.wikipedia.org/wiki/Liability_(legal)" }
+    { label: "Liability (legal)", url: "https://en.wikipedia.org/w/index.php?search=Liability%20(legal)" }
   ]
 },
 "Legal philosophy (personhood debates)": {
@@ -7524,7 +7524,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze frameworks for assigning blame when an autonomous vehicle causes an accident.",
   frequency: "Appears in legal and regulatory nodes discussing AI safety, risk, and accountability.",
   links: [
-    { label: "Liability (legal)", url: "https://en.wikipedia.org/wiki/Liability_(legal)" }
+    { label: "Liability (legal)", url: "https://en.wikipedia.org/w/index.php?search=Liability%20(legal)" }
   ]
 },
 "Legal philosophy of negligence": {
@@ -7563,7 +7563,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in interdisciplinary and policy nodes discussing the interaction between law and emerging technologies.",
   links: [
     { label: "Philosophy of technology", url: "https://en.wikipedia.org/wiki/Philosophy_of_technology" },
-    { label: "Cyberlaw", url: "https://en.wikipedia.org/wiki/Cyberlaw" }
+    { label: "Cyberlaw", url: "https://en.wikipedia.org/wiki/Information_technology_law" }
   ]
 },
 "Legal positivism (in its application to new tech)": {
@@ -7581,7 +7581,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might explore whether a company is liable for decisions made by an AI system it deployed, treating the AI as its agent.",
   frequency: "Appears in legal and accountability nodes discussing the deployment and operation of autonomous AI systems.",
   links: [
-    { label: "Agency (law)", url: "https://en.wikipedia.org/wiki/Agency_(law)" }
+    { label: "Agency (law)", url: "https://en.wikipedia.org/wiki/Law_of_agency" }
   ]
 },
 "liberal privacy theory": {
@@ -7601,7 +7601,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in economic, innovation, and regulatory nodes discussing market-based approaches to AI development.",
   links: [
     { label: "Libertarianism", url: "https://en.wikipedia.org/wiki/Libertarianism" },
-    { label: "Free-market capitalism", url: "https://en.wikipedia.org/wiki/Free-market_capitalism" }
+    { label: "Free-market capitalism", url: "https://en.wikipedia.org/wiki/Free_market" }
   ]
 },
 "Libertarian technological philosophy": {
@@ -7610,7 +7610,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might advocate for open-source AI models and oppose government licensing requirements for AI developers.",
   frequency: "Appears in innovation, digital rights, and regulatory nodes discussing the freedom of AI development and deployment.",
   links: [
-    { label: "Techno-libertarianism", url: "https://en.wikipedia.org/wiki/Techno-libertarianism" },
+    { label: "Techno-libertarianism", url: "https://en.wikipedia.org/wiki/Technolibertarianism" },
     { label: "Digital rights", url: "https://en.wikipedia.org/wiki/Digital_rights" }
   ]
 },
@@ -7620,7 +7620,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might present economic arguments that AI will ultimately create more jobs than it destroys, albeit different ones.",
   frequency: "Appears in economic, labor, and innovation nodes discussing AI\'s impact on employment.",
   links: [
-    { label: "Luddite fallacy", url: "https://en.wikipedia.org/wiki/Luddite_fallacy" }
+    { label: "Luddite fallacy", url: "https://en.wikipedia.org/wiki/Technological_unemployment" }
   ]
 },
 "Machine Learning (e.g., few-shot learning)": {
@@ -7659,8 +7659,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze how AI-powered surveillance in workplaces could intensify the exploitation of labor under capitalism.",
   frequency: "Appears in critical theory, labor, and social justice nodes discussing the socio-economic impacts of AI.",
   links: [
-    { label: "Marxist economics", url: "https://en.wikipedia.org/wiki/Marxist_economics" },
-    { label: "Critiques of capitalism", url: "https://en.wikipedia.org/wiki/Critiques_of_capitalism" }
+    { label: "Marxist economics", url: "https://en.wikipedia.org/wiki/Marxian_economics" },
+    { label: "Critiques of capitalism", url: "https://en.wikipedia.org/w/index.php?search=Critiques%20of%20capitalism" }
   ]
 },
 "Marxist economic theory": {
@@ -7669,7 +7669,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how AI-driven productivity gains under capitalism could lead to greater profits for owners but stagnant wages for workers.",
   frequency: "Appears in economic, labor, and critical theory nodes discussing the structural impacts of AI.",
   links: [
-    { label: "Marxist economics", url: "https://en.wikipedia.org/wiki/Marxist_economics" }
+    { label: "Marxist economics", url: "https://en.wikipedia.org/wiki/Marxian_economics" }
   ]
 },
 "Marxist political economy": {
@@ -7678,7 +7678,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze how the geopolitical competition for AI dominance reflects underlying capitalist power struggles between nations.",
   frequency: "Appears in geopolitical, critical theory, and international relations nodes discussing the power dynamics of AI.",
   links: [
-    { label: "Marxist political economy", url: "https://en.wikipedia.org/wiki/Marxist_political_economy" }
+    { label: "Marxist political economy", url: "https://en.wikipedia.org/w/index.php?search=Marxist%20political%20economy" }
   ]
 },
 "measurement theory": {
@@ -7697,7 +7697,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss research efforts to identify the specific neural pathways in a large language model responsible for generating biased outputs.",
   frequency: "Appears in AI safety, technical, and transparency nodes discussing advanced AI research and governance.",
   links: [
-    { label: "Interpretability (artificial intelligence)", url: "https://en.wikipedia.org/wiki/Interpretability_(artificial_intelligence)" },
+    { label: "Interpretability (artificial intelligence)", url: "https://en.wikipedia.org/w/index.php?search=Interpretability%20(artificial%20intelligence)" },
     { label: "Anthropic Research", url: "https://www.anthropic.com/research" }
   ]
 },
@@ -7796,7 +7796,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in economic policy nodes discussing AI\'s potential for systemic risk and financial regulation.",
   links: [
     { label: "Hyman Minsky", url: "https://en.wikipedia.org/wiki/Hyman_Minsky" },
-    { label: "Financial Instability Hypothesis", url: "https://en.wikipedia.org/wiki/Financial_Instability_Hypothesis" }
+    { label: "Financial Instability Hypothesis", url: "https://en.wikipedia.org/wiki/Hyman_Minsky" }
   ]
 },
 "Moore's Law": {
@@ -7814,7 +7814,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the ethical implications of autonomous weapons systems using principles from moral philosophy.",
   frequency: "Appears in ethics and governance nodes discussing AI\'s societal impact and responsible development.",
   links: [
-    { label: "Moral philosophy", url: "https://en.wikipedia.org/wiki/Moral_philosophy" }
+    { label: "Moral philosophy", url: "https://en.wikipedia.org/wiki/Ethics" }
   ]
 },
 "Multi-agent systems theory": {
@@ -7832,7 +7832,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss government funding initiatives for AI research and development aimed at boosting a nation\'s technological leadership.",
   frequency: "Appears in economic policy and national strategy nodes discussing AI competitiveness and R&D funding.",
   links: [
-    { label: "Innovation policy", url: "https://en.wikipedia.org/wiki/Innovation_policy" }
+    { label: "Innovation policy", url: "https://en.wikipedia.org/wiki/Innovation_management" }
   ]
 },
 "National security strategy": {
@@ -7841,7 +7841,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how a country plans to leverage AI for military defense while also addressing the risks of AI-powered cyberattacks.",
   frequency: "Appears in defense and foreign policy nodes discussing AI\'s role in military applications and geopolitical competition.",
   links: [
-    { label: "National security strategy", url: "https://en.wikipedia.org/wiki/National_security_strategy" }
+    { label: "National security strategy", url: "https://en.wikipedia.org/wiki/National_Security_Strategy" }
   ]
 },
 "Natural Language Processing (NLP) error analysis": {
@@ -7888,7 +7888,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss applying principles of redundancy and fault tolerance from nuclear safety engineering to the design of AI systems controlling power grids.",
   frequency: "Appears in AI safety and critical infrastructure nodes discussing risk management and system design.",
   links: [
-    { label: "Nuclear safety", url: "https://en.wikipedia.org/wiki/Nuclear_safety" },
+    { label: "Nuclear safety", url: "https://en.wikipedia.org/wiki/Nuclear_safety_and_security" },
     { label: "Safety engineering", url: "https://en.wikipedia.org/wiki/Safety_engineering" }
   ]
 },
@@ -7898,7 +7898,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss developing standardized operational procedures and emergency response plans for AI systems, similar to nuclear safety protocols.",
   frequency: "Appears in AI safety and regulatory nodes discussing operational guidelines and risk mitigation.",
   links: [
-    { label: "Nuclear safety", url: "https://en.wikipedia.org/wiki/Nuclear_safety" }
+    { label: "Nuclear safety", url: "https://en.wikipedia.org/wiki/Nuclear_safety_and_security" }
   ]
 },
 "Nursing theory (e.g., Jean Watson's human caring theory)": {
@@ -7908,7 +7908,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in healthcare AI and ethical design nodes discussing human-centered approaches and care.",
   links: [
     { label: "Nursing theory", url: "https://en.wikipedia.org/wiki/Nursing_theory" },
-    { label: "Jean Watson (nurse)", url: "https://en.wikipedia.org/wiki/Jean_Watson_(nurse)" }
+    { label: "Jean Watson (nurse)", url: "https://en.wikipedia.org/w/index.php?search=Jean%20Watson%20(nurse)" }
   ]
 },
 "Occupational analysis": {
@@ -7926,7 +7926,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the benefits of open-sourcing large language models to allow for independent auditing and community-driven improvements.",
   frequency: "Appears in technology policy and ethics nodes discussing transparency, collaboration, and access to AI.",
   links: [
-    { label: "Open-source model", url: "https://en.wikipedia.org/wiki/Open-source_model" }
+    { label: "Open-source model", url: "https://en.wikipedia.org/wiki/Open_source" }
   ]
 },
 "Open Source Software movement": {
@@ -8048,7 +8048,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might explore whether an autonomous AI system can be held legally responsible for its actions, or if humans have a right to privacy from AI surveillance.",
   frequency: "Appears in legal or ethical nodes discussing AI regulation and accountability.",
   links: [
-    { label: "Philosophy of law", url: "https://en.wikipedia.org/wiki/Philosophy_of_law" },
+    { label: "Philosophy of law", url: "https://en.wikipedia.org/wiki/Jurisprudence" },
     { label: "Rights", url: "https://en.wikipedia.org/wiki/Rights" }
   ]
 },
@@ -8069,7 +8069,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in foundational or theoretical nodes discussing the nature and limits of AI.",
   links: [
     { label: "Computational theory of mind", url: "https://en.wikipedia.org/wiki/Computational_theory_of_mind" },
-    { label: "Chinese room argument", url: "https://en.wikipedia.org/wiki/Chinese_room_argument" }
+    { label: "Chinese room argument", url: "https://en.wikipedia.org/wiki/Chinese_room" }
   ]
 },
 "philosophy of mind (for AI)": {
@@ -8098,7 +8098,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss whether an AI\'s \'decision\' to harm can be considered intentional, or if it\'s merely a programmed outcome, and the ethical implications of AI consciousness.",
   frequency: "Appears in ethical or legal nodes discussing AI accountability and moral status.",
   links: [
-    { label: "Intent (philosophy)", url: "https://en.wikipedia.org/wiki/Intent_(philosophy)" },
+    { label: "Intent (philosophy)", url: "https://en.wikipedia.org/w/index.php?search=Intent%20(philosophy)" },
     { label: "Consciousness", url: "https://en.wikipedia.org/wiki/Consciousness" }
   ]
 },
@@ -8175,7 +8175,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how government subsidies for AI research in certain sectors can create economic advantages for specific industries or nations.",
   frequency: "Appears in economic policy or international relations nodes discussing AI\'s impact on power and wealth.",
   links: [
-    { label: "Political economy of information", url: "https://en.wikipedia.org/wiki/Political_economy_of_information" },
+    { label: "Political economy of information", url: "https://en.wikipedia.org/w/index.php?search=Political%20economy%20of%20information" },
     { label: "Technology and society", url: "https://en.wikipedia.org/wiki/Technology_and_society" }
   ]
 },
@@ -8205,7 +8205,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in policy adoption or governance nodes discussing the societal integration of AI.",
   links: [
     { label: "Science and technology studies", url: "https://en.wikipedia.org/wiki/Science_and_technology_studies" },
-    { label: "Technology adoption", url: "https://en.wikipedia.org/wiki/Technology_adoption" }
+    { label: "Technology adoption", url: "https://en.wikipedia.org/w/index.php?search=Technology%20adoption" }
   ]
 },
 "Political systems theory": {
@@ -8261,7 +8261,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in labor policy or future of work nodes discussing AI\'s impact on employment.",
   links: [
     { label: "Post-industrial society", url: "https://en.wikipedia.org/wiki/Post-industrial_society#Labor" },
-    { label: "Future of work", url: "https://en.wikipedia.org/wiki/Future_of_work" }
+    { label: "Future of work", url: "https://en.wikipedia.org/w/index.php?search=Future%20of%20work" }
   ]
 },
 "Post-normal science": {
@@ -8279,8 +8279,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how policies like universal basic income could be necessary to support a society where AI has automated most jobs, leading to a \'post-work\' future.",
   frequency: "Appears in future of work or social policy nodes discussing AI\'s impact on employment and societal structure.",
   links: [
-    { label: "Post-work", url: "https://en.wikipedia.org/wiki/Post-work" },
-    { label: "Automation and job displacement", url: "https://en.wikipedia.org/wiki/Automation_and_job_displacement" }
+    { label: "Post-work", url: "https://en.wikipedia.org/wiki/Post-work_society" },
+    { label: "Automation and job displacement", url: "https://en.wikipedia.org/w/index.php?search=Automation%20and%20job%20displacement" }
   ]
 },
 "Predistribution economics (e.g., Jacob Hacker)": {
@@ -8299,7 +8299,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze how the global AI ecosystem, with its interconnected research, development, and deployment, exhibits emergent properties that cannot be predicted from individual components.",
   frequency: "Appears in complex systems theory and futurist nodes discussing the long-term evolution and governance of AI.",
   links: [
-    { label: "Dissipative structure", url: "https://en.wikipedia.org/wiki/Dissipative_structure" },
+    { label: "Dissipative structure", url: "https://en.wikipedia.org/wiki/Dissipative_system" },
     { label: "Ilya Prigogine", url: "https://en.wikipedia.org/wiki/Ilya_Prigogine" }
   ]
 },
@@ -8327,7 +8327,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the regulatory incentives for companies to adopt federated learning for medical AI applications, ensuring patient data remains private.",
   frequency: "Appears in technical, ethical, and regulatory nodes discussing data privacy, secure AI, and responsible innovation.",
   links: [
-    { label: "Privacy-preserving machine learning", url: "https://en.wikipedia.org/wiki/Privacy-preserving_machine_learning" },
+    { label: "Privacy-preserving machine learning", url: "https://en.wikipedia.org/w/index.php?search=Privacy-preserving%20machine%20learning" },
     { label: "Differential privacy", url: "https://en.wikipedia.org/wiki/Differential_privacy" }
   ]
 },
@@ -8337,7 +8337,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might critique policy proposals that prioritize AI economic growth above all else, without robust mechanisms for addressing job displacement or algorithmic discrimination.",
   frequency: "Appears in critical theory, policy analysis, and ethical nodes discussing regulatory gaps and risk assessment in AI.",
   links: [
-    { label: "Innovation bias", url: "https://en.wikipedia.org/wiki/Innovation_bias" },
+    { label: "Innovation bias", url: "https://en.wikipedia.org/w/index.php?search=Innovation%20bias" },
     { label: "Cognitive bias", url: "https://en.wikipedia.org/wiki/Cognitive_bias" }
   ]
 },
@@ -8357,7 +8357,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in legal and regulatory nodes specifically discussing U.S. product liability frameworks for AI.",
   links: [
     { label: "Product liability", url: "https://en.wikipedia.org/wiki/Product_liability" },
-    { label: "Restatement of the Law", url: "https://en.wikipedia.org/wiki/Restatement_of_the_Law" }
+    { label: "Restatement of the Law", url: "https://en.wikipedia.org/wiki/Restatements_of_the_Law" }
   ]
 },
 "product safety regulation": {
@@ -8366,7 +8366,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the European Union\'s proposed AI Act, which categorizes AI systems by risk level and imposes stricter safety requirements on high-risk applications.",
   frequency: "Appears in regulatory and consumer protection nodes discussing AI safety, standards, and market oversight.",
   links: [
-    { label: "Product safety", url: "https://en.wikipedia.org/wiki/Product_safety" }
+    { label: "Product safety", url: "https://en.wikipedia.org/wiki/Safety_standards" }
   ]
 },
 "product safety standards": {
@@ -8375,8 +8375,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the need for international standards for testing the robustness of AI systems against adversarial attacks or for certifying the fairness of AI algorithms used in hiring.",
   frequency: "Appears in technical, regulatory, and industry nodes discussing AI quality assurance, certification, and risk management.",
   links: [
-    { label: "Product safety", url: "https://en.wikipedia.org/wiki/Product_safety" },
-    { label: "Standard (disambiguation)", url: "https://en.wikipedia.org/wiki/Standard_(disambiguation)" }
+    { label: "Product safety", url: "https://en.wikipedia.org/wiki/Safety_standards" },
+    { label: "Standard (disambiguation)", url: "https://en.wikipedia.org/wiki/Standard" }
   ]
 },
 "Productivity Paradox (and its resolution)": {
@@ -8414,7 +8414,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in public perception, communication, and social impact nodes discussing AI adoption and governance.",
   links: [
     { label: "Fear", url: "https://en.wikipedia.org/wiki/Fear" },
-    { label: "Resistance to change", url: "https://en.wikipedia.org/wiki/Resistance_to_change" }
+    { label: "Resistance to change", url: "https://en.wikipedia.org/wiki/Change_management" }
   ]
 },
 "Public health ethics": {
@@ -8423,7 +8423,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the ethical implications of using AI for predictive policing of health outbreaks, balancing public safety with individual privacy and potential for bias against certain communities.",
   frequency: "Appears in healthcare, ethical, and social impact nodes discussing AI in medicine and public services.",
   links: [
-    { label: "Public health ethics", url: "https://en.wikipedia.org/wiki/Public_health_ethics" }
+    { label: "Public health ethics", url: "https://en.wikipedia.org/w/index.php?search=Public%20health%20ethics" }
   ]
 },
 "Public infrastructure advocacy": {
@@ -8450,7 +8450,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss regulations for the use of real-time facial recognition in public spaces, balancing security needs with privacy rights.",
   frequency: "Appears in surveillance, data governance, and industry-specific nodes discussing AI applications and their societal impact.",
   links: [
-    { label: "Real-time analytics", url: "https://en.wikipedia.org/wiki/Real-time_analytics" }
+    { label: "Real-time analytics", url: "https://en.wikipedia.org/w/index.php?search=Real-time%20analytics" }
   ]
 },
 "regulatory capture theory": {
@@ -8477,7 +8477,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might evaluate the economic impact of a proposed AI transparency law, weighing the costs for companies to disclose algorithmic details against the benefits of increased public trust and accountability.",
   frequency: "Appears in economic, policy analysis, and innovation nodes discussing the design and impact of AI regulation.",
   links: [
-    { label: "Regulation (economics)", url: "https://en.wikipedia.org/wiki/Regulation_(economics)" },
+    { label: "Regulation (economics)", url: "https://en.wikipedia.org/w/index.php?search=Regulation%20(economics)" },
     { label: "Compliance (finance)", url: "https://en.wikipedia.org/wiki/Compliance_(finance)" }
   ]
 },
@@ -8487,7 +8487,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how AI companies could relocate operations to jurisdictions with weaker AI regulations to avoid stricter oversight in their home countries.",
   frequency: "Appears in governance, international relations, and regulatory design nodes discussing challenges in AI enforcement.",
   links: [
-    { label: "Regulatory arbitrage", url: "https://en.wikipedia.org/wiki/Regulatory_arbitrage" }
+    { label: "Regulatory arbitrage", url: "https://en.wikipedia.org/wiki/Arbitrage" }
   ]
 },
 "Regulatory lag": {
@@ -8496,7 +8496,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how current data privacy laws struggle to keep pace with AI\'s advanced data processing capabilities.",
   frequency: "Appears in `governance challenges` nodes discussing `policy development` and `technological innovation`.",
   links: [
-    { label: "Regulatory lag - Wikipedia", url: "https://en.wikipedia.org/wiki/Regulatory_lag" }
+    { label: "Regulatory lag - Wikipedia", url: "https://en.wikipedia.org/w/index.php?search=Regulatory%20lag" }
   ]
 },
 "Regulatory science": {
@@ -8551,7 +8551,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the challenges of reproducing AI model training results due to varying hardware, software versions, or random seeds, impacting research validity.",
   frequency: "Appears in `research ethics` nodes discussing `scientific rigor` and `evidence-based policy`.",
   links: [
-    { label: "Reproducibility crisis - Wikipedia", url: "https://en.wikipedia.org/wiki/Reproducibility_crisis" }
+    { label: "Reproducibility crisis - Wikipedia", url: "https://en.wikipedia.org/wiki/Replication_crisis" }
   ]
 },
 "Resilience theory": {
@@ -8560,8 +8560,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how a city\'s public services could be designed to remain functional even if an AI system managing traffic or utilities experiences a major outage.",
   frequency: "Appears in `societal impact` nodes discussing `adaptive governance` and `systemic risk`.",
   links: [
-    { label: "Resilience (ecology) - Wikipedia", url: "https://en.wikipedia.org/wiki/Resilience_(ecology)" },
-    { label: "Resilience (social-ecological systems) - Wikipedia", url: "https://en.wikipedia.org/wiki/Resilience_(social-ecological_systems)" }
+    { label: "Resilience (ecology) - Wikipedia", url: "https://en.wikipedia.org/wiki/Ecological_resilience" },
+    { label: "Resilience (social-ecological systems) - Wikipedia", url: "https://en.wikipedia.org/w/index.php?search=Resilience%20(social-ecological%20systems)" }
   ]
 },
 "Responsibility gap literature": {
@@ -8609,7 +8609,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how a national AI strategy incorporates public dialogue and ethical impact assessments throughout its research funding process.",
   frequency: "Appears in `innovation policy` nodes discussing `ethical governance` and `stakeholder engagement`.",
   links: [
-    { label: "Responsible innovation - Wikipedia", url: "https://en.wikipedia.org/wiki/Responsible_innovation" },
+    { label: "Responsible innovation - Wikipedia", url: "https://en.wikipedia.org/w/index.php?search=Responsible%20innovation" },
     { label: "Responsible Research and Innovation - European Commission", url: "https://ec.europa.eu/programmes/horizon2020/en/h2020-section/responsible-research-innovation" }
   ]
 },
@@ -8668,7 +8668,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the trade-offs between the efficiency gains of an AI-powered hiring tool and its potential for algorithmic bias and discrimination.",
   frequency: "Appears in `policy evaluation` nodes discussing `decision-making` and `ethical trade-offs`.",
   links: [
-    { label: "Risk-benefit analysis - Wikipedia", url: "https://en.wikipedia.org/wiki/Risk-benefit_analysis" }
+    { label: "Risk-benefit analysis - Wikipedia", url: "https://en.wikipedia.org/wiki/Risk%E2%80%93benefit_ratio" }
   ]
 },
 "Robotic Process Automation (RPA)": {
@@ -8732,7 +8732,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might draw parallels between investigating aviation incidents and analyzing failures in autonomous AI systems.",
   frequency: "Appears in research and analytical nodes discussing AI accident investigation and prevention strategies.",
   links: [
-    { label: "Safety science", url: "https://en.wikipedia.org/wiki/Safety_science" }
+    { label: "Safety science", url: "https://en.wikipedia.org/w/index.php?search=Safety%20science" }
   ]
 },
 "Safety-critical systems research": {
@@ -8759,7 +8759,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how the predictable performance gains from larger AI models influence investment in compute infrastructure.",
   frequency: "Appears in technical and forecasting nodes discussing AI capabilities and resource implications.",
   links: [
-    { label: "Scaling law (artificial intelligence)", url: "https://en.wikipedia.org/wiki/Scaling_law_(artificial_intelligence)" }
+    { label: "Scaling law (artificial intelligence)", url: "https://en.wikipedia.org/w/index.php?search=Scaling%20law%20(artificial%20intelligence)" }
   ]
 },
 "Scaling Laws in AI (e.g., Kaplan, OpenAI)": {
@@ -8768,7 +8768,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might reference OpenAI\'s research on how model size and training data predict performance improvements in large language models.",
   frequency: "Appears in technical and forecasting nodes discussing AI capabilities and resource implications, often citing specific research.",
   links: [
-    { label: "Scaling law (artificial intelligence)", url: "https://en.wikipedia.org/wiki/Scaling_law_(artificial_intelligence)" },
+    { label: "Scaling law (artificial intelligence)", url: "https://en.wikipedia.org/w/index.php?search=Scaling%20law%20(artificial%20intelligence)" },
     { label: "Scaling Laws for Neural Language Models (OpenAI)", url: "https://openai.com/research/scaling-laws-for-neural-language-models" }
   ]
 },
@@ -8796,7 +8796,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss government funding initiatives for AI research or regulations concerning AI\'s use in critical sectors.",
   frequency: "Appears in governance and public policy nodes discussing government\'s role in AI development and regulation.",
   links: [
-    { label: "Science and technology policy", url: "https://en.wikipedia.org/wiki/Science_and_technology_policy" }
+    { label: "Science and technology policy", url: "https://en.wikipedia.org/wiki/Science_policy" }
   ]
 },
 "Scientific freedom advocacy": {
@@ -8936,7 +8936,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss how public perception of AI safety risks influences government funding for AI research.",
   frequency: "Appears in public perception and policy nodes discussing societal responses to AI risks.",
   links: [
-    { label: "Sociology of risk", url: "https://en.wikipedia.org/wiki/Sociology_of_risk" }
+    { label: "Sociology of risk", url: "https://en.wikipedia.org/w/index.php?search=Sociology%20of%20risk" }
   ]
 },
 "Sociology of science (critiques of scientific movements)": {
@@ -8954,7 +8954,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss policy mechanisms designed to increase public trust in AI-driven decision-making systems.",
   frequency: "Appears in public acceptance and ethical AI nodes discussing the social foundations of AI adoption.",
   links: [
-    { label: "Trust (sociology)", url: "https://en.wikipedia.org/wiki/Trust_(sociology)" }
+    { label: "Trust (sociology)", url: "https://en.wikipedia.org/wiki/Trust_(social_science)" }
   ]
 },
 "Sociology of work": {
@@ -8963,7 +8963,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze the effects of AI automation on the gig economy and propose policies for worker protection.",
   frequency: "Appears in labor policy and economic impact nodes discussing AI\'s transformation of employment.",
   links: [
-    { label: "Sociology of work", url: "https://en.wikipedia.org/wiki/Sociology_of_work" }
+    { label: "Sociology of work", url: "https://en.wikipedia.org/wiki/Industrial_sociology" }
   ]
 },
 "Sociotechnical systems theory": {
@@ -9018,7 +9018,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss regulatory sandboxes specifically for AI systems developed for agricultural optimization.",
   frequency: "Appears in sector-specific AI policy nodes discussing tailored regulatory approaches.",
   links: [
-    { label: "Narrow AI", url: "https://en.wikipedia.org/wiki/Narrow_AI" }
+    { label: "Narrow AI", url: "https://en.wikipedia.org/wiki/Weak_artificial_intelligence" }
   ]
 },
 "Speculative bubble theory": {
@@ -9054,7 +9054,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might propose standardized statistical metrics for evaluating the fairness of AI systems used in hiring decisions.",
   frequency: "Appears in AI evaluation and auditing nodes discussing the quantitative assessment of AI properties.",
   links: [
-    { label: "Measurement (statistics)", url: "https://en.wikipedia.org/wiki/Measurement_(statistics)" }
+    { label: "Measurement (statistics)", url: "https://en.wikipedia.org/w/index.php?search=Measurement%20(statistics)" }
   ]
 },
 "Strategic management": {
@@ -9091,7 +9091,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might advocate for stronger data protection laws to limit AI companies\' ability to collect and monetize personal behavioral data.",
   frequency: "Appears in privacy and data governance nodes discussing the ethical implications of AI business models.",
   links: [
-    { label: "Surveillance Capitalism", url: "https://en.wikipedia.org/wiki/Surveillance_Capitalism" }
+    { label: "Surveillance Capitalism", url: "https://en.wikipedia.org/wiki/Surveillance_capitalism" }
   ]
 },
 "Surveillance studies": {
@@ -9100,7 +9100,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze the privacy implications of AI-powered public surveillance cameras and propose regulations for their use.",
   frequency: "Appears in privacy and civil liberties nodes discussing the impact of AI on monitoring and control.",
   links: [
-    { label: "Surveillance studies", url: "https://en.wikipedia.org/wiki/Surveillance_studies" }
+    { label: "Surveillance studies", url: "https://en.wikipedia.org/w/index.php?search=Surveillance%20studies" }
   ]
 },
 "Sustainable computing": {
@@ -9249,7 +9249,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in `geopolitics` and `economic policy` nodes discussing `national AI strategies` and `international relations`.",
   links: [
     { label: "Technology Policy", url: "https://en.wikipedia.org/wiki/Technology_policy" },
-    { label: "Great Power Competition", url: "https://en.wikipedia.org/wiki/Great_power_competition" }
+    { label: "Great Power Competition", url: "https://en.wikipedia.org/wiki/Power_politics" }
   ]
 },
 "Technological determinism": {
@@ -9314,7 +9314,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze the energy footprint of training large language models and propose policies for more energy-efficient AI research.",
   frequency: "Appears in `AI sustainability` and `hardware development` nodes discussing `AI\'s environmental impact` and `computational limits`.",
   links: [
-    { label: "Thermodynamics of Computation", url: "https://en.wikipedia.org/wiki/Thermodynamics_of_computation" },
+    { label: "Thermodynamics of Computation", url: "https://en.wikipedia.org/w/index.php?search=Thermodynamics%20of%20computation" },
     { label: "Landauer's Principle", url: "https://en.wikipedia.org/wiki/Landauer%27s_principle" }
   ]
 },
@@ -9334,7 +9334,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might describe the European Union\'s AI Act, which categorizes AI systems into different risk levels, each with corresponding regulatory requirements.",
   frequency: "Appears in `regulatory design` and `AI governance` nodes discussing `risk-based regulation` and `policy proportionality`.",
   links: [
-    { label: "Risk-Based Regulation", url: "https://en.wikipedia.org/wiki/Risk-based_regulation" },
+    { label: "Risk-Based Regulation", url: "https://en.wikipedia.org/w/index.php?search=Risk-based%20regulation" },
     { label: "European Union Artificial Intelligence Act", url: "https://en.wikipedia.org/wiki/Artificial_Intelligence_Act" }
   ]
 },
@@ -9402,7 +9402,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze how AI-powered platforms reduce search costs for consumers but potentially increase bargaining costs for workers, influencing labor market dynamics.",
   frequency: "Appears in `economics of AI` and `market regulation` nodes discussing `AI\'s impact on markets` and `organizational structures`.",
   links: [
-    { label: "Transaction Cost Economics", url: "https://en.wikipedia.org/wiki/Transaction_cost_economics" }
+    { label: "Transaction Cost Economics", url: "https://en.wikipedia.org/wiki/Transaction_cost" }
   ]
 },
 "Transparency in algorithms": {
@@ -9429,7 +9429,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss policies aimed at forecasting and preventing AI-driven market instabilities.",
   frequency: "Appears in risk assessment and societal impact nodes discussing AI governance.",
   links: [
-    { label: "Unintended consequence", url: "https://en.wikipedia.org/wiki/Unintended_consequence" }
+    { label: "Unintended consequence", url: "https://en.wikipedia.org/wiki/Unintended_consequences" }
   ]
 },
 "Universal Basic Income debates": {
@@ -9492,7 +9492,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the implementation of specific legal protections for employees reporting AI-related ethical violations.",
   frequency: "Appears in governance and regulatory nodes discussing AI ethics and oversight.",
   links: [
-    { label: "Whistleblower protection", url: "https://en.wikipedia.org/wiki/Whistleblower_protection" }
+    { label: "Whistleblower protection", url: "https://en.wikipedia.org/wiki/Whistleblowing" }
   ]
 },
 "Worker solidarity movements": {
@@ -9501,7 +9501,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might discuss the role of labor unions in negotiating AI implementation policies with employers.",
   frequency: "Appears in labor and social policy nodes discussing AI\'s impact on employment.",
   links: [
-    { label: "Labor movement", url: "https://en.wikipedia.org/wiki/Labor_movement" }
+    { label: "Labor movement", url: "https://en.wikipedia.org/wiki/Labour_movement" }
   ]
 },
 "Workforce development theory": {
@@ -9588,7 +9588,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on 'Global AI Governance Structures' would apply institutional design theory to propose the architecture of international AI regulatory bodies.",
   frequency: "Common in political science, public administration, and economics, central to discussions on establishing new regulatory or oversight bodies for AI.",
   links: [
-    { label: "Institutional design - Wikipedia", url: "https://en.wikipedia.org/wiki/Institutional_design" },
+    { label: "Institutional design - Wikipedia", url: "https://en.wikipedia.org/w/index.php?search=Institutional%20design" },
     { label: "The Oxford Handbook of Political Institutions", url: "https://global.oup.com/academic/product/the-oxford-handbook-of-political-institutions-9780199676612" }
   ]
 },
@@ -9618,8 +9618,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on 'Emergent AI Behavior and Control' might reference dissipative adaptation theory to explore the thermodynamic underpinnings of AI's drive towards efficiency and complexity.",
   frequency: "Highly specialized, primarily found in theoretical physics and some philosophical discussions of AI, not widely adopted in mainstream policy.",
   links: [
-    { label: "A New Physics Theory of Life - Quanta Magazine", url: "https://www.quantamagazine.org/a-new-physics-theory-of-life-20140122/" },
-    { label: "Jeremy England - Google Scholar", url: "https://scholar.google.com/citations?user=z3t20-YAAAAJ&hl=en" }
+    { label: "Jeremy England - Wikipedia", url: "https://en.wikipedia.org/wiki/Jeremy_England" },
+    { label: "Dissipative system - Wikipedia", url: "https://en.wikipedia.org/wiki/Dissipative_system" }
   ]
 },
 "19. Just War Theory (in relation to reducing harm)": {
@@ -9738,7 +9738,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on 'National AI Strategy and Geopolitical Competition' would explicitly draw on long-termism to justify massive state investments in AI R&D to secure future dominance.",
   frequency: "Common in national security, industrial policy, and corporate strategy discussions, particularly among major global powers.",
   links: [
-    { label: "Long-termism - Wikipedia", url: "https://en.wikipedia.org/wiki/Long-termism" },
+    { label: "Long-termism - Wikipedia", url: "https://en.wikipedia.org/wiki/Longtermism" },
     { label: "National Innovation Systems - OECD", url: "https://www.oecd.org/sti/inno/2101733.pdf" }
   ]
 },
@@ -9758,7 +9758,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on 'AI System Lifecycle Governance' would draw on machine learning engineering principles to define best practices for model versioning, testing, and continuous monitoring.",
   frequency: "Central to the tech industry, AI development teams, and technical standards bodies, increasingly relevant for practical AI regulation and auditing.",
   links: [
-    { label: "Machine learning engineering - Wikipedia", url: "https://en.wikipedia.org/wiki/Machine_learning_engineering" },
+    { label: "Machine learning engineering - Wikipedia", url: "https://en.wikipedia.org/w/index.php?search=Machine%20learning%20engineering" },
     { label: "MLOps: Machine Learning Operations - Google Cloud", url: "https://cloud.google.com/resources/mlops-whitepaper" }
   ]
 },
@@ -10128,7 +10128,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on AI personhood might reference computationalism to explore the theoretical basis for attributing mental states to advanced AI systems.",
   frequency: "This concept frequently appears in philosophical debates surrounding AI, less so in practical policy documents, but underpins many ethical considerations.",
   links: [
-    { label: "Computationalism", url: "https://en.wikipedia.org/wiki/Computationalism" }
+    { label: "Computationalism", url: "https://en.wikipedia.org/wiki/Computational_theory_of_mind" }
   ]
 },
 "Computer ethics": {
@@ -10219,7 +10219,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This is a widely recognized and frequently cited lineage in regulatory discussions concerning product safety, financial services, and digital platforms.",
   links: [
     { label: "Consumer protection", url: "https://en.wikipedia.org/wiki/Consumer_protection" },
-    { label: "Disclosure (law)", url: "https://en.wikipedia.org/wiki/Disclosure_(law)" }
+    { label: "Disclosure (law)", url: "https://en.wikipedia.org/wiki/Discovery_(law)" }
   ]
 },
 "Consumer-to-enterprise technology consumerization trends (BYOD movement, Dropbox adoption patterns)": {
@@ -10228,7 +10228,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on shadow IT and data governance for AI tools might analyze consumerization trends to anticipate how employees will adopt new AI applications outside official channels.",
   frequency: "This is a frequently discussed lineage in IT management, cybersecurity, and organizational strategy literature, particularly concerning digital transformation.",
   links: [
-    { label: "Consumerization", url: "https://en.wikipedia.org/wiki/Consumerization" },
+    { label: "Consumerization", url: "https://en.wikipedia.org/wiki/Consumerization_of_information_technology" },
     { label: "Bring your own device", url: "https://en.wikipedia.org/wiki/Bring_your_own_device" }
   ]
 },
@@ -10248,7 +10248,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on AI product liability might examine how existing contract law principles can be adapted to allocate responsibility between AI developers, deployers, and users for harms caused by AI systems.",
   frequency: "This is a foundational and universally cited lineage in commercial law, business transactions, and risk management across all industries.",
   links: [
-    { label: "Contract law", url: "https://en.wikipedia.org/wiki/Contract_law" },
+    { label: "Contract law", url: "https://en.wikipedia.org/wiki/Contract" },
     { label: "Indemnity", url: "https://en.wikipedia.org/wiki/Indemnity" }
   ]
 },
@@ -10299,7 +10299,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This is a foundational and frequently cited lineage in astrophysics, cosmology, and philosophical discussions about humanity's place in the universe, less directly in practical AI policy.",
   links: [
     { label: "Physical cosmology", url: "https://en.wikipedia.org/wiki/Physical_cosmology" },
-    { label: "Evolution of the universe", url: "https://en.wikipedia.org/wiki/Evolution_of_the_universe" }
+    { label: "Evolution of the universe", url: "https://en.wikipedia.org/wiki/Chronology_of_the_universe" }
   ]
 },
 "Critical algorithm studies and fairness, accountability, and transparency (FAT) scholarship": {
@@ -10309,7 +10309,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This is a highly current and frequently cited lineage across academic disciplines, civil society, and policy discussions concerning ethical and responsible AI.",
   links: [
     { label: "Algorithmic bias", url: "https://en.wikipedia.org/wiki/Algorithmic_bias" },
-    { label: "Fairness, accountability, and transparency in artificial intelligence", url: "https://en.wikipedia.org/wiki/Fairness,_accountability,_and_transparency_in_artificial_intelligence" }
+    { label: "Fairness, accountability, and transparency in artificial intelligence", url: "https://en.wikipedia.org/w/index.php?search=Fairness%2C%20accountability%2C%20and%20transparency%20in%20artificial%20intelligence" }
   ]
 },
 "Critical algorithm studies and scholars like Safiya Noble, Ruha Benjamin on algorithmic discrimination": {
@@ -10340,7 +10340,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This is a highly current and frequently cited lineage in sociology, media studies, and critical technology studies, influencing discussions on data justice and AI ethics.",
   links: [
     { label: "Critical data studies", url: "https://en.wikipedia.org/wiki/Critical_data_studies" },
-    { label: "Data justice", url: "https://en.wikipedia.org/wiki/Data_justice" }
+    { label: "Data justice", url: "https://en.wikipedia.org/w/index.php?search=Data%20justice" }
   ]
 },
 "Critical information systems research and workplace technology studies examining technology-in-use rather than technology-as-designed": {
@@ -10350,7 +10350,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This is a frequently cited lineage in information systems, organizational studies, and science and technology studies (STS), particularly for understanding technology implementation.",
   links: [
     { label: "Social shaping of technology", url: "https://en.wikipedia.org/wiki/Social_shaping_of_technology" },
-    { label: "Actor-network theory", url: "https://en.wikipedia.org/wiki/Actor-network_theory" }
+    { label: "Actor-network theory", url: "https://en.wikipedia.org/wiki/Actor%E2%80%93network_theory" }
   ]
 },
 "Critical infrastructure protection": {
@@ -10359,8 +10359,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on securing AI systems used in national defense or power grids would directly apply principles from critical infrastructure protection to mitigate risks of attack or failure.",
   frequency: "This is a widely recognized and frequently cited lineage in national security, cybersecurity, and emergency management policy.",
   links: [
-    { label: "Critical infrastructure protection", url: "https://en.wikipedia.org/wiki/Critical_infrastructure_protection" },
-    { label: "Cybersecurity", url: "https://en.wikipedia.org/wiki/Cybersecurity" }
+    { label: "Critical infrastructure protection", url: "https://en.wikipedia.org/wiki/U.S._critical_infrastructure_protection" },
+    { label: "Cybersecurity", url: "https://en.wikipedia.org/wiki/Computer_security" }
   ]
 },
 "Critical infrastructure studies": {
@@ -10379,7 +10379,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on the future of work and AI might draw from critical labor studies to analyze the potential for AI to exacerbate precarious work, increase surveillance, or deskill human labor.",
   frequency: "This is a frequently cited lineage in sociology, economics, and political science, particularly for understanding the social impacts of technological change on employment.",
   links: [
-    { label: "Labor studies", url: "https://en.wikipedia.org/wiki/Labor_studies" },
+    { label: "Labor studies", url: "https://en.wikipedia.org/wiki/Labor_relations" },
     { label: "Deskilling", url: "https://en.wikipedia.org/wiki/Deskilling" }
   ]
 },
@@ -10580,7 +10580,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "Data integrity in AI systems can be evaluated using principles from Database Transaction Management, such as atomicity and consistency.",
   frequency: "High (technical, data governance)",
   links: [
-    { label: "ACID (computer science)", url: "https://en.wikipedia.org/wiki/ACID_(computer_science)" }
+    { label: "ACID (computer science)", url: "https://en.wikipedia.org/wiki/ACID" }
   ]
 },
 "Debate theory": {
@@ -10599,7 +10599,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "Applying Decision Science principles helps in understanding the trade-offs and potential biases embedded in AI-driven policy recommendations.",
   frequency: "High (AI ethics, risk management, policy design)",
   links: [
-    { label: "Decision science", url: "https://en.wikipedia.org/wiki/Decision_science" },
+    { label: "Decision science", url: "https://en.wikipedia.org/wiki/Decision_theory" },
     { label: "Decision theory", url: "https://en.wikipedia.org/wiki/Decision_theory" }
   ]
 },
@@ -10648,7 +10648,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "Policies promoting open-source AI models align with principles from Democratic Technology Movements, fostering transparency and community control.",
   frequency: "Medium (AI governance, participatory AI, open source)",
   links: [
-    { label: "Democratic technology", url: "https://en.wikipedia.org/wiki/Democratic_technology" },
+    { label: "Democratic technology", url: "https://en.wikipedia.org/w/index.php?search=Democratic%20technology" },
     { label: "Community technology", url: "https://en.wikipedia.org/wiki/Community_technology" }
   ]
 },
@@ -10667,7 +10667,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "Drawing on Habermas, AI policy should establish deliberative forums to ensure public participation in shaping AI's ethical guidelines.",
   frequency: "High (AI governance, public engagement, ethics)",
   links: [
-    { label: "Participatory governance", url: "https://en.wikipedia.org/wiki/Participatory_governance" },
+    { label: "Participatory governance", url: "https://en.wikipedia.org/wiki/Governance" },
     { label: "John Dewey", url: "https://en.wikipedia.org/wiki/John_Dewey" },
     { label: "Jürgen Habermas", url: "https://en.wikipedia.org/wiki/J%C3%BCrgen_Habermas" }
   ]
@@ -10776,7 +10776,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "Cloud computing platforms like AWS or Google Cloud, where applications run across numerous interconnected servers and data centers.",
   frequency: "High",
   links: [
-    { label: "Distributed System - Wikipedia", url: "https://en.wikipedia.org/wiki/Distributed_system" },
+    { label: "Distributed System - Wikipedia", url: "https://en.wikipedia.org/wiki/Distributed_computing" },
     { label: "Principles of Distributed Systems", url: "https://www.cs.cornell.edu/courses/cs6410/2019sp/" }
   ]
 },
@@ -10837,7 +10837,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Medium",
   links: [
     { label: "Division of Labour - Adam Smith", url: "https://www.adamsmith.org/the-division-of-labour" },
-    { label: "Specialization (economics) - Wikipedia", url: "https://en.wikipedia.org/wiki/Specialization_(economics)" }
+    { label: "Specialization (economics) - Wikipedia", url: "https://en.wikipedia.org/w/index.php?search=Specialization%20(economics)" }
   ]
 },
 "Educational psychology literature on desirable difficulties and the testing effect": {
@@ -11100,7 +11100,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This field is foundational in sociology, humanities, political science, and critical technology studies, providing essential frameworks for understanding and addressing inequalities in AI development and deployment.",
   links: [
     { label: "Gender studies", url: "https://en.wikipedia.org/wiki/Gender_studies" },
-    { label: "Gender bias in artificial intelligence", url: "https://en.wikipedia.org/wiki/Gender_bias_in_artificial_intelligence" }
+    { label: "Gender bias in artificial intelligence", url: "https://en.wikipedia.org/w/index.php?search=Gender%20bias%20in%20artificial%20intelligence" }
   ]
 },
 "Hannah Arendt's work on the banality of evil and thoughtless compliance with systems": {
@@ -11137,7 +11137,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This field is central to business administration, organizational studies, and labor economics, providing practical and theoretical frameworks for managing human capital in the face of technological change.",
   links: [
     { label: "Human resource management", url: "https://en.wikipedia.org/wiki/Human_resource_management" },
-    { label: "Future of work", url: "https://en.wikipedia.org/wiki/Future_of_work" }
+    { label: "Future of work", url: "https://en.wikipedia.org/w/index.php?search=Future%20of%20work" }
   ]
 },
 "Human rights advocacy": {
@@ -11211,8 +11211,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "Considering Jeremy England's Dissipative Adaptation Theory, AI policy could explore the energy footprint and thermodynamic efficiency of large-scale AI models and their long-term environmental impact.",
   frequency: "Low (niche, theoretical physics/biology, less direct AI policy)",
   links: [
-    { label: "Jeremy England's Research", url: "https://www.jeremyengland.com/" },
-    { label: "Statistical physics of self-replication", url: "https://journals.aps.org/pre/abstract/10.1103/PhysRevE.86.041913" }
+    { label: "Jeremy England - Wikipedia", url: "https://en.wikipedia.org/wiki/Jeremy_England" },
+    { label: "Dissipative system - Wikipedia", url: "https://en.wikipedia.org/wiki/Dissipative_system" }
   ]
 },
 "Just War Theory (in relation to reducing harm)": {
@@ -11676,8 +11676,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on 'AI and Worker Rights' might draw on this lineage to discuss the ethical implications of AI-powered performance monitoring and automated decision-making in hiring.",
   frequency: "This perspective is prominent in critical management studies, labor studies, and sociology, often adopted by advocates for worker rights and privacy.",
   links: [
-    { label: "Workplace surveillance", url: "https://en.wikipedia.org/wiki/Workplace_surveillance" },
-    { label: "Managerial control", url: "https://en.wikipedia.org/wiki/Managerial_control" }
+    { label: "Workplace surveillance", url: "https://en.wikipedia.org/wiki/Employee_monitoring" },
+    { label: "Managerial control", url: "https://en.wikipedia.org/w/index.php?search=Managerial%20control" }
   ]
 },
 "Participatory design traditions emphasizing user involvement in technology development": {
@@ -11695,7 +11695,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on 'National AI Strategy and Economic Growth' might reference David's work to explain why the economic benefits of AI may not be immediately apparent and require long-term strategic investments.",
   frequency: "This research is highly influential in economic history, innovation studies, and technology policy, frequently cited when discussing the long-term impacts of transformative technologies.",
   links: [
-    { label: "Paul David (economist)", url: "https://en.wikipedia.org/wiki/Paul_David_(economist)#Productivity_paradox" }
+    { label: "Paul David (economist)", url: "https://en.wikipedia.org/w/index.php?search=Paul%20David%20(economist)" }
   ]
 },
 "Phenomenological and contemplative traditions valuing attention and deep thought (Husserl, meditation practices)": {
@@ -11751,7 +11751,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on 'AI and Human Autonomy' might delve into this lineage to understand how reliance on AI systems could alter human decision-making processes and sense of self.",
   frequency: "This is a growing area within philosophy, HCI, and critical AI studies, often cited by those concerned with the existential and experiential impacts of advanced AI.",
   links: [
-    { label: "Human-computer interaction", url: "https://en.wikipedia.org/wiki/Human-computer_interaction" },
+    { label: "Human-computer interaction", url: "https://en.wikipedia.org/wiki/Human%E2%80%93computer_interaction" },
     { label: "Philosophy of technology", url: "https://en.wikipedia.org/wiki/Philosophy_of_technology" }
   ]
 },
@@ -11761,8 +11761,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on 'AI Explainability and Trust' could directly reference this philosophical area to develop guidelines for when and how users should trust AI-generated advice in critical domains.",
   frequency: "This is an emerging but crucial area in epistemology and AI ethics, particularly relevant for discussions on responsible AI deployment and user interaction.",
   links: [
-    { label: "Testimony (philosophy)", url: "https://en.wikipedia.org/wiki/Testimony_(philosophy)" },
-    { label: "Epistemic trust", url: "https://en.wikipedia.org/wiki/Epistemic_trust" }
+    { label: "Testimony (philosophy)", url: "https://en.wikipedia.org/w/index.php?search=Testimony%20(philosophy)" },
+    { label: "Epistemic trust", url: "https://en.wikipedia.org/w/index.php?search=Epistemic%20trust" }
   ]
 },
 "Plain language movement in legal reform": {
@@ -11837,7 +11837,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on 'AI Safety and Continuous Monitoring' could adapt post-market surveillance principles to mandate ongoing oversight and reporting for deployed AI systems, especially in high-risk applications.",
   frequency: "This is a standard regulatory practice in highly regulated industries, increasingly being considered for software and AI systems by policymakers and regulators.",
   links: [
-    { label: "Postmarket surveillance", url: "https://en.wikipedia.org/wiki/Postmarket_surveillance" }
+    { label: "Postmarket surveillance", url: "https://en.wikipedia.org/w/index.php?search=Postmarket%20surveillance" }
   ]
 },
 "Post-scarcity anarchism": {
@@ -11846,7 +11846,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A policy node on 'AI and Utopian Futures' might consider post-scarcity anarchism as a radical vision for how AI could fundamentally transform economic and political structures.",
   frequency: "This is a highly theoretical and radical perspective within political philosophy and ecological thought, appealing to those seeking transformative societal change.",
   links: [
-    { label: "Post-scarcity anarchism", url: "https://en.wikipedia.org/wiki/Post-scarcity_anarchism" }
+    { label: "Post-scarcity anarchism", url: "https://en.wikipedia.org/w/index.php?search=Post-scarcity%20anarchism" }
   ]
 },
 "Post-structuralism": {
@@ -12061,7 +12061,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "The city's new Public Procurement Policy mandates that all AI systems purchased for municipal use must undergo an independent ethical audit and demonstrate explainability.",
   frequency: "Moderate",
   links: [
-    { label: "Public Procurement", url: "https://en.wikipedia.org/wiki/Public_procurement" }
+    { label: "Public Procurement", url: "https://en.wikipedia.org/wiki/Government_procurement" }
   ]
 },
 "Race-to-the-bottom theory (regulatory competition)": {
@@ -12210,7 +12210,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on \"AI System Certification\" might reference this lineage to explain why certification requirements vary based on the AI's risk profile (e.g., high-risk vs. low-risk applications).",
   frequency: "This appears across various POVs, particularly those advocating for proportionate and efficient regulatory approaches, from industry to government agencies.",
   links: [
-    { label: "Risk-based regulation", url: "https://en.wikipedia.org/wiki/Risk-based_regulation" },
+    { label: "Risk-based regulation", url: "https://en.wikipedia.org/w/index.php?search=Risk-based%20regulation" },
     { label: "The Rise of Risk-Based Regulation", url: "https://www.law.upenn.edu/live/news/1014-the-rise-of-risk-based-regulation" }
   ]
 },
@@ -12260,7 +12260,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on \"AI Incident Response\" might incorporate RCA methodologies to guide investigations into AI failures, such as identifying the data bias or model design flaw that led to a discriminatory outcome.",
   frequency: "RCA is a widely accepted practice in engineering, safety, and quality management, and is increasingly applied across POVs concerned with learning from AI failures.",
   links: [
-    { label: "Root cause analysis", url: "https://en.wikipedia.org/wiki/Root_cause_analysis" },
+    { label: "Root cause analysis", url: "https://en.wikipedia.org/wiki/Root-cause_analysis" },
     { label: "What is Root Cause Analysis (RCA)?", url: "https://asq.org/quality-resources/root-cause-analysis" }
   ]
 },
@@ -12271,7 +12271,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This hypothesis is a central framework in labor economics and is discussed across various POVs concerned with the future of work, from those advocating for retraining programs to those predicting widespread job losses.",
   links: [
     { label: "The Polarization of the U.S. Labor Market", url: "https://www.nber.org/papers/w11645" },
-    { label: "Routine-biased technological change", url: "https://en.wikipedia.org/wiki/Routine-biased_technological_change" }
+    { label: "Routine-biased technological change", url: "https://en.wikipedia.org/w/index.php?search=Routine-biased%20technological%20change" }
   ]
 },
 "Rule of law tradition": {
@@ -12330,8 +12330,8 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on \"AI Incident Learning\" might propose a framework for collecting and analyzing near-misses in AI deployments, drawing lessons from these minor events to avert catastrophic failures.",
   frequency: "These foundational safety concepts are widely accepted and applied across POVs concerned with proactive risk management and continuous improvement in AI safety.",
   links: [
-    { label: "Heinrich's Law", url: "https://en.wikipedia.org/wiki/Heinrich%27s_Law" },
-    { label: "Swiss Cheese Model", url: "https://en.wikipedia.org/wiki/Swiss_Cheese_Model" }
+    { label: "Heinrich's Law", url: "https://en.wikipedia.org/wiki/Herbert_William_Heinrich" },
+    { label: "Swiss Cheese Model", url: "https://en.wikipedia.org/wiki/Swiss_cheese_model" }
   ]
 },
 "Scaling laws in deep learning": {
@@ -12400,7 +12400,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on \"Secure AI Development\" might recommend applying security-by-design principles to ensure that AI models and their data pipelines are built with inherent protections against adversarial attacks and data breaches.",
   frequency: "This is a widely accepted best practice in cybersecurity and is increasingly advocated across POVs for building trustworthy and resilient AI systems.",
   links: [
-    { label: "Security by design", url: "https://en.wikipedia.org/wiki/Security_by_design" },
+    { label: "Security by design", url: "https://en.wikipedia.org/wiki/Secure_by_design" },
     { label: "What is Security by Design?", url: "https://www.synopsys.com/glossary/what-is-security-by-design.html" }
   ]
 },
@@ -12410,7 +12410,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on \"AI Innovation Policy\" might implicitly or explicitly critique this ideology when discussing the balance between rapid development and regulatory oversight for AI.",
   frequency: "This ideology is prominent among certain tech founders and investors, influencing policy debates from a perspective that often prioritizes innovation and deregulation, contrasting with more cautious POVs.",
   links: [
-    { label: "Techno-libertarianism", url: "https://en.wikipedia.org/wiki/Techno-libertarianism" },
+    { label: "Techno-libertarianism", url: "https://en.wikipedia.org/wiki/Technolibertarianism" },
     { label: "The California Ideology", url: "https://www.opendemocracy.net/en/the-california-ideology/" }
   ]
 },
@@ -12450,7 +12450,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on \"AI and Workforce Development\" might use this theory to justify policies focused on upskilling and reskilling programs to prepare workers for jobs that are complemented by AI.",
   frequency: "This is a widely accepted and influential theory in labor economics, informing analyses and policy recommendations across various POVs concerned with the future of work and inequality.",
   links: [
-    { label: "Skill-biased technological change", url: "https://en.wikipedia.org/wiki/Skill-biased_technological_change" },
+    { label: "Skill-biased technological change", url: "https://en.wikipedia.org/wiki/Causes_of_income_inequality_in_the_United_States" },
     { label: "The Race Between Education and Technology", url: "https://www.hup.harvard.edu/catalog.php?isbn=9780674035300" }
   ]
 },
@@ -12862,7 +12862,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on 'AI regulation challenges' might reference this lineage to explain why existing government agencies struggle to oversee complex AI systems, citing issues like a lack of technical expertise or insufficient funding.",
   frequency: "This perspective is central to public policy, regulatory studies, and discussions on effective governance of emerging technologies, often informing calls for new regulatory models or capacity building.",
   links: [
-    { label: "Regulatory governance", url: "https://en.wikipedia.org/wiki/Regulatory_governance" },
+    { label: "Regulatory governance", url: "https://en.wikipedia.org/wiki/Regulatory_state" },
     { label: "Technology governance", url: "https://en.wikipedia.org/wiki/Technology_governance" }
   ]
 },
@@ -12873,7 +12873,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This perspective is widely used in economics, innovation studies, and strategic policy discussions to understand the long-term, systemic impacts of transformative technologies like AI.",
   links: [
     { label: "General-purpose technology", url: "https://en.wikipedia.org/wiki/General-purpose_technology" },
-    { label: "Paul David (economist)", url: "https://en.wikipedia.org/wiki/Paul_David_(economist)" }
+    { label: "Paul David (economist)", url: "https://en.wikipedia.org/w/index.php?search=Paul%20David%20(economist)" }
   ]
 },
 "Technoskepticism": {
@@ -12882,7 +12882,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on 'AI risks and harms' might reflect a technoskeptic viewpoint by focusing on the potential for AI to exacerbate inequalities, automate jobs, or enable surveillance, rather than its potential for societal improvement.",
   frequency: "This perspective is found in critical technology studies, environmental movements, and certain philosophical and sociological critiques, often serving as a counter-narrative to techno-utopianism.",
   links: [
-    { label: "Technoskepticism", url: "https://en.wikipedia.org/wiki/Technoskepticism" },
+    { label: "Technoskepticism", url: "https://en.wikipedia.org/w/index.php?search=Technoskepticism" },
     { label: "Technocriticism", url: "https://en.wikipedia.org/wiki/Technocriticism" }
   ]
 },
@@ -12963,7 +12963,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A taxonomy node on 'AI value alignment' would directly engage with value ethics to determine which human values—such as fairness, privacy, or autonomy—should be encoded into AI design and governance.",
   frequency: "This philosophical approach is fundamental to ethical AI discussions, design ethics, and policy frameworks that seek to embed societal values into technological development, appearing across academic and policy domains.",
   links: [
-    { label: "Axiology", url: "https://en.wikipedia.org/wiki/Axiology" },
+    { label: "Axiology", url: "https://en.wikipedia.org/wiki/Value_theory" },
     { label: "Value (ethics)", url: "https://en.wikipedia.org/wiki/Value_(ethics)" }
   ]
 },
@@ -12984,7 +12984,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This ancient philosophical tradition is experiencing a resurgence in contemporary ethics, particularly in professional ethics, leadership, and discussions about the moral development of individuals and organizations, including in AI ethics.",
   links: [
     { label: "Virtue ethics", url: "https://en.wikipedia.org/wiki/Virtue_ethics" },
-    { label: "Character (virtue)", url: "https://en.wikipedia.org/wiki/Character_(virtue)" }
+    { label: "Character (virtue)", url: "https://en.wikipedia.org/w/index.php?search=Character%20(virtue)" }
   ]
 },
 "Youth rights frameworks recognizing children as rights-holders rather than objects of protection": {
@@ -13004,7 +13004,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "This perspective is highly influential in educational psychology, instructional design, and human-computer interaction, particularly in the development of adaptive learning systems and intelligent tutoring.",
   links: [
     { label: "Zone of proximal development", url: "https://en.wikipedia.org/wiki/Zone_of_proximal_development" },
-    { label: "Scaffolding (learning)", url: "https://en.wikipedia.org/wiki/Scaffolding_(learning)" },
+    { label: "Scaffolding (learning)", url: "https://en.wikipedia.org/w/index.php?search=Scaffolding%20(learning)" },
     { label: "Lev Vygotsky", url: "https://en.wikipedia.org/wiki/Lev_Vygotsky" }
   ]
 },
@@ -13014,7 +13014,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might analyze how corporate organizational structures shape which AI applications get built and for whom.",
   frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing power dynamics, institutional bias, and sociotechnical systems.",
   links: [
-    { label: "Wikipedia: Sociology of Technology", url: "https://en.wikipedia.org/wiki/Sociology_of_technology" },
+    { label: "Wikipedia: Sociology of Technology", url: "https://en.wikipedia.org/w/index.php?search=Sociology%20of%20technology" },
     { label: "Wikipedia: Social Construction of Technology", url: "https://en.wikipedia.org/wiki/Social_construction_of_technology" }
   ]
 },
@@ -13025,7 +13025,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in skp (skeptic) and cc (cross-cutting) nodes discussing bias, equity, and participatory design.",
   links: [
     { label: "Wikipedia: Feminist Technoscience", url: "https://en.wikipedia.org/wiki/Feminist_technoscience" },
-    { label: "Wikipedia: Gender Bias in AI", url: "https://en.wikipedia.org/wiki/Gender_bias_in_artificial_intelligence" }
+    { label: "Wikipedia: Gender Bias in AI", url: "https://en.wikipedia.org/w/index.php?search=Gender%20bias%20in%20artificial%20intelligence" }
   ]
 },
 "Responsible innovation": {
@@ -13034,7 +13034,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might advocate for mandatory impact assessments before deploying AI in high-stakes domains.",
   frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing governance frameworks and ethical AI development.",
   links: [
-    { label: "Wikipedia: Responsible Innovation", url: "https://en.wikipedia.org/wiki/Responsible_innovation" },
+    { label: "Wikipedia: Responsible Innovation", url: "https://en.wikipedia.org/w/index.php?search=Responsible%20innovation" },
     { label: "Wikipedia: Responsible Research and Innovation", url: "https://en.wikipedia.org/wiki/Responsible_Research_and_Innovation" }
   ]
 },
@@ -13064,7 +13064,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might propose mandatory third-party algorithmic audits for AI in hiring or lending.",
   frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing oversight mechanisms and accountability.",
   links: [
-    { label: "Wikipedia: Algorithmic Auditing", url: "https://en.wikipedia.org/wiki/Algorithmic_auditing" },
+    { label: "Wikipedia: Algorithmic Auditing", url: "https://en.wikipedia.org/w/index.php?search=Algorithmic%20auditing" },
     { label: "Wikipedia: Accountability", url: "https://en.wikipedia.org/wiki/Accountability" }
   ]
 },
@@ -13195,7 +13195,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing transparency and AI auditing.",
   links: [
     { label: "Wikipedia: Explainable AI", url: "https://en.wikipedia.org/wiki/Explainable_artificial_intelligence" },
-    { label: "Wikipedia: SHAP", url: "https://en.wikipedia.org/wiki/SHAP" }
+    { label: "Wikipedia: SHAP", url: "https://en.wikipedia.org/w/index.php?search=SHAP" }
   ]
 },
 "AI containment research": {
@@ -13204,7 +13204,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might argue that containment is fundamentally limited because a capable AI could manipulate operators.",
   frequency: "Appears in saf (safetyist) and skp (skeptic) nodes discussing existential risk mitigation.",
   links: [
-    { label: "Wikipedia: AI Box", url: "https://en.wikipedia.org/wiki/AI_box" },
+    { label: "Wikipedia: AI Box", url: "https://en.wikipedia.org/wiki/AI_capability_control" },
     { label: "Wikipedia: Biosafety Level", url: "https://en.wikipedia.org/wiki/Biosafety_level" }
   ]
 },
@@ -13275,7 +13275,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in saf (safetyist) and skp (skeptic) nodes discussing human oversight and meaningful human control.",
   links: [
     { label: "Wikipedia: Automation Bias", url: "https://en.wikipedia.org/wiki/Automation_bias" },
-    { label: "Wikipedia: Human Factors", url: "https://en.wikipedia.org/wiki/Human_factors_and_ergonomics" }
+    { label: "Wikipedia: Human Factors", url: "https://en.wikipedia.org/wiki/Ergonomics" }
   ]
 },
 "Technological forecasting": {
@@ -13284,7 +13284,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might argue that linear extrapolation underestimates potential for discontinuous capability jumps.",
   frequency: "Appears in acc (accelerationist) and saf (safetyist) nodes discussing AI timelines.",
   links: [
-    { label: "Wikipedia: Technological Forecasting", url: "https://en.wikipedia.org/wiki/Technological_forecasting" },
+    { label: "Wikipedia: Technological Forecasting", url: "https://en.wikipedia.org/w/index.php?search=Technological%20forecasting" },
     { label: "Wikipedia: Delphi Method", url: "https://en.wikipedia.org/wiki/Delphi_method" }
   ]
 },
@@ -13295,7 +13295,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing institutional capacity and democratic governance.",
   links: [
     { label: "Wikipedia: Civic Technology", url: "https://en.wikipedia.org/wiki/Civic_technology" },
-    { label: "Wikipedia: GovTech", url: "https://en.wikipedia.org/wiki/GovTech" }
+    { label: "Wikipedia: GovTech", url: "https://en.wikipedia.org/wiki/Government_Technology_Agency" }
   ]
 },
 "User experience (UX) design": {
@@ -13374,7 +13374,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might frame AGI as a natural continuation of cosmic trajectory toward complexity.",
   frequency: "Appears in acc (accelerationist) nodes discussing the inevitability of superintelligence.",
   links: [
-    { label: "Wikipedia: Cosmic Evolution", url: "https://en.wikipedia.org/wiki/Cosmic_evolution" },
+    { label: "Wikipedia: Cosmic Evolution", url: "https://en.wikipedia.org/wiki/Chronology_of_the_universe" },
     { label: "Wikipedia: Omega Point", url: "https://en.wikipedia.org/wiki/Omega_Point" }
   ]
 },
@@ -13394,7 +13394,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might advocate for AI testing zones with monitored conditions.",
   frequency: "Appears in cc (cross-cutting) and acc (accelerationist) nodes discussing adaptive governance.",
   links: [
-    { label: "Wikipedia: Regulatory Sandbox", url: "https://en.wikipedia.org/wiki/Regulatory_sandbox" },
+    { label: "Wikipedia: Regulatory Sandbox", url: "https://en.wikipedia.org/wiki/Regulatory_technology" },
     { label: "Wikipedia: AI Regulation", url: "https://en.wikipedia.org/wiki/Regulation_of_artificial_intelligence" }
   ]
 },
@@ -13415,7 +13415,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in acc (accelerationist) and cc (cross-cutting) nodes discussing adaptive governance.",
   links: [
     { label: "Wikipedia: Agile Software Development", url: "https://en.wikipedia.org/wiki/Agile_software_development" },
-    { label: "Wikipedia: Scrum", url: "https://en.wikipedia.org/wiki/Scrum_(software_development)" }
+    { label: "Wikipedia: Scrum", url: "https://en.wikipedia.org/wiki/Scrum_(project_management)" }
   ]
 },
 "Moral panic theory": {
@@ -13464,7 +13464,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might frame compute access as requiring allocation mechanisms like natural resource management.",
   frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing compute governance.",
   links: [
-    { label: "Wikipedia: Resource Economics", url: "https://en.wikipedia.org/wiki/Resource_economics" },
+    { label: "Wikipedia: Resource Economics", url: "https://en.wikipedia.org/wiki/Natural_resource_economics" },
     { label: "Wikipedia: Natural Resource Economics", url: "https://en.wikipedia.org/wiki/Natural_resource_economics" }
   ]
 },
@@ -13505,7 +13505,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in saf (safetyist) and cc (cross-cutting) nodes discussing AI security.",
   links: [
     { label: "Wikipedia: Adversarial ML", url: "https://en.wikipedia.org/wiki/Adversarial_machine_learning" },
-    { label: "Wikipedia: Adversarial Example", url: "https://en.wikipedia.org/wiki/Adversarial_example" }
+    { label: "Wikipedia: Adversarial Example", url: "https://en.wikipedia.org/w/index.php?search=Adversarial%20example" }
   ]
 },
 "Financial market regulation (circuit breakers)": {
@@ -13565,7 +13565,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears prominently in saf (safetyist) nodes; referenced critically in acc (accelerationist) nodes.",
   links: [
     { label: "Wikipedia: Global Catastrophic Risk", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk" },
-    { label: "Wikipedia: Existential Risk from AGI", url: "https://en.wikipedia.org/wiki/Existential_risk_from_artificial_general_intelligence" }
+    { label: "Wikipedia: Existential Risk from AGI", url: "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence" }
   ]
 },
 "Regulatory arbitrage theory": {
@@ -13574,7 +13574,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might warn that strict EU AI rules could push development elsewhere.",
   frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing international governance.",
   links: [
-    { label: "Wikipedia: Regulatory Arbitrage", url: "https://en.wikipedia.org/wiki/Regulatory_arbitrage" },
+    { label: "Wikipedia: Regulatory Arbitrage", url: "https://en.wikipedia.org/wiki/Arbitrage" },
     { label: "Wikipedia: Race to the Bottom", url: "https://en.wikipedia.org/wiki/Race_to_the_bottom" }
   ]
 },
@@ -13604,7 +13604,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   example: "A node tagged with this attribute might argue AI automation necessitates universal basic income.",
   frequency: "Appears in cc (cross-cutting) and skp (skeptic) nodes discussing labor displacement.",
   links: [
-    { label: "Wikipedia: Post-work Society", url: "https://en.wikipedia.org/wiki/Post-work_society" },
+    { label: "Wikipedia: Post-work Society", url: "https://en.wikipedia.org/wiki/Post-work_society_society" },
     { label: "Wikipedia: Universal Basic Income", url: "https://en.wikipedia.org/wiki/Universal_basic_income" }
   ]
 },
@@ -13625,7 +13625,7 @@ export const INTELLECTUAL_LINEAGES: Record<string, AttributeInfo> = {
   frequency: "Appears in cc (cross-cutting) and saf (safetyist) nodes discussing inclusive governance.",
   links: [
     { label: "Wikipedia: Participatory Design", url: "https://en.wikipedia.org/wiki/Participatory_design" },
-    { label: "Wikipedia: Co-design", url: "https://en.wikipedia.org/wiki/Co-design" }
+    { label: "Wikipedia: Co-design", url: "https://en.wikipedia.org/wiki/Participatory_design" }
   ]
 },
 "Standardization bodies (e.g., NIST)": {
