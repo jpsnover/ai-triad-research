@@ -1145,7 +1145,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   loadAll: async () => {
     const steps = [
       'Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
-      'Conflicts', 'Policy Registry', 'Conflict Clusters', 'Cruxes',
+      'Policy Registry', 'Conflict Clusters', 'Cruxes',
     ];
     set({ loading: true, backgroundLoading: false, loadingProgress: { completed: [], total: steps.length } });
 
@@ -1179,15 +1179,16 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       });
 
       // Phase 2: Load remaining POVs and data files in the background
-      const [saf, skp, cc, conflicts, polReg, conflictClusterData, cruxData] = await Promise.all([
+      const [saf, skp, cc, polReg, conflictClusterData, cruxData] = await Promise.all([
         track(steps[1], api.loadTaxonomyFile('safetyist')),
         track(steps[2], api.loadTaxonomyFile('skeptic')),
         track(steps[3], api.loadTaxonomyFile('situations')),
-        track(steps[4], api.loadConflictFiles()),
-        track(steps[5], api.loadPolicyRegistry()),
-        track(steps[6], api.loadConflictClusters().catch(() => null)),
-        track(steps[7], api.loadAggregatedCruxes().catch(() => null)),
+        track(steps[4], api.loadPolicyRegistry()),
+        track(steps[5], api.loadConflictClusters().catch(() => null)),
+        track(steps[6], api.loadAggregatedCruxes().catch(() => null)),
       ]);
+      // Defer conflict files — only needed for new debates, not startup
+      void api.loadConflictFiles().then((c) => set({ conflicts: c as ConflictFile[] })).catch(() => {});
       // Load L2 lineage categories (non-blocking, used by LineagePanel)
       void loadLineageCategoriesData();
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
@@ -1215,7 +1216,6 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         skeptic: skp as PovTaxonomyFile,
         situations: cc as SituationsFile,
         policyRegistry: regData?.policies ?? null,
-        conflicts: conflicts as ConflictFile[],
         conflictClusters: precomputedClusters,
         aggregatedCruxes: parsedCruxes,
         backgroundLoading: false,

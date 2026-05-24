@@ -296,8 +296,17 @@ put('/api/taxonomy/:pov', async (req, res, body) => {
 
 // ── Conflicts ──
 
+let conflictsCache: { data: unknown[]; ts: number } | null = null;
+const CONFLICTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 get('/api/conflicts', async (_req, res) => {
-  json(res, await fileIO.readAllConflictFiles());
+  if (conflictsCache && Date.now() - conflictsCache.ts < CONFLICTS_CACHE_TTL) {
+    json(res, conflictsCache.data);
+    return;
+  }
+  const data = await fileIO.readAllConflictFiles();
+  conflictsCache = { data, ts: Date.now() };
+  json(res, data);
 });
 
 get('/api/conflicts/clusters', async (_req, res) => {
@@ -315,6 +324,7 @@ put('/api/conflicts/:id', async (req, res, body) => {
     await ensureSessionBranch();
     const id = param(req, 'id', '/api/conflicts/:id');
     await fileIO.writeConflictFile(id, body);
+    conflictsCache = null;
     json(res, { ok: true });
   } catch (err) { error(res, String(err)); }
 });
@@ -324,6 +334,7 @@ post('/api/conflicts/:id', async (req, res, body) => {
     await ensureSessionBranch();
     const id = param(req, 'id', '/api/conflicts/:id');
     await fileIO.createConflictFile(id, body);
+    conflictsCache = null;
     json(res, { ok: true });
   } catch (err) { error(res, String(err)); }
 });
@@ -333,6 +344,7 @@ del('/api/conflicts/:id', async (req, res) => {
     await ensureSessionBranch();
     const id = param(req, 'id', '/api/conflicts/:id');
     await fileIO.deleteConflictFile(id);
+    conflictsCache = null;
     json(res, { ok: true });
   } catch (err) { error(res, String(err)); }
 });
@@ -341,6 +353,12 @@ del('/api/conflicts/:id', async (req, res) => {
 
 get('/api/policy-registry', async (_req, res) => {
   json(res, await fileIO.readPolicyRegistry());
+});
+
+// ── Lineage categories ──
+
+get('/api/lineage-categories', async (_req, res) => {
+  json(res, await fileIO.readLineageCategories());
 });
 
 // ── Edges ──
@@ -901,7 +919,9 @@ del('/api/chats/:id', async (req, res) => {
 post('/api/harvest/conflict', async (_req, res, body) => {
   try {
     await ensureSessionBranch();
-    json(res, { created: await fileIO.harvestCreateConflict(body as Record<string, unknown>) });
+    const created = await fileIO.harvestCreateConflict(body as Record<string, unknown>);
+    if (created) conflictsCache = null;
+    json(res, { created });
   } catch (err) { error(res, String(err)); }
 });
 

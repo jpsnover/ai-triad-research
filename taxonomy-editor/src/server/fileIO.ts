@@ -183,12 +183,22 @@ export async function readConflictClusters(): Promise<unknown | null> {
 export async function readAllConflictFiles(): Promise<unknown[]> {
   const dir = getConflictsDir();
   const entries = await backend.listDirectory(dir);
+  const files = entries.filter(f => f.endsWith('.json') && !f.startsWith('_'));
+
+  // Parallel reads in batches of 20 to avoid overwhelming the API
+  const BATCH = 20;
   const results: unknown[] = [];
-  for (const f of entries.filter(f => f.endsWith('.json') && !f.startsWith('_'))) {
-    try {
-      const raw = await backend.readFile(path.join(dir, f));
-      if (raw !== null) results.push(JSON.parse(raw));
-    } catch { /* skip corrupt files */ }
+  for (let i = 0; i < files.length; i += BATCH) {
+    const batch = files.slice(i, i + BATCH);
+    const settled = await Promise.allSettled(
+      batch.map(async f => {
+        const raw = await backend.readFile(path.join(dir, f));
+        return raw !== null ? JSON.parse(raw) : null;
+      }),
+    );
+    for (const r of settled) {
+      if (r.status === 'fulfilled' && r.value !== null) results.push(r.value);
+    }
   }
   return results;
 }
@@ -227,6 +237,15 @@ export async function createConflictFile(claimId: string, data: unknown): Promis
 export async function deleteConflictFile(claimId: string): Promise<void> {
   assertSafeId(claimId, 'claimId');
   await backend.deleteFile(path.join(getConflictsDir(), `${claimId}.json`));
+}
+
+// ── Lineage categories ──
+
+export async function readLineageCategories(): Promise<unknown | null> {
+  const filePath = path.join(getTaxonomyDir(), 'lineage_categories.json');
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return null;
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
 // ── Policy registry ──
