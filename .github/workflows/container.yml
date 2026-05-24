@@ -97,7 +97,7 @@ jobs:
 
           REPO="jpsnover/ai-triad-data"
           FAILED=0
-          for f in accelerationist.json safetyist.json skeptic.json cross-cutting.json edges.json policy_actions.json embeddings.json; do
+          for f in accelerationist.json safetyist.json skeptic.json situations.json edges.json policy_actions.json embeddings.json lineage_categories.json aggregated-cruxes.json; do
             gh api "repos/${REPO}/contents/taxonomy/Origin/${f}" \
               --jq '.content' | base64 -d > "${SNAP}/${f}" 2>/dev/null \
               || { echo "::warning::Failed to fetch ${f}"; FAILED=$((FAILED+1)); }
@@ -119,7 +119,7 @@ jobs:
             > taxonomy-snapshot/snapshot-meta.json
 
           # Validate minimum viable snapshot (5 taxonomy POV files + edges + policy registry)
-          REQUIRED="accelerationist.json safetyist.json skeptic.json cross-cutting.json edges.json policy_actions.json"
+          REQUIRED="accelerationist.json safetyist.json skeptic.json situations.json edges.json policy_actions.json"
           MISSING=0
           for f in $REQUIRED; do
             if [ ! -s "${SNAP}/${f}" ]; then
