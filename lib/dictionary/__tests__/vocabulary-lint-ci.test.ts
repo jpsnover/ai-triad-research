@@ -8,6 +8,7 @@ const dataRoot = path.resolve(__dirname, '../../../../ai-triad-data');
 const dictionaryDir = path.join(dataRoot, 'dictionary');
 const taxonomyDir = path.join(dataRoot, 'taxonomy', 'Origin');
 const summariesDir = path.join(dataRoot, 'summaries');
+const hasDataRepo = fs.existsSync(dictionaryDir);
 
 function loadTaxonomyNodes(file: string): Array<{ id: string; label?: string; description?: string; graph_attributes?: { characteristic_language?: string[] } }> {
   const raw = JSON.parse(fs.readFileSync(path.join(taxonomyDir, file), 'utf-8'));
@@ -17,7 +18,7 @@ function loadTaxonomyNodes(file: string): Array<{ id: string; label?: string; de
 // Labels are short titles where bare terms are intentional — only lint prose fields.
 const LINT_OPTS = { constraints: [4] as number[], skipFields: ['label'] };
 
-describe('vocabulary lint: dictionary consistency', () => {
+describe.skipIf(!hasDataRepo)('vocabulary lint: dictionary consistency', () => {
   it('dictionary has zero internal violations (constraints 1,3,7,8)', () => {
     const loader = new DictionaryLoader(dictionaryDir);
     const violations = lintDictionary(loader, undefined, { constraints: [1, 3, 7, 8] });
@@ -40,7 +41,7 @@ describe('vocabulary lint: dictionary consistency', () => {
   });
 });
 
-describe('vocabulary lint: taxonomy nodes (strict)', () => {
+describe.skipIf(!hasDataRepo)('vocabulary lint: taxonomy nodes (strict)', () => {
   const povFiles = ['accelerationist.json', 'safetyist.json', 'skeptic.json'];
 
   for (const file of povFiles) {
@@ -58,7 +59,7 @@ describe('vocabulary lint: taxonomy nodes (strict)', () => {
   }
 });
 
-describe('vocabulary lint: taxonomy nodes (informational)', () => {
+describe.skipIf(!hasDataRepo)('vocabulary lint: taxonomy nodes (informational)', () => {
   it('situations.json bare-term count (not yet reprocessed)', () => {
     const filePath = path.join(taxonomyDir, 'situations.json');
     if (!fs.existsSync(filePath)) return;
@@ -70,7 +71,7 @@ describe('vocabulary lint: taxonomy nodes (informational)', () => {
   });
 });
 
-describe('vocabulary lint: summaries (informational)', () => {
+describe.skipIf(!hasDataRepo)('vocabulary lint: summaries (informational)', () => {
   it('reports bare-term count across summaries', () => {
     if (!fs.existsSync(summariesDir)) return;
     const loader = new DictionaryLoader(dictionaryDir);

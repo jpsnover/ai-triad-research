@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import path from 'path';
+import fs from 'fs';
 import { DictionaryLoader } from '../../dictionary/loader';
 import { lintText, lintNodes, lintDictionary } from '../../dictionary/lint';
 import { locateOccurrences } from '../locator';
@@ -12,6 +13,7 @@ import type { SenseEmbeddingsFile, StandardizedTerm, SenseEmbeddingEntry } from 
 
 const dataRoot = path.resolve(__dirname, '../../../../ai-triad-data');
 const dictionaryDir = path.join(dataRoot, 'dictionary');
+const hasDataRepo = fs.existsSync(dictionaryDir);
 
 function makeLoader() {
   return new DictionaryLoader(dictionaryDir);
@@ -100,9 +102,9 @@ describe('levenshteinRatio', () => {
   });
 });
 
-// ── Stage 1: Locator tests ─────────────────────────────
+// ── Stage 1: Locator tests (require ai-triad-data) ─────
 
-describe('locateOccurrences', () => {
+describe.skipIf(!hasDataRepo)('locateOccurrences', () => {
   const loader = makeLoader();
   const colloquials = loader.listColloquial();
 
@@ -167,9 +169,9 @@ describe('locateOccurrences', () => {
   });
 });
 
-// ── Stage 2: Ensemble tests ────────────────────────────
+// ── Stage 2: Ensemble tests (require ai-triad-data) ────
 
-describe('resolveWithEnsemble', () => {
+describe.skipIf(!hasDataRepo)('resolveWithEnsemble', () => {
   const loader = makeLoader();
   const embeddings = loadSenseEmbeddings();
   const embMap = new Map(
@@ -256,9 +258,9 @@ describe('resolveWithEnsemble', () => {
   });
 });
 
-// ── Stage 3: LLM fallback prompt tests ─────────────────
+// ── Stage 3: LLM fallback prompt tests (require ai-triad-data)
 
-describe('buildFallbackPrompt', () => {
+describe.skipIf(!hasDataRepo)('buildFallbackPrompt', () => {
   const loader = makeLoader();
 
   it('builds a well-formed prompt with candidate senses', () => {
@@ -332,9 +334,9 @@ describe('buildFallbackPrompt', () => {
   });
 });
 
-// ── Pipeline integration tests ─────────────────────────
+// ── Pipeline integration tests (require ai-triad-data) ─
 
-describe('translateDocument', () => {
+describe.skipIf(!hasDataRepo)('translateDocument', () => {
   it('runs full pipeline in LLM-disabled mode', async () => {
     const loader = makeLoader();
     const senseEmbeddings = loadSenseEmbeddings();
@@ -416,9 +418,9 @@ balance transparency requirements with capabilities development.
   });
 });
 
-// ── Lint constraint 4 tests ────────────────────────────
+// ── Lint constraint 4 tests (require ai-triad-data) ────
 
-describe('lintText constraint 4', () => {
+describe.skipIf(!hasDataRepo)('lintText constraint 4', () => {
   it('detects bare colloquial terms in plain text', () => {
     const loader = makeLoader();
     const violations = lintText('The alignment problem is critical.', loader, { constraints: [4] });
@@ -477,9 +479,9 @@ describe('lintText constraint 4', () => {
   });
 });
 
-// ── Lint constraints 7-10 tests ────────────────────────
+// ── Lint constraints 7-10 tests (require ai-triad-data)
 
-describe('lintDictionary constraints 7-8', () => {
+describe.skipIf(!hasDataRepo)('lintDictionary constraints 7-8', () => {
   it('constraint 7: accepted terms all have coinage_log_ref', () => {
     const loader = makeLoader();
     const violations = lintDictionary(loader, undefined, { constraints: [7] });
@@ -493,7 +495,7 @@ describe('lintDictionary constraints 7-8', () => {
   });
 });
 
-describe('lintText constraint 10', () => {
+describe.skipIf(!hasDataRepo)('lintText constraint 10', () => {
   it('detects unmatched closing tag', () => {
     const loader = makeLoader();
     const violations = lintText('text </q> more', loader, { constraints: [10] });
