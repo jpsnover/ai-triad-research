@@ -180,6 +180,24 @@ resource kvDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview
   }
 }
 
+// ── Application Insights (error monitoring) ──
+// Free tier: 5 GB/month ingestion. Connected to the same Log Analytics workspace.
+// The connection string is injected as APPLICATIONINSIGHTS_CONNECTION_STRING env var.
+// The taxonomy-editor server uses the @azure/monitor-opentelemetry SDK to send
+// exceptions, request traces, and custom events.
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appi-aitriad-${uniqueSuffix}'
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+    RetentionInDays: 30
+  }
+}
+
 // ── Container Apps Environment ──
 
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
@@ -221,6 +239,8 @@ var baseEnv = [
   { name: 'GITHUB_APP_ID', value: githubAppId }
   { name: 'GITHUB_APP_INSTALLATION_ID', value: githubAppInstallationId }
   { name: 'GITHUB_APP_PRIVATE_KEY_SECRET_NAME', value: githubAppPrivateKeySecretName }
+  // Application Insights — runtime error monitoring and request tracing.
+  { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
@@ -731,3 +751,4 @@ output resourceGroup string = resourceGroup().name
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output stagingUrl string = 'https://${containerAppStaging.properties.configuration.ingress.fqdn}'
+output appInsightsName string = appInsights.name
