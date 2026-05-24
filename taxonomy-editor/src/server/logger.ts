@@ -52,6 +52,10 @@ export function generateRequestId(): string {
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+function hasPinoPretty(): boolean {
+  try { require.resolve('pino-pretty'); return true; } catch { return false; }
+}
+
 const logger = pino({
   level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   redact: {
@@ -73,9 +77,9 @@ const logger = pino({
     ],
     censor: '[REDACTED]',
   },
-  ...(isProduction
-    ? {}
-    : { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } } }
+  ...(!isProduction && hasPinoPretty()
+    ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } } }
+    : {}
   ),
   // Inject request context into every log line
   mixin() {
