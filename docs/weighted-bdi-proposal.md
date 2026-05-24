@@ -54,15 +54,64 @@ Intentions could get a `feasibility` score (political viability × technical rea
 
 ### Initial Assignment
 
-**For existing nodes (~800):**
-Run a one-time classification pass using the existing `graph_attributes`:
+**For existing nodes (~335 Beliefs):**
 
-- `epistemic_type: empirical_claim` + `falsifiability: high` → confidence 0.7-0.9
-- `epistemic_type: normative_prescription` → N/A (Desires don't get confidence, they get priority)
-- `epistemic_type: interpretive_lens` → confidence 0.4-0.6
-- `epistemic_type: definitional` → confidence 0.5 (definitional claims are conventional, not empirical)
-- Source reference count: nodes with 3+ `source_refs` get a +0.1 confidence boost
-- QBAF `base_strength` already exists on AN claims — use as a signal for the parent taxonomy node's confidence
+Run a one-time multi-signal classification pass. The single-signal approach (epistemic_type + falsifiability only) produces a compressed distribution — 100% of nodes land in just two buckets (Well-supported and Plausible) with only 4-5 unique values. The multi-signal formula below spreads the distribution across all five tiers with 42 unique values, validated empirically against the full taxonomy.
+
+**Multi-signal confidence formula:**
+
+```
+confidence = clamp(base + evidence_boost + debate_boost + edge_boost, 0.10, 0.95)
+
+where:
+  base = f(epistemic_type, falsifiability):
+    empirical_claim + high falsifiability  → 0.80
+    empirical_claim + medium falsifiability → 0.70
+    empirical_claim + low falsifiability   → 0.60
+    predictive                             → 0.40
+    interpretive_lens                      → 0.50
+    definitional                           → 0.50
+    other                                  → 0.50
+
+  evidence_boost = min(0.15, source_doc_count × 0.05)
+    # +0.05 per unique source document in the evidence index, capped at +0.15
+    # Nodes with evidence from 3+ documents get the maximum boost
+
+  debate_boost = min(0.10, debate_ref_count × 0.03)
+    # +0.03 per debate that has referenced this node, capped at +0.10
+    # Currently sparse (91% of nodes have 0 debate refs) — becomes more
+    # discriminative as more debates accumulate
+
+  edge_boost = min(0.05, supports_received × 0.02) - min(0.05, attacks_received × 0.02)
+    # Net effect of taxonomy edge support/attack balance
+    # 64% of Beliefs have 6+ supports; 39% have 6+ attacks
+    # Range: -0.05 (heavily attacked, no support) to +0.05 (heavily supported, no attacks)
+```
+
+**Resulting distribution (validated against 335 Belief nodes):**
+
+| Bucket | Before (single-signal) | After (multi-signal) |
+|---|---|---|
+| Established (0.9-1.0) | 0 (0%) | 74 (22%) |
+| Well-supported (0.7-0.9) | 207 (62%) | 138 (41%) |
+| Plausible (0.5-0.7) | 128 (38%) | 114 (34%) |
+| Speculative (0.3-0.5) | 0 (0%) | 9 (3%) |
+| Contested (0.0-0.3) | 0 (0%) | 0 (0%) |
+
+The Contested bucket remains empty at initial assignment — this is correct. No Belief should start as Contested; that status should only come from debate outcomes that undermine it (see Evolution Through Debates below).
+
+**Signal availability and discriminative power:**
+
+| Signal | Coverage | Power | Notes |
+|---|---|---|---|
+| epistemic_type + falsifiability | 100% | Low | Only 4-5 distinct values |
+| Source document count | 74% have docs | High | 51% have 4+ docs |
+| Evidence index items | 74% have entries | High | 35.5% have 11+ items |
+| Taxonomy supports | 88% have supports | High | 64% have 6+ |
+| Taxonomy attacks | 75.5% have attacks | High | 39% have 6+ |
+| Debate refs | 8.7% have any | Low (currently) | Will improve as debates accumulate |
+
+- `normative_prescription` → N/A (Desires don't get confidence, they get priority)
 
 For Desires, priority can be seeded from the taxonomy hierarchy:
 - Root-level Desires (no parent) → priority 4-5 (these are structural values)
@@ -71,18 +120,11 @@ For Desires, priority can be seeded from the taxonomy hierarchy:
 - The doctrinal boundaries in `POVER_INFO` explicitly name the non-negotiable values → those Desire nodes are priority 5
 
 **For new nodes (from ingestion or reflection):**
-The extraction prompt already produces `epistemic_type`. Add a `confidence` instruction:
-
-```
-Rate your confidence in this claim on a 0.0-1.0 scale:
-- 0.9+: Multiple independent sources confirm this with empirical data
-- 0.7-0.9: Strong evidence from authoritative sources, minor caveats
-- 0.5-0.7: Plausible with some evidence, but contested or incomplete
-- 0.3-0.5: Theoretically motivated but limited empirical support
-- Below 0.3: Speculative or actively contested by significant evidence
-```
+New nodes start with a base confidence from `epistemic_type` + `falsifiability` (the first term of the multi-signal formula). The evidence, debate, and edge boosts are applied retroactively as the node accumulates data — a new node with zero evidence, zero debates, and zero edges gets the base value only. As it participates in debates and gains evidence index entries, its confidence adjusts upward or downward automatically via the formula above. No LLM-based confidence rating is needed — the multi-signal formula is fully deterministic from existing metadata.
 
 ### Per-Claim Taxonomy Attribution (prerequisite for confidence evolution)
+
+> **Implementation approved independently of the broader weighted-BDI proposal.** This section is being implemented regardless of the final decision on confidence/priority scoring. See t/110 (Shared Lib: attribution engine) and t/111 (Taxonomy Editor: diagnostics display, blocked by t/110).
 
 The confidence evolution mechanism below requires knowing which specific taxonomy Belief a given AN claim instantiates. Currently, AN claims inherit `taxonomy_refs` from their parent transcript entry — every claim extracted from a statement gets the **same** set of taxonomy refs, even though individual claims may only relate to one of them. This makes it impossible to attribute a QBAF outcome (attack, defeat, survival) to a specific taxonomy Belief.
 
