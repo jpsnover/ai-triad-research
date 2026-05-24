@@ -2287,6 +2287,19 @@ body {
 .unsynced-drawer-diff-panel {
   overflow: auto;
   background: var(--color-bg-subtle, #f6f8fa);
+  position: relative;
+}
+.unsynced-drawer-popout-btn {
+  position: sticky;
+  top: 4px;
+  float: right;
+  z-index: 2;
+  margin: 4px 8px 0 0;
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+.unsynced-drawer-popout-btn:hover {
+  opacity: 1;
 }
 .unsynced-drawer-diff {
   margin: 0;

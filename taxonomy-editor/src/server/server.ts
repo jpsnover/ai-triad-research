@@ -67,6 +67,12 @@ serverRecorder.setContextProvider(() => {
       auth_disabled: process.env.AUTH_DISABLED ?? null,
       storage_mode: STORAGE_MODE,
     },
+    azure: {
+      replica_name: process.env.CONTAINER_APP_REPLICA_NAME ?? null,
+      container_start_time: process.env.WEBSITES_CONTAINER_START_TIME ?? null,
+      dns_suffix: process.env.CONTAINER_APP_ENV_DNS_SUFFIX ?? null,
+      revision: process.env.CONTAINER_APP_REVISION ?? null,
+    },
   };
 
   // Add GitHub API state when in API mode (githubBackend populated after startup)
@@ -1819,6 +1825,14 @@ async function handleRequestInner(
         status: res.statusCode,
         duration_ms: duration,
       }, 'Request completed');
+      serverRecorder.record({
+        type: 'lifecycle',
+        component: serverRecorder.intern('component', 'server') as string | number,
+        level: duration > 5000 ? 'warn' : 'info',
+        message: `${req.method} ${urlPath} ${res.statusCode} ${duration}ms`,
+        duration_ms: duration,
+        data: { method: req.method, path: urlPath, status: res.statusCode, requestId },
+      });
     }
   });
 

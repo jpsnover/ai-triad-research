@@ -104,20 +104,27 @@ function FileViewerApp() {
 }
 
 export function App() {
+  const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash);
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
   // If this window was opened as a diagnostics popout, render only that
-  if (window.location.hash === '#diagnostics-window') {
+  if (hash === '#diagnostics-window') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DiagnosticsWindow /></ErrorBoundary>;
   }
-  if (window.location.hash === '#pov-progression-window') {
+  if (hash === '#pov-progression-window') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PovProgressionWindow /></ErrorBoundary>;
   }
-  if (window.location.hash.startsWith('#debate-window')) {
+  if (hash.startsWith('#debate-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DebatePopoutWindow /></ErrorBoundary>;
   }
-  if (window.location.hash.startsWith('#prompt-diff-window')) {
+  if (hash.startsWith('#prompt-diff-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PromptDiffWindow /></ErrorBoundary>;
   }
-  if (window.location.hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
+  if (hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AnalyticsDashboard /></ErrorBoundary>;
   }
 

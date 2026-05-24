@@ -2569,6 +2569,52 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     </>
                   )}
                 </div>
+                {/* Lineage Effectiveness — promoted vs. cited */}
+                {boostActive && (() => {
+                  const allPromoted = new Set<string>();
+                  const allInjected = new Set<string>();
+                  const allReferenced = new Set<string>();
+                  for (const e of debate.transcript) {
+                    if (e.type !== 'opening' && e.type !== 'statement') continue;
+                    const manifest = (e.metadata as Record<string, unknown>)?.injection_manifest as {
+                      lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[] };
+                      povNodeIds?: string[];
+                    } | undefined;
+                    if (!manifest) continue;
+                    for (const id of (e.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id)) allReferenced.add(id);
+                    for (const id of manifest.povNodeIds ?? []) allInjected.add(id);
+                    const lb = manifest.lineage_boost;
+                    if (lb) {
+                      for (const id of lb.promotedNodeIds ?? []) allPromoted.add(id);
+                    }
+                  }
+                  if (allPromoted.size === 0) return null;
+                  const promotedCited = [...allPromoted].filter(id => allReferenced.has(id)).length;
+                  const promotedRate = promotedCited / allPromoted.size;
+                  const baselineRate = allInjected.size > 0 ? allReferenced.size / allInjected.size : 0;
+                  const ratio = baselineRate > 0 ? promotedRate / baselineRate : 0;
+                  return (
+                    <div style={{
+                      marginTop: 12, padding: '8px 12px', borderRadius: 6,
+                      background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)',
+                      fontSize: '0.7rem', lineHeight: 1.6,
+                    }}>
+                      <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>Lineage Effectiveness</div>
+                      <div>
+                        Lineage boost promoted <strong>{allPromoted.size}</strong> node{allPromoted.size !== 1 ? 's' : ''};{' '}
+                        <strong style={{ color: '#22c55e' }}>{promotedCited}</strong> cited ({(promotedRate * 100).toFixed(0)}%)
+                        {' vs. '}<strong>{(baselineRate * 100).toFixed(0)}%</strong> baseline
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>
+                        {promotedRate > baselineRate
+                          ? `Promoted nodes cited ${ratio.toFixed(1)}× more than baseline — boost is helping`
+                          : promotedRate === baselineRate
+                            ? 'Promoted node citation rate matches baseline'
+                            : 'Promoted nodes cited less than baseline — boost had limited effect'}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}

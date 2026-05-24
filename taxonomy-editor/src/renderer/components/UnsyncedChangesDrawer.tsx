@@ -279,6 +279,33 @@ export function UnsyncedChangesDrawer({ open, onClose, status, onChanged }: Prop
           </div>
 
           <div className="unsynced-drawer-diff-panel">
+            {selected && diff && (
+              <button
+                className="btn btn-ghost btn-sm unsynced-drawer-popout-btn"
+                onClick={() => {
+                  const w = window.open('', '_blank', 'width=1100,height=700');
+                  if (!w) return;
+                  const escaped = diff.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                  const lines = escaped.split('\n').map(line => {
+                    let cls = '';
+                    if (line.startsWith('+++') || line.startsWith('---')) cls = 'hdr';
+                    else if (line.startsWith('+')) cls = 'add';
+                    else if (line.startsWith('-')) cls = 'del';
+                    else if (line.startsWith('@@')) cls = 'hunk';
+                    return `<div class="${cls}">${line || '&nbsp;'}</div>`;
+                  }).join('');
+                  w.document.write(`<!DOCTYPE html><html><head><title>Diff: ${selected.replace(/[<>&"]/g, '')}</title>
+<style>body{margin:0;background:#1a1a2e;color:#ccc;font:12px/1.5 monospace;padding:16px}
+.hdr{color:#888}.add{color:#4ade80;background:rgba(34,197,94,0.08)}
+.del{color:#f87171;background:rgba(239,68,68,0.08)}.hunk{color:#60a5fa}
+div{white-space:pre;padding:0 8px}</style></head><body>${lines}</body></html>`);
+                  w.document.close();
+                }}
+                title="Open diff in a new window for easier review"
+              >
+                ↗ Popout
+              </button>
+            )}
             {selected
               ? <DiffLines diff={diff} />
               : <div className="unsynced-drawer-empty">Select a file to see its diff.</div>}

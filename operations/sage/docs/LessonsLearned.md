@@ -234,3 +234,21 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Do not assume `.js` files exist — check for a build/dist directory first.
 
 **Applies To:** All agents working with TypeScript source in the Electron apps or debate engine.
+
+---
+
+## [Data] Push Rejected Due to Stale Local in ai-triad-data
+
+**Pattern:** `git push` to `ai-triad-data` rejected because remote has newer commits, especially on frequently-modified large files like `embeddings.json`.
+
+**Instances:**
+- 2026-05-24 — Project Manager: push rejected after `embeddings.json` was modified both locally and remotely between commit and push. Resolved with stash/pull --rebase/resolve conflict (take theirs)/push (p/31#1).
+
+**Root Cause:** The data repo (`ai-triad-data`) is shared across multiple agents and workflows. Large generated files like `embeddings.json` are modified frequently, creating a high likelihood of conflicts between commit and push — especially when there's a time gap.
+
+**Prevention:**
+1. Pull immediately before committing to the data repo: `git pull --rebase` then commit and push without delay.
+2. For large generated files (`embeddings.json`, `policy_actions.json`), prefer "take theirs" conflict resolution unless your changes are the authoritative regeneration.
+3. Minimize the window between commit and push in the data repo — do both in quick succession.
+
+**Applies To:** All agents committing to `ai-triad-data`, especially those modifying embeddings or other generated data files.
