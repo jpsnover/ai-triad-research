@@ -52,6 +52,7 @@ LABEL org.opencontainers.image.licenses="MIT"
 # Cache dir created at runtime by the app (GitHubAPIBackend)
 ENV AI_TRIAD_DATA_ROOT=/tmp/taxonomy-cache
 ENV PORT=7862
+ENV NODE_ENV=production
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app

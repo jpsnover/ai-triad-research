@@ -56,6 +56,9 @@ function hasPinoPretty(): boolean {
   try { require.resolve('pino-pretty'); return true; } catch { return false; }
 }
 
+// Evaluate before pino constructor — pino resolves transports eagerly
+const usePretty = !isProduction && hasPinoPretty();
+
 const logger = pino({
   level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   redact: {
@@ -77,7 +80,7 @@ const logger = pino({
     ],
     censor: '[REDACTED]',
   },
-  ...(!isProduction && hasPinoPretty()
+  ...(usePretty
     ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } } }
     : {}
   ),
