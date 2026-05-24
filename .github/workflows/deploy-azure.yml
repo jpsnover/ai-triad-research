@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Resolve image tag
         id: resolve_tag
@@ -73,7 +73,7 @@ jobs:
           echo "Deploying image tag: $(cat $GITHUB_OUTPUT | grep tag= | cut -d= -f2)"
 
       - name: Log in to Azure
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -262,7 +262,7 @@ jobs:
 
       - name: Re-authenticate before rollback
         if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}

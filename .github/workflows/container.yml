@@ -37,7 +37,7 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
       digest: ${{ steps.build.outputs.digest }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Lint Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
