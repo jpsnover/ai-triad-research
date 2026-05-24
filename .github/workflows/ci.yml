@@ -79,7 +79,7 @@ jobs:
         run: ln -s "$GITHUB_WORKSPACE/ai-triad-data" ../ai-triad-data
         continue-on-error: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
