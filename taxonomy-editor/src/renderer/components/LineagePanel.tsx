@@ -7,7 +7,7 @@ import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import {
   CATEGORY_ORDER,
   classifyLineage, classifyLineageL2, getCategoryById,
-  getL2CategoriesForL1, isLineageDataLoaded,
+  getL2Categories, getL2CategoriesForL1, isLineageDataLoaded,
 } from '../data/lineageCategories';
 
 interface LineagePanelProps {
@@ -97,6 +97,17 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
       el?.scrollIntoView({ block: 'nearest' });
     });
   }, [onSelectValue]);
+
+  // Collapse all L2 clusters initially once data loads
+  const l2InitRef = useRef(false);
+  useEffect(() => {
+    if (l2InitRef.current || !hasL2) return;
+    const allL2Ids = getL2Categories().map(c => c.id);
+    if (allL2Ids.length > 0) {
+      setCollapsedL2(new Set(allL2Ids));
+      l2InitRef.current = true;
+    }
+  }, [hasL2]);
 
   useEffect(() => {
     if (!pendingLineageValue) return;
