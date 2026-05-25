@@ -1849,6 +1849,17 @@ async function getRelevantTaxonomyContext(
     // Build relevance options with optional lineage boost
     const relevanceOpts: RelevanceOptions = { threshold, minPerCategory: 3, maxTotal: 35 };
     const lineageFrame = debate?.topic?.critique?.lineage_frame;
+    getGlobalRecorder()?.record({
+      type: 'lineage.boost-check',
+      component: 'debate-store',
+      level: 'debug',
+      message: 'Lineage boost check',
+      data: {
+        has_lineage_frame: !!lineageFrame,
+        frame_count: lineageFrame?.length ?? 0,
+        lineage_data_loaded: isLineageDataLoaded(),
+      },
+    });
     if (lineageFrame && lineageFrame.length > 0 && isLineageDataLoaded()) {
       const mapping = getLineageMapping();
       const lineageByNode: Record<string, string[]> = {};
@@ -1869,6 +1880,30 @@ async function getRelevantTaxonomyContext(
         lineageByNode,
         nameToCluster,
       };
+      getGlobalRecorder()?.record({
+        type: 'lineage.boost-applied',
+        component: 'debate-store',
+        level: 'info',
+        message: 'Lineage boost applied',
+        data: {
+          traditions: lineageFrame.map((f: { cluster_id: string; label?: string }) => f.label ?? f.cluster_id),
+          node_count_with_lineage: Object.keys(lineageByNode).length,
+          cluster_count: Object.keys(nameToCluster).length,
+          boost_value: 0.08,
+        },
+      });
+    } else if (lineageFrame) {
+      getGlobalRecorder()?.record({
+        type: 'lineage.boost-skipped',
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Lineage boost skipped',
+        data: {
+          reason: lineageFrame.length === 0 ? 'empty_frame' : 'data_not_loaded',
+          frame_count: lineageFrame.length,
+          lineage_data_loaded: isLineageDataLoaded(),
+        },
+      });
     }
 
     const scoredPov = selectRelevantNodes(allPovNodes, scores, relevanceOpts);
@@ -3810,7 +3845,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           // Stop if phase reached termination
           if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') break;
           const preLen = d.transcript.length;
-          await get().crossRespond();
+          try {
+            await get().crossRespond();
+          } catch (loopErr) {
+            console.error(`[debate] Adaptive loop iteration ${i} failed:`, loopErr);
+            getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: d.id, message: `Adaptive loop failed at iteration ${i}`, data: { iteration: i, error: String(loopErr), stack: (loopErr as Error).stack?.slice(0, 500) } });
+            set({ debateError: `Cross-respond failed: ${(loopErr as Error).message?.slice(0, 200) ?? String(loopErr)}` });
+            break;
+          }
           // If crossRespond returned without adding a debater statement (e.g. agreement
           // detected), break to avoid re-running moderator selection in a loop.
           const post = get().activeDebate;
@@ -3998,6 +4040,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     console.warn('%c[DEBATE-STORE] crossRespond ENTERED', 'color: red; font-weight: bold; font-size: 14px');
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
+    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate?.id, message: 'crossRespond entered', data: { phase: activeDebate?.phase, transcript_length: activeDebate?.transcript.length, adaptive_phase: activeDebate?.adaptive_staging?.phase_state?.current_phase } });
 
     // Guard: if openings completed but abort guard prevented phase transition, fix it now
     if (activeDebate.phase === 'opening' && activeDebate.transcript.some(e => e.type === 'opening')) {
@@ -4759,8 +4802,11 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       });
     }
 
+    getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate.id, message: `Cross-respond turn complete, entering post-processing`, data: { round: crossRespondRound, speaker: responderPover, transcript_length: get().activeDebate?.transcript.length } });
+
     const postDebate = get().activeDebate;
     if (postDebate) {
+      try {
       pruneSessionData(postDebate);
       if (postDebate.moderator_state) pruneModeratorState(postDebate.moderator_state);
 
@@ -4894,6 +4940,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         const asHealthScore = computeDebateHealthScore(recentConvSignals.slice(-3), turnCounts, referencedIds.size, relevantNodeCount);
 
         const result = evaluatePhaseTransition(advanced, signalCtx, signals, config, asHealthScore);
+        getGlobalRecorder()?.record({ type: 'debate.round', component: 'adaptive-staging', level: 'debug', debate_id: postDebate.id, message: `Phase evaluation computed`, data: { round: crossRespondRound, action: result.action, reason: result.reason } });
 
         // Compute and record signal scores for history tracking
         const coldStart = advanced.rounds_in_phase < 2;
@@ -4983,6 +5030,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       } else {
         set({ activeDebate: { ...postDebate } });
+      }
+      } catch (postErr) {
+        console.error('[crossRespond] Post-processing failed:', postErr);
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: postDebate.id, message: 'Cross-respond post-processing failed', data: { error: String(postErr), stack: (postErr as Error).stack?.slice(0, 500) } });
       }
     }
 

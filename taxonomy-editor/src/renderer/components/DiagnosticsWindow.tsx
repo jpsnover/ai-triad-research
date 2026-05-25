@@ -2245,6 +2245,16 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const turnValTrail: TurnValidationTrail | undefined = selectedEntry ? debate?.turn_validations?.[selectedEntry] : undefined;
   const meta = entry?.metadata as Record<string, unknown> | undefined;
 
+  /** Taxonomy node weights lookup — derived from taxNodeMap for confidence/priority/operationality display on Brief grounding */
+  const nodeWeights = useMemo(() => {
+    const map = new Map<string, { confidence?: number; priority?: number; operationality?: number; category?: string }>();
+    for (const [id, n] of taxNodeMap) {
+      const rec = n as { confidence?: number; priority?: number; operationality?: number; category?: string };
+      map.set(id, { confidence: rec.confidence, priority: rec.priority, operationality: rec.operationality, category: rec.category });
+    }
+    return map;
+  }, [taxNodeMap]);
+
   // For system entries without diagnostics, proxy the moderator_trace from
   // the next debater entry so the moderator deliberation is visible.
   const proxiedModeratorTrace = useMemo(() => {
