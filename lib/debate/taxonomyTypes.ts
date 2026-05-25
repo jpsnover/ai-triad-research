@@ -40,6 +40,22 @@ export interface GraphAttributes {
 
 export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';
 
+/** Entry in a node's confidence or priority change history. */
+export interface WeightHistoryEntry {
+  date: string;
+  value: number;
+  delta: number;
+  reason: string;
+  /** Debate ID of superseded prior update (cross-debate dedup). */
+  supersedes?: string;
+  /** AN claim text that drove the confidence change. */
+  attack_claim?: string;
+  /** Cross-model confirmation count (≥2 means multi-model agreement). */
+  robustness?: number;
+  /** Models that independently confirmed this attack. */
+  model_confirmations?: string[];
+}
+
 export interface PovNode {
   id: string;
   category: Category;
@@ -53,6 +69,22 @@ export interface PovNode {
   conflict_ids?: string[];
   graph_attributes?: GraphAttributes;
   debate_refs?: string[];
+  /** Belief confidence (0.0-1.0). Multi-signal formula. Absent in pre-weighted nodes. */
+  confidence?: number;
+  /** Confidence change log. Absent in pre-weighted nodes. */
+  confidence_history?: WeightHistoryEntry[];
+  /** True if this Belief is cosine-similar to its POV's doctrinal boundaries. Absent in pre-weighted nodes. */
+  doctrinally_anchored?: boolean;
+  /** Pre-floor evidential confidence. When doctrinally_anchored, confidence may be raised to the floor — this preserves the original evidential score. */
+  evidential_confidence?: number;
+  /** Desire priority (1-5). Absent in pre-weighted nodes and non-Desire categories. */
+  priority?: number;
+  /** Priority change log. Absent in pre-weighted nodes. */
+  priority_history?: WeightHistoryEntry[];
+  /** Intention operationality (1-5). Absent in pre-weighted nodes and non-Intention categories. */
+  operationality?: number;
+  /** Operationality change log. Absent in pre-weighted nodes. */
+  operationality_history?: WeightHistoryEntry[];
   /** Concession history — tracks cross-debate concessions affecting this node. Absent in pre-tracking nodes. */
   concession_history?: ConcessionRecord[];
 }
@@ -151,6 +183,8 @@ export interface Edge {
   bidirectional: boolean;
   confidence: number;
   weight?: number;
+  /** Weight modulated by endpoint confidence/priority. Computed by modulateEdgeWeights.ts. */
+  modulated_weight?: number;
   rationale: string;
   status: EdgeStatus;
   discovered_at: string;

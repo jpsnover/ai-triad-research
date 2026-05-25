@@ -299,14 +299,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         >
           Content
         </button>
-        {hasGraphAttrs && (
-          <button
-            className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
-            onClick={() => setActiveTab('attributes')}
-          >
-            Attributes
-          </button>
-        )}
+        <button
+          className={`node-detail-tab ${activeTab === 'attributes' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('attributes')}
+        >
+          Attributes
+        </button>
         <button
           className={`node-detail-tab ${activeTab === 'related' ? 'node-detail-tab-active' : ''}`}
           onClick={() => setActiveTab('related')}
@@ -492,6 +490,16 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             onUpdateAssumptions={readOnly ? undefined : (assumes) => updatePovNode(pov, node.id, { graph_attributes: { ...node.graph_attributes!, assumes } })}
             readOnly={readOnly}
             defaultOpen
+            nodeCategory={node.category}
+            confidence={node.confidence}
+            priority={node.priority}
+            operationality={node.operationality}
+            doctrinallyAnchored={node.doctrinally_anchored}
+            evidentialConfidence={node.evidential_confidence}
+            confidenceHistory={node.confidence_history}
+            priorityHistory={node.priority_history}
+            operationalityHistory={node.operationality_history}
+            onUpdateWeightedBdi={readOnly ? undefined : (updates) => update(updates)}
           />
         )}
 

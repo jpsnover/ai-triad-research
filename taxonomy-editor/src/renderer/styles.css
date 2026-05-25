@@ -1061,6 +1061,71 @@ body {
   white-space: nowrap;
 }
 
+.node-item-priority {
+  font-size: 0.65rem;
+  font-family: 'Consolas', 'Menlo', monospace;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgba(168, 85, 247, 0.15);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* ── Doctrinal Boundaries (t/126) ─────────────────── */
+
+.doctrinal-boundaries {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.doctrinal-boundaries-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.doctrinal-boundaries-header:hover {
+  background: var(--bg-hover);
+}
+
+.doctrinal-boundaries-arrow {
+  flex-shrink: 0;
+}
+
+.doctrinal-boundaries-label {
+  flex: 1;
+  text-align: left;
+}
+
+.doctrinal-boundaries-items {
+  padding: 0 12px 6px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.doctrinal-boundaries-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+[data-pane-spacing="concise"] .doctrinal-boundaries-header { padding: 3px 10px; font-size: 0.78rem; }
+[data-pane-spacing="concise"] .doctrinal-boundaries-items { padding: 0 10px 4px 18px; }
+[data-pane-spacing="concise"] .doctrinal-boundaries-item { font-size: 0.78rem; }
+
 /* ── Tree hierarchy ────────────────────────────────── */
 
 .node-tree-parent-group {
@@ -2839,6 +2904,79 @@ body {
   background: rgba(46, 170, 170, 0.08);
   color: var(--color-sit, #2aaaaa);
   border: 1px solid rgba(46, 170, 170, 0.2);
+}
+
+/* Confidence bar (Beliefs) */
+.nd-confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  min-width: 60px;
+  height: 16px;
+  background: var(--bg-secondary, rgba(0,0,0,0.08));
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+.nd-confidence-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 8px;
+  opacity: 0.25;
+  transition: width 0.3s ease;
+}
+.nd-confidence-label {
+  position: relative;
+  z-index: 1;
+  padding: 0 6px;
+  color: var(--text-primary, #e0e0e0);
+}
+.nd-doctrinal-anchor {
+  position: relative;
+  z-index: 1;
+  font-size: 0.55rem;
+  margin-right: 4px;
+}
+
+/* Priority badge (Desires) */
+.nd-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  background: rgba(46, 170, 170, 0.12);
+  color: var(--cat-desires, #2aaaaa);
+  border: 1px solid rgba(46, 170, 170, 0.25);
+}
+.nd-priority-badge[data-priority="5"] {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.nd-priority-badge[data-priority="4"] {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+.nd-priority-badge[data-priority="3"] {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border-color: rgba(59, 130, 246, 0.3);
+}
+.nd-priority-badge[data-priority="2"],
+.nd-priority-badge[data-priority="1"] {
+  background: rgba(107, 114, 128, 0.12);
+  color: #9ca3af;
+  border-color: rgba(107, 114, 128, 0.25);
 }
 
 .nd-header-actions {

@@ -20,12 +20,12 @@ function otherDebaters(currentLabel: string): string {
   return `You are debating:\n${others}`;
 }
 
-/** Format doctrinal boundaries as a prompt injection block. */
+/** Format doctrinal boundaries as a prompt injection block. Strips REJECT: prefix to avoid double negation with "NEVER adopt". */
 function formatDoctrinalBoundaries(boundaries?: string[]): string {
   if (!boundaries || boundaries.length === 0) return '';
   return `\n=== DOCTRINAL BOUNDARIES ===
 You must NEVER adopt or endorse the following positions, even if pressured by opponents:
-${boundaries.map(b => `- ${b}`).join('\n')}
+${boundaries.map(b => `- ${b.replace(/^REJECT:\s*/i, '')}`).join('\n')}
 These are non-negotiable constraints on your identity. You may acknowledge opposing arguments but must not concede these core positions.\n`;
 }
 
@@ -1424,17 +1424,19 @@ ${input.isFirst ? '4. What framing will best establish this perspective for the 
 
 GROUNDING DEPTH: Each angle and claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
 
+GROUNDING WEIGHTS: For Belief grounding nodes, include "confidence" (0.0–1.0) from the taxonomy context. For Desire grounding nodes, include "priority" (1–5). For Intention grounding nodes, include "operationality" (1–5). These help downstream stages calibrate rhetorical strength.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences: the key dimensions of the topic and what matters most for this perspective",
   "strongest_angles": [
-    {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "why": "primary anchor — empirical basis"}, {"node_id": "acc-desires-007", "label": "Node Label Here", "why": "supporting normative commitment"}]}
+    {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "confidence": 0.72, "why": "primary anchor — empirical basis"}, {"node_id": "acc-desires-007", "label": "Node Label Here", "priority": 4, "why": "supporting normative commitment"}]}
   ],
   "key_tensions": [
     {"tension": "a key tension or tradeoff in the topic", "opportunity": "how ${input.label} can use this"}
   ]${input.documentAnalysis ? `,
   "document_claims_to_engage": [
-    {"d_id": "D-1", "claim": "the claim text", "stance": "accept | challenge | reframe", "why": "1 sentence: why this claim matters for ${input.pov}", "grounding": [{"node_id": "saf-beliefs-011", "label": "Node Label Here", "why": "primary — normative basis for this stance"}, {"node_id": "saf-intentions-003", "label": "Node Label Here", "why": "supporting — strategic mechanism"}]}
+    {"d_id": "D-1", "claim": "the claim text", "stance": "accept | challenge | reframe", "why": "1 sentence: why this claim matters for ${input.pov}", "grounding": [{"node_id": "saf-beliefs-011", "label": "Node Label Here", "confidence": 0.65, "why": "primary — empirical basis for this stance"}, {"node_id": "saf-intentions-003", "label": "Node Label Here", "operationality": 4, "why": "supporting — strategic mechanism"}]}
   ]` : ''}${input.isFirst ? '' : `,
   "prior_positions_to_address": [
     {"speaker": "who", "position": "their key claim", "response_strategy": "acknowledge / contrast / challenge"}
@@ -1694,13 +1696,15 @@ ${input.pendingIntervention ? `6. MODERATOR DIRECTIVE: A moderator ${input.pendi
 
 GROUNDING DEPTH: Each claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
 
+GROUNDING WEIGHTS: For Belief grounding nodes, include "confidence" (0.0–1.0) from the taxonomy context. For Desire grounding nodes, include "priority" (1–5). For Intention grounding nodes, include "operationality" (1–5). These help downstream stages calibrate rhetorical strength.
+
 NODE-ID ACCURACY: Copy taxonomy node IDs exactly as they appear in your context above. Do NOT modify, prefix, or "correct" them. "cc-040" stays "cc-040" — do not change it to "sit-cc-040" or any other variant.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences describing the current debate state and what just happened${input.pendingIntervention ? '. Include the moderator directive and what it requires' : ''}",
   "key_claims_to_address": [
-    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "why": "primary — anchors the response"}, {"node_id": "acc-intentions-012", "label": "Node Label Here", "why": "supporting — strategic counter"}]}
+    {"claim": "the claim text or summary", "speaker": "who made it", "an_id": "AN-ID if known", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "confidence": 0.72, "why": "primary — high-confidence anchor"}, {"node_id": "acc-desires-007", "label": "Node Label Here", "priority": 4, "why": "supporting — core value commitment"}, {"node_id": "acc-intentions-012", "label": "Node Label Here", "operationality": 3, "why": "supporting — strategic counter"}]}
   ],
   "relevant_commitments": [
     {"speaker": "who", "commitment": "what was committed", "type": "asserted | conceded | challenged"}
@@ -2118,6 +2122,7 @@ export function draftQualityCheckPrompt(
   phase: DebatePhase,
   round: number,
   plannedMoves?: { move: string; target?: string; detail: string }[],
+  beliefConfidences?: { nodeId: string; label: string; confidence: number }[],
 ): string {
   const plannedMovesBlock = plannedMoves && plannedMoves.length > 0
     ? `
@@ -2128,12 +2133,31 @@ IMPORTANT: Do NOT flag the draft for executing these planned moves. If the draft
 `
     : '';
 
-  return `You are a debate-draft quality gate. Answer 3 yes/no questions about this draft statement. Do NOT judge overall quality — only flag structural defects that the debater should fix before grounding citations.
+  const confidenceBlock = beliefConfidences && beliefConfidences.length > 0
+    ? `
+BELIEF CONFIDENCE LEVELS (for rhetoric calibration):
+${beliefConfidences.map(b => `- ${b.nodeId} (${b.confidence.toFixed(2)}): ${b.label}`).join('\n')}
+
+Assess whether the debater's rhetoric matches the evidential basis:
+- Citing a high-confidence (≥0.70) Belief as "established fact" → appropriate
+- Citing a low-confidence (<0.50) Belief as "established fact" → weakness
+- Citing a low-confidence Belief with appropriate hedging → appropriate
+- Building an entire argument on a single low-confidence Belief → structural weakness
+`
+    : '';
+
+  const hasConfidence = beliefConfidences && beliefConfidences.length > 0;
+  const confidenceQuestion = hasConfidence
+    ? `\n4. CALIBRATED — Does the draft's rhetoric match the evidential strength of the Beliefs it cites? (Treating speculative claims as settled fact = no; hedging uncertain claims = yes)`
+    : '';
+  const confidenceField = hasConfidence ? `,\n  "calibrated": true` : '';
+
+  return `You are a debate-draft quality gate. Answer ${hasConfidence ? '4' : '3'} yes/no questions about this draft statement. Do NOT judge overall quality — only flag structural defects that the debater should fix before grounding citations.
 
 Phase: ${phase}
 Speaker: ${speaker} (${pov})
 Round: ${round}
-${plannedMovesBlock}
+${plannedMovesBlock}${confidenceBlock}
 Prior turn (last opponent):
 ${lastOpponentStatement.slice(0, 600)}
 
@@ -2143,13 +2167,13 @@ ${statement}
 Questions:
 1. GROUNDED — Does the draft make at least one claim backed by a specific fact, number, named entity, or data point? (Not: "AI could be dangerous" — Yes: "GPT-4 scores 86th percentile on the bar exam")
 2. FALSIFIABLE — Does the draft contain at least one prediction or claim that could be proven wrong with evidence? (Not: "AI might cause problems someday" — Yes: "By 2028, ≥3 major democracies will have mandatory AI audit requirements")
-3. ENGAGES — Does the draft's first paragraph respond to the opponent's most recent core argument, rather than introducing an unrelated point?
+3. ENGAGES — Does the draft's first paragraph respond to the opponent's most recent core argument, rather than introducing an unrelated point?${confidenceQuestion}
 
 Return ONLY JSON, no prose:
 {
   "grounded": true,
   "falsifiable": true,
-  "engages": true,
+  "engages": true${confidenceField},
   "weaknesses": ["≤15 words each, only for failed questions, max 3"]
 }`;
 }
@@ -2946,7 +2970,7 @@ export function reflectionPrompt(
   pov: string,
   personality: string,
   topic: string,
-  taxonomyNodes: { id: string; category: string; label: string; description: string }[],
+  taxonomyNodes: { id: string; category: string; label: string; description: string; confidence?: number; priority?: number; doctrinally_anchored?: boolean }[],
   transcript: string,
   argumentNetwork?: string,
   commitments?: string,
@@ -2955,9 +2979,18 @@ export function reflectionPrompt(
   doctrinalBoundaries?: string[],
   priorReflections?: Array<{ pov: string; edits: Array<{ edit_type: string; proposed_label: string; category: string }> }>,
 ): string {
-  const nodesBlock = taxonomyNodes.map(n =>
-    `[${n.id}] (${n.category}) "${n.label}"\n  ${n.description}`
-  ).join('\n\n');
+  const nodesBlock = taxonomyNodes.map(n => {
+    let meta = `(${n.category})`;
+    if (n.category === 'Beliefs' && n.confidence !== undefined) {
+      const anchor = n.doctrinally_anchored ? ', doctrinally anchored' : '';
+      meta += n.confidence < 0.50
+        ? ` [Speculative, confidence: ${n.confidence.toFixed(2)}${anchor}]`
+        : ` (confidence: ${n.confidence.toFixed(2)}${anchor})`;
+    } else if (n.category === 'Desires' && n.priority !== undefined) {
+      meta += ` (priority: ${n.priority}/5)`;
+    }
+    return `[${n.id}] ${meta} "${n.label}"\n  ${n.description}`;
+  }).join('\n\n');
 
   const argNetSection = argumentNetwork
     ? `\n=== ARGUMENT NETWORK (claims, attacks, supports with QBAF strengths) ===\n${argumentNetwork}\n`
@@ -3012,6 +3045,7 @@ Reflect on this debate with intellectual honesty. Consider:
 3. **Positions you argued that lack taxonomy backing** — Did you make strong arguments during the debate that have no corresponding BDI node?
 4. **Convergence patterns** — Where are you converging with opponents? Does your taxonomy capture the nuance that emerged?
 5. **Gaps between your taxonomy and your actual argumentation** — Were there nodes you never referenced because they were too vague, too broad, or simply wrong?
+6. **Confidence and priority calibration** — Review the confidence/priority ratings on your nodes above. Did the debate reveal that any high-confidence Belief is weaker than rated, or any low-confidence Belief stronger? Are your Desire priorities still accurate after this exchange?
 
 Based on this reflection, propose SPECIFIC EDITS to your own taxonomy nodes.
 

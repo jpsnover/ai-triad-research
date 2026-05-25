@@ -7,7 +7,8 @@
  */
 
 import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, maxOverlapVsExisting, lookupTaxonomyEdgeWeight } from './helpers.js';
-import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
+import type { ArgumentNetworkNode, ArgumentNetworkEdge, ClaimTaxonomyAttribution } from './types.js';
+import { cosineSimilarity } from './taxonomyRelevance.js';
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { computeFactCheckStrength } from './qbaf.js';
 import type { WebEvidenceItem } from './qbaf.js';
@@ -1310,4 +1311,153 @@ export function normalizeMoves(rawMoves: string[], minConfidence = 0.5): {
 
   normalized.push(...seen.values());
   return { normalized, rejected };
+}
+
+// ── Per-claim taxonomy attribution (t/110) ──────────────
+
+/** Thresholds per spec: primary ≥ 0.35, secondary ≥ 0.40. */
+const ATTRIBUTION_PRIMARY_THRESHOLD = 0.35;
+const ATTRIBUTION_SECONDARY_THRESHOLD = 0.40;
+
+export interface ClaimAttributionResult {
+  attributed: number;
+  unattributed: number;
+  missing_embedding: number;
+  novel_argument: number;
+  decisions: ClaimAttributionDecision[];
+}
+
+export interface ClaimAttributionDecision {
+  claim_id: string;
+  primary_ref: string | null;
+  attribution_confidence: number;
+  secondary_refs_count: number;
+  unattributed_reason?: 'novel_argument' | 'no_embedding';
+}
+
+/**
+ * Compute per-claim taxonomy attribution for AN nodes.
+ * Compares each claim's embedding against same-POV Belief node embeddings
+ * using cosine similarity. Mutates nodes in place (sets claim_taxonomy_attribution).
+ *
+ * @param nodes - AN nodes to attribute (typically newly extracted nodes)
+ * @param speakerPov - The POV key for the speaker (e.g. 'accelerationist')
+ * @param nodeEmbeddings - Taxonomy node embeddings keyed by node ID
+ * @param beliefNodeIds - Set of taxonomy node IDs that are Belief category
+ * @returns Attribution summary for diagnostics
+ */
+export function computeClaimTaxonomyAttribution(
+  nodes: ArgumentNetworkNode[],
+  speakerPov: string,
+  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
+  beliefNodeIds: Set<string>,
+): ClaimAttributionResult {
+  const decisions: ClaimAttributionDecision[] = [];
+  let attributed = 0;
+  let unattributed = 0;
+  let missingEmbedding = 0;
+  let novelArgument = 0;
+
+  // Pre-filter: same-POV Belief nodes with embeddings
+  const candidateEntries: [string, number[]][] = [];
+  for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
+    if (entry.pov === speakerPov && beliefNodeIds.has(nodeId) && entry.vector?.length > 0) {
+      candidateEntries.push([nodeId, entry.vector]);
+    }
+  }
+
+  for (const node of nodes) {
+    if (!node.embedding || node.embedding.length === 0) {
+      const attribution: ClaimTaxonomyAttribution = {
+        primary_ref: '',
+        attribution_confidence: 0,
+        unattributed_reason: 'no_embedding',
+      };
+      node.claim_taxonomy_attribution = attribution;
+      missingEmbedding++;
+      unattributed++;
+      decisions.push({
+        claim_id: node.id,
+        primary_ref: null,
+        attribution_confidence: 0,
+        secondary_refs_count: 0,
+        unattributed_reason: 'no_embedding',
+      });
+      continue;
+    }
+
+    if (candidateEntries.length === 0) {
+      const attribution: ClaimTaxonomyAttribution = {
+        primary_ref: '',
+        attribution_confidence: 0,
+        unattributed_reason: 'no_embedding',
+      };
+      node.claim_taxonomy_attribution = attribution;
+      missingEmbedding++;
+      unattributed++;
+      decisions.push({
+        claim_id: node.id,
+        primary_ref: null,
+        attribution_confidence: 0,
+        secondary_refs_count: 0,
+        unattributed_reason: 'no_embedding',
+      });
+      continue;
+    }
+
+    // Compute cosine similarity against all candidate nodes
+    const similarities: { node_id: string; similarity: number }[] = [];
+    for (const [nodeId, vector] of candidateEntries) {
+      const sim = cosineSimilarity(node.embedding, vector);
+      similarities.push({ node_id: nodeId, similarity: sim });
+    }
+
+    // Sort descending by similarity
+    similarities.sort((a, b) => b.similarity - a.similarity);
+
+    const best = similarities[0];
+
+    if (best.similarity < ATTRIBUTION_PRIMARY_THRESHOLD) {
+      // Unattributed — novel argument
+      const attribution: ClaimTaxonomyAttribution = {
+        primary_ref: '',
+        attribution_confidence: best.similarity,
+        unattributed_reason: 'novel_argument',
+      };
+      node.claim_taxonomy_attribution = attribution;
+      novelArgument++;
+      unattributed++;
+      decisions.push({
+        claim_id: node.id,
+        primary_ref: null,
+        attribution_confidence: best.similarity,
+        secondary_refs_count: 0,
+        unattributed_reason: 'novel_argument',
+      });
+      continue;
+    }
+
+    // Attributed — primary ref is the best match
+    const secondaryRefs = similarities
+      .slice(1)
+      .filter(s => s.similarity >= ATTRIBUTION_SECONDARY_THRESHOLD);
+
+    const attribution: ClaimTaxonomyAttribution = {
+      primary_ref: best.node_id,
+      attribution_confidence: best.similarity,
+    };
+    if (secondaryRefs.length > 0) {
+      attribution.secondary_refs = secondaryRefs;
+    }
+    node.claim_taxonomy_attribution = attribution;
+    attributed++;
+    decisions.push({
+      claim_id: node.id,
+      primary_ref: best.node_id,
+      attribution_confidence: best.similarity,
+      secondary_refs_count: secondaryRefs.length,
+    });
+  }
+
+  return { attributed, unattributed, missing_embedding: missingEmbedding, novel_argument: novelArgument, decisions };
 }

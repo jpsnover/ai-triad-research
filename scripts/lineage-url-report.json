@@ -1,0 +1,2654 @@
+{
+  "total": 2364,
+  "valid": 1986,
+  "timestamp": "2026-05-24T16:25:45.7316430-04:00",
+  "broken_urls": [
+    {
+      "label": "Alignment Forum",
+      "status": 0,
+      "url": "https://www.alignmentforum.org/",
+      "reason": "Response status code does not indicate success: 429 (Too Many Requests).",
+      "line": 112
+    },
+    {
+      "label": "Metaculus AI Forecasting",
+      "status": 0,
+      "url": "https://www.metaculus.com/questions/?search=artificial+intelligence",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 163
+    },
+    {
+      "label": "NIST AI RMF",
+      "status": 0,
+      "url": "https://airc.nist.gov/AI_RMF_Playbook",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 183
+    },
+    {
+      "label": "Armstrong et al. - Racing to the Precipice",
+      "status": 0,
+      "url": "https://doi.org/10.1007/s00146-015-0590-y",
+      "reason": "Operation is not valid due to the current state of the object.",
+      "line": 255
+    },
+    {
+      "label": "Soares et al. - Corrigibility",
+      "status": 0,
+      "url": "https://intelligence.org/files/Corrigibility.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 274
+    },
+    {
+      "label": "FTC: Artificial Intelligence",
+      "status": 0,
+      "url": "https://www.ftc.gov/business-guidance/blog/2023/02/keep-your-ai-claims-check",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 355
+    },
+    {
+      "label": "Parasuraman & Manzey - Complacency and Bias in Human Use of Automation",
+      "status": 0,
+      "url": "https://doi.org/10.1177/0018720810376055",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 425
+    },
+    {
+      "label": "IBM AI Fairness 360",
+      "status": 0,
+      "url": "https://aif360.mybluemix.net/",
+      "reason": "No such host is known. (aif360.mybluemix.net:443)",
+      "line": 474
+    },
+    {
+      "label": "Boyd & Crawford - Critical Questions for Big Data",
+      "status": 0,
+      "url": "https://doi.org/10.1080/1369118X.2012.678878",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 485
+    },
+    {
+      "label": "BigScience Workshop (LLM)",
+      "status": 0,
+      "url": "https://bigscience.huggingface.co/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 495
+    },
+    {
+      "label": "Johns Hopkins Center for Health Security",
+      "status": 0,
+      "url": "https://centerforhealthsecurity.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 505
+    },
+    {
+      "label": "Davis & Marcus - Commonsense Reasoning and AI",
+      "status": 0,
+      "url": "https://doi.org/10.1145/3404835.3462788",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 616
+    },
+    {
+      "label": "FTC: AI and Consumer Protection",
+      "status": 0,
+      "url": "https://www.ftc.gov/business-guidance/blog/2023/02/keep-your-ai-claims-check",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 686
+    },
+    {
+      "label": "Astrom & Murray: Feedback Systems",
+      "status": 0,
+      "url": "https://www.cds.caltech.edu/~murray/amwiki/index.php/Main_Page",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 736
+    },
+    {
+      "label": "ACM Code of Ethics",
+      "status": 0,
+      "url": "https://www.acm.org/code-of-ethics",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 937
+    },
+    {
+      "label": "ODI Data Ethics Canvas",
+      "status": 0,
+      "url": "https://theodi.org/insights/tools/the-data-ethics-canvas/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 967
+    },
+    {
+      "label": "Floridi & Taddeo - What Is Data Ethics?",
+      "status": 0,
+      "url": "https://doi.org/10.1098/rsta.2016.0360",
+      "reason": "Operation is not valid due to the current state of the object.",
+      "line": 977
+    },
+    {
+      "label": "Dwork & Roth - The Algorithmic Foundations of Differential Privacy",
+      "status": 0,
+      "url": "https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 1087
+    },
+    {
+      "label": "UNESCO Digital Literacy",
+      "status": 0,
+      "url": "https://en.unesco.org/themes/literacy-all/digital-literacy",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 1117
+    },
+    {
+      "label": "FEMA",
+      "status": 0,
+      "url": "https://www.fema.gov/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1148
+    },
+    {
+      "label": "NAS: Dual Use Research of Concern",
+      "status": 0,
+      "url": "https://osp.od.nih.gov/biotechnology/dual-use-research-of-concern/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1168
+    },
+    {
+      "label": "IMF: World Economic Outlook",
+      "status": 0,
+      "url": "https://www.imf.org/en/Publications/WEO",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1200
+    },
+    {
+      "label": "Beff Jezos: e/acc Manifesto",
+      "status": 0,
+      "url": "https://bfrancois.medium.com/e-acc-effective-accelerationism-6e5e04a30e06",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1240
+    },
+    {
+      "label": "IEA: Data Centres and Energy",
+      "status": 0,
+      "url": "https://www.iea.org/energy-system/buildings/data-centres-and-data-transmission-networks",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1291
+    },
+    {
+      "label": "EPA: Environmental Justice",
+      "status": 0,
+      "url": "https://www.epa.gov/environmentaljustice",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 1301
+    },
+    {
+      "label": "Wikipedia: Existential Risk from AI",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 1361
+    },
+    {
+      "label": "Future of Humanity Institute",
+      "status": 0,
+      "url": "https://www.fhi.ox.ac.uk/",
+      "reason": "No such host is known. (www.fhi.ox.ac.uk:443)",
+      "line": 1382
+    },
+    {
+      "label": "OECD: Future of Work",
+      "status": 0,
+      "url": "https://www.oecd.org/future-of-work/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1494
+    },
+    {
+      "label": "DeepMind: Specification Gaming Examples",
+      "status": 0,
+      "url": "https://deepmindsafetyresearch.medium.com/specification-gaming-the-flip-side-of-ai-ingenuity-c85bdb0deeb4",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1555
+    },
+    {
+      "label": "Stanford Encyclopedia: Hayek",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/hayek/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 1575
+    },
+    {
+      "label": "McKinsey: State of AI",
+      "status": 0,
+      "url": "https://www.mckinsey.com/capabilities/quantumblack/our-insights/the-state-of-ai",
+      "reason": "The request was canceled due to the configured HttpClient.Timeout of 8 seconds elapsing.",
+      "line": 1654
+    },
+    {
+      "label": "MIT: Total Data Quality Management",
+      "status": 0,
+      "url": "https://tdqm.mit.edu/",
+      "reason": "No such host is known. (tdqm.mit.edu:443)",
+      "line": 1675
+    },
+    {
+      "label": "OECD: Innovation Policy",
+      "status": 0,
+      "url": "https://www.oecd.org/en/topics/innovation.html",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1695
+    },
+    {
+      "label": "OECD: Science, Technology and Innovation",
+      "status": 0,
+      "url": "https://www.oecd.org/en/topics/science-technology-and-innovation.html",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1705
+    },
+    {
+      "label": "Bostrom: The Superintelligent Will",
+      "status": 0,
+      "url": "https://nickbostrom.com/superintelligentwill.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 1736
+    },
+    {
+      "label": "Stanford Encyclopedia: Marx\\'s Economics",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/marx-economics/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 1837
+    },
+    {
+      "label": "Wikipedia: Existential Risk from AI",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 1886
+    },
+    {
+      "label": "Stanford Encyclopedia: Future Generations",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/future-generations/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 1908
+    },
+    {
+      "label": "RLHF — OpenAI",
+      "status": 0,
+      "url": "https://openai.com/research/learning-from-human-preferences",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 1931
+    },
+    {
+      "label": "AI and Compute — OpenAI",
+      "status": 0,
+      "url": "https://openai.com/research/ai-and-compute",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2052
+    },
+    {
+      "label": "NSCAI Final Report",
+      "status": 0,
+      "url": "https://www.nscai.gov/2021-final-report/",
+      "reason": "The requested name is valid, but no data of the requested type was found. (www.nscai.gov:443)",
+      "line": 2093
+    },
+    {
+      "label": "Nuclear Nonproliferation (IAEA)",
+      "status": 0,
+      "url": "https://www.iaea.org/topics/non-proliferation",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2153
+    },
+    {
+      "label": "Nuclear Nonproliferation (IAEA)",
+      "status": 0,
+      "url": "https://www.iaea.org/topics/non-proliferation",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2163
+    },
+    {
+      "label": "IAEA Safeguards",
+      "status": 0,
+      "url": "https://www.iaea.org/topics/safeguards",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2173
+    },
+    {
+      "label": "IAEA — Non-Proliferation",
+      "status": 0,
+      "url": "https://www.iaea.org/topics/non-proliferation",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2183
+    },
+    {
+      "label": "Open Philanthropy",
+      "status": 0,
+      "url": "https://www.openphilanthropy.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2202
+    },
+    {
+      "label": "Open Philanthropy — AI Safety",
+      "status": 0,
+      "url": "https://www.openphilanthropy.org/focus/potential-risks-advanced-artificial-intelligence/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2203
+    },
+    {
+      "label": "Software Supply Chain Security (NIST)",
+      "status": 0,
+      "url": "https://www.nist.gov/system/files/documents/2022/02/04/software-supply-chain-security-guidance-under-EO-14028-section-4e.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 2265
+    },
+    {
+      "label": "OpenAI",
+      "status": 0,
+      "url": "https://openai.com/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2275
+    },
+    {
+      "label": "Kurzweil: The Law of Accelerating Returns",
+      "status": 0,
+      "url": "https://www.kurzweilai.net/the-law-of-accelerating-returns",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 2528
+    },
+    {
+      "label": "DeepMind: Specification Gaming Examples",
+      "status": 0,
+      "url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPiprOaC3HsCf5Tuum8bRfzYUiKLRqJCOYKNr-BKAA52oyRKSFj3a_RtPgSBUhaAQ2GFHO8LVKUCZE/pubhtml",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 2628
+    },
+    {
+      "label": "Stockholm Resilience Centre",
+      "status": 0,
+      "url": "https://www.stockholmresilience.org/research/resilience.html",
+      "reason": "Response status code does not indicate success: 404 ().",
+      "line": 2649
+    },
+    {
+      "label": "NRC: Probabilistic Risk Assessment",
+      "status": 0,
+      "url": "https://www.nrc.gov/about-nrc/regulatory/risk-informed/pra.html",
+      "reason": "The request was canceled due to the configured HttpClient.Timeout of 8 seconds elapsing.",
+      "line": 2680
+    },
+    {
+      "label": "MIT: Engineering a Safer World (Leveson)",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/9780262533690/engineering-a-safer-world/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2731
+    },
+    {
+      "label": "Leveson: Engineering a Safer World",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/9780262533690/engineering-a-safer-world/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2772
+    },
+    {
+      "label": "Pineau et al.: ML Reproducibility Checklist",
+      "status": 0,
+      "url": "https://www.cs.mcgill.ca/~jpineau/ReproducibilityChecklist.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 2833
+    },
+    {
+      "label": "NIST: Software Supply Chain Security",
+      "status": 0,
+      "url": "https://www.nist.gov/itl/executive-order-14028-improving-nations-cybersecurity/software-supply-chain-security",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 2974
+    },
+    {
+      "label": "DeepMind: Specification Gaming Examples",
+      "status": 0,
+      "url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vRPiprOaC3HsCf5Tuum8bRfzYUiKLRqJCOYKNr-BKAA52oyRKSFj3a_RtPgSBUhaAQ2GFHO8LVKUCZE/pubhtml",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 2983
+    },
+    {
+      "label": "Krakovna et al.: Specification Gaming",
+      "status": 0,
+      "url": "https://deepmindsafetyresearch.medium.com/specification-gaming-the-flip-side-of-ai-ingenuity-c85bdb0debd4",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 2984
+    },
+    {
+      "label": "Hardin: The Tragedy of the Commons (1968)",
+      "status": 0,
+      "url": "https://www.science.org/doi/10.1126/science.162.3859.1243",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 3186
+    },
+    {
+      "label": "Gal: Uncertainty in Deep Learning (Thesis)",
+      "status": 0,
+      "url": "https://mlg.eng.cam.ac.uk/yarin/thesis/thesis.pdf",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 3246
+    },
+    {
+      "label": "UCL Institute for Global Prosperity: UBS",
+      "status": 0,
+      "url": "https://www.ucl.ac.uk/bartlett/igp/research-projects/universal-basic-services",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 3277
+    },
+    {
+      "label": "MIRI: Value Loading Problem",
+      "status": 0,
+      "url": "https://intelligence.org/files/ValueLearningProblem.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 3307
+    },
+    {
+      "label": "International Co-operative Alliance",
+      "status": 0,
+      "url": "https://www.ica.coop/",
+      "reason": "Operation is not valid due to the current state of the object.",
+      "line": 3318
+    },
+    {
+      "label": "Existential risk from artificial general intelligence",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 3401
+    },
+    {
+      "label": "Cybersecurity framework",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Computer_security_framework",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 3789
+    },
+    {
+      "label": "Unintended consequences",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Unintended_consequencess",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 4825
+    },
+    {
+      "label": "Scaling laws for neural networks",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Scaling_laws_for_neural_networks",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5224
+    },
+    {
+      "label": "AI benchmark",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/AI_benchmark",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5282
+    },
+    {
+      "label": "Pause AI development",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Pause_AI_development",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5349
+    },
+    {
+      "label": "Compliance (finance)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Compliance_(finance)",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5458
+    },
+    {
+      "label": "Algorithmic audit",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Algorithmic_audit",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5469
+    },
+    {
+      "label": "Biometric security",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Biometric_security",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5582
+    },
+    {
+      "label": "Planning (cognition)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Planning_(cognition)",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5818
+    },
+    {
+      "label": "Common-sense reasoning",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Common-sense_reasoning",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5896
+    },
+    {
+      "label": "Conditional Spending",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Conditional_spending",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5952
+    },
+    {
+      "label": "Constitutional AI: Harmlessness from AI Feedback",
+      "status": 0,
+      "url": "https://www.anthropic.com/news/constitutional-ai",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 5980
+    },
+    {
+      "label": "Disclosure (Finance)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Disclosure_(finance)",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6053
+    },
+    {
+      "label": "Critical AI Studies (Wikipedia)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Critical_AI_studies",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6134
+    },
+    {
+      "label": "Critical Algorithm Studies (Wikipedia)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Critical_algorithm_studies",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6143
+    },
+    {
+      "label": "Beyond GDP",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Beyond_GDP",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6198
+    },
+    {
+      "label": "Technological utopianism and dystopianism",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Technological_utopianism_and_dystopianism",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6207
+    },
+    {
+      "label": "Cybersecurity framework",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Computer_security_framework",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6254
+    },
+    {
+      "label": "Cybersecurity framework",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Computer_security_framework",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6342
+    },
+    {
+      "label": "Memorization in machine learning",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Memorization_in_machine_learning",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6382
+    },
+    {
+      "label": "Digital Well-being",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Digital_well-being",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6502
+    },
+    {
+      "label": "Data Disaggregation",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Data_disaggregation",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 6511
+    },
+    {
+      "label": "Commons (economics)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Commons_(economics)",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 7299
+    },
+    {
+      "label": "Economics of infrastructure",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Economics_of_infrastructure",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 7338
+    },
+    {
+      "label": "Labor union",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Trade_union",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7441
+    },
+    {
+      "label": "Labor movement",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Labour_movement",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7442
+    },
+    {
+      "label": "Laboratories of democracy",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Laboratories_of_democracy",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7451
+    },
+    {
+      "label": "Liability (legal)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Liability%20(legal)",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7499
+    },
+    {
+      "label": "Liability (legal)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Liability%20(legal)",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7527
+    },
+    {
+      "label": "Animal rights",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Animal_rights",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7546
+    },
+    {
+      "label": "Legal responsibility",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Legal_responsibility",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7556
+    },
+    {
+      "label": "Philosophy of technology",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Philosophy_of_technology",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7565
+    },
+    {
+      "label": "Data protection",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Data_protection",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7594
+    },
+    {
+      "label": "Few-shot learning",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Few-shot_learning",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7633
+    },
+    {
+      "label": "Marxist political economy",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Marxist%20political%20economy",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7681
+    },
+    {
+      "label": "Interpretability (artificial intelligence)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Interpretability%20(artificial%20intelligence)",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 7700
+    },
+    {
+      "label": "Scalable Alignment",
+      "status": 0,
+      "url": "https://www.lesswrong.com/tag/scalable-alignment",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8042
+    },
+    {
+      "label": "AI and Philosophy",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/ai-philosophy/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8082
+    },
+    {
+      "label": "AI and Philosophy (Theory of Mind)",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/ai-philosophy/#TheoMind",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8112
+    },
+    {
+      "label": "Fear",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Fear",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 8416
+    },
+    {
+      "label": "Public health ethics",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Public%20health%20ethics",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 8426
+    },
+    {
+      "label": "Compliance (finance)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Compliance_(finance)",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8471
+    },
+    {
+      "label": "Regulation (economics)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Regulation%20(economics)",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 8480
+    },
+    {
+      "label": "Compliance (finance)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Compliance_(finance)",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8481
+    },
+    {
+      "label": "Regulatory lag - Wikipedia",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Regulatory%20lag",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 8499
+    },
+    {
+      "label": "Regulatory Science - FDA",
+      "status": 0,
+      "url": "https://www.fda.gov/science-research/about-science-research-fda/what-regulatory-science",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8508
+    },
+    {
+      "label": "RLAIF: Learning from AI Feedback - OpenAI",
+      "status": 0,
+      "url": "https://openai.com/research/rlaif-learning-from-ai-feedback",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 8536
+    },
+    {
+      "label": "Moral Responsibility of AI - Stanford Encyclopedia of Philosophy",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/moral-responsibility-ai/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8573
+    },
+    {
+      "label": "Responsible AI - Google",
+      "status": 0,
+      "url": "https://ai.google/responsibility/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8582
+    },
+    {
+      "label": "Responsible Research and Innovation - European Commission",
+      "status": 0,
+      "url": "https://ec.europa.eu/programmes/horizon2020/en/h2020-section/responsible-research-innovation",
+      "reason": "Response status code does not indicate success: 404 ((Not Found)).",
+      "line": 8613
+    },
+    {
+      "label": "NIST AI Risk Management Framework",
+      "status": 0,
+      "url": "https://www.nist.gov/artificial-intelligence/ai-risk-management-framework",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8623
+    },
+    {
+      "label": "NIST AI Risk Management Framework",
+      "status": 0,
+      "url": "https://www.nist.gov/artificial-intelligence/ai-risk-management-framework",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8633
+    },
+    {
+      "label": "NIST AI Risk Management Framework",
+      "status": 0,
+      "url": "https://www.nist.gov/artificial-intelligence/ai-risk-management-framework",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 8653
+    },
+    {
+      "label": "Scaling Laws for Neural Language Models (OpenAI)",
+      "status": 0,
+      "url": "https://openai.com/research/scaling-laws-for-neural-language-models",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 8772
+    },
+    {
+      "label": "Narrow AI",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Weak_artificial_intelligence",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9021
+    },
+    {
+      "label": "Measurement (statistics)",
+      "status": 0,
+      "url": "https://en.wikipedia.org/w/index.php?search=Measurement%20(statistics)",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9057
+    },
+    {
+      "label": "Scientific Management",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Scientific_management",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9206
+    },
+    {
+      "label": "Technogaianism",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Technogaianism",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9224
+    },
+    {
+      "label": "Technocracy",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Technocracy",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9242
+    },
+    {
+      "label": "Landauer's Principle",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Landauer%27s_principle",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9318
+    },
+    {
+      "label": "Venture capital",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Venture_capital",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9486
+    },
+    {
+      "label": "Labor movement",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Labour_movement",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9504
+    },
+    {
+      "label": "Feminist psychology - Wikipedia",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Feminist_psychology",
+      "reason": "Response status code does not indicate success: 429 (Too many requests (f061ab2)).",
+      "line": 9531
+    },
+    {
+      "label": "APA Division 35: Society for the Psychology of Women",
+      "status": 0,
+      "url": "https://www.apadivisions.org/division-35/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9532
+    },
+    {
+      "label": "ACM CHI Conference",
+      "status": 0,
+      "url": "https://chi.acm.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9572
+    },
+    {
+      "label": "Incentive Theory - Investopedia",
+      "status": 0,
+      "url": "https://www.investopedia.com/terms/i/incentive-theory.asp",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9582
+    },
+    {
+      "label": "The Oxford Handbook of Political Institutions",
+      "status": 202,
+      "url": "https://global.oup.com/academic/product/the-oxford-handbook-of-political-institutions-9780199676612",
+      "reason": "http_error",
+      "line": 9592
+    },
+    {
+      "label": "Theories of Financial Regulation - SSRN",
+      "status": 0,
+      "url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1028731",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9642
+    },
+    {
+      "label": "Kondratiev Waves and the Future of Technology - World Economic Forum",
+      "status": 0,
+      "url": "https://www.weforum.org/agenda/2016/01/kondratiev-waves-and-the-future-of-technology/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9652
+    },
+    {
+      "label": "The Economic Implications of Learning by Doing - Kenneth Arrow (1962)",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/1821866",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9662
+    },
+    {
+      "label": "American Bar Association: Model Rules of Professional Conduct",
+      "status": 0,
+      "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/model_rules_of_professional_conduct_table_of_contents/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9672
+    },
+    {
+      "label": "Philosophy of Law - Stanford Encyclopedia of Philosophy",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/lawphil/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9681
+    },
+    {
+      "label": "Legal Pluralism - Oxford Research Encyclopedia of Anthropology",
+      "status": 0,
+      "url": "https://oxfordre.com/anthropology/view/10.1093/acrefore/9780190854584.001.0001/acrefore-9780190854584-e-16",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9692
+    },
+    {
+      "label": "Vladimir Lenin - Stanford Encyclopedia of Philosophy",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/lenin/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9732
+    },
+    {
+      "label": "National Innovation Systems - OECD",
+      "status": 0,
+      "url": "https://www.oecd.org/sti/inno/2101733.pdf",
+      "reason": "Response status code does not indicate success: 410 (Gone).",
+      "line": 9742
+    },
+    {
+      "label": "BIS: Financial Stability",
+      "status": 0,
+      "url": "https://www.bis.org/topic/financial_stability.htm",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9752
+    },
+    {
+      "label": "Formal Epistemology - Stanford Encyclopedia of Philosophy",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/epistemology-formal/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9771
+    },
+    {
+      "label": "ANT: An Introduction",
+      "status": 0,
+      "url": "https://www.lancaster.ac.uk/fass/organisations/ant/intro.htm",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9832
+    },
+    {
+      "label": "Bruno Latour - Reassembling the Social",
+      "status": 0,
+      "url": "https://www.hup.harvard.edu/catalog.php?isbn=9780674019740",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9841
+    },
+    {
+      "label": "Michel Callon - Some Elements of a Sociology of Translation",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/40173620",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9842
+    },
+    {
+      "label": "Joshua M. Epstein - Generative Social Science",
+      "status": 0,
+      "url": "https://press.princeton.edu/books/paperback/9780691128411/generative-social-science",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9862
+    },
+    {
+      "label": "OpenAI GPT-4 Technical Report",
+      "status": 0,
+      "url": "https://openai.com/research/gpt-4",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9872
+    },
+    {
+      "label": "Peter Kropotkin - Mutual Aid: A Factor of Evolution",
+      "status": 0,
+      "url": "https://www.gutenberg.org/files/4341/4341-h/4341-h.htm",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9882
+    },
+    {
+      "label": "Thomas C. Schelling - The Strategy of Conflict",
+      "status": 0,
+      "url": "https://www.hup.harvard.edu/catalog.php?isbn=9780674840713",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9891
+    },
+    {
+      "label": "Kenneth N. Waltz - Theory of International Politics",
+      "status": 0,
+      "url": "https://www.mcgraw-hill.co.uk/theory-of-international-politics-9780070680032",
+      "reason": "No connection could be made because the target machine actively refused it. (www.mcgraw-hill.co.uk:4",
+      "line": 9892
+    },
+    {
+      "label": "Tim Wu - The Attention Merchants",
+      "status": 0,
+      "url": "https://www.penguinrandomhouse.com/books/249969/the-attention-merchants-by-tim-wu/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9901
+    },
+    {
+      "label": "James Williams - Stand Out of Our Light",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/books/stand-out-of-our-light/1917578206C592D62228E0124231E012",
+      "reason": "Response status code does not indicate success: 500 (Internal Server Error).",
+      "line": 9902
+    },
+    {
+      "label": "Richard H. Thaler - Nudge",
+      "status": 0,
+      "url": "https://www.penguinrandomhouse.com/books/179268/nudge-by-richard-h-thaler-and-cass-r-sunstein/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9922
+    },
+    {
+      "label": "Paul A. Samuelson - A Note on the Pure Theory of Consumer's Behaviour",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/2225008",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9931
+    },
+    {
+      "label": "Uri Gneezy - Deception: The Past, Present, and Future of a Behavioral Science",
+      "status": 0,
+      "url": "https://www.aeaweb.org/articles?id=10.1257/jep.33.3.173",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9941
+    },
+    {
+      "label": "Deepfakes and the New Disinformation War",
+      "status": 0,
+      "url": "https://www.brookings.edu/articles/deepfakes-and-the-new-disinformation-war/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9942
+    },
+    {
+      "label": "Graham T. Allison - Essence of Decision",
+      "status": 0,
+      "url": "https://www.routledge.com/Essence-of-Decision-Explaining-the-Cuban-Missile-Crisis/Allison-Zelikow/p/book/9780321013491",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9951
+    },
+    {
+      "label": "Bureaucratic Politics Model",
+      "status": 0,
+      "url": "https://www.oxfordreference.com/view/10.1093/oi/authority.20110803095532297",
+      "reason": "Response status code does not indicate success: 404 ().",
+      "line": 9952
+    },
+    {
+      "label": "Gartner - Business Intelligence",
+      "status": 0,
+      "url": "https://www.gartner.com/en/information-technology/glossary/business-intelligence-bi",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9971
+    },
+    {
+      "label": "The Concept of Carbon Leakage",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/26214150",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9982
+    },
+    {
+      "label": "Disparate Impact - EEOC",
+      "status": 0,
+      "url": "https://www.eeoc.gov/laws/guidance/disparate-impact",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 9991
+    },
+    {
+      "label": "Griggs v. Duke Power Co.",
+      "status": 0,
+      "url": "https://supreme.justia.com/cases/federal/us/401/424/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 9992
+    },
+    {
+      "label": "Fair Housing Act",
+      "status": 0,
+      "url": "https://www.hud.gov/program_offices/fair_housing_equal_opp/fair_housing_act",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10002
+    },
+    {
+      "label": "What is Climate Justice?",
+      "status": 0,
+      "url": "https://www.un.org/sustainabledevelopment/blog/2022/03/what-is-climate-justice/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10011
+    },
+    {
+      "label": "AI and Climate Change: A Call to Action",
+      "status": 0,
+      "url": "https://www.nature.com/articles/s41558-020-00940-1",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10012
+    },
+    {
+      "label": "Regulatory Arbitrage - OECD",
+      "status": 0,
+      "url": "https://www.oecd.org/finance/financial-markets/regulatoryarbitrage.htm",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10021
+    },
+    {
+      "label": "Carbon Leakage and Competitiveness",
+      "status": 0,
+      "url": "https://www.aeaweb.org/articles?id=10.1257/jep.27.1.117",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10022
+    },
+    {
+      "label": "Cognitive Load Theory",
+      "status": 0,
+      "url": "https://www.sciencedirect.com/topics/psychology/cognitive-load-theory",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10031
+    },
+    {
+      "label": "Scaffolding Learning",
+      "status": 0,
+      "url": "https://www.simplypsychology.org/scaffolding.html",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10032
+    },
+    {
+      "label": "The Role of Deliberate Practice in the Acquisition of Expert Performance",
+      "status": 0,
+      "url": "https://journals.sagepub.com/doi/10.1177/1529100614535591",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10051
+    },
+    {
+      "label": "Flow: The Psychology of Optimal Experience (Csikszentmihalyi)",
+      "status": 0,
+      "url": "https://www.harpercollins.com/products/flow-mihaly-csikszentmihalyi",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10061
+    },
+    {
+      "label": "Thinking, Fast and Slow (Daniel Kahneman)",
+      "status": 0,
+      "url": "https://www.macmillan.com/books/9780374533557/thinkingfastandslow",
+      "reason": "The SSL connection could not be established, see inner exception.",
+      "line": 10081
+    },
+    {
+      "label": "Dual-Process Theories of Reasoning",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/reasoning-dual/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10082
+    },
+    {
+      "label": "Governing the Commons (Elinor Ostrom)",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/books/governing-the-commons/110960012211470477891393",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10091
+    },
+    {
+      "label": "Stanford Encyclopedia of Philosophy: Ethics",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/ethics/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10102
+    },
+    {
+      "label": "P vs NP Problem",
+      "status": 0,
+      "url": "https://www.claymath.org/millennium-problems/p-vs-np-problem",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10112
+    },
+    {
+      "label": "Society for Industrial and Applied Mathematics (SIAM)",
+      "status": 0,
+      "url": "https://www.siam.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10121
+    },
+    {
+      "label": "Journal of Computational Science",
+      "status": 0,
+      "url": "https://www.sciencedirect.com/journal/journal-of-computational-science",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10122
+    },
+    {
+      "label": "Constitutional AI: Harmlessness from AI Feedback",
+      "status": 0,
+      "url": "https://www.anthropic.com/index/constitutional-ai-harmlessness-from-ai-feedback",
+      "reason": "The request was canceled due to the configured HttpClient.Timeout of 8 seconds elapsing.",
+      "line": 10150
+    },
+    {
+      "label": "Aligning AI with Shared Values",
+      "status": 0,
+      "url": "https://openai.com/research/aligning-ai-with-shared-values",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10151
+    },
+    {
+      "label": "Constitutional AI: Harmlessness from AI Feedback",
+      "status": 0,
+      "url": "https://www.anthropic.com/index/constitutional-ai-harmlessness-from-ai-feedback",
+      "reason": "The request was canceled due to the configured HttpClient.Timeout of 8 seconds elapsing.",
+      "line": 10160
+    },
+    {
+      "label": "The Symbolic Uses of Politics",
+      "status": 0,
+      "url": "https://press.uchicago.edu/ucp/books/book/chicago/S/bo5957011.html",
+      "reason": "Response status code does not indicate success: 404 ().",
+      "line": 10433
+    },
+    {
+      "label": "Policy Theatricality: The Art of Political Performance",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/2627003",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10434
+    },
+    {
+      "label": "Mapping the Margins: Intersectionality, Identity Politics, and Violence Against Women of Color",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/1229039",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10444
+    },
+    {
+      "label": "Do Artifacts Have Politics?",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/20024652",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10453
+    },
+    {
+      "label": "States of Knowledge: The Co-Production of Science and Social Order",
+      "status": 0,
+      "url": "https://www.routledge.com/States-of-Knowledge-The-Co-Production-of-Science-and-Social-Order/Jasanoff/p/book/9780415927941",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10454
+    },
+    {
+      "label": "The Politics of Platforms: From the Digital to the Social",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/books/politics-platforms",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10464
+    },
+    {
+      "label": "Discourse and Power",
+      "status": 0,
+      "url": "https://www.routledge.com/Discourse-and-Power/Fairclough/p/book/9780582506473",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10474
+    },
+    {
+      "label": "Dialectic of Enlightenment",
+      "status": 0,
+      "url": "https://www.versobooks.com/books/2405-dialectic-of-enlightenment",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10483
+    },
+    {
+      "label": "Science in Action: How to Follow Scientists and Engineers Through Society",
+      "status": 0,
+      "url": "https://www.hup.harvard.edu/catalog.php?isbn=9780674792912",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10494
+    },
+    {
+      "label": "The Future of Work: Automation, Technology, and the Changing Nature of Employment",
+      "status": 0,
+      "url": "https://www.routledge.com/The-Future-of-Work-Automation-Technology-and-the-Changing-Nature-of-Employment/Frey/p/book/9780198833275",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10504
+    },
+    {
+      "label": "Against the Luddites",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/25097491",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10514
+    },
+    {
+      "label": "Crowdsourcing: Why the Power of the Crowd Is Driving the Future of Business",
+      "status": 0,
+      "url": "https://www.wired.com/2006/06/crowdsourcing-why-the-power-of-the-crowd-is-driving-the-future-of-business/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10523
+    },
+    {
+      "label": "The Culture Industry: Enlightenment as Mass Deception",
+      "status": 0,
+      "url": "https://www.versobooks.com/books/2405-dialectic-of-enlightenment",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10533
+    },
+    {
+      "label": "Cultural Studies: Theory and Practice",
+      "status": 0,
+      "url": "https://www.routledge.com/Cultural-Studies/Storey/p/book/9781138855673",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10534
+    },
+    {
+      "label": "Cybernetics: Or Control and Communication in the Animal and the Machine",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/books/cybernetics-or-control-and-communication-animal-and-machine",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10543
+    },
+    {
+      "label": "Public Administration and Cybernetics",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/973562",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10553
+    },
+    {
+      "label": "Systems Thinking for Public Administration",
+      "status": 0,
+      "url": "https://www.routledge.com/Systems-Thinking-for-Public-Administration/Jackson/p/book/9780367468132",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10554
+    },
+    {
+      "label": "NIST SP 800-115: Technical Guide to Information Security Testing and Assessment",
+      "status": 0,
+      "url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 10564
+    },
+    {
+      "label": "What is Digital Transformation?",
+      "status": 0,
+      "url": "https://www.salesforce.com/news/stories/what-is-digital-transformation/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10739
+    },
+    {
+      "label": "MIT Sloan - Digital Transformation",
+      "status": 0,
+      "url": "https://mitsloan.mit.edu/topic/digital-transformation",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10740
+    },
+    {
+      "label": "The Handbook of Distributed Cognition",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/books/handbook-distributed-cognition",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10770
+    },
+    {
+      "label": "Principles of Distributed Systems",
+      "status": 0,
+      "url": "https://www.cs.cornell.edu/courses/cs6410/2019sp/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10780
+    },
+    {
+      "label": "Journal of Economic Geography",
+      "status": 0,
+      "url": "https://academic.oup.com/joeg",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10790
+    },
+    {
+      "label": "Paul David on GPTs",
+      "status": 0,
+      "url": "https://web.stanford.edu/~paulr/GPTs/GPTs%20and%20the%20New%20Economy.pdf",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10800
+    },
+    {
+      "label": "Measuring the Economic Impact of IT",
+      "status": 0,
+      "url": "https://www.oecd.org/sti/ieconomy/2108394.pdf",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10820
+    },
+    {
+      "label": "The Market for \\",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/1879440",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10829
+    },
+    {
+      "label": "Information Asymmetry - Investopedia",
+      "status": 0,
+      "url": "https://www.investopedia.com/terms/i/informationasymmetry.asp",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 10830
+    },
+    {
+      "label": "Division of Labour - Adam Smith",
+      "status": 0,
+      "url": "https://www.adamsmith.org/the-division-of-labour",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10839
+    },
+    {
+      "label": "Desirable Difficulties",
+      "status": 0,
+      "url": "https://www.retrievalpractice.org/desirable-difficulties",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10849
+    },
+    {
+      "label": "The Testing Effect",
+      "status": 0,
+      "url": "https://www.retrievalpractice.org/the-testing-effect",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10850
+    },
+    {
+      "label": "What is Effective Accelerationism?",
+      "status": 0,
+      "url": "https://www.lesswrong.com/posts/v2c83v4228943729/what-is-effective-accelerationism",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10859
+    },
+    {
+      "label": "Bridging the Pilot-to-Production Gap",
+      "status": 0,
+      "url": "https://www.mckinsey.com/capabilities/operations/our-insights/bridging-the-pilot-to-production-gap",
+      "reason": "The request was canceled due to the configured HttpClient.Timeout of 8 seconds elapsing.",
+      "line": 10869
+    },
+    {
+      "label": "Scaling AI: From Pilot to Production",
+      "status": 0,
+      "url": "https://www.forbes.com/sites/forbestechcouncil/2020/07/20/scaling-ai-from-pilot-to-production/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10870
+    },
+    {
+      "label": "Environmental Justice - EPA",
+      "status": 0,
+      "url": "https://www.epa.gov/environmentaljustice",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10879
+    },
+    {
+      "label": "Environmental Regulation: Law, Science, and Policy",
+      "status": 0,
+      "url": "https://example.com/environmental-regulation-models-1",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10889
+    },
+    {
+      "label": "The Oxford Handbook of Environmental Political Theory",
+      "status": 0,
+      "url": "https://example.com/environmental-regulation-models-2",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10890
+    },
+    {
+      "label": "Clean Air Act",
+      "status": 0,
+      "url": "https://example.com/clean-air-act",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10899
+    },
+    {
+      "label": "Toxics Release Inventory (TRI)",
+      "status": 0,
+      "url": "https://example.com/tri",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10900
+    },
+    {
+      "label": "Moral Machines: Teaching Robots Right from Wrong",
+      "status": 0,
+      "url": "https://example.com/moral-machines",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10909
+    },
+    {
+      "label": "The Ethics of Artificial Intelligence",
+      "status": 0,
+      "url": "https://example.com/ethics-ai",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10910
+    },
+    {
+      "label": "To Save Everything, Click Here: The Folly of Technological Solutionism",
+      "status": 0,
+      "url": "https://example.com/solutionism",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10919
+    },
+    {
+      "label": "The Net Delusion: The Dark Side of Internet Freedom",
+      "status": 0,
+      "url": "https://example.com/net-delusion",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10920
+    },
+    {
+      "label": "The Selfish Gene",
+      "status": 0,
+      "url": "https://example.com/selfish-gene",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10929
+    },
+    {
+      "label": "On the Origin of Species",
+      "status": 0,
+      "url": "https://example.com/origin-of-species",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10930
+    },
+    {
+      "label": "The Moral Animal: Why We Are the Way We Are",
+      "status": 0,
+      "url": "https://example.com/moral-animal",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10939
+    },
+    {
+      "label": "Evolutionary Ethics and Contemporary Biology",
+      "status": 0,
+      "url": "https://example.com/evolutionary-ethics",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10940
+    },
+    {
+      "label": "Evolution and the Theory of Games",
+      "status": 0,
+      "url": "https://example.com/evolution-game-theory",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10949
+    },
+    {
+      "label": "Game Theory",
+      "status": 0,
+      "url": "https://example.com/game-theory",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10950
+    },
+    {
+      "label": "Superintelligence: Paths, Dangers, Strategies",
+      "status": 0,
+      "url": "https://example.com/superintelligence",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10959
+    },
+    {
+      "label": "The Precipice: Existential Risk and the Future of Humanity",
+      "status": 0,
+      "url": "https://example.com/the-precipice",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10960
+    },
+    {
+      "label": "The Singularity Is Near: When Humans Transcend Biology",
+      "status": 0,
+      "url": "https://example.com/singularity-is-near",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10969
+    },
+    {
+      "label": "The Law of Accelerating Returns",
+      "status": 0,
+      "url": "https://example.com/accelerating-returns",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10970
+    },
+    {
+      "label": "The Brussels Effect: How the European Union Rules the World",
+      "status": 0,
+      "url": "https://example.com/brussels-effect",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10979
+    },
+    {
+      "label": "General Data Protection Regulation (GDPR)",
+      "status": 0,
+      "url": "https://example.com/gdpr",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10980
+    },
+    {
+      "label": "FMEA Handbook",
+      "status": 0,
+      "url": "https://example.com/fmea-handbook",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10989
+    },
+    {
+      "label": "Introduction to FMEA",
+      "status": 0,
+      "url": "https://example.com/introduction-fmea",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10990
+    },
+    {
+      "label": "Aerospace Recommended Practice ARP5580: Recommended Failure Modes and Effects Analysis (FMEA) Practices for Non-Automotive Applications",
+      "status": 0,
+      "url": "https://example.com/arp5580",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 10999
+    },
+    {
+      "label": "Nuclear Regulatory Commission FMEA Guidelines",
+      "status": 0,
+      "url": "https://example.com/nrc-fmea",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11000
+    },
+    {
+      "label": "ACM FAccT Conference",
+      "status": 0,
+      "url": "https://example.com/acm-facct",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11009
+    },
+    {
+      "label": "Fairness and Machine Learning: Limitations and Opportunities",
+      "status": 0,
+      "url": "https://example.com/fairness-ml",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11010
+    },
+    {
+      "label": "Feminist Epistemology and Philosophy of Science",
+      "status": 0,
+      "url": "https://example.com/feminist-epistemology",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11019
+    },
+    {
+      "label": "Standpoint Theory",
+      "status": 0,
+      "url": "https://example.com/standpoint-theory",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11020
+    },
+    {
+      "label": "Feminist Approaches to Policy Analysis",
+      "status": 0,
+      "url": "https://example.com/feminist-policy-analysis-1",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11029
+    },
+    {
+      "label": "Gender and Public Policy",
+      "status": 0,
+      "url": "https://example.com/feminist-policy-analysis-2",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11030
+    },
+    {
+      "label": "The Economic Theory of Financial Regulation",
+      "status": 0,
+      "url": "https://www.nber.org/system/files/chapters/c11068/c11068.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 11048
+    },
+    {
+      "label": "Financial Stability and the Role of the Central Bank",
+      "status": 0,
+      "url": "https://www.imf.org/external/pubs/ft/fandd/2003/03/goodhart.htm",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11057
+    },
+    {
+      "label": "The Futures of Technology: A Foresight Guide",
+      "status": 0,
+      "url": "https://www.oecd.org/futures/foresight-guide-technology.htm",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11075
+    },
+    {
+      "label": "Eichmann in Jerusalem: A Report on the Banality of Evil",
+      "status": 0,
+      "url": "https://www.penguinrandomhouse.com/books/10976/eichmann-in-jerusalem-by-hannah-arendt/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11112
+    },
+    {
+      "label": "Path Dependence and the Problem of Historical Sociology",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/2655305",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11121
+    },
+    {
+      "label": "Frames of Mind: The Theory of Multiple Intelligences",
+      "status": 0,
+      "url": "https://howardgardner.com/books/frames-of-mind/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11130
+    },
+    {
+      "label": "The Theory of Incentives: The Principal-Agent Model",
+      "status": 0,
+      "url": "https://press.princeton.edu/books/hardcover/9780691042429/the-theory-of-incentives",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11176
+    },
+    {
+      "label": "Governing the Commons: The Evolution of Institutions for Collective Action",
+      "status": 0,
+      "url": "https://press.princeton.edu/books/paperback/9780521405997/governing-the-commons",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11185
+    },
+    {
+      "label": "Mapping the Margins: Intersectionality, Identity Politics, and Violence Against Women of Color",
+      "status": 0,
+      "url": "https://chicagounbound.uchicago.edu/uclrev/vol1989/iss1/8/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11205
+    },
+    {
+      "label": "International Committee of the Red Cross",
+      "status": 0,
+      "url": "https://www.icrc.org/en/document/autonomous-weapon-systems-and-international-humanitarian-law",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11225
+    },
+    {
+      "label": "Kondratiev's Long Waves in Economic Life",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/1884862",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11234
+    },
+    {
+      "label": "Wright's 'Factors Affecting the Cost of Airplanes'",
+      "status": 0,
+      "url": "https://www.rand.org/pubs/reports/R3109.html",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11244
+    },
+    {
+      "label": "Arrow's 'The Economic Implications of Learning by Doing'",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/1821866",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11245
+    },
+    {
+      "label": "American Bar Association Model Rules of Professional Conduct",
+      "status": 0,
+      "url": "https://www.americanbar.org/groups/professional_responsibility/publications/model_rules_of_professional_conduct/model_rules_of_professional_conduct_table_of_contents/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11254
+    },
+    {
+      "label": "AI and the Legal Profession",
+      "status": 0,
+      "url": "https://www.law.georgetown.edu/georgetown-law-journal/wp-content/uploads/sites/26/2023/02/AI-and-the-Legal-Profession.pdf",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11255
+    },
+    {
+      "label": "Stanford Encyclopedia of Philosophy: Philosophy of Law",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/lawphil/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11264
+    },
+    {
+      "label": "Hart's The Concept of Law",
+      "status": 202,
+      "url": "https://global.oup.com/academic/product/the-concept-of-law-9780199604418",
+      "reason": "http_error",
+      "line": 11265
+    },
+    {
+      "label": "Legal Pluralism and the Rule of Law",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/books/legal-pluralism-and-the-rule-of-law/01305417477542171221142279313437",
+      "reason": "Response status code does not indicate success: 500 (Internal Server Error).",
+      "line": 11274
+    },
+    {
+      "label": "Sally Engle Merry on Legal Pluralism",
+      "status": 202,
+      "url": "https://as.nyu.edu/content/nyu-as/as/faculty/sally-engle-merry.html",
+      "reason": "http_error",
+      "line": 11275
+    },
+    {
+      "label": "Strategic Litigation and Human Rights",
+      "status": 0,
+      "url": "https://www.ohchr.org/sites/default/files/Documents/Issues/RuleOfLaw/StrategicLitigation.pdf",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11285
+    },
+    {
+      "label": "Roscoe Pound's 'Law in Books and Law in Action'",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/1328227",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11294
+    },
+    {
+      "label": "Legal Realism and the Rule of Law",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/journals/american-journal-of-jurisprudence/article/legal-realism-and-the-rule-of-law/60072120C19984620619865B4380963F",
+      "reason": "Response status code does not indicate success: 500 (Internal Server Error).",
+      "line": 11295
+    },
+    {
+      "label": "Critical Legal Studies Movement",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/critical-legal-studies/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11304
+    },
+    {
+      "label": "Catharine MacKinnon on Substantive Equality",
+      "status": 0,
+      "url": "https://www.law.harvard.edu/faculty/directory/10757/MacKinnon",
+      "reason": "The request was canceled due to the configured HttpClient.Timeout of 8 seconds elapsing.",
+      "line": 11305
+    },
+    {
+      "label": "Stanford Encyclopedia of Philosophy: Lenin",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/lenin/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11315
+    },
+    {
+      "label": "National AI Strategies and Policies",
+      "status": 0,
+      "url": "https://oecd.ai/en/ai-policies",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11324
+    },
+    {
+      "label": "Harvard Business Review on Long-Termism",
+      "status": 0,
+      "url": "https://hbr.org/2016/07/the-myth-of-short-termism",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11325
+    },
+    {
+      "label": "IMF Publications on AI and Economy",
+      "status": 0,
+      "url": "https://www.imf.org/en/Topics/digital-money/artificial-intelligence",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11345
+    },
+    {
+      "label": "INFORMS Publications",
+      "status": 0,
+      "url": "https://pubsonline.informs.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11354
+    },
+    {
+      "label": "Management Science Journal",
+      "status": 0,
+      "url": "https://pubsonline.informs.org/journal/mnsc",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11355
+    },
+    {
+      "label": "Journal of Communication",
+      "status": 0,
+      "url": "https://academic.oup.com/joc",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11393
+    },
+    {
+      "label": "First Draft News (now part of Shorenstein Center)",
+      "status": 0,
+      "url": "https://shorensteincenter.org/first-draft-news/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11394
+    },
+    {
+      "label": "Academic Medicine Journal",
+      "status": 0,
+      "url": "https://journals.lww.com/academicmedicine/pages/default.aspx",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11403
+    },
+    {
+      "label": "Journal of Graduate Medical Education",
+      "status": 0,
+      "url": "https://journals.lww.com/jgme/pages/default.aspx",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11404
+    },
+    {
+      "label": "Stanford Encyclopedia of Philosophy: Mind Uploading",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/mind-uploading/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11443
+    },
+    {
+      "label": "Internet Governance Forum (IGF)",
+      "status": 0,
+      "url": "https://www.intgovforum.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11452
+    },
+    {
+      "label": "ICANN (Internet Corporation for Assigned Names and Numbers)",
+      "status": 0,
+      "url": "https://www.icann.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11453
+    },
+    {
+      "label": "World Economic Forum: Global Competitiveness Report",
+      "status": 0,
+      "url": "https://www.weforum.org/reports/global-competitiveness-report-2020/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11462
+    },
+    {
+      "label": "Council on Foreign Relations: Technology and National Competitiveness",
+      "status": 0,
+      "url": "https://www.cfr.org/topic/technology-and-national-competitiveness",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11463
+    },
+    {
+      "label": "National Security Commission on Artificial Intelligence (NSCAI) Report",
+      "status": 0,
+      "url": "https://www.nscai.gov/report/",
+      "reason": "The requested name is valid, but no data of the requested type was found. (www.nscai.gov:443)",
+      "line": 11472
+    },
+    {
+      "label": "Journal of Strategic Studies",
+      "status": 0,
+      "url": "https://www.tandfonline.com/loi/fjss20",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11482
+    },
+    {
+      "label": "Discourse Coherence",
+      "status": 0,
+      "url": "https://www.oxfordbibliographies.com/view/document/obo-9780199772810/obo-9780199772810-0099.xml",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11493
+    },
+    {
+      "label": "Neoclassical Growth Theory",
+      "status": 0,
+      "url": "https://www.investopedia.com/terms/n/neoclassical-growth-theory.asp",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11513
+    },
+    {
+      "label": "Progressive Era",
+      "status": 0,
+      "url": "https://www.britannica.com/event/Progressive-Era",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11523
+    },
+    {
+      "label": "The Shallows: What the Internet Is Doing to Our Brains",
+      "status": 0,
+      "url": "https://www.nicholascarr.com/the-shallows/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11532
+    },
+    {
+      "label": "Nicholas Carr's Blog",
+      "status": 0,
+      "url": "https://www.nicholascarr.com/blog/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11533
+    },
+    {
+      "label": "The Shallows: What the Internet Is Doing to Our Brains",
+      "status": 0,
+      "url": "https://www.nicholascarr.com/the-shallows/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11542
+    },
+    {
+      "label": "Technological Determinism",
+      "status": 0,
+      "url": "https://www.britannica.com/topic/technological-determinism",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11543
+    },
+    {
+      "label": "Orthogonality Thesis",
+      "status": 0,
+      "url": "https://www.lesswrong.com/posts/pLg2m36528h22W5tQ/the-orthogonality-thesis",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11553
+    },
+    {
+      "label": "The Superintelligence Research Agenda",
+      "status": 0,
+      "url": "https://www.fhi.ox.ac.uk/wp-content/uploads/Superintelligence-Research-Agenda-2014.pdf",
+      "reason": "No such host is known. (www.fhi.ox.ac.uk:443)",
+      "line": 11563
+    },
+    {
+      "label": "Accelerationism: A Short Introduction",
+      "status": 0,
+      "url": "https://www.e-flux.com/journal/75/67126/accelerationism-a-short-introduction/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11573
+    },
+    {
+      "label": "Stanford Encyclopedia of Philosophy: Nihilism",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/nihilism/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11592
+    },
+    {
+      "label": "International Atomic Energy Agency (IAEA)",
+      "status": 0,
+      "url": "https://www.iaea.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11603
+    },
+    {
+      "label": "Privacy by Design",
+      "status": 0,
+      "url": "https://www.ipc.on.ca/privacy-by-design/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11941
+    },
+    {
+      "label": "The Problem with Notice and Choice",
+      "status": 0,
+      "url": "https://www.ftc.gov/news-events/blogs/techftc/2012/03/problem-notice-and-choice",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 11950
+    },
+    {
+      "label": "Problem-Driven Research",
+      "status": 0,
+      "url": "https://www.researchgate.net/publication/280004925_Problem-Driven_Research",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11959
+    },
+    {
+      "label": "Progressive Autonomy",
+      "status": 0,
+      "url": "https://philpapers.org/rec/ROBPAT",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11978
+    },
+    {
+      "label": "Project Management Institute",
+      "status": 0,
+      "url": "https://www.pmi.org/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 11996
+    },
+    {
+      "label": "Public Health Surveillance",
+      "status": 0,
+      "url": "https://www.cdc.gov/csels/dsepd/ss1978/lesson1/section1.html",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12044
+    },
+    {
+      "label": "Regulatory Competition and the Race to the Bottom",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/20455797",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12073
+    },
+    {
+      "label": "NIST Special Publication 800-115: Technical Guide to Information Security Testing and Assessment",
+      "status": 0,
+      "url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-115.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 12083
+    },
+    {
+      "label": "AI Red Teaming: The What, Why, and How",
+      "status": 0,
+      "url": "https://www.microsoft.com/en-us/security/blog/2023/05/10/ai-red-teaming-the-what-why-and-how/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12093
+    },
+    {
+      "label": "Google's Approach to Red Teaming AI",
+      "status": 0,
+      "url": "https://ai.googleblog.com/2023/05/red-teaming-our-ai-models.html",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12094
+    },
+    {
+      "label": "Journal of Regional Science",
+      "status": 0,
+      "url": "https://rsaiconnect.onlinelibrary.wiley.com/journal/14679787",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12103
+    },
+    {
+      "label": "Regional Economic Development",
+      "status": 0,
+      "url": "https://www.aeaweb.org/articles?id=10.1257/jep.20.2.141",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12104
+    },
+    {
+      "label": "Regulatory Competition and the Race to the Bottom",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/20455797",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12114
+    },
+    {
+      "label": "Delaware's Dominance and the Competition for Corporate Charters",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/10.1086/422521",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12124
+    },
+    {
+      "label": "Regulatory Parity in Financial Services",
+      "status": 0,
+      "url": "https://www.federalreserve.gov/boarddocs/speeches/2000/20000508.htm",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12133
+    },
+    {
+      "label": "The Principle of Technological Neutrality in Regulation",
+      "status": 0,
+      "url": "https://www.oecd.org/sti/ieconomy/40899479.pdf",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12134
+    },
+    {
+      "label": "A Constitution of Democratic Experimentalism",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/10.2307/1229676",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12143
+    },
+    {
+      "label": "Adaptive Governance: The Case of the European Union",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/books/adaptive-governance/92131238466102604810237B302927A",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12144
+    },
+    {
+      "label": "AI and the Future of Humanity: A Religious Perspective",
+      "status": 0,
+      "url": "https://www.worldscientific.com/worldscibooks/10.1142/11728",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12153
+    },
+    {
+      "label": "The Ethics of Artificial Intelligence: A Religious Perspective",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/journals/journal-of-religious-ethics/article/ethics-of-artificial-intelligence-a-religious-perspective/2180816913611326231261314352136",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12154
+    },
+    {
+      "label": "Automation Bias in Intelligent Systems",
+      "status": 0,
+      "url": "https://dl.acm.org/doi/10.1145/263160.263162",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12163
+    },
+    {
+      "label": "Human Factors in Aviation",
+      "status": 0,
+      "url": "https://www.faa.gov/about/initiatives/human_factors",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12164
+    },
+    {
+      "label": "Project Management Institute: Risk Management",
+      "status": 0,
+      "url": "https://www.pmi.org/learning/library/risk-management-process-project-planning-6929",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12173
+    },
+    {
+      "label": "Harvard Business Review: The New Logic of Risk Management",
+      "status": 0,
+      "url": "https://hbr.org/2012/12/the-new-logic-of-risk-management",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12174
+    },
+    {
+      "label": "Applied Risk Management for AI Systems",
+      "status": 0,
+      "url": "https://www.accenture.com/us-en/insights/artificial-intelligence/applied-risk-management-ai",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12183
+    },
+    {
+      "label": "Risk Perception: A Review",
+      "status": 0,
+      "url": "https://www.annualreviews.org/doi/abs/10.1146/annurev.publhealth.22.1.347",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12193
+    },
+    {
+      "label": "The Perception of Risk",
+      "status": 0,
+      "url": "https://www.routledge.com/The-Perception-of-Risk/Slovic/p/book/9781844075286",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12194
+    },
+    {
+      "label": "Judgment Under Uncertainty: Heuristics and Biases",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/books/judgment-under-uncertainty/C5F07122097020F9920F922880193159",
+      "reason": "Response status code does not indicate success: 500 (Internal Server Error).",
+      "line": 12203
+    },
+    {
+      "label": "Perception of Risk (Paul Slovic)",
+      "status": 0,
+      "url": "https://www.routledge.com/The-Perception-of-Risk/Slovic/p/book/9781844075286",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12204
+    },
+    {
+      "label": "The Rise of Risk-Based Regulation",
+      "status": 0,
+      "url": "https://www.law.upenn.edu/live/news/1014-the-rise-of-risk-based-regulation",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12214
+    },
+    {
+      "label": "Dilemmas in a General Theory of Planning",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/44247405",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12224
+    },
+    {
+      "label": "What is Root Cause Analysis (RCA)?",
+      "status": 0,
+      "url": "https://asq.org/quality-resources/root-cause-analysis",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12264
+    },
+    {
+      "label": "What is Safety Culture?",
+      "status": 0,
+      "url": "https://www.iaea.org/resources/safety-and-security/safety-culture",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12294
+    },
+    {
+      "label": "What is Safety Engineering?",
+      "status": 0,
+      "url": "https://www.ansys.com/blog/what-is-safety-engineering",
+      "reason": "The request was canceled due to the configured HttpClient.Timeout of 8 seconds elapsing.",
+      "line": 12304
+    },
+    {
+      "label": "STAMP (Systems Theoretic Accident Model and Processes)",
+      "status": 0,
+      "url": "https://psas.mit.edu/stamp-and-stas-models",
+      "reason": "No such host is known. (psas.mit.edu:443)",
+      "line": 12324
+    },
+    {
+      "label": "Chinchilla's wild implications",
+      "status": 0,
+      "url": "https://www.lesswrong.com/posts/6FpE9m4J9w8y2x4gT/chinchilla-s-wild-implications",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12344
+    },
+    {
+      "label": "Science and Technology Studies",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/science-technology-studies/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12354
+    },
+    {
+      "label": "The Social Construction of Technological Systems",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/9780262524592/the-social-construction-of-technological-systems/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12364
+    },
+    {
+      "label": "Technoscientific Governance",
+      "status": 0,
+      "url": "https://www.oxfordhandbooks.com/view/10.1093/oxfordhb/9780199644025.001.0001/oxfordhb-9780199644025-e-005",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12373
+    },
+    {
+      "label": "Do Artifacts Have Politics?",
+      "status": 0,
+      "url": "https://www.cc.gatech.edu/~beki/cs4001/Winner.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 12383
+    },
+    {
+      "label": "What is Security by Design?",
+      "status": 0,
+      "url": "https://www.synopsys.com/glossary/what-is-security-by-design.html",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12404
+    },
+    {
+      "label": "The California Ideology",
+      "status": 0,
+      "url": "https://www.opendemocracy.net/en/the-california-ideology/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12414
+    },
+    {
+      "label": "Human factors in cybersecurity",
+      "status": 0,
+      "url": "https://www.nist.gov/itl/applied-cybersecurity/human-factors-cybersecurity",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12484
+    },
+    {
+      "label": "International Association for Impact Assessment (IAIA)",
+      "status": 0,
+      "url": "https://www.iaia.org/social-impact-assessment.php",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12494
+    },
+    {
+      "label": "OECD Social Protection",
+      "status": 0,
+      "url": "https://www.oecd.org/social/social-protection.htm",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12523
+    },
+    {
+      "label": "IMF Social Safety Nets",
+      "status": 0,
+      "url": "https://www.imf.org/en/Topics/social-safety-nets",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12524
+    },
+    {
+      "label": "Tavistock Institute - Socio-Technical Systems",
+      "status": 0,
+      "url": "https://tavistockinstitute.org/about-us/our-history/socio-technical-systems/",
+      "reason": "No such host is known. (tavistockinstitute.org:443)",
+      "line": 12533
+    },
+    {
+      "label": "Trist & Bamforth (1951) - Coal-Face",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/2060009",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12534
+    },
+    {
+      "label": "Cohen (1972) - Folk Devils and Moral Panics",
+      "status": 0,
+      "url": "https://www.routledge.com/Folk-Devils-and-Moral-Panics/Cohen/p/book/9780415610122",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12543
+    },
+    {
+      "label": "Goode & Ben-Yehuda (1994) - Moral Panics",
+      "status": 0,
+      "url": "https://www.wiley.com/en-us/Moral+Panics%3A+The+Social+Construction+of+Deviance-p-9780631189053",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12544
+    },
+    {
+      "label": "Bijker, Hughes, Pinch (1987) - The Social Construction of Technological Systems",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/9780262520935/the-social-construction-of-technological-systems/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12553
+    },
+    {
+      "label": "Leveson (2011) - Engineering a Safer World",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/9780262516402/engineering-a-safer-world/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12563
+    },
+    {
+      "label": "Hollnagel (2012) - FRAM",
+      "status": 0,
+      "url": "https://ashgate.com/isbn/9781409444311",
+      "reason": "The requested name is valid, but no data of the requested type was found. (ashgate.com:443)",
+      "line": 12564
+    },
+    {
+      "label": "Norman (2013) - The Design of Everyday Things",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/9780465050659/the-design-of-everyday-things/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12573
+    },
+    {
+      "label": "Reason (1990) - Human Error",
+      "status": 0,
+      "url": "https://www.cambridge.org/core/books/human-error/A3D0026298517201201D89255E095213",
+      "reason": "Response status code does not indicate success: 500 (Internal Server Error).",
+      "line": 12574
+    },
+    {
+      "label": "NASA - FMEA Handbook",
+      "status": 0,
+      "url": "https://www.nasa.gov/wp-content/uploads/2023/05/nasa-fmea-handbook.pdf",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12594
+    },
+    {
+      "label": "Standish Group CHAOS Report",
+      "status": 0,
+      "url": "https://www.standishgroup.com/chaos_report",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12604
+    },
+    {
+      "label": "Myers et al. (2011) - The Art of Software Testing",
+      "status": 0,
+      "url": "https://www.wiley.com/en-us/The+Art+of+Software+Testing%2C+3rd+Edition-p-9780471469940",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12634
+    },
+    {
+      "label": "UNCTAD - World Investment Report on SEZs",
+      "status": 0,
+      "url": "https://unctad.org/publication/world-investment-report-2019-special-economic-zones",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12644
+    },
+    {
+      "label": "Massey & Denton (1988) - The Dimensions of Residential Segregation",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/2095593",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12653
+    },
+    {
+      "label": "Kuznets (1973) - Modern Economic Growth",
+      "status": 0,
+      "url": "https://www.hup.harvard.edu/books/9780674580350",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12663
+    },
+    {
+      "label": "The Internet and Authoritarian Regimes: The Case of China",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/25098745",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12674
+    },
+    {
+      "label": "UN Guiding Principles on Business and Human Rights",
+      "status": 0,
+      "url": "https://www.ohchr.org/documents/publications/guidingprinciplesbusinesshr_en.pdf",
+      "reason": "Method invocation failed because [System.Byte] does not contain a method named 'Substring'.",
+      "line": 12683
+    },
+    {
+      "label": "OECD Due Diligence Guidance for Responsible Business Conduct",
+      "status": 0,
+      "url": "https://www.oecd.org/investment/due-diligence-guidance/",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12684
+    },
+    {
+      "label": "NIST Cybersecurity Supply Chain Risk Management Practices",
+      "status": 0,
+      "url": "https://www.nist.gov/itl/applied-cybersecurity/supply-chain-risk-management",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12693
+    },
+    {
+      "label": "ISO/IEC 27001 Information security management",
+      "status": 0,
+      "url": "https://www.iso.org/iso-27001-information-security.html",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12694
+    },
+    {
+      "label": "Swarm Intelligence: From Natural to Artificial Systems",
+      "status": 0,
+      "url": "https://mitpress.mit.edu/books/swarm-intelligence",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12713
+    },
+    {
+      "label": "Ant Colony Optimization",
+      "status": 0,
+      "url": "https://www.sciencedirect.com/topics/computer-science/ant-colony-optimization",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12714
+    },
+    {
+      "label": "INCOSE Systems Engineering Handbook",
+      "status": 0,
+      "url": "https://www.incose.org/products-and-publications/se-handbook",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12733
+    },
+    {
+      "label": "MIT OpenCourseWare: Systems Engineering",
+      "status": 0,
+      "url": "https://ocw.mit.edu/courses/aeronautics-and-astronautics/16-855j-systems-engineering-spring-2006/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12734
+    },
+    {
+      "label": "Nancy Leveson's Publications",
+      "status": 0,
+      "url": "https://sunnyday.mit.edu/publications.html",
+      "reason": "No connection could be made because the target machine actively refused it. (sunnyday.mit.edu:443)",
+      "line": 12743
+    },
+    {
+      "label": "The Hidden Wealth of Nations: The Scourge of Tax Havens",
+      "status": 0,
+      "url": "https://press.uchicago.edu/ucp/books/book/chicago/H/bo18214300.html",
+      "reason": "Response status code does not indicate success: 404 ().",
+      "line": 12763
+    },
+    {
+      "label": "Tax Havens and the Global Economy",
+      "status": 0,
+      "url": "https://www.jstor.org/stable/25098745",
+      "reason": "Response status code does not indicate success: 403 (Forbidden).",
+      "line": 12764
+    },
+    {
+      "label": "Fanged Noumena: Collected Writings 1987-2007 by Nick Land",
+      "status": 0,
+      "url": "https://urbanomic.com/document/fanged-noumena/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12774
+    },
+    {
+      "label": "RAND Corporation: Technology and Innovation",
+      "status": 0,
+      "url": "https://www.rand.org/topics/technology-and-innovation.html",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 12783
+    },
+    {
+      "label": "The Second Machine Age: Work, Progress, and Prosperity in a Time of Brilliant Technologies",
+      "status": 200,
+      "url": "https://www.wwnorton.com/books/9780393352921",
+      "reason": "soft_404",
+      "line": 12813
+    },
+    {
+      "label": "Stanford Encyclopedia of Philosophy: Hayek",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/hayek/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 13158
+    },
+    {
+      "label": "Stanford Encyclopedia: Information Ethics",
+      "status": 0,
+      "url": "https://plato.stanford.edu/entries/ethics-information/",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 13368
+    },
+    {
+      "label": "Wikipedia: Existential Risk from AGI",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Global_catastrophic_risk_from_artificial_general_intelligence",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 13568
+    },
+    {
+      "label": "Wikipedia: Post-work Society",
+      "status": 0,
+      "url": "https://en.wikipedia.org/wiki/Post-work_society_society",
+      "reason": "Response status code does not indicate success: 404 (Not Found).",
+      "line": 13607
+    }
+  ],
+  "broken": 378
+}

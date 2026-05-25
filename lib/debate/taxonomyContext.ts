@@ -85,6 +85,37 @@ export interface FormatContextConfig {
   relevantBranches?: Set<string>;
 }
 
+/** Compute weighted sort score: Beliefs use relevance×confidence, Desires use relevance×(priority/5), Intentions use relevance×(operationality/5). */
+function weightedScore(node: PovNode, relevance: number, category: string): number {
+  if (category === 'Beliefs' && node.confidence !== undefined) {
+    return relevance * node.confidence;
+  }
+  if (category === 'Desires' && node.priority !== undefined) {
+    return relevance * (node.priority / 5);
+  }
+  if (category === 'Intentions' && node.operationality !== undefined) {
+    return relevance * (node.operationality / 5);
+  }
+  return relevance;
+}
+
+/** Build inline weight label for a node: confidence for Beliefs, priority for Desires, operationality for Intentions. */
+function nodeWeightLabel(node: PovNode, category: string): string {
+  if (category === 'Beliefs' && node.confidence !== undefined) {
+    const conf = node.confidence;
+    const anchor = node.doctrinally_anchored ? ', doctrinally anchored' : '';
+    if (conf < 0.50) return ` [Speculative, confidence: ${conf.toFixed(2)}${anchor}]`;
+    return ` (confidence: ${conf.toFixed(2)}${anchor})`;
+  }
+  if (category === 'Desires' && node.priority !== undefined) {
+    return ` (priority: ${node.priority}/5)`;
+  }
+  if (category === 'Intentions' && node.operationality !== undefined) {
+    return ` (operationality: ${node.operationality}/5)`;
+  }
+  return '';
+}
+
 /** Format taxonomy nodes into a BDI-structured context block for the LLM prompt */
 export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNodes?: number, config?: FormatContextConfig): string {
   const cfg = config ?? {};
@@ -144,10 +175,25 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push(bdi.header);
     lines.push(bdi.framing);
 
-    // Sort by score if available, then split into primary/supporting
+    // Add weighting instruction when confidence/priority data is present
+    if (cat === 'Beliefs' && nodes.some(n => n.confidence !== undefined)) {
+      lines.push('Ordered by evidential confidence. Lead with well-supported claims. When you cite a low-confidence Belief, acknowledge the uncertainty explicitly.');
+    } else if (cat === 'Desires' && nodes.some(n => n.priority !== undefined)) {
+      lines.push('Ordered by priority. Lead with non-negotiable values. Lower-priority desires may be traded off in argument.');
+    } else if (cat === 'Intentions' && nodes.some(n => n.operationality !== undefined)) {
+      lines.push('Ordered by operationality. Lead with concrete, actionable strategies. Lower-operationality intentions provide framing context but should not anchor your primary argument.');
+    }
+
+    // Sort by weighted score: Beliefs by relevance×confidence, Desires by relevance×priority, Intentions by relevance×operationality
     let sorted = nodes;
     if (hasScores) {
-      sorted = [...nodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
+      sorted = [...nodes].sort((a, b) => {
+        const relA = ctx.nodeScores!.get(a.id) ?? 0;
+        const relB = ctx.nodeScores!.get(b.id) ?? 0;
+        const weightA = weightedScore(a, relA, cat);
+        const weightB = weightedScore(b, relB, cat);
+        return weightB - weightA || a.id.localeCompare(b.id);
+      });
     }
 
     for (let i = 0; i < sorted.length; i++) {
@@ -155,7 +201,8 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       const isPrimary = hasScores && i < PRIMARY_COUNT;
       const prefix = isPrimary ? '★ ' : '  ';
       const scoreLabel = hasScores ? ` (relevance: ${(ctx.nodeScores!.get(n.id) ?? 0).toFixed(2)})` : '';
-      lines.push(`${prefix}[${n.id}]${scoreLabel} ${n.label}: ${n.description}`);
+      const weightLabel = nodeWeightLabel(n, cat);
+      lines.push(`${prefix}[${n.id}]${scoreLabel}${weightLabel} ${n.label}: ${n.description}`);
       if (n.graph_attributes?.epistemic_type) {
         lines.push(`    Epistemic type: ${n.graph_attributes.epistemic_type}`);
       }
@@ -375,7 +422,11 @@ export function computeInjectionManifest(
   const primaryIds: string[] = [];
   for (const cat of ['Beliefs', 'Desires', 'Intentions']) {
     const sorted = ctx.nodeScores
-      ? groups[cat].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id))
+      ? groups[cat].sort((a, b) => {
+          const relA = ctx.nodeScores!.get(a.id) ?? 0;
+          const relB = ctx.nodeScores!.get(b.id) ?? 0;
+          return weightedScore(b, relB, cat) - weightedScore(a, relA, cat) || a.id.localeCompare(b.id);
+        })
       : groups[cat];
     for (let i = 0; i < Math.min(PRIMARY_COUNT, sorted.length); i++) {
       primaryIds.push(sorted[i].id);

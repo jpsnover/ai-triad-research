@@ -87,6 +87,17 @@ export const GraphAttributesSchema = z.strictObject({
 
 // ── Taxonomy node schemas ─────────────────────────────────
 
+const WeightHistoryEntrySchema = z.object({
+  date: z.string(),
+  value: z.number(),
+  delta: z.number(),
+  reason: z.string(),
+  supersedes: z.string().optional(),
+  attack_claim: z.string().optional(),
+  robustness: z.number().int().min(1).optional(),
+  model_confirmations: z.array(z.string()).optional(),
+});
+
 export const PovNodeSchema = z.object({
   id: z.string().min(1),
   category: CategorySchema,
@@ -100,6 +111,14 @@ export const PovNodeSchema = z.object({
   conflict_ids: z.array(z.string()).optional(),
   graph_attributes: GraphAttributesSchema.optional(),
   debate_refs: z.array(z.string()).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  confidence_history: z.array(WeightHistoryEntrySchema).optional(),
+  doctrinally_anchored: z.boolean().optional(),
+  evidential_confidence: z.number().min(0).max(1).optional(),
+  priority: z.number().int().min(1).max(5).optional(),
+  priority_history: z.array(WeightHistoryEntrySchema).optional(),
+  operationality: z.number().int().min(1).max(5).optional(),
+  operationality_history: z.array(WeightHistoryEntrySchema).optional(),
 });
 
 export const SituationNodeSchema = z.object({

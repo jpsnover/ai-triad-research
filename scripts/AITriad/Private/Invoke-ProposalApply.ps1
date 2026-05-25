@@ -49,6 +49,11 @@ function Invoke-ProposalApply {
 
     switch ($Proposal.action) {
         'NEW' {
+            # Validate node ID format + category consistency
+            try { Test-PovNodeId -Id $Proposal.suggested_id -Category $Proposal.category } catch {
+                return [PSCustomObject]@{ Success = $false; Error = $_.Exception.Message }
+            }
+
             # Check for ID collision
             $Existing = $Raw.nodes | Where-Object { $_.id -eq $Proposal.suggested_id }
             if ($Existing) {
@@ -145,6 +150,10 @@ function Invoke-ProposalApply {
             # Create child nodes
             foreach ($Child in $ChildProposals) {
                 if ($Child.PSObject.Properties['category']) { $ChildCat = $Child.category } else { $ChildCat = $Target.category }
+                # Validate child node ID
+                try { Test-PovNodeId -Id $Child.suggested_id -Category $ChildCat } catch {
+                    return [PSCustomObject]@{ Success = $false; Error = "SPLIT child: $($_.Exception.Message)" }
+                }
                 if ($Target.PSObject.Properties['situation_refs']) { $ChildSitRefs = $Target.situation_refs } else { $ChildSitRefs = @() }
                 $ChildNode = [ordered]@{
                     id                 = $Child.suggested_id
@@ -219,6 +228,10 @@ function Invoke-ProposalApply {
             # Create intermediate parent nodes under the dense parent
             foreach ($SubGroup in $SubGroups) {
                 if ($SubGroup.PSObject.Properties['category']) { $SubGrpCat = $SubGroup.category } else { $SubGrpCat = $Target.category }
+                # Validate intermediate node ID
+                try { Test-PovNodeId -Id $SubGroup.suggested_id -Category $SubGrpCat } catch {
+                    return [PSCustomObject]@{ Success = $false; Error = "DEPTH_EXPAND: $($_.Exception.Message)" }
+                }
                 $IntNode = [ordered]@{
                     id          = $SubGroup.suggested_id
                     category    = $SubGrpCat
@@ -254,6 +267,9 @@ function Invoke-ProposalApply {
 
         'WIDTH_EXPAND' {
             # Same as NEW but motivated by density signals
+            try { Test-PovNodeId -Id $Proposal.suggested_id -Category $Proposal.category } catch {
+                return [PSCustomObject]@{ Success = $false; Error = "WIDTH_EXPAND: $($_.Exception.Message)" }
+            }
             if ($Raw.nodes | Where-Object { $_.id -eq $Proposal.suggested_id }) {
                 return [PSCustomObject]@{ Success = $false; Error = "Node ID '$($Proposal.suggested_id)' already exists" }
             }

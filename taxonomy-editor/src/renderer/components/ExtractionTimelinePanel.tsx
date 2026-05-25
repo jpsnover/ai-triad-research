@@ -186,6 +186,128 @@ const navBtn = (disabled: boolean): React.CSSProperties => ({
 const th: React.CSSProperties = { padding: '4px 6px', fontSize: '0.65rem', fontWeight: 700, textAlign: 'left', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', cursor: 'default' };
 const thNum: React.CSSProperties = { ...th, textAlign: 'right' as const };
 
+function AttributionSummary({ traces, debate }: { traces: ClaimExtractionTrace[]; debate: DebateSession }) {
+  const stats = useMemo(() => {
+    const allDecisions = traces.flatMap(t => t.attribution_decisions ?? []);
+    if (allDecisions.length === 0) return null;
+    const attributed = allDecisions.filter(d => d.primary_ref != null);
+    const unattributed = allDecisions.filter(d => d.primary_ref == null);
+    const novelCount = unattributed.filter(d => d.unattributed_reason === 'novel_argument').length;
+    const noEmbCount = unattributed.filter(d => d.unattributed_reason === 'no_embedding').length;
+
+    // Confidence distribution buckets
+    const confBuckets = { high: 0, medium: 0, low: 0 };
+    for (const d of attributed) {
+      if (d.attribution_confidence >= 0.7) confBuckets.high++;
+      else if (d.attribution_confidence >= 0.5) confBuckets.medium++;
+      else confBuckets.low++;
+    }
+
+    // Most-attributed taxonomy nodes
+    const refCounts = new Map<string, number>();
+    for (const d of attributed) {
+      refCounts.set(d.primary_ref!, (refCounts.get(d.primary_ref!) ?? 0) + 1);
+    }
+    const topRefs = [...refCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8);
+
+    return { total: allDecisions.length, attributed: attributed.length, unattributed: unattributed.length, novelCount, noEmbCount, confBuckets, topRefs };
+  }, [traces]);
+
+  if (!stats) return null;
+
+  const ratio = debate.extraction_summary?.unattributed_claim_ratio;
+  const ratioColor = ratio != null && ratio > 0.5 ? '#ef4444' : ratio != null && ratio > 0.25 ? '#f59e0b' : '#22c55e';
+
+  return (
+    <details style={{ marginBottom: 4 }}>
+      <summary style={{ cursor: 'pointer', fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>
+        Taxonomy Attribution ({stats.attributed}/{stats.total} attributed{ratio != null ? ` · ${(ratio * 100).toFixed(0)}% unattributed` : ''})
+      </summary>
+      <div style={{ fontSize: '0.7rem', padding: '4px 0' }}>
+        {/* Ratio alert */}
+        {ratio != null && ratio > 0.5 && (
+          <div style={{
+            margin: '0 0 8px', padding: '6px 10px', borderRadius: 6,
+            background: 'rgba(239,68,68,0.12)', borderLeft: '3px solid #ef4444',
+            fontSize: '0.7rem',
+          }}>
+            <strong style={{ color: '#ef4444' }}>High unattributed ratio ({(ratio * 100).toFixed(0)}%).</strong>{' '}
+            Over half of AN claims could not be mapped to taxonomy Belief nodes. This may indicate
+            the debate is producing novel arguments outside the taxonomy&apos;s coverage, or that embeddings
+            are missing.
+          </div>
+        )}
+
+        {/* Summary stats */}
+        <div style={{ display: 'flex', gap: 16, marginBottom: 8, flexWrap: 'wrap' }}>
+          <span>Attributed: <strong style={{ color: '#22c55e' }}>{stats.attributed}</strong></span>
+          <span>Unattributed: <strong style={{ color: stats.unattributed > 0 ? '#ef4444' : 'var(--text-primary)' }}>{stats.unattributed}</strong>
+            {stats.novelCount > 0 && <span style={{ color: 'var(--text-muted)' }}> ({stats.novelCount} novel)</span>}
+            {stats.noEmbCount > 0 && <span style={{ color: 'var(--text-muted)' }}> ({stats.noEmbCount} no emb)</span>}
+          </span>
+        </div>
+
+        {/* Confidence distribution */}
+        {stats.attributed > 0 && (
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Confidence Distribution</div>
+            <div style={{ display: 'flex', gap: 2, height: 16, borderRadius: 3, overflow: 'hidden' }}>
+              {stats.confBuckets.high > 0 && (
+                <div style={{ flex: stats.confBuckets.high, background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: '#fff', fontWeight: 700 }}
+                  title={`High confidence (≥0.70): ${stats.confBuckets.high} claims`}
+                >{stats.confBuckets.high}</div>
+              )}
+              {stats.confBuckets.medium > 0 && (
+                <div style={{ flex: stats.confBuckets.medium, background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: '#fff', fontWeight: 700 }}
+                  title={`Medium confidence (0.50–0.69): ${stats.confBuckets.medium} claims`}
+                >{stats.confBuckets.medium}</div>
+              )}
+              {stats.confBuckets.low > 0 && (
+                <div style={{ flex: stats.confBuckets.low, background: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: '#fff', fontWeight: 700 }}
+                  title={`Low confidence (0.35–0.49): ${stats.confBuckets.low} claims`}
+                >{stats.confBuckets.low}</div>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 2, fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#22c55e', borderRadius: 1, marginRight: 3 }} />High ≥0.70</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#3b82f6', borderRadius: 1, marginRight: 3 }} />Med 0.50–0.69</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#f59e0b', borderRadius: 1, marginRight: 3 }} />Low 0.35–0.49</span>
+            </div>
+          </div>
+        )}
+
+        {/* Most-attributed nodes */}
+        {stats.topRefs.length > 0 && (
+          <div>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3 }}>Most-Attributed Taxonomy Nodes</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {stats.topRefs.map(([nodeId, count]) => {
+                const maxCount = stats.topRefs[0][1];
+                return (
+                  <div key={nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ minWidth: 100, fontWeight: 600, fontSize: '0.65rem' }}>{nodeId}</span>
+                    <div style={{ flex: 1, height: 10, background: 'var(--bg-secondary, #222)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${(count / maxCount) * 100}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #3b82f6, #6366f1)',
+                        borderRadius: 2,
+                      }} />
+                    </div>
+                    <span style={{ fontSize: '0.6rem', fontWeight: 700, minWidth: 20, textAlign: 'right', color: '#6366f1' }}>{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </details>
+  );
+}
+
 export function ExtractionTimelinePanel({ debate }: Props) {
   const traces = useMemo(() => {
     const out: ClaimExtractionTrace[] = [];
@@ -241,13 +363,18 @@ export function ExtractionTimelinePanel({ debate }: Props) {
       )}
 
       {summary && (
-        <div style={{ display: 'flex', gap: 16, fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+        <div style={{ display: 'flex', gap: 16, fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6, flexWrap: 'wrap' }}>
           <span>Turns: <strong style={{ color: 'var(--text-primary)' }}>{summary.total_turns}</strong></span>
           <span>Proposed: <strong style={{ color: 'var(--text-primary)' }}>{summary.total_proposed}</strong></span>
           <span>Accepted: <strong style={{ color: 'var(--text-primary)' }}>{summary.total_accepted}</strong></span>
           <span>Acceptance: <strong style={{ color: summary.acceptance_rate >= 0.5 ? '#22c55e' : '#f59e0b' }}>
             {(summary.acceptance_rate * 100).toFixed(0)}%
           </strong></span>
+          {summary.unattributed_claim_ratio != null && (
+            <span>Unattributed: <strong style={{ color: summary.unattributed_claim_ratio > 0.5 ? '#ef4444' : summary.unattributed_claim_ratio > 0.25 ? '#f59e0b' : '#22c55e' }}>
+              {(summary.unattributed_claim_ratio * 100).toFixed(0)}%
+            </strong></span>
+          )}
         </div>
       )}
 
@@ -256,6 +383,9 @@ export function ExtractionTimelinePanel({ debate }: Props) {
         {summary && <GrowthChart summary={summary} traces={traces} />}
         <RejectionSparkline traces={traces} />
       </details>
+
+      {/* Taxonomy Attribution Summary */}
+      <AttributionSummary traces={traces} debate={debate} />
 
       <div style={{ marginTop: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
@@ -360,6 +490,44 @@ export function ExtractionTimelinePanel({ debate }: Props) {
           {selected.an_nodes_added_ids.length > 0 && (
             <div style={{ marginTop: 4 }}>
               <strong>Added:</strong> {selected.an_nodes_added_ids.join(', ')}
+            </div>
+          )}
+          {/* Per-turn taxonomy attribution */}
+          {selected.attribution_decisions && selected.attribution_decisions.length > 0 && (
+            <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 4 }}>
+                <strong>Taxonomy Attribution</strong>
+                <span style={{ color: '#22c55e' }}>{selected.attribution_attributed ?? 0} attributed</span>
+                {(selected.attribution_unattributed ?? 0) > 0 && (
+                  <span style={{ color: '#ef4444' }}>{selected.attribution_unattributed} unattributed</span>
+                )}
+              </div>
+              {selected.attribution_decisions.map(d => {
+                const isUnattributed = !d.primary_ref;
+                const conf = d.attribution_confidence;
+                const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : conf >= 0.35 ? '#f59e0b' : '#ef4444';
+                return (
+                  <div key={d.claim_id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.65rem', marginBottom: 2 }}>
+                    <span style={{ fontWeight: 700, color: 'var(--accent)', minWidth: 44 }}>{d.claim_id}</span>
+                    {isUnattributed ? (
+                      <span style={{ padding: '1px 5px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontWeight: 600 }}>
+                        {d.unattributed_reason === 'novel_argument' ? 'novel argument' : 'no embedding'}
+                      </span>
+                    ) : (
+                      <>
+                        <span style={{ color: 'var(--text-muted)' }}>&rarr;</span>
+                        <span style={{ fontWeight: 600 }}>{d.primary_ref}</span>
+                        <span style={{ padding: '1px 5px', borderRadius: 3, background: `${confColor}18`, color: confColor, fontWeight: 600 }}>
+                          {conf.toFixed(2)}
+                        </span>
+                        {d.secondary_refs_count > 0 && (
+                          <span style={{ color: 'var(--text-muted)' }}>+{d.secondary_refs_count} secondary</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

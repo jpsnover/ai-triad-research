@@ -16,6 +16,26 @@ interface GraphAttributesPanelProps {
   onUpdateAssumptions?: (assumes: string[]) => void;
   readOnly?: boolean;
   defaultOpen?: boolean;
+  /** Node category (Beliefs/Desires/Intentions) for confidence/priority display */
+  nodeCategory?: string;
+  /** Current confidence value (Beliefs only) */
+  confidence?: number | null;
+  /** Current priority value (Desires only) */
+  priority?: number | null;
+  /** Current operationality value (Intentions only) */
+  operationality?: number | null;
+  /** Whether the node is doctrinally anchored */
+  doctrinallyAnchored?: boolean;
+  /** Pre-floor evidential confidence — present when doctrinal floor was applied */
+  evidentialConfidence?: number | null;
+  /** Confidence history entries */
+  confidenceHistory?: Array<{ reason: string }>;
+  /** Priority history entries */
+  priorityHistory?: Array<{ reason: string }>;
+  /** Operationality history entries */
+  operationalityHistory?: Array<{ reason: string }>;
+  /** Callback to update confidence/priority/operationality */
+  onUpdateWeightedBdi?: (updates: { confidence?: number; priority?: number; operationality?: number }) => void;
 }
 
 const LABEL_MAP: Record<string, string> = {
@@ -122,7 +142,7 @@ function Badge({ field, value, onClick, onContextMenu }: {
   );
 }
 
-export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, onUpdatePolicyActions, onUpdateAssumptions, readOnly, defaultOpen }: GraphAttributesPanelProps) {
+export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, onUpdatePolicyActions, onUpdateAssumptions, readOnly, defaultOpen, nodeCategory, confidence, priority, operationality, doctrinallyAnchored, evidentialConfidence, confidenceHistory, priorityHistory, operationalityHistory, onUpdateWeightedBdi }: GraphAttributesPanelProps) {
   const { policyRegistry, edgesFile } = useTaxonomyStore();
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [expandedPolicyId, setExpandedPolicyId] = useState<string | null>(null);
@@ -310,6 +330,93 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
               </div>
             ) : <div className="ga-empty">&mdash;</div>}
           </div>
+
+          {/* Weighted BDI: Confidence (Beliefs) or Priority (Desires) */}
+          {nodeCategory === 'Beliefs' && (
+            <div className="ga-cell">
+              <div className="ga-label">Confidence</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="range"
+                  min={0} max={1} step={0.05}
+                  value={confidence ?? 0.5}
+                  disabled={readOnly || !onUpdateWeightedBdi}
+                  onChange={(e) => onUpdateWeightedBdi?.({ confidence: parseFloat(e.target.value) })}
+                  style={{ flex: 1 }}
+                />
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, minWidth: 36, textAlign: 'right', color: (confidence ?? 0.5) >= 0.7 ? 'var(--color-success, #22c55e)' : (confidence ?? 0.5) >= 0.4 ? 'var(--color-info, #3b82f6)' : 'var(--color-warning, #f59e0b)' }}>
+                  {(confidence ?? 0.5).toFixed(2)}
+                </span>
+                {doctrinallyAnchored && (
+                  <span
+                    style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', whiteSpace: 'nowrap' }}
+                    title="This Belief is cosine-similar to the POV's doctrinal boundaries — a confidence floor is applied to prevent it from dropping below the doctrinal minimum"
+                  >⚓ Doctrinally Anchored</span>
+                )}
+              </div>
+              {doctrinallyAnchored && evidentialConfidence != null && (
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  Evidential confidence: <strong>{evidentialConfidence.toFixed(2)}</strong>
+                  <span style={{ marginLeft: 4, fontSize: '0.65rem' }}>(floor applied: {(confidence ?? 0.5).toFixed(2)} ≥ doctrinal minimum)</span>
+                </div>
+              )}
+              {confidenceHistory && confidenceHistory.length > 0 && (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  {confidenceHistory.length} update(s) — latest: {confidenceHistory[confidenceHistory.length - 1].reason}
+                </div>
+              )}
+            </div>
+          )}
+          {nodeCategory === 'Desires' && (
+            <div className="ga-cell">
+              <div className="ga-label">Priority</div>
+              <select
+                value={priority ?? 3}
+                disabled={readOnly || !onUpdateWeightedBdi}
+                onChange={(e) => onUpdateWeightedBdi?.({ priority: parseInt(e.target.value, 10) })}
+                style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+              >
+                <option value={5}>5 — Core (non-negotiable)</option>
+                <option value={4}>4 — High</option>
+                <option value={3}>3 — Important</option>
+                <option value={2}>2 — Preferred</option>
+                <option value={1}>1 — Nice-to-have</option>
+              </select>
+              {priority === 5 && (
+                <span
+                  style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: '#ef4444', marginTop: 4, display: 'inline-block' }}
+                  title="Priority 5 = Core doctrinal boundary — non-negotiable commitment for this POV"
+                >Doctrinally Pinned</span>
+              )}
+              {priorityHistory && priorityHistory.length > 0 && (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  {priorityHistory.length} update(s) — latest: {priorityHistory[priorityHistory.length - 1].reason}
+                </div>
+              )}
+            </div>
+          )}
+          {nodeCategory === 'Intentions' && (
+            <div className="ga-cell">
+              <div className="ga-label">Operationality</div>
+              <select
+                value={operationality ?? 3}
+                disabled={readOnly || !onUpdateWeightedBdi}
+                onChange={(e) => onUpdateWeightedBdi?.({ operationality: parseInt(e.target.value, 10) })}
+                style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+              >
+                <option value={5}>5 — Fully operational (deployed/enacted)</option>
+                <option value={4}>4 — High (concrete plan, resources allocated)</option>
+                <option value={3}>3 — Moderate (specific but unresourced)</option>
+                <option value={2}>2 — Low (vague aspiration)</option>
+                <option value={1}>1 — Notional (pure rhetoric)</option>
+              </select>
+              {operationalityHistory && operationalityHistory.length > 0 && (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  {operationalityHistory.length} update(s) — latest: {operationalityHistory[operationalityHistory.length - 1].reason}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Row 2: Audience | Emotional Register | Policy Actionability */}
           <div className="ga-cell">

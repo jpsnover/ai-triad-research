@@ -63,8 +63,8 @@ function AifBadge({ type, label }: { type: 'I-node' | 'CA-node' | 'RA-node' | 'P
       onMouseEnter={() => setShowTip(true)}
       onMouseLeave={() => setShowTip(false)}
     >
-      <span style={{ background: c.bg, color: c.fg, padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, marginRight: 4, cursor: 'default' }}>
-        {label || type}
+      <span style={{ color: 'var(--text-secondary)', padding: '1px 5px', borderRadius: 3, fontWeight: 700, marginRight: 4, cursor: 'default' }}>
+        <span style={{ color: c.fg, fontSize: '0.9rem', marginRight: 3 }}>●</span>{label || type}
       </span>
       {showTip && (
         <span style={{
@@ -1288,6 +1288,16 @@ function TensionsListDetail({ content }: { content: string }) {
     return map;
   }, [accelerationist, safetyist, skeptic]);
 
+  /** Taxonomy node weights lookup — for confidence/priority/operationality display on Brief grounding (t/132, t/150) */
+  const nodeWeights = useMemo(() => {
+    const map = new Map<string, { confidence?: number; priority?: number; operationality?: number; category?: string }>();
+    for (const pov of [accelerationist, safetyist, skeptic]) {
+      if (!pov?.nodes) continue;
+      for (const n of pov.nodes) map.set(n.id, { confidence: n.confidence, priority: n.priority, operationality: n.operationality, category: n.category });
+    }
+    return map;
+  }, [accelerationist, safetyist, skeptic]);
+
   const edgeRationale = useMemo(() => {
     const map = new Map<string, string>();
     if (!edgesFile?.edges) return map;
@@ -1764,15 +1774,15 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
 
         if (!editable) {
           return (
-            <span key={key} title={subScoreTip(key, v)} style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: `${c}15`, color: c, fontWeight: 600, cursor: 'default' }}>
-              {label}: {(v ?? 0).toFixed(2)}
+            <span key={key} title={subScoreTip(key, v)} style={{ padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'default' }}>
+              <span style={{ color: c, fontSize: '0.9rem', marginRight: 3 }}>●</span>{label}: {(v ?? 0).toFixed(2)}
             </span>
           );
         }
 
         return (
-          <span key={key} title={subScoreTip(key, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.58rem', fontWeight: 600 }}>
-            <span style={{ color: c }}>{label}:</span>
+          <span key={key} title={subScoreTip(key, v)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontWeight: 600 }}>
+            <span style={{ color: 'var(--text-secondary)' }}><span style={{ color: c, fontSize: '0.9rem', marginRight: 3 }}>●</span>{label}:</span>
             <input
               type="range"
               min={0} max={1} step={0.05}
@@ -1780,7 +1790,7 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
               onChange={(e) => onUpdateSubScore(node.id, key, parseFloat(e.target.value))}
               style={{ width: 48, height: 10, accentColor: c, cursor: 'pointer' }}
             />
-            <span style={{ color: c, minWidth: 26 }}>{(v ?? 0).toFixed(2)}</span>
+            <span style={{ color: 'var(--text-secondary)', minWidth: 26 }}>{(v ?? 0).toFixed(2)}</span>
           </span>
         );
       })}
@@ -1819,7 +1829,7 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
   }, [focused]);
 
   return (
-    <div ref={rowRef} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)', outline: focused ? '2px solid #f59e0b' : 'none', borderRadius: focused ? 4 : 0 }}>
+    <div ref={rowRef} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)', outline: focused ? '2px solid #f59e0b' : 'none', borderRadius: focused ? 4 : 0, fontSize: '0.85rem' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
         {hasChildren ? (
           <button
@@ -1831,19 +1841,22 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
         ) : (
           <span style={{ width: 10, flexShrink: 0 }} />
         )}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <strong title={`Argument Network node ${node.id.replace('AN-', '')}${statementId ? `, extracted from debate statement ${statementId}` : ''}`} style={{ color: 'var(--accent)', fontSize: '0.7rem' }}><Highlight text={node.id} /></strong>
-          {statementId && (
-            <span
-              title={`Claim extracted from debate turn ${statementId} by ${speakerLabel(node.speaker)}${onGotoEntry ? ' — click to go to statement' : ''}`}
-              onClick={onGotoEntry && node.source_entry_id ? (e) => { e.stopPropagation(); onGotoEntry(node.source_entry_id); } : undefined}
-              style={{
-                fontSize: '0.7rem',
-                cursor: onGotoEntry && node.source_entry_id ? 'pointer' : 'default',
-                textDecoration: onGotoEntry && node.source_entry_id ? 'underline' : 'none',
-              }}
-            >{statementId}</span>
-          )}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
+          {/* Col 1: AN ID + Statement ID */}
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <strong title={`Argument Network node ${node.id.replace('AN-', '')}${statementId ? `, extracted from debate statement ${statementId}` : ''}`} style={{ color: 'var(--accent)' }}><Highlight text={node.id} /></strong>
+            {statementId && (
+              <span
+                title={`Claim extracted from debate turn ${statementId} by ${speakerLabel(node.speaker)}${onGotoEntry ? ' — click to go to statement' : ''}`}
+                onClick={onGotoEntry && node.source_entry_id ? (e) => { e.stopPropagation(); onGotoEntry(node.source_entry_id); } : undefined}
+                style={{
+                  cursor: onGotoEntry && node.source_entry_id ? 'pointer' : 'default',
+                  textDecoration: onGotoEntry && node.source_entry_id ? 'underline' : 'none',
+                }}
+              >{statementId}</span>
+            )}
+          </span>
+          {/* Col 2: Speaker */}
           {(() => {
             const label = speakerLabel(node.speaker);
             const desc: Record<string, string> = {
@@ -1852,15 +1865,40 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
               Cassandra: 'Cassandra — skeptic, questions assumptions from all sides',
               Moderator: 'Moderator — neutral facilitator',
             };
-            return <span title={desc[label] ?? label} style={{ fontSize: '0.7rem' }}>{label}</span>;
+            return <span title={desc[label] ?? label}>{label}</span>;
           })()}
-          {node.bdi_category && (() => {
-            const bdiLabel = node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : 'Intention';
-            return (
-              <span title={`${bdiLabel} (confidence: ${node.bdi_confidence?.toFixed(2) ?? '?'})`} style={{ fontSize: '0.7rem' }}>{bdiLabel}</span>
-            );
-          })()}
-          {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.7rem' }}>[unaddressed]</span>}
+          {/* Col 3: BDI category + status */}
+          <span>
+            {node.bdi_category && (() => {
+              const bdiLabel = node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : 'Intention';
+              return <span title={`${bdiLabel} (confidence: ${node.bdi_confidence?.toFixed(2) ?? '?'})`}>{bdiLabel}</span>;
+            })()}
+          </span>
+          {/* Col 4: Taxonomy attribution badge */}
+          <span>
+            {node.claim_taxonomy_attribution && (() => {
+              const attr = node.claim_taxonomy_attribution;
+              if (attr.unattributed_reason) {
+                const reasonLabel = attr.unattributed_reason === 'novel_argument' ? 'novel' : 'no embedding';
+                return (
+                  <span
+                    title={`Unattributed: ${attr.unattributed_reason === 'novel_argument' ? 'claim is a novel argument not closely matching any taxonomy Belief node (best similarity < 0.35)' : 'missing embedding — cannot compute similarity'}`}
+                    style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}
+                  ><span style={{ color: '#ef4444', fontSize: '0.9rem', marginRight: 3 }}>●</span>{reasonLabel}</span>
+                );
+              }
+              const conf = attr.attribution_confidence;
+              const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
+              const secCount = attr.secondary_refs?.length ?? 0;
+              return (
+                <span
+                  title={`Attributed to ${attr.primary_ref} (confidence: ${conf.toFixed(2)})${secCount > 0 ? `\n${secCount} secondary ref${secCount !== 1 ? 's' : ''}: ${attr.secondary_refs!.map(s => `${s.node_id} (${s.similarity.toFixed(2)})`).join(', ')}` : ''}`}
+                  style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}
+                ><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>
+              );
+            })()}
+          </span>
+          {/* Col 5: Strength badge */}
           {(() => {
             const base = node.base_strength ?? 0.5;
             const computed = computedStrength ?? node.computed_strength ?? base;
@@ -1868,13 +1906,16 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
             const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
             const delta = computed - base;
             return (
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: `${bandColor}22`, color: bandColor }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
-                {band} {computed.toFixed(2)}
-                {Math.abs(delta) > 0.01 && <span style={{ color: delta > 0 ? '#22c55e' : '#ef4444', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
+              <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)}, delta: ${delta >= 0 ? '+' : ''}${delta.toFixed(2)})`}>
+                <span style={{ color: bandColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{band} {computed.toFixed(2)}
+                {Math.abs(delta) > 0.01 && <span style={{ color: 'var(--text-muted)', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
               </span>
             );
           })()}
-          {hasChildren && <span title={`${attacks.length + supports.length} attack/support relationship${attacks.length + supports.length !== 1 ? 's' : ''} connected to this claim`} style={{ color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'default' }}>{attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}</span>}
+          {/* Col 6: Edge count */}
+          <span style={{ color: 'var(--text-muted)', cursor: 'default' }} title={hasChildren ? `${attacks.length + supports.length} attack/support relationship${attacks.length + supports.length !== 1 ? 's' : ''} connected to this claim` : undefined}>
+            {hasChildren ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
+          </span>
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} /></div>
@@ -1919,7 +1960,7 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
           explanation += ` despite "${strongestAtk.text}" (−${strongestAtk.contribution.toFixed(2)})`;
         }
         return (
-          <div style={{ paddingLeft: 18, marginTop: 2, fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          <div style={{ paddingLeft: 18, marginTop: 2, color: 'var(--text-muted)', fontStyle: 'italic' }}>
             {explanation}
           </div>
         );
@@ -1937,36 +1978,37 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
             const edgeWeight = a.weight ?? 0.5;
             const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
-              <div key={a.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
-                <div>
-                  <AifBadge type="CA-node" />
-                  {'\u2190'} {a.source} <strong>{a.attack_type}</strong>{a.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {a.scheme}</span> : ''}
-                  {contribution != null && (
-                    <span title={`Attack contribution = (source strength (${(srcStr ?? 0).toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#ef4444', fontFamily: 'monospace', cursor: 'default', opacity: hasWeight ? 1 : 0.5 }}>
+              <div key={a.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>CA-node</span>
+                  <span>← {a.source}</span>
+                  <strong>{a.attack_type}</strong>
+                  <span style={{ color: 'var(--text-muted)' }}>{a.scheme ? `via ${a.scheme}` : ''}</span>
+                  {contribution != null ? (
+                    <span title={`Attack contribution = (source strength (${(srcStr ?? 0).toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ color: '#ef4444', cursor: 'default', opacity: hasWeight ? 1 : 0.5 }}>
                       −{contribution.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({(srcStr ?? 0).toFixed(2)}×{edgeWeight.toFixed(1)}{hasWeight ? '' : '?'}×{atkMult.toFixed(1)})</span>
                     </span>
-                  )}
-                  {onGotoEntry && sourceNode?.source_entry_id && (
+                  ) : <span />}
+                  {onGotoEntry && sourceNode?.source_entry_id ? (
                     <button
                       onClick={(ev) => { ev.stopPropagation(); onGotoEntry(sourceNode.source_entry_id); }}
                       title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                      style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 3, background: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}
+                      style={{ padding: '0 4px', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 3, background: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}
                     >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
-                  )}
+                  ) : <span />}
                 </div>
                 {a.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: <Highlight text={a.warrant} /></div>}
-                {/* Expanded: show debater attribution + full claim text */}
                 {expanded && sourceNode && (
-                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(239,68,68,0.05)', borderRadius: 3 }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
+                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', borderRadius: 3 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Debater:</span> <strong>{speakerLabel(sourceNode.speaker)}</strong>
                     {onGotoEntry && sourceNode.source_entry_id && (
                       <button
                         onClick={() => onGotoEntry(sourceNode.source_entry_id)}
                         title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                        style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(249,115,22,0.4)', borderRadius: 3, background: 'none', color: '#f97316', cursor: 'pointer', fontWeight: 600 }}
+                        style={{ marginLeft: 6, padding: '0 4px', border: '1px solid rgba(249,115,22,0.4)', borderRadius: 3, background: 'none', color: '#f97316', cursor: 'pointer', fontWeight: 600 }}
                       >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
                     )}
-                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
+                    <div style={{ marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
                   </div>
                 )}
               </div>
@@ -1979,36 +2021,37 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
             const edgeWeightS = s.weight ?? 0.5;
             const contributionS = srcStrS != null ? srcStrS * edgeWeightS : undefined;
             return (
-              <div key={s.id} style={{ marginTop: 4, fontSize: '0.7rem', paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
-                <div>
-                  <AifBadge type="RA-node" />
-                  {'\u2190'} {s.source} <strong>supports</strong>{s.scheme ? <span style={{ color: 'var(--text-muted)' }}> via {s.scheme}</span> : ''}
-                  {contributionS != null && (
-                    <span title={`Support contribution = source strength (${(srcStrS ?? 0).toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ marginLeft: 8, fontSize: '0.62rem', color: '#22c55e', fontFamily: 'monospace', cursor: 'default', opacity: hasWeightS ? 1 : 0.5 }}>
+              <div key={s.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>RA-node</span>
+                  <span>← {s.source}</span>
+                  <strong>supports</strong>
+                  <span style={{ color: 'var(--text-muted)' }}>{s.scheme ? `via ${s.scheme}` : ''}</span>
+                  {contributionS != null ? (
+                    <span title={`Support contribution = source strength (${(srcStrS ?? 0).toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ color: '#22c55e', cursor: 'default', opacity: hasWeightS ? 1 : 0.5 }}>
                       +{contributionS.toFixed(2)} <span style={{ color: 'var(--text-muted)' }}>({(srcStrS ?? 0).toFixed(2)}×{edgeWeightS.toFixed(1)}{hasWeightS ? '' : '?'})</span>
                     </span>
-                  )}
-                  {onGotoEntry && sourceNode?.source_entry_id && (
+                  ) : <span />}
+                  {onGotoEntry && sourceNode?.source_entry_id ? (
                     <button
                       onClick={(ev) => { ev.stopPropagation(); onGotoEntry(sourceNode.source_entry_id); }}
                       title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                      style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 3, background: 'none', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
+                      style={{ padding: '0 4px', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 3, background: 'none', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
                     >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
-                  )}
+                  ) : <span />}
                 </div>
                 {s.warrant && <div style={{ paddingLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 2 }}>Warrant: {s.warrant}</div>}
-                {/* Expanded: show debater attribution + full claim text */}
                 {expanded && sourceNode && (
-                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', background: 'rgba(34,197,94,0.05)', borderRadius: 3 }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Debater:</span> <strong style={{ fontSize: '0.7rem' }}>{speakerLabel(sourceNode.speaker)}</strong>
+                  <div style={{ paddingLeft: 8, marginTop: 3, padding: '4px 8px', borderRadius: 3 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Debater:</span> <strong>{speakerLabel(sourceNode.speaker)}</strong>
                     {onGotoEntry && sourceNode.source_entry_id && (
                       <button
                         onClick={() => onGotoEntry(sourceNode.source_entry_id)}
                         title={`Go to ${stmtIdByEntry?.get(sourceNode.source_entry_id) || sourceNode.source_entry_id}`}
-                        style={{ marginLeft: 6, padding: '0 4px', fontSize: '0.55rem', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 3, background: 'none', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
+                        style={{ marginLeft: 6, padding: '0 4px', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 3, background: 'none', color: '#22c55e', cursor: 'pointer', fontWeight: 600 }}
                       >{stmtIdByEntry?.get(sourceNode.source_entry_id) || 'goto'}</button>
                     )}
-                    <div style={{ fontSize: '0.7rem', marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
+                    <div style={{ marginTop: 2 }}><Highlight text={sourceNode.text} /></div>
                   </div>
                 )}
               </div>
@@ -2016,19 +2059,19 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
           })}
           {/* Leave-one-out QBAF attribution */}
           {attribution && attribution.attributions.length > 0 && (
-            <div style={{ marginTop: 8, padding: '6px 8px', background: 'rgba(245,158,11,0.06)', borderRadius: 4, borderLeft: '2px solid rgba(245,158,11,0.4)' }}>
-              <div style={{ fontSize: '0.65rem', fontWeight: 700, color: '#f59e0b', marginBottom: 3 }}>QBAF Attribution (leave-one-out)</div>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 4 }}>{attribution.summary}</div>
+            <div style={{ marginTop: 8, padding: '6px 8px', borderRadius: 4, borderLeft: '2px solid rgba(245,158,11,0.4)' }}>
+              <div style={{ fontWeight: 700, color: '#000', background: 'rgba(245,158,11,0.15)', padding: '2px 6px', borderRadius: 3, marginBottom: 3, display: 'inline-block' }}>QBAF Attribution (leave-one-out)</div>
+              <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: 4 }}>{attribution.summary}</div>
               {attribution.attributions.slice(0, 6).map((a, i) => (
-                <div key={i} style={{ fontSize: '0.62rem', display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, fontWeight: i === 0 ? 700 : 400 }}>
-                  <span style={{ color: a.influence >= 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace', minWidth: 48, textAlign: 'right' }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 160px 100px 1fr', gap: '4px', alignItems: 'center', marginTop: 1 }}>
+                  <span style={{ color: a.influence >= 0 ? '#22c55e' : '#ef4444', textAlign: 'right' }}>
                     {a.influence >= 0 ? '+' : ''}{a.influence.toFixed(3)}
                   </span>
                   <span style={{ color: a.edgeType === 'attacks' ? '#ef4444' : '#22c55e' }}>
                     {a.edgeType}{a.attackType ? ` (${a.attackType})` : ''}
                   </span>
                   <span style={{ color: 'var(--text-muted)' }}>from {a.sourceId}</span>
-                  {a.scheme && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>via {a.scheme}</span>}
+                  <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{a.scheme ? `via ${a.scheme}` : ''}</span>
                 </div>
               ))}
               {attribution.attributions.length > 6 && (
@@ -2066,6 +2109,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
   // Detail pane now takes full height when an entry is selected (no resize needed).
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
+  // AN claim filters (t/117)
+  const [anFilterNodeId, setAnFilterNodeId] = useState('');
+  const [anFilterMode, setAnFilterMode] = useState<'all' | 'unattributed' | 'novel' | 'anchored'>('all');
   const [taxNodeMap, setTaxNodeMap] = useState<Map<string, Record<string, unknown>>>(new Map());
   const [policyMap, setPolicyMap] = useState<Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>>(new Map());
   const [allEdges, setAllEdges] = useState<TaxRefEdge[]>([]);
@@ -2951,12 +2997,62 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
             const modCount = [...modTraceByEntryId.values()].length;
 
+            // Apply AN claim filters (t/117)
+            const anNodeFilter = (n: ArgumentNetworkNode): boolean => {
+              const attr = n.claim_taxonomy_attribution;
+              if (anFilterMode === 'unattributed') return !!attr?.unattributed_reason;
+              if (anFilterMode === 'novel') return attr?.unattributed_reason === 'novel_argument';
+              if (anFilterMode === 'anchored') return !!attr && !attr.unattributed_reason;
+              if (anFilterNodeId.trim()) {
+                const q = anFilterNodeId.trim().toLowerCase();
+                return !!attr?.primary_ref?.toLowerCase().includes(q)
+                  || !!attr?.secondary_refs?.some(s => s.node_id.toLowerCase().includes(q));
+              }
+              return true;
+            };
+            const filteredGroups = entryGroups.map(g => ({
+              ...g,
+              nodes: g.nodes.filter(anNodeFilter),
+            })).filter(g => g.nodes.length > 0 || g.trace);
+
+            const filteredNodeCount = filteredGroups.reduce((sum, g) => sum + g.nodes.length, 0);
+            const isFiltered = anFilterMode !== 'all' || anFilterNodeId.trim() !== '';
+
             return (
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
                   {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
                 </div>
-                {entryGroups.map(({ entryId, nodes: groupNodes, trace }) => (
+                {/* AN claim filter bar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap', fontSize: '0.65rem' }}>
+                  <select
+                    value={anFilterMode}
+                    onChange={e => setAnFilterMode(e.target.value as typeof anFilterMode)}
+                    style={{ fontSize: '0.65rem', padding: '2px 4px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))' }}
+                  >
+                    <option value="all">All claims</option>
+                    <option value="unattributed">Unattributed only</option>
+                    <option value="novel">Novel arguments</option>
+                    <option value="anchored">Attributed only</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Filter by node ID…"
+                    value={anFilterNodeId}
+                    onChange={e => setAnFilterNodeId(e.target.value)}
+                    style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: 4, background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color, rgba(255,255,255,0.1))', width: 140 }}
+                  />
+                  {isFiltered && (
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {filteredNodeCount}/{an.nodes.length} shown
+                      <button
+                        onClick={() => { setAnFilterMode('all'); setAnFilterNodeId(''); }}
+                        style={{ marginLeft: 4, cursor: 'pointer', background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.65rem', padding: 0 }}
+                      >clear</button>
+                    </span>
+                  )}
+                </div>
+                {filteredGroups.map(({ entryId, nodes: groupNodes, trace }) => (
                   <div key={entryId}>
                     {/* Moderator deliberation banner */}
                     {trace && (
@@ -3030,6 +3126,70 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     })}
                   </div>
                 ))}
+                {/* Confidence evolution trace — shows taxonomy nodes whose confidence changed from this debate */}
+                {(() => {
+                  const taxState = useTaxonomyStore.getState();
+                  const debateId = debate.id;
+                  const impacts: { nodeId: string; label: string; pov: string; entry: import('../types/taxonomy').WeightHistoryEntry }[] = [];
+                  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+                    const file = taxState[pov];
+                    if (!file) continue;
+                    for (const n of file.nodes) {
+                      if (n.confidence_history) {
+                        for (const h of n.confidence_history) {
+                          if (h.reason?.includes(debateId)) {
+                            impacts.push({ nodeId: n.id, label: n.label, pov, entry: h });
+                          }
+                        }
+                      }
+                      if (n.priority_history) {
+                        for (const h of n.priority_history) {
+                          if (h.reason?.includes(debateId)) {
+                            impacts.push({ nodeId: n.id, label: n.label, pov, entry: h });
+                          }
+                        }
+                      }
+                      if (n.operationality_history) {
+                        for (const h of n.operationality_history) {
+                          if (h.reason?.includes(debateId)) {
+                            impacts.push({ nodeId: n.id, label: n.label, pov, entry: h });
+                          }
+                        }
+                      }
+                    }
+                  }
+                  if (impacts.length === 0) return null;
+                  return (
+                    <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: 'rgba(34,197,94,0.06)', borderLeft: '3px solid #22c55e' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.65rem', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                        Confidence Impact ({impacts.length})
+                      </div>
+                      {impacts.map((imp, i) => {
+                        const deltaColor = imp.entry.delta > 0 ? '#22c55e' : imp.entry.delta < 0 ? '#ef4444' : 'var(--text-muted)';
+                        return (
+                          <div key={i} style={{ fontSize: '0.65rem', marginBottom: 3, display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                            <code style={{ fontSize: '0.6rem', background: 'var(--bg-secondary)', padding: '0 3px', borderRadius: 2 }}>{imp.nodeId}</code>
+                            <span style={{ color: 'var(--text-muted)' }}>{imp.label.length > 40 ? imp.label.slice(0, 40) + '…' : imp.label}</span>
+                            <span style={{ fontWeight: 700 }}>{imp.entry.value.toFixed(2)}</span>
+                            <span style={{ color: deltaColor, fontWeight: 600 }}>
+                              {imp.entry.delta > 0 ? '+' : ''}{imp.entry.delta.toFixed(2)}
+                            </span>
+                            {imp.entry.attack_claim && (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }} title={imp.entry.attack_claim}>
+                                ← {imp.entry.attack_claim.length > 50 ? imp.entry.attack_claim.slice(0, 50) + '…' : imp.entry.attack_claim}
+                              </span>
+                            )}
+                            {imp.entry.robustness != null && imp.entry.robustness >= 2 && (
+                              <span style={{ fontSize: '0.55rem', padding: '0 4px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 600 }}>
+                                {imp.entry.robustness}× confirmed
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -4304,10 +4464,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                       const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
                                       const sc = ref?.relevance_score;
                                       const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                                      const tw = nodeWeights.get(g.node_id);
+                                      const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
+                                      const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
+                                      const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
                                       return (
                                         <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--accent)' }}>
                                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
+                                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+                                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? '#7c3aed' : '#6b7280' }}>P{prio}/5</span>}
+                                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? '#0d9488' : '#6b7280' }}>op:{oper}/5</span>}
                                           {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
                                         </li>
                                       );
@@ -4332,10 +4499,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                       const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
                                       const sc = ref?.relevance_score;
                                       const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                                      const tw = nodeWeights.get(g.node_id);
+                                      const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
+                                      const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
+                                      const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
                                       return (
                                         <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--accent)' }}>
                                           <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                                           {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
+                                          {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+                                          {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? '#7c3aed' : '#6b7280' }}>P{prio}/5</span>}
+                                          {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? '#0d9488' : '#6b7280' }}>op:{oper}/5</span>}
                                           {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
                                         </li>
                                       );
@@ -4399,10 +4573,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                               const ref = entry.taxonomy_refs?.find(r => r.node_id === g.node_id);
                                               const sc = ref?.relevance_score;
                                               const scColor = sc == null ? 'var(--text-muted)' : sc >= 0.45 ? '#16a34a' : sc >= 0.30 ? '#d97706' : '#dc2626';
+                                              const tw = nodeWeights.get(g.node_id);
+                                              const conf = (g as Record<string, unknown>).confidence as number | undefined ?? tw?.confidence;
+                                              const prio = (g as Record<string, unknown>).priority as number | undefined ?? tw?.priority;
+                                              const oper = (g as Record<string, unknown>).operationality as number | undefined ?? tw?.operationality;
                                               return (
                                                 <li key={gi} style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
                                                   <button onClick={() => setSelectedTaxRefId(selectedTaxRefId === g.node_id ? null : g.node_id)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--accent)', textDecoration: 'underline', fontFamily: 'monospace', fontSize: 'inherit' }}>{g.node_id}</button>
                                                   {sc != null && <span style={{ fontWeight: 600, color: scColor, marginLeft: 4 }}>{sc.toFixed(2)}</span>}
+                                                  {conf != null && <span style={{ marginLeft: 4, fontWeight: 600, color: conf >= 0.70 ? '#16a34a' : conf >= 0.50 ? '#2563eb' : '#d97706', background: conf < 0.50 ? '#fef3c7' : undefined, padding: conf < 0.50 ? '0 3px' : undefined, borderRadius: 2 }}>conf:{conf.toFixed(2)}</span>}
+                                                  {prio != null && <span style={{ marginLeft: 4, fontWeight: 600, color: prio >= 4 ? '#7c3aed' : '#6b7280' }}>P{prio}/5</span>}
+                                                  {oper != null && <span style={{ marginLeft: 4, fontWeight: 600, color: oper >= 4 ? '#0d9488' : '#6b7280' }}>op:{oper}/5</span>}
                                                   {g.why && <span style={{ marginLeft: 4 }}>{g.why}</span>}
                                                 </li>
                                               );

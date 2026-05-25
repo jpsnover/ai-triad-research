@@ -629,18 +629,19 @@ export function maxOverlapVsExisting(text: string, existing: { text: string }[])
 export function lookupTaxonomyEdgeWeight(
   sourceRefs: string[],
   targetRefs: string[],
-  taxonomyEdges?: { source: string; target: string; weight?: number }[],
+  taxonomyEdges?: { source: string; target: string; weight?: number; modulated_weight?: number }[],
 ): number | undefined {
   if (!taxonomyEdges || sourceRefs.length === 0 || targetRefs.length === 0) return undefined;
   const srcSet = new Set(sourceRefs);
   const tgtSet = new Set(targetRefs);
   let best: number | undefined;
   for (const e of taxonomyEdges) {
-    if (e.weight == null) continue;
+    const w = e.modulated_weight ?? e.weight;
+    if (w == null) continue;
     const match = (srcSet.has(e.source) && tgtSet.has(e.target))
       || (srcSet.has(e.target) && tgtSet.has(e.source));
-    if (match && (best === undefined || e.weight > best)) {
-      best = e.weight;
+    if (match && (best === undefined || w > best)) {
+      best = w;
     }
   }
   return best;

@@ -385,6 +385,7 @@ Export-ModuleMember -Function @(
     'Update-AITSourceIndex'
     'Get-PovLineage'
     'Get-IntellectualLineage'
+    'Invoke-BDIWeightAssignment'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>weighted-bdi-data-flow.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="weighted-bdi-data-flow-confidence-priority-and-diagnostics">Weighted BDI Data Flow: Confidence, Priority, and Diagnostics</h1>
+<p><strong>Author:</strong> CL.Investigate1 (Computational Linguist)
+<strong>Date:</strong> 2026-05-25
+<strong>Status:</strong> Reference document</p>
+<hr>
+<h2 id="overview">Overview</h2>
+<p>The debate engine uses two category-specific weights to control how taxonomy nodes influence agent behavior:</p>
+<ul>
+<li><strong>Belief Confidence</strong> (0.0–1.0) — evidential strength of empirical claims</li>
+<li><strong>Desire Priority</strong> (1–5) — normative importance of value commitments</li>
+</ul>
+<p>These weights affect node sorting in prompts, inline labeling, agent framing instructions, and post-debate evolution. This document traces the complete data flow.</p>
+<hr>
+<h2 id="pipeline-summary">Pipeline Summary</h2>
+<pre class="hljs"><code><div>INITIALIZATION                    DEBATE EXECUTION                  POST-DEBATE
+─────────────                    ────────────────                  ──────────
+
+assignWeights.ts                 debateEngine.ts                   confidenceEvolution.ts
+  │                                │                                 │
+  ├─ beliefConfidence.ts           ├─ taxonomyContext.ts              ├─ 3-condition gate
+  │    base + evidence +           │    weightedScore()               │    (attribution &gt;0.6
+  │    debate + edge boosts        │    nodeWeightLabel()             │     + undermine
+  │    → confidence [0.10,0.95]    │    formatTaxonomyContext()       │     + strength &gt;0.5)
+  │                                │      ↓                          │
+  ├─ doctrinalAnchoring.ts        │    Sort: rel × confidence (B)   ├─ computeUndermineDelta
+  │    cosine &gt; 0.55 →            │          rel × priority/5 (D)   │    ±0.05–0.10
+  │    floor at 0.60              │      ↓                          │
+  │                                │    Label: &quot;(confidence: 0.82)&quot;  ├─ drift cap ±0.30
+  ├─ desirePriority.ts            │           &quot;(priority: 4/5)&quot;     │
+  │    tree position → 2–4        │           &quot;[Speculative, 0.35]&quot; ├─ confidenceDedup.ts
+  │    doctrinal boundary → 5     │      ↓                          │    topic dedup (cos&gt;0.80)
+  │                                │    Instruction:                  │    attack dedup (cos&gt;0.85)
+  └─ Write to POV JSON            │    &quot;Lead with well-supported&quot;   │    cross-model robustness
+                                   │    &quot;Lead with core values&quot;      │
+                                   │      ↓                          └─ Write updated nodes
+                                   │    Agent prompt assembled            + history entries
+                                   │      ↓
+                                   │    Debate runs...
+                                   │      ↓
+                                   └─ calibrationLogger.ts
+                                        FIRE metrics, confidence
+                                        deferrals, bottleneck ID
+</div></code></pre>
+<hr>
+<h2 id="stage-1-initialization">Stage 1: Initialization</h2>
+<h3 id="11-belief-confidence-beliefconfidencets">1.1 Belief Confidence (<code>beliefConfidence.ts</code>)</h3>
+<p><code>computeBeliefConfidence(signals)</code> applies a multi-signal formula:</p>
+<pre class="hljs"><code><div>confidence = base + evidenceBoost + debateBoost + edgeBoost
+           → clamped [0.10, 0.95]
+</div></code></pre>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Source</th>
+<th>Range</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Base</strong></td>
+<td><code>epistemic_type</code> × <code>falsifiability</code> from graph attributes</td>
+<td>0.40–0.80</td>
+</tr>
+<tr>
+<td><strong>Evidence boost</strong></td>
+<td>+0.05 per unique source doc (capped +0.15)</td>
+<td>0–0.15</td>
+</tr>
+<tr>
+<td><strong>Debate boost</strong></td>
+<td>+0.03 per prior debate reference (capped +0.10)</td>
+<td>0–0.10</td>
+</tr>
+<tr>
+<td><strong>Edge boost</strong></td>
+<td>+0.02 per support edge, -0.02 per attack (capped ±0.05)</td>
+<td>-0.05–+0.05</td>
+</tr>
+</tbody>
+</table>
+<p>Base scores by epistemic type:</p>
+<table>
+<thead>
+<tr>
+<th>Epistemic Type</th>
+<th style="text-align:right">High Falsifiability</th>
+<th style="text-align:right">Medium</th>
+<th style="text-align:right">Low</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>empirical_claim</code></td>
+<td style="text-align:right">0.80</td>
+<td style="text-align:right">0.70</td>
+<td style="text-align:right">0.60</td>
+</tr>
+<tr>
+<td><code>predictive</code></td>
+<td style="text-align:right">0.40</td>
+<td style="text-align:right">0.40</td>
+<td style="text-align:right">0.40</td>
+</tr>
+<tr>
+<td><code>interpretive_lens</code></td>
+<td style="text-align:right">0.50</td>
+<td style="text-align:right">0.50</td>
+<td style="text-align:right">0.50</td>
+</tr>
+<tr>
+<td><code>definitional</code></td>
+<td style="text-align:right">0.50</td>
+<td style="text-align:right">0.50</td>
+<td style="text-align:right">0.50</td>
+</tr>
+</tbody>
+</table>
+<p><code>assignBeliefConfidences()</code> runs this for all Belief nodes in a POV, sets <code>node.confidence</code> and creates the first <code>confidence_history</code> entry.</p>
+<h3 id="12-doctrinal-anchoring-doctrinalanchoringts">1.2 Doctrinal Anchoring (<code>doctrinalAnchoring.ts</code>)</h3>
+<p>Prevents core POV beliefs from being scored as speculative merely due to low source coverage.</p>
+<ol>
+<li>Embed each POV's 4 doctrinal boundary strings (all-MiniLM-L6-v2, 384-dim)</li>
+<li>For each Belief: compute cosine similarity to all boundary vectors</li>
+<li>If max similarity ≥ <strong>0.55</strong> → <code>doctrinally_anchored = true</code></li>
+<li>If anchored AND confidence &lt; <strong>0.60</strong>:
+<ul>
+<li>Save original as <code>evidential_confidence</code></li>
+<li>Raise <code>confidence</code> to the floor (0.60)</li>
+</ul>
+</li>
+</ol>
+<h3 id="13-desire-priority-desirepriorityts">1.3 Desire Priority (<code>desirePriority.ts</code>)</h3>
+<p><code>assignDesirePriorities()</code> scores based on tree position and doctrinal status:</p>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th style="text-align:center">Priority</th>
+<th>Label</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Doctrinal boundary</td>
+<td style="text-align:center"><strong>5</strong></td>
+<td>Core</td>
+</tr>
+<tr>
+<td>Root node (no parent)</td>
+<td style="text-align:center">4</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Mid-tree (parent + children)</td>
+<td style="text-align:center">3</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Leaf node (parent, no children)</td>
+<td style="text-align:center">2</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-orchestration-assignweightsts">1.4 Orchestration (<code>assignWeights.ts</code>)</h3>
+<p>CLI entry point: <code>npx tsx lib/debate/assignWeights.ts [--dry-run]</code></p>
+<p>Runs all three computations per POV, writes updated nodes back to disk. Outputs summary stats: avg/min/max confidence, anchoring counts, priority distribution.</p>
+<hr>
+<h2 id="stage-2-storage">Stage 2: Storage</h2>
+<h3 id="povnode-fields-taxonomytypests">PovNode Fields (<code>taxonomyTypes.ts</code>)</h3>
+<pre class="hljs"><code><div><span class="hljs-comment">// Beliefs only</span>
+<span class="hljs-attr">confidence</span>?: <span class="hljs-built_in">number</span>;                  <span class="hljs-comment">// [0.0, 1.0]</span>
+<span class="hljs-attr">confidence_history</span>?: <span class="hljs-title class_">WeightHistoryEntry</span>[];
+<span class="hljs-attr">doctrinally_anchored</span>?: <span class="hljs-built_in">boolean</span>;
+<span class="hljs-attr">evidential_confidence</span>?: <span class="hljs-built_in">number</span>;       <span class="hljs-comment">// Pre-floor value when anchored</span>
+
+<span class="hljs-comment">// Desires only</span>
+<span class="hljs-attr">priority</span>?: <span class="hljs-built_in">number</span>;                    <span class="hljs-comment">// 1–5</span>
+<span class="hljs-attr">priority_history</span>?: <span class="hljs-title class_">WeightHistoryEntry</span>[];
+</div></code></pre>
+<h3 id="weight-history-entry">Weight History Entry</h3>
+<pre class="hljs"><code><div><span class="hljs-keyword">interface</span> <span class="hljs-title class_">WeightHistoryEntry</span> {
+  <span class="hljs-attr">date</span>: <span class="hljs-built_in">string</span>;              <span class="hljs-comment">// ISO 8601</span>
+  <span class="hljs-attr">value</span>: <span class="hljs-built_in">number</span>;             <span class="hljs-comment">// New value</span>
+  <span class="hljs-attr">delta</span>: <span class="hljs-built_in">number</span>;             <span class="hljs-comment">// Change from prior</span>
+  <span class="hljs-attr">reason</span>: <span class="hljs-built_in">string</span>;            <span class="hljs-comment">// &quot;Initial multi-signal assignment&quot; or &quot;Debate X: undermined&quot;</span>
+  <span class="hljs-attr">attack_claim</span>?: <span class="hljs-built_in">string</span>;     <span class="hljs-comment">// AN claim text that triggered change</span>
+  <span class="hljs-attr">supersedes</span>?: <span class="hljs-built_in">string</span>;       <span class="hljs-comment">// Debate ID of prior update (dedup)</span>
+  <span class="hljs-attr">robustness</span>?: <span class="hljs-built_in">number</span>;       <span class="hljs-comment">// Models confirming (≥2 = cross-model)</span>
+  <span class="hljs-attr">model_confirmations</span>?: <span class="hljs-built_in">string</span>[];
+}
+</div></code></pre>
+<hr>
+<h2 id="stage-3-prompt-injection">Stage 3: Prompt Injection</h2>
+<h3 id="weighted-sorting-taxonomycontextts88-97">Weighted Sorting (<code>taxonomyContext.ts:88-97</code>)</h3>
+<pre class="hljs"><code><div><span class="hljs-keyword">function</span> <span class="hljs-title function_">weightedScore</span>(<span class="hljs-params">node, relevance, category</span>) {
+  <span class="hljs-keyword">if</span> (<span class="hljs-title class_">Beliefs</span>)    → relevance × confidence
+  <span class="hljs-keyword">if</span> (<span class="hljs-title class_">Desires</span>)    → relevance × (priority / <span class="hljs-number">5</span>)
+  <span class="hljs-keyword">if</span> (<span class="hljs-title class_">Intentions</span>) → relevance alone
+}
+</div></code></pre>
+<p>High-confidence Beliefs and high-priority Desires sort to the top of their BDI sections.</p>
+<h3 id="inline-labels-taxonomycontextts100-111">Inline Labels (<code>taxonomyContext.ts:100-111</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Condition</th>
+<th>Label</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Belief, confidence ≥ 0.50</td>
+<td><code>(confidence: 0.82)</code></td>
+</tr>
+<tr>
+<td>Belief, confidence &lt; 0.50</td>
+<td><code>[Speculative, confidence: 0.35]</code></td>
+</tr>
+<tr>
+<td>Belief, doctrinally anchored</td>
+<td><code>(confidence: 0.60, doctrinally anchored)</code></td>
+</tr>
+<tr>
+<td>Desire</td>
+<td><code>(priority: 4/5)</code></td>
+</tr>
+<tr>
+<td>Intention</td>
+<td><em>(no label)</em></td>
+</tr>
+</tbody>
+</table>
+<h3 id="framing-instructions-taxonomycontextts148-152">Framing Instructions (<code>taxonomyContext.ts:148-152</code>)</h3>
+<p>When weighted data is present, the formatter injects category-specific instructions:</p>
+<ul>
+<li><strong>Beliefs</strong>: <em>&quot;Ordered by evidential confidence. Lead with well-supported claims. When you cite a low-confidence Belief, acknowledge the uncertainty explicitly.&quot;</em></li>
+<li><strong>Desires</strong>: <em>&quot;Ordered by priority. Lead with non-negotiable values. Lower-priority desires may be traded off in argument.&quot;</em></li>
+</ul>
+<h3 id="example-prompt-output">Example Prompt Output</h3>
+<pre class="hljs"><code><div>=== YOUR EMPIRICAL GROUNDING (what you take as true) ===
+Ordered by evidential confidence. Lead with well-supported claims.
+
+★ [acc-bel-042] (relevance: 0.71) (confidence: 0.82) Inherent Power-Seeking: ...
+★ [acc-bel-015] (relevance: 0.68) (confidence: 0.75, doctrinally anchored) Market Efficiency: ...
+  [acc-bel-088] (relevance: 0.52) [Speculative, confidence: 0.35] Rapid Capability Emergence: ...
+
+=== YOUR NORMATIVE COMMITMENTS (what you argue should happen) ===
+Ordered by priority. Lead with non-negotiable values.
+
+★ [acc-des-001] (relevance: 0.80) (priority: 5/5) Innovation Freedom: ...
+★ [acc-des-013] (relevance: 0.65) (priority: 4/5) Long-Term AI Benefit: ...
+  [acc-des-027] (relevance: 0.48) (priority: 2/5) Cost Reduction: ...
+</div></code></pre>
+<h3 id="calibration-audit-promptsts2121-2172">Calibration Audit (<code>prompts.ts:2121-2172</code>)</h3>
+<p>When belief confidences are available, the extraction/evaluation prompt includes a calibration block that asks the LLM to verify whether the draft's rhetoric matches evidential strength — citing a low-confidence Belief as &quot;established fact&quot; is flagged as a weakness.</p>
+<hr>
+<h2 id="stage-4-mid-debate-evolution">Stage 4: Mid-Debate Evolution</h2>
+<h3 id="confidence-updates-confidenceevolutionts">Confidence Updates (<code>confidenceEvolution.ts</code>)</h3>
+<p>After a debate completes, the engine evaluates whether Belief confidences should change.</p>
+<p><strong>Three-condition gate</strong> (all must pass to reduce confidence):</p>
+<ol>
+<li><code>attribution_confidence &gt; 0.60</code> — the AN claim clearly instantiates the Belief</li>
+<li><code>attack_type === 'undermine'</code> — the attack targets evidential foundations (not just conclusions)</li>
+<li><code>attack_strength &gt; 0.5</code> — the attack is strong enough to matter</li>
+</ol>
+<p><strong>Update magnitude</strong> (<code>computeUndermineDelta</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Claim Outcome</th>
+<th style="text-align:center">Strength</th>
+<th style="text-align:right">Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claim survived attacks</td>
+<td style="text-align:center">&gt; 0.7</td>
+<td style="text-align:right"><strong>+0.05</strong></td>
+</tr>
+<tr>
+<td>Claim in contested middle</td>
+<td style="text-align:center">0.3–0.7</td>
+<td style="text-align:right"><strong>0</strong></td>
+</tr>
+<tr>
+<td>Claim fell below viability</td>
+<td style="text-align:center">&lt; 0.3</td>
+<td style="text-align:right"><strong>-0.05 to -0.10</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Drift cap</strong>: Total change from initial assignment capped at ±0.30 (<code>MAX_DRIFT</code>). Prevents a single debate from radically altering long-held positions.</p>
+<p><strong>Additional signals</strong>:</p>
+<ul>
+<li>Cross-POV validation (opposing camp cites Belief as evidence): <strong>+0.10</strong></li>
+<li>Document contradiction discovered: <strong>-0.15</strong></li>
+</ul>
+<h3 id="priority-updates">Priority Updates</h3>
+<ul>
+<li><strong>Concession during debate</strong>: reduce priority by 1</li>
+<li><strong>Identified as crux of disagreement</strong>: increase priority by 1</li>
+</ul>
+<h3 id="cross-debate-deduplication-confidencededupts">Cross-Debate Deduplication (<code>confidenceDedup.ts</code>)</h3>
+<p>Prevents multi-model debate runs from double-penalizing the same Belief.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th style="text-align:center">Similarity Threshold</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Same topic</td>
+<td style="text-align:center">cosine &gt; 0.80</td>
+<td>Take max magnitude; discard weaker</td>
+</tr>
+<tr>
+<td>Same attack vector, same model</td>
+<td style="text-align:center">cosine &gt; 0.85</td>
+<td>Replace if stronger; discard if weaker</td>
+</tr>
+<tr>
+<td>Same attack vector, different model</td>
+<td style="text-align:center">cosine &gt; 0.85</td>
+<td><strong>Robustness signal</strong> — record both models confirming</td>
+</tr>
+</tbody>
+</table>
+<p>Cross-model robustness (≥2 models confirming the same attack) is recorded in the history entry as <code>robustness: N</code> and <code>model_confirmations: [...]</code>.</p>
+<h3 id="history-pruning">History Pruning</h3>
+<p>Keep last 30 entries OR entries ≤12 months old. Track pruned net delta for audit trail.</p>
+<hr>
+<h2 id="stage-5-diagnostics-surfacing">Stage 5: Diagnostics Surfacing</h2>
+<h3 id="diagnosticswindow--confidence-impact-panel-diagnosticswindowtsx3119-3175">DiagnosticsWindow — Confidence Impact Panel (<code>DiagnosticsWindow.tsx:3119-3175</code>)</h3>
+<p>After a debate loads, scans all POV taxonomy nodes for <code>confidence_history</code> and <code>priority_history</code> entries matching the debate ID. Renders a panel showing:</p>
+<pre class="hljs"><code><div>Confidence Impact (5)
+  acc-bel-042    Inherent Power-Seeking       0.82    +0.05    Survived attacks
+  saf-des-015    Mitigating Displacement       3       -1       Concession
+  skp-bel-068    Long-Horizon Uncertainty     0.45    -0.08    Undermined
+</div></code></pre>
+<ul>
+<li>Delta colored green (+), red (-), or gray (0)</li>
+<li>Robustness badge: &quot;2× confirmed&quot; for cross-model agreement</li>
+<li>Attack claim snippet shown for undermine-driven changes</li>
+</ul>
+<h3 id="node-detail-view-graphattributespaneltsx">Node Detail View (<code>GraphAttributesPanel.tsx</code>)</h3>
+<p><strong>Belief nodes</strong>:</p>
+<ul>
+<li>Confidence slider (0.00–1.00), color-coded: green ≥0.70, blue 0.40–0.69, orange &lt;0.40</li>
+<li>Doctrinal anchor badge with tooltip explaining the floor mechanism</li>
+<li>Evidential confidence display when floor was applied: <em>&quot;Evidential: 0.35 (floor applied: 0.60)&quot;</em></li>
+<li>History summary: <em>&quot;3 update(s) — latest: Debate d-2024-11-18: survived&quot;</em></li>
+</ul>
+<p><strong>Desire nodes</strong>:</p>
+<ul>
+<li>Priority dropdown (1–5)</li>
+<li>P5 flagged: &quot;Core — doctrinal boundary&quot;</li>
+<li>History summary with latest reason</li>
+</ul>
+<h3 id="calibration-log-calibrationloggerts">Calibration Log (<code>calibrationLogger.ts</code>)</h3>
+<p>Each debate session appends to <code>calibration-log.json</code>:</p>
+<ul>
+<li><code>fire_confidence_threshold</code> — current FIRE acceptance threshold</li>
+<li><code>confidence_deferrals</code> — times extraction confidence was deferred</li>
+<li><code>confidence_bottleneck</code> — which signal bottlenecked ('extraction' | 'stability' | 'none')</li>
+<li><code>fire_survived_rate</code> — fraction of borderline (0.5–0.7) claims that survived debate</li>
+<li>Used by the calibration optimizer for real-time threshold auto-tuning</li>
+</ul>
+<hr>
+<h2 id="file-reference">File Reference</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Key Functions</th>
+<th>Stage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>beliefConfidence.ts</code></td>
+<td><code>computeBeliefConfidence()</code>, <code>assignBeliefConfidences()</code></td>
+<td>Init</td>
+</tr>
+<tr>
+<td><code>desirePriority.ts</code></td>
+<td><code>computeTreePriority()</code>, <code>assignDesirePriorities()</code></td>
+<td>Init</td>
+</tr>
+<tr>
+<td><code>doctrinalAnchoring.ts</code></td>
+<td><code>computeDoctrinalAnchoring()</code></td>
+<td>Init</td>
+</tr>
+<tr>
+<td><code>assignWeights.ts</code></td>
+<td>CLI orchestrator</td>
+<td>Init</td>
+</tr>
+<tr>
+<td><code>taxonomyTypes.ts:59-86</code></td>
+<td><code>PovNode</code> fields, <code>WeightHistoryEntry</code></td>
+<td>Storage</td>
+</tr>
+<tr>
+<td><code>taxonomyContext.ts:88-190</code></td>
+<td><code>weightedScore()</code>, <code>nodeWeightLabel()</code>, <code>formatTaxonomyContext()</code></td>
+<td>Prompt</td>
+</tr>
+<tr>
+<td><code>prompts.ts:2121-2172</code></td>
+<td>Confidence calibration audit block</td>
+<td>Prompt</td>
+</tr>
+<tr>
+<td><code>confidenceEvolution.ts</code></td>
+<td><code>evaluateGate()</code>, <code>computeUndermineDelta()</code>, <code>pruneHistory()</code></td>
+<td>Evolution</td>
+</tr>
+<tr>
+<td><code>confidenceDedup.ts</code></td>
+<td><code>evaluateDedup()</code>, cross-model robustness</td>
+<td>Evolution</td>
+</tr>
+<tr>
+<td><code>DiagnosticsWindow.tsx:3119-3175</code></td>
+<td>Confidence impact panel</td>
+<td>Diagnostics</td>
+</tr>
+<tr>
+<td><code>GraphAttributesPanel.tsx</code></td>
+<td>Sliders, badges, history summary</td>
+<td>Diagnostics</td>
+</tr>
+<tr>
+<td><code>calibrationLogger.ts</code></td>
+<td>FIRE metrics, confidence deferrals</td>
+<td>Diagnostics</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="design-principles">Design Principles</h2>
+<ol>
+<li>
+<p><strong>Weights are signals, not gates.</strong> Low confidence doesn't block a Belief from injection — it changes its sort position and label. The agent sees it and can choose to cite it with appropriate hedging.</p>
+</li>
+<li>
+<p><strong>Doctrinal anchoring prevents epistemic bootstrapping.</strong> A core POV belief shouldn't be scored as &quot;speculative&quot; just because it has fewer source docs than an empirical claim. The floor ensures doctrinal positions maintain minimum presence.</p>
+</li>
+<li>
+<p><strong>Evolution is conservative.</strong> The 3-condition gate + drift cap ensures that confidence changes are evidence-driven and bounded. A single bad debate can't destroy a well-supported Belief.</p>
+</li>
+<li>
+<p><strong>Cross-model robustness adds signal, not penalty.</strong> When two different models independently confirm the same attack on a Belief, that's recorded as a robustness signal — stronger evidence than a single model's judgment.</p>
+</li>
+<li>
+<p><strong>Priority is structural, not evidential.</strong> Desire priority comes from tree position and doctrinal status, not from how many sources mention it. This reflects the normative nature of Desires — they're commitments, not hypotheses.</p>
+</li>
+</ol>
+
+</body>
+</html>

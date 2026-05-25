@@ -33,16 +33,18 @@ Institutional memory for failure patterns across the AI Triad Research project.
 **Instances:**
 - 2026-05-21 — Taxonomy Editor agent hit heredoc failures twice when running Python code containing TSX string literals with nested single quotes (p/6#1).
 - 2026-05-24 — PowerShell agent: `pwsh -Command '...'` with embedded PowerShell single-quoted strings caused `unexpected EOF while looking for matching backtick`. Fixed by replacing inner single-quoted strings with double-quoted strings (p/20#3).
+- 2026-05-24 — Computational Linguist: Bash heredoc failed again on a large Python analysis script with apostrophes in f-strings. Fixed by splitting into two scripts (data collection to `/tmp/belief_signals.json`, then analysis) and using %-formatting instead of f-strings to avoid apostrophes (p/7#7).
 
 **Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Any nested single quotes inside a single-quoted outer wrapper will break the shell parser.
 
 **Prevention:**
-1. Split complex multi-step scripts into sequential small `python3 -c` commands, isolating steps that do not have quote conflicts.
-2. For steps that require embedded single quotes, use an alternate heredoc delimiter (e.g., `<< 'XEOF'`) combined with Python raw strings to minimize escaping.
-3. Prefer the Edit/Write tools over Bash heredocs when writing or modifying files that contain mixed-language quoting (Python + TSX, shell + JS, etc.).
-4. When Bash quoting gets complex, consider writing a temp script file with the Write tool and then executing it, rather than inlining code in a heredoc.
+1. **First choice:** Use the Write tool to create a temp `.py` script file, then execute it with Bash — avoids all quoting issues.
+2. Split complex scripts into smaller pieces that each avoid quote conflicts, passing data via temp files (e.g., JSON to `/tmp/`).
+3. In Python, use %-formatting or `.format()` instead of f-strings when the content will pass through Bash.
+4. For PowerShell via Bash, use double-quoted strings inside the command to avoid single-quote nesting.
+5. Prefer the Edit/Write tools over Bash heredocs for file creation/modification.
 
-**Status:** Resolved — systemic prevention via AGENTS.md File Editing Rule (q/4 approved, p/8#7).
+**Status:** Resolved — AGENTS.md rule broadened to cover both file editing and script execution (p/8#14). Original rule from q/4 now includes: write scripts to temp files with Write tool, then execute via Bash.
 
 **Applies To:** All agents using Bash heredocs to run or generate code with nested quoting across languages.
 
@@ -128,21 +130,64 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## [PowerShell] Strict Mode Crashes on Missing Properties
+## [PowerShell] Strict Mode Unexpected Evaluation Failures
 
-**Pattern:** Accessing a property that doesn't exist on a PSObject throws a terminating error under `Set-StrictMode -Version Latest`, instead of returning `$null`.
+**Pattern:** PowerShell strict mode causes unexpected failures beyond simple missing-property access — including constructor calls and complex expressions inside inline assignments.
 
 **Instances:**
-- 2026-05-22 — `Get-PovLineage` crashed with "The property 'parent_id' cannot be found on this object" when traversing nodes (e.g., situations nodes) that lack a `parent_id` property (p/20#1).
+- 2026-05-22 — `Get-PovLineage` crashed with "The property 'parent_id' cannot be found on this object" when traversing nodes that lack a `parent_id` property (p/20#1).
+- 2026-05-24 — `HashSet[string]::new([System.StringComparer]::OrdinalIgnoreCase)` inside an inline `if/else` assignment threw "cannot call a method on a null-valued expression". Fixed by simplifying to block `if/else` with `HashSet[string]::new()` (no constructor args) (p/20#5).
+- 2026-05-25 — `.Count` on empty JSON arrays from `ConvertFrom-Json` threw under strict mode. `children: []` and `situation_refs: []` produce objects where `.Count` is unavailable. Fixed by using `foreach` with `break` to test emptiness instead (p/20#9).
 
-**Root Cause:** PowerShell strict mode disallows accessing non-existent properties. JSON-sourced objects have inconsistent schemas — not every node has every property. Code assumed `parent_id` would always exist, but some node types omit it entirely.
+**Root Cause:** PowerShell strict mode interacts unpredictably with complex expressions and JSON-sourced objects — missing properties throw terminating errors, .NET constructors can fail in inline conditionals, and `ConvertFrom-Json` empty arrays may lack `.Count` unlike native `@()` arrays.
 
 **Prevention:**
 1. Guard property access with `$obj.PSObject.Properties['property_name']` before reading the value.
-2. When working with JSON-sourced data that has variable schemas, assume any property may be absent and check before accessing.
-3. Consider wrapping frequently accessed optional properties in a helper function to reduce boilerplate.
+2. Avoid complex .NET constructor calls inside inline `if/else` expressions — use block `if/else` with simple constructors instead.
+3. For JSON-sourced arrays, don't rely on `.Count` — use `foreach` with `break`, `@($array).Count`, or `$null -eq $array` to test emptiness.
+4. When working with JSON-sourced data that has variable schemas, assume any property may be absent.
+5. When strict mode causes unexpected failures with valid-looking code, simplify the expression — break it into multiple statements.
 
-**Applies To:** All agents writing PowerShell that reads JSON data or works with heterogeneous PSObjects under strict mode.
+**Status:** Resolved — "Strict Mode + JSON Guardrails" section added to `scripts/AGENTS.md` (p/20#12).
+
+**Applies To:** All agents writing PowerShell under strict mode, especially with .NET types or JSON data.
+
+---
+
+## [PowerShell] Private Module Functions Not Available in Standalone Scripts
+
+**Pattern:** Calling a `Private/` module function (e.g., `Get-DataRoot`) from a standalone `.ps1` script fails with "not recognized" because private functions are only available within the module scope.
+
+**Instances:**
+- 2026-05-25 — PowerShell agent: `Get-DataRoot` not recognized when called from a standalone BDI ID rename script (t/120, p/20#7).
+
+**Root Cause:** Functions in `Private/` are internal to the module — they are not exported and not available to scripts run outside `Import-Module`. Standalone scripts must resolve paths independently.
+
+**Prevention:**
+1. Standalone scripts must not reference `Private/` module functions — resolve values directly (e.g., read `.aitriad.json` for data root).
+2. Only `Public/` functions are available after `Import-Module` — check the module manifest's `FunctionsToExport` if unsure.
+3. If a private helper is needed outside the module, either promote it to `Public/` or duplicate the logic.
+
+**Applies To:** All agents writing standalone PowerShell scripts that interact with module functionality.
+
+---
+
+## [PowerShell] Cmdlet Return Types Are Not Always Strings
+
+**Pattern:** PowerShell cmdlets return rich objects, not plain strings. Treating the return value as a string causes unexpected failures (e.g., `.Length` on a `PathInfo` object).
+
+**Instances:**
+- 2026-05-25 — PowerShell agent: `Resolve-Path` returns a `PathInfo` object, not a string. `.Length` failed on the object. Fixed by appending `.Path` to get the string value (t/120, p/20#7).
+
+**Root Cause:** PowerShell cmdlets return typed objects. `Resolve-Path` returns `System.Management.Automation.PathInfo`, `Get-Item` returns `FileInfo`/`DirectoryInfo`, etc. String operations or property access assumes the wrong type.
+
+**Prevention:**
+1. Use `.Path` after `Resolve-Path` to extract the string path.
+2. Use `.FullName` after `Get-Item`/`Get-ChildItem` for string paths.
+3. When in doubt about a cmdlet's return type, check with `(Resolve-Path .).GetType().FullName`.
+4. Cast explicitly with `[string]` if you need a string from a rich object.
+
+**Applies To:** All agents writing PowerShell scripts.
 
 ---
 
@@ -235,6 +280,25 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Do not assume `.js` files exist — check for a build/dist directory first.
 
 **Applies To:** All agents working with TypeScript source in the Electron apps or debate engine.
+
+---
+
+## [Build] Unix Paths in Node.js Fail on Windows
+
+**Pattern:** Node.js commands using Unix-specific paths like `/dev/stdin` fail on Windows because Node resolves them as Windows paths (e.g., `C:\dev\stdin` → ENOENT).
+
+**Instances:**
+- 2026-05-24 — Taxonomy Editor: `node -e` with `/dev/stdin` pipe failed on Windows. Node resolved `/dev/stdin` as `C:\dev\stdin` which doesn't exist. Fixed by writing a temp `.mjs` script file instead of piping (p/6#5).
+
+**Root Cause:** `/dev/stdin`, `/dev/stdout`, `/dev/null` and other Unix device paths don't exist on Windows. Node.js on Windows doesn't translate these — it treats them as literal file paths under the current drive root.
+
+**Prevention:**
+1. Avoid `/dev/stdin` piping patterns — write temp script files (`.mjs` or `.js`) and execute them directly.
+2. Use platform-agnostic alternatives: `process.stdin` in Node.js code instead of `/dev/stdin` file paths.
+3. For `/dev/null`, use `NUL` on Windows or use cross-platform libraries.
+4. When writing Bash commands that run Node.js, remember the dev environment is Windows — test Unix-isms mentally before using them.
+
+**Applies To:** All agents running Node.js commands on this Windows dev environment.
 
 ---
 

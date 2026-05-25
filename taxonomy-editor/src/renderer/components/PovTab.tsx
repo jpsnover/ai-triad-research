@@ -22,7 +22,15 @@ import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
 import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../data/lineageCategories';
-import { POV_KEYS } from '@lib/debate/types';
+import { POV_KEYS, POVER_INFO } from '@lib/debate/types';
+import type { SpeakerId } from '@lib/debate/types';
+
+/** Map taxonomy POV name → POVER_INFO speaker key */
+const POV_TO_SPEAKER: Record<string, Exclude<SpeakerId, 'user'>> = {
+  accelerationist: 'prometheus',
+  safetyist: 'sentinel',
+  skeptic: 'cassandra',
+};
 import { api } from '@bridge';
 
 interface PovTabProps {
@@ -556,6 +564,7 @@ export function PovTab({ pov }: PovTabProps) {
               >
                 <option value="id">Sort: ID</option>
                 <option value="label">Sort: Label</option>
+                <option value="priority">Sort: Priority</option>
                 <option value="similarity">Sort: Similarity</option>
               </select>
               <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
@@ -564,6 +573,45 @@ export function PovTab({ pov }: PovTabProps) {
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>
+          {/* Doctrinal Boundaries — collapsible section (t/126) */}
+          {(() => {
+            const speakerKey = POV_TO_SPEAKER[pov.toLowerCase()];
+            const boundaries = speakerKey ? POVER_INFO[speakerKey]?.doctrinal_boundaries : undefined;
+            if (!boundaries || boundaries.length === 0) return null;
+            const storageKey = `doctrinal-boundaries-collapsed-${pov}`;
+            const [collapsed, setCollapsed] = useState(() => {
+              const stored = localStorage.getItem(storageKey);
+              return stored !== null ? stored === 'true' : true; // collapsed by default
+            });
+            const toggleCollapsed = () => {
+              const next = !collapsed;
+              setCollapsed(next);
+              localStorage.setItem(storageKey, String(next));
+            };
+            const accentColor = POVER_INFO[speakerKey].color;
+            return (
+              <div className="doctrinal-boundaries">
+                <button
+                  className="doctrinal-boundaries-header"
+                  onClick={toggleCollapsed}
+                  aria-expanded={!collapsed}
+                >
+                  <span className="doctrinal-boundaries-arrow">{collapsed ? '\u25B8' : '\u25BE'}</span>
+                  <span className="doctrinal-boundaries-label">Doctrinal Boundaries ({boundaries.length})</span>
+                </button>
+                {!collapsed && (
+                  <div className="doctrinal-boundaries-items">
+                    {boundaries.map((b, i) => (
+                      <div key={i} className="doctrinal-boundaries-item">
+                        <span aria-hidden="true" style={{ color: accentColor }}>✕</span>
+                        <span>{b}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           <div className="list-panel-items">
             <NodeTree
               nodes={file.nodes}

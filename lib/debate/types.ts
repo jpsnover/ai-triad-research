@@ -845,6 +845,19 @@ export interface ArgumentNetworkNode {
     computed_strength: number;
     qbaf_iterations: number;
   };
+  /** Post-extraction taxonomy attribution: which POV node(s) this claim instantiates. */
+  claim_taxonomy_attribution?: ClaimTaxonomyAttribution;
+}
+
+export interface ClaimTaxonomyAttribution {
+  /** The taxonomy node ID this claim most closely instantiates. */
+  primary_ref: string;
+  /** Cosine similarity between claim embedding and node embedding (0-1). */
+  attribution_confidence: number;
+  /** Secondary refs above the 0.40 threshold. */
+  secondary_refs?: { node_id: string; similarity: number }[];
+  /** Reason the claim was unattributed, if applicable. */
+  unattributed_reason?: 'novel_argument' | 'no_embedding';
 }
 
 export interface ArgumentNetworkEdge {
@@ -993,9 +1006,22 @@ export interface StageProvenance {
   timestamp: string;
 }
 
+/** Grounding node linking a claim/angle to a taxonomy node. */
+export interface GroundingRef {
+  node_id: string;
+  label?: string;
+  why: string;
+  /** Belief confidence (0.0–1.0). Present for Belief grounding nodes. */
+  confidence?: number;
+  /** Desire priority (1–5). Present for Desire grounding nodes. */
+  priority?: number;
+  /** Intention operationality (1–5). Present for Intention grounding nodes. */
+  operationality?: number;
+}
+
 export interface BriefWorkProduct {
   situation_assessment: string;
-  key_claims_to_address: { claim: string; speaker: string; an_id?: string; grounding?: { node_id: string; why: string }[] }[];
+  key_claims_to_address: { claim: string; speaker: string; an_id?: string; grounding?: GroundingRef[] }[];
   relevant_commitments: { speaker: string; commitment: string; type: string }[];
   edge_tensions: { edge: string; relevance: string }[];
   phase_considerations: string;
@@ -1057,9 +1083,9 @@ export interface TurnPipelineResult {
 
 export interface OpeningBriefWorkProduct {
   situation_assessment: string;
-  strongest_angles: { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[];
+  strongest_angles: { angle: string; why: string; grounding?: GroundingRef[] }[];
   key_tensions: { tension: string; opportunity: string }[];
-  document_claims_to_engage?: { d_id: string; claim: string; stance: string; why: string; grounding?: { node_id: string; why: string }[] }[];
+  document_claims_to_engage?: { d_id: string; claim: string; stance: string; why: string; grounding?: GroundingRef[] }[];
   prior_positions_to_address?: { speaker: string; position: string; response_strategy: string }[];
 }
 
@@ -1134,6 +1160,19 @@ export interface ClaimExtractionTrace {
   // Drift signals
   prompt_hash: string;
   extraction_prompt_version: string;
+
+  // Per-claim taxonomy attribution (t/110)
+  attribution_attributed?: number;
+  attribution_unattributed?: number;
+  attribution_missing_embedding?: number;
+  attribution_novel_argument?: number;
+  attribution_decisions?: {
+    claim_id: string;
+    primary_ref: string | null;
+    attribution_confidence: number;
+    secondary_refs_count: number;
+    unattributed_reason?: 'novel_argument' | 'no_embedding';
+  }[];
 }
 
 /** Session-level aggregate of extraction health, computed incrementally. */
@@ -1153,6 +1192,8 @@ export interface ExtractionSummary {
   plateau_last_an_id?: string;
   /** Aggregate rejection reasons across the session. */
   rejection_reason_totals: Record<string, number>;
+  /** Ratio of AN claims that could not be attributed to any taxonomy Belief node (0-1). >0.50 signals systemic issue. */
+  unattributed_claim_ratio?: number;
 }
 
 export interface DebateOverviewDiagnostics {

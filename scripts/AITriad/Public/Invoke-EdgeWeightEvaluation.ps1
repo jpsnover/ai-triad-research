@@ -84,6 +84,28 @@ function Invoke-EdgeWeightEvaluation {
         }
     }
 
+    # ── Build node index for edge weight modulation ──
+    $NodeIndex = @{}  # id → @{ Category, Confidence, Priority, Doctrinal }
+    foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic')) {
+        $FilePath = Join-Path $TaxDir "$PovName.json"
+        if (-not (Test-Path $FilePath)) { continue }
+        $PovData = Get-Content -Raw -Path $FilePath | ConvertFrom-Json
+        foreach ($Node in $PovData.nodes) {
+            $NodeIndex[$Node.id] = @{
+                Category   = if ($Node.PSObject.Properties['category'])   { $Node.category }   else { $null }
+                Confidence = if ($Node.PSObject.Properties['confidence']) { $Node.confidence } else { $null }
+                Priority   = if ($Node.PSObject.Properties['priority'])   { $Node.priority }   else { $null }
+                Doctrinal  = if ($Node.PSObject.Properties['doctrinally_anchored']) { $Node.doctrinally_anchored } else { $false }
+            }
+        }
+    }
+    $HasModulationData = ($NodeIndex.Values | Where-Object { $null -ne $_.Confidence -or $null -ne $_.Priority } | Select-Object -First 1) -ne $null
+    if ($HasModulationData) {
+        Write-Info "Edge weight modulation: ENABLED (confidence/priority data available)"
+    } else {
+        Write-Info "Edge weight modulation: SKIPPED (no confidence/priority on nodes)"
+    }
+
     # ── Filter to edges needing weight ──
     $Candidates = [System.Collections.Generic.List[PSObject]]::new()
     for ($i = 0; $i -lt $AllEdges.Count; $i++) {
@@ -184,10 +206,57 @@ function Invoke-EdgeWeightEvaluation {
                         $W = [Math]::Max(0.0, [Math]::Min(1.0, $W))
                     }
                     $AllEdges[$Idx] | Add-Member -NotePropertyName 'weight' -NotePropertyValue $W -Force
+
+                    # ── Edge weight modulation ──
+                    if ($HasModulationData) {
+                        $Edge = $AllEdges[$Idx]
+                        $SrcInfo = $NodeIndex[$Edge.source]
+                        $TgtInfo = $NodeIndex[$Edge.target]
+                        $SrcCat = if ($SrcInfo) { $SrcInfo.Category } else { $null }
+                        $TgtCat = if ($TgtInfo) { $TgtInfo.Category } else { $null }
+                        $EType  = $Edge.type
+                        $Factor = 1.0
+
+                        $IsAttack  = $EType -in 'CONTRADICTS', 'WEAKENS'
+                        $IsSupport = $EType -in 'SUPPORTS', 'ASSUMES'
+
+                        if ($SrcCat -eq 'Beliefs' -and $TgtCat -eq 'Beliefs') {
+                            if ($IsAttack -and $null -ne $SrcInfo.Confidence -and $null -ne $TgtInfo.Confidence) {
+                                $Factor = [Math]::Min($SrcInfo.Confidence, $TgtInfo.Confidence)
+                            } elseif ($IsSupport -and $null -ne $SrcInfo.Confidence) {
+                                $Factor = $SrcInfo.Confidence
+                            }
+                        } elseif ($SrcCat -eq 'Desires' -and $TgtCat -eq 'Intentions') {
+                            if ($IsSupport -and $null -ne $SrcInfo.Priority) {
+                                $Factor = $SrcInfo.Priority / 5.0
+                            }
+                        } elseif ($SrcCat -eq 'Beliefs' -and $TgtCat -eq 'Intentions') {
+                            if ($IsSupport -and $null -ne $SrcInfo.Confidence) {
+                                $Factor = $SrcInfo.Confidence
+                            }
+                        } elseif ($SrcCat -eq 'Beliefs' -and $TgtCat -eq 'Desires') {
+                            if ($null -ne $SrcInfo.Confidence) {
+                                $Factor = $SrcInfo.Confidence
+                            }
+                        }
+
+                        # Doctrinal anchoring multiplier
+                        if ($IsAttack -and $TgtInfo -and $TgtInfo.Doctrinal) {
+                            $Factor = [Math]::Min(1.0, $Factor * 1.2)
+                        } elseif ($IsSupport -and $SrcInfo -and $SrcInfo.Doctrinal) {
+                            $Factor = [Math]::Min(1.0, $Factor * 1.1)
+                        }
+
+                        $Factor = [Math]::Round($Factor, 3)
+                        $ModWeight = [Math]::Round($W * $Factor, 3)
+                        $Edge | Add-Member -NotePropertyName 'modulated_weight' -NotePropertyValue $ModWeight -Force
+                    }
+
                     $EvaluatedCount++
                     $SrcLabel = if ($Labels.ContainsKey($AllEdges[$Idx].source)) { $Labels[$AllEdges[$Idx].source] } else { $AllEdges[$Idx].source }
                     $TgtLabel = if ($Labels.ContainsKey($AllEdges[$Idx].target)) { $Labels[$AllEdges[$Idx].target] } else { $AllEdges[$Idx].target }
-                    Write-Info "  edg-$($Idx + 1): w=$($W.ToString('F2')) — $SrcLabel → $TgtLabel"
+                    $ModStr = if ($HasModulationData -and $AllEdges[$Idx].PSObject.Properties['modulated_weight']) { " mw=$($AllEdges[$Idx].modulated_weight.ToString('F3'))" } else { '' }
+                    Write-Info "  edg-$($Idx + 1): w=$($W.ToString('F2'))$ModStr — $SrcLabel → $TgtLabel"
                 }
             }
 

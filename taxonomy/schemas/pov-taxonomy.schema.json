@@ -152,6 +152,90 @@
               "description": "The strongest counterargument against the strongest version of this claim."
             }
           }
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Belief confidence score (0.0-1.0) from multi-signal formula. Absent in pre-weighted nodes."
+        },
+        "doctrinally_anchored": {
+          "type": "boolean",
+          "description": "True if this Belief is cosine-similar to its POV's doctrinal boundaries. Absent in pre-weighted nodes."
+        },
+        "evidential_confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Pre-floor evidential confidence. When doctrinally_anchored and floor applied, this preserves the original evidential score."
+        },
+        "confidence_history": {
+          "type": "array",
+          "description": "Confidence change log. Each entry records a value change and reason.",
+          "items": { "$ref": "#/$defs/WeightHistoryEntry" }
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Desire priority (1-5). Absent in pre-weighted nodes and non-Desire categories."
+        },
+        "priority_history": {
+          "type": "array",
+          "description": "Priority change log. Each entry records a value change and reason.",
+          "items": { "$ref": "#/$defs/WeightHistoryEntry" }
+        },
+        "operationality": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Intention operationality (1-5). Absent in pre-weighted nodes and non-Intention categories."
+        },
+        "operationality_history": {
+          "type": "array",
+          "description": "Operationality change log. Each entry records a value change and reason.",
+          "items": { "$ref": "#/$defs/WeightHistoryEntry" }
+        }
+      }
+    },
+    "WeightHistoryEntry": {
+      "type": "object",
+      "required": ["date", "value", "delta", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "ISO 8601 date of the change."
+        },
+        "value": {
+          "type": "number",
+          "description": "New value after the change."
+        },
+        "delta": {
+          "type": "number",
+          "description": "Change from previous value (0 for initial assignment)."
+        },
+        "reason": {
+          "type": "string",
+          "description": "Human-readable reason for the change."
+        },
+        "supersedes": {
+          "type": "string",
+          "description": "Debate ID of superseded prior update (cross-debate dedup)."
+        },
+        "attack_claim": {
+          "type": "string",
+          "description": "AN claim text that drove the confidence change."
+        },
+        "robustness": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Cross-model confirmation count (≥2 means multi-model agreement)."
+        },
+        "model_confirmations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Models that independently confirmed this attack."
         }
       }
     }

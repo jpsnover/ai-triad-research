@@ -258,6 +258,39 @@ function Test-TaxonomyIntegrity {
         $Issues.Add([PSCustomObject]@{ Check = 'DanglingLinked'; Severity = 'Warning'; Count = $DanglingLinked.Count; Detail = "linked_nodes ref non-existent nodes: $Detail" })
     } else { $Passed++ }
 
+    # ── BDI weight range validation ──
+    $Checks++
+    $BadWeights = [System.Collections.Generic.List[string]]::new()
+    foreach ($PovKey in $LoadedFiles.Keys) {
+        $Entry = $LoadedFiles[$PovKey]
+        if (-not $Entry.Data.PSObject.Properties['nodes']) { continue }
+        foreach ($Node in $Entry.Data.nodes) {
+            if (-not $Node.PSObject.Properties['category']) { continue }
+            if ($Node.category -eq 'Intentions' -and $Node.PSObject.Properties['operationality']) {
+                $Op = $Node.operationality
+                if ($Op -lt 1 -or $Op -gt 5) {
+                    $BadWeights.Add("$($Node.id): operationality=$Op (expected 1-5)")
+                }
+            }
+            if ($Node.category -eq 'Beliefs' -and $Node.PSObject.Properties['confidence']) {
+                $Conf = $Node.confidence
+                if ($Conf -lt 0.0 -or $Conf -gt 1.0) {
+                    $BadWeights.Add("$($Node.id): confidence=$Conf (expected 0.0-1.0)")
+                }
+            }
+            if ($Node.category -eq 'Desires' -and $Node.PSObject.Properties['priority']) {
+                $Pri = $Node.priority
+                if ($Pri -lt 1 -or $Pri -gt 5) {
+                    $BadWeights.Add("$($Node.id): priority=$Pri (expected 1-5)")
+                }
+            }
+        }
+    }
+    if ($BadWeights.Count -gt 0) {
+        $Detail = ($BadWeights | Select-Object -First 10) -join '; '
+        $Issues.Add([PSCustomObject]@{ Check = 'BDIWeightRange'; Severity = 'Error'; Count = $BadWeights.Count; Detail = "Out-of-range BDI weights: $Detail" })
+    } else { $Passed++ }
+
     # ── Repair ──
     if ($Repair -and $Issues.Count -gt 0) {
         $Repaired = 0

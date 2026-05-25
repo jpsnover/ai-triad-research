@@ -38,6 +38,30 @@ export interface GraphAttributes {
 
 export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';
 
+export type ConcessionType = 'full' | 'conditional' | 'tactical';
+
+/** Entry in a node's confidence or priority change history. */
+export interface WeightHistoryEntry {
+  date: string;
+  value: number;
+  delta: number;
+  reason: string;
+  supersedes?: string;
+  attack_claim?: string;
+  robustness?: number;
+  model_confirmations?: string[];
+}
+
+export interface ConcessionRecord {
+  debate_id: string;
+  speaker: string;
+  text: string;
+  turn: number;
+  conceded_to: string;
+  concession_type: ConcessionType;
+  bdi_impact: 'belief' | 'desire' | 'intention';
+}
+
 export interface PovNode {
   id: string;
   category: Category;
@@ -51,6 +75,20 @@ export interface PovNode {
   conflict_ids?: string[];
   graph_attributes?: GraphAttributes;
   debate_refs?: string[];
+  /** Belief confidence (0.0-1.0). Multi-signal formula. Absent in pre-weighted nodes. */
+  confidence?: number;
+  /** Confidence change log. Absent in pre-weighted nodes. */
+  confidence_history?: WeightHistoryEntry[];
+  /** True if this Belief is cosine-similar to its POV's doctrinal boundaries. */
+  doctrinally_anchored?: boolean;
+  /** Pre-floor evidential confidence — preserved when doctrinal floor is applied. */
+  evidential_confidence?: number;
+  /** Desire priority (1-5). Absent in pre-weighted nodes and non-Desire categories. */
+  priority?: number;
+  /** Priority change log. Absent in pre-weighted nodes. */
+  priority_history?: WeightHistoryEntry[];
+  /** Concession history — tracks cross-debate concessions affecting this node. */
+  concession_history?: ConcessionRecord[];
 }
 
 export interface PovTaxonomyFile {

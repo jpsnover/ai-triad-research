@@ -292,49 +292,51 @@ function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
   const delta = computed - base;
   const band = STRENGTH_BAND(computed);
 
+  const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
+  const attr = node.claim_taxonomy_attribution;
+
   return (
-    <div style={{ margin: '4px 0', paddingBottom: 4, borderBottom: '1px solid var(--border)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+    <div style={{ margin: '4px 0', paddingBottom: 4, borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
         {hasEdges ? (
           <button
             onClick={() => setExpanded(!expanded)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1, flexShrink: 0 }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, lineHeight: 1, marginTop: 2, flexShrink: 0 }}
           >{expanded ? '\u25BC' : '\u25B6'}</button>
         ) : <span style={{ width: 10, flexShrink: 0 }} />}
-        <strong style={{ color: 'var(--accent)', fontSize: '0.7rem' }}>{node.id}</strong>
-        <span style={{ fontSize: '0.7rem' }}>{speakerLabel(node.speaker)}</span>
-        {node.bdi_category && (() => {
-          // Grounded/Reasoned/Asserted labels only apply to Belief claims
-          const gl = node.bdi_category === 'belief' ? groundingLabel(node.base_strength) : '';
-          const gc = gl ? GROUNDING_COLORS[gl] : undefined;
-          return (
-            <span style={{ fontSize: '0.7rem' }}>
-              {gl && <span style={gc ? { color: gc } : undefined}>{gl} </span>}
-              {node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : 'Intention'}
-            </span>
-          );
-        })()}
-        {!hasEdges && <span style={{ color: '#f59e0b', fontSize: '0.7rem' }}>[unaddressed]</span>}
-        <span style={{
-          fontSize: '0.7rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-          background: `${band.color}22`, color: band.color,
-        }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)})`}>
-          {band.label} {computed.toFixed(2)}
-          {Math.abs(delta) > 0.01 && (
-            <span style={{ color: delta > 0 ? '#22c55e' : '#ef4444', marginLeft: 3 }}>
-              {delta > 0 ? '+' : ''}{delta.toFixed(2)}
-            </span>
-          )}
-        </span>
-        {hasEdges && (
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>
-            {attacks.length + supports.length} edge{attacks.length + supports.length !== 1 ? 's' : ''}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
+          {/* Col 1: AN ID */}
+          <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
+          {/* Col 2: Speaker */}
+          <span>{speakerLabel(node.speaker)}</span>
+          {/* Col 3: BDI category */}
+          <span>{node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : ''}</span>
+          {/* Col 4: Attribution */}
+          <span>
+            {attr && (() => {
+              if (attr.unattributed_reason) {
+                const reasonLabel = attr.unattributed_reason === 'novel_argument' ? 'novel' : 'no embedding';
+                return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}><span style={{ color: '#ef4444', fontSize: '0.9rem', marginRight: 3 }}>●</span>{reasonLabel}</span>;
+              }
+              const conf = attr.attribution_confidence;
+              const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
+              return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>;
+            })()}
           </span>
-        )}
+          {/* Col 5: Strength */}
+          <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)})`}>
+            <span style={{ color: bandColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{band.label} {computed.toFixed(2)}
+            {Math.abs(delta) > 0.01 && <span style={{ color: 'var(--text-muted)', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
+          </span>
+          {/* Col 6: Edge count */}
+          <span style={{ color: 'var(--text-muted)' }}>
+            {hasEdges ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
+          </span>
+        </div>
       </div>
-      <div style={{ paddingLeft: 18, marginTop: 2, fontSize: '0.8rem' }}>{node.text}</div>
+      <div style={{ paddingLeft: 18, marginTop: 2 }}>{node.text}</div>
       {expanded && (
-        <div style={{ paddingLeft: 18, marginTop: 4, fontSize: '0.7rem' }}>
+        <div style={{ paddingLeft: 18, marginTop: 4 }}>
           {attacks.map(e => {
             const src = allNodes.find(n => n.id === e.source);
             return (

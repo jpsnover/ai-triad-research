@@ -20,7 +20,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, processExtractedClaims } from '../prompts/argumentNetwork';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, processExtractedClaims, computeClaimTaxonomyAttribution } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary, GapArgument, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../types/debate';
 import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, scoreNodesViaAN } from '../utils/taxonomyRelevance';
 import type { ANClaimEmbedding } from '../utils/taxonomyRelevance';
@@ -106,6 +106,9 @@ import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/looka
 import type { LookaheadDiagnostics, LookaheadGateResult, ClaimAnalysis, PerClaimResult } from '@lib/debate/lookaheadGate';
 import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatCritiqueForRefinement, formatStructuralContext } from '@lib/debate/topicCritique';
 import type { TopicCritique } from '@lib/debate/topicCritique';
+import { computeBeliefConfidence } from '@lib/debate/beliefConfidence';
+import { computeTreePriority } from '@lib/debate/desirePriority';
+import { computeOperationality } from '@lib/debate/intentionOperationality';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import { usePromptConfigStore } from './usePromptConfigStore';
 import { api } from '@bridge';
@@ -391,6 +394,16 @@ function updateExtractionSummary(
     }
   }
 
+  // Compute attribution ratio from traces
+  let attrTotal = 0;
+  let attrUnattributed = 0;
+  for (const t of traces) {
+    if (t.attribution_attributed != null || t.attribution_unattributed != null) {
+      attrTotal += (t.attribution_attributed ?? 0) + (t.attribution_unattributed ?? 0);
+      attrUnattributed += t.attribution_unattributed ?? 0;
+    }
+  }
+
   const summary: ExtractionSummary = {
     total_turns: traces.length,
     total_proposed: totalProposed,
@@ -402,6 +415,7 @@ function updateExtractionSummary(
     plateau_started_at_turn: plateauStartedAt,
     plateau_last_an_id: plateauLastAnId,
     rejection_reason_totals: rejectionTotals,
+    unattributed_claim_ratio: attrTotal > 0 ? attrUnattributed / attrTotal : undefined,
   };
 
   set({ activeDebate: { ...debate, extraction_summary: summary } });
@@ -756,6 +770,56 @@ async function extractClaimsAndUpdateAN(
         const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
         if (vector && vector.length > 0) node.embedding = vector;
       } catch { /* embedding failure never blocks extraction */ }
+    }
+
+    // Per-claim taxonomy attribution (t/110): compare AN embeddings against same-POV Belief nodes
+    if (newNodes.length > 0) {
+      const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
+      if (speakerPov) {
+        try {
+          const taxState = useTaxonomyStore.getState();
+          const povFile = taxState[speakerPov as keyof typeof taxState] as { nodes: { id: string; category: string; label: string; description: string }[] } | null;
+          const povNodes = povFile?.nodes ?? [];
+          const beliefNodes = povNodes.filter((n) => n.category === 'Beliefs');
+          const beliefNodeIds = new Set(beliefNodes.map((n) => n.id));
+
+          // Ensure we have embeddings for the belief nodes — load from embeddings.json via IPC
+          let embCache = taxState.embeddingCache;
+          if (embCache.size === 0 || !beliefNodes.some(n => embCache.has(n.id))) {
+            const { ids, texts } = taxState.buildEmbeddingTexts(new Set(), new Set());
+            if (ids.length > 0) {
+              const { vectors } = await api.computeEmbeddings(texts, ids);
+              embCache = new Map<string, number[]>();
+              for (let i = 0; i < ids.length; i++) {
+                if (vectors[i]?.length > 0) embCache.set(ids[i], vectors[i]);
+              }
+              useTaxonomyStore.setState({ embeddingCache: embCache, embeddingDirty: false });
+            }
+          }
+
+          // Build nodeEmbeddings from embeddingCache — add pov from node ID prefix
+          const nodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+          const povMap: Record<string, string> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
+          for (const [nodeId, vector] of embCache) {
+            const prefix = nodeId.split('-')[0];
+            const pov = povMap[prefix];
+            if (pov && vector.length > 0) {
+              nodeEmbeddings[nodeId] = { pov, vector };
+            }
+          }
+
+          const attrResult = computeClaimTaxonomyAttribution(
+            newNodes, speakerPov, nodeEmbeddings, beliefNodeIds,
+          );
+          extractionTrace.attribution_attributed = attrResult.attributed;
+          extractionTrace.attribution_unattributed = attrResult.unattributed;
+          extractionTrace.attribution_missing_embedding = attrResult.missing_embedding;
+          extractionTrace.attribution_novel_argument = attrResult.novel_argument;
+          extractionTrace.attribution_decisions = attrResult.decisions;
+        } catch {
+          // Attribution failure never blocks extraction
+        }
+      }
     }
 
     // ── Pre-commit lookahead gate (t/34) — evaluate before committing ──
@@ -5585,6 +5649,37 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           graph_attributes: defaultGraphAttributes(povKey, edit.category),
           debate_refs: debateId ? [debateId] : [],
         });
+        // Provisional weight assignment (t/148) — new nodes get an initial weight immediately
+        const createdNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === newId);
+        if (createdNode) {
+          const today = new Date().toISOString().slice(0, 10);
+          if (edit.category === 'Beliefs') {
+            const confidence = computeBeliefConfidence({
+              epistemic_type: createdNode.graph_attributes?.epistemic_type,
+              falsifiability: createdNode.graph_attributes?.falsifiability,
+              source_doc_count: 0,
+              debate_ref_count: createdNode.debate_refs?.length ?? 0,
+              supports_received: 0,
+              attacks_received: 0,
+            });
+            taxStore.updatePovNode(povKey, newId, {
+              confidence,
+              confidence_history: [{ date: today, value: confidence, delta: 0, reason: 'provisional — reflection' }],
+            });
+          } else if (edit.category === 'Desires') {
+            const priority = computeTreePriority(createdNode);
+            taxStore.updatePovNode(povKey, newId, {
+              priority,
+              priority_history: [{ date: today, value: priority, delta: 0, reason: 'provisional — reflection' }],
+            });
+          } else if (edit.category === 'Intentions') {
+            const operationality = computeOperationality(createdNode);
+            taxStore.updatePovNode(povKey, newId, {
+              operationality,
+              operationality_history: [{ date: today, value: operationality, delta: 0, reason: 'provisional — reflection' }],
+            });
+          }
+        }
       }
     } else if (edit.node_id) {
       if (edit.edit_type === 'deprecate') {

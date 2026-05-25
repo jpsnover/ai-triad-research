@@ -80,7 +80,9 @@ import {
   moderatorInterventionPrompt,
   decomposeResolutionPrompt,
 } from './prompts.js';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength } from './argumentNetwork.js';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength, computeClaimTaxonomyAttribution } from './argumentNetwork.js';
+import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from './doctrinalAnchoring.js';
+import type { BoundaryEmbeddings, DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
 import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
@@ -279,6 +281,8 @@ export class DebateEngine {
   private _signalRegistry: Signal[] | null = null;
   /** Adaptive staging: diagnostics accumulator. */
   private _adaptiveDiagnostics: AdaptiveStagingDiagnostics | null = null;
+  /** Cached doctrinal boundary embeddings (computed once at debate setup). */
+  private _boundaryEmbeddings: BoundaryEmbeddings | null = null;
   /** Adaptive staging: per-signal historical values for moving averages. */
   private _signalHistory: Map<string, { round: number; value: number }[]> = new Map();
   /** Adaptive staging: peak tracker for engagement ratio and claims per round. */
@@ -338,6 +342,9 @@ export class DebateEngine {
       };
     }
     this.initSession();
+
+    // Embed doctrinal boundaries + compute anchoring (t/114)
+    await this.setupDoctrinalAnchoring();
 
     try {
       // Phase 0.5: Topic critique (free-form topics only, before clarification)
@@ -537,6 +544,57 @@ export class DebateEngine {
       this._phaseState = initPhaseState(this._adaptiveConfig);
       this._signalRegistry = buildSignalRegistry();
       this._adaptiveDiagnostics = initAdaptiveDiagnostics();
+    }
+  }
+
+  // ── Doctrinal boundary embedding + anchoring (t/114) ─────
+
+  private async setupDoctrinalAnchoring(): Promise<void> {
+    const adapter = this.adapter as ExtendedAIAdapter;
+    if (!adapter.computeQueryEmbedding) return;
+
+    // Collect boundary strings per active POV
+    const boundaries: Record<string, string[]> = {};
+    for (const pover of this.config.activePovers) {
+      const info = POVER_INFO[pover];
+      if (info?.doctrinal_boundaries?.length > 0) {
+        boundaries[info.pov] = info.doctrinal_boundaries;
+      }
+    }
+    if (Object.keys(boundaries).length === 0) return;
+
+    try {
+      this._boundaryEmbeddings = await embedDoctrinalBoundaries(
+        boundaries,
+        async (text: string) => {
+          const { vector } = await adapter.computeQueryEmbedding!(text);
+          return vector;
+        },
+      );
+    } catch {
+      return; // embedding failure never blocks debate setup
+    }
+
+    // Run anchoring against each POV's Belief nodes
+    for (const [pov, vectors] of Object.entries(this._boundaryEmbeddings)) {
+      if (vectors.length === 0) continue;
+      const povNodes = this.taxonomy[pov as PovKey]?.nodes ?? [];
+      const beliefs = povNodes.filter(n => n.category === 'Beliefs');
+      if (beliefs.length === 0) continue;
+
+      const results = computeDoctrinalAnchoring(
+        beliefs, vectors, this.taxonomy.embeddings,
+      );
+
+      // Check for threshold anomalies
+      const anomaly = checkThresholdAnomalies(results, beliefs.length);
+      if (anomaly) console.warn(anomaly.warning);
+
+      const anchoredCount = results.filter(r => r.anchored).length;
+      const floorCount = results.filter(r => r.floorApplied).length;
+      if (anchoredCount > 0) {
+        console.log(`[doctrinal] ${pov}: ${anchoredCount}/${beliefs.length} Beliefs anchored, ${floorCount} floor-applied`);
+      }
     }
   }
 
@@ -4133,6 +4191,19 @@ Return ONLY JSON (no markdown, no code fences):
     }
 
     const wasDetected = this.session.extraction_summary?.plateau_detected === true;
+    // Compute unattributed claim ratio from attribution traces
+    let totalAttributed = 0, totalUnattributed = 0;
+    for (const t of traces) {
+      totalAttributed += t.attribution_attributed ?? 0;
+      totalUnattributed += t.attribution_unattributed ?? 0;
+    }
+    const totalAttrClaims = totalAttributed + totalUnattributed;
+    const unattributedRatio = totalAttrClaims > 0 ? totalUnattributed / totalAttrClaims : undefined;
+
+    if (unattributedRatio !== undefined && unattributedRatio > 0.50) {
+      console.warn(`[attribution.high-unattributed] ${(unattributedRatio * 100).toFixed(0)}% of claims unattributed (${totalUnattributed}/${totalAttrClaims}) — may indicate stale taxonomy or broken injection`);
+    }
+
     const summary: ExtractionSummary = {
       total_turns: traces.length,
       total_proposed: totalProposed,
@@ -4144,6 +4215,7 @@ Return ONLY JSON (no markdown, no code fences):
       plateau_started_at_turn: plateauStartedAt,
       plateau_last_an_id: plateauLastId,
       rejection_reason_totals: reasonTotals,
+      unattributed_claim_ratio: unattributedRatio,
     };
     this.session.extraction_summary = summary;
 
@@ -4293,6 +4365,28 @@ Return ONLY JSON (no markdown, no code fences):
           const { vector } = await adapter.computeQueryEmbedding(node.text.slice(0, 300));
           if (vector && vector.length > 0) node.embedding = vector;
         } catch { /* embedding failure never blocks extraction */ }
+      }
+    }
+
+    // Per-claim taxonomy attribution (t/110): compare AN embeddings against same-POV Belief nodes
+    if (claimsResult.newNodes.length > 0) {
+      const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
+      if (speakerPov) {
+        const povNodes = this.taxonomy[speakerPov as PovKey]?.nodes ?? [];
+        const beliefNodeIds = new Set(povNodes.filter(n => n.category === 'Beliefs').map(n => n.id));
+        const attrResult = computeClaimTaxonomyAttribution(
+          claimsResult.newNodes, speakerPov, this.taxonomy.embeddings, beliefNodeIds,
+        );
+        trace.attribution_attributed = attrResult.attributed;
+        trace.attribution_unattributed = attrResult.unattributed;
+        trace.attribution_missing_embedding = attrResult.missing_embedding;
+        trace.attribution_novel_argument = attrResult.novel_argument;
+        trace.attribution_decisions = attrResult.decisions;
+
+        // Log warning if zero statement-level taxonomy_refs (injection may have failed upstream)
+        if (taxonomyRefIds.length === 0 && claimsResult.newNodes.length > 0) {
+          console.warn(`[attribution.no-statement-refs] speaker=${speaker} entry=${entryId} — no taxonomy_refs on parent statement`);
+        }
       }
     }
 

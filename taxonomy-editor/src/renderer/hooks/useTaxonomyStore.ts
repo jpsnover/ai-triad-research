@@ -38,6 +38,7 @@ import { normalizeNodeProperties } from '@lib/debate';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { validateTaxonomy } from '@lib/debate/validators';
+import { validatePovNodeId } from '@lib/debate/validateNodeId';
 import type { ValidationResult } from '@lib/debate/validators';
 import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analysis';
 import type { NodeCritiqueContext } from '../prompts/analysis';
@@ -1374,6 +1375,14 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
   updatePovNode: (pov, nodeId, updates) => {
     getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'debug', message: 'updatePovNode.called', data: { pov, nodeId, fields: Object.keys(updates) } });
+    // Guard: if category is being changed, validate it still matches the node ID
+    if (updates.category) {
+      const validation = validatePovNodeId(nodeId, updates.category);
+      if (!validation.valid) {
+        console.error(`[taxonomy-store] updatePovNode rejected: ${validation.error}`);
+        return;
+      }
+    }
     set((state) => {
       const file = state[pov];
       if (!file) return state;
@@ -1397,6 +1406,11 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     if (!file) return '';
     const existingIds = file.nodes.map(n => n.id);
     const newId = generatePovNodeId(pov, category, existingIds);
+    const validation = validatePovNodeId(newId, category);
+    if (!validation.valid) {
+      console.error(`[taxonomy-store] createPovNode rejected: ${validation.error}`);
+      return '';
+    }
     const newNode: PovNode = {
       id: newId,
       category,
@@ -1448,6 +1462,11 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const oldId = oldNode.id;
       const existingIds = file.nodes.map(n => n.id);
       const newId = generatePovNodeId(pov, newCategory, existingIds);
+      const validation = validatePovNodeId(newId, newCategory);
+      if (!validation.valid) {
+        console.error(`[taxonomy-store] movePovNodeCategory rejected: ${validation.error}`);
+        return state;
+      }
 
       // Create new node with new ID and category, copy everything else
       const newNode: PovNode = {
@@ -1541,6 +1560,11 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const oldId = oldNode.id;
       const targetExistingIds = targetFile.nodes.map(n => n.id);
       const newId = generatePovNodeId(targetPov, targetCategory, targetExistingIds);
+      const validation = validatePovNodeId(newId, targetCategory);
+      if (!validation.valid) {
+        console.error(`[taxonomy-store] movePovNode rejected: ${validation.error}`);
+        return state;
+      }
 
       // Create new node in target POV — reset parent/children since they don't cross POVs
       const newNode: PovNode = {

@@ -99,6 +99,7 @@
         'Update-AITSourceIndex'
         'Get-PovLineage'
         'Get-IntellectualLineage'
+        'Invoke-BDIWeightAssignment'
     )
 
     # Aliases exported from this module
