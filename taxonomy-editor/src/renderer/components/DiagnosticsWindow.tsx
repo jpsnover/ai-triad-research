@@ -3956,6 +3956,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                 : '#dc2626';
                               const src = sourceMap.get(r.node_id);
                               const isAN = src?.source === 'an';
+                              const tw = nodeWeights.get(r.node_id);
+                              const weightLabel = tw?.category === 'Beliefs' ? 'Confidence'
+                                : tw?.category === 'Desires' ? 'Priority'
+                                : tw?.category === 'Intentions' ? 'Operationality' : null;
+                              const weightValue = tw?.category === 'Beliefs' ? tw.confidence
+                                : tw?.category === 'Desires' ? tw.priority
+                                : tw?.category === 'Intentions' ? tw.operationality : undefined;
                               return (
                                 <Fragment key={i}>
                                   <tr
@@ -3996,6 +4003,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         }}
                                         title="Show Perspective details"
                                       >{r.primary ? '★ ' : ''}{r.node_id}{(r as {label?: string}).label ? `: ${(r as {label?: string}).label}` : ''}</button>
+                                      {(score != null || weightValue != null) && (
+                                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                          ({score != null && <>Relevance {score.toFixed(2)}</>}
+                                          {score != null && weightLabel && weightValue != null && ' ; '}
+                                          {weightLabel && weightValue != null && <>{weightLabel} {weightLabel === 'Confidence' ? weightValue.toFixed(2) : `${weightValue}/5`}</>})
+                                        </div>
+                                      )}
                                     </td>
                                     <td style={{ padding: '4px 6px', verticalAlign: 'top', textAlign: 'center', fontWeight: 600, color: scoreColor, fontFamily: 'monospace', fontSize: '0.75rem' }}>
                                       {score != null ? score.toFixed(2) : '—'}

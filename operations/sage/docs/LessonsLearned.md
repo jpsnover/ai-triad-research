@@ -211,19 +211,21 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ## [Build] Python Windows Encoding Default
 
-**Pattern:** Python `open()` on Windows defaults to cp1252 encoding, not UTF-8. Any `json.load()` or file read on data files containing non-ASCII characters (em dashes, accented names, Unicode quotes) silently corrupts or throws decode errors.
+**Pattern:** Python on Windows defaults to cp1252 encoding for both file I/O and stdout. Any operation involving non-ASCII characters (em dashes, arrows, accented names, Unicode quotes) fails or silently corrupts.
 
 **Instances:**
 - 2026-05-22 — Technical Lead: `json.load()` failed on debate JSON files with UTF-8 characters because `open()` defaulted to cp1252 on Windows (p/8#9).
+- 2026-05-25 — Computational Linguist: stdout encoding error — cp1252 can't encode Unicode arrow U+2192. Fixed by wrapping stdout with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')` (p/7#9).
 
-**Root Cause:** Python's `open()` uses `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. JSON files in this project are UTF-8 encoded.
+**Root Cause:** Python's `open()` and `sys.stdout` use `locale.getpreferredencoding()` which is cp1252 on most Windows systems, not UTF-8. Both file I/O and subprocess stdout are affected.
 
 **Prevention:**
 1. Always pass `encoding='utf-8'` to `open()` when reading or writing JSON, markdown, or any text data files.
-2. Use `json.loads(Path(f).read_text(encoding='utf-8'))` as an alternative pattern.
-3. This applies to all Python scripts in the project — generator scripts, data processing, test fixtures.
+2. For stdout with Unicode content, wrap with `io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')`.
+3. Use `json.loads(Path(f).read_text(encoding='utf-8'))` as an alternative pattern for file reads.
+4. Consider setting `PYTHONUTF8=1` env var to force UTF-8 globally for Python processes.
 
-**Applies To:** All agents writing Python that reads/writes text files, especially on Windows.
+**Applies To:** All agents writing Python that reads/writes text files or prints Unicode, especially on Windows.
 
 ---
 
@@ -320,6 +322,25 @@ Institutional memory for failure patterns across the AI Triad Research project.
 5. Standard resolution flow: `git stash && git pull --rebase origin main` → resolve conflicts → `git rebase --continue && git stash pop && git push`.
 
 **Applies To:** All agents pushing to shared branches in either repo.
+
+---
+
+## [Data] Active Writers Corrupt Git Operations in Data Repo
+
+**Pattern:** Git add/commit/pull operations fail when an active process (e.g., running debate session) is continuously writing to the data repo, creating or modifying files between git commands.
+
+**Instances:**
+- 2026-05-25 — Project Manager: `git add -A` failed with "No such file or directory" on a debate JSON (file created then renamed mid-add), then `git pull --rebase` failed repeatedly with "unstaged changes" as new writes kept appearing. Resolved by stashing (including untracked), pulling, dropping stash, and pushing the committed snapshot. Required accepting data loss on in-flight writes (p/31#3).
+
+**Root Cause:** The data repo is both a git-managed store and a live write target for debate sessions and enrichment pipelines. Git operations are not atomic — between `git add` and `git commit`, new files can appear or existing files can change, causing "no such file" (file renamed/deleted) or "unstaged changes" (file modified after staging).
+
+**Prevention:**
+1. **Pause active debates/enrichment before committing the data repo.** No active writers during git operations.
+2. Use `git add <specific-files>` instead of `git add -A` to avoid catching in-flight files.
+3. If stashing is needed, use `git stash --include-untracked` to capture everything, but be aware that dropping the stash loses in-flight data.
+4. Consider a lock file convention: writers check for `.git-committing` before writing; committers create it before `git add` and remove after `git push`.
+
+**Applies To:** All agents committing to `ai-triad-data`, especially during active debate or enrichment sessions.
 
 ---
 

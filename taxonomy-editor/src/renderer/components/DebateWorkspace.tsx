@@ -424,6 +424,16 @@ function getNodeLabel(nodeId: string): string {
   return nodeId;
 }
 
+function getNodeWeight(nodeId: string): { category?: string; confidence?: number; priority?: number; operationality?: number } | null {
+  const state = useTaxonomyStore.getState();
+  const { tab } = nodeIdToTab(nodeId);
+  if (tab === 'situations') return null;
+  const povFile = state[tab as 'accelerationist' | 'safetyist' | 'skeptic'];
+  const node = povFile?.nodes?.find((n: { id: string }) => n.id === nodeId);
+  if (!node) return null;
+  return { category: node.category, confidence: node.confidence, priority: node.priority, operationality: node.operationality };
+}
+
 /** Navigate the main application window to a taxonomy node and focus it. */
 function focusMainWindowNode(nodeId: string): void {
   api.focusNodeInMainWindow(nodeId);
@@ -732,6 +742,13 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
                 {[...refs].sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0)).map((taxRef) => {
                   const label = getNodeLabel(taxRef.node_id);
                   const { colorVar } = nodeIdToTab(taxRef.node_id);
+                  const tw = getNodeWeight(taxRef.node_id);
+                  const weightLabel = tw?.category === 'Beliefs' ? 'Confidence'
+                    : tw?.category === 'Desires' ? 'Priority'
+                    : tw?.category === 'Intentions' ? 'Operationality' : null;
+                  const weightValue = tw?.category === 'Beliefs' ? tw.confidence
+                    : tw?.category === 'Desires' ? tw.priority
+                    : tw?.category === 'Intentions' ? tw.operationality : undefined;
                   return (
                     <div key={taxRef.node_id} className="debate-reasoning-item">
                       <button
@@ -740,11 +757,13 @@ function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDia
                         onClick={() => focusMainWindowNode(taxRef.node_id)}
                       >
                         {taxRef.node_id}
-                        {taxRef.relevance_score != null && (
-                          <span style={{ fontWeight: 400, opacity: 0.7 }}>{' '}({taxRef.relevance_score.toFixed(2)})</span>
-                        )}
                       </button>
                       <span className="debate-reasoning-label">{label}</span>
+                      <span className="debate-reasoning-weight" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                        ({taxRef.relevance_score != null && <>Relevance {taxRef.relevance_score.toFixed(2)}</>}
+                        {taxRef.relevance_score != null && weightLabel && weightValue != null && ' ; '}
+                        {weightLabel && weightValue != null && <>{weightLabel} {weightLabel === 'Confidence' ? weightValue.toFixed(2) : `${weightValue}/5`}</>})
+                      </span>
                       <span className="debate-reasoning-text">{taxRef.relevance}</span>
                     </div>
                   );
@@ -3462,21 +3481,23 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {/* Scrollable content: topic, debaters, transcript */}
       <div className="debate-scroll-content" onContextMenu={handleContextMenu}>
         {/* Topic info */}
-        <div className="debate-topic-info">
-          <span className="debate-phase-indicator">
-            {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
-          </span>
-          <span className="debate-topic-text">{activeDebate.topic.final}</span>
-          <span className="debate-timestamp" title={activeDebate.created_at}>
-            {new Date(activeDebate.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
-            {new Date(activeDebate.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-          </span>
-          {activeDebate.audience && (
-            <span className="debate-audience-badge">
-              {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
+        <div className="debate-topic-info" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+            <span className="debate-phase-indicator">
+              {PHASE_TITLES[activeDebate.phase] || activeDebate.phase}
             </span>
-          )}
-          {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
+            <span className="debate-timestamp" title={activeDebate.created_at}>
+              {new Date(activeDebate.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}{' '}
+              {new Date(activeDebate.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            {activeDebate.audience && (
+              <span className="debate-audience-badge">
+                {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
+              </span>
+            )}
+            {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
+          </div>
+          <span className="debate-topic-text">{activeDebate.topic.final}</span>
         </div>
 
         {/* Adaptive phase progress bar — shown during debate phase when adaptive staging is enabled */}
