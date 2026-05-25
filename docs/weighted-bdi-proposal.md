@@ -366,13 +366,120 @@ Currently, concessions are driven by moderator prompts and move selection. With 
 - Concession of a priority-5 Desire is a major event — it should be flagged prominently in the transcript
 - **Concession of a doctrinally anchored Belief should trigger a doctrinal violation warning** — the debater has crossed a line it was explicitly told not to cross. This is distinct from a low-priority concession (acceptable) or even a high-priority concession (significant but legitimate). A doctrinal boundary violation suggests the prompt constraints failed, not that the debater genuinely updated.
 
-### Edge Discovery
+### Edge Weight Modulation by Confidence and Priority
 
-Confidence should influence edge weight:
-- CONTRADICTS between two high-confidence Beliefs (0.8 vs 0.8) → weight 0.9 (genuine empirical tension)
-- CONTRADICTS between a high-confidence and a low-confidence Belief (0.8 vs 0.3) → weight 0.5 (one side is probably wrong)
-- SUPPORTS from a high-confidence Belief to an Intention → strong grounding
-- SUPPORTS from a low-confidence Belief to an Intention → weak grounding (flag in edge rationale)
+The current 26,023 edges in `edges.json` have weights assigned without knowledge of node confidence or priority. With the weighted BDI data, edge weights should reflect the epistemic and values significance of both endpoints.
+
+**Edge weight modulation formula:**
+
+```
+modulated_weight = raw_weight × modulation_factor(source, target, edge_type)
+```
+
+The modulation factor depends on the BDI categories of the source and target nodes and the edge type:
+
+**Belief → Belief edges:**
+```
+CONTRADICTS:  factor = min(source.confidence, target.confidence)
+  # A contradiction between two well-supported claims (0.8 vs 0.8) is a genuine
+  # empirical tension (factor = 0.8). A contradiction where one side is speculative
+  # (0.8 vs 0.3) is less significant (factor = 0.3) — one side is probably wrong.
+SUPPORTS:     factor = source.confidence
+  # A well-supported Belief lending support transfers its confidence to the target.
+ASSUMES:      factor = source.confidence
+  # An assumption is only as load-bearing as the claim that makes it.
+```
+
+**Desire → Intention edges:**
+```
+SUPPORTS:     factor = source.priority / 5
+  # A priority-5 Desire supporting an Intention makes that Intention critical.
+  # A priority-2 Desire supporting the same Intention makes it optional.
+  # Example: "Preventing AI-driven extinction" (5) → SUPPORTS → "Mandatory pre-deployment testing"
+  #   factor = 1.0 (full weight — this Intention serves a core value)
+  # vs: "Improving AI Documentation" (2) → SUPPORTS → same Intention
+  #   factor = 0.4 (reduced — this is a nice-to-have connection)
+```
+
+**Belief → Intention edges (SUPPORTS/ASSUMES):**
+```
+factor = source.confidence
+  # An Intention grounded in a well-supported Belief (0.85) has strong empirical
+  # backing. An Intention grounded in a speculative Belief (0.35) has weak backing.
+  # The grounding quality should be visible in the edge weight.
+```
+
+**Belief → Desire edges (rare but exist — e.g., ASSUMES):**
+```
+factor = source.confidence
+  # A Desire that assumes a speculative Belief is built on shaky ground.
+```
+
+**Cross-POV edges (any type):**
+```
+  # No additional modulation beyond the above — cross-POV edges already carry
+  # significance from the edge type (CONTRADICTS, TENSION_WITH). The confidence/
+  # priority modulation applies to the endpoints regardless of POV.
+```
+
+**Doctrinally anchored edges:**
+When either endpoint is a doctrinally anchored Belief:
+```
+  # CONTRADICTS targeting a doctrinally anchored node: factor × 1.2 (cap at 1.0)
+  #   Attacks on doctrinal positions are higher-stakes — the weight should reflect this.
+  # SUPPORTS from a doctrinally anchored node: factor × 1.1 (cap at 1.0)
+  #   Doctrinal Beliefs lending support make the target more structurally important.
+```
+
+**QBAF propagation impact:**
+
+Edge weight modulation flows directly into DF-QuAD computation. Higher-weight attack edges produce larger strength reductions on the target. This means:
+- QBAF outcomes are more decisive when evidence asymmetry is clear (high-confidence Belief attacking low-confidence Belief)
+- QBAF outcomes are more balanced when both sides have similar confidence
+- Intentions grounded in high-priority Desires are harder to dislodge than those grounded in low-priority Desires
+- The argument network becomes a richer representation of the actual epistemic and values landscape, not just a connectivity graph
+
+### Edge Reprocessing Plan
+
+The 26,023 existing edges in `edges.json` need reprocessing once confidence and priority values are assigned (Phase 1). This is a batch operation, not a real-time change.
+
+**Step 1: Assign confidence and priority (Phase 1 prerequisite)**
+- Run the multi-signal confidence formula across all 335 Belief nodes
+- Assign priority to all Desire nodes from taxonomy hierarchy + doctrinal boundaries
+- Store on the node objects in the POV JSON files
+
+**Step 2: Compute modulated weights**
+- For each edge in `edges.json`, look up source and target node confidence/priority
+- Apply the modulation formula above to compute `modulated_weight`
+- Store both `raw_weight` (original) and `modulated_weight` on each edge
+- Preserving `raw_weight` allows reverting or recomputing if confidence/priority values change
+
+**Step 3: Validate modulation distribution**
+- Before committing, analyze the modulated weight distribution:
+  - What fraction of edges have modulated_weight significantly different from raw_weight (delta > 0.1)?
+  - Are any edge types disproportionately affected (e.g., all SUPPORTS edges getting boosted)?
+  - Do any edges modulate to near-zero (effectively deleted)?
+- Flag anomalies for human review before overwriting
+
+**Step 4: Reprocess debate argument networks**
+- Existing debates have AN edges with weights that predate confidence/priority modulation
+- For active/recent debates: rerun QBAF propagation with modulated weights and log the strength deltas
+- For archived debates: do not reprocess — their calibration data was generated under the old weights and should remain consistent
+- New debates automatically use modulated weights via the edge discovery pipeline
+
+**Step 5: Update the edge discovery pipeline**
+- `Invoke-EdgeDiscovery` (PowerShell) and any TypeScript edge discovery code must apply modulation at edge creation time, not retroactively
+- When a new edge is discovered between nodes with confidence/priority data, the `modulated_weight` is computed inline
+- When confidence or priority changes (via debate evolution or human override), affected edges are recomputed — this is a targeted update, not a full reprocess
+
+**Reprocessing frequency:**
+- Full reprocess: once, after Phase 1 initial assignment
+- Targeted reprocess: after each confidence/priority update (post-debate or human override), recompute modulated_weight for edges touching the changed node
+- The targeted reprocess touches ~50-100 edges per node (average degree in the edge graph) — trivially fast
+
+**Rollback plan:**
+- Preserve `raw_weight` on every edge so modulation can be removed or recomputed
+- If the modulation produces pathological QBAF behavior (e.g., debates consistently stalling because all attacks are too weak), the modulation can be disabled by setting `modulated_weight = raw_weight` globally
 
 ### Synthesis and News Report
 
@@ -499,8 +606,10 @@ This creates end-to-end traceability: taxonomy Belief → injected into context 
 - Priority updates from reflection concessions
 - Human review/override workflow
 
-### Phase 4: Downstream Effects
-- Edge weight modulation by confidence
+### Phase 4: Edge Reprocessing + Downstream Effects
+- **Edge weight modulation** — run full reprocess of 26,023 edges with confidence/priority modulation formula (see Edge Weight Modulation section). Store both `raw_weight` and `modulated_weight`. Validate distribution before committing.
+- **Edge discovery pipeline update** — modify `Invoke-EdgeDiscovery` and TypeScript edge creation to apply modulation inline at discovery time
+- **Targeted reprocess hook** — after any confidence/priority change, recompute modulated_weight for edges touching the affected node (~50-100 edges, trivially fast)
 - Synthesis confidence-aware preference evaluation
 - Policy consensus scoring with priority weighting
 - News report distinction between empirical and values disputes
