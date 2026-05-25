@@ -178,15 +178,15 @@ gap = Inches(0.4)
 start_left = Inches(0.8)
 
 pov_data = [
-    ("Accelerationists", "Prometheus", ACCENT_BLUE,
+    ("Accelerationists", "Accelerationist", ACCENT_BLUE,
      ["AI capability growth is urgent",
       "Regulation is a bottleneck",
       "Competitive dynamics between\ndemocracies drive responsible\ndeployment"]),
-    ("Safetyists", "Sentinel", ACCENT_GOLD,
+    ("Safetyists", "Safetyist", ACCENT_GOLD,
      ["Current safety measures are\ninadequate",
       "Precautionary approaches are\njustified",
       "Institutional governance must\ngate high-risk capabilities"]),
-    ("Skeptics", "Cassandra", ACCENT_RED,
+    ("Skeptics", "Skeptic", ACCENT_RED,
      ["Hypothetical risks distract from\ndemonstrated harms",
       "Labor displacement, algorithmic\nbias, power concentration",
       "Accountability gaps demand\nimmediate action"]),
@@ -530,9 +530,9 @@ add_accent_bar(slide, Inches(0.8), Inches(1.15), Inches(2.5), Inches(0.04), ACCE
 
 # Three characters
 chars = [
-    ("Prometheus", "Accelerationist", ACCENT_BLUE),
-    ("Sentinel", "Safetyist", ACCENT_GOLD),
-    ("Cassandra", "Skeptic", ACCENT_RED),
+    ("Accelerationist", "Accelerationist", ACCENT_BLUE),
+    ("Safetyist", "Safetyist", ACCENT_GOLD),
+    ("Skeptic", "Skeptic", ACCENT_RED),
 ]
 for i, (name, role, color) in enumerate(chars):
     left = Inches(0.8) + i * Inches(4.1)

@@ -819,14 +819,14 @@ Add `argument_map` to synthesis output:
     {
       "claim_id": "C1",
       "claim": "Scaling compute is sufficient to reach AGI",
-      "claimant": "prometheus",
+      "claimant": "Accelerationist",
       "type": "empirical",
       "supported_by": ["C3"],
       "attacked_by": [
         {
           "claim_id": "C2",
           "claim": "Novel architectures may be needed",
-          "claimant": "sentinel",
+          "claimant": "Safetyist",
           "attack_type": "undercut",
           "scheme": "COUNTEREXAMPLE"
         }

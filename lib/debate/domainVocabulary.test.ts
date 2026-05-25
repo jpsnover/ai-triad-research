@@ -6,7 +6,7 @@ import { extractClaimsPrompt, classifyClaimsPrompt } from './argumentNetwork.js'
 
 describe('DOMAIN_VOCABULARY in extractClaimsPrompt', () => {
   it('includes domain vocabulary block', () => {
-    const prompt = extractClaimsPrompt('AI is dangerous', 'sentinel', []);
+    const prompt = extractClaimsPrompt('AI is dangerous', 'safetyist', []);
     expect(prompt).toContain('PREFERRED DOMAIN TERMINOLOGY');
     expect(prompt).toContain('"AI alignment"');
     expect(prompt).toContain('"existential risk"');
@@ -14,14 +14,14 @@ describe('DOMAIN_VOCABULARY in extractClaimsPrompt', () => {
   });
 
   it('places vocabulary before JSON schema', () => {
-    const prompt = extractClaimsPrompt('AI is dangerous', 'sentinel', []);
+    const prompt = extractClaimsPrompt('AI is dangerous', 'safetyist', []);
     const vocabIdx = prompt.indexOf('PREFERRED DOMAIN TERMINOLOGY');
     const jsonIdx = prompt.indexOf('Return ONLY JSON');
     expect(vocabIdx).toBeLessThan(jsonIdx);
   });
 
   it('includes advisory note about exact phrasing', () => {
-    const prompt = extractClaimsPrompt('AI is dangerous', 'sentinel', []);
+    const prompt = extractClaimsPrompt('AI is dangerous', 'safetyist', []);
     expect(prompt).toContain("use the debater's exact phrasing when it's already precise");
   });
 });
@@ -30,9 +30,9 @@ describe('DOMAIN_VOCABULARY in classifyClaimsPrompt', () => {
   it('includes domain vocabulary block', () => {
     const prompt = classifyClaimsPrompt(
       'We need compute governance',
-      'sentinel',
+      'safetyist',
       [{ claim: 'Compute governance is essential', targets: [] }],
-      [{ id: 'AN-1', text: 'AI scaling is safe', speaker: 'prometheus' }],
+      [{ id: 'AN-1', text: 'AI scaling is safe', speaker: 'accelerationist' }],
     );
     expect(prompt).toContain('PREFERRED DOMAIN TERMINOLOGY');
     expect(prompt).toContain('"compute governance"');
@@ -42,7 +42,7 @@ describe('DOMAIN_VOCABULARY in classifyClaimsPrompt', () => {
   it('places vocabulary before JSON schema', () => {
     const prompt = classifyClaimsPrompt(
       'Test statement',
-      'prometheus',
+      'accelerationist',
       [{ claim: 'Test claim', targets: [] }],
       [],
     );

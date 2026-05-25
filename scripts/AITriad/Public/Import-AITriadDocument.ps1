@@ -34,7 +34,7 @@ function Import-AITriadDocument {
     .PARAMETER Model
         AI model to use for metadata enrichment and summarization.
         Supports Gemini, Claude, and Groq backends.
-        Default: gemini-flash-lite-latest
+        Default: gemini-3.1-flash-lite
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0) passed to summarization.
         Lower values produce more deterministic output.
@@ -81,7 +81,7 @@ function Import-AITriadDocument {
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [Alias('GeminiModel')]
-        [string]$Model = 'gemini-flash-lite-latest',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [ValidateRange(0.0, 1.0)]
         [double]$Temperature = 0.1

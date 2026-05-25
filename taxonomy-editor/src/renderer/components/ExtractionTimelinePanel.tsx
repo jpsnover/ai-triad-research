@@ -392,7 +392,7 @@ export function ExtractionTimelinePanel({ debate }: Props) {
           <thead>
             <tr>
               <th style={thNum} data-tooltip={"Statement number — the position of this debate entry in the full transcript (e.g., S4 = 4th entry).\n\nClick a row to see detailed extraction diagnostics."}>Stmt</th>
-              <th style={th} data-tooltip={"The AI debater who made this statement.\n\nPrometheus (accelerationist)\nSentinel (safetyist)\nCassandra (skeptic)"}>Speaker</th>
+              <th style={th} data-tooltip={"The AI debater who made this statement.\n\nAccelerationist\nSafetyist\nSkeptic"}>Speaker</th>
               <th style={th} data-tooltip={"Extraction status for this turn.\n\nOK = claims extracted successfully\nNo new nodes = no new AN nodes (duplicates or low overlap)\nEmpty = AI returned an empty response\nTruncated = response cut off (context too large)\nParse error = couldn't parse as valid JSON\nAdapter error = AI backend call failed"}>Status</th>
               <th style={thNum} data-tooltip={"Prompt size in kilobytes — the extraction prompt sent to the AI.\n\nGrows each turn as transcript and AN context accumulate. Prompts over 15k may cause truncated responses."}>Prompt</th>
               <th style={thNum} data-tooltip={"Response size in kilobytes — the AI's raw response.\n\nSmall responses (< 1k) may indicate the model failed to extract meaningful claims."}>Resp</th>

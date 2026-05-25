@@ -35,9 +35,9 @@ const SOURCE_TYPE_LABELS: Record<string, string> = {
 };
 
 const POVER_LABELS: Record<string, { label: string; color: string }> = {
-  prometheus: { label: POVER_INFO.prometheus.label, color: POVER_INFO.prometheus.color },
-  sentinel: { label: POVER_INFO.sentinel.label, color: POVER_INFO.sentinel.color },
-  cassandra: { label: POVER_INFO.cassandra.label, color: POVER_INFO.cassandra.color },
+  accelerationist: { label: POVER_INFO.accelerationist.label, color: POVER_INFO.accelerationist.color },
+  safetyist: { label: POVER_INFO.safetyist.label, color: POVER_INFO.safetyist.color },
+  skeptic: { label: POVER_INFO.skeptic.label, color: POVER_INFO.skeptic.color },
   user: { label: 'You', color: 'var(--text-muted)' },
 };
 

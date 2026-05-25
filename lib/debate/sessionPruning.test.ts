@@ -26,7 +26,7 @@ function makeSignal(round: number): ConvergenceSignals {
   return {
     entry_id: `entry-${round}`,
     round,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     move_polarity: { confrontational: 1, collaborative: 0, ratio: 1 },
     dialectical_engagement: { targeted: 1, standalone: 0, ratio: 1 },
     argument_redundancy: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
@@ -45,7 +45,7 @@ describe('pruneSessionData', () => {
   it('does nothing when fields are under limits', () => {
     const session = makeMinimalSession({
       convergence_signals: [makeSignal(1), makeSignal(2)],
-      position_drift: [{ round: 1, speaker: 'prometheus', self_similarity: 0.9, opponent_similarities: {} }],
+      position_drift: [{ round: 1, speaker: 'accelerationist', self_similarity: 0.9, opponent_similarities: {} }],
     });
     pruneSessionData(session);
     expect(session.convergence_signals).toHaveLength(2);
@@ -71,7 +71,7 @@ describe('pruneSessionData', () => {
 
   it('prunes position_drift to last 30', () => {
     const drift = Array.from({ length: 40 }, (_, i) => ({
-      round: i, speaker: 'prometheus' as const, self_similarity: 0.9, opponent_similarities: {},
+      round: i, speaker: 'accelerationist' as const, self_similarity: 0.9, opponent_similarities: {},
     }));
     const session = makeMinimalSession({ position_drift: drift });
     pruneSessionData(session);
@@ -81,7 +81,7 @@ describe('pruneSessionData', () => {
 
   it('prunes turn_embeddings to keep only recent transcript entries', () => {
     const transcript = Array.from({ length: 30 }, (_, i) => ({
-      id: `entry-${i}`, type: 'statement' as const, speaker: 'prometheus' as const,
+      id: `entry-${i}`, type: 'statement' as const, speaker: 'accelerationist' as const,
       content: `Turn ${i}`, taxonomy_refs: [], timestamp: '2026-01-01T00:00:00Z',
     }));
     const embeddings: Record<string, number[]> = {};
@@ -99,7 +99,7 @@ describe('pruneSessionData', () => {
 
   it('preserves all diagnostic entries (diagnostics are not pruned)', () => {
     const transcript = Array.from({ length: 25 }, (_, i) => ({
-      id: `entry-${i}`, type: 'statement' as const, speaker: 'prometheus' as const,
+      id: `entry-${i}`, type: 'statement' as const, speaker: 'accelerationist' as const,
       content: `Turn ${i}`, taxonomy_refs: [], timestamp: '2026-01-01T00:00:00Z',
     }));
     const entries: Record<string, { prompt?: string }> = {};

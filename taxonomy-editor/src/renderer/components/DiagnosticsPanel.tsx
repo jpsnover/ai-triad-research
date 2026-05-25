@@ -667,9 +667,9 @@ function EntryView({ entryId }: { entryId: string }) {
 }
 
 const TIMELINE_SPEAKER_COLORS: Record<string, string> = {
-  prometheus: '#27AE60',
-  sentinel: '#E74C3C',
-  cassandra: '#F1C40F',
+  accelerationist: '#27AE60',
+  safetyist: '#E74C3C',
+  skeptic: '#F1C40F',
 };
 const TIMELINE_W = 560;
 const TIMELINE_H = 200;

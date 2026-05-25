@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-ConflictEvolution {
@@ -23,7 +23,7 @@ function Get-ConflictEvolution {
         Use LLM to generate a deep analysis of conflict evolution.
         Without this switch, only structured graph context is returned.
     .PARAMETER Model
-        AI model to use for analysis. Defaults to 'gemini-2.5-flash'.
+        AI model to use for analysis. Defaults to 'gemini-3.1-flash-lite'.
     .PARAMETER ApiKey
         AI API key.
     .PARAMETER RepoRoot
@@ -45,7 +45,7 @@ function Get-ConflictEvolution {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-2.5-flash',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey = '',
 

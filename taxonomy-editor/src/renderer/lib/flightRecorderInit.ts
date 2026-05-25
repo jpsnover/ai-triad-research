@@ -218,7 +218,7 @@ export function initFlightRecorder(): FlightRecorder {
     return shim;
   }
 
-  const recorder = new FlightRecorder({ capacity: 3000, dumpOnError: true });
+  const recorder = new FlightRecorder({ capacity: 5000, dumpOnError: true });
   setGlobalRecorder(recorder);
 
   // Register known dictionary entries
@@ -236,9 +236,9 @@ export function initFlightRecorder(): FlightRecorder {
   recorder.intern('component', 'taxonomy-store');
   recorder.intern('component', 'reflection-edit');
 
-  recorder.intern('pov', 'prometheus');
-  recorder.intern('pov', 'sentinel');
-  recorder.intern('pov', 'cassandra');
+  recorder.intern('pov', 'accelerationist');
+  recorder.intern('pov', 'safetyist');
+  recorder.intern('pov', 'skeptic');
 
   // Wrap record() to stamp _origin on all events
   const originalRecord = recorder.record.bind(recorder);

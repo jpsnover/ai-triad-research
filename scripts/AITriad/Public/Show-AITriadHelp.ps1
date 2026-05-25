@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-AITriadHelp {
@@ -566,7 +566,7 @@ Approve-TaxonomyProposal -Path taxonomy/proposals/proposal-2026-03-14.json -Inde
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
       <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only this POV file. Default: all four</td></tr>
       <tr><td><code>-BatchSize</code></td><td>int</td><td>No</td><td>Nodes per API call (1&ndash;20). Default: 8</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
       <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>Explicit API key override</td></tr>
       <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.2</td></tr>
       <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first batch prompt without calling AI</td></tr>
@@ -617,7 +617,7 @@ Find-PolicyAction -Force -Model 'groq-llama-4-scout'
       <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only this POV. Default: all four</td></tr>
       <tr><td><code>-Id</code></td><td>string[]</td><td>No</td><td>One or more node IDs to analyse</td></tr>
       <tr><td><code>-BatchSize</code></td><td>int</td><td>No</td><td>Nodes per API call (1&ndash;20). Default: 8</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
       <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.2</td></tr>
       <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first batch prompt without calling the API</td></tr>
       <tr><td><code>-Force</code></td><td>switch</td><td>No</td><td>Re-analyse nodes that already have possible_fallacies</td></tr>
@@ -667,7 +667,7 @@ Show-FallacyInfo -List                    # list all 59 fallacies
       <tr><td><code>-POV</code></td><td>string</td><td>No</td><td>Process only nodes from this POV. Default: all four</td></tr>
       <tr><td><code>-NodeId</code></td><td>string</td><td>No</td><td>Process only this specific node ID</td></tr>
       <tr><td><code>-StaleOnly</code></td><td>switch</td><td>No</td><td>Only process nodes marked STALE</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
       <tr><td><code>-ApiKey</code></td><td>string</td><td>No</td><td>Explicit API key override</td></tr>
       <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
       <tr><td><code>-DryRun</code></td><td>switch</td><td>No</td><td>Show first node prompt without calling AI</td></tr>
@@ -813,7 +813,7 @@ Get-Edge -Source 'saf-*' -MinConfidence 0.85 | Set-Edge -Status approved -PassTh
       <tr><td><code>-Question</code></td><td>string</td><td>Yes</td><td>Natural-language question to answer</td></tr>
       <tr><td><code>-IncludeConflicts</code></td><td>switch</td><td>No</td><td>Include conflict data in graph context</td></tr>
       <tr><td><code>-StatusFilter</code></td><td>string</td><td>No</td><td>Edge status filter: approved (default), proposed, rejected, all</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
       <tr><td><code>-Temperature</code></td><td>double</td><td>No</td><td>Sampling temperature (0.0&ndash;1.0). Default: 0.3</td></tr>
       <tr><td><code>-Raw</code></td><td>switch</td><td>No</td><td>Return raw JSON response instead of formatted output</td></tr>
     </table>
@@ -834,7 +834,7 @@ Invoke-GraphQuery "How does the skeptic position respond to existential risk arg
       <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
       <tr><td><code>-Id</code></td><td>string</td><td>No</td><td>Conflict ID (e.g., <code>conflict-agi-timelines-001</code>). Default: all</td></tr>
       <tr><td><code>-Analyze</code></td><td>switch</td><td>No</td><td>Use LLM for deep analysis (without this, returns structured graph context)</td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
     </table>
 <pre>
 Get-ConflictEvolution
@@ -914,8 +914,8 @@ Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
   <div class="func">
     <h4>Show-TriadDialogue</h4>
     <div class="synopsis">Simulates a structured three-agent debate grounded in the AI Triad taxonomy.</div>
-    <p>Runs a multi-round debate between <strong>Prometheus</strong> (accelerationist),
-    <strong>Sentinel</strong> (safetyist), and <strong>Cassandra</strong> (skeptic). Each
+    <p>Runs a multi-round debate between <strong>Accelerationist</strong> (accelerationist),
+    <strong>Safetyist</strong> (safetyist), and <strong>Skeptic</strong> (skeptic). Each
     agent's arguments are grounded in taxonomy nodes and edges. Produces opening statements,
     N debate rounds, and a synthesis. Output is compatible with the Taxonomy Editor
     Debates tab.</p>
@@ -924,7 +924,7 @@ Find-CrossCuttingCandidates -ShowDebatesOnly -TopN 10
       <tr><td><code>-Topic</code></td><td>string</td><td>Yes</td><td>The debate topic</td></tr>
       <tr><td><code>-Rounds</code></td><td>int</td><td>No</td><td>Number of debate rounds after opening statements (1&ndash;15). Default: 3</td></tr>
       <tr><td><code>-OutputFile</code></td><td>string</td><td>No</td><td>Path to write debate JSON. Default: <code>debates/debate-&lt;guid&gt;.json</code></td></tr>
-      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-2.5-flash</code></td></tr>
+      <tr><td><code>-Model</code></td><td>string</td><td>No</td><td>AI model. Default: <code>gemini-3.1-flash-lite</code></td></tr>
     </table>
 <pre>
 Show-TriadDialogue "Should AI be regulated like a public utility?" -Rounds 2
@@ -1381,8 +1381,8 @@ Show-AITriadHelp -PassThru
   <table>
     <tr><th>Model Name</th><th>API Model ID</th><th>Note</th></tr>
     <tr><td><code>gemini-3.1-flash-lite-preview</code></td><td>gemini-3.1-flash-lite-preview</td><td><strong>Default</strong></td></tr>
-    <tr><td><code>gemini-2.5-flash</code></td><td>gemini-2.5-flash</td><td></td></tr>
-    <tr><td><code>gemini-2.5-flash-lite</code></td><td>gemini-2.5-flash-lite</td><td></td></tr>
+    <tr><td><code>gemini-3.1-flash-lite</code></td><td>gemini-3.1-flash-lite</td><td></td></tr>
+    <tr><td><code>gemini-3.1-flash-lite-lite</code></td><td>gemini-3.1-flash-lite-lite</td><td></td></tr>
     <tr><td><code>gemini-2.5-pro</code></td><td>gemini-2.5-pro</td><td></td></tr>
   </table>
 

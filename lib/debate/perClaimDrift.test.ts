@@ -161,7 +161,7 @@ describe('pruneSessionData — per_claim_drift', () => {
   function makeSnapshot(round: number): PerClaimDriftSnapshot {
     return {
       round,
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       claims: [{ claim_id: `c-${round}`, similarity: 0.8, status: 'maintained', concession_exempt: false }],
       sycophancy_score: 0,
     };

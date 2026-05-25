@@ -33,9 +33,9 @@ function makeEdge(
 
 function emptyCommitments(): Record<string, CommitmentStore> {
   return {
-    prometheus: { asserted: [], conceded: [], retracted: [] },
-    sentinel: { asserted: [], conceded: [], retracted: [] },
-    cassandra: { asserted: [], conceded: [], retracted: [] },
+    accelerationist: { asserted: [], conceded: [], retracted: [] },
+    safetyist: { asserted: [], conceded: [], retracted: [] },
+    skeptic: { asserted: [], conceded: [], retracted: [] },
   };
 }
 
@@ -43,87 +43,87 @@ function emptyCommitments(): Record<string, CommitmentStore> {
 
 describe('detectCommitmentTraps', () => {
   it('returns empty when no commitments', () => {
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus' })];
-    const hints = detectCommitmentTraps('prometheus', nodes, emptyCommitments());
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist' })];
+    const hints = detectCommitmentTraps('accelerationist', nodes, emptyCommitments());
     expect(hints).toHaveLength(0);
   });
 
   it('detects tension between asserted and conceded claims with overlapping words', () => {
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'sentinel' }),
+      makeNode({ id: 'AN-1', speaker: 'safetyist' }),
     ];
     const commitments = emptyCommitments();
-    commitments.sentinel.asserted = [
+    commitments.safetyist.asserted = [
       'Advanced artificial intelligence systems require robust safety frameworks and regulatory oversight mechanisms',
     ];
-    commitments.sentinel.conceded = [
+    commitments.safetyist.conceded = [
       'Current artificial intelligence safety frameworks and regulatory oversight have significant limitations and gaps',
     ];
 
-    const hints = detectCommitmentTraps('prometheus', nodes, commitments);
+    const hints = detectCommitmentTraps('accelerationist', nodes, commitments);
     expect(hints.length).toBeGreaterThanOrEqual(1);
     expect(hints[0].type).toBe('commitment_trap');
-    expect(hints[0].target_speaker).toBe('sentinel');
+    expect(hints[0].target_speaker).toBe('safetyist');
     expect(hints[0].hint).toContain('DISTINGUISH');
   });
 
   it('does not flag own commitments', () => {
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus' })];
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist' })];
     const commitments = emptyCommitments();
-    commitments.prometheus.asserted = [
+    commitments.accelerationist.asserted = [
       'Advanced artificial intelligence systems require robust safety frameworks and regulatory oversight mechanisms',
     ];
-    commitments.prometheus.conceded = [
+    commitments.accelerationist.conceded = [
       'Current artificial intelligence safety frameworks and regulatory oversight have significant limitations and gaps',
     ];
 
-    const hints = detectCommitmentTraps('prometheus', nodes, commitments);
+    const hints = detectCommitmentTraps('accelerationist', nodes, commitments);
     expect(hints).toHaveLength(0);
   });
 
   it('detects taxonomy ref overlap between conceded and asserted territory', () => {
     const nodes = [
       makeNode({
-        id: 'AN-1', speaker: 'sentinel',
+        id: 'AN-1', speaker: 'safetyist',
         text: 'Safety governance requires international coordination',
         taxonomy_refs: ['saf-desires-001'],
         computed_strength: 0.7,
       }),
       makeNode({
-        id: 'AN-2', speaker: 'sentinel',
+        id: 'AN-2', speaker: 'safetyist',
         text: 'International governance coordination is insufficient today',
         taxonomy_refs: ['saf-desires-001'],
         computed_strength: 0.6,
       }),
     ];
     const commitments = emptyCommitments();
-    commitments.sentinel.asserted = ['Safety governance matters'];
-    commitments.sentinel.conceded = [
+    commitments.safetyist.asserted = ['Safety governance matters'];
+    commitments.safetyist.conceded = [
       'International governance coordination mechanisms have fundamental structural problems',
     ];
 
-    const hints = detectCommitmentTraps('prometheus', nodes, commitments);
+    const hints = detectCommitmentTraps('accelerationist', nodes, commitments);
     // May or may not fire depending on word overlap — the taxonomy ref path requires overlap ≥ 2
     expect(hints.every(h => h.type === 'commitment_trap')).toBe(true);
   });
 
   it('caps hints at 2 per call', () => {
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'sentinel' })];
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'safetyist' })];
     const commitments = emptyCommitments();
     // Create many overlapping asserted/conceded pairs
     const baseWords = 'advanced artificial intelligence systems require robust safety frameworks regulatory oversight';
-    commitments.sentinel.asserted = [
+    commitments.safetyist.asserted = [
       `First claim about ${baseWords} being essential`,
       `Second claim about ${baseWords} being necessary`,
       `Third claim about ${baseWords} being critical`,
     ];
-    commitments.sentinel.conceded = [
+    commitments.safetyist.conceded = [
       `Concession that ${baseWords} have limitations`,
       `Another concession about ${baseWords} failures`,
       `Third concession regarding ${baseWords} gaps`,
     ];
 
-    const hints = detectCommitmentTraps('prometheus', nodes, commitments);
+    const hints = detectCommitmentTraps('accelerationist', nodes, commitments);
     expect(hints.length).toBeLessThanOrEqual(2);
   });
 });
@@ -133,39 +133,39 @@ describe('detectCommitmentTraps', () => {
 describe('detectCapabilityGaps', () => {
   it('returns empty when no taxonomy refs', () => {
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus' }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel' }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist' }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist' }),
     ];
-    const hints = detectCapabilityGaps('prometheus', nodes);
+    const hints = detectCapabilityGaps('accelerationist', nodes);
     expect(hints).toHaveLength(0);
   });
 
   it('detects sparse coverage in opponent taxonomy area', () => {
     const nodes = [
       // Prometheus has 3 acc refs
-      makeNode({ id: 'AN-1', speaker: 'prometheus', taxonomy_refs: ['acc-beliefs-001'] }),
-      makeNode({ id: 'AN-2', speaker: 'prometheus', taxonomy_refs: ['acc-desires-002'] }),
-      makeNode({ id: 'AN-3', speaker: 'prometheus', taxonomy_refs: ['acc-intentions-003'] }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-001'] }),
+      makeNode({ id: 'AN-2', speaker: 'accelerationist', taxonomy_refs: ['acc-desires-002'] }),
+      makeNode({ id: 'AN-3', speaker: 'accelerationist', taxonomy_refs: ['acc-intentions-003'] }),
       // Sentinel has 0 acc refs
-      makeNode({ id: 'AN-4', speaker: 'sentinel', taxonomy_refs: ['saf-beliefs-001'] }),
+      makeNode({ id: 'AN-4', speaker: 'safetyist', taxonomy_refs: ['saf-beliefs-001'] }),
     ];
 
-    const hints = detectCapabilityGaps('prometheus', nodes);
+    const hints = detectCapabilityGaps('accelerationist', nodes);
     expect(hints.length).toBeGreaterThanOrEqual(1);
     expect(hints[0].type).toBe('capability_gap');
-    expect(hints[0].target_speaker).toBe('sentinel');
+    expect(hints[0].target_speaker).toBe('safetyist');
     expect(hints[0].hint).toContain('accelerationist');
   });
 
   it('does not flag pol or sit prefixes', () => {
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', taxonomy_refs: ['pol-001'] }),
-      makeNode({ id: 'AN-2', speaker: 'prometheus', taxonomy_refs: ['pol-002'] }),
-      makeNode({ id: 'AN-3', speaker: 'prometheus', taxonomy_refs: ['pol-003'] }),
-      makeNode({ id: 'AN-4', speaker: 'sentinel', taxonomy_refs: ['saf-beliefs-001'] }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', taxonomy_refs: ['pol-001'] }),
+      makeNode({ id: 'AN-2', speaker: 'accelerationist', taxonomy_refs: ['pol-002'] }),
+      makeNode({ id: 'AN-3', speaker: 'accelerationist', taxonomy_refs: ['pol-003'] }),
+      makeNode({ id: 'AN-4', speaker: 'safetyist', taxonomy_refs: ['saf-beliefs-001'] }),
     ];
 
-    const hints = detectCapabilityGaps('prometheus', nodes);
+    const hints = detectCapabilityGaps('accelerationist', nodes);
     const polHints = hints.filter(h => h.hint.includes('pol'));
     expect(polHints).toHaveLength(0);
   });
@@ -173,12 +173,12 @@ describe('detectCapabilityGaps', () => {
   it('requires at least 3 refs to flag a gap', () => {
     const nodes = [
       // Only 2 acc refs — below threshold
-      makeNode({ id: 'AN-1', speaker: 'prometheus', taxonomy_refs: ['acc-beliefs-001'] }),
-      makeNode({ id: 'AN-2', speaker: 'prometheus', taxonomy_refs: ['acc-desires-002'] }),
-      makeNode({ id: 'AN-3', speaker: 'sentinel', taxonomy_refs: ['saf-beliefs-001'] }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-001'] }),
+      makeNode({ id: 'AN-2', speaker: 'accelerationist', taxonomy_refs: ['acc-desires-002'] }),
+      makeNode({ id: 'AN-3', speaker: 'safetyist', taxonomy_refs: ['saf-beliefs-001'] }),
     ];
 
-    const hints = detectCapabilityGaps('prometheus', nodes);
+    const hints = detectCapabilityGaps('accelerationist', nodes);
     expect(hints).toHaveLength(0);
   });
 
@@ -186,18 +186,18 @@ describe('detectCapabilityGaps', () => {
     const nodes = [
       // Prometheus dominates acc, saf, and skp
       ...Array.from({ length: 4 }, (_, i) =>
-        makeNode({ id: `AN-${i + 1}`, speaker: 'prometheus', taxonomy_refs: [`acc-beliefs-${i}`] }),
+        makeNode({ id: `AN-${i + 1}`, speaker: 'accelerationist', taxonomy_refs: [`acc-beliefs-${i}`] }),
       ),
       ...Array.from({ length: 4 }, (_, i) =>
-        makeNode({ id: `AN-${i + 5}`, speaker: 'prometheus', taxonomy_refs: [`saf-beliefs-${i}`] }),
+        makeNode({ id: `AN-${i + 5}`, speaker: 'accelerationist', taxonomy_refs: [`saf-beliefs-${i}`] }),
       ),
       ...Array.from({ length: 4 }, (_, i) =>
-        makeNode({ id: `AN-${i + 9}`, speaker: 'prometheus', taxonomy_refs: [`skp-beliefs-${i}`] }),
+        makeNode({ id: `AN-${i + 9}`, speaker: 'accelerationist', taxonomy_refs: [`skp-beliefs-${i}`] }),
       ),
-      makeNode({ id: 'AN-20', speaker: 'sentinel', taxonomy_refs: [] }),
+      makeNode({ id: 'AN-20', speaker: 'safetyist', taxonomy_refs: [] }),
     ];
 
-    const hints = detectCapabilityGaps('prometheus', nodes);
+    const hints = detectCapabilityGaps('accelerationist', nodes);
     expect(hints.length).toBeLessThanOrEqual(2);
   });
 });
@@ -206,7 +206,7 @@ describe('detectCapabilityGaps', () => {
 
 describe('detectStrategyShifts', () => {
   it('returns empty with insufficient data', () => {
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus' })];
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist' })];
     const edges = [makeEdge('AN-1', 'AN-1', 'attacks', 'COUNTEREXAMPLE')];
     const hints = detectStrategyShifts(nodes, edges, 1);
     expect(hints).toHaveLength(0);
@@ -215,16 +215,16 @@ describe('detectStrategyShifts', () => {
   it('detects shift from adversarial to cooperative', () => {
     const nodes = [
       // Early adversarial moves (turns 1-3)
-      makeNode({ id: 'AN-1', speaker: 'sentinel', turn_number: 1 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', turn_number: 2 }),
-      makeNode({ id: 'AN-3', speaker: 'sentinel', turn_number: 3 }),
+      makeNode({ id: 'AN-1', speaker: 'safetyist', turn_number: 1 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', turn_number: 2 }),
+      makeNode({ id: 'AN-3', speaker: 'safetyist', turn_number: 3 }),
       // Recent cooperative moves (turns 5-7)
-      makeNode({ id: 'AN-4', speaker: 'sentinel', turn_number: 5 }),
-      makeNode({ id: 'AN-5', speaker: 'sentinel', turn_number: 6 }),
-      makeNode({ id: 'AN-6', speaker: 'sentinel', turn_number: 7 }),
+      makeNode({ id: 'AN-4', speaker: 'safetyist', turn_number: 5 }),
+      makeNode({ id: 'AN-5', speaker: 'safetyist', turn_number: 6 }),
+      makeNode({ id: 'AN-6', speaker: 'safetyist', turn_number: 7 }),
       // Targets
-      makeNode({ id: 'AN-T1', speaker: 'prometheus', turn_number: 1 }),
-      makeNode({ id: 'AN-T2', speaker: 'prometheus', turn_number: 5 }),
+      makeNode({ id: 'AN-T1', speaker: 'accelerationist', turn_number: 1 }),
+      makeNode({ id: 'AN-T2', speaker: 'accelerationist', turn_number: 5 }),
     ];
     const edges: ArgumentNetworkEdge[] = [
       // Early: all adversarial
@@ -241,17 +241,17 @@ describe('detectStrategyShifts', () => {
     const hints = detectStrategyShifts(nodes, edges, 5);
     expect(hints.length).toBeGreaterThanOrEqual(1);
     expect(hints[0].type).toBe('strategy_shift');
-    expect(hints[0].target_speaker).toBe('sentinel');
+    expect(hints[0].target_speaker).toBe('safetyist');
     expect(hints[0].hint).toContain('cooperative');
   });
 
   it('does not flag when shift is below threshold', () => {
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'sentinel', turn_number: 1 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', turn_number: 2 }),
-      makeNode({ id: 'AN-3', speaker: 'sentinel', turn_number: 3 }),
-      makeNode({ id: 'AN-4', speaker: 'sentinel', turn_number: 5 }),
-      makeNode({ id: 'AN-T1', speaker: 'prometheus', turn_number: 1 }),
+      makeNode({ id: 'AN-1', speaker: 'safetyist', turn_number: 1 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', turn_number: 2 }),
+      makeNode({ id: 'AN-3', speaker: 'safetyist', turn_number: 3 }),
+      makeNode({ id: 'AN-4', speaker: 'safetyist', turn_number: 5 }),
+      makeNode({ id: 'AN-T1', speaker: 'accelerationist', turn_number: 1 }),
     ];
     const edges: ArgumentNetworkEdge[] = [
       // Mix of adversarial and cooperative throughout
@@ -263,7 +263,7 @@ describe('detectStrategyShifts', () => {
 
     const hints = detectStrategyShifts(nodes, edges, 4);
     // Small shift — should not trigger (need ≥0.25 delta)
-    const shiftHints = hints.filter(h => h.target_speaker === 'sentinel');
+    const shiftHints = hints.filter(h => h.target_speaker === 'safetyist');
     // Ratio is balanced enough that shift < 0.25
     expect(shiftHints.length).toBeLessThanOrEqual(1); // May or may not fire depending on exact ratios
   });
@@ -272,7 +272,7 @@ describe('detectStrategyShifts', () => {
     const nodes = [
       makeNode({ id: 'AN-1', speaker: 'system', turn_number: 1 }),
       makeNode({ id: 'AN-2', speaker: 'document', turn_number: 2 }),
-      makeNode({ id: 'AN-T1', speaker: 'prometheus', turn_number: 1 }),
+      makeNode({ id: 'AN-T1', speaker: 'accelerationist', turn_number: 1 }),
     ];
     const edges: ArgumentNetworkEdge[] = [
       makeEdge('AN-1', 'AN-T1', 'attacks', 'COUNTEREXAMPLE'),
@@ -289,16 +289,16 @@ describe('detectStrategyShifts', () => {
 describe('computeStrategicHints', () => {
   it('returns string array combining all hint types', () => {
     const nodes = [
-      // Prometheus has 3 acc refs, sentinel has none
-      makeNode({ id: 'AN-1', speaker: 'prometheus', taxonomy_refs: ['acc-beliefs-001'] }),
-      makeNode({ id: 'AN-2', speaker: 'prometheus', taxonomy_refs: ['acc-desires-002'] }),
-      makeNode({ id: 'AN-3', speaker: 'prometheus', taxonomy_refs: ['acc-intentions-003'] }),
-      makeNode({ id: 'AN-4', speaker: 'sentinel', taxonomy_refs: ['saf-beliefs-001'] }),
+      // Prometheus has 3 acc refs, safetyist has none
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-001'] }),
+      makeNode({ id: 'AN-2', speaker: 'accelerationist', taxonomy_refs: ['acc-desires-002'] }),
+      makeNode({ id: 'AN-3', speaker: 'accelerationist', taxonomy_refs: ['acc-intentions-003'] }),
+      makeNode({ id: 'AN-4', speaker: 'safetyist', taxonomy_refs: ['saf-beliefs-001'] }),
     ];
     const edges: ArgumentNetworkEdge[] = [];
     const commitments = emptyCommitments();
 
-    const hints = computeStrategicHints('prometheus', nodes, edges, commitments, 3);
+    const hints = computeStrategicHints('accelerationist', nodes, edges, commitments, 3);
     expect(Array.isArray(hints)).toBe(true);
     expect(hints.every(h => typeof h === 'string')).toBe(true);
     // Should have at least the capability gap hint
@@ -306,8 +306,8 @@ describe('computeStrategicHints', () => {
   });
 
   it('returns empty array when no hints generated', () => {
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus' })];
-    const hints = computeStrategicHints('prometheus', nodes, [], emptyCommitments(), 1);
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist' })];
+    const hints = computeStrategicHints('accelerationist', nodes, [], emptyCommitments(), 1);
     expect(hints).toHaveLength(0);
   });
 });

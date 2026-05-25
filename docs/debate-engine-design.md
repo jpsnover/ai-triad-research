@@ -121,9 +121,9 @@ Three AI characters represent distinct intellectual traditions. Each has a fixed
 
 | Character | POV | Voice | Strategy |
 |---|---|---|---|
-| **Prometheus** | Accelerationist | Bold, impatient, visionary | Appeals to progress, capability scaling, historical inevitability |
-| **Sentinel** | Safetyist | Cautious, analytical, urgent | Appeals to existential risk, alignment failure modes, precaution |
-| **Cassandra** | Skeptic | Pragmatic, grounded, sardonic | Appeals to concrete harms, labor displacement, current AI failures |
+| **Accelerationist** | Accelerationist | Bold, impatient, visionary | Appeals to progress, capability scaling, historical inevitability |
+| **Safetyist** | Safetyist | Cautious, analytical, urgent | Appeals to existential risk, alignment failure modes, precaution |
+| **Skeptic** | Skeptic | Pragmatic, grounded, sardonic | Appeals to concrete harms, labor displacement, current AI failures |
 
 Characters are not interchangeable — their prompts encode distinct epistemic commitments and argumentative tendencies. This is by design: the goal is to surface how real intellectual communities would engage, not to produce "balanced" generic responses.
 

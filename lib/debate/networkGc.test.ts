@@ -21,7 +21,7 @@ function makeNode(overrides: Partial<ArgumentNetworkNode> = {}): ArgumentNetwork
   return {
     id,
     text: `Node ${id}`,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     source_entry_id: 'entry-1',
     taxonomy_refs: [],
     turn_number: 1,

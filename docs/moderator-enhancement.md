@@ -779,8 +779,8 @@ most powerful moves because it does three things simultaneously:
 3. It gives other participants a version they can engage with.
 
 For LLM debates, revoicing is especially valuable because each persona
-has its own rhetorical register (Prometheus uses progress/innovation
-language, Sentinel uses risk/safety language, Cassandra uses structural/
+has its own rhetorical register (Accelerationist uses progress/innovation
+language, Safetyist uses risk/safety language, Skeptic uses structural/
 institutional language). A point made in one register may be invisible
 to agents operating in another. The moderator's revoicing bridges
 registers.
@@ -1673,9 +1673,9 @@ function initModeratorState(totalRounds: number): ModeratorState {
     required_gap: 1,
     last_target: null,
     last_family: null,
-    burden_per_debater: { prometheus: 0, sentinel: 0, cassandra: 0 },
+    burden_per_debater: { Accelerationist: 0, Safetyist: 0, Skeptic: 0 },
     avg_burden: 0,
-    persona_trigger_counts: { prometheus: {}, sentinel: {}, cassandra: {} },
+    persona_trigger_counts: { Accelerationist: {}, Safetyist: {}, Skeptic: {} },
     health_history: [],
     consecutive_decline: 0,
     consecutive_rise: 0,
@@ -1879,14 +1879,14 @@ pinned, confronted, and compressed. This is half the picture. The revised
 design adds the other half:
 
 - **ACKNOWLEDGE** counteracts sycophancy by making concession a *visible,
-  valued* move. When Sentinel concedes that Prometheus has a point about
+  valued* move. When Safetyist concedes that Accelerationist has a point about
   iteration speed, the moderator publicly marks it. This creates social
   pressure (even among LLMs) to treat concessions as commitments rather
   than throwaway gestures that can be walked back.
 
-- **REVOICE** bridges rhetorical registers. When Prometheus makes a subtle
+- **REVOICE** bridges rhetorical registers. When Accelerationist makes a subtle
   point about deployment infrastructure in accelerationist jargon, and
-  Sentinel and Cassandra talk past it, the moderator restates it in neutral
+  Safetyist and Skeptic talk past it, the moderator restates it in neutral
   language. Now all three agents can engage with the actual substance.
 
 - **CHECK** prevents phantom disagreements. LLM debates frequently produce
@@ -1894,7 +1894,7 @@ design adds the other half:
   are arguing about different things. CHECK makes the misunderstanding
   visible and correctable.
 
-- **BALANCE** ensures Cassandra (the skeptic, structurally disadvantaged
+- **BALANCE** ensures Skeptic (the skeptic, structurally disadvantaged
   because both other debaters have stronger advocacy positions) gets
   adequate airtime and isn't perpetually on defense.
 
@@ -1999,8 +1999,8 @@ every intervention boundary.
 We do not claim neutrality. We claim **procedural transparency**: the
 moderator's selection criteria are visible, its decisions are logged with full
 provenance, and the diagnostics make the moderator's attention pattern
-auditable. The audience can see that REVOICE targeted Prometheus 3 times and
-Sentinel once, and judge whether that reflects genuine need or bias.
+auditable. The audience can see that REVOICE targeted Accelerationist 3 times and
+Safetyist once, and judge whether that reflects genuine need or bias.
 
 **The transparency principle:** Moderator interventions must be framed in terms
 of *observable debate state* ("you made a concession," "your opponents haven't
@@ -2037,7 +2037,7 @@ structural audit for the moderator's attention pattern:
 
 This makes the moderator's bias surface *detectable and measurable* rather
 than assuming it away with a neutrality claim. A reviewer can see that
-Prometheus was challenged 3 times and never acknowledged, and flag this as
+Accelerationist was challenged 3 times and never acknowledged, and flag this as
 an attention imbalance — even if each individual intervention was
 trigger-justified.
 
@@ -2063,16 +2063,16 @@ The online moderation literature argues that the same intervention can help one
 participant and backfire for another. In our system, the three personas have
 fundamentally different rhetorical profiles:
 
-- **Prometheus** (accelerationist): Confident, expansive, prone to hand-waving
+- **Accelerationist** (accelerationist): Confident, expansive, prone to hand-waving
   over risks. Benefits most from PIN and PROBE (force specificity). May
   respond poorly to CHECK (perceives it as pedantic).
 
-- **Sentinel** (safetyist): Methodical, evidence-heavy, prone to over-qualifying.
+- **Safetyist** (safetyist): Methodical, evidence-heavy, prone to over-qualifying.
   Benefits most from COMPRESS (force brevity). May respond poorly to CHALLENGE
   (already cautious about position changes; a CHALLENGE may trigger defensive
   over-qualification rather than honest acknowledgment).
 
-- **Cassandra** (skeptic): Structural, contrarian, often the most intellectually
+- **Skeptic** (skeptic): Structural, contrarian, often the most intellectually
   flexible but also the most likely to be talked over. Benefits most from
   BALANCE and ACKNOWLEDGE (ensure adequate airtime and validate bridge-building).
   May be under-served by PIN (already tends to give nuanced answers rather than
@@ -2082,10 +2082,10 @@ fundamentally different rhetorical profiles:
 thresholds, the trigger logic adjusts based on the target persona. But
 static modifiers create a structural overfitting problem: if the modifiers
 encode what the personas are *supposed* to do, the system is blind to what
-they *actually* do. Raising Cassandra's PIN threshold to 1.3 because she
-"rarely evades" means that if context forces Cassandra into a corner where
+they *actually* do. Raising Skeptic's PIN threshold to 1.3 because she
+"rarely evades" means that if context forces Skeptic into a corner where
 she starts evading, the moderator allows it far longer than it would for
-Prometheus — insulating the agent from the dialectical consequences of its
+Accelerationist — insulating the agent from the dialectical consequences of its
 own generated text.
 
 The solution: treat the hardcoded values as **priors** that decay toward
@@ -2094,17 +2094,17 @@ observed behavior over the course of the debate.
 ```typescript
 // Initial priors — informed by persona design, not immutable
 const PERSONA_PRIOR_MODIFIERS: Record<PoverId, Partial<Record<InterventionMove, number>>> = {
-  prometheus: {
-    PIN: 0.85,       // prior: Prometheus evades more
+  Accelerationist: {
+    PIN: 0.85,       // prior: Accelerationist evades more
     PROBE: 0.85,     // prior: often under-evidenced
     COMPRESS: 1.15,  // prior: naturally expansive, give more room
   },
-  sentinel: {
+  Safetyist: {
     COMPRESS: 0.85,  // prior: over-qualifies
     CHALLENGE: 1.2,  // prior: avoid triggering defensive spirals
     ACKNOWLEDGE: 0.85, // prior: concessions are rarer and more meaningful
   },
-  cassandra: {
+  Skeptic: {
     BALANCE: 0.85,   // prior: structurally disadvantaged
     PIN: 1.3,        // prior: rarely evasive
     ACKNOWLEDGE: 0.85, // prior: bridge-building should be rewarded
@@ -2127,7 +2127,7 @@ function adaptiveModifier(
 }
 ```
 
-**How it works:** At debate start, Cassandra's PIN modifier is 1.3 (lenient).
+**How it works:** At debate start, Skeptic's PIN modifier is 1.3 (lenient).
 If she evades twice (2 near-miss PIN signals), the modifier decays:
 `1.3 × 0.85² + 1.0 × (1 - 0.85²) ≈ 1.21` after 2 events,
 `≈ 1.13` after 4 events, `≈ 1.05` after 8 events. The system converges
@@ -2146,7 +2146,7 @@ invisible to the debaters — they affect *when* the moderator intervenes, not
 *how* it speaks. The moderator's tone and framing remain uniform.
 
 **Metrics to watch:** Per-persona intervention effectiveness rates. If CHALLENGE
-on Sentinel consistently produces `challenge_response.type === 'consistent'`
+on Safetyist consistently produces `challenge_response.type === 'consistent'`
 (defensive denial) rather than `'evolved'` or `'conceded'`, the prior needs
 further increase. Also track **prior decay velocity** in diagnostics: if a
 persona's modifiers converge toward 1.0 rapidly, the priors were wrong for
@@ -2520,15 +2520,15 @@ valid range, and the section that defines its semantics.
 
 | Parameter | Default | Range | Defined in |
 |---|---|---|---|
-| Persona prior: Prometheus PIN | 0.85 | — | Risk 3 |
-| Persona prior: Prometheus PROBE | 0.85 | — | Risk 3 |
-| Persona prior: Prometheus COMPRESS | 1.15 | — | Risk 3 |
-| Persona prior: Sentinel COMPRESS | 0.85 | — | Risk 3 |
-| Persona prior: Sentinel CHALLENGE | 1.2 | — | Risk 3 |
-| Persona prior: Sentinel ACKNOWLEDGE | 0.85 | — | Risk 3 |
-| Persona prior: Cassandra BALANCE | 0.85 | — | Risk 3 |
-| Persona prior: Cassandra PIN | 1.3 | — | Risk 3 |
-| Persona prior: Cassandra ACKNOWLEDGE | 0.85 | — | Risk 3 |
+| Persona prior: Accelerationist PIN | 0.85 | — | Risk 3 |
+| Persona prior: Accelerationist PROBE | 0.85 | — | Risk 3 |
+| Persona prior: Accelerationist COMPRESS | 1.15 | — | Risk 3 |
+| Persona prior: Safetyist COMPRESS | 0.85 | — | Risk 3 |
+| Persona prior: Safetyist CHALLENGE | 1.2 | — | Risk 3 |
+| Persona prior: Safetyist ACKNOWLEDGE | 0.85 | — | Risk 3 |
+| Persona prior: Skeptic BALANCE | 0.85 | — | Risk 3 |
+| Persona prior: Skeptic PIN | 1.3 | — | Risk 3 |
+| Persona prior: Skeptic ACKNOWLEDGE | 0.85 | — | Risk 3 |
 | Persona decay rate | 0.15 per event | (0, 1) | Risk 3 |
 | Global modifier clamp | [0.6, 1.4] | — | Trajectory-Aware Triggering |
 | Trajectory modifier (stable) | 1.0 | — | Trajectory-Aware Triggering |

@@ -28,7 +28,7 @@ function makeSignals(overrides: Partial<ConvergenceSignals> = {}): ConvergenceSi
   return {
     entry_id: 'test',
     round: 1,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     move_polarity: { confrontational: 1, collaborative: 0, ratio: 1 },
     dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.8 },
     argument_redundancy: { avg_self_overlap: 0.1, max_self_overlap: 0.2 },
@@ -52,20 +52,20 @@ function transcript(...speakers: string[]) {
 
 describe('moderator pipeline integration', () => {
   it('runs a normal intervention pipeline (PIN in argumentation)', () => {
-    const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
+    const state = initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic']);
     state.phase = 'argumentation';
     state.round = 4;
     state.rounds_since_last_intervention = 2;
 
     // Simulate Stage 1 selection result
     const selection: SelectionResult = {
-      responder: 'sentinel',
-      addressing: 'prometheus',
-      focus_point: 'Test whether prometheus actually supports open-source mandates',
+      responder: 'safetyist',
+      addressing: 'accelerationist',
+      focus_point: 'Test whether accelerationist actually supports open-source mandates',
       agreement_detected: false,
       intervene: true,
       suggested_move: 'PIN',
-      target_debater: 'sentinel',
+      target_debater: 'safetyist',
       trigger_reasoning: 'Sentinel has been evasive on open-source position',
       trigger_evidence: { signal_name: 'evasion', source_claim: 'claim-1', source_round: 3 },
     };
@@ -109,13 +109,13 @@ describe('moderator pipeline integration', () => {
     expect(state.interventions_fired).toBe(1);
     expect(state.budget_remaining).toBeCloseTo(state.budget_total - 0.34, 1);
     expect(state.rounds_since_last_intervention).toBe(0);
-    expect(state.last_target).toBe('sentinel');
-    expect(state.burden_per_debater.sentinel).toBe(1.0);
+    expect(state.last_target).toBe('safetyist');
+    expect(state.burden_per_debater.safetyist).toBe(1.0);
     expect(state.intervention_history).toHaveLength(1);
   });
 
   it('suppresses intervention due to cooldown, then allows after waiting', () => {
-    const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
+    const state = initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic']);
     state.phase = 'argumentation';
     state.round = 4;
     state.rounds_since_last_intervention = 0;
@@ -123,13 +123,13 @@ describe('moderator pipeline integration', () => {
 
     // Attempt intervention while in cooldown (REDIRECT is procedural, not cooldown-exempt)
     const selection: SelectionResult = {
-      responder: 'cassandra',
-      addressing: 'prometheus',
+      responder: 'skeptic',
+      addressing: 'accelerationist',
       focus_point: 'test',
       agreement_detected: false,
       intervene: true,
       suggested_move: 'REDIRECT',
-      target_debater: 'cassandra',
+      target_debater: 'skeptic',
       trigger_reasoning: 'test',
     };
 
@@ -149,20 +149,20 @@ describe('moderator pipeline integration', () => {
   });
 
   it('allows reconciliation through cooldown', () => {
-    const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
+    const state = initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic']);
     state.phase = 'argumentation';
     state.round = 5;
     state.rounds_since_last_intervention = 0;
     state.required_gap = 2;
 
     const selection: SelectionResult = {
-      responder: 'sentinel',
-      addressing: 'prometheus',
+      responder: 'safetyist',
+      addressing: 'accelerationist',
       focus_point: 'test',
       agreement_detected: false,
       intervene: true,
       suggested_move: 'ACKNOWLEDGE',
-      target_debater: 'prometheus',
+      target_debater: 'accelerationist',
       trigger_reasoning: 'concession just occurred',
     };
 
@@ -172,7 +172,7 @@ describe('moderator pipeline integration', () => {
   });
 
   it('health score drives trajectory modifier', () => {
-    const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
+    const state = initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic']);
     state.phase = 'argumentation';
 
     // Simulate 3 rounds of declining health
@@ -182,7 +182,7 @@ describe('moderator pipeline integration', () => {
       makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.4 } }),
     ];
 
-    const turnCounts = { prometheus: 3, sentinel: 3, cassandra: 3 };
+    const turnCounts = { accelerationist: 3, safetyist: 3, skeptic: 3 };
     for (let i = 0; i < sigs.length; i++) {
       const health = computeDebateHealthScore(sigs.slice(0, i + 1), turnCounts, 5, 20);
       if (state.health_history.length > 0) {
@@ -196,7 +196,7 @@ describe('moderator pipeline integration', () => {
         proceed: false as const,
         validated_move: 'PIN' as InterventionMove,
         validated_family: 'elicitation' as const,
-        validated_target: 'prometheus' as const,
+        validated_target: 'accelerationist' as const,
       };
       updateModeratorState(state, undefined, noInterventionValidation, i + 3, 'argumentation');
     }
@@ -213,16 +213,16 @@ describe('moderator pipeline integration', () => {
 
 describe('concluding COMMIT automation', () => {
   it('fires COMMIT for each debater in first-appearance order', () => {
-    const state = initModeratorState(10, ['prometheus', 'sentinel', 'cassandra']);
+    const state = initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic']);
     state.phase = 'concluding';
     state.round = 9;
     state.rounds_since_last_intervention = 3;
 
-    const trans = transcript('prometheus', 'sentinel', 'cassandra', 'prometheus', 'sentinel', 'cassandra');
+    const trans = transcript('accelerationist', 'safetyist', 'skeptic', 'accelerationist', 'safetyist', 'skeptic');
 
-    // Round 1: prometheus gets COMMIT
-    const target1 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
-    expect(target1).toBe('prometheus');
+    // Round 1: accelerationist gets COMMIT
+    const target1 = getConcludingResponder(state, ['accelerationist', 'safetyist', 'skeptic'], trans);
+    expect(target1).toBe('accelerationist');
 
     const sel1: SelectionResult = {
       responder: target1!,
@@ -246,9 +246,9 @@ describe('concluding COMMIT automation', () => {
     expect(state.interventions_fired).toBe(0);
     expect(state.budget_remaining).toBe(state.budget_total);
 
-    // Round 2: sentinel gets COMMIT
-    const target2 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
-    expect(target2).toBe('sentinel');
+    // Round 2: safetyist gets COMMIT
+    const target2 = getConcludingResponder(state, ['accelerationist', 'safetyist', 'skeptic'], trans);
+    expect(target2).toBe('safetyist');
 
     const v2Result = validateRecommendation({
       ...sel1, responder: target2!, target_debater: target2!,
@@ -257,9 +257,9 @@ describe('concluding COMMIT automation', () => {
     const int2 = buildIntervention(v2Result, 'Sentinel, provide your final commitment.', 'concluding COMMIT', { signal: 'concluding_phase', round: 10 });
     updateModeratorState(state, int2, v2Result, 10, 'concluding');
 
-    // Round 3: cassandra gets COMMIT
-    const target3 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
-    expect(target3).toBe('cassandra');
+    // Round 3: skeptic gets COMMIT
+    const target3 = getConcludingResponder(state, ['accelerationist', 'safetyist', 'skeptic'], trans);
+    expect(target3).toBe('skeptic');
 
     // After all committed
     const v3Result = validateRecommendation({
@@ -268,7 +268,7 @@ describe('concluding COMMIT automation', () => {
     const int3 = buildIntervention(v3Result, 'Cassandra, provide your final commitment.', 'concluding COMMIT', { signal: 'concluding_phase', round: 11 });
     updateModeratorState(state, int3, v3Result, 11, 'concluding');
 
-    const target4 = getConcludingResponder(state, ['prometheus', 'sentinel', 'cassandra'], trans);
+    const target4 = getConcludingResponder(state, ['accelerationist', 'safetyist', 'skeptic'], trans);
     expect(target4).toBeNull();
 
     // Still no budget consumed
@@ -283,7 +283,7 @@ describe('concluding COMMIT automation', () => {
       commitment: {
         concessions: ['I concede that alignment research is underfunded'],
         conditions_for_change: ['If empirical evidence shows existential risk probability > 10%'],
-        sharpest_disagreements: { sentinel: 'We fundamentally disagree on whether open-source helps or hurts safety' },
+        sharpest_disagreements: { safetyist: 'We fundamentally disagree on whether open-source helps or hurts safety' },
       },
     });
     expect(full.compliant).toBe(true);
@@ -299,7 +299,7 @@ describe('concluding COMMIT automation', () => {
 
   it('COMMIT BRIEF injection includes commitment field requirement', () => {
     const intervention = buildIntervention(
-      { proceed: true, validated_move: 'COMMIT', validated_family: 'synthesis', validated_target: 'prometheus' },
+      { proceed: true, validated_move: 'COMMIT', validated_family: 'synthesis', validated_target: 'accelerationist' },
       'Prometheus, state your final position.',
       'concluding phase',
       { signal: 'concluding_phase', round: 9 },
@@ -315,7 +315,7 @@ describe('concluding COMMIT automation', () => {
 
 describe('multi-round simulation', () => {
   it('tracks full debate lifecycle through phases', () => {
-    const state = initModeratorState(8, ['prometheus', 'sentinel', 'cassandra']);
+    const state = initModeratorState(8, ['accelerationist', 'safetyist', 'skeptic']);
     const phases: DebatePhase[] = [];
     const interventionLog: string[] = [];
 
@@ -332,7 +332,7 @@ describe('multi-round simulation', () => {
       // Simulate health update
       const health = computeDebateHealthScore(
         [makeSignals({ dialectical_engagement: { targeted: 1, standalone: 0, ratio: 0.5 + round * 0.05 } })],
-        { prometheus: round, sentinel: round, cassandra: round },
+        { accelerationist: round, safetyist: round, skeptic: round },
         round * 2,
         50,
       );
@@ -341,7 +341,7 @@ describe('multi-round simulation', () => {
 
       // Every other round, attempt an intervention
       if (round % 2 === 0 && phase === 'argumentation') {
-        const targets = ['prometheus', 'sentinel', 'cassandra'] as const;
+        const targets = ['accelerationist', 'safetyist', 'skeptic'] as const;
         const target = targets[(round / 2 - 1) % 3];
         const moves: InterventionMove[] = ['PIN', 'PROBE', 'CHALLENGE'];
         const move = moves[(round / 2 - 1) % 3];
@@ -367,7 +367,7 @@ describe('multi-round simulation', () => {
           interventionLog.push(`R${round}: ${move} suppressed (${validation.suppressed_reason})`);
         }
       } else {
-        const noOp = { proceed: false as const, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'prometheus' as const };
+        const noOp = { proceed: false as const, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as const, validated_target: 'accelerationist' as const };
         updateModeratorState(state, undefined, noOp, round, phase);
       }
     }

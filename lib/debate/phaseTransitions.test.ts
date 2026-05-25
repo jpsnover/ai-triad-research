@@ -72,12 +72,12 @@ function makeSignalContext(overrides: Partial<SignalContext> = {}): SignalContex
       activePovsCount: 3,
       lastNRounds: (_n: number) => [
         {
-          round: 4, speaker: 'prometheus', text: 'We should accelerate.',
+          round: 4, speaker: 'accelerationist', text: 'We should accelerate.',
           extraction_status: 'ok', claims_accepted: 3, claims_rejected: 1,
           category_validity_ratio: 0.9,
         },
         {
-          round: 5, speaker: 'sentinel', text: 'Safety must come first.',
+          round: 5, speaker: 'safetyist', text: 'Safety must come first.',
           extraction_status: 'ok', claims_accepted: 2, claims_rejected: 0,
           category_validity_ratio: 1.0,
         },
@@ -465,9 +465,9 @@ describe('detectCruxNodes', () => {
 
   it('identifies node attacked by 2+ different speakers', () => {
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.7),
-      makeNode('B', 'sentinel', 2, 0.6),
-      makeNode('C', 'cassandra', 2, 0.8),
+      makeNode('A', 'accelerationist', 1, 0.7),
+      makeNode('B', 'safetyist', 2, 0.6),
+      makeNode('C', 'skeptic', 2, 0.8),
     ];
     const edges = [
       makeEdge('e1', 'B', 'A', 'attacks'),
@@ -481,8 +481,8 @@ describe('detectCruxNodes', () => {
 
   it('detects a node attacked by 1 cross-POV speaker (default threshold)', () => {
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.7),
-      makeNode('B', 'sentinel', 2, 0.6),
+      makeNode('A', 'accelerationist', 1, 0.7),
+      makeNode('B', 'safetyist', 2, 0.6),
     ];
     const edges = [
       makeEdge('e1', 'B', 'A', 'attacks'),
@@ -496,8 +496,8 @@ describe('detectCruxNodes', () => {
   it('uses base_strength for filtering (not computed_strength)', () => {
     // Node A has low computed_strength (attacked by QBAF) but decent base_strength
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.2, { base_strength: 0.5 }),
-      makeNode('B', 'sentinel', 2, 0.6),
+      makeNode('A', 'accelerationist', 1, 0.2, { base_strength: 0.5 }),
+      makeNode('B', 'safetyist', 2, 0.6),
     ];
     const edges = [
       makeEdge('e1', 'B', 'A', 'attacks'),
@@ -509,8 +509,8 @@ describe('detectCruxNodes', () => {
 
   it('excludes nodes with base_strength below min threshold', () => {
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.7, { base_strength: 0.2 }), // below 0.3
-      makeNode('B', 'sentinel', 2, 0.6),
+      makeNode('A', 'accelerationist', 1, 0.7, { base_strength: 0.2 }), // below 0.3
+      makeNode('B', 'safetyist', 2, 0.6),
     ];
     const edges = [
       makeEdge('e1', 'B', 'A', 'attacks'),
@@ -520,9 +520,9 @@ describe('detectCruxNodes', () => {
 
   it('ignores support edges', () => {
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.7),
-      makeNode('B', 'sentinel', 2, 0.6),
-      makeNode('C', 'cassandra', 2, 0.8),
+      makeNode('A', 'accelerationist', 1, 0.7),
+      makeNode('B', 'safetyist', 2, 0.6),
+      makeNode('C', 'skeptic', 2, 0.8),
     ];
     const edges = [
       makeEdge('e1', 'B', 'A', 'supports'),
@@ -533,9 +533,9 @@ describe('detectCruxNodes', () => {
 
   it('counts distinct attacker speakers, not edges', () => {
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.7),
-      makeNode('B1', 'sentinel', 2, 0.6),
-      makeNode('B2', 'sentinel', 3, 0.5), // same speaker
+      makeNode('A', 'accelerationist', 1, 0.7),
+      makeNode('B1', 'safetyist', 2, 0.6),
+      makeNode('B2', 'safetyist', 3, 0.5), // same speaker
     ];
     const edges = [
       makeEdge('e1', 'B1', 'A', 'attacks'),
@@ -548,8 +548,8 @@ describe('detectCruxNodes', () => {
 
   it('ignores same-speaker attacks (not cross-POV)', () => {
     const nodes = [
-      makeNode('A', 'prometheus', 1, 0.7),
-      makeNode('B', 'prometheus', 2, 0.6), // same speaker
+      makeNode('A', 'accelerationist', 1, 0.7),
+      makeNode('B', 'accelerationist', 2, 0.6), // same speaker
     ];
     const edges = [
       makeEdge('e1', 'B', 'A', 'attacks'),
@@ -776,7 +776,7 @@ describe('evaluatePhaseTransition', () => {
         argumentation_exit_threshold: 0.01, // very low so saturation exceeds it
       });
       // Need a crux node that was added at the current round
-      const cruxNode = makeNode('crux-1', 'prometheus', 5, 0.8);
+      const cruxNode = makeNode('crux-1', 'accelerationist', 5, 0.8);
       const ctx = makeSignalContext({
         network: {
           nodes: [cruxNode],
@@ -798,8 +798,8 @@ describe('evaluatePhaseTransition', () => {
           roundsInPhase: 3,
           activePovsCount: 3,
           lastNRounds: () => [
-            { round: 4, speaker: 'prometheus', text: 'X', extraction_status: 'ok', claims_accepted: 3, claims_rejected: 1, category_validity_ratio: 0.9 },
-            { round: 5, speaker: 'sentinel', text: 'Y', extraction_status: 'ok', claims_accepted: 2, claims_rejected: 0, category_validity_ratio: 1.0 },
+            { round: 4, speaker: 'accelerationist', text: 'X', extraction_status: 'ok', claims_accepted: 3, claims_rejected: 1, category_validity_ratio: 0.9 },
+            { round: 5, speaker: 'safetyist', text: 'Y', extraction_status: 'ok', claims_accepted: 2, claims_rejected: 0, category_validity_ratio: 1.0 },
           ],
         },
       });
@@ -858,7 +858,7 @@ describe('evaluatePhaseTransition', () => {
 
     it('regresses on novel crux discovered in synthesis', () => {
       const w = loadProvisionalWeights();
-      const cruxNode = makeNode('novel-crux', 'prometheus', 5, 0.8);
+      const cruxNode = makeNode('novel-crux', 'accelerationist', 5, 0.8);
       const state = makePhaseState({
         current_phase: 'concluding',
         rounds_in_phase: 2,
@@ -885,8 +885,8 @@ describe('evaluatePhaseTransition', () => {
           roundsInPhase: 2,
           activePovsCount: 3,
           lastNRounds: () => [
-            { round: 4, speaker: 'prometheus', text: 'X', extraction_status: 'ok', claims_accepted: 3, claims_rejected: 0, category_validity_ratio: 1.0 },
-            { round: 5, speaker: 'sentinel', text: 'Y', extraction_status: 'ok', claims_accepted: 2, claims_rejected: 0, category_validity_ratio: 1.0 },
+            { round: 4, speaker: 'accelerationist', text: 'X', extraction_status: 'ok', claims_accepted: 3, claims_rejected: 0, category_validity_ratio: 1.0 },
+            { round: 5, speaker: 'safetyist', text: 'Y', extraction_status: 'ok', claims_accepted: 2, claims_rejected: 0, category_validity_ratio: 1.0 },
           ],
         },
         // Make convergence look stable (no stall)
@@ -910,7 +910,7 @@ describe('evaluatePhaseTransition', () => {
 
     it('does not regress when max regressions exhausted', () => {
       const w = loadProvisionalWeights();
-      const cruxNode = makeNode('novel-crux', 'prometheus', 5, 0.8);
+      const cruxNode = makeNode('novel-crux', 'accelerationist', 5, 0.8);
       const state = makePhaseState({
         current_phase: 'concluding',
         rounds_in_phase: 2,

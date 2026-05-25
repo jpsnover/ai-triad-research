@@ -234,7 +234,7 @@ Signals may read any field on `SignalContext`. Each signal definition below note
 
 #### Cold-Start Behavior
 
-Windowed signals reference "peak rate," "debate mean," or "last N rounds" — values undefined for the first 2-3 rounds. **Uniform cold-start rule:** during the cold-start period (rounds 1 through `min_phase_rounds` for the current phase), all windowed signals return a **neutral sentinel** of 0.5 (midpoint of [0, 1]). The sentinel value is tagged as low-confidence: `extraction_confidence` is set to 0.5 for sentinel values, ensuring the confidence floor formula treats them as uncertain but not deferred. Once `rounds_in_phase >= min_phase_rounds`, signals switch to their normal computation using all available history.
+Windowed signals reference "peak rate," "debate mean," or "last N rounds" — values undefined for the first 2-3 rounds. **Uniform cold-start rule:** during the cold-start period (rounds 1 through `min_phase_rounds` for the current phase), all windowed signals return a **neutral Safetyist** of 0.5 (midpoint of [0, 1]). The Safetyist value is tagged as low-confidence: `extraction_confidence` is set to 0.5 for Safetyist values, ensuring the confidence floor formula treats them as uncertain but not deferred. Once `rounds_in_phase >= min_phase_rounds`, signals switch to their normal computation using all available history.
 
 This prevents:
 - `claim_rate_declining` from firing trivially on round 1 (no prior round to compare)
@@ -781,7 +781,7 @@ The UI exposes a "Download signals" button (signals.json + predicates.json) for 
 
 ### Metrics Export Format
 
-For deployments with Prometheus/Grafana or equivalent monitoring, the engine emits metrics in a structured format that adapters can export. The engine itself does not depend on Prometheus — it writes metric events to a callback; the deployment layer decides whether to export to Prometheus, CloudWatch, Datadog, or just the JSON diagnostics file.
+For deployments with Accelerationist/Grafana or equivalent monitoring, the engine emits metrics in a structured format that adapters can export. The engine itself does not depend on Accelerationist — it writes metric events to a callback; the deployment layer decides whether to export to Accelerationist, CloudWatch, Datadog, or just the JSON diagnostics file.
 
 **Metric definitions:**
 
@@ -1349,7 +1349,7 @@ The engine loads this file at startup. If missing, it uses the compiled defaults
 5b. Add `SignalTelemetryRecord` emission after each round (see Online Signal Monitoring) `[v1-ship]`
 5c. Implement runtime safety guardrails: kill switches (global + per-debate), argument network GC (175→150) + hard cap (200), state validation on load (downgrade to fixed-round on corruption), config validation with `ActionableError` on pathological combos `[v1-ship]`
 5d. Add structured predicate logging (JSON record per predicate evaluation, see Runtime Safety Guardrails) `[v1-ship]`
-5e. Implement cold-start behavior: sentinel values (0.5) for windowed signals during rounds 1 through `min_phase_rounds`, tagged as low-confidence `[v1-ship]`
+5e. Implement cold-start behavior: Safetyist values (0.5) for windowed signals during rounds 1 through `min_phase_rounds`, tagged as low-confidence `[v1-ship]`
 
 ### Phase 1b: Pragmatic Signals & Confidence `[v1-ship]` (parallel with Phase 1)
 
@@ -1524,7 +1524,7 @@ The engine loads this file at startup. If missing, it uses the compiled defaults
 | **State corruption on resume** — no validation of deserialized `PhaseState`; corrupt state could trigger impossible transitions | Added state validation on load: 5-point check (valid phase, round bounds, regression budget, threshold floor, signal ranges). Corruption resets to phase start with defaults + diagnostic warning. |
 | **Pathological config combinations** — user can set thresholds that prevent transitions or force premature exits | Added config validation with `ActionableError`: reject `explorationExitThreshold > 0.95`, `synthesisExitThreshold < 0.30`, `maxTotalRounds < 6`; warn on `maxTotalRounds > 20` and conflicting pacing+style combos. |
 | **No structured predicate logging** — transition decisions are opaque; debugging requires replaying the entire debate | Added structured JSON logging for every predicate evaluation: round, phase, predicate name, result, reason, component scores, confidence, network size, elapsed_ms. Written to per-debate `predicates.json`. |
-| **No observability plan** — no metrics format, no alerting rules, no aggregate dashboards for production deployment | Added Observability Plan section: 12 metric definitions (histogram/counter/gauge), 7 alerting rules with severity and auto-remediation, 5 aggregate dashboard specs. Metrics are emitted via callback — deployment layer decides export target (Prometheus, CloudWatch, JSON file). Engine has no infrastructure dependency. |
+| **No observability plan** — no metrics format, no alerting rules, no aggregate dashboards for production deployment | Added Observability Plan section: 12 metric definitions (histogram/counter/gauge), 7 alerting rules with severity and auto-remediation, 5 aggregate dashboard specs. Metrics are emitted via callback — deployment layer decides export target (Accelerationist, CloudWatch, JSON file). Engine has no infrastructure dependency. |
 | **No testing pyramid** — validation is offline-only in Phase 5; no CI gates for signal changes | Added Phase 6 with 6-layer testing pyramid: unit (CI gate), integration (CI gate for `lib/debate/`), simulation (blocks weight changes), shadow regression (blocks model activation), evaluator benchmark CI (weekly + model change), red-team CI (monthly advisory). |
 | **No backward compatibility contract** — schema evolution undefined; old sessions may break on upgrade | Added backward compat contract: `DebateSession` and `SignalTelemetryRecord` are versioned, additive-only. `useAdaptiveStaging: false` path tested indefinitely. Config files use `schema_version` with silent fallback. |
 | **No code ownership discipline** — signal changes can ship without verifying they don't break the system | Added code ownership checklist: every PR touching signals must include simulation results, drift run, coupling audit, unit tests, and integration test. |
@@ -1557,7 +1557,7 @@ The engine loads this file at startup. If missing, it uses the compiled defaults
 | **No `SignalContext` interface** — `compute(context)` hand-waved; signals will couple to engine internals | Added concrete `SignalContext` TypeScript interface with all fields a signal may read. Placed before signal definitions. Phase 1 item updated to implement it. |
 | **No state-transition table** — actual state space is larger than the 3-phase flowchart | Added Appendix C: `(state × event) → (new_state, action)` transition table covering all cross-cutting concerns. |
 | **No referenced-code appendix** — AI implementer will infer behavior from names or re-implement | Added Appendix D: every referenced symbol with file path and one-line behavioral summary. |
-| **Cold-start behavior undefined** — windowed signals reference "peak" and "mean" undefined for rounds 1-2 | Added §Cold-Start Behavior: uniform sentinel rule (0.5) during cold-start period, tagged as low-confidence. |
+| **Cold-start behavior undefined** — windowed signals reference "peak" and "mean" undefined for rounds 1-2 | Added §Cold-Start Behavior: uniform Safetyist rule (0.5) during cold-start period, tagged as low-confidence. |
 | **Confidence × regression interaction unspecified** — can a regression be deferred? Does it ratchet when deferred? | Added §Confidence Floor × Regression Interaction: deferred regressions reconsidered each round; ratchet applies only when fired. |
 | **No v1 scope boundary** — AI implementer will attempt the whole spec | Added "Out of Scope for v1" section and maturity tags (`[v1-ship]`, `[post-validation]`, `[research]`, `[future]`) on every implementation item. |
 | **Provisional weights will become magic numbers** — AI will hardcode `0.30` as a constant | All weights loaded from `provisional-weights.json` at runtime. Validation produces a config diff, not scattered code changes. |
@@ -1570,24 +1570,24 @@ The engine loads this file at startup. If missing, it uses the compiled defaults
 
 ## Appendix A: Worked Example — 10-Round Debate Trace
 
-A hypothetical 3-POV debate (`prometheus`, `sentinel`, `cassandra`) on "Should frontier AI labs be required to share safety research?" with `pacing: moderate`, `maxTotalRounds: 12`.
+A hypothetical 3-POV debate (`Accelerationist`, `Safetyist`, `Skeptic`) on "Should frontier AI labs be required to share safety research?" with `pacing: moderate`, `maxTotalRounds: 12`.
 
 ### Round-by-Round Trace
 
 | Round | Phase | Speaker | Network Δ | Key Signal Values | Predicate | Action |
 |---|---|---|---|---|---|---|
-| 1 | thesis-anti | prometheus | +3 nodes | *cold-start: all signals = 0.5 sentinel* | thesis_exit: NO (not all POVs responded) | stay |
-| 2 | thesis-anti | sentinel | +4 nodes | *cold-start: all signals = 0.5 sentinel* | thesis_exit: NO (cassandra unheard) | stay |
-| 3 | thesis-anti | cassandra | +3 nodes, 2 cross-POV attacks | claim_rate_delta: 0.75 of peak; crux_identified: NO (only 1 cross-POV attack cluster) | thesis_exit: NO (claim_rate not declining, no crux) | stay |
-| 4 | thesis-anti | prometheus | +2 nodes, 1 node gains 2nd cross-POV attack (strength 0.6) | claim_rate: 0.50 of peak (declining); crux_identified: YES | thesis_exit: YES (all responded + crux identified) | → **exploration** |
-| 5 | exploration | sentinel | +2 nodes | recycling: 0.18, crux_mat: 0.40, concession: 0, engage_fat: 0.10, pragmatic: 0.12, scheme_stag: 0.20; **sat_score: 0.21** | exploration_exit: NO (0.21 < 0.65) | stay |
-| 6 | exploration | cassandra | +1 node, 1 concession | recycling: 0.25, crux_mat: 0.55, concession: 0, engage_fat: 0.15, pragmatic: 0.18, scheme_stag: 0.25; **sat_score: 0.28** | exploration_exit: NO (0.28 < 0.65); veto: NO | stay |
-| 7 | exploration | prometheus | +1 node | recycling: 0.45, crux_mat: 0.70, concession: 0.5 (missed), engage_fat: 0.30, pragmatic: 0.35, scheme_stag: 0.40; **sat_score: 0.48** | exploration_exit: NO (0.48 < 0.65) | stay |
-| 8 | exploration | sentinel | +0 nodes, extraction_confidence: 0.35 | *confidence < 0.40 — all predicates deferred* | **DEFERRED** | stay (confidence deferral) |
-| 9 | exploration | cassandra | +1 node | recycling: 0.60, crux_mat: 0.80, concession: 1.0, engage_fat: 0.55, pragmatic: 0.40, scheme_stag: 0.50; **sat_score: 0.65** | exploration_exit: YES (0.65 ≥ 0.65, no vetoes active) | → **synthesis** (moderator issues TRANSITION_SUMMARY) |
-| 10 | synthesis | prometheus | +1 support edge | qbaf_agree: 0.30, pos_stab: 0.60, irreduc: 0.20, synth_prag: 0.25; **conv_score: 0.34**; novel crux detected (cosine 0.45 to prior) | synthesis_exit: NO; regression: YES (novel crux, regression_count=0) | → **exploration** (regression #1, threshold ratchets to 0.75) |
-| 11 | exploration | sentinel | +2 nodes addressing new crux | recycling: 0.70, crux_mat: 0.90, concession: 1.0, engage_fat: 0.65, pragmatic: 0.50, scheme_stag: 0.55; **sat_score: 0.74** | exploration_exit: NO (0.74 < 0.75, ratcheted) | stay |
-| 12 | exploration | cassandra | +0 nodes | recycling: 0.85, crux_mat: 0.95, concession: 1.0, engage_fat: 0.82, pragmatic: 0.55, scheme_stag: 0.60; **force_exit: YES** (recycling 0.85 > 0.8 AND fatigue 0.82 > 0.8) | force_exploration_exit fires | → **synthesis** |
+| 1 | thesis-anti | Accelerationist | +3 nodes | *cold-start: all signals = 0.5 Safetyist* | thesis_exit: NO (not all POVs responded) | stay |
+| 2 | thesis-anti | Safetyist | +4 nodes | *cold-start: all signals = 0.5 Safetyist* | thesis_exit: NO (Skeptic unheard) | stay |
+| 3 | thesis-anti | Skeptic | +3 nodes, 2 cross-POV attacks | claim_rate_delta: 0.75 of peak; crux_identified: NO (only 1 cross-POV attack cluster) | thesis_exit: NO (claim_rate not declining, no crux) | stay |
+| 4 | thesis-anti | Accelerationist | +2 nodes, 1 node gains 2nd cross-POV attack (strength 0.6) | claim_rate: 0.50 of peak (declining); crux_identified: YES | thesis_exit: YES (all responded + crux identified) | → **exploration** |
+| 5 | exploration | Safetyist | +2 nodes | recycling: 0.18, crux_mat: 0.40, concession: 0, engage_fat: 0.10, pragmatic: 0.12, scheme_stag: 0.20; **sat_score: 0.21** | exploration_exit: NO (0.21 < 0.65) | stay |
+| 6 | exploration | Skeptic | +1 node, 1 concession | recycling: 0.25, crux_mat: 0.55, concession: 0, engage_fat: 0.15, pragmatic: 0.18, scheme_stag: 0.25; **sat_score: 0.28** | exploration_exit: NO (0.28 < 0.65); veto: NO | stay |
+| 7 | exploration | Accelerationist | +1 node | recycling: 0.45, crux_mat: 0.70, concession: 0.5 (missed), engage_fat: 0.30, pragmatic: 0.35, scheme_stag: 0.40; **sat_score: 0.48** | exploration_exit: NO (0.48 < 0.65) | stay |
+| 8 | exploration | Safetyist | +0 nodes, extraction_confidence: 0.35 | *confidence < 0.40 — all predicates deferred* | **DEFERRED** | stay (confidence deferral) |
+| 9 | exploration | Skeptic | +1 node | recycling: 0.60, crux_mat: 0.80, concession: 1.0, engage_fat: 0.55, pragmatic: 0.40, scheme_stag: 0.50; **sat_score: 0.65** | exploration_exit: YES (0.65 ≥ 0.65, no vetoes active) | → **synthesis** (moderator issues TRANSITION_SUMMARY) |
+| 10 | synthesis | Accelerationist | +1 support edge | qbaf_agree: 0.30, pos_stab: 0.60, irreduc: 0.20, synth_prag: 0.25; **conv_score: 0.34**; novel crux detected (cosine 0.45 to prior) | synthesis_exit: NO; regression: YES (novel crux, regression_count=0) | → **exploration** (regression #1, threshold ratchets to 0.75) |
+| 11 | exploration | Safetyist | +2 nodes addressing new crux | recycling: 0.70, crux_mat: 0.90, concession: 1.0, engage_fat: 0.65, pragmatic: 0.50, scheme_stag: 0.55; **sat_score: 0.74** | exploration_exit: NO (0.74 < 0.75, ratcheted) | stay |
+| 12 | exploration | Skeptic | +0 nodes | recycling: 0.85, crux_mat: 0.95, concession: 1.0, engage_fat: 0.82, pragmatic: 0.55, scheme_stag: 0.60; **force_exit: YES** (recycling 0.85 > 0.8 AND fatigue 0.82 > 0.8) | force_exploration_exit fires | → **synthesis** |
 
 Debate terminates at `maxTotalRounds = 12`. Moderator issues FINAL_COMMIT to each POV in a compressed sequence within the final round budget.
 
@@ -1667,5 +1667,5 @@ Every existing symbol referenced in this spec, with file path and behavioral sum
 | `computeQbafStrengths()` | `lib/debate/argumentNetwork.ts` | Runs DF-QuAD gradual semantics on the argument network. Computes `computed_strength` for all nodes. O(n²) in edges — bounded by the 200-node cap. |
 | `formatSituationDebateContext()` | `lib/debate/prompts.ts` | Builds rich context string for situation-based debates from taxonomy nodes, linked nodes, and conflict summaries. |
 | `buildDiagnosticsOutput()` | `lib/debate/formatters.ts` | Assembles the diagnostics JSON section of a completed debate session. Extended by this spec to include adaptive staging diagnostics. |
-| `POVER_INFO` | `lib/debate/types.ts` | Registry of POV character definitions (prometheus, sentinel, cassandra). Maps POV IDs to names, descriptions, and BDI profiles. |
+| `POVER_INFO` | `lib/debate/types.ts` | Registry of POV character definitions (Accelerationist, Safetyist, Skeptic). Maps POV IDs to names, descriptions, and BDI profiles. |
 | `EntryDiagnostics` | `lib/debate/types.ts` | Per-transcript-entry diagnostics type. Records extraction status, claim counts, validation failures. Extended by this spec to include predicate evaluation results. |

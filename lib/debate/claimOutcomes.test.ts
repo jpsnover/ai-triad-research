@@ -16,7 +16,7 @@ function makeNode(overrides: Partial<ArgumentNetworkNode> = {}): ArgumentNetwork
   return {
     id: 'n1',
     text: 'Test claim about AI regulation',
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     source_entry_id: 'e1',
     taxonomy_refs: [],
     turn_number: 1,
@@ -92,7 +92,7 @@ describe('countReferences', () => {
 describe('classifyClaimOutcomes', () => {
   it('excludes system and document nodes', () => {
     const nodes = [
-      makeNode({ id: 'n1', speaker: 'prometheus' }),
+      makeNode({ id: 'n1', speaker: 'accelerationist' }),
       makeNode({ id: 'n2', speaker: 'system' }),
       makeNode({ id: 'n3', speaker: 'document' }),
     ];

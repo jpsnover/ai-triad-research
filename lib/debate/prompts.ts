@@ -2215,8 +2215,8 @@ Identify:
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"], "converged": false, "conceded_by": null, "original_disagreement": null}],
-  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
+  "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
+  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES", "resolution_status": "resolved or irreducible or active", "resolution_evidence": "what resolved it, if applicable"}
   ],
@@ -2237,7 +2237,7 @@ export function synthMapPrompt(
 
   const documentSchema = hasSourceDocument ? `,
   "document_claims": [
-    {"claim": "what the document asserts", "accepted_by": ["prometheus"], "challenged_by": ["sentinel"], "challenge_basis": "brief summary"}
+    {"claim": "what the document asserts", "accepted_by": ["accelerationist"], "challenged_by": ["safetyist"], "challenge_basis": "brief summary"}
   ]` : '';
 
   return `You are a debate analyst. Build an argument map from this structured debate.
@@ -2275,8 +2275,8 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
   "argument_map": [
-    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
-      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
+    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "accelerationist", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
+      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "safetyist", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
     ]}
   ],
   "taxonomy_proposals": [
@@ -2325,7 +2325,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"conflict": "description of disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
   ],
   "policy_implications": [
-    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "prometheus", "stance": "supports/opposes/modifies and why"}], "implication": "how this affects what policy should be adopted"}
+    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "accelerationist", "stance": "supports/opposes/modifies and why"}], "implication": "how this affects what policy should be adopted"}
   ]
 }`;
 }
@@ -2343,7 +2343,7 @@ export function debateSynthesisPrompt(
 
   const documentSchema = hasSourceDocument ? `,
   "document_claims": [
-    {"claim": "what the document asserts", "accepted_by": ["prometheus"], "challenged_by": ["sentinel"], "challenge_basis": "brief summary of why it was challenged"}
+    {"claim": "what the document asserts", "accepted_by": ["accelerationist"], "challenged_by": ["safetyist"], "challenge_basis": "brief summary of why it was challenged"}
   ]` : '';
 
   return `You are a debate analyst. Analyze this structured debate and produce a synthesis.
@@ -2409,23 +2409,23 @@ Identify:
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "areas_of_agreement": [{"point": "...", "povers": ["prometheus", "sentinel"], "converged": false, "conceded_by": null, "original_disagreement": null}],
-  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "prometheus", "stance": "..."}, {"pover": "sentinel", "stance": "..."}]}],
+  "areas_of_agreement": [{"point": "...", "povers": ["accelerationist", "safetyist"], "converged": false, "conceded_by": null, "original_disagreement": null}],
+  "areas_of_disagreement": [{"point": "...", "type": "EMPIRICAL or VALUES or DEFINITIONAL", "bdi_layer": "belief or desire or intention", "resolvability": "resolvable_by_evidence or negotiable_via_tradeoffs or requires_term_clarification", "positions": [{"pover": "accelerationist", "stance": "..."}, {"pover": "safetyist", "stance": "..."}]}],
   "cruxes": [
     {"question": "the factual or value question that would change minds", "if_yes": "which position strengthens and why", "if_no": "which position strengthens and why", "type": "EMPIRICAL or VALUES"}
   ],
   "unresolved_questions": ["..."],
   "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
   "argument_map": [
-    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "prometheus", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence or argument_from_analogy or argument_from_authority or argument_from_consequences or causal_argument or practical_reasoning", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
-      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "sentinel", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
+    {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "accelerationist", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence or argument_from_analogy or argument_from_authority or argument_from_consequences or causal_argument or practical_reasoning", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
+      {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "safetyist", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
     ]}
   ],
   "preferences": [
     {"conflict": "description of the disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
   ],
   "policy_implications": [
-    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "prometheus", "stance": "supports/opposes/modifies and why"}], "implication": "how this disagreement affects what policy should be adopted"}
+    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "accelerationist", "stance": "supports/opposes/modifies and why"}], "implication": "how this disagreement affects what policy should be adopted"}
   ]${documentSchema}
 }`;
 }
@@ -2480,7 +2480,7 @@ ${unreferencedBlock}${uncoveredBlock}
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "questions": [
-    {"text": "the probing question", "targets": ["prometheus", "sentinel"], "threatens": "which position this most challenges and why", "type": "EMPIRICAL or VALUES or DEFINITIONAL"}
+    {"text": "the probing question", "targets": ["accelerationist", "safetyist"], "threatens": "which position this most challenges and why", "type": "EMPIRICAL or VALUES or DEFINITIONAL"}
   ]
 }`;
 }

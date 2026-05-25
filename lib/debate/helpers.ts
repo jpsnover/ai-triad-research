@@ -137,9 +137,13 @@ function repairJson(text: string): string {
 /** Parse @-mentions from user input. Returns { targets, cleanedInput } */
 export function parseAtMention(input: string): { targets: SpeakerId[]; cleanedInput: string } {
   const mentionMap: Record<string, SpeakerId> = {
-    prometheus: 'prometheus',
-    sentinel: 'sentinel',
-    cassandra: 'cassandra',
+    accelerationist: 'accelerationist',
+    safetyist: 'safetyist',
+    skeptic: 'skeptic',
+    // Legacy aliases
+    prometheus: 'accelerationist',
+    sentinel: 'safetyist',
+    cassandra: 'skeptic',
   };
 
   const targets: SpeakerId[] = [];

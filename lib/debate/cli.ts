@@ -275,14 +275,14 @@ async function main(): Promise<void> {
   });
 
   // Validate debaters
-  const activePovers = (config.activePovers ?? ['prometheus', 'sentinel', 'cassandra']) as Exclude<SpeakerId, 'user'>[];
+  const activePovers = (config.activePovers ?? ['accelerationist', 'safetyist', 'skeptic']) as Exclude<SpeakerId, 'user'>[];
   if (activePovers.length < 1) throw new ActionableError({
     goal: 'Validate debate configuration',
     problem: `At least 1 debater required, but none specified`,
     location: 'cli.main',
     nextSteps: [
       'Add at least 1 entry to the "activePovers" array in your config',
-      'Valid debaters: prometheus, sentinel, cassandra',
+      'Valid debaters: accelerationist, safetyist, skeptic',
     ],
   });
   for (const p of activePovers) {
@@ -291,7 +291,7 @@ async function main(): Promise<void> {
       problem: `Unknown debater: ${p}`,
       location: 'cli.main',
       nextSteps: [
-        `Replace '${p}' with one of: prometheus, sentinel, cassandra`,
+        `Replace '${p}' with one of: accelerationist, safetyist, skeptic`,
         'Check the "activePovers" array in your config for typos',
       ],
     });

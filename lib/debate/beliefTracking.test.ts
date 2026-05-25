@@ -15,7 +15,7 @@ import type { ArgumentNetworkNode } from './types.js';
 function makeNode(overrides: Partial<ArgumentNetworkNode> & { id: string }): ArgumentNetworkNode {
   return {
     text: `Claim ${overrides.id}`,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     source_entry_id: 'e1',
     taxonomy_refs: [],
     turn_number: 1,
@@ -29,8 +29,8 @@ function makeNode(overrides: Partial<ArgumentNetworkNode> & { id: string }): Arg
 
 describe('initAgentBeliefState', () => {
   it('creates empty belief state for a speaker', () => {
-    const state = initAgentBeliefState('prometheus');
-    expect(state.speaker).toBe('prometheus');
+    const state = initAgentBeliefState('accelerationist');
+    expect(state.speaker).toBe('accelerationist');
     expect(state.beliefs.size).toBe(0);
     expect(state.round).toBe(0);
   });
@@ -40,10 +40,10 @@ describe('initAgentBeliefState', () => {
 
 describe('updateBeliefs', () => {
   it('adds beliefs for new claims at default prior', () => {
-    const state = initAgentBeliefState('prometheus');
+    const state = initAgentBeliefState('accelerationist');
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', computed_strength: 0.8 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', computed_strength: 0.7 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: 0.8 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', computed_strength: 0.7 }),
     ];
     const strengths = new Map([['AN-1', 0.8], ['AN-2', 0.7]]);
 
@@ -64,8 +64,8 @@ describe('updateBeliefs', () => {
   });
 
   it('uses posterior from previous round as prior', () => {
-    const state = initAgentBeliefState('sentinel');
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'sentinel', computed_strength: 0.9 })];
+    const state = initAgentBeliefState('safetyist');
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'safetyist', computed_strength: 0.9 })];
     const strengths = new Map([['AN-1', 0.9]]);
 
     // Round 1
@@ -81,12 +81,12 @@ describe('updateBeliefs', () => {
   });
 
   it('skips system/document/user nodes', () => {
-    const state = initAgentBeliefState('prometheus');
+    const state = initAgentBeliefState('accelerationist');
     const nodes = [
-      makeNode({ id: 'sys-1', speaker: 'system' as 'prometheus' }),
-      makeNode({ id: 'doc-1', speaker: 'document' as 'prometheus' }),
+      makeNode({ id: 'sys-1', speaker: 'system' as 'accelerationist' }),
+      makeNode({ id: 'doc-1', speaker: 'document' as 'accelerationist' }),
       makeNode({ id: 'usr-1', speaker: 'user' }),
-      makeNode({ id: 'AN-1', speaker: 'prometheus' }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist' }),
     ];
     const strengths = new Map([['sys-1', 0.5], ['doc-1', 0.5], ['usr-1', 0.5], ['AN-1', 0.7]]);
 
@@ -96,9 +96,9 @@ describe('updateBeliefs', () => {
   });
 
   it('clamps posterior to [0.01, 0.99]', () => {
-    const state = initAgentBeliefState('prometheus');
+    const state = initAgentBeliefState('accelerationist');
     // Very high strength for own claim → posterior should approach but not reach 1
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus', computed_strength: 1.0 })];
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: 1.0 })];
     const strengths = new Map([['AN-1', 1.0]]);
 
     // Update many times to push toward 1
@@ -110,8 +110,8 @@ describe('updateBeliefs', () => {
   });
 
   it('confidence is 0 when posterior is 0.5', () => {
-    const state = initAgentBeliefState('prometheus');
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus', computed_strength: 0.5 })];
+    const state = initAgentBeliefState('accelerationist');
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: 0.5 })];
     const strengths = new Map([['AN-1', 0.5]]);
 
     updateBeliefs(state, nodes, strengths, 1);
@@ -120,8 +120,8 @@ describe('updateBeliefs', () => {
   });
 
   it('confidence increases as posterior moves away from 0.5', () => {
-    const state = initAgentBeliefState('prometheus');
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus' })];
+    const state = initAgentBeliefState('accelerationist');
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist' })];
 
     updateBeliefs(state, nodes, new Map([['AN-1', 0.5]]), 1);
     const confNeutral = state.beliefs.get('AN-1')!.confidence;
@@ -133,8 +133,8 @@ describe('updateBeliefs', () => {
   });
 
   it('falls back to base_strength when computed_strength is absent', () => {
-    const state = initAgentBeliefState('prometheus');
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus', computed_strength: undefined, base_strength: 0.8 })];
+    const state = initAgentBeliefState('accelerationist');
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: undefined, base_strength: 0.8 })];
     const strengths = new Map<string, number>(); // empty, should fallback
 
     updateBeliefs(state, nodes, strengths, 1);
@@ -147,9 +147,9 @@ describe('updateBeliefs', () => {
 
 describe('computeBeliefDivergence', () => {
   it('returns zero divergence for identical beliefs', () => {
-    const stateA = initAgentBeliefState('prometheus');
-    const stateB = initAgentBeliefState('sentinel');
-    const nodes = [makeNode({ id: 'AN-1', speaker: 'prometheus', computed_strength: 0.7 })];
+    const stateA = initAgentBeliefState('accelerationist');
+    const stateB = initAgentBeliefState('safetyist');
+    const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: 0.7 })];
     const strengths = new Map([['AN-1', 0.7]]);
 
     updateBeliefs(stateA, nodes, strengths, 1);
@@ -163,8 +163,8 @@ describe('computeBeliefDivergence', () => {
   });
 
   it('returns high divergence for opposing beliefs', () => {
-    const stateA = initAgentBeliefState('prometheus');
-    const stateB = initAgentBeliefState('sentinel');
+    const stateA = initAgentBeliefState('accelerationist');
+    const stateB = initAgentBeliefState('safetyist');
 
     stateA.beliefs.set('AN-1', { prior: 0.5, posterior: 0.9, confidence: 0.5 });
     stateB.beliefs.set('AN-1', { prior: 0.5, posterior: 0.1, confidence: 0.5 });
@@ -176,8 +176,8 @@ describe('computeBeliefDivergence', () => {
   });
 
   it('only compares shared claims', () => {
-    const stateA = initAgentBeliefState('prometheus');
-    const stateB = initAgentBeliefState('sentinel');
+    const stateA = initAgentBeliefState('accelerationist');
+    const stateB = initAgentBeliefState('safetyist');
 
     stateA.beliefs.set('AN-1', { prior: 0.5, posterior: 0.8, confidence: 0.3 });
     stateA.beliefs.set('AN-2', { prior: 0.5, posterior: 0.7, confidence: 0.2 });
@@ -189,8 +189,8 @@ describe('computeBeliefDivergence', () => {
   });
 
   it('returns converged=true when no shared claims', () => {
-    const stateA = initAgentBeliefState('prometheus');
-    const stateB = initAgentBeliefState('sentinel');
+    const stateA = initAgentBeliefState('accelerationist');
+    const stateB = initAgentBeliefState('safetyist');
 
     stateA.beliefs.set('AN-1', { prior: 0.5, posterior: 0.8, confidence: 0.3 });
     stateB.beliefs.set('AN-2', { prior: 0.5, posterior: 0.2, confidence: 0.3 });
@@ -205,9 +205,9 @@ describe('computeBeliefDivergence', () => {
 
 describe('computeMaxBeliefDivergence', () => {
   it('finds the most divergent pair among three agents', () => {
-    const stateP = initAgentBeliefState('prometheus');
-    const stateS = initAgentBeliefState('sentinel');
-    const stateC = initAgentBeliefState('cassandra');
+    const stateP = initAgentBeliefState('accelerationist');
+    const stateS = initAgentBeliefState('safetyist');
+    const stateC = initAgentBeliefState('skeptic');
 
     // Prometheus and Sentinel agree; Cassandra disagrees
     stateP.beliefs.set('AN-1', { prior: 0.5, posterior: 0.8, confidence: 0.3 });
@@ -216,15 +216,15 @@ describe('computeMaxBeliefDivergence', () => {
 
     const result = computeMaxBeliefDivergence([stateP, stateS, stateC]);
 
-    // The maximum divergence should be between prometheus/sentinel and cassandra
-    expect(result.pair).toContain('cassandra');
+    // The maximum divergence should be between accelerationist/safetyist and skeptic
+    expect(result.pair).toContain('skeptic');
     expect(result.converged).toBe(false);
     expect(result.symmetric_kl).toBeGreaterThan(0);
   });
 
   it('reports convergence when all agents agree', () => {
-    const stateP = initAgentBeliefState('prometheus');
-    const stateS = initAgentBeliefState('sentinel');
+    const stateP = initAgentBeliefState('accelerationist');
+    const stateS = initAgentBeliefState('safetyist');
 
     stateP.beliefs.set('AN-1', { prior: 0.5, posterior: 0.6, confidence: 0.1 });
     stateS.beliefs.set('AN-1', { prior: 0.5, posterior: 0.6, confidence: 0.1 });
@@ -235,7 +235,7 @@ describe('computeMaxBeliefDivergence', () => {
   });
 
   it('handles single agent gracefully', () => {
-    const state = initAgentBeliefState('prometheus');
+    const state = initAgentBeliefState('accelerationist');
     state.beliefs.set('AN-1', { prior: 0.5, posterior: 0.8, confidence: 0.3 });
 
     const result = computeMaxBeliefDivergence([state]);
@@ -248,11 +248,11 @@ describe('computeMaxBeliefDivergence', () => {
 
 describe('beliefTracking — integration', () => {
   it('beliefs converge as agents observe the same QBAF outcomes', () => {
-    const stateP = initAgentBeliefState('prometheus');
-    const stateS = initAgentBeliefState('sentinel');
+    const stateP = initAgentBeliefState('accelerationist');
+    const stateS = initAgentBeliefState('safetyist');
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', computed_strength: 0.7 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', computed_strength: 0.6 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', computed_strength: 0.6 }),
     ];
 
     // Simulate 5 rounds with stable QBAF
@@ -264,8 +264,8 @@ describe('beliefTracking — integration', () => {
 
     // After multiple rounds with stable outcomes, beliefs should converge
     const divBefore = computeBeliefDivergence(
-      initAgentBeliefState('prometheus'),
-      initAgentBeliefState('sentinel'),
+      initAgentBeliefState('accelerationist'),
+      initAgentBeliefState('safetyist'),
     );
     const divAfter = computeBeliefDivergence(stateP, stateS);
 
@@ -277,10 +277,10 @@ describe('beliefTracking — integration', () => {
   });
 
   it('divergence increases when QBAF shifts favor one side', () => {
-    const stateP = initAgentBeliefState('prometheus');
-    const stateS = initAgentBeliefState('sentinel');
+    const stateP = initAgentBeliefState('accelerationist');
+    const stateS = initAgentBeliefState('safetyist');
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus' }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist' }),
     ];
 
     // Round 1: neutral
@@ -288,12 +288,12 @@ describe('beliefTracking — integration', () => {
     updateBeliefs(stateS, nodes, new Map([['AN-1', 0.5]]), 1);
     const div1 = computeBeliefDivergence(stateP, stateS);
 
-    // Round 2: prometheus's claim gets strong
+    // Round 2: accelerationist's claim gets strong
     updateBeliefs(stateP, nodes, new Map([['AN-1', 0.9]]), 2);
     updateBeliefs(stateS, nodes, new Map([['AN-1', 0.9]]), 2);
     const div2 = computeBeliefDivergence(stateP, stateS);
 
-    // Perspective inversion means prometheus sees this positively, sentinel negatively
+    // Perspective inversion means accelerationist sees this positively, safetyist negatively
     // So divergence should increase
     expect(div2.symmetric_kl).toBeGreaterThan(div1.symmetric_kl);
   });

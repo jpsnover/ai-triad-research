@@ -1,0 +1,133 @@
+{
+  "timestamp": "2026-05-25T16:49:14.5427597-04:00",
+  "grand_total": {
+    "files": 1266,
+    "code_lines": 509084,
+    "kloc": 509.1,
+    "test_pct": 4.5
+  },
+  "by_language": {
+    "CSS": {
+      "files": 6,
+      "code": 17868,
+      "comment": 434,
+      "blank": 2295,
+      "test_files": 0,
+      "test_code": 0
+    },
+    "TypeScript": {
+      "files": 484,
+      "code": 135738,
+      "comment": 11017,
+      "blank": 17113,
+      "test_files": 66,
+      "test_code": 21367
+    },
+    "Python": {
+      "files": 30,
+      "code": 9288,
+      "comment": 706,
+      "blank": 1854,
+      "test_files": 0,
+      "test_code": 0
+    },
+    "PowerShell": {
+      "files": 166,
+      "code": 32115,
+      "comment": 6586,
+      "blank": 5393,
+      "test_files": 11,
+      "test_code": 1409
+    },
+    "Markdown": {
+      "files": 327,
+      "code": 42307,
+      "comment": 0,
+      "blank": 15580,
+      "test_files": 1,
+      "test_code": 21
+    },
+    "HTML": {
+      "files": 22,
+      "code": 22513,
+      "comment": 0,
+      "blank": 366,
+      "test_files": 0,
+      "test_code": 0
+    },
+    "JavaScript": {
+      "files": 4,
+      "code": 278,
+      "comment": 34,
+      "blank": 43,
+      "test_files": 0,
+      "test_code": 0
+    },
+    "Prompt": {
+      "files": 32,
+      "code": 1859,
+      "comment": 0,
+      "blank": 275,
+      "test_files": 0,
+      "test_code": 0
+    },
+    "JSON": {
+      "files": 195,
+      "code": 247118,
+      "comment": 0,
+      "blank": 19,
+      "test_files": 1,
+      "test_code": 26
+    }
+  },
+  "by_component": {
+    "lib/debate": {
+      "files": 134,
+      "code": 46485,
+      "test_code": 16486,
+      "prod_code": 29999
+    },
+    "taxonomy-editor": {
+      "files": 217,
+      "code": 100683,
+      "test_code": 3498,
+      "prod_code": 97185
+    },
+    "poviewer": {
+      "files": 63,
+      "code": 8455,
+      "test_code": 0,
+      "prod_code": 8455
+    },
+    "summary-viewer": {
+      "files": 34,
+      "code": 8066,
+      "test_code": 0,
+      "prod_code": 8066
+    },
+    "scripts/AITriad": {
+      "files": 159,
+      "code": 27107,
+      "test_code": 0,
+      "prod_code": 27107
+    },
+    "scripts (other)": {
+      "files": 65,
+      "code": 24342,
+      "test_code": 0,
+      "prod_code": 24342
+    },
+    "docs": {
+      "files": 119,
+      "code": 44927,
+      "test_code": 0,
+      "prod_code": 44927
+    },
+    "taxonomy schemas": {
+      "files": 3,
+      "code": 811,
+      "test_code": 0,
+      "prod_code": 811
+    }
+  }
+}

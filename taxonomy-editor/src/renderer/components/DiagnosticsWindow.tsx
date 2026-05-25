@@ -948,7 +948,7 @@ function HelpContent() {
       <p>Reading the network:</p>
       <ul>
         <li><strong>AN-1, AN-2, ...</strong> — claim identifiers, in order of appearance</li>
-        <li><strong>(Prometheus), (Sentinel), (Cassandra)</strong> — who made the claim</li>
+        <li><strong>(Accelerationist), (Safetyist), (Skeptic)</strong> — who made the claim</li>
         <li><span style={{ color: '#ef4444' }}>← AN-6 rebut via REFRAME</span> — claim AN-6 attacks
           this claim. "rebut" is the attack type; "REFRAME" is the dialectical scheme
           (the argumentative strategy used)</li>
@@ -1011,7 +1011,7 @@ function HelpContent() {
         commitment tracking, synthesis argument maps, and harvest pipeline all work on
         the flat I-node + typed-edge model. S-node content (scheme, warrant, critical
         questions) is captured — it's just stored on the edge rather than as a separate
-        node. Every query the system needs to answer ("what claims has Prometheus
+        node. Every query the system needs to answer ("what claims has the Accelerationist
         made?", "what attacks are unaddressed?", "which rebuts used COUNTEREXAMPLE?")
         is answerable from the current structure.</p>
 
@@ -1267,7 +1267,7 @@ interface ModeratorTraceData {
 }
 
 const DEBATER_COLORS: Record<string, string> = {
-  prometheus: '#f97316', sentinel: '#3b82f6', cassandra: '#a855f7',
+  accelerationist: '#f97316', safetyist: '#3b82f6', skeptic: '#a855f7',
 };
 function debaterColor(name: string): string {
   return DEBATER_COLORS[name.toLowerCase()] ?? '#888';
@@ -1422,7 +1422,7 @@ function TensionsListDetail({ content }: { content: string }) {
 
 function DebateExchangeRich({ content }: { content: string }) {
   const segments = useMemo(() => {
-    const speakerRe = /^(Prometheus|Sentinel|Cassandra)\s*(\[[^\]]*\])?:\s*/gm;
+    const speakerRe = /^(Accelerationist|Safetyist|Skeptic|Prometheus|Sentinel|Cassandra)\s*(\[[^\]]*\])?:\s*/gm;
     const matches: { index: number; end: number; speaker: string; tag?: string }[] = [];
     let m;
     while ((m = speakerRe.exec(content)) !== null) {
@@ -1860,9 +1860,9 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
           {(() => {
             const label = speakerLabel(node.speaker);
             const desc: Record<string, string> = {
-              Prometheus: 'Prometheus — accelerationist, advocates rapid AI development',
-              Sentinel: 'Sentinel — safetyist, prioritizes AI safety and alignment',
-              Cassandra: 'Cassandra — skeptic, questions assumptions from all sides',
+              Accelerationist: 'Accelerationist — advocates rapid AI development',
+              Safetyist: 'Safetyist — prioritizes AI safety and alignment',
+              Skeptic: 'Skeptic — questions assumptions from all sides',
               Moderator: 'Moderator — neutral facilitator',
             };
             return <span title={desc[label] ?? label}>{label}</span>;

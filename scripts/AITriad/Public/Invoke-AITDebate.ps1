@@ -1,18 +1,18 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 <#
 .SYNOPSIS
     Runs a structured multi-perspective AI debate using the shared debate library.
 .DESCRIPTION
-    Orchestrates a full debate with Prometheus (accelerationist), Sentinel (safetyist),
-    and Cassandra (skeptic) POVers. Produces debate transcript, diagnostics, and harvest
+    Orchestrates a full debate with Accelerationist (accelerationist), Safetyist (safetyist),
+    and Skeptic (skeptic) POVers. Produces debate transcript, diagnostics, and harvest
     output files. Uses the same prompts, logic, and argumentation framework as the
     Taxonomy Editor's debate tool.
 .EXAMPLE
     Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Turns 3
 .EXAMPLE
-    Invoke-AITDebate -Topic "Scaling limits" -Name "Scaling Debate" -Rounds 4 -Model gemini-2.5-flash
+    Invoke-AITDebate -Topic "Scaling limits" -Name "Scaling Debate" -Rounds 4 -Model gemini-3.1-flash-lite
 .EXAMPLE
     Invoke-AITDebate -DocPath ../ai-triad-data/sources/my-doc/snapshot.md -Name "My Doc Debate"
 .EXAMPLE
@@ -39,8 +39,8 @@ function Invoke-AITDebate {
         [string]$Name,
 
         [Parameter()]
-        [ValidateSet('prometheus', 'sentinel', 'cassandra')]
-        [string[]]$Debaters = @('prometheus', 'sentinel', 'cassandra'),
+        [ValidateSet('Accelerationist', 'Safetyist', 'Skeptic')]
+        [string[]]$Debaters = @('Accelerationist', 'Safetyist', 'Skeptic'),
 
         [Parameter()]
         [ValidateScript({ Test-AIModelId $_ })]
@@ -113,7 +113,7 @@ Install Node.js from https://nodejs.org (v18+), then verify: npx --version
     # Resolve model
     if ($Model) { $ResolvedModel = $Model }
     elseif ($env:AI_MODEL) { $ResolvedModel = $env:AI_MODEL }
-    else { $ResolvedModel = 'gemini-2.5-flash' }
+    else { $ResolvedModel = 'gemini-3.1-flash-lite' }
     Write-Verbose "Model resolved: $ResolvedModel (source: $(if ($Model) {'parameter'} elseif ($env:AI_MODEL) {'env:AI_MODEL'} else {'default'}))"
 
     # ── Resolve output directory ──────────────────────────
@@ -261,9 +261,9 @@ Verify the file exists: Get-Item '$CliPath'
                 # Per-speaker turn info
                 if ($Speaker -and $Message) {
                     $Color = switch ($Speaker.ToLower()) {
-                        'prometheus' { 'Green' }
-                        'sentinel'  { 'Red' }
-                        'cassandra' { 'Yellow' }
+                        'Accelerationist' { 'Green' }
+                        'Safetyist'  { 'Red' }
+                        'Skeptic' { 'Yellow' }
                         default     { 'DarkGray' }
                     }
                     Write-Host "  [$Phase] $Speaker`: $Message" -ForegroundColor $Color

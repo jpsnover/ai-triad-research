@@ -22,7 +22,7 @@ function Repair-PovAttributes {
         Which priority level to fix: 'all' (default), 'critical' (no GA + missing steelman/lineage),
         or 'full' (includes possible_fallacies).
     .PARAMETER Model
-        AI model. Default: gemini-flash-lite-latest.
+        AI model. Default: gemini-3.1-flash-lite.
     .PARAMETER ApiKey
         AI API key.
     .PARAMETER BatchSize
@@ -47,7 +47,7 @@ function Repair-PovAttributes {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-flash-lite-latest',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey,
 

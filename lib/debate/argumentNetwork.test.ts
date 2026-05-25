@@ -8,7 +8,7 @@ import type { BeliefVerification } from './argumentNetwork.js';
 describe('BDI composite scoring', () => {
   const baseInput = {
     statement: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
-    speaker: 'sentinel',
+    speaker: 'safetyist',
     entryId: 'entry-1',
     taxonomyRefIds: [],
     turnNumber: 1,
@@ -125,7 +125,7 @@ describe('BDI composite scoring', () => {
     // rejected by the anti-filibustering filter (which drops claims < 0.25
     // strength that lack crux connections or novel schemes).
     const existingNode = {
-      id: 'AN-0', text: 'Rapid deployment creates accountability gaps', speaker: 'prometheus',
+      id: 'AN-0', text: 'Rapid deployment creates accountability gaps', speaker: 'accelerationist',
       source_entry_id: 'entry-0', taxonomy_refs: [], turn_number: 0, base_strength: 0.5,
     };
     const result = processExtractedClaims({
@@ -360,13 +360,13 @@ describe('processExtractedClaims — concession speaker guard', () => {
   // Use distinct claim texts to avoid duplicate rejection (>30% overlap with existing AN nodes)
   const concessionInput = {
     statement: 'Regulatory frameworks must balance innovation incentives against precautionary oversight obligations',
-    speaker: 'sentinel',
+    speaker: 'safetyist',
     entryId: 'entry-2',
     taxonomyRefIds: [],
     turnNumber: 2,
     existingNodes: [
-      { id: 'AN-1', text: 'Mandatory discovery rights ensure transparent auditing of deployed systems', speaker: 'sentinel', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.5 },
-      { id: 'AN-2', text: 'Voluntary compliance achieves better outcomes than prescriptive mandates', speaker: 'prometheus', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.5 },
+      { id: 'AN-1', text: 'Mandatory discovery rights ensure transparent auditing of deployed systems', speaker: 'safetyist', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.5 },
+      { id: 'AN-2', text: 'Voluntary compliance achieves better outcomes than prescriptive mandates', speaker: 'accelerationist', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.5 },
     ] as any[],
     existingEdgeCount: 0,
     startNodeId: 3,
@@ -389,7 +389,7 @@ describe('processExtractedClaims — concession speaker guard', () => {
       }],
     }, baseOptions);
 
-    // AN-1 belongs to sentinel (same speaker) — should NOT be conceded
+    // AN-1 belongs to safetyist (same speaker) — should NOT be conceded
     expect(result.commitments.conceded).not.toContain('Mandatory discovery rights ensure transparent auditing of deployed systems');
   });
 
@@ -409,7 +409,7 @@ describe('processExtractedClaims — concession speaker guard', () => {
       }],
     }, baseOptions);
 
-    // AN-2 belongs to prometheus (opponent) — SHOULD be conceded
+    // AN-2 belongs to accelerationist (opponent) — SHOULD be conceded
     expect(result.commitments.conceded).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
   });
 

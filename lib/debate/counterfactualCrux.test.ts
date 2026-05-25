@@ -16,7 +16,7 @@ import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 function makeNode(overrides: Partial<ArgumentNetworkNode> & { id: string }): ArgumentNetworkNode {
   return {
     text: `Claim ${overrides.id}`,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     source_entry_id: 'e1',
     taxonomy_refs: [],
     turn_number: 1,
@@ -184,9 +184,9 @@ describe('computeCounterfactualCruxes — multi-node network', () => {
    */
   it('analyses all nodes and edges in a multi-node network', () => {
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.6 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
-      makeNode({ id: 'AN-3', speaker: 'cassandra', base_strength: 0.7 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.6 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.8 }),
+      makeNode({ id: 'AN-3', speaker: 'skeptic', base_strength: 0.7 }),
     ];
     const edges = [
       makeEdge('AN-2', 'AN-1', 'attacks', 0.8),
@@ -204,9 +204,9 @@ describe('computeCounterfactualCruxes — multi-node network', () => {
     // Build a network where multiple flips occur with different delta magnitudes
     const nodes = [
       makeNode({ id: 'AN-1', base_strength: 0.7 }),
-      makeNode({ id: 'AN-2', base_strength: 0.95, speaker: 'sentinel' }),
+      makeNode({ id: 'AN-2', base_strength: 0.95, speaker: 'safetyist' }),
       makeNode({ id: 'AN-3', base_strength: 0.26 }),
-      makeNode({ id: 'AN-4', base_strength: 0.9, speaker: 'cassandra' }),
+      makeNode({ id: 'AN-4', base_strength: 0.9, speaker: 'skeptic' }),
     ];
     const edges = [
       makeEdge('AN-2', 'AN-1', 'attacks', 0.95),   // large delta
@@ -365,16 +365,16 @@ describe('formatCounterfactualCruxReport', () => {
 
 describe('filterCrossPovCruxes', () => {
   const nodes = [
-    makeNode({ id: 'AN-1', speaker: 'prometheus' }),
-    makeNode({ id: 'AN-2', speaker: 'sentinel' }),
-    makeNode({ id: 'AN-3', speaker: 'prometheus' }),
+    makeNode({ id: 'AN-1', speaker: 'accelerationist' }),
+    makeNode({ id: 'AN-2', speaker: 'safetyist' }),
+    makeNode({ id: 'AN-3', speaker: 'accelerationist' }),
   ];
 
   it('keeps cruxes where claim and flipping argument have different speakers', () => {
     const cruxes = [
       {
-        claim_id: 'AN-1',           // prometheus
-        flipping_argument_id: 'AN-2', // sentinel — cross-POV
+        claim_id: 'AN-1',           // accelerationist
+        flipping_argument_id: 'AN-2', // safetyist — cross-POV
         claim_text: '',
         flipping_argument_text: '',
         edge_type: 'attacks' as const,
@@ -393,8 +393,8 @@ describe('filterCrossPovCruxes', () => {
   it('removes cruxes where claim and flipping argument have the same speaker', () => {
     const cruxes = [
       {
-        claim_id: 'AN-1',           // prometheus
-        flipping_argument_id: 'AN-3', // also prometheus — same POV
+        claim_id: 'AN-1',           // accelerationist
+        flipping_argument_id: 'AN-3', // also accelerationist — same POV
         claim_text: '',
         flipping_argument_text: '',
         edge_type: 'supports' as const,

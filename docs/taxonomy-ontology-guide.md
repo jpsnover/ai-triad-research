@@ -47,7 +47,7 @@ Three communities (accelerationist, safetyist, skeptic) look at the same reality
 
 The key insight: intentions are stable commitments that resist casual revision. An agent doesn't constantly reconsider everything — it commits to a course of action and follows through unless something forces reconsideration.
 
-**Why we use it:** The debate agents (Prometheus/accelerationist, Sentinel/safetyist, Cassandra/skeptic) are already informally BDI agents. BDI gives us a structured vocabulary for their internal reasoning, which makes their output more coherent and their disagreements more precisely classifiable.
+**Why we use it:** The debate agents (Accelerationist/accelerationist, Safetyist/safetyist, Skeptic/skeptic) are already informally BDI agents. BDI gives us a structured vocabulary for their internal reasoning, which makes their output more coherent and their disagreements more precisely classifiable.
 
 **How it maps to our taxonomy:**
 

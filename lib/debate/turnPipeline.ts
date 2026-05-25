@@ -1342,7 +1342,7 @@ function extractDraftMeta(draft: DraftWorkProduct): PoverResponseMeta {
 
 /** Cached codename→label regex pairs, built once from POVER_INFO. The
  *  pre-check / validator LLMs sometimes refer to speakers by internal codename
- *  (prometheus / sentinel / cassandra) instead of the public label
+ *  (accelerationist / safetyist / skeptic) instead of the public label
  *  (Accelerationist / Safetyist / Skeptic) the debater sees everywhere else.
  *  Normalize so corrections are always in the speaker's own vocabulary. */
 const SPEAKER_RENAME_PATTERNS: { pattern: RegExp; label: string }[] = Object.entries(POVER_INFO)

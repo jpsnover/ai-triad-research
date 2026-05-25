@@ -21,7 +21,7 @@ function Repair-PovLineage {
     .PARAMETER POV
         Filter to a specific POV file.
     .PARAMETER Model
-        AI model for enrichment. Default: gemini-flash-lite-latest.
+        AI model for enrichment. Default: gemini-3.1-flash-lite.
     .PARAMETER ApiKey
         AI API key. Resolved from env if omitted.
     .PARAMETER BatchSize
@@ -54,7 +54,7 @@ function Repair-PovLineage {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-flash-lite-latest',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey,
 

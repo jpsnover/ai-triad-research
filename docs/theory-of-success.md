@@ -22,7 +22,7 @@ A debate that achieves all five is a contribution to the taxonomy. One that achi
 
 ### Phase 0: Configuration and Context Assembly
 
-**What happens:** The user selects a topic (free text, document, URL, or situation node), chooses debaters (Prometheus/Sentinel/Cassandra), sets audience and pacing, and optionally enables adaptive staging.
+**What happens:** The user selects a topic (free text, document, URL, or situation node), chooses debaters (Accelerationist/Safetyist/Skeptic), sets audience and pacing, and optionally enables adaptive staging.
 
 **How the system does it:**
 
@@ -163,7 +163,7 @@ A debate that achieves all five is a contribution to the taxonomy. One that achi
 - A **final neutral evaluation** runs: persona-free assessment of the same argument landscape. Divergences between the persona synthesis and neutral reading are flagged.
 - Salvage logic handles truncated responses (extracts partial arrays from incomplete JSON).
 
-**Why this matters for success:** The synthesis is the debate's deliverable. A synthesis that only says "they disagree" is worthless. A synthesis that says "the disagreement about foundation model risk reduces to an empirical question about the frequency of capability jumps, where Prometheus cites scaling law continuity (AN-23, strength 0.72) and Sentinel cites the GPT-4 capability surprise (AN-31, strength 0.68), with neither claim refuted" — that is a contribution to knowledge.
+**Why this matters for success:** The synthesis is the debate's deliverable. A synthesis that only says "they disagree" is worthless. A synthesis that says "the disagreement about foundation model risk reduces to an empirical question about the frequency of capability jumps, where Accelerationist cites scaling law continuity (AN-23, strength 0.72) and Safetyist cites the GPT-4 capability surprise (AN-31, strength 0.68), with neither claim refuted" — that is a contribution to knowledge.
 
 ### Phase 6: Post-Synthesis Passes
 
@@ -286,7 +286,7 @@ Store these as a lightweight statistics file and use them to adjust moderator pe
 
 ### 4.8 Evaluation Neutrality is Approximate
 
-**Weakness:** The neutral evaluator strips speaker labels and POV context, but the LLM may still exhibit style-based bias (e.g., preferring Sentinel's methodical tone over Prometheus's assertive tone). Speaker randomization helps but doesn't fully control for stylistic preferences.
+**Weakness:** The neutral evaluator strips speaker labels and POV context, but the LLM may still exhibit style-based bias (e.g., preferring Safetyist's methodical tone over Accelerationist's assertive tone). Speaker randomization helps but doesn't fully control for stylistic preferences.
 
 **Improvement:** Run neutral evaluation twice with different randomized speaker mappings and compare. If the evaluations diverge significantly (different claims marked "well_supported" vs. "contested"), flag the evaluation as potentially biased and present both to the user. The cost is one additional API call per checkpoint — marginal relative to the debate's total API usage.
 

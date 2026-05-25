@@ -60,9 +60,9 @@ When expanded:
 ### Mapping POV to data
 
 The PovTab component receives the `pov` prop (e.g., `"safetyist"`). Map to `POVER_INFO`:
-- `safetyist` → `sentinel`
-- `accelerationist` → `prometheus`
-- `skeptic` → `cassandra`
+- `safetyist` → `Safetyist`
+- `accelerationist` → `Accelerationist`
+- `skeptic` → `Skeptic`
 
 Import `POVER_INFO` from `lib/debate/types.ts` (already exported).
 

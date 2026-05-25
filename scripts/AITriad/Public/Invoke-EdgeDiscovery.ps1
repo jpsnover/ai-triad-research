@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Invoke-EdgeDiscovery {
@@ -34,7 +34,7 @@ function Invoke-EdgeDiscovery {
     .PARAMETER StaleOnly
         Only process nodes marked as STALE (edited since last edge discovery).
     .PARAMETER Model
-        AI model to use. Defaults to 'gemini-2.5-flash'.
+        AI model to use. Defaults to 'gemini-3.1-flash-lite'.
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Temperature
@@ -115,7 +115,7 @@ function Invoke-EdgeDiscovery {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-2.5-flash',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey = '',
 
@@ -544,9 +544,13 @@ function Invoke-EdgeDiscovery {
             }
             $PairLines = $PairLinesList -join "`n`n"
 
-            $EdgeTypeList = ($EdgesData.edge_types | ForEach-Object {
-                "$($_.type)$(if ($_.bidirectional) { ' (bidirectional)' }): $($_.definition)"
-            }) -join "`n"
+            $EdgeTypeLines = [System.Collections.Generic.List[string]]::new()
+            foreach ($ET in $EdgesData.edge_types) {
+                $IsBidir = if ($ET.PSObject.Properties['bidirectional']) { $ET.bidirectional } elseif ($ET.PSObject.Properties['direction'] -and $ET.direction -eq 'bidirectional') { $true } else { $false }
+                $Def = if ($ET.PSObject.Properties['definition']) { $ET.definition } elseif ($ET.PSObject.Properties['description']) { $ET.description } else { '' }
+                $EdgeTypeLines.Add("$($ET.type)$(if ($IsBidir) { ' (bidirectional)' }): $Def")
+            }
+            $EdgeTypeList = $EdgeTypeLines -join "`n"
 
             $ClassifyPrompt = @"
 Classify the relationship between each pair of taxonomy nodes below. These pairs have high semantic similarity and likely have a meaningful relationship.
@@ -574,7 +578,7 @@ Omit pairs with no relationship. No markdown fences.
 
             try {
                 $Response = Invoke-AIApi -Prompt $ClassifyPrompt -Model $Model -ApiKey $ResolvedKey `
-                    -Temperature $Temperature -MaxTokens 8192 -TimeoutSec 120
+                    -Temperature $Temperature -MaxTokens 16384 -TimeoutSec 120
 
                 if ($null -eq $Response -or -not $Response.Text) {
                     Write-Host " no response" -ForegroundColor Red
@@ -588,20 +592,24 @@ Omit pairs with no relationship. No markdown fences.
                     if ($Repaired) { $Parsed = $Repaired | ConvertFrom-Json }
                 }
 
-                if ($Parsed -and $Parsed.edges) {
+                if ($Parsed -and $Parsed.PSObject.Properties['edges']) {
                     $BatchNewEdges = 0
                     foreach ($E in @($Parsed.edges)) {
-                        if (-not $E.source -or -not $E.target -or -not $E.type) { continue }
-                        if ($E.type -eq 'NONE') { continue }
-                        if (-not $ValidNodeIds.Contains($E.source) -or -not $ValidNodeIds.Contains($E.target)) { continue }
+                        # Guard all property access — truncated JSON may produce partial objects
+                        $ESrc  = if ($E.PSObject.Properties['source']) { $E.source } else { $null }
+                        $ETgt  = if ($E.PSObject.Properties['target']) { $E.target } else { $null }
+                        $EType = if ($E.PSObject.Properties['type'])   { $E.type }   else { $null }
+                        if (-not $ESrc -or -not $ETgt -or -not $EType) { continue }
+                        if ($EType -eq 'NONE') { continue }
+                        if (-not $ValidNodeIds.Contains($ESrc) -or -not $ValidNodeIds.Contains($ETgt)) { continue }
 
-                        $EdgeKey = "$($E.source)|$($E.type)|$($E.target)"
+                        $EdgeKey = "$ESrc|$EType|$ETgt"
                         if ($ExistingEdgeKeys.Contains($EdgeKey)) { continue }
 
                         $NewEdge = [ordered]@{
-                            source        = $E.source
-                            target        = $E.target
-                            type          = $E.type.ToUpper()
+                            source        = $ESrc
+                            target        = $ETgt
+                            type          = $EType.ToUpper()
                             bidirectional = if ($E.PSObject.Properties['bidirectional']) { $E.bidirectional } else { $false }
                             confidence    = if ($E.PSObject.Properties['confidence']) { [Math]::Round([double]$E.confidence, 2) } else { 0.5 }
                             weight        = if ($E.PSObject.Properties['weight']) { [Math]::Round([double]$E.weight, 2) } else { $null }

@@ -48,10 +48,10 @@ function countSourceDocs(nodeId: string, index: SourceEvidenceIndex): number {
 
 // ── Main ────────────────────────────────────────────────
 
-const POV_FILES: { key: string; speakerId: 'prometheus' | 'sentinel' | 'cassandra'; file: string }[] = [
-  { key: 'accelerationist', speakerId: 'prometheus', file: 'accelerationist.json' },
-  { key: 'safetyist', speakerId: 'sentinel', file: 'safetyist.json' },
-  { key: 'skeptic', speakerId: 'cassandra', file: 'skeptic.json' },
+const POV_FILES: { key: string; speakerId: 'accelerationist' | 'safetyist' | 'skeptic'; file: string }[] = [
+  { key: 'accelerationist', speakerId: 'accelerationist', file: 'accelerationist.json' },
+  { key: 'safetyist', speakerId: 'safetyist', file: 'safetyist.json' },
+  { key: 'skeptic', speakerId: 'skeptic', file: 'skeptic.json' },
 ];
 
 // ── Doctrinal boundary embedding (local Python, all-MiniLM-L6-v2) ──
@@ -77,7 +77,7 @@ function embedTextLocal(script: string, text: string): number[] {
 function embedBoundariesLocal(repoRoot: string): BoundaryEmbeddings {
   const script = findEmbedScript(repoRoot);
   const result: BoundaryEmbeddings = {};
-  const speakerIds = ['prometheus', 'sentinel', 'cassandra'] as const;
+  const speakerIds = ['accelerationist', 'safetyist', 'skeptic'] as const;
   for (const speakerId of speakerIds) {
     const pov = POVER_INFO[speakerId].pov;
     const strings = POVER_INFO[speakerId].doctrinal_boundaries;

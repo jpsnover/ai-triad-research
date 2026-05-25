@@ -24,7 +24,7 @@ function makeEntry(id: string, speaker: string, content: string, type: string = 
 function makeNode(overrides: Partial<ArgumentNetworkNode> & { id: string }): ArgumentNetworkNode {
   return {
     text: `Claim ${overrides.id}`,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     source_entry_id: 'e1',
     taxonomy_refs: [],
     turn_number: 1,
@@ -44,16 +44,16 @@ function makeEdge(overrides: Partial<ArgumentNetworkEdge> & { source: string; ta
 
 describe('buildMediumTierSummary', () => {
   it('returns empty string when no claims found in entries', () => {
-    const entries = [makeEntry('e1', 'prometheus', 'hello')];
+    const entries = [makeEntry('e1', 'accelerationist', 'hello')];
     const result = buildMediumTierSummary(entries, [], [], {});
     expect(result).toBe('');
   });
 
   it('groups claims by speaker and sorts by strength', () => {
-    const entries = [makeEntry('e1', 'prometheus', 'test')];
+    const entries = [makeEntry('e1', 'accelerationist', 'test')];
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', source_entry_id: 'e1', computed_strength: 0.8, text: 'Strong claim' }),
-      makeNode({ id: 'AN-2', speaker: 'prometheus', source_entry_id: 'e1', computed_strength: 0.4, text: 'Weak claim' }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', source_entry_id: 'e1', computed_strength: 0.8, text: 'Strong claim' }),
+      makeNode({ id: 'AN-2', speaker: 'accelerationist', source_entry_id: 'e1', computed_strength: 0.4, text: 'Weak claim' }),
     ];
     const result = buildMediumTierSummary(entries, nodes, [], {});
     expect(result).toContain("Accelerationist's key claims:");
@@ -63,19 +63,19 @@ describe('buildMediumTierSummary', () => {
   });
 
   it('includes concessions from commitment store', () => {
-    const entries = [makeEntry('e1', 'sentinel', 'test')];
+    const entries = [makeEntry('e1', 'safetyist', 'test')];
     const commitments: Record<string, CommitmentStore> = {
-      sentinel: { asserted: [], conceded: ['AI risk is real'], challenged: [] },
+      safetyist: { asserted: [], conceded: ['AI risk is real'], challenged: [] },
     };
     const result = buildMediumTierSummary(entries, [], [], commitments);
     expect(result).toContain('Safetyist conceded: AI risk is real');
   });
 
   it('includes cross-POV edge counts', () => {
-    const entries = [makeEntry('e1', 'prometheus', 'test')];
+    const entries = [makeEntry('e1', 'accelerationist', 'test')];
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', source_entry_id: 'e1' }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', source_entry_id: 'e2' }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', source_entry_id: 'e1' }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', source_entry_id: 'e2' }),
     ];
     const edges = [makeEdge({ source: 'AN-1', target: 'AN-2', type: 'attacks' })];
     const result = buildMediumTierSummary(entries, nodes, edges, {});
@@ -102,7 +102,7 @@ describe('buildDistantTierSummary', () => {
 
   it('includes concession summaries', () => {
     const commitments: Record<string, CommitmentStore> = {
-      prometheus: { asserted: [], conceded: ['point A', 'point B'], challenged: ['point C'] },
+      accelerationist: { asserted: [], conceded: ['point A', 'point B'], challenged: ['point C'] },
     };
     const result = buildDistantTierSummary([], [], commitments);
     expect(result).toContain('Accelerationist has conceded 2 point(s)');
@@ -111,8 +111,8 @@ describe('buildDistantTierSummary', () => {
 
   it('includes top-strength claims', () => {
     const nodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', computed_strength: 0.9, text: 'Very strong claim' }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', computed_strength: 0.3, text: 'Weak claim' }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: 0.9, text: 'Very strong claim' }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', computed_strength: 0.3, text: 'Weak claim' }),
     ];
     const result = buildDistantTierSummary(nodes, [], {});
     expect(result).toContain('Strongest surviving claims');
@@ -124,7 +124,7 @@ describe('buildDistantTierSummary', () => {
 describe('buildTieredContext', () => {
   it('returns null tiers for short transcripts', () => {
     const transcript = Array.from({ length: 5 }, (_, i) =>
-      makeEntry(`e${i}`, 'prometheus', `Turn ${i}`),
+      makeEntry(`e${i}`, 'accelerationist', `Turn ${i}`),
     );
     const result = buildTieredContext({
       transcript, nodes: [], edges: [], commitments: {},
@@ -136,7 +136,7 @@ describe('buildTieredContext', () => {
 
   it('produces medium tier for 9-16 entries', () => {
     const transcript = Array.from({ length: 12 }, (_, i) =>
-      makeEntry(`e${i}`, i % 2 === 0 ? 'prometheus' : 'sentinel', `Turn ${i}`),
+      makeEntry(`e${i}`, i % 2 === 0 ? 'accelerationist' : 'safetyist', `Turn ${i}`),
     );
     const nodes = [makeNode({ id: 'AN-1', source_entry_id: 'e0' })];
     const result = buildTieredContext({
@@ -149,14 +149,14 @@ describe('buildTieredContext', () => {
 
   it('produces distant tier for 17+ entries', () => {
     const transcript = Array.from({ length: 20 }, (_, i) =>
-      makeEntry(`e${i}`, i % 2 === 0 ? 'prometheus' : 'sentinel', `Turn ${i}`),
+      makeEntry(`e${i}`, i % 2 === 0 ? 'accelerationist' : 'safetyist', `Turn ${i}`),
     );
     const nodes = [
       makeNode({ id: 'AN-1', source_entry_id: 'e0', computed_strength: 0.8 }),
-      makeNode({ id: 'AN-2', source_entry_id: 'e5', speaker: 'sentinel', computed_strength: 0.7 }),
+      makeNode({ id: 'AN-2', source_entry_id: 'e5', speaker: 'safetyist', computed_strength: 0.7 }),
     ];
     const commitments: Record<string, CommitmentStore> = {
-      prometheus: { asserted: ['claim A'], conceded: ['point X'], challenged: [] },
+      accelerationist: { asserted: ['claim A'], conceded: ['point X'], challenged: [] },
     };
     const result = buildTieredContext({
       transcript, nodes, edges: [], commitments,
@@ -171,7 +171,7 @@ describe('buildTieredContext', () => {
 describe('formatTieredTranscript', () => {
   it('includes all three tiers for long debates', () => {
     const transcript = Array.from({ length: 20 }, (_, i) =>
-      makeEntry(`e${i}`, i % 2 === 0 ? 'prometheus' : 'sentinel', `Turn ${i}`),
+      makeEntry(`e${i}`, i % 2 === 0 ? 'accelerationist' : 'safetyist', `Turn ${i}`),
     );
     const nodes = [
       makeNode({ id: 'AN-1', source_entry_id: 'e0', computed_strength: 0.8 }),
@@ -186,7 +186,7 @@ describe('formatTieredTranscript', () => {
   });
 
   it('falls back to legacy summary when no tiered summaries', () => {
-    const transcript = [makeEntry('e1', 'prometheus', 'Turn 1')];
+    const transcript = [makeEntry('e1', 'accelerationist', 'Turn 1')];
     const summaries = [{ up_to_entry_id: 'e0', summary: 'Legacy summary text' }];
     const result = formatTieredTranscript(transcript, summaries, [], [], {});
     expect(result).toContain('[Earlier debate summary]: Legacy summary text');

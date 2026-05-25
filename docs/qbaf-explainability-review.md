@@ -67,7 +67,7 @@ export function computeEdgeAttribution(
 
 2. Call on-demand when user clicks a node in the QBAF timeline or ExtractionTimelinePanel — not on every propagation.
 
-3. Display attributions as a ranked list: "Strongest influence: Sentinel's attack on evidence quality (−0.22), Prometheus's supporting data (−0.08 if removed)."
+3. Display attributions as a ranked list: "Strongest influence: Safetyist's attack on evidence quality (−0.22), Accelerationist's supporting data (−0.08 if removed)."
 
 **Priority: MEDIUM** — enriches the existing NL explanations (t/378) with causal attribution. Pairs naturally with the evidence QBAF graphs (t/384) where users want to know which evidence item had the most impact.
 
@@ -137,7 +137,7 @@ This is the most user-facing value: making evidence QBAF results explainable at 
 
 **Paper 1 (Counterfactual):** Theoretically interesting but no evaluation, no production-ready code, and the search for minimal explanations is exponential. The concept of "what would change if this attack were removed?" is valuable for our UI but can be implemented more simply: re-run `computeQbafStrengths()` with one edge removed and compare. Our QBAF engine is fast enough (<1ms per run) to do this interactively.
 
-**Paper 2 (Attribution):** More immediately useful. Removal-based attribution (drop one node/edge, measure strength change) is computationally cheap and directly applicable to our QBAF timeline. For each node whose strength changed significantly between turns, compute φ = σ(with) − σ(without) for each incoming edge to identify the most influential attacker/supporter. This enriches our "strength changed from 0.72 to 0.45" with "primarily due to Sentinel's attack on the evidence quality (attribution: -0.22)."
+**Paper 2 (Attribution):** More immediately useful. Removal-based attribution (drop one node/edge, measure strength change) is computationally cheap and directly applicable to our QBAF timeline. For each node whose strength changed significantly between turns, compute φ = σ(with) − σ(without) for each incoming edge to identify the most influential attacker/supporter. This enriches our "strength changed from 0.72 to 0.45" with "primarily due to Safetyist's attack on the evidence quality (attribution: -0.22)."
 
 **Implementation effort:** Small — the QBAF engine already exists, removal-based attribution is just N+1 QBAF runs (one per edge), and our engine runs in <1ms. For a 30-edge node, that's 30ms — imperceptible.
 

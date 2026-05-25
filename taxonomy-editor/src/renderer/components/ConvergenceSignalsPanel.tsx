@@ -32,9 +32,9 @@ function speakerLabel(speaker: SpeakerId): string {
 
 function speakerColor(speaker: SpeakerId): string {
   const colors: Record<string, string> = {
-    prometheus: '#f59e0b',
-    sentinel: '#3b82f6',
-    cassandra: '#a855f7',
+    accelerationist: '#f59e0b',
+    safetyist: '#3b82f6',
+    skeptic: '#a855f7',
     user: '#10b981',
   };
   return colors[speaker] ?? '#94a3b8';

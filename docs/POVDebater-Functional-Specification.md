@@ -45,9 +45,9 @@ A tech reporter preparing for an interview or article. Needs to anticipate count
 
 | POV | Debater Name | Personality |
 |-----|-------------|-------------|
-| Accelerationist | **Prometheus** | Confident, forward-looking, frames risk as cost-of-inaction |
-| Safetyist | **Sentinel** | Methodical, evidence-driven, frames progress as conditional-on-safeguards |
-| Skeptic | **Cassandra** | Wry, pragmatic, challenges assumptions from both sides |
+| Accelerationist | **Accelerationist** | Confident, forward-looking, frames risk as cost-of-inaction |
+| Safetyist | **Safetyist** | Methodical, evidence-driven, frames progress as conditional-on-safeguards |
+| Skeptic | **Skeptic** | Wry, pragmatic, challenges assumptions from both sides |
 | User (optional) | **You** | Freeform, ungrounded, the human wildcard |
 
 ---
@@ -109,7 +109,7 @@ The Debate tab uses a two-pane layout:
 - **Why:** Lets the user select participants and seed the topic before committing.
 - **How:** Triggered by "+ New Debate" button in session list. Fields:
   - **Topic** (required): textarea, placeholder "What should we debate?"
-  - **Active POVers** (required): checkboxes for Prometheus, Sentinel, Cassandra. At least 2 must be selected.
+  - **Active POVers** (required): checkboxes for Accelerationist, Safetyist, Skeptic. At least 2 must be selected.
   - **Participate as POVer** (optional): checkbox "I want to argue a position too"
   - **Start** button → creates session, enters Phase 1.
 - **Edge cases:**
@@ -162,7 +162,7 @@ The Debate tab uses a two-pane layout:
 
 - **What:** Each active POVer delivers an opening position statement in a deliberate order.
 - **Why:** Order shapes the debate dynamic — letting the most constructive framing go first.
-- **How:** Fixed order: Prometheus → Sentinel → Cassandra → You (if participating). Rationale: optimist frames the opportunity, safety responds with conditions, skeptic challenges both. User goes last with full context.
+- **How:** Fixed order: Accelerationist → Safetyist → Skeptic → You (if participating). Rationale: optimist frames the opportunity, safety responds with conditions, skeptic challenges both. User goes last with full context.
 - **LLM call structure:**
   ```
   For each POVer (sequential — each sees prior statements):
@@ -202,8 +202,8 @@ The action bar at the bottom of the debate workspace provides these controls:
 - **What:** User directs a question to the panel or a specific POVer.
 - **Why:** Core interaction — lets the user steer the debate.
 - **How:**
-  - Default: question goes to all active POVers. Each responds in sequence (Prometheus → Sentinel → Cassandra).
-  - User can prefix with a name to target: `@Sentinel, what evidence supports that?` — only Sentinel responds.
+  - Default: question goes to all active POVers. Each responds in sequence (Accelerationist → Safetyist → Skeptic).
+  - User can prefix with a name to target: `@Safetyist, what evidence supports that?` — only Safetyist responds.
   - User can include argumentative statements as part of their question (per requirements).
 - **LLM call structure:**
   ```
@@ -220,7 +220,7 @@ The action bar at the bottom of the debate workspace provides these controls:
       }
   ```
 - **Edge cases:**
-  - `@` mention of inactive POVer → show inline hint "Cassandra is not in this debate"
+  - `@` mention of inactive POVer → show inline hint "Skeptic is not in this debate"
   - `@` mention is ambiguous → show inline hint with autocomplete dropdown
   - Empty input + Send → no-op
 
@@ -387,7 +387,7 @@ Every POVer statement card displays small, colored pill badges for each referenc
 
 ```
 ┌────────────────────────────────────────────┐
-│ 🔴 Prometheus                               │
+│ 🔴 Accelerationist                               │
 │                                              │
 │ "The economic evidence is clear — every      │
 │ major technological transition has created    │
@@ -444,7 +444,7 @@ interface DebateSession {
   context_summaries: ContextSummary[]; // Rolling summaries for context management
 }
 
-type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
+type PoverId = 'Accelerationist' | 'Safetyist' | 'Skeptic' | 'user';
 
 /** A single entry in the debate transcript */
 interface TranscriptEntry {
@@ -594,7 +594,7 @@ saveDebate(): Promise<void>;
 | A3 | Session list is stored in `debates/` at the project root (alongside `sources/`, `summaries/`) | Consistent with existing project data layout |
 | A4 | Tab switch preserves Debate state via Zustand (component unmounts but state persists in store) | Consistent with how the app already works — PovTab reads from store on mount |
 | A5 | Context window management uses rolling summaries after every 10 statements | Balances quality with API cost; summary threshold is tunable |
-| A6 | Opening statement order is fixed: Prometheus → Sentinel → Cassandra → User | Provides consistent narrative arc; could be randomized later |
+| A6 | Opening statement order is fixed: Accelerationist → Safetyist → Skeptic → User | Provides consistent narrative arc; could be randomized later |
 | A7 | Fact checking is user-triggered only (not automatic) | Automatic checking adds latency and cost to every statement; user-triggered is more practical |
 | A8 | All POVers use the same LLM model (configurable in Settings) | Simpler; per-POVer model selection is over-engineering for v1 |
 | A9 | POVDebater reuses the existing `generateText` IPC with different temperature values | Avoids new API integration; temperature can be passed as a parameter or set in the prompt |
@@ -619,7 +619,7 @@ saveDebate(): Promise<void>;
 | Multi-user / collaborative debates | Single-user desktop app; network features add major complexity |
 | Custom POVer creation | Users cannot define new perspectives beyond the 3 built-in + self; custom POVs require new taxonomy files |
 | Real-time streaming of POVer responses | Token-by-token streaming is nice-to-have but not required; complete-block responses are acceptable for v1 |
-| Debate branching / rewind | "What if Sentinel had said X instead" is compelling but complex; defer to v2 |
+| Debate branching / rewind | "What if Safetyist had said X instead" is compelling but complex; defer to v2 |
 | Audio / voice input | Text-only for v1 |
 | Reverse navigation (Taxonomy → Debate) | Debate → Taxonomy is sufficient; reverse adds state coupling |
 | Export to Markdown / PDF | JSON archival is sufficient for v1 |

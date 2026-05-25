@@ -115,7 +115,7 @@ function buildDebateSnapshot(debate: DebateSession, taxonomies?: Map<string, Tax
   }
 
   if (taxonomies) {
-    const povLabels: Record<string, string> = { accelerationist: 'Accelerationist (Prometheus)', safetyist: 'Safetyist (Sentinel)', skeptic: 'Skeptic (Cassandra)' };
+    const povLabels: Record<string, string> = { accelerationist: 'Accelerationist', safetyist: 'Safetyist', skeptic: 'Skeptic' };
     for (const [pov, nodes] of taxonomies) {
       lines.push(buildTaxonomySection(povLabels[pov] ?? pov, nodes));
     }

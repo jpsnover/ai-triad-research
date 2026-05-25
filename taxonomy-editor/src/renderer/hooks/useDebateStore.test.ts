@@ -208,7 +208,7 @@ vi.mock('@lib/debate/moderator', () => ({
 }));
 
 vi.mock('@lib/debate/orchestration', () => ({
-  runModeratorSelection: vi.fn().mockResolvedValue({ speaker: 'prometheus', intervention: null }),
+  runModeratorSelection: vi.fn().mockResolvedValue({ speaker: 'accelerationist', intervention: null }),
   executeTurnWithRetry: vi.fn().mockResolvedValue({ text: '{}', attempts: 1 }),
 }));
 
@@ -291,7 +291,7 @@ function makeSession(overrides: Record<string, unknown> = {}) {
     source_type: 'topic' as const,
     source_ref: '',
     source_content: '',
-    active_povers: ['prometheus', 'sentinel', 'cassandra'] as string[],
+    active_povers: ['accelerationist', 'safetyist', 'skeptic'] as string[],
     user_is_pover: false,
     transcript: [] as Array<{ id: string; timestamp: string; type: string; speaker: string; content: string; taxonomy_refs: string[]; metadata?: Record<string, unknown>; display_tier?: string; summaries?: { brief: string; medium: string } }>,
     context_summaries: [] as Array<{ up_to_entry_id: string; summary: string }>,
@@ -389,7 +389,7 @@ describe('createDebate', () => {
   it('creates a session with correct fields and saves via IPC', async () => {
     const id = await useDebateStore.getState().createDebate(
       'AI governance policy',
-      ['prometheus', 'sentinel', 'cassandra'],
+      ['accelerationist', 'safetyist', 'skeptic'],
       false,
     );
 
@@ -399,14 +399,14 @@ describe('createDebate', () => {
     expect(saved.title).toBe('AI governance policy');
     expect(saved.phase).toBe('setup');
     expect(saved.source_type).toBe('topic');
-    expect(saved.active_povers).toEqual(['prometheus', 'sentinel', 'cassandra']);
+    expect(saved.active_povers).toEqual(['accelerationist', 'safetyist', 'skeptic']);
     expect(saved.user_is_pover).toBe(false);
     expect(saved.transcript).toEqual([]);
   });
 
   it('truncates long topic titles to 60 chars', async () => {
     const longTopic = 'A'.repeat(80);
-    await useDebateStore.getState().createDebate(longTopic, ['prometheus'], false);
+    await useDebateStore.getState().createDebate(longTopic, ['accelerationist'], false);
     const saved = mockApi.saveDebateSession.mock.calls[0][0] as Record<string, unknown>;
     expect((saved.title as string).length).toBeLessThanOrEqual(60);
     expect((saved.title as string).endsWith('...')).toBe(true);
@@ -414,7 +414,7 @@ describe('createDebate', () => {
 
   it('sets activeDebateId and activeDebate in state', async () => {
     const id = await useDebateStore.getState().createDebate(
-      'Test topic', ['prometheus', 'sentinel'], false,
+      'Test topic', ['accelerationist', 'safetyist'], false,
     );
     const state = useDebateStore.getState();
     expect(state.activeDebateId).toBe(id);
@@ -424,14 +424,14 @@ describe('createDebate', () => {
 
   it('stores debate-specific model override', async () => {
     await useDebateStore.getState().createDebate(
-      'Topic', ['prometheus'], false, 'topic', '', '', 'gemini-2.0-pro',
+      'Topic', ['accelerationist'], false, 'topic', '', '', 'gemini-2.0-pro',
     );
     expect(useDebateStore.getState().debateModel).toBe('gemini-2.0-pro');
   });
 
   it('stores debate-specific temperature', async () => {
     await useDebateStore.getState().createDebate(
-      'Topic', ['prometheus'], false, 'topic', '', '', undefined, undefined, 0.9,
+      'Topic', ['accelerationist'], false, 'topic', '', '', undefined, undefined, 0.9,
     );
     expect(useDebateStore.getState().debateTemperature).toBe(0.9);
     expect(mockApi.setDebateTemperature).toHaveBeenCalledWith(0.9);
@@ -439,14 +439,14 @@ describe('createDebate', () => {
 
   it('stores audience in session', async () => {
     await useDebateStore.getState().createDebate(
-      'Topic', ['prometheus'], false, 'topic', '', '', undefined, undefined, undefined, 'researchers',
+      'Topic', ['accelerationist'], false, 'topic', '', '', undefined, undefined, undefined, 'researchers',
     );
     const session = useDebateStore.getState().activeDebate;
     expect(session!.audience).toBe('researchers');
   });
 
   it('calls loadSessions after creation', async () => {
-    await useDebateStore.getState().createDebate('Topic', ['prometheus'], false);
+    await useDebateStore.getState().createDebate('Topic', ['accelerationist'], false);
     expect(mockApi.listDebateSessionsMeta).toHaveBeenCalled();
   });
 });
@@ -565,7 +565,7 @@ describe('closeDebate', () => {
       activeDebate: makeSession() as any,
       debateError: 'some error',
       debateWarnings: ['warning1'],
-      debateGenerating: 'prometheus',
+      debateGenerating: 'accelerationist',
       debateModel: 'gemini-2.0-pro',
       debateTemperature: 0.8,
       vocabularyTerms: { standardized: [], colloquial: [] },
@@ -770,7 +770,7 @@ describe('Error handling', () => {
     it('does not run if already generating', async () => {
       useDebateStore.setState({
         activeDebate: makeSession() as any,
-        debateGenerating: 'prometheus',
+        debateGenerating: 'accelerationist',
       });
 
       await useDebateStore.getState().runClarification();
@@ -813,7 +813,7 @@ describe('Error handling', () => {
   describe('compressOldTranscript error handling', () => {
     it('sets debateError on compression failure', async () => {
       const entries = Array.from({ length: 15 }, (_, i) => ({
-        id: `e${i}`, timestamp: 't', type: 'debate', speaker: 'prometheus', content: `Entry ${i}`, taxonomy_refs: [],
+        id: `e${i}`, timestamp: 't', type: 'debate', speaker: 'accelerationist', content: `Entry ${i}`, taxonomy_refs: [],
       }));
       useDebateStore.setState({ activeDebate: makeSession({ transcript: entries }) as any });
       mockApi.generateText.mockRejectedValueOnce(new Error('Compression failed'));
@@ -834,12 +834,12 @@ describe('Concurrent mutations', () => {
 
     // Simulate rapid state updates
     useDebateStore.getState().setError('error1');
-    useDebateStore.getState().setGenerating('prometheus');
+    useDebateStore.getState().setGenerating('accelerationist');
     useDebateStore.getState().inspectNode('AN-1');
 
     const state = useDebateStore.getState();
     expect(state.debateError).toBe('error1');
-    expect(state.debateGenerating).toBe('prometheus');
+    expect(state.debateGenerating).toBe('accelerationist');
     expect(state.inspectedNodeId).toBe('AN-1');
   });
 
@@ -880,38 +880,38 @@ describe('Session data management', () => {
 
   describe('togglePover', () => {
     it('adds a POVer to active_povers', async () => {
-      const session = makeSession({ active_povers: ['prometheus', 'sentinel'] });
+      const session = makeSession({ active_povers: ['accelerationist', 'safetyist'] });
       useDebateStore.setState({ activeDebate: session as any });
 
-      await useDebateStore.getState().togglePover('cassandra');
+      await useDebateStore.getState().togglePover('skeptic');
 
-      expect(useDebateStore.getState().activeDebate!.active_povers).toContain('cassandra');
+      expect(useDebateStore.getState().activeDebate!.active_povers).toContain('skeptic');
     });
 
     it('removes a POVer if currently present', async () => {
-      const session = makeSession({ active_povers: ['prometheus', 'sentinel', 'cassandra'] });
+      const session = makeSession({ active_povers: ['accelerationist', 'safetyist', 'skeptic'] });
       useDebateStore.setState({ activeDebate: session as any });
 
-      await useDebateStore.getState().togglePover('cassandra');
+      await useDebateStore.getState().togglePover('skeptic');
 
-      expect(useDebateStore.getState().activeDebate!.active_povers).not.toContain('cassandra');
+      expect(useDebateStore.getState().activeDebate!.active_povers).not.toContain('skeptic');
     });
 
     it('does not remove if it would leave fewer than 1 AI POVer', async () => {
-      const session = makeSession({ active_povers: ['prometheus'] });
+      const session = makeSession({ active_povers: ['accelerationist'] });
       useDebateStore.setState({ activeDebate: session as any });
 
-      await useDebateStore.getState().togglePover('prometheus');
+      await useDebateStore.getState().togglePover('accelerationist');
 
-      // Should still have prometheus since removing would leave 0 AI povers
-      expect(useDebateStore.getState().activeDebate!.active_povers).toContain('prometheus');
+      // Should still have accelerationist since removing would leave 0 AI povers
+      expect(useDebateStore.getState().activeDebate!.active_povers).toContain('accelerationist');
     });
 
     it('saves after toggling', async () => {
       const session = makeSession();
       useDebateStore.setState({ activeDebate: session as any });
 
-      await useDebateStore.getState().togglePover('cassandra');
+      await useDebateStore.getState().togglePover('skeptic');
 
       expect(mockApi.saveDebateSession).toHaveBeenCalled();
     });
@@ -945,7 +945,7 @@ describe('Session data management', () => {
 describe('cancelDebate', () => {
   it('clears debateGenerating and debateActivity', () => {
     useDebateStore.setState({
-      debateGenerating: 'prometheus',
+      debateGenerating: 'accelerationist',
       debateActivity: 'Generating response...',
     });
 
@@ -961,8 +961,8 @@ describe('cancelDebate', () => {
 describe('Config management', () => {
   describe('setOpeningOrder', () => {
     it('sets the opening order for debate statements', () => {
-      useDebateStore.getState().setOpeningOrder(['sentinel', 'cassandra', 'prometheus']);
-      expect(useDebateStore.getState().openingOrder).toEqual(['sentinel', 'cassandra', 'prometheus']);
+      useDebateStore.getState().setOpeningOrder(['safetyist', 'skeptic', 'accelerationist']);
+      expect(useDebateStore.getState().openingOrder).toEqual(['safetyist', 'skeptic', 'accelerationist']);
     });
   });
 
@@ -977,7 +977,7 @@ describe('Config management', () => {
     it('sets the display tier for a transcript entry', () => {
       const session = makeSession({
         transcript: [
-          { id: 'e1', timestamp: 't', type: 'debate', speaker: 'prometheus', content: 'Hello', taxonomy_refs: [] },
+          { id: 'e1', timestamp: 't', type: 'debate', speaker: 'accelerationist', content: 'Hello', taxonomy_refs: [] },
         ],
       });
       useDebateStore.setState({ activeDebate: session as any });
@@ -991,7 +991,7 @@ describe('Config management', () => {
     it('does nothing for nonexistent entry id', () => {
       const session = makeSession({
         transcript: [
-          { id: 'e1', timestamp: 't', type: 'debate', speaker: 'prometheus', content: 'Hello', taxonomy_refs: [] },
+          { id: 'e1', timestamp: 't', type: 'debate', speaker: 'accelerationist', content: 'Hello', taxonomy_refs: [] },
         ],
       });
       useDebateStore.setState({ activeDebate: session as any });
@@ -1138,7 +1138,7 @@ describe('updateAnNodeSubScore', () => {
       argument_network: {
         nodes: [
           {
-            id: 'AN-1', text: 'Claim', speaker: 'prometheus',
+            id: 'AN-1', text: 'Claim', speaker: 'accelerationist',
             source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1,
             bdi_sub_scores: { evidence: 0.4, specificity: 0.6 },
             base_strength: 0.5,
@@ -1167,7 +1167,7 @@ describe('updateAnNodeSubScore', () => {
     const session = makeSession({
       argument_network: {
         nodes: [
-          { id: 'AN-1', text: 'Claim', speaker: 'prometheus', bdi_sub_scores: { x: 0.5 }, base_strength: 0.5 },
+          { id: 'AN-1', text: 'Claim', speaker: 'accelerationist', bdi_sub_scores: { x: 0.5 }, base_strength: 0.5 },
         ],
         edges: [],
       },
@@ -1188,7 +1188,7 @@ describe('Reflection edits', () => {
   const makeReflections = () => [
     {
       pover: 'accelerationist',
-      label: 'Prometheus',
+      label: 'Accelerationist',
       reflection_summary: 'Reflections on AI acceleration',
       edits: [
         {
@@ -1418,12 +1418,12 @@ describe('inspectNode', () => {
 
 describe('setGenerating', () => {
   it('sets the generating POVer', () => {
-    useDebateStore.getState().setGenerating('sentinel');
-    expect(useDebateStore.getState().debateGenerating).toBe('sentinel');
+    useDebateStore.getState().setGenerating('safetyist');
+    expect(useDebateStore.getState().debateGenerating).toBe('safetyist');
   });
 
   it('clears with null', () => {
-    useDebateStore.setState({ debateGenerating: 'sentinel' });
+    useDebateStore.setState({ debateGenerating: 'safetyist' });
     useDebateStore.getState().setGenerating(null);
     expect(useDebateStore.getState().debateGenerating).toBeNull();
   });
@@ -1452,7 +1452,7 @@ describe('proceedToOpening', () => {
 
     const order = useDebateStore.getState().openingOrder;
     expect(order.length).toBe(3); // all 3 AI povers active
-    expect(new Set(order)).toEqual(new Set(['prometheus', 'sentinel', 'cassandra']));
+    expect(new Set(order)).toEqual(new Set(['accelerationist', 'safetyist', 'skeptic']));
   });
 
   it('does nothing when activeDebate is null', () => {
@@ -1467,7 +1467,7 @@ describe('proceedToOpening', () => {
 describe('compressOldTranscript guards', () => {
   it('does not compress with fewer than MIN_TO_COMPRESS entries', async () => {
     const entries = Array.from({ length: 5 }, (_, i) => ({
-      id: `e${i}`, timestamp: 't', type: 'debate', speaker: 'prometheus', content: `Entry ${i}`, taxonomy_refs: [],
+      id: `e${i}`, timestamp: 't', type: 'debate', speaker: 'accelerationist', content: `Entry ${i}`, taxonomy_refs: [],
     }));
     useDebateStore.setState({ activeDebate: makeSession({ transcript: entries }) as any });
 

@@ -55,8 +55,8 @@ $Topics = @(
 )
 
 $Orders = @(
-    @{ name = 'psc'; povers = @('prometheus', 'sentinel', 'cassandra') }
-    @{ name = 'cps'; povers = @('cassandra', 'prometheus', 'sentinel') }
+    @{ name = 'psc'; povers = @('Accelerationist', 'Safetyist', 'Skeptic') }
+    @{ name = 'cps'; povers = @('Skeptic', 'Accelerationist', 'Safetyist') }
 )
 
 $Pacings = @('moderate', 'thorough')

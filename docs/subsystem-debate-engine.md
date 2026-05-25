@@ -2,7 +2,7 @@
 
 ## Overview
 
-The debate engine is a three-agent BDI (Belief-Desire-Intention) debate system implemented in TypeScript across 22+ source files in `lib/debate/`. Three AI-driven characters — Prometheus (accelerationist), Sentinel (safetyist), and Cassandra (skeptic) — argue about AI policy topics grounded in the taxonomy, moderated by an autonomous intervention agent.
+The debate engine is a three-agent BDI (Belief-Desire-Intention) debate system implemented in TypeScript across 22+ source files in `lib/debate/`. Three AI-driven characters — Accelerationist (accelerationist), Safetyist (safetyist), and Skeptic (skeptic) — argue about AI policy topics grounded in the taxonomy, moderated by an autonomous intervention agent.
 
 The engine runs in two modes:
 - **CLI** — `npm run debate` via `cli.ts` and `debateEngine.ts`
@@ -12,9 +12,9 @@ The engine runs in two modes:
 
 | Character | POV | Personality | Debate Style |
 |---|---|---|---|
-| **Prometheus** | Accelerationist | Bold, optimistic, impatient | Appeals to progress, capability, inevitability |
-| **Sentinel** | Safetyist | Cautious, analytical, urgent | Appeals to risk, alignment, precautionary principle |
-| **Cassandra** | Skeptic | Pragmatic, grounded, critical | Appeals to concrete harms, labor impact, current failures |
+| **Accelerationist** | Accelerationist | Bold, optimistic, impatient | Appeals to progress, capability, inevitability |
+| **Safetyist** | Safetyist | Cautious, analytical, urgent | Appeals to risk, alignment, precautionary principle |
+| **Skeptic** | Skeptic | Pragmatic, grounded, critical | Appeals to concrete harms, labor impact, current failures |
 
 Each character has a distinct voice and rhetorical strategy, configured through extensive prompt templates in `prompts.ts` (168 KB, 27+ templates).
 

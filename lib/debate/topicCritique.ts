@@ -17,6 +17,7 @@
  */
 
 import { cosineSimilarity } from './taxonomyRelevance.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovNode, SituationNode, Category } from './taxonomyTypes.js';
 import type { SourceEvidenceIndex } from './evidenceFromSummaries.js';
 
@@ -651,7 +652,7 @@ export function formatLineageContext(frame: LineageFrameEntry[]): string {
 // ── Lineage Distribution ─────────────────────────────────
 
 /** Minimum fraction of total lineage items for a cluster to be included. */
-const LINEAGE_THRESHOLD = 0.15;
+const LINEAGE_THRESHOLD = 0.12;
 /** Maximum number of traditions to report. */
 const LINEAGE_MAX = 3;
 
@@ -668,7 +669,7 @@ export interface LineageDistributionInput {
 
 /**
  * Compute the Level 2 intellectual tradition distribution across activated nodes.
- * Returns the top clusters (up to 3) that represent ≥15% of mapped lineage items.
+ * Returns the top clusters (up to 3) that represent ≥12% of mapped lineage items.
  */
 export function computeLineageDistribution(input: LineageDistributionInput): LineageFrameEntry[] {
   const clusterCounts: Record<string, number> = {};
@@ -685,16 +686,51 @@ export function computeLineageDistribution(input: LineageDistributionInput): Lin
     }
   }
 
-  if (totalMapped === 0) return [];
+  if (totalMapped === 0) {
+    getGlobalRecorder()?.record({
+      type: 'lineage.distribution', component: 'topic-critique', level: 'warn',
+      message: 'Lineage distribution: no mapped lineage items found',
+      data: {
+        activated_nodes: input.activatedNodeIds.length,
+        total_mapped: 0,
+        top_cluster: null,
+        top_cluster_pct: null,
+        threshold: LINEAGE_THRESHOLD,
+        frame_count: 0,
+      },
+    });
+    return [];
+  }
 
   // Sort by count descending, filter by threshold, cap at max
-  return Object.entries(clusterCounts)
+  const allSorted = Object.entries(clusterCounts)
     .map(([id, count]) => ({
       cluster_id: id,
       label: input.clusterLabels[id] ?? id,
       percentage: count / totalMapped,
     }))
+    .sort((a, b) => b.percentage - a.percentage);
+
+  const result = allSorted
     .filter(e => e.percentage >= LINEAGE_THRESHOLD)
-    .sort((a, b) => b.percentage - a.percentage)
     .slice(0, LINEAGE_MAX);
+
+  const topCluster = allSorted[0];
+  getGlobalRecorder()?.record({
+    type: 'lineage.distribution', component: 'topic-critique',
+    level: result.length > 0 ? 'info' : 'warn',
+    message: result.length > 0
+      ? `Lineage frame: ${result.map(f => f.label).join(', ')}`
+      : `Lineage distribution: no cluster reached ${(LINEAGE_THRESHOLD * 100).toFixed(0)}% threshold`,
+    data: {
+      activated_nodes: input.activatedNodeIds.length,
+      total_mapped: totalMapped,
+      top_cluster: topCluster.label,
+      top_cluster_pct: Math.round(topCluster.percentage * 1000) / 10,
+      threshold: LINEAGE_THRESHOLD,
+      frame_count: result.length,
+    },
+  });
+
+  return result;
 }

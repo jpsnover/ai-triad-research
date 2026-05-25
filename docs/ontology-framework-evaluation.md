@@ -3,7 +3,7 @@
 **Date:** 2026-03-28
 **Context:** The BFO-based prompt improvement plan (`bfo-prompt-recommendations.md`) identified real problems in the taxonomy but the framework may be a poor fit. This document evaluates four candidate frameworks against the project's actual use cases.
 
-**Priority use case:** The debate feature, where a proposition or document is analyzed by POV agents (Prometheus/accelerationist, Sentinel/safetyist, Cassandra/skeptic) who produce structured disagreements.
+**Priority use case:** The debate feature, where a proposition or document is analyzed by POV agents (Accelerationist/accelerationist, Safetyist/safetyist, Skeptic/skeptic) who produce structured disagreements.
 
 ---
 
@@ -45,7 +45,7 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 - **Perspectival disagreement.** BFO is ontologically monist — one reality. The entire AI Triad is built on the premise that three communities look at the same reality through different lenses and reach different conclusions. BFO has no apparatus for "Agent A's description of situation S vs. Agent B's description of situation S." You'd have to bolt on IAO for claims-as-objects, then build a perspectival indexing layer on top — essentially rebuilding what DOLCE D&S provides natively.
 - **Values and norms.** BFO has no categories for ought-statements, preferences, or goals. "AI development should be regulated" has no natural home. The entire Desires axis of the taxonomy is invisible to BFO.
 - **Argumentation.** BFO doesn't model arguments, premises, rebuttals, or logical support relations. The debate tool's dialectical moves (CONCEDE, DISTINGUISH, REFRAME) have no representation.
-- **Agent cognition.** BFO models agents as material entities with roles. "Prometheus believes scaling is safe" requires leaving BFO entirely.
+- **Agent cognition.** BFO models agents as material entities with roles. "Accelerationist believes scaling is safe" requires leaving BFO entirely.
 
 **Verdict:** BFO is designed for representing what *exists*. The AI Triad represents what people *argue*. The mismatch is fundamental, not fixable by adding modules. The BFO-prompt-recommendations document's 10 proposals are largely correct about the *problems* they identify (node overlap, edge type confusion, stale predictions) but propose BFO-aligned *solutions* that fight the project's nature.
 
@@ -71,7 +71,7 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 **Where it's weaker:**
 
 - **Argumentation microstructure.** DOLCE can represent that an argument exists (as an information object), but not the internal structure — premises, conclusions, attack/support, inference schemes. The debate tool's CONCEDE/DISTINGUISH/REFRAME moves have no native representation. You still need AIF or equivalent.
-- **Agent deliberation.** DOLCE models agents as participants in situations, holding descriptions. But it has no plan library, no means-end reasoning, no intention stack. "Prometheus is formulating a counterargument" is a process DOLCE can describe but not drive.
+- **Agent deliberation.** DOLCE models agents as participants in situations, holding descriptions. But it has no plan library, no means-end reasoning, no intention stack. "Accelerationist is formulating a counterargument" is a process DOLCE can describe but not drive.
 - **Deontic reasoning.** DOLCE can represent that a normative claim exists, but provides no formal operators for obligation, permission, or prohibition. The Desires axis is representable but not formally reasoned over.
 
 **Verdict:** DOLCE D&S is the strongest single ontology for the core problem — perspectival multiplicity over shared situations. It provides the upper-level framework the project needs. But it needs supplementation for argumentation structure and agent reasoning.
@@ -86,7 +86,7 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 
 - **Agent characterization.** The debate agents are already informally BDI:
   - **Beliefs:** Each agent's `taxonomyContext` — the taxonomy nodes it draws from, the empirical claims it accepts
-  - **Desires:** Each agent's POV values — Prometheus desires rapid progress, Sentinel desires safety-first, Cassandra desires accountability
+  - **Desires:** Each agent's POV values — Accelerationist desires rapid progress, Safetyist desires safety-first, Skeptic desires accountability
   - **Intentions:** Each agent's dialectical strategy — CONCEDE on shared ground, DISTINGUISH where the opponent's evidence doesn't apply, COUNTEREXAMPLE with specific cases
 
   The `openingStatementPrompt` already asks agents to "state 1-2 key assumptions your position depends on" and describe "how your position would change if that assumption were wrong" — this is belief revision under uncertainty, a core BDI concept.
@@ -135,7 +135,7 @@ This is a multi-agent argumentation system with perspectival reasoning, normativ
 **Where it's weaker:**
 
 - **No upper ontology.** Without DOLCE or BFO as a grounding layer, the composite has no shared top-level categories. "What kind of thing is a policy proposal?" "What kind of thing is a POV?" These need an upper ontology to answer.
-- **No agent reasoning model.** The composite represents the *products* of reasoning (arguments, claims, evidence chains) but not the *process*. Prometheus's deliberation about which dialectical move to use has no representation.
+- **No agent reasoning model.** The composite represents the *products* of reasoning (arguments, claims, evidence chains) but not the *process*. Accelerationist's deliberation about which dialectical move to use has no representation.
 - **Integration tax.** Aligning AIF I-nodes with PROV-O entities with IAO information content entities with deontic operators requires careful bridging. Each pair introduces alignment decisions. With 3-4 vocabularies, that's 6+ alignment surfaces.
 
 **Verdict:** The composite approach offers the richest coverage of the argumentation and evidence requirements. AIF alone handles more of the debate use case than any single upper ontology. But it lacks the perspectival upper-level framework (which DOLCE provides) and the agent reasoning model (which BDI provides).
@@ -267,7 +267,7 @@ The 10 recommendations in `bfo-prompt-recommendations.md` identify real problems
 
 3. **Add AIF vocabulary to debate synthesis output.** The synthesis prompt already produces `areas_of_agreement`, `areas_of_disagreement`, `cruxes`. Add AIF-aligned fields:
    - `inference_schemes_used` — which dialectical moves led to which conclusions
-   - `attack_relations` — which specific claims are in conflict (not just "the debaters disagree about X" but "Prometheus's claim C1 attacks Sentinel's claim C2 by undermining premise P3")
+   - `attack_relations` — which specific claims are in conflict (not just "the debaters disagree about X" but "Accelerationist's claim C1 attacks Safetyist's claim C2 by undermining premise P3")
    - `preference_ordering` — which arguments were conceded as stronger
 
 4. **Phase 1 (genus-differentia) proceeds as planned** — it's framework-neutral. Good definitions help regardless of upper ontology.

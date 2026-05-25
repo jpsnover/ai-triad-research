@@ -59,8 +59,8 @@ The moderator LLM receives:
 
 The moderator LLM returns:
 
-- **`responder`** — which debater speaks next (e.g., Prometheus)
-- **`focus_point`** — a natural-language directive about what to address (e.g., "Respond to Sentinel's claim that interpretability audits are technically feasible")
+- **`responder`** — which debater speaks next (e.g., Accelerationist)
+- **`focus_point`** — a natural-language directive about what to address (e.g., "Respond to Safetyist's claim that interpretability audits are technically feasible")
 - **`addressing`** — who the responder should address (`"general"` or a specific debater name)
 - **`intervene`** — boolean: should the moderator intervene this round?
 - **`suggested_move`** — if intervening, which intervention type (PIN, CHALLENGE, PROBE, etc.)

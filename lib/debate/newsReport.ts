@@ -14,9 +14,9 @@ import { POVER_INFO } from './types.js';
 
 function journalisticLabel(speaker: string): string {
   switch (speaker) {
-    case 'prometheus': return 'Accelerationist advocates';
-    case 'sentinel': return 'Safety researchers';
-    case 'cassandra': return 'AI skeptics';
+    case 'accelerationist': return 'Accelerationist advocates';
+    case 'safetyist': return 'Safety researchers';
+    case 'skeptic': return 'AI skeptics';
     case 'moderator': return 'The moderator';
     default: return speaker;
   }
@@ -39,7 +39,7 @@ export function extractTranscriptHighlights(
   transcript: TranscriptEntry[],
   anNodes?: ArgumentNetworkNode[],
 ): string {
-  const debaterSpeakers = new Set(['prometheus', 'sentinel', 'cassandra']);
+  const debaterSpeakers = new Set(['accelerationist', 'safetyist', 'skeptic']);
   const sections: string[] = [];
 
   // 1. Opening statements (first statement per debater)

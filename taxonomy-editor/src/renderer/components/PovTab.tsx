@@ -25,11 +25,11 @@ import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../data/l
 import { POV_KEYS, POVER_INFO } from '@lib/debate/types';
 import type { SpeakerId } from '@lib/debate/types';
 
-/** Map taxonomy POV name → POVER_INFO speaker key */
+/** Map taxonomy POV name → POVER_INFO speaker key (identity map after speaker rename) */
 const POV_TO_SPEAKER: Record<string, Exclude<SpeakerId, 'user'>> = {
-  accelerationist: 'prometheus',
-  safetyist: 'sentinel',
-  skeptic: 'cassandra',
+  accelerationist: 'accelerationist',
+  safetyist: 'safetyist',
+  skeptic: 'skeptic',
 };
 import { api } from '@bridge';
 

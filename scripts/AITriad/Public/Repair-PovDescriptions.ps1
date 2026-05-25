@@ -20,7 +20,7 @@ function Repair-PovDescriptions {
     .PARAMETER Category
         Filter to a specific BDI category.
     .PARAMETER Model
-        AI model for description repair. Default: gemini-flash-lite-latest.
+        AI model for description repair. Default: gemini-3.1-flash-lite.
     .PARAMETER ApiKey
         AI API key. Resolved from env if omitted.
     .EXAMPLE
@@ -28,7 +28,7 @@ function Repair-PovDescriptions {
     .EXAMPLE
         Repair-PovDescriptions -POV safetyist
     .EXAMPLE
-        Repair-PovDescriptions -Category Beliefs -Model gemini-2.5-flash
+        Repair-PovDescriptions -Category Beliefs -Model gemini-3.1-flash-lite
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -40,7 +40,7 @@ function Repair-PovDescriptions {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-flash-lite-latest',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey
     )

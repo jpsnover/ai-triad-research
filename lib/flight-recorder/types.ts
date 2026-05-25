@@ -69,6 +69,8 @@ export type EventType =
   | 'lock.released'
   | 'lock.timeout'
   | 'lock.ttl_eviction'
+  // Lineage
+  | 'lineage.distribution'
   // System
   | 'system.error'
   | 'system.scaling_warning';

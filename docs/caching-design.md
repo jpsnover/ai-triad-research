@@ -485,9 +485,9 @@ function buildClaudeRequest(req: GenerateRequest): ClaudeApiBody {
 
 **Cache breakpoint placement (3 of 4 allowed):**
 
-1. **After Layer 1** (~1,750 tokens for draft, ~500 for others). This is the highest-value breakpoint: Layer 1 is identical across all prompts that share the same instruction set. A Prometheus draft and a Sentinel draft hit the same Layer 1 cache. A draft and a brief do not (different instruction sets), so this breakpoint serves within-stage, cross-persona reuse.
+1. **After Layer 1** (~1,750 tokens for draft, ~500 for others). This is the highest-value breakpoint: Layer 1 is identical across all prompts that share the same instruction set. A Accelerationist draft and a Safetyist draft hit the same Layer 1 cache. A draft and a brief do not (different instruction sets), so this breakpoint serves within-stage, cross-persona reuse.
 
-2. **After Layer 2** (~2,200-3,000 tokens cumulative). This captures persona + role. Within a single debate, each persona makes multiple calls at the same stage type (e.g., Prometheus brief in round 1 and round 3). Layer 1+2 will be identical for those calls. This breakpoint enables cross-turn, same-persona reuse.
+2. **After Layer 2** (~2,200-3,000 tokens cumulative). This captures persona + role. Within a single debate, each persona makes multiple calls at the same stage type (e.g., Accelerationist brief in round 1 and round 3). Layer 1+2 will be identical for those calls. This breakpoint enables cross-turn, same-persona reuse.
 
 3. **After Layer 3** (~5,000-15,000 tokens cumulative including taxonomy). This captures everything stable for a single persona's turn. The taxonomy context is re-scored each turn against the current transcript, so this cache is hit only within the 4-stage pipeline run (BRIEF → PLAN → DRAFT → CITE) for one persona. The first stage writes the cache; stages 2-4 read it. This yields 3 cache reads per pipeline run — the tightest but most reliable reuse window.
 
@@ -649,7 +649,7 @@ Run for at least one week of normal usage, covering a variety of topics and audi
 
 **What**: Add the `PromptEnvelope` type, `CacheHint`, `CacheUsage`, and `LLMBackend` interface to the codebase. Add envelope-building functions alongside existing prompt functions (e.g., `draftStageEnvelope` next to `draftStagePrompt`). Do not call them yet.
 
-**Success criteria**: Type checks pass. A **content coverage test** verifies that every substantive substring present in the original prompt function's output appears in exactly one layer of the corresponding envelope, and that no content is dropped or duplicated. This test does not require order preservation (the envelope intentionally reorders content). Additionally, a **round-trip sanity check** verifies that the flattened envelope (`layer1 + '\n\n' + layer2 + '\n\n' + layer3 + '\n\n' + layer4`) contains all the same instruction blocks, persona framing, and variable content as the original prompt — verified by checking for the presence of known sentinel strings from each layer.
+**Success criteria**: Type checks pass. A **content coverage test** verifies that every substantive substring present in the original prompt function's output appears in exactly one layer of the corresponding envelope, and that no content is dropped or duplicated. This test does not require order preservation (the envelope intentionally reorders content). Additionally, a **round-trip sanity check** verifies that the flattened envelope (`layer1 + '\n\n' + layer2 + '\n\n' + layer3 + '\n\n' + layer4`) contains all the same instruction blocks, persona framing, and variable content as the original prompt — verified by checking for the presence of known Safetyist strings from each layer.
 
 **Rollback**: Delete the new files. No production impact.
 
@@ -1013,7 +1013,7 @@ This design document must reference code-defined names exactly. The following ar
 
 There is no `'unspecified'` value. The code defaults to `'policymakers'` when audience is undefined (`audience ?? 'policymakers'` in `prompts.ts:56-65`).
 
-**Persona IDs** (`lib/debate/types.ts`): `'prometheus'` | `'sentinel'` | `'cassandra'`
+**Persona IDs** (`lib/debate/types.ts`): `'Accelerationist'` | `'Safetyist'` | `'Skeptic'`
 
 **Debate phases**: as defined by the `DebatePhase` type in `types.ts`.
 
@@ -1043,7 +1043,7 @@ For Claude, cache reads are billed at 10% of base input token cost. Cache writes
 
 - **Layer 1+2** (~3,000 tokens for draft) is written once per persona per 5-min window and read 3x within the same pipeline run (stages 2-4 hit stage 1's cache) → **always net positive** (3 reads easily covers the 1.25x write premium). If the TTL survives between rounds, additional cross-round reads are pure profit.
 - **Layer 1+2+3** (~5,000-15,000 tokens including taxonomy) is written once per persona per turn and read 3x within the same pipeline run → **always net positive** for the same reason. However, Layer 3 does NOT carry across turns (taxonomy is re-scored each turn), so every turn pays one full write. The write cost is offset by 3 reads within the same turn.
-- **Layer 1 alone** (~1,750 tokens for draft, ~500 for others) — shared across personas within the same stage type. Prometheus draft writes it; Sentinel and Cassandra draft reads it. This saves 2 writes per round for the draft stage, but only if those calls happen within the 5-min TTL (they do — the moderator selects one responder per round, so this sharing only occurs in the opening phase where all 3 personas run sequentially).
+- **Layer 1 alone** (~1,750 tokens for draft, ~500 for others) — shared across personas within the same stage type. Accelerationist draft writes it; Safetyist and Skeptic draft reads it. This saves 2 writes per round for the draft stage, but only if those calls happen within the 5-min TTL (they do — the moderator selects one responder per round, so this sharing only occurs in the opening phase where all 3 personas run sequentially).
 
 **Worst-case cost (zero cache hits):** If caching provides no hits at all (e.g., provider doesn't actually cache, or prefix is below minimum), the only cost increase is the 1.25x write overhead on Layer 1+2+3. For a typical debate with ~40 calls averaging ~5,000 input tokens: `40 × 5,000 × 0.25 = 50,000 tokens` of pure overhead (~$0.15 at Claude Sonnet rates). This is the maximum downside — small enough that a failed rollout is cheap.
 
@@ -1067,11 +1067,11 @@ The current code puts everything in a single `user` message — there is no priv
 
 #### Cross-Persona Cache Sharing and Information Leakage
 
-Layer 1 is shared across personas — a Prometheus draft and a Sentinel draft hit the same Layer 1 cache on Claude. This is safe because Layer 1 contains only instruction blocks that are identical for all personas. There is no persona-specific information in Layer 1.
+Layer 1 is shared across personas — a Accelerationist draft and a Safetyist draft hit the same Layer 1 cache on Claude. This is safe because Layer 1 contains only instruction blocks that are identical for all personas. There is no persona-specific information in Layer 1.
 
 Layer 2 is persona-specific and not shared. Layer 3 is per-persona per-turn and not shared.
 
-**No cross-persona information leakage through the cache.** Each persona's prompt contains different Layer 2+3 content, so cache entries are naturally isolated by prefix. A Sentinel call cannot hit a Prometheus cache entry because the Layer 2 prefix differs.
+**No cross-persona information leakage through the cache.** Each persona's prompt contains different Layer 2+3 content, so cache entries are naturally isolated by prefix. A Safetyist call cannot hit a Accelerationist cache entry because the Layer 2 prefix differs.
 
 #### Cache Poisoning as an Attack Vector
 

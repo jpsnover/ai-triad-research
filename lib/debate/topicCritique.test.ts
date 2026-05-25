@@ -626,9 +626,9 @@ describe('computeLineageDistribution', () => {
       nameToCluster,
       clusterLabels,
     });
-    // ai-safety: 7/10 = 70%, labor-econ: 1/10 = 10% (below 15%), legal-theory: 1/10 = 10%
-    // Only ai-safety should be above threshold (unless both others also aren't)
-    const belowThreshold = result.filter(r => r.percentage < 0.15);
+    // ai-safety: 7/10 = 70%, labor-econ: 1/10 = 10% (below 12%), legal-theory: 1/10 = 10%
+    // Only ai-safety should be above threshold
+    const belowThreshold = result.filter(r => r.percentage < 0.12);
     expect(belowThreshold).toHaveLength(0);
   });
 

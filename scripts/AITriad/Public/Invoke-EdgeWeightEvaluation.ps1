@@ -11,7 +11,7 @@ function Invoke-EdgeWeightEvaluation {
         (which measures whether the edge exists at all). Only evaluates edges that
         don't already have a weight assigned.
     .PARAMETER Model
-        AI model to use. Default: gemini-2.5-flash.
+        AI model to use. Default: gemini-3.1-flash-lite.
     .PARAMETER BatchSize
         Number of edges per API call. Default: 15.
     .PARAMETER Status
@@ -36,7 +36,7 @@ function Invoke-EdgeWeightEvaluation {
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
-        [string]$Model = 'gemini-2.5-flash',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [int]$BatchSize = 30,
 

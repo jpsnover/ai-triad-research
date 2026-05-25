@@ -16,7 +16,7 @@ import type { ArgumentNetworkNode, ArgumentNetworkEdge } from './types.js';
 function makeNode(overrides: Partial<ArgumentNetworkNode> & { id: string }): ArgumentNetworkNode {
   return {
     text: `Claim ${overrides.id}`,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     source_entry_id: 'e1',
     taxonomy_refs: [],
     turn_number: 1,
@@ -40,13 +40,13 @@ function makeEdge(
 describe('evaluateLookahead — basic', () => {
   it('passes when adding a strong claim for the speaker', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.6 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.6 }),
     ];
     const existingEdges = [makeEdge('AN-2', 'AN-1', 'attacks', 0.3)];
 
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges,
       tentativeClaims: [{ text: 'New strong argument for acceleration', base_strength: 0.8 }],
@@ -64,8 +64,8 @@ describe('evaluateLookahead — basic', () => {
 
   it('fails when tentative claims weaken speaker position', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.5 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.8 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.5 }),
     ];
     const existingEdges: ArgumentNetworkEdge[] = [];
 
@@ -73,7 +73,7 @@ describe('evaluateLookahead — basic', () => {
     const tentativeEdges = [makeEdge('AN-3', 'AN-1', 'attacks', 0.9)];
 
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges,
       tentativeClaims: [{ text: 'Actually regulation might be good', base_strength: 0.7 }],
@@ -87,11 +87,11 @@ describe('evaluateLookahead — basic', () => {
   });
 
   it('returns correct tentative_network_size', () => {
-    const existingNodes = [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 })];
+    const existingNodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 })];
     const existingEdges: ArgumentNetworkEdge[] = [];
 
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges,
       tentativeClaims: [
@@ -108,7 +108,7 @@ describe('evaluateLookahead — basic', () => {
 
   it('handles empty existing network', () => {
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes: [],
       existingEdges: [],
       tentativeClaims: [{ text: 'First claim ever', base_strength: 0.6 }],
@@ -122,9 +122,9 @@ describe('evaluateLookahead — basic', () => {
   });
 
   it('handles empty tentative claims', () => {
-    const existingNodes = [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.6 })];
+    const existingNodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.6 })];
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [],
@@ -143,8 +143,8 @@ describe('evaluateLookahead — basic', () => {
 describe('evaluateLookahead — threshold', () => {
   it('uses default threshold of 0.0 when not specified', () => {
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 })],
       existingEdges: [],
       tentativeClaims: [{ text: 'Marginal claim', base_strength: 0.51 }],
       tentativeEdges: [],
@@ -156,11 +156,11 @@ describe('evaluateLookahead — threshold', () => {
 
   it('respects custom threshold', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 }),
     ];
 
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [{ text: 'Weak claim', base_strength: 0.51 }],
@@ -180,19 +180,19 @@ describe('evaluateLookahead — threshold', () => {
 describe('evaluateLookahead — utility delta', () => {
   it('adding a claim that attacks opponent improves utility', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.6 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.7 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.6 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.7 }),
     ];
     const existingEdges: ArgumentNetworkEdge[] = [];
 
-    // New claim from prometheus attacks sentinel's node
+    // New claim from accelerationist attacks safetyist's node
     const tentativeEdges = [makeEdge('AN-3', 'AN-2', 'attacks', 0.8)];
 
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges,
-      tentativeClaims: [{ text: 'Counter to sentinel', base_strength: 0.8 }],
+      tentativeClaims: [{ text: 'Counter to safetyist', base_strength: 0.8 }],
       tentativeEdges,
     };
 
@@ -203,14 +203,14 @@ describe('evaluateLookahead — utility delta', () => {
 
   it('supports edge from tentative claim improves position', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.4 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.4 }),
     ];
 
     // New claim supports own existing claim
     const tentativeEdges = [makeEdge('AN-2', 'AN-1', 'supports', 0.8)];
 
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [{ text: 'Supporting evidence', base_strength: 0.7 }],
@@ -228,8 +228,8 @@ describe('evaluateLookahead — utility delta', () => {
 describe('buildRegenHint', () => {
   it('generates hint for negative delta', () => {
     const result = evaluateLookahead({
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.8 })],
       existingEdges: [],
       tentativeClaims: [],
       tentativeEdges: [],
@@ -245,8 +245,8 @@ describe('buildRegenHint', () => {
 
   it('generates hint for marginal positive delta', () => {
     const result = evaluateLookahead({
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 })],
       existingEdges: [],
       tentativeClaims: [{ text: 'Weak', base_strength: 0.5 }],
       tentativeEdges: [],
@@ -265,8 +265,8 @@ describe('buildRegenHint', () => {
 describe('evaluateLookaheadPerClaim', () => {
   it('returns empty perClaim for no tentative claims', () => {
     const { batchResult, perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.8 })],
       existingEdges: [],
       tentativeClaims: [],
       tentativeEdges: [],
@@ -277,8 +277,8 @@ describe('evaluateLookaheadPerClaim', () => {
 
   it('single claim marginal delta equals batch delta', () => {
     const { batchResult, perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.8 })],
       existingEdges: [],
       tentativeClaims: [{ text: 'Strong claim', base_strength: 0.9 }],
       tentativeEdges: [],
@@ -290,11 +290,11 @@ describe('evaluateLookaheadPerClaim', () => {
 
   it('classifies strong and weak claims separately', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.7 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.8 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.7 }),
     ];
     const { perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [
@@ -315,8 +315,8 @@ describe('evaluateLookaheadPerClaim', () => {
 
   it('preserves batch result unchanged', () => {
     const input: LookaheadGateInput = {
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 })],
       existingEdges: [],
       tentativeClaims: [{ text: 'A', base_strength: 0.7 }],
       tentativeEdges: [],
@@ -329,10 +329,10 @@ describe('evaluateLookaheadPerClaim', () => {
 
   it('marginal deltas sum approximately to batch delta for independent claims', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.6 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.6 }),
     ];
     const { batchResult, perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [
@@ -354,10 +354,10 @@ describe('evaluateLookaheadPerClaim', () => {
 describe('buildClaimAnalysis', () => {
   it('separates strong and weak claims', () => {
     const { perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes: [
-        makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.8 }),
-        makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.7 }),
+        makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.8 }),
+        makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.7 }),
       ],
       existingEdges: [],
       tentativeClaims: [
@@ -383,8 +383,8 @@ describe('buildClaimAnalysis', () => {
 
   it('generates human-readable reasons (no raw metrics)', () => {
     const { perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.7 })],
       existingEdges: [],
       tentativeClaims: [{ text: 'Test', base_strength: 0.9 }],
       tentativeEdges: [],
@@ -400,8 +400,8 @@ describe('buildClaimAnalysis', () => {
 
   it('sorts strong by delta descending, weak by delta ascending', () => {
     const { perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
-      existingNodes: [makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 })],
+      speaker: 'accelerationist',
+      existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 })],
       existingEdges: [],
       tentativeClaims: [
         { text: 'Medium', base_strength: 0.6 },
@@ -429,16 +429,16 @@ describe('buildClaimAnalysis', () => {
 describe('evaluateLookahead — concession exemption', () => {
   it('exempts concession claims from gate delta', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.8 }),
     ];
     const existingEdges: ArgumentNetworkEdge[] = [];
 
-    // Concession: prometheus's new claim supports sentinel's existing node
+    // Concession: accelerationist's new claim supports safetyist's existing node
     const tentativeEdges = [makeEdge('AN-3', 'AN-2', 'supports', 0.7)];
 
     const result = evaluateLookahead({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges,
       tentativeClaims: [{ text: 'Fair point that regulation alone cannot prevent misuse', base_strength: 0.6 }],
@@ -453,8 +453,8 @@ describe('evaluateLookahead — concession exemption', () => {
 
   it('concession + weak claim: gate evaluates only the non-concession claim', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.8 }),
     ];
 
     // Claim 0: concession (supports opponent)
@@ -465,11 +465,11 @@ describe('evaluateLookahead — concession exemption', () => {
     ];
 
     const result = evaluateLookahead({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [
-        { text: 'Concession to sentinel', base_strength: 0.5 },
+        { text: 'Concession to safetyist', base_strength: 0.5 },
         { text: 'Self-undermining claim', base_strength: 0.3 },
       ],
       tentativeEdges,
@@ -483,15 +483,15 @@ describe('evaluateLookahead — concession exemption', () => {
 
   it('non-concession supports edge is not flagged (supports own node)', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.5 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.6 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.6 }),
     ];
 
     // Supports OWN node — not a concession
     const tentativeEdges = [makeEdge('AN-3', 'AN-1', 'supports', 0.8)];
 
     const result = evaluateLookahead({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [{ text: 'Supporting evidence for my claim', base_strength: 0.7 }],
@@ -506,17 +506,17 @@ describe('evaluateLookahead — concession exemption', () => {
 describe('evaluateLookaheadPerClaim — concession classification', () => {
   it('classifies concession claims as PRESERVE', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.8 }),
     ];
 
     const { perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [
         { text: 'Strong attack', base_strength: 0.9 },
-        { text: 'Concession to sentinel', base_strength: 0.5 },
+        { text: 'Concession to safetyist', base_strength: 0.5 },
       ],
       tentativeEdges: [
         makeEdge('AN-3', 'AN-2', 'attacks', 0.8), // attack
@@ -532,16 +532,16 @@ describe('evaluateLookaheadPerClaim — concession classification', () => {
 
   it('PRESERVE concessions go to preserveConcessions in buildClaimAnalysis', () => {
     const existingNodes = [
-      makeNode({ id: 'AN-1', speaker: 'prometheus', base_strength: 0.7 }),
-      makeNode({ id: 'AN-2', speaker: 'sentinel', base_strength: 0.8 }),
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.7 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.8 }),
     ];
 
     const { perClaim } = evaluateLookaheadPerClaim({
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       existingNodes,
       existingEdges: [],
       tentativeClaims: [
-        { text: 'Concession to sentinel', base_strength: 0.5 },
+        { text: 'Concession to safetyist', base_strength: 0.5 },
       ],
       tentativeEdges: [
         makeEdge('AN-3', 'AN-2', 'supports', 0.7),
@@ -550,7 +550,7 @@ describe('evaluateLookaheadPerClaim — concession classification', () => {
 
     const analysis = buildClaimAnalysis(perClaim);
     expect(analysis.preserveConcessions).toHaveLength(1);
-    expect(analysis.preserveConcessions[0].text).toBe('Concession to sentinel');
+    expect(analysis.preserveConcessions[0].text).toBe('Concession to safetyist');
     expect(analysis.preserveConcessions[0].reason).toContain('Concession to opponent');
     expect(analysis.strongFoundations).toHaveLength(0);
     expect(analysis.avoidClaims).toHaveLength(0);

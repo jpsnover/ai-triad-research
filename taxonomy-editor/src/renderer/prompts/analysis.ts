@@ -112,6 +112,47 @@ If no change is needed for a field, do not include a subsection for it.
 Finally, provide the complete refined node as a fenced JSON code block (\`\`\`json ... \`\`\`) so it can be copied and pasted directly into the taxonomy editor. Include ALL fields, not just the changed ones.`;
 }
 
+export function reflectionNodeEnrichmentPrompt(node: {
+  id: string;
+  label: string;
+  description: string;
+  category: string;
+  pov: string;
+}): string {
+  return `You are a research analyst for a multi-perspective AI policy taxonomy.
+
+A new taxonomy node was created during a debate reflection. Generate rich analytical attributes for it.
+
+Node:
+  ID: ${node.id}
+  Label: ${node.label}
+  Description: ${node.description}
+  Category: ${node.category}
+  POV: ${node.pov}
+
+Generate a JSON object with these fields:
+
+  epistemic_type (string, pick ONE): "normative_prescription", "empirical_claim", "definitional", "strategic_recommendation", "predictive", "interpretive_lens"
+
+  rhetorical_strategy (string, pick ONE): "precautionary_framing", "inevitability_framing", "cost_benefit_analysis", "moral_imperative", "appeal_to_evidence", "appeal_to_authority", "analogical_reasoning", "techno_optimism", "structural_critique"
+
+  assumes (array of 1-3 strings): Key premises that must be true for this node to hold. Be specific and concrete.
+
+  falsifiability (string): "high", "medium", or "low". Beliefs → more likely high/medium. Desires → more likely low. Intentions → usually medium.
+
+  audience (string, pick 1-2 comma-separated): "policymakers", "technical_researchers", "industry_leaders", "general_public", "civil_society", "academic_community"
+
+  emotional_register (string): "urgent", "measured", "optimistic", "cautionary", "defiant", "pragmatic", "alarmed", "dismissive", "aspirational"
+
+  intellectual_lineage (array of 1-3 strings): Major intellectual traditions, thinkers, or frameworks this node draws from. Be specific — use names, movements, or landmark works.
+
+  steelman_vulnerability (string): The strongest counterargument against the STRONGEST version of this claim. 1-2 sentences.
+
+  node_scope (string): "claim" (specific assertion), "scheme" (argumentative strategy), or "bridging" (connects claims to schemes).
+
+Return ONLY valid JSON. No markdown fencing, no preamble.`;
+}
+
 export function clusterLabelPrompt(
   clusters: { nodeIds: string[]; labels: string[] }[],
 ): string {

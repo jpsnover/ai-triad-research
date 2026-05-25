@@ -34,13 +34,17 @@ export interface ContextManifestEntry {
 
 /** Map POV labels to SpeakerId speaker names. */
 const POV_TO_SPEAKER: Record<string, string> = {
-  accelerationist: 'prometheus',
-  safetyist: 'sentinel',
-  skeptic: 'cassandra',
+  accelerationist: 'accelerationist',
+  safetyist: 'safetyist',
+  skeptic: 'skeptic',
 };
 
 /** Map SpeakerId speaker names back to POV labels. */
 const SPEAKER_TO_POV: Record<string, string> = {
+  accelerationist: 'accelerationist',
+  safetyist: 'safetyist',
+  skeptic: 'skeptic',
+  // Legacy aliases
   prometheus: 'accelerationist',
   sentinel: 'safetyist',
   cassandra: 'skeptic',

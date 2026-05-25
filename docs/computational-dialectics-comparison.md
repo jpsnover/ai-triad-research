@@ -121,15 +121,15 @@ When a conflict is resolved (or a QBAF resolution is computed), generate a *dial
 
 ```
 TRACE for conflict-agi-timelines-001:
-  1. Prometheus asserted: "AGI by 2030 is likely" [AN-7, base_strength=0.6]
-  2. Sentinel attacked via EMPIRICAL_CHALLENGE: "No current system demonstrates
+  1. Accelerationist asserted: "AGI by 2030 is likely" [AN-7, base_strength=0.6]
+  2. Safetyist attacked via EMPIRICAL_CHALLENGE: "No current system demonstrates
      general reasoning" [AN-12, attacks AN-7]
-  3. Prometheus attempted DISTINGUISH: "General reasoning not required for
+  3. Accelerationist attempted DISTINGUISH: "General reasoning not required for
      economic AGI" [AN-15, supports AN-7]
-  4. Cassandra attacked via SPECIFY: "Define 'economic AGI' — what specific
+  4. Skeptic attacked via SPECIFY: "Define 'economic AGI' — what specific
      benchmark?" [AN-18, attacks AN-15]
-  5. Prometheus could not specify → AN-15 computed_strength dropped to 0.21
-  6. Resolution: Sentinel's position prevails (margin: 0.34)
+  5. Accelerationist could not specify → AN-15 computed_strength dropped to 0.21
+  6. Resolution: Safetyist's position prevails (margin: 0.34)
 ```
 
 This trace is the *dialectic explanation* of the resolution. It can be attached to the conflict's `verdict` field and shown in the GUI.

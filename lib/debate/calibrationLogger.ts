@@ -32,9 +32,9 @@ export interface AgentUtility {
 
 /** Persona-specific utility weights: [position, attack, crux]. */
 export const PERSONA_UTILITY_WEIGHTS: Record<string, { position: number; attack: number; crux: number }> = {
-  prometheus: { position: 0.45, attack: 0.30, crux: 0.25 },
-  sentinel:   { position: 0.30, attack: 0.25, crux: 0.45 },
-  cassandra:  { position: 0.20, attack: 0.25, crux: 0.55 },
+  accelerationist: { position: 0.45, attack: 0.30, crux: 0.25 },
+  safetyist:       { position: 0.30, attack: 0.25, crux: 0.45 },
+  skeptic:         { position: 0.20, attack: 0.25, crux: 0.55 },
 };
 
 /**

@@ -24,7 +24,7 @@ const MODE_ICONS: Record<ChatMode, string> = {
 export function NewChatDialog({ onClose }: NewChatDialogProps) {
   const { createChat, loadChat } = useChatStore();
   const [mode, setMode] = useState<ChatMode>('brainstorm');
-  const [pover, setPover] = useState<Exclude<SpeakerId, 'user'>>('prometheus');
+  const [pover, setPover] = useState<Exclude<SpeakerId, 'user'>>('accelerationist');
   const [topic, setTopic] = useState('');
   const [creating, setCreating] = useState(false);
   const { aiBackend, geminiModel } = useTaxonomyStore();

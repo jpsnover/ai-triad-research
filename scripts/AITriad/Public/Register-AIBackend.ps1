@@ -72,9 +72,9 @@ function Register-AIBackend {
 
     # ── Model list ────────────────────────────────────────────────────────────
     $Models = @(
-        @{ id = 'gemini-flash-lite-latest'; label = 'Gemini 3.1 Flash Lite (default)'; backend = 'gemini' }
-        @{ id = 'gemini-2.5-flash';              label = 'Gemini 2.5 Flash';                backend = 'gemini' }
-        @{ id = 'gemini-2.5-flash-lite';          label = 'Gemini 2.5 Flash Lite';           backend = 'gemini' }
+        @{ id = 'gemini-3.1-flash-lite'; label = 'Gemini 3.1 Flash Lite (default)'; backend = 'gemini' }
+        @{ id = 'gemini-3.1-flash-lite';              label = 'Gemini 2.5 Flash';                backend = 'gemini' }
+        @{ id = 'gemini-3.1-flash-lite-lite';          label = 'Gemini 2.5 Flash Lite';           backend = 'gemini' }
         @{ id = 'gemini-2.5-pro';                 label = 'Gemini 2.5 Pro';                  backend = 'gemini' }
         @{ id = 'claude-opus-4';                  label = 'Claude Opus 4';                   backend = 'claude' }
         @{ id = 'claude-sonnet-4-5';              label = 'Claude Sonnet 4.5';               backend = 'claude' }
@@ -198,8 +198,8 @@ function Register-AIBackend {
       <li>Select or create a Google Cloud project</li>
       <li>Copy the generated key and paste it above</li>
     </ol>
-    <p>The free tier includes generous rate limits for <code>gemini-2.5-flash</code> and
-       <code>gemini-flash-lite-latest</code>. The <code>gemini-2.5-pro</code> model
+    <p>The free tier includes generous rate limits for <code>gemini-3.1-flash-lite</code> and
+       <code>gemini-3.1-flash-lite</code>. The <code>gemini-2.5-pro</code> model
        requires a paid plan for higher usage.</p>
     <p><strong>Models available:</strong> Gemini 3.1 Flash Lite (fastest, cheapest),
        Gemini 2.5 Flash (balanced), Gemini 2.5 Flash Lite, Gemini 2.5 Pro (most capable).</p>
@@ -294,7 +294,7 @@ function Register-AIBackend {
   <div class="field">
     <label>Used when no -Model parameter is specified</label>
     <select id="ai-model"></select>
-    <div class="env-hint">AI_MODEL (leave blank for gemini-flash-lite-latest)</div>
+    <div class="env-hint">AI_MODEL (leave blank for gemini-3.1-flash-lite)</div>
   </div>
 </div>
 
@@ -325,7 +325,7 @@ function init() {
   });
 
   const sel = document.getElementById('ai-model');
-  sel.innerHTML = '<option value="">(default: gemini-flash-lite-latest)</option>';
+  sel.innerHTML = '<option value="">(default: gemini-3.1-flash-lite)</option>';
   models.forEach(m => {
     const opt = document.createElement('option');
     opt.value = m.id;

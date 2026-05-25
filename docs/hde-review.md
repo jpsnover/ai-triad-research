@@ -142,17 +142,17 @@ HDE is a tutoring tool — the knowledge base is fixed by the instructor. Our sy
 
 Immediate, high-value addition. Define 3-5 rejection constraints per character:
 
-**Prometheus (accelerationist):**
+**Accelerationist (accelerationist):**
 - REJECT: Precautionary principle as default stance
 - REJECT: Capability limitations as permanent constraints
 - REJECT: Regulatory capture framing of all governance
 
-**Sentinel (safetyist):**
+**Safetyist (safetyist):**
 - REJECT: Dismissing existential risk as speculative
 - REJECT: Speed-over-safety framing of development timelines
 - REJECT: Market self-regulation as sufficient governance
 
-**Cassandra (skeptic):**
+**Skeptic (skeptic):**
 - REJECT: Binary framing of AI risk (existential vs trivial)
 - REJECT: Techno-determinism (both utopian and dystopian)
 - REJECT: Insider expertise as sole legitimate perspective

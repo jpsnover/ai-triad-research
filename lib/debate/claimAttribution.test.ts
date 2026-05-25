@@ -45,7 +45,7 @@ const BELIEF_IDS = new Set(['acc-B-001', 'acc-B-002', 'acc-B-003']);
 describe('computeClaimTaxonomyAttribution', () => {
   it('assigns primary_ref to the highest-similarity Belief node', () => {
     const nodeEmb = makeEmbedding(0);
-    const nodes = [makeNode('AN-1', 'prometheus', nodeEmb)];
+    const nodes = [makeNode('AN-1', 'accelerationist', nodeEmb)];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },   // exact match
       'acc-B-002': { pov: 'accelerationist', vector: makeEmbedding(1) },   // orthogonal
@@ -64,7 +64,7 @@ describe('computeClaimTaxonomyAttribution', () => {
   it('includes secondary_refs above 0.40 threshold', () => {
     const base = makeEmbedding(0);
     const similar = makeSimilarEmbedding(base, 0.6);
-    const nodes = [makeNode('AN-1', 'prometheus', base)];
+    const nodes = [makeNode('AN-1', 'accelerationist', base)];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: base },       // sim = 1.0
       'acc-B-002': { pov: 'accelerationist', vector: similar },    // sim ~ 0.6
@@ -83,7 +83,7 @@ describe('computeClaimTaxonomyAttribution', () => {
 
   it('omits secondary_refs when none exceed 0.40', () => {
     const base = makeEmbedding(0);
-    const nodes = [makeNode('AN-1', 'prometheus', base)];
+    const nodes = [makeNode('AN-1', 'accelerationist', base)];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: base },           // sim = 1.0
       'acc-B-002': { pov: 'accelerationist', vector: makeEmbedding(1) }, // sim = 0
@@ -97,7 +97,7 @@ describe('computeClaimTaxonomyAttribution', () => {
   // ── Unattributed: novel argument ────────────────────
 
   it('marks claim as novel_argument when best similarity < 0.35', () => {
-    const nodes = [makeNode('AN-1', 'prometheus', makeEmbedding(0))];
+    const nodes = [makeNode('AN-1', 'accelerationist', makeEmbedding(0))];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(5) }, // orthogonal → sim ≈ 0
       'acc-B-002': { pov: 'accelerationist', vector: makeEmbedding(6) }, // orthogonal → sim ≈ 0
@@ -114,7 +114,7 @@ describe('computeClaimTaxonomyAttribution', () => {
   // ── Unattributed: no embedding ──────────────────────
 
   it('marks claim as no_embedding when claim has no embedding', () => {
-    const nodes = [makeNode('AN-1', 'prometheus', undefined)];
+    const nodes = [makeNode('AN-1', 'accelerationist', undefined)];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },
     };
@@ -128,7 +128,7 @@ describe('computeClaimTaxonomyAttribution', () => {
   });
 
   it('marks claim as no_embedding when claim has empty embedding', () => {
-    const nodes = [makeNode('AN-1', 'prometheus', [])];
+    const nodes = [makeNode('AN-1', 'accelerationist', [])];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },
     };
@@ -140,7 +140,7 @@ describe('computeClaimTaxonomyAttribution', () => {
   });
 
   it('marks all claims as no_embedding when no candidate nodes exist', () => {
-    const nodes = [makeNode('AN-1', 'prometheus', makeEmbedding(0))];
+    const nodes = [makeNode('AN-1', 'accelerationist', makeEmbedding(0))];
     // No embeddings for this POV
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'saf-B-001': { pov: 'safetyist', vector: makeEmbedding(0) },
@@ -156,7 +156,7 @@ describe('computeClaimTaxonomyAttribution', () => {
 
   it('only compares against same-POV nodes', () => {
     const emb = makeEmbedding(0);
-    const nodes = [makeNode('AN-1', 'sentinel', emb)];
+    const nodes = [makeNode('AN-1', 'safetyist', emb)];
     const safBeliefs = new Set(['saf-B-001']);
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: emb },   // exact match but wrong POV
@@ -174,7 +174,7 @@ describe('computeClaimTaxonomyAttribution', () => {
 
   it('only compares against Belief nodes, not Desire/Intention', () => {
     const emb = makeEmbedding(0);
-    const nodes = [makeNode('AN-1', 'prometheus', emb)];
+    const nodes = [makeNode('AN-1', 'accelerationist', emb)];
     const beliefOnly = new Set(['acc-B-001']); // acc-D-001 is not in belief set
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(7) }, // orthogonal
@@ -192,9 +192,9 @@ describe('computeClaimTaxonomyAttribution', () => {
 
   it('processes multiple claims independently', () => {
     const nodes = [
-      makeNode('AN-1', 'prometheus', makeEmbedding(0)),
-      makeNode('AN-2', 'prometheus', makeEmbedding(1)),
-      makeNode('AN-3', 'prometheus', undefined), // no embedding
+      makeNode('AN-1', 'accelerationist', makeEmbedding(0)),
+      makeNode('AN-2', 'accelerationist', makeEmbedding(1)),
+      makeNode('AN-3', 'accelerationist', undefined), // no embedding
     ];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },
@@ -216,7 +216,7 @@ describe('computeClaimTaxonomyAttribution', () => {
   // ── Decision trace ─────────────────────────────────
 
   it('returns complete decision trace for diagnostics', () => {
-    const nodes = [makeNode('AN-1', 'prometheus', makeEmbedding(0))];
+    const nodes = [makeNode('AN-1', 'accelerationist', makeEmbedding(0))];
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },
     };

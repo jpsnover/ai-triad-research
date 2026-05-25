@@ -38,9 +38,9 @@ const FORMAT_ICONS: Record<string, string> = {
 };
 
 const DEBATER_ICONS: Record<string, string> = {
-  prometheus: '\u26A1',   // lightning
-  sentinel: '\uD83D\uDEE1\uFE0F',  // shield
-  cassandra: '\uD83D\uDD2E',  // crystal ball
+  accelerationist: '\u26A1',   // lightning
+  safetyist: '\uD83D\uDEE1\uFE0F',  // shield
+  skeptic: '\uD83D\uDD2E',  // crystal ball
   user: '\uD83D\uDC64',       // silhouette
 };
 

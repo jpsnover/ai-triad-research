@@ -24,7 +24,7 @@ function Convert-DebateToAudio {
 .PARAMETER IncludeFactChecks
     Include fact-check entries narrated by the moderator voice.
 .PARAMETER VoiceMap
-    Hashtable overriding default voice assignments. Keys: prometheus, sentinel, cassandra, system.
+    Hashtable overriding default voice assignments. Keys: Accelerationist, Safetyist, Skeptic, system.
 .EXAMPLE
     Convert-DebateToAudio -Path './debates/session-001.json'
 .EXAMPLE
@@ -76,9 +76,9 @@ if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
 
 # ── Default voice assignments ────────────────────────────────────────────────
 $DefaultVoices = @{
-    prometheus = 'onyx'
-    sentinel   = 'nova'
-    cassandra  = 'shimmer'
+    Accelerationist = 'onyx'
+    Safetyist   = 'nova'
+    Skeptic  = 'shimmer'
     user       = 'echo'
     system     = 'alloy'
 }
@@ -112,7 +112,7 @@ if ($Entries.Count -eq 0) {
 
 Write-Host "`n  DEBATE → AUDIO CONVERSION" -ForegroundColor Cyan
 Write-Host "  Model: $Model | Entries: $($Entries.Count) | Speed: ${Speed}x" -ForegroundColor Gray
-Write-Host "  Voices: Prometheus=$($DefaultVoices['prometheus']), Sentinel=$($DefaultVoices['sentinel']), Cassandra=$($DefaultVoices['cassandra']), Moderator=$($DefaultVoices['system'])`n" -ForegroundColor Gray
+Write-Host "  Voices: Accelerationist=$($DefaultVoices['Accelerationist']), Safetyist=$($DefaultVoices['Safetyist']), Skeptic=$($DefaultVoices['Skeptic']), Moderator=$($DefaultVoices['system'])`n" -ForegroundColor Gray
 
 # ── Set up temp directory ────────────────────────────────────────────────────
 $TempDir = Join-Path ([System.IO.Path]::GetTempPath()) "debate-audio-$(Get-Date -Format 'yyyyMMdd-HHmmss')"

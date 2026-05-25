@@ -54,7 +54,7 @@ function Get-AITDebate {
     .EXAMPLE
         Get-AITDebate -Origin cli -After "2026-05-01" | Format-Table Id, Title, Phase, Rounds
     .EXAMPLE
-        Get-AITDebate -Debater cassandra -Protocol deliberation
+        Get-AITDebate -Debater Skeptic -Protocol deliberation
     #>
     [CmdletBinding()]
     param(
@@ -71,7 +71,7 @@ function Get-AITDebate {
         [ValidateSet('topic', 'document', 'situations', 'url')]
         [string]$SourceType,
 
-        [ValidateSet('prometheus', 'sentinel', 'cassandra')]
+        [ValidateSet('Accelerationist', 'Safetyist', 'Skeptic')]
         [string]$Debater,
 
         [ValidateScript({ Test-AIModelId $_ })]

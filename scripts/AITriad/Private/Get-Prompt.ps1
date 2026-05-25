@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-Prompt {
@@ -17,7 +17,7 @@ function Get-Prompt {
     .EXAMPLE
         Get-Prompt -Name 'pov-summary-system'
     .EXAMPLE
-        Get-Prompt -Name 'triad-dialogue-system' -Replacements @{ AGENT_NAME = 'Prometheus'; POV_LABEL = 'Accelerationist' }
+        Get-Prompt -Name 'triad-dialogue-system' -Replacements @{ AGENT_NAME = 'Accelerationist'; POV_LABEL = 'Accelerationist' }
     #>
     [CmdletBinding()]
     param(

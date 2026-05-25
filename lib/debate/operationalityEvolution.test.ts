@@ -27,7 +27,7 @@ function makeClaimNode(id: string, opts: {
   return {
     id,
     text: `Claim ${id}`,
-    speaker: (opts.speaker ?? 'prometheus') as any,
+    speaker: (opts.speaker ?? 'accelerationist') as any,
     source_entry_id: 'entry-1',
     taxonomy_refs: opts.intentionRef ? [opts.intentionRef] : [],
     turn_number: 1,
@@ -178,7 +178,7 @@ describe('computeOperationalityUpdates', () => {
   it('produces -1 update when SPECIFY challenge causes strength drop', () => {
     const intention = makeIntentionNode('acc-intentions-001', 4);
     const claim = makeClaimNode('c-1', { strength: 0.2, intentionRef: 'acc-intentions-001', attrConf: 0.80 });
-    const attacker = makeClaimNode('c-2', { speaker: 'sentinel' });
+    const attacker = makeClaimNode('c-2', { speaker: 'safetyist' });
     const edge = makeAttackEdge('c-2', 'c-1', 'SPECIFY');
 
     const updates = computeOperationalityUpdates({
@@ -198,7 +198,7 @@ describe('computeOperationalityUpdates', () => {
   it('produces +1 update when SPECIFY challenge is survived', () => {
     const intention = makeIntentionNode('acc-intentions-001', 3);
     const claim = makeClaimNode('c-1', { strength: 0.85, intentionRef: 'acc-intentions-001', attrConf: 0.80 });
-    const attacker = makeClaimNode('c-2', { speaker: 'sentinel' });
+    const attacker = makeClaimNode('c-2', { speaker: 'safetyist' });
     const edge = makeAttackEdge('c-2', 'c-1', 'SPECIFY');
 
     const updates = computeOperationalityUpdates({
@@ -281,8 +281,8 @@ describe('computeOperationalityUpdates', () => {
 describe('computeCrossPovAdoption', () => {
   it('produces +1 when opponent supports an Intention claim', () => {
     const intention = makeIntentionNode('acc-intentions-001', 3);
-    const ownClaim = makeClaimNode('c-1', { speaker: 'prometheus', intentionRef: 'acc-intentions-001', attrConf: 0.80 });
-    const opponentClaim = makeClaimNode('c-2', { speaker: 'sentinel' });
+    const ownClaim = makeClaimNode('c-1', { speaker: 'accelerationist', intentionRef: 'acc-intentions-001', attrConf: 0.80 });
+    const opponentClaim = makeClaimNode('c-2', { speaker: 'safetyist' });
     const supportEdge = makeSupportEdge('c-2', 'c-1');
 
     const updates = computeCrossPovAdoption(
@@ -291,7 +291,7 @@ describe('computeCrossPovAdoption', () => {
       new Map([['acc-intentions-001', intention]]),
       new Map([['acc-intentions-001', 3]]),
       'debate-1',
-      { prometheus: 'accelerationist', sentinel: 'safetyist', cassandra: 'skeptic' },
+      { accelerationist: 'accelerationist', safetyist: 'safetyist', skeptic: 'skeptic' },
     );
 
     expect(updates).toHaveLength(1);
@@ -302,8 +302,8 @@ describe('computeCrossPovAdoption', () => {
 
   it('ignores same-POV support', () => {
     const intention = makeIntentionNode('acc-intentions-001', 3);
-    const claim1 = makeClaimNode('c-1', { speaker: 'prometheus', intentionRef: 'acc-intentions-001', attrConf: 0.80 });
-    const claim2 = makeClaimNode('c-2', { speaker: 'prometheus' });
+    const claim1 = makeClaimNode('c-1', { speaker: 'accelerationist', intentionRef: 'acc-intentions-001', attrConf: 0.80 });
+    const claim2 = makeClaimNode('c-2', { speaker: 'accelerationist' });
     const supportEdge = makeSupportEdge('c-2', 'c-1');
 
     const updates = computeCrossPovAdoption(
@@ -312,7 +312,7 @@ describe('computeCrossPovAdoption', () => {
       new Map([['acc-intentions-001', intention]]),
       new Map([['acc-intentions-001', 3]]),
       'debate-1',
-      { prometheus: 'accelerationist', sentinel: 'safetyist' },
+      { accelerationist: 'accelerationist', safetyist: 'safetyist' },
     );
 
     expect(updates).toHaveLength(0);

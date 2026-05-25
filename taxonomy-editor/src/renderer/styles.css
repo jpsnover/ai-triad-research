@@ -9734,16 +9734,16 @@ body {
   line-height: 1.7;
 }
 
-.debate-speaker-prometheus .debate-type-opening,
-.debate-type-opening.debate-speaker-prometheus {
+.debate-speaker-accelerationist .debate-type-opening,
+.debate-type-opening.debate-speaker-accelerationist {
   border-left-color: var(--color-acc);
 }
 
-.debate-type-opening.debate-speaker-sentinel {
+.debate-type-opening.debate-speaker-safetyist {
   border-left-color: var(--color-saf);
 }
 
-.debate-type-opening.debate-speaker-cassandra {
+.debate-type-opening.debate-speaker-skeptic {
   border-left-color: var(--color-skp);
 }
 
@@ -9756,15 +9756,15 @@ body {
   background: var(--bg-hover);
 }
 
-.debate-type-statement.debate-speaker-prometheus {
+.debate-type-statement.debate-speaker-accelerationist {
   border-left: 3px solid var(--color-acc);
 }
 
-.debate-type-statement.debate-speaker-sentinel {
+.debate-type-statement.debate-speaker-safetyist {
   border-left: 3px solid var(--color-saf);
 }
 
-.debate-type-statement.debate-speaker-cassandra {
+.debate-type-statement.debate-speaker-skeptic {
   border-left: 3px solid var(--color-skp);
 }
 

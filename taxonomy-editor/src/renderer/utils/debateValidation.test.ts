@@ -63,7 +63,7 @@ function baseValidateParams(overrides?: Partial<ValidateTurnParams>): ValidateTu
       my_claims: [{ claim: 'Safety benchmarks should be mandatory', targets: ['acc-beliefs-001'] }],
     },
     phase: 'argumentation',
-    speaker: 'sentinel',
+    speaker: 'safetyist',
     round: 3,
     priorTurns: [],
     recentTurns: [],

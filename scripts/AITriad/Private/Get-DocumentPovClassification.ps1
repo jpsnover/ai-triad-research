@@ -19,7 +19,7 @@ function Get-DocumentPovClassification {
     .PARAMETER QueryText
         Document excerpt for classification (title + first 500 words).
     .PARAMETER Model
-        AI model. Default: gemini-flash-lite-latest (fast, cheap).
+        AI model. Default: gemini-3.1-flash-lite (fast, cheap).
     .PARAMETER ApiKey
         API key.
     #>
@@ -28,7 +28,7 @@ function Get-DocumentPovClassification {
         [Parameter(Mandatory)]
         [string]$QueryText,
 
-        [string]$Model = 'gemini-flash-lite-latest',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey = ''
     )

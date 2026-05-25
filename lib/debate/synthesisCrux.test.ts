@@ -25,7 +25,7 @@ describe('SynthesisCrux extraction from synthesis response', () => {
           type: 'EMPIRICAL',
           resolution_status: 'active',
           resolution_evidence: null,
-          speakers: ['prometheus', 'sentinel'],
+          speakers: ['accelerationist', 'safetyist'],
         },
         {
           question: 'Can AI alignment be solved before AGI arrives?',
@@ -33,7 +33,7 @@ describe('SynthesisCrux extraction from synthesis response', () => {
           if_no: 'Sentinel\'s call for pause gains urgency',
           type: 'EMPIRICAL',
           resolution_status: 'irreducible',
-          speakers: ['prometheus', 'sentinel', 'cassandra'],
+          speakers: ['accelerationist', 'safetyist', 'skeptic'],
         },
       ],
       unresolved_questions: [],
@@ -46,14 +46,14 @@ describe('SynthesisCrux extraction from synthesis response', () => {
     expect(cruxes[0].question).toBe('Does scaling AI models inherently increase existential risk?');
     expect(cruxes[0].type).toBe('EMPIRICAL');
     expect(cruxes[0].resolution_status).toBe('active');
-    expect(cruxes[0].speakers).toEqual(['prometheus', 'sentinel']);
+    expect(cruxes[0].speakers).toEqual(['accelerationist', 'safetyist']);
     expect(cruxes[1].resolution_status).toBe('irreducible');
     expect(cruxes[1].speakers).toHaveLength(3);
   });
 
   it('extracts cruxes from truncated JSON response', () => {
     const truncated = `{
-      "areas_of_agreement": [{"point": "Both agree on X", "povers": ["prometheus"]}],
+      "areas_of_agreement": [{"point": "Both agree on X", "povers": ["accelerationist"]}],
       "cruxes": [
         {"question": "Is open-source AI safer?", "type": "EMPIRICAL", "resolution_status": "active"}
       ],
@@ -97,7 +97,7 @@ describe('SynthesisResult type includes cruxes', () => {
           question: 'Test crux',
           type: 'VALUES',
           resolution_status: 'active',
-          speakers: ['prometheus', 'sentinel'],
+          speakers: ['accelerationist', 'safetyist'],
         },
       ],
     };

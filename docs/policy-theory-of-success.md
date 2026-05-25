@@ -99,7 +99,7 @@ The policy registry provides empirical evidence for the paper's central claim: t
 
 **Problem:** Policy references appear reliably in the cite stage but debaters rarely *argue about* policies in their statements. They argue about principles, then the cite stage bolts on policy IDs after the fact.
 
-**Suggestion:** Inject a policy challenge into the moderator's intervention repertoire: "Prometheus, you've argued for regulatory sandboxes. Sentinel, pol-1001 proposes exactly this — do you support the specific mechanism, or only the principle?" This forces debaters to engage with concrete policy rather than staying at the level of abstract values.
+**Suggestion:** Inject a policy challenge into the moderator's intervention repertoire: "Accelerationist, you've argued for regulatory sandboxes. Safetyist, pol-1001 proposes exactly this — do you support the specific mechanism, or only the principle?" This forces debaters to engage with concrete policy rather than staying at the level of abstract values.
 
 ### 4. Policy refinement is one-shot
 

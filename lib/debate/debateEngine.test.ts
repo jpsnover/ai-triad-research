@@ -60,7 +60,7 @@ function createDefaultConfig(overrides: Partial<DebateConfig> = {}): DebateConfi
   return {
     topic: 'Should AI development be regulated?',
     sourceType: 'topic',
-    activePovers: ['prometheus', 'sentinel', 'cassandra'],
+    activePovers: ['accelerationist', 'safetyist', 'skeptic'],
     model: 'gemini-2.0-flash',
     rounds: 5,
     responseLength: 'medium',
@@ -125,7 +125,7 @@ describe('DebateEngine construction', () => {
 
   it('accepts config with two active povers', () => {
     const config = createDefaultConfig({
-      activePovers: ['prometheus', 'sentinel'],
+      activePovers: ['accelerationist', 'safetyist'],
     });
     const adapter = createMockAdapter();
     const taxonomy = createMinimalTaxonomy();
@@ -159,13 +159,13 @@ describe('Session initialization (via run)', () => {
   });
 
   const makeModeratorResponse = () => JSON.stringify({
-    responder: 'sentinel',
-    addressing: 'prometheus',
+    responder: 'safetyist',
+    addressing: 'accelerationist',
     focus_point: 'test focus',
     agreement_detected: false,
     intervene: false,
     suggested_move: 'PIN',
-    target_debater: 'sentinel',
+    target_debater: 'safetyist',
     trigger_reasoning: 'test',
     trigger_evidence: 'test',
   });
@@ -197,8 +197,8 @@ describe('Session initialization (via run)', () => {
   });
 
   const makeSynthesisResponse = () => JSON.stringify({
-    areas_of_agreement: [{ point: 'AI needs governance', povers: ['prometheus', 'sentinel', 'cassandra'] }],
-    areas_of_disagreement: [{ point: 'Speed of regulation', positions: [{ pover: 'prometheus', stance: 'slow' }] }],
+    areas_of_agreement: [{ point: 'AI needs governance', povers: ['accelerationist', 'safetyist', 'skeptic'] }],
+    areas_of_disagreement: [{ point: 'Speed of regulation', positions: [{ pover: 'accelerationist', stance: 'slow' }] }],
     cruxes: [{ question: 'Is AI existential risk real?' }],
     unresolved_questions: ['How to enforce?'],
     summary: 'Test synthesis',
@@ -279,7 +279,7 @@ describe('Session initialization (via run)', () => {
     const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
 
     const session = await engine.run();
-    expect(session.active_povers).toEqual(['prometheus', 'sentinel', 'cassandra']);
+    expect(session.active_povers).toEqual(['accelerationist', 'safetyist', 'skeptic']);
   });
 
   it('initializes empty transcript', async () => {
@@ -302,10 +302,10 @@ describe('Session initialization (via run)', () => {
 
     const session = await engine.run();
     expect(session.commitments).toBeDefined();
-    expect(session.commitments!.prometheus).toBeDefined();
-    expect(session.commitments!.sentinel).toBeDefined();
-    expect(session.commitments!.cassandra).toBeDefined();
-    for (const pover of ['prometheus', 'sentinel', 'cassandra']) {
+    expect(session.commitments!.accelerationist).toBeDefined();
+    expect(session.commitments!.safetyist).toBeDefined();
+    expect(session.commitments!.skeptic).toBeDefined();
+    for (const pover of ['accelerationist', 'safetyist', 'skeptic']) {
       const store = session.commitments![pover];
       expect(store).toHaveProperty('asserted');
       expect(store).toHaveProperty('conceded');
@@ -446,13 +446,13 @@ describe('Progress callbacks', () => {
         cruxes: [],
         unresolved_questions: [],
         summary: 'Mock',
-        responder: 'sentinel',
-        addressing: 'prometheus',
+        responder: 'safetyist',
+        addressing: 'accelerationist',
         focus_point: 'test',
         agreement_detected: false,
         intervene: false,
         suggested_move: 'PIN',
-        target_debater: 'sentinel',
+        target_debater: 'safetyist',
         trigger_reasoning: 'test',
         trigger_evidence: 'test',
         outcome: 'accept',
@@ -483,9 +483,9 @@ describe('Progress callbacks', () => {
         statement: 'Mock', my_claims: [], taxonomy_refs: [], move_types: [],
         claims: [], areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus', focus_point: 'test',
+        responder: 'safetyist', addressing: 'accelerationist', focus_point: 'test',
         agreement_detected: false, intervene: false, suggested_move: 'PIN',
-        target_debater: 'sentinel', trigger_reasoning: 'r', trigger_evidence: 'e',
+        target_debater: 'safetyist', trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
       }));
@@ -514,9 +514,9 @@ describe('Transcript management', () => {
         statement: 'Mock response', my_claims: [], taxonomy_refs: [],
         move_types: [], claims: [], areas_of_agreement: [],
         areas_of_disagreement: [], cruxes: [], unresolved_questions: [],
-        summary: 'Mock', responder: 'sentinel', addressing: 'prometheus',
+        summary: 'Mock', responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -546,9 +546,9 @@ describe('Transcript management', () => {
         taxonomy_refs: [], move_types: [], claims: [],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -565,7 +565,7 @@ describe('Transcript management', () => {
     // With 3 active povers, expect 3 opening entries
     expect(openings.length).toBe(3);
     for (const entry of openings) {
-      expect(['prometheus', 'sentinel', 'cassandra']).toContain(entry.speaker);
+      expect(['accelerationist', 'safetyist', 'skeptic']).toContain(entry.speaker);
     }
   });
 
@@ -576,9 +576,9 @@ describe('Transcript management', () => {
         statement: 'Mock', my_claims: [], taxonomy_refs: [],
         move_types: [], claims: [], areas_of_agreement: [],
         areas_of_disagreement: [], cruxes: [], unresolved_questions: [],
-        summary: 'Mock', responder: 'sentinel', addressing: 'prometheus',
+        summary: 'Mock', responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -600,14 +600,14 @@ describe('Transcript management', () => {
       responses.push(JSON.stringify({
         statement: 'Mock', my_claims: [], taxonomy_refs: [],
         move_types: [], claims: [],
-        areas_of_agreement: [{ point: 'We agree on this', povers: ['prometheus', 'sentinel'] }],
-        areas_of_disagreement: [{ point: 'Speed of regulation', positions: [{ pover: 'prometheus', stance: 'slow' }] }],
+        areas_of_agreement: [{ point: 'We agree on this', povers: ['accelerationist', 'safetyist'] }],
+        areas_of_disagreement: [{ point: 'Speed of regulation', positions: [{ pover: 'accelerationist', stance: 'slow' }] }],
         cruxes: [{ question: 'Is X real?' }],
         unresolved_questions: ['How?'],
         summary: 'Synthesis summary',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -636,9 +636,9 @@ describe('Turn counting and diagnostics', () => {
         move_types: [], claims: [],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -662,9 +662,9 @@ describe('Turn counting and diagnostics', () => {
         move_types: [], claims: [],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -691,9 +691,9 @@ describe('Turn counting and diagnostics', () => {
         claims: [{ text: 'Test claim', bdi_category: 'belief', base_strength: 0.5 }],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -725,9 +725,9 @@ describe('Graceful degradation in catch blocks', () => {
           move_types: [], claims: [],
           areas_of_agreement: [], areas_of_disagreement: [],
           cruxes: [], unresolved_questions: [], summary: 'Mock',
-          responder: 'sentinel', addressing: 'prometheus',
+          responder: 'safetyist', addressing: 'accelerationist',
           focus_point: 'test', agreement_detected: false, intervene: false,
-          suggested_move: 'PIN', target_debater: 'sentinel',
+          suggested_move: 'PIN', target_debater: 'safetyist',
           trigger_reasoning: 'r', trigger_evidence: 'e',
           outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
           overall_assessment: { notes: 'test' },
@@ -763,9 +763,9 @@ describe('Graceful degradation in catch blocks', () => {
           move_types: [], claims: [],
           areas_of_agreement: [], areas_of_disagreement: [],
           cruxes: [], unresolved_questions: [], summary: 'Mock',
-          responder: 'sentinel', addressing: 'prometheus',
+          responder: 'safetyist', addressing: 'accelerationist',
           focus_point: 'test', agreement_detected: false, intervene: false,
-          suggested_move: 'PIN', target_debater: 'sentinel',
+          suggested_move: 'PIN', target_debater: 'safetyist',
           trigger_reasoning: 'r', trigger_evidence: 'e',
           outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
           overall_assessment: { notes: 'test' },
@@ -799,9 +799,9 @@ describe('Graceful degradation in catch blocks', () => {
           move_types: [], claims: [],
           areas_of_agreement: [], areas_of_disagreement: [],
           cruxes: [], unresolved_questions: [], summary: 'Mock',
-          responder: 'sentinel', addressing: 'prometheus',
+          responder: 'safetyist', addressing: 'accelerationist',
           focus_point: 'test', agreement_detected: false, intervene: false,
-          suggested_move: 'PIN', target_debater: 'sentinel',
+          suggested_move: 'PIN', target_debater: 'safetyist',
           trigger_reasoning: 'r', trigger_evidence: 'e',
           outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
           overall_assessment: { notes: 'test' },
@@ -832,9 +832,9 @@ describe('Source type handling', () => {
         claims_summary: 'Document has one claim',
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -866,9 +866,9 @@ describe('Source type handling', () => {
         move_types: [], claims: [],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -895,9 +895,9 @@ describe('Clarification phase', () => {
         move_types: [], claims: [],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -923,9 +923,9 @@ describe('Clarification phase', () => {
         refined_topic: 'Refined: Should AI be regulated?',
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -956,9 +956,9 @@ describe('Finalization', () => {
         move_types: [], claims: [],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -987,9 +987,9 @@ describe('Finalization', () => {
           move_types: [], claims: [],
           areas_of_agreement: [], areas_of_disagreement: [],
           cruxes: [], unresolved_questions: [], summary: 'Mock',
-          responder: 'sentinel', addressing: 'prometheus',
+          responder: 'safetyist', addressing: 'accelerationist',
           focus_point: 'test', agreement_detected: false, intervene: false,
-          suggested_move: 'PIN', target_debater: 'sentinel',
+          suggested_move: 'PIN', target_debater: 'safetyist',
           trigger_reasoning: 'r', trigger_evidence: 'e',
           outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
           overall_assessment: { notes: 'test' },
@@ -1020,9 +1020,9 @@ describe('Adaptive staging initialization', () => {
         move_types: [], claims: [],
         areas_of_agreement: [], areas_of_disagreement: [],
         cruxes: [], unresolved_questions: [], summary: 'Mock',
-        responder: 'sentinel', addressing: 'prometheus',
+        responder: 'safetyist', addressing: 'accelerationist',
         focus_point: 'test', agreement_detected: false, intervene: false,
-        suggested_move: 'PIN', target_debater: 'sentinel',
+        suggested_move: 'PIN', target_debater: 'safetyist',
         trigger_reasoning: 'r', trigger_evidence: 'e',
         outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
         overall_assessment: { notes: 'test' },
@@ -1055,9 +1055,9 @@ describe('Internal utility behavior (tested via extraction)', () => {
           move_types: [], claims: [],
           areas_of_agreement: [], areas_of_disagreement: [],
           cruxes: [], unresolved_questions: [], summary: 'Mock',
-          responder: 'sentinel', addressing: 'prometheus',
+          responder: 'safetyist', addressing: 'accelerationist',
           focus_point: 'test', agreement_detected: false, intervene: false,
-          suggested_move: 'PIN', target_debater: 'sentinel',
+          suggested_move: 'PIN', target_debater: 'safetyist',
           trigger_reasoning: 'r', trigger_evidence: 'e',
           outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
           overall_assessment: { notes: 'test' },
@@ -1088,9 +1088,9 @@ describe('Internal utility behavior (tested via extraction)', () => {
           move_types: [], claims: [],
           areas_of_agreement: [], areas_of_disagreement: [],
           cruxes: [], unresolved_questions: [], summary: 'Mock',
-          responder: 'sentinel', addressing: 'prometheus',
+          responder: 'safetyist', addressing: 'accelerationist',
           focus_point: 'test', agreement_detected: false, intervene: false,
-          suggested_move: 'PIN', target_debater: 'sentinel',
+          suggested_move: 'PIN', target_debater: 'safetyist',
           trigger_reasoning: 'r', trigger_evidence: 'e',
           outcome: 'accept', score: 0.8, flags: [], clarifies_taxonomy: [],
           overall_assessment: { notes: 'test' },

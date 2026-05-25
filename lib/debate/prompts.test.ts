@@ -807,7 +807,7 @@ describe('midDebateGapPrompt', () => {
 describe('crossCuttingNodePrompt', () => {
   it('returns a non-empty string with proposals schema', () => {
     const result = crossCuttingNodePrompt(
-      [{ point: 'AI needs oversight', povers: ['prometheus', 'sentinel', 'cassandra'] }],
+      [{ point: 'AI needs oversight', povers: ['accelerationist', 'safetyist', 'skeptic'] }],
       ['Existing Situation'],
       TOPIC,
     );
@@ -817,7 +817,7 @@ describe('crossCuttingNodePrompt', () => {
 
   it('includes existing situation labels', () => {
     const result = crossCuttingNodePrompt(
-      [{ point: 'AI needs oversight', povers: ['prometheus', 'sentinel'] }],
+      [{ point: 'AI needs oversight', povers: ['accelerationist', 'safetyist'] }],
       ['AI Labor Displacement', 'Algorithmic Bias'],
       TOPIC,
     );
@@ -826,7 +826,7 @@ describe('crossCuttingNodePrompt', () => {
 
   it('handles empty existing labels', () => {
     const result = crossCuttingNodePrompt(
-      [{ point: 'AI needs oversight', povers: ['prometheus'] }],
+      [{ point: 'AI needs oversight', povers: ['accelerationist'] }],
       [],
       TOPIC,
     );

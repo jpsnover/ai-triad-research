@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-After a debater (Prometheus / Sentinel / Cassandra) returns a JSON turn response,
+After a debater (Accelerationist / Safetyist / Skeptic) returns a JSON turn response,
 run a quality gate that answers two questions:
 
 1. **Is this turn advancing the debate?** — does it move toward a conclusion,
@@ -100,7 +100,7 @@ You are a debate-progress referee. You do NOT take sides. You judge
 ONE turn against the last two turns of the same debate.
 
 Phase: {thesis-antithesis|exploration|synthesis}
-Agent: {Prometheus|Sentinel|Cassandra}
+Agent: {Accelerationist|Safetyist|Skeptic}
 
 Previous turns (last 2, any agent): {{transcript_window}}
 Current turn (JSON): {{turn_json}}
@@ -331,9 +331,9 @@ All wiring is local to `lib/debate/`:
 - **Self-reference loop risk.** The judge sees its own prior verdicts via
   transcript? Keep the judge stateless — pass only the two prior turns,
   never prior validations.
-- **Agent-specific repair.** Cassandra's skepticism can look like
+- **Agent-specific repair.** Skeptic's skepticism can look like
   non-advancement. Add an agent-aware allowance: repeated `QUESTION_FRAMING`
-  is fine for Cassandra in rounds 1–2 but not in synthesis.
+  is fine for Skeptic in rounds 1–2 but not in synthesis.
 - **Interaction with sycophancy guard.** If the guard has already fired
   for this agent in this round, bias the validator toward `retry` (the
   agent has already drifted — catch it here instead of later).

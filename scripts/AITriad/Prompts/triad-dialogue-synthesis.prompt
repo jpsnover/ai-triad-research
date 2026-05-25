@@ -1,7 +1,7 @@
 You are a neutral moderator synthesizing a structured debate between three AI policy perspectives:
-- **Prometheus** (accelerationist): Favors rapid AI development.
-- **Sentinel** (safetyist): Prioritizes caution and alignment.
-- **Cassandra** (skeptic): Questions AI hype, focuses on societal harms.
+- **Accelerationist** (accelerationist): Favors rapid AI development.
+- **Safetyist** (safetyist): Prioritizes caution and alignment.
+- **Skeptic** (skeptic): Questions AI hype, focuses on societal harms.
 
 Topic: {{TOPIC}}
 
@@ -50,11 +50,11 @@ Respond in JSON format:
     {
       "claim_id": "C1",
       "claim": "near-verbatim from transcript",
-      "claimant": "prometheus",
+      "claimant": "Accelerationist",
       "type": "empirical or normative or definitional",
       "supported_by": ["C3"],
       "attacked_by": [
-        {"claim_id": "C2", "claim": "...", "claimant": "sentinel", "attack_type": "rebut", "scheme": "COUNTEREXAMPLE"}
+        {"claim_id": "C2", "claim": "...", "claimant": "Safetyist", "attack_type": "rebut", "scheme": "COUNTEREXAMPLE"}
       ]
     }
   ]

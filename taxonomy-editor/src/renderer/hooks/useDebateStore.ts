@@ -11,7 +11,7 @@ import type {
   TranscriptEntry,
   TaxonomyRef,
 } from '../types/debate';
-import { POVER_INFO, AI_POVERS, POV_KEYS } from '../types/debate';
+import { POVER_INFO, AI_POVERS, POV_KEYS, normalizeActivePovers, migrateSpeakerId } from '../types/debate';
 import type { PovNode, CrossCuttingNode as SituationNode, GraphAttributes, Category, Pov } from '../types/taxonomy';
 import { useTaxonomyStore } from './useTaxonomyStore';
 
@@ -22,8 +22,8 @@ import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, processExtractedClaims, computeClaimTaxonomyAttribution } from '../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary, GapArgument, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../types/debate';
-import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, scoreNodesViaAN } from '../utils/taxonomyRelevance';
-import type { ANClaimEmbedding } from '../utils/taxonomyRelevance';
+import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, scoreNodesViaAN, scoreNodesLexical } from '../utils/taxonomyRelevance';
+import type { ANClaimEmbedding, RelevanceOptions } from '../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
 import { updateConvergenceTracker } from '../utils/convergenceScoring';
@@ -104,14 +104,137 @@ import type { TurnAttempt, TurnValidation, TurnValidationTrail, TaxonomySuggesti
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
 import type { LookaheadDiagnostics, LookaheadGateResult, ClaimAnalysis, PerClaimResult } from '@lib/debate/lookaheadGate';
-import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatCritiqueForRefinement, formatStructuralContext } from '@lib/debate/topicCritique';
-import type { TopicCritique } from '@lib/debate/topicCritique';
+import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatCritiqueForRefinement, formatStructuralContext, computeLineageDistribution, formatLineageContext } from '@lib/debate/topicCritique';
+import type { TopicCritique, LineageFrameEntry } from '@lib/debate/topicCritique';
+import { shouldRunGapCheck, findUnengagedHighRelevanceNodes, collectEngagedNodeIds, MAX_GAP_INJECTIONS } from '@lib/debate/gapCheck';
+import { runNeutralEvaluation, buildSpeakerMapping } from '@lib/debate/neutralEvaluator';
+import type { NeutralEvaluation, SpeakerMapping } from '@lib/debate/neutralEvaluator';
 import { computeBeliefConfidence } from '@lib/debate/beliefConfidence';
 import { computeTreePriority } from '@lib/debate/desirePriority';
+import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from '@lib/debate/doctrinalAnchoring';
+import type { BoundaryEmbeddings } from '@lib/debate/doctrinalAnchoring';
 import { computeOperationality } from '@lib/debate/intentionOperationality';
 import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
 import { usePromptConfigStore } from './usePromptConfigStore';
 import { api } from '@bridge';
+import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../data/lineageCategories';
+
+// ── Doctrinal anchoring cache ────────────────────────────────────────
+// Tracks which POVs have had doctrinal anchoring applied in this session.
+// Once anchored, PovNode objects are mutated in place (doctrinally_anchored, confidence floor).
+let _doctrinalAnchoringApplied = new Set<string>();
+let _boundaryEmbeddingsCache: BoundaryEmbeddings | null = null;
+
+/** Reset doctrinal anchoring cache (call when debate changes or taxonomy reloads). */
+function resetDoctrinalAnchoringCache(): void {
+  _doctrinalAnchoringApplied = new Set();
+  _boundaryEmbeddingsCache = null;
+}
+
+// ── Adaptive staging signal history ──────────────────────────────────
+// Per-round signal values for priorSignals.get() and priorSignals.movingAverage().
+// Keyed by signal ID → array of { round, value } entries.
+const _signalHistory = new Map<string, { round: number; value: number }[]>();
+
+function recordSignalHistory(signalId: string, round: number, value: number): void {
+  let arr = _signalHistory.get(signalId);
+  if (!arr) { arr = []; _signalHistory.set(signalId, arr); }
+  // Replace if same round, otherwise append
+  const existing = arr.findIndex(e => e.round === round);
+  if (existing >= 0) arr[existing].value = value;
+  else arr.push({ round, value });
+}
+
+function getSignalValue(signalId: string, roundsBack: number): number | null {
+  const arr = _signalHistory.get(signalId);
+  if (!arr || arr.length === 0) return null;
+  if (roundsBack <= 0) return arr[arr.length - 1]?.value ?? null;
+  const idx = arr.length - 1 - roundsBack;
+  return idx >= 0 ? arr[idx].value : null;
+}
+
+function movingAverageSignal(signalId: string, windowSize: number): number | null {
+  const arr = _signalHistory.get(signalId);
+  if (!arr || arr.length < windowSize) return null;
+  const slice = arr.slice(-windowSize);
+  return slice.reduce((sum, e) => sum + e.value, 0) / slice.length;
+}
+
+function resetSignalHistory(): void {
+  _signalHistory.clear();
+}
+
+// ── Gap injection counter ────────────────────────────────────────────
+let _gapInjectionCount = 0;
+function resetGapInjectionCount(): void { _gapInjectionCount = 0; }
+
+// ── Neutral evaluation speaker mapping ──────────────────────────────
+let _neutralMapping: SpeakerMapping | null = null;
+function resetNeutralMapping(): void { _neutralMapping = null; }
+
+/** Fire-and-forget neutral evaluation at a checkpoint. Non-blocking, never throws. */
+async function runNeutralCheckpoint(
+  checkpoint: 'baseline' | 'midpoint' | 'final',
+  get: () => ReturnType<typeof useDebateStore.getState>,
+  set: (partial: Partial<ReturnType<typeof useDebateStore.getState>>) => void,
+  addTranscriptEntry: (entry: { type: string; speaker: string; content: string; taxonomy_refs: TaxonomyRef[]; metadata?: Record<string, unknown> }) => string,
+): Promise<void> {
+  try {
+    const debate = get().activeDebate;
+    if (!debate) return;
+
+    if (!_neutralMapping) {
+      _neutralMapping = buildSpeakerMapping(debate.active_povers);
+    }
+
+    const model = getConfiguredModel();
+    const adapter = {
+      generateText: async (prompt: string, m: string, opts?: { temperature?: number; maxTokens?: number; timeoutMs?: number }) => {
+        const result = await api.generateText(prompt, m, opts?.timeoutMs ?? 30_000, opts?.temperature);
+        return result.text;
+      },
+    };
+
+    const evaluation = await runNeutralEvaluation(checkpoint, {
+      adapter,
+      topic: debate.topic.final || debate.topic.original,
+      transcript: debate.transcript,
+      contextSummaries: debate.context_summaries,
+      activePovers: debate.active_povers,
+      model,
+      speakerMapping: _neutralMapping,
+    });
+
+    // Store on session
+    const freshDebate = get().activeDebate;
+    if (!freshDebate) return;
+    const existing = freshDebate.neutral_evaluations ?? [];
+    set({
+      activeDebate: {
+        ...freshDebate,
+        neutral_evaluations: [...existing, evaluation],
+        neutral_speaker_mapping: _neutralMapping!,
+      },
+    });
+
+    // Add transcript entry for visibility
+    const cruxCount = evaluation.cruxes?.length ?? 0;
+    const claimCount = evaluation.claims?.length ?? 0;
+    const notes = evaluation.overall_assessment?.notes ?? '';
+    addTranscriptEntry({
+      type: 'system',
+      speaker: 'system',
+      content: `[Neutral evaluation: ${checkpoint}] ${cruxCount} cruxes, ${claimCount} claims evaluated. ${notes}`,
+      taxonomy_refs: [],
+      metadata: { neutral_checkpoint: checkpoint },
+    });
+
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'neutral-eval', level: 'info', message: `neutral.${checkpoint}`, data: { cruxes: cruxCount, claims: claimCount, engaging: evaluation.overall_assessment?.debate_is_engaging_real_disagreement } });
+  } catch (err) {
+    console.warn(`[Neutral Eval] ${checkpoint} failed (non-blocking):`, err);
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'neutral-eval', level: 'warn', message: `neutral.${checkpoint}.failed`, data: { error: String(err) } });
+  }
+}
 
 /** Read the model for the current debate context.
  *  Priority: debate-specific override > global Settings model > default */
@@ -1621,6 +1744,48 @@ async function getRelevantTaxonomyContext(
       nodeEmbeddings[allNodeIds[i]] = { pov, vector: allVectors[i] };
     }
 
+    // Doctrinal anchoring: embed boundary strings once, then apply confidence floors to Beliefs
+    if (!_doctrinalAnchoringApplied.has(pov)) {
+      try {
+        // Embed boundary strings (cached across POVs)
+        if (!_boundaryEmbeddingsCache) {
+          const boundaries: Record<string, string[]> = {};
+          for (const p of AI_POVERS) {
+            const info = POVER_INFO[p];
+            if (info?.doctrinal_boundaries?.length > 0) {
+              boundaries[info.pov] = info.doctrinal_boundaries;
+            }
+          }
+          if (Object.keys(boundaries).length > 0) {
+            _boundaryEmbeddingsCache = await embedDoctrinalBoundaries(
+              boundaries,
+              async (text: string) => {
+                const { vector } = await api.computeQueryEmbedding(text);
+                return vector;
+              },
+            );
+          }
+        }
+
+        const boundaryVectors = _boundaryEmbeddingsCache?.[pov] ?? [];
+        if (boundaryVectors.length > 0) {
+          const beliefs = allPovNodes.filter(n => n.category === 'Beliefs');
+          const results = computeDoctrinalAnchoring(beliefs, boundaryVectors, nodeEmbeddings);
+          const anomaly = checkThresholdAnomalies(results, beliefs.length);
+          if (anomaly) console.warn(anomaly.warning);
+          const anchoredCount = results.filter(r => r.anchored).length;
+          const floorCount = results.filter(r => r.floorApplied).length;
+          if (anchoredCount > 0) {
+            console.log(`[doctrinal] ${pov}: ${anchoredCount}/${beliefs.length} Beliefs anchored, ${floorCount} floor-applied`);
+          }
+        }
+        _doctrinalAnchoringApplied.add(pov);
+      } catch (err) {
+        console.warn('[doctrinal] Anchoring failed (non-blocking):', err);
+        _doctrinalAnchoringApplied.add(pov); // don't retry on failure
+      }
+    }
+
     // Collect AN claims and embed them for multi-claim relevance scoring
     // eslint-disable-next-line @typescript-eslint/no-use-before-define -- store defined below, safe at call-time
     const debate = useDebateStore.getState().activeDebate;
@@ -1681,7 +1846,32 @@ async function getRelevantTaxonomyContext(
       console.log(`[taxonomy] Topic-query scoring (no AN claims yet): ${allNodeIds.length} nodes`);
     }
 
-    const scoredPov = selectRelevantNodes(allPovNodes, scores, threshold, 3, 35);
+    // Build relevance options with optional lineage boost
+    const relevanceOpts: RelevanceOptions = { threshold, minPerCategory: 3, maxTotal: 35 };
+    const lineageFrame = debate?.topic?.critique?.lineage_frame;
+    if (lineageFrame && lineageFrame.length > 0 && isLineageDataLoaded()) {
+      const mapping = getLineageMapping();
+      const lineageByNode: Record<string, string[]> = {};
+      for (const node of allPovNodes) {
+        const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
+        const lineage = ga?.intellectual_lineage;
+        if (lineage && lineage.length > 0) {
+          lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
+        }
+      }
+      const nameToCluster: Record<string, string> = {};
+      for (const [name, val] of Object.entries(mapping)) {
+        nameToCluster[name] = val.l2;
+      }
+      relevanceOpts.lineageBoost = {
+        traditions: lineageFrame.map(f => f.cluster_id),
+        boost: 0.08,
+        lineageByNode,
+        nameToCluster,
+      };
+    }
+
+    const scoredPov = selectRelevantNodes(allPovNodes, scores, relevanceOpts);
     const scoredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold, 3, 15);
 
     // Unwrap ScoredPovNode → PovNode and build nodeScores map
@@ -1789,6 +1979,7 @@ function formatEdgeContext(activePovers: string[]): string {
     accelerationist: 'acc-', safetyist: 'saf-', skeptic: 'skp-',
   };
   const labelToPov: Record<string, string> = {
+    Accelerationist: 'accelerationist', Safetyist: 'safetyist', Skeptic: 'skeptic',
     Prometheus: 'accelerationist', Sentinel: 'safetyist', Cassandra: 'skeptic',
   };
 
@@ -1822,8 +2013,52 @@ function formatEdgeContext(activePovers: string[]): string {
 
 // ── Prompt builders (delegate to prompts/debate.ts) ──────
 
-function buildClarificationPrompt(topic: string, sourceContent?: string, audience?: DebateAudience): string {
-  return clarificationPrompt(topic, sourceContent, audience);
+function buildClarificationPrompt(topic: string, sourceContent?: string, audience?: DebateAudience, lineageContext?: string): string {
+  return clarificationPrompt(topic, sourceContent, audience, lineageContext);
+}
+
+/** Build lineage context string from pre-computed critique or fallback from all taxonomy nodes. */
+function buildLineageContext(): string | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define -- store defined below, safe at call-time
+  const debate = useDebateStore.getState().activeDebate;
+  const lineageFrame = debate?.topic?.critique?.lineage_frame;
+  if (lineageFrame && lineageFrame.length > 0) {
+    return formatLineageContext(lineageFrame);
+  }
+
+  // Fallback: compute from all taxonomy nodes (document/situation debates without topic critique)
+  if (!isLineageDataLoaded()) return undefined;
+  const taxState = useTaxonomyStore.getState();
+  const mapping = getLineageMapping();
+  const l2Cats = getL2Categories();
+
+  const allNodeIds: string[] = [];
+  const lineageByNode: Record<string, string[]> = {};
+  for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+    const file = taxState[pov];
+    if (!file?.nodes) continue;
+    for (const node of file.nodes) {
+      allNodeIds.push(node.id);
+      const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
+      const lineage = ga?.intellectual_lineage;
+      if (lineage && lineage.length > 0) {
+        lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
+      }
+    }
+  }
+
+  const nameToCluster: Record<string, string> = {};
+  for (const [name, val] of Object.entries(mapping)) {
+    nameToCluster[name] = val.l2;
+  }
+  const clusterLabels: Record<string, string> = {};
+  for (const cat of l2Cats) {
+    clusterLabels[cat.id] = cat.label;
+  }
+
+  const frame = computeLineageDistribution({ activatedNodeIds: allNodeIds, lineageByNode, nameToCluster, clusterLabels });
+  if (frame.length === 0) return undefined;
+  return formatLineageContext(frame);
 }
 
 function buildSynthesisPrompt(
@@ -2239,6 +2474,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   createDebate: async (topic, povers, userIsPover, sourceType = 'topic', sourceRef = '', sourceContent = '', debateModel, protocolId, debateTemperature, debateAudience, options) => {
+    resetDoctrinalAnchoringCache();
+    resetNeutralMapping();
+    resetSignalHistory();
+    resetGapInjectionCount();
     const id = generateId();
     const now = nowISO();
     const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
@@ -2397,10 +2636,29 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   loadDebate: async (id) => {
+    resetDoctrinalAnchoringCache();
+    resetSignalHistory();
+    resetGapInjectionCount();
+    resetNeutralMapping();
     set({ debateLoading: true, debateError: null, debateWarnings: [], newsReport: null, newsReportLoading: false, newsReportError: null });
     try {
       const raw = await api.loadDebateSession(id);
       const session = raw as DebateSession;
+      // Speaker migration shim: normalize legacy character names → POV keys
+      // Old debates stored ['prometheus','sentinel','cassandra'] instead of ['accelerationist','safetyist','skeptic']
+      session.active_povers = normalizeActivePovers(session.active_povers);
+      for (const entry of session.transcript) {
+        entry.speaker = migrateSpeakerId(entry.speaker) as SpeakerId;
+      }
+      if (session.opening_order) {
+        session.opening_order = session.opening_order.map(s => migrateSpeakerId(s)) as typeof session.opening_order;
+      }
+      if (session.argument_network?.nodes) {
+        for (const node of session.argument_network.nodes) {
+          node.speaker = migrateSpeakerId(node.speaker);
+        }
+      }
+
       // BDI migration shim: normalize legacy bdi_layer values in synthesis entries
       for (const entry of session.transcript) {
         if (entry.type === 'concluding' && entry.metadata?.synthesis) {
@@ -2415,6 +2673,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       }
       set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [] });
+      // Restore gap injection count from loaded session
+      _gapInjectionCount = session.gap_injections?.length ?? 0;
       // Load prompt config from session (Phase B)
       usePromptConfigStore.getState().loadSessionConfig(
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
@@ -2446,6 +2706,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     try {
       const raw = await api.loadDebateSession(id);
       const session = raw as DebateSession;
+      session.active_povers = normalizeActivePovers(session.active_povers);
       session.title = newTitle;
       session.updated_at = nowISO();
       await api.saveDebateSession(session);
@@ -2663,10 +2924,57 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         embeddings: nodeEmbeddings,
       });
 
-      // Phase B: LLM frame analysis (with structural context from Phase A)
-      const prompt = critiqueTopicPrompt(topic, formatStructuralContext(structuralScore));
+      // Lineage distribution (deterministic — from activated nodes' intellectual_lineage)
+      let lineageFrame: LineageFrameEntry[] = [];
+      if (isLineageDataLoaded() && structuralScore.activated_nodes.length > 0) {
+        const mapping = getLineageMapping();
+        const l2Cats = getL2Categories();
+
+        // Build per-node lineage lookup from taxonomy nodes
+        const lineageByNode: Record<string, string[]> = {};
+        for (const pov of ['accelerationist', 'safetyist', 'skeptic'] as const) {
+          const file = taxState[pov];
+          if (!file?.nodes) continue;
+          for (const node of file.nodes) {
+            const ga = (node as { graph_attributes?: { intellectual_lineage?: (string | { name: string })[] } }).graph_attributes;
+            const lineage = ga?.intellectual_lineage;
+            if (lineage && lineage.length > 0) {
+              lineageByNode[node.id] = lineage.map(v => typeof v === 'string' ? v : v.name);
+            }
+          }
+        }
+
+        // Build name→cluster and cluster→label lookups from lineage categories
+        const nameToCluster: Record<string, string> = {};
+        for (const [name, val] of Object.entries(mapping)) {
+          nameToCluster[name] = val.l2;
+        }
+        const clusterLabels: Record<string, string> = {};
+        for (const cat of l2Cats) {
+          clusterLabels[cat.id] = cat.label;
+        }
+
+        lineageFrame = computeLineageDistribution({
+          activatedNodeIds: structuralScore.activated_nodes.map(n => n.id),
+          lineageByNode,
+          nameToCluster,
+          clusterLabels,
+        });
+      }
+
+      // Phase B: LLM frame analysis (with structural + lineage context from Phase A)
+      let structuralContext = formatStructuralContext(structuralScore);
+      if (lineageFrame.length > 0) {
+        structuralContext += '\n' + formatLineageContext(lineageFrame);
+      }
+      const prompt = critiqueTopicPrompt(topic, structuralContext);
       const { text } = await generateTextWithProgress(prompt, model, `Evaluating topic quality (${model})`, set);
       const critique = parseTopicCritique(text, structuralScore);
+
+      // Store lineage frame on the critique
+      if (lineageFrame.length > 0) {
+        critique.lineage_frame = lineageFrame;
+      }
 
       // Score the suggested rewrite too (for side-by-side comparison)
       let suggestedCritique: ReturnType<typeof parseTopicCritique> | undefined;
@@ -2799,11 +3107,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const topic = activeDebate.topic.final;
 
     set({ debateGenerating: 'system' as SpeakerId });
+    const lineageCtx = buildLineageContext();
     const prompt = activeDebate.source_type === 'situations'
-      ? situationClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience)
+      ? situationClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience, lineageCtx)
       : (activeDebate.source_type === 'document' || activeDebate.source_type === 'url')
-        ? documentClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience)
-        : buildClarificationPrompt(topic, activeDebate.source_content || undefined, activeDebate.audience);
+        ? documentClarificationPrompt(topic, activeDebate.source_content, activeDebate.audience, lineageCtx)
+        : buildClarificationPrompt(topic, activeDebate.source_content || undefined, activeDebate.audience, lineageCtx);
     try {
       const { text } = await generateTextWithProgress(prompt, model, `Generating clarifying questions (${model})`, set);
       if (!isStillValid()) return;
@@ -3319,6 +3628,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           model,
           userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
           availablePovNodeIds: [...getAllKnownNodeIds()],
+          doctrinalBoundaries: info.doctrinal_boundaries,
         };
 
         let pipelineResult = await runOpeningPipeline(
@@ -3479,6 +3789,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       }
     } catch { /* non-critical */ }
+
+    // Neutral evaluation: baseline checkpoint (after openings, before cross-respond)
+    void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry);
 
     await saveDebate();
 
@@ -3804,6 +4117,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           model,
           sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
           docTitles: docTitles as TurnPipelineInput['docTitles'],
+          doctrinalBoundaries: info.doctrinal_boundaries,
         };
 
         const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
@@ -4120,6 +4434,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       model,
       sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
       docTitles: docTitles as TurnPipelineInput['docTitles'],
+      doctrinalBoundaries: info.doctrinal_boundaries,
     };
 
     const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
@@ -4313,18 +4628,59 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         } catch { /* non-critical */ }
       }
-      // ── Mid-debate gap injection — fires once at the midpoint ──
+      // ── Neutral evaluation: midpoint checkpoint ──
+      try {
+        const midDebate = get().activeDebate;
+        if (midDebate && !(midDebate.neutral_evaluations ?? []).some(e => e.checkpoint === 'midpoint')) {
+          const midTotal = get().initialCrossRespondRounds || 5;
+          const midRound = Math.ceil(midTotal / 2) + 1;
+          const curRound = midDebate.transcript.filter(e => e.type === 'statement').length;
+          if (curRound === midRound) {
+            void runNeutralCheckpoint('midpoint', get, set as any, addTranscriptEntry);
+          }
+        }
+      } catch { /* non-critical */ }
+
+      // ── Gap injection — scheduled at midpoint + responsive every 3 rounds after ──
       try {
         const gapDebate = get().activeDebate;
-        if (gapDebate && !gapDebate.gap_injections) {
+        if (gapDebate) {
           const totalRounds = get().initialCrossRespondRounds || 5;
           const gapRound = Math.ceil(totalRounds / 2) + 1;
           const currentRound = gapDebate.transcript.filter(e => e.type === 'statement').length;
 
-          if (currentRound === gapRound) {
+          let triggerType: 'scheduled' | 'responsive' | null = null;
+          let focusNodes: { id: string; label: string; description: string }[] | undefined;
+
+          if (currentRound === gapRound && _gapInjectionCount === 0) {
+            triggerType = 'scheduled';
+          } else if (shouldRunGapCheck(currentRound, gapRound, _gapInjectionCount)) {
+            // Responsive check: find unengaged high-relevance nodes (deterministic, no LLM)
+            const anNodes = gapDebate.argument_network?.nodes ?? [];
+            const engagedIds = collectEngagedNodeIds(
+              anNodes.map(n => ({ taxonomy_refs: n.taxonomy_refs ?? [] })),
+              gapDebate.transcript.map(e => ({ taxonomy_refs: e.taxonomy_refs ?? [] })),
+            );
+            const allTaxNodes: { id: string; label: string; description: string }[] = [];
+            for (const pov of POV_KEYS) {
+              const ctx = getTaxonomyContext(pov);
+              for (const n of ctx.povNodes) {
+                allTaxNodes.push({ id: n.id, label: n.label, description: n.description });
+              }
+            }
+            const recentText = formatRecentTranscript(gapDebate.transcript, 8, gapDebate.context_summaries);
+            const query = `${gapDebate.topic.final}\n\n${recentText}`.slice(0, 500);
+            const scores = scoreNodesLexical(query, allTaxNodes, []);
+            const unengaged = findUnengagedHighRelevanceNodes(allTaxNodes, engagedIds, scores);
+            if (unengaged.length > 0) {
+              triggerType = 'responsive';
+              focusNodes = unengaged.slice(0, 5);
+            }
+          }
+
+          if (triggerType) {
             const gapModel = getConfiguredModel();
             const gapTranscript = formatRecentTranscript(gapDebate.transcript, 20, gapDebate.context_summaries);
-            // Build taxonomy summary — same pattern as missing arguments pass
             const gapSummaryLines: string[] = [];
             for (const pov of POV_KEYS) {
               const ctx = getTaxonomyContext(pov);
@@ -4338,12 +4694,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               gapTranscript,
               gapSummaryLines.slice(0, 80).join('\n'),
               anTexts,
+              focusNodes,
             );
             const { text: gapText } = await api.generateText(gapPrompt, gapModel, 30_000);
             const gapParsed = parseAIJson<{ gap_arguments: GapArgument[] }>(gapText);
             const gapArgs = gapParsed?.gap_arguments ?? [];
 
             if (gapArgs.length > 0) {
+              const header = triggerType === 'scheduled' ? 'Mid-Debate Gap Analysis' : 'Responsive Gap Analysis';
               const gapContent = gapArgs.map((g, i) =>
                 `**Gap ${i + 1} (${g.gap_type}):** ${g.argument}\n*Why missing:* ${g.why_missing}`
               ).join('\n\n');
@@ -4351,31 +4709,30 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               const gapEntryId = addTranscriptEntry({
                 type: 'system',
                 speaker: 'system',
-                content: `## Mid-Debate Gap Analysis\n\n${gapContent}`,
+                content: `## ${header}\n\n${gapContent}`,
                 taxonomy_refs: [],
-                metadata: { gap_analysis: true, gap_arguments: gapArgs },
+                metadata: { gap_analysis: true, gap_arguments: gapArgs, trigger: triggerType, focus_nodes: focusNodes?.map(n => n.id) },
               });
+
+              _gapInjectionCount++;
+              const injection: GapInjection = {
+                round: currentRound,
+                arguments: gapArgs,
+                transcript_entry_id: gapEntryId,
+                responses: [],
+                trigger: triggerType,
+                ...(focusNodes && { focus_nodes: focusNodes.map(n => n.id) }),
+              };
 
               const freshGapDebate = get().activeDebate;
               if (freshGapDebate) {
+                const existing = freshGapDebate.gap_injections ?? [];
                 set({
                   activeDebate: {
                     ...freshGapDebate,
-                    gap_injections: [{
-                      round: currentRound,
-                      arguments: gapArgs,
-                      transcript_entry_id: gapEntryId,
-                      responses: [],
-                      trigger: 'scheduled',
-                    }],
+                    gap_injections: [...existing, injection],
                   },
-                  gapInjections: [{
-                    round: currentRound,
-                    arguments: gapArgs,
-                    transcript_entry_id: gapEntryId,
-                    responses: [],
-                    trigger: 'scheduled',
-                  }],
+                  gapInjections: [...existing, injection],
                 });
               }
 
@@ -4384,11 +4741,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
                 raw_response: gapText,
                 model: gapModel,
               });
+
+              getGlobalRecorder()?.record({ type: 'state.change', component: 'gap-injection', level: 'info', message: `gap.${triggerType}`, data: { round: currentRound, args: gapArgs.length, focus: focusNodes?.length ?? 0, total_injections: _gapInjectionCount } });
             }
           }
         }
       } catch (gapErr) {
-        console.warn('[Gap Injection] Mid-debate gap analysis failed (non-blocking):', gapErr);
+        console.warn('[Gap Injection] Gap analysis failed (non-blocking):', gapErr);
         pushWarning(get, set, 'Gap analysis skipped this turn');
       }
     } catch (err) {
@@ -4477,8 +4836,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             },
           },
           priorSignals: {
-            get: () => null,
-            movingAverage: () => null,
+            get: (signalId: string, roundsBack: number) => getSignalValue(signalId, roundsBack),
+            movingAverage: (signalId: string, windowSize: number) => movingAverageSignal(signalId, windowSize),
           },
           convergenceSignals: {
             argument_redundancy: { avg_self_overlap: lastConvSignal?.argument_redundancy?.avg_self_overlap ?? 0, semantic_max_similarity: lastConvSignal?.argument_redundancy?.semantic_max_similarity },
@@ -4535,6 +4894,49 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         const asHealthScore = computeDebateHealthScore(recentConvSignals.slice(-3), turnCounts, referencedIds.size, relevantNodeCount);
 
         const result = evaluatePhaseTransition(advanced, signalCtx, signals, config, asHealthScore);
+
+        // Compute and record signal scores for history tracking
+        const coldStart = advanced.rounds_in_phase < 2;
+        const satScore = computeSaturationScore(signals, signalCtx, coldStart);
+        const convScore = computeConvergenceScore(signalCtx, coldStart);
+        recordSignalHistory('_argumentative_saturation_score', crossRespondRound, satScore);
+        recordSignalHistory('_convergence_score', crossRespondRound, convScore);
+
+        // Record peak trackers
+        if (lastConvSignal) {
+          const peakEngagement = getSignalValue('_peak_engagement_ratio', 0) ?? 0;
+          const currentEngagement = lastConvSignal.dialectical_engagement?.ratio ?? 0;
+          if (currentEngagement > peakEngagement) {
+            recordSignalHistory('_peak_engagement_ratio', crossRespondRound, currentEngagement);
+          }
+        }
+        const peakClaims = getSignalValue('_peak_claims_per_round', 0) ?? 0;
+        if (lastClaimsAccepted > peakClaims) {
+          recordSignalHistory('_peak_claims_per_round', crossRespondRound, lastClaimsAccepted);
+        }
+
+        // Record individual signal values
+        for (const signal of signals) {
+          if (!signal.enabled) continue;
+          try {
+            const val = Math.max(0, Math.min(1, signal.compute(signalCtx)));
+            recordSignalHistory(signal.id, crossRespondRound, val);
+          } catch { /* signal computation failed — skip */ }
+        }
+
+        // Flight recorder telemetry
+        getGlobalRecorder()?.record({
+          type: 'debate.round', component: 'adaptive-staging', level: 'info',
+          debate_id: postDebate.id,
+          message: `Phase evaluation: ${advanced.current_phase} R${crossRespondRound}`,
+          data: {
+            round: crossRespondRound, phase: advanced.current_phase,
+            saturation_score: satScore, convergence_score: convScore,
+            health_score: asHealthScore, action: result.action,
+            reason: result.reason, confidence_deferred: result.confidence_deferred,
+            network_nodes: signalCtx.network.nodeCount,
+          },
+        });
 
         // Apply transition
         const prevPhase = advanced.current_phase;
@@ -4932,6 +5334,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
         pushWarning(get, set, 'Taxonomy gap analysis skipped');
       }
+
+      // Neutral evaluation: final checkpoint (after synthesis)
+      void runNeutralCheckpoint('final', get, set as any, addTranscriptEntry);
 
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
@@ -5639,8 +6044,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const taxStore = useTaxonomyStore.getState();
     const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
 
+    let createdNodeId: string | null = null;
     if (edit.edit_type === 'add') {
       const newId = taxStore.createPovNode(povKey, edit.category);
+      createdNodeId = newId;
       if (newId) {
         const debateId = get().activeDebateId;
         taxStore.updatePovNode(povKey, newId, {
@@ -5708,6 +6115,45 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         : saveError;
       getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'applyReflectionEdit.result', data: { ok: false, error: saveError, validationErrors, pover, editIndex, duration_ms: duration } });
       return { ok: false, error: detailedError };
+    }
+
+    // Fire-and-forget: enrich new nodes with AI-generated graph attributes
+    if (createdNodeId) {
+      void (async () => {
+        try {
+          const { reflectionNodeEnrichmentPrompt } = await import('../prompts/analysis');
+          const enrichPrompt = reflectionNodeEnrichmentPrompt({
+            id: createdNodeId!,
+            label: finalLabel,
+            description: finalDescription,
+            category: edit.category,
+            pov: povKey,
+          });
+          const enrichModel = getConfiguredModel();
+          const { text } = await api.generateText(enrichPrompt, enrichModel, 15000);
+          const enriched = JSON.parse(stripCodeFences(text));
+          const currentTaxStore = useTaxonomyStore.getState();
+          const currentNode = currentTaxStore[povKey]?.nodes.find(n => n.id === createdNodeId);
+          if (!currentNode) return;
+          const mergedAttrs: GraphAttributes = {
+            ...currentNode.graph_attributes,
+            ...(enriched.epistemic_type && { epistemic_type: enriched.epistemic_type }),
+            ...(enriched.rhetorical_strategy && { rhetorical_strategy: enriched.rhetorical_strategy }),
+            ...(enriched.assumes?.length > 0 && { assumes: enriched.assumes }),
+            ...(enriched.falsifiability && { falsifiability: enriched.falsifiability }),
+            ...(enriched.audience && { audience: enriched.audience }),
+            ...(enriched.emotional_register && { emotional_register: enriched.emotional_register }),
+            ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
+            ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
+            ...(enriched.node_scope && { node_scope: enriched.node_scope }),
+          };
+          currentTaxStore.updatePovNode(povKey, createdNodeId!, { graph_attributes: mergedAttrs });
+          await currentTaxStore.save();
+          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'reflectionEnrichment.complete', data: { node_id: createdNodeId, fields: Object.keys(enriched) } });
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'reflectionEnrichment.failed', data: { node_id: createdNodeId, error: String(err) } });
+        }
+      })();
     }
 
     getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, duration_ms: duration } });

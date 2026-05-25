@@ -53,7 +53,7 @@ function makeTranscriptEntry(overrides: Partial<TranscriptEntry> = {}): Transcri
     id: 'te-1',
     timestamp: new Date().toISOString(),
     type: 'statement',
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     content: 'Prior turn content about AI governance mechanisms.',
     taxonomy_refs: [{ node_id: 'acc-B-001', relevance: 'prior ref' }],
     ...overrides,
@@ -70,11 +70,11 @@ function makeParams(overrides: Partial<ValidateTurnParams> = {}): ValidateTurnPa
     meta: {
       move_types: [{ move: 'DISTINGUISH', detail: 'distinguishing governance approaches' }],
       disagreement_type: 'EMPIRICAL',
-      my_claims: [{ claim: 'AI regulation should require audits by 2028', targets: ['sentinel'] }],
+      my_claims: [{ claim: 'AI regulation should require audits by 2028', targets: ['safetyist'] }],
       policy_refs: ['pol-001'],
     },
     phase: 'argumentation' as DebatePhase,
-    speaker: 'prometheus' as SpeakerId,
+    speaker: 'accelerationist' as SpeakerId,
     round: 3,
     priorTurns: [],
     recentTurns: [],
@@ -502,7 +502,7 @@ describe('Stage A Rule 9: claim specificity', () => {
       round: 3,
       meta: {
         ...makeParams().meta,
-        my_claims: [{ claim: 'governance should be improved', targets: ['sentinel'] }],
+        my_claims: [{ claim: 'governance should be improved', targets: ['safetyist'] }],
       },
     });
     const r = await validateTurn(p);
@@ -514,7 +514,7 @@ describe('Stage A Rule 9: claim specificity', () => {
       round: 4,
       meta: {
         ...makeParams().meta,
-        my_claims: [{ claim: 'governance should be improved somehow', targets: ['sentinel'] }],
+        my_claims: [{ claim: 'governance should be improved somehow', targets: ['safetyist'] }],
       },
     });
     const r = await validateTurn(p);
@@ -527,7 +527,7 @@ describe('Stage A Rule 9: claim specificity', () => {
       round: 4,
       meta: {
         ...makeParams().meta,
-        my_claims: [{ claim: 'AI audits should be required by 2028', targets: ['sentinel'] }],
+        my_claims: [{ claim: 'AI audits should be required by 2028', targets: ['safetyist'] }],
       },
     });
     const r = await validateTurn(p);
@@ -549,7 +549,7 @@ describe('Stage A Rule 9: claim specificity', () => {
       round: 3,
       meta: {
         ...makeParams().meta,
-        my_claims: [{ claim: 'Geoffrey Hinton warned about autonomous systems', targets: ['sentinel'] }],
+        my_claims: [{ claim: 'Geoffrey Hinton warned about autonomous systems', targets: ['safetyist'] }],
       },
     });
     const r = await validateTurn(p);
@@ -1008,7 +1008,7 @@ describe('intervention compliance', () => {
       move: 'PIN',
       force: 'directive',
       burden: 3,
-      target_debater: 'prometheus',
+      target_debater: 'accelerationist',
       text: 'State your position clearly.',
       trigger_reason: 'vague claims',
       source_evidence: { round: 2 },
@@ -1027,7 +1027,7 @@ describe('intervention compliance', () => {
       move: 'PIN',
       force: 'directive',
       burden: 3,
-      target_debater: 'prometheus',
+      target_debater: 'accelerationist',
       text: 'State your position clearly.',
       trigger_reason: 'vague claims',
       source_evidence: { round: 2 },
@@ -1209,7 +1209,7 @@ function makeValidPlan() {
   return {
     strategic_goal: 'Challenge the empirical basis of rapid deployment timelines with regulatory data',
     planned_moves: [
-      { move: 'COUNTEREXAMPLE', target: 'prometheus', detail: 'Present EU AI Act compliance costs that contradict cost-neutrality claims' },
+      { move: 'COUNTEREXAMPLE', target: 'accelerationist', detail: 'Present EU AI Act compliance costs that contradict cost-neutrality claims' },
       { move: 'EXTEND', detail: 'Build on prior evidence about institutional capacity requirements' },
     ],
     target_claims: ['AI deployment will be cost-neutral by 2028'],
@@ -1325,7 +1325,7 @@ describe('validateCiteStage target_nodes', () => {
     knownNodeIds: new Set(['acc-B-001', 'saf-D-002', 'skp-I-003']),
     policyIds: new Set(['pol-001']),
     priorTurns: [] as import('./types.js').TranscriptEntry[],
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
   };
 
   it('passes when all target_nodes are cited', () => {
@@ -1469,7 +1469,7 @@ describe('validateDraftStage directive compliance', () => {
       move: 'PIN',
       force: 'interrogative',
       burden: 3,
-      target_debater: 'prometheus',
+      target_debater: 'accelerationist',
       text: 'Do you accept the precautionary principle as a default regulatory stance?',
       trigger_reason: 'vague position',
       source_evidence: { round: 3 },
@@ -1489,7 +1489,7 @@ describe('validateDraftStage directive compliance', () => {
       move: 'PIN',
       force: 'interrogative',
       burden: 3,
-      target_debater: 'prometheus',
+      target_debater: 'accelerationist',
       text: 'Do you accept the precautionary principle as a default regulatory stance?',
       trigger_reason: 'vague position',
       source_evidence: { round: 3 },
@@ -1510,7 +1510,7 @@ describe('validateDraftStage directive compliance', () => {
       move: 'CLARIFY',
       force: 'interrogative',
       burden: 2,
-      target_debater: 'sentinel',
+      target_debater: 'safetyist',
       text: 'Clarify your definition of alignment failure and what threshold constitutes catastrophic risk.',
       trigger_reason: 'ambiguous terminology',
       source_evidence: { round: 2 },

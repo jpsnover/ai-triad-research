@@ -132,9 +132,9 @@ export function extractConflictCandidates(debate: DebateSession): HarvestConflic
 // ── Steelman extraction ───────────────────────────────────
 
 const POV_FOR_POVER: Record<string, string> = {
-  prometheus: 'accelerationist',
-  sentinel: 'safetyist',
-  cassandra: 'skeptic',
+  accelerationist: 'accelerationist',
+  safetyist: 'safetyist',
+  skeptic: 'skeptic',
 };
 
 /** Extract steelman refinement candidates from transcript */

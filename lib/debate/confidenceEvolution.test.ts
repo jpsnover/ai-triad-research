@@ -35,7 +35,7 @@ function makeNode(id: string, overrides: Partial<ArgumentNetworkNode> = {}): Arg
   return {
     id,
     text: `Claim ${id}`,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     source_entry_id: 'entry-1',
     taxonomy_refs: [],
     turn_number: 1,
@@ -376,7 +376,7 @@ describe('computeCrossPovUpdates', () => {
   it('increases confidence when opposing camp cites Belief', () => {
     const belief = makeBelief('acc-beliefs-001', 0.70);
     const node = makeNode('claim-1', {
-      speaker: 'sentinel',
+      speaker: 'safetyist',
       claim_taxonomy_attribution: makeAttribution(0.75, 'acc-beliefs-001'),
     });
 
@@ -385,7 +385,7 @@ describe('computeCrossPovUpdates', () => {
       new Map([['acc-beliefs-001', belief]]),
       new Map([['acc-beliefs-001', 0.70]]),
       'deb-001',
-      { sentinel: 'safetyist', prometheus: 'accelerationist' },
+      { safetyist: 'safetyist', accelerationist: 'accelerationist' },
     );
 
     expect(updates).toHaveLength(1);
@@ -396,7 +396,7 @@ describe('computeCrossPovUpdates', () => {
   it('skips when same POV cites own Belief', () => {
     const belief = makeBelief('acc-beliefs-001', 0.70);
     const node = makeNode('claim-1', {
-      speaker: 'prometheus',
+      speaker: 'accelerationist',
       claim_taxonomy_attribution: makeAttribution(0.75, 'acc-beliefs-001'),
     });
 
@@ -405,7 +405,7 @@ describe('computeCrossPovUpdates', () => {
       new Map([['acc-beliefs-001', belief]]),
       new Map([['acc-beliefs-001', 0.70]]),
       'deb-001',
-      { prometheus: 'accelerationist' },
+      { accelerationist: 'accelerationist' },
     );
 
     expect(updates).toHaveLength(0);
@@ -414,7 +414,7 @@ describe('computeCrossPovUpdates', () => {
   it('skips when attribution below threshold', () => {
     const belief = makeBelief('acc-beliefs-001', 0.70);
     const node = makeNode('claim-1', {
-      speaker: 'sentinel',
+      speaker: 'safetyist',
       claim_taxonomy_attribution: makeAttribution(0.40, 'acc-beliefs-001'),
     });
 
@@ -423,7 +423,7 @@ describe('computeCrossPovUpdates', () => {
       new Map([['acc-beliefs-001', belief]]),
       new Map([['acc-beliefs-001', 0.70]]),
       'deb-001',
-      { sentinel: 'safetyist' },
+      { safetyist: 'safetyist' },
     );
 
     expect(updates).toHaveLength(0);

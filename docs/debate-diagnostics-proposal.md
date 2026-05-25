@@ -9,7 +9,7 @@
 
 The debate tool generates rich intermediate data — argument networks, commitment stores, validation results, edge tensions, BDI context, dialectical move classifications — but almost none of it is visible to the user. An expert can see the final debate transcript and synthesis, but can't answer:
 
-- Why did the moderator pick Sentinel to respond instead of Cassandra?
+- Why did the moderator pick Safetyist to respond instead of Skeptic?
 - What claims were extracted from this turn? Which were rejected and why?
 - What taxonomy context was each debater given? Which vulnerabilities were highlighted?
 - Are the debaters contradicting their own prior commitments?
@@ -189,7 +189,7 @@ diagnostics.entries[moderatorEntryId] = {
 A panel that receives a transcript entry ID and displays its diagnostic data in expandable sections:
 
 ```
-┌─ Diagnostics: Prometheus Opening Statement ──────────────┐
+┌─ Diagnostics: Accelerationist Opening Statement ──────────────┐
 │                                                          │
 │ ▶ Model & Timing                                         │
 │   Model: gemini-2.5-flash | Response: 8.2s              │
@@ -245,7 +245,7 @@ For **synthesis entries**, show:
 When diagnostics mode is active, each transcript entry gets a small indicator showing what diagnostic data is available:
 
 ```
-[Prometheus] [opening] [moves: DISTINGUISH, COUNTEREXAMPLE] [3 claims]
+[Accelerationist] [opening] [moves: DISTINGUISH, COUNTEREXAMPLE] [3 claims]
 ```
 
 Clicking the indicator (or the entry itself) selects it and populates the diagnostics panel.
@@ -268,18 +268,18 @@ Add a diagnostics pane (similar to the inspector pane) that appears when toggled
 When no specific entry is selected, the diagnostics panel shows the overview. The centerpiece is the **argument network graph** rendered as a text-based tree or a simple SVG:
 
 ```
-AN-1 (Prometheus): "Scaling compute is sufficient for AGI"
-  ← AN-3 (Sentinel) attacks [undercut via DISTINGUISH]
+AN-1 (Accelerationist): "Scaling compute is sufficient for AGI"
+  ← AN-3 (Safetyist) attacks [undercut via DISTINGUISH]
      Warrant: "Historical precedent shows paradigm shifts..."
-  ← AN-5 (Cassandra) attacks [rebut via COUNTEREXAMPLE]
+  ← AN-5 (Skeptic) attacks [rebut via COUNTEREXAMPLE]
      Warrant: "Current AI failures demonstrate fundamental limits..."
 
-AN-2 (Prometheus): "The cost of delay exceeds the cost of mistakes"
+AN-2 (Accelerationist): "The cost of delay exceeds the cost of mistakes"
   [unaddressed — no attacks or responses]
 
-AN-4 (Sentinel): "Alignment must precede deployment"
+AN-4 (Safetyist): "Alignment must precede deployment"
   → supports AN-3
-  ← AN-6 (Prometheus) attacks [rebut via REDUCE]
+  ← AN-6 (Accelerationist) attacks [rebut via REDUCE]
 ```
 
 This is the AIF argument network made visible — I-nodes (claims), RA-nodes (supports with warrants), CA-nodes (attacks with types and schemes).
@@ -289,7 +289,7 @@ This is the AIF argument network made visible — I-nodes (claims), RA-nodes (su
 Show per-debater commitment stores with contradiction detection:
 
 ```
-Prometheus:
+Accelerationist:
   Asserted (5): "Scaling is sufficient", "Cost of delay", ...
   Conceded (1): "Current AI has jagged capabilities"
   Challenged (2): "Alignment must precede", "Present harms matter more"
@@ -297,7 +297,7 @@ Prometheus:
     conceded "current AI has jagged capabilities" — tension between
     scaling optimism and capability acknowledgment.
 
-Sentinel:
+Safetyist:
   Asserted (4): ...
   Conceded (0):
   Challenged (3): ...
@@ -314,9 +314,9 @@ Taxonomy Coverage:
   Cross-cut:  ██████████ 10/10 nodes referenced (!)
 
 Move Distribution:
-  Prometheus:  DISTINGUISH(3) COUNTEREXAMPLE(2) ESCALATE(1)
-  Sentinel:    CONCEDE(2) DISTINGUISH(2) REDUCE(1)
-  Cassandra:   REFRAME(3) COUNTEREXAMPLE(1) CONCEDE(1)
+  Accelerationist:  DISTINGUISH(3) COUNTEREXAMPLE(2) ESCALATE(1)
+  Safetyist:    CONCEDE(2) DISTINGUISH(2) REDUCE(1)
+  Skeptic:   REFRAME(3) COUNTEREXAMPLE(1) CONCEDE(1)
 
 Disagreement Types:
   EMPIRICAL: 4 | VALUES: 2 | DEFINITIONAL: 1

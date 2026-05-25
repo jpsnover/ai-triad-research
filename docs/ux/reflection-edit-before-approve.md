@@ -34,7 +34,7 @@ Everything stays as-is. One addition: a small **Edit button** (pencil icon or te
 │ └─────────────────────────────────────────────┘ │
 │                                                 │
 │ Rationale (italic, muted)                       │
-│ Evidence: Cassandra (S13)  Sentinel (S14)       │
+│ Evidence: Skeptic (S13)  Safetyist (S14)       │
 │                                                 │
 │ [Approve & Apply]  [Dismiss]                    │
 └─────────────────────────────────────────────────┘
@@ -74,7 +74,7 @@ The PROPOSED section transforms:
 │ └─────────────────────────────────────────────┘ │
 │                                                 │
 │ Rationale (italic, muted)                       │
-│ Evidence: Cassandra (S13)  Sentinel (S14)       │
+│ Evidence: Skeptic (S13)  Safetyist (S14)       │
 │                                                 │
 │ [Approve & Apply]  [Reset]  [Cancel]  [Dismiss] │
 └─────────────────────────────────────────────────┘

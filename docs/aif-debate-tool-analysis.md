@@ -49,7 +49,7 @@ The AIF paper establishes a formal ontology for representing argumentation with 
 | **Schemes** | `argument_map.scheme` (COUNTEREXAMPLE, DISTINGUISH, etc.) | Labels exist but are AI-guessed, not validated against formal scheme definitions |
 | **Locutions** | Transcript entries with `type` (opening, statement, question, synthesis) | Partially mapped — types exist but aren't formally AIF locutions |
 | **Protocols** | Debate phases (setup → clarification → opening → debate → closed) | Implicit in code, not declared as a formal protocol |
-| **Participants** | POVers (Prometheus, Sentinel, Cassandra, User) | Well-defined with IDs, POV labels, personalities |
+| **Participants** | POVers (Accelerationist, Safetyist, Skeptic, User) | Well-defined with IDs, POV labels, personalities |
 | **Commitment stores** | Not represented | **Missing entirely** |
 | **Dialogue topic** | `debate.topic.final` | Present |
 | **Dialogue type** | Implicitly "persuasion" | Not explicit |
@@ -96,7 +96,7 @@ The AIF paper establishes a formal ontology for representing argumentation with 
 
 **AIF requirement:** Each participant maintains a commitment store — a set of propositions they've committed to during the dialogue. Commitment stores track what's been asserted, conceded, withdrawn, and challenged.
 
-**Current state:** The transcript records what was said, but there's no derived data structure tracking what each debater has committed to. If Prometheus concedes a point in round 3, there's no mechanism to check whether Prometheus later contradicts that concession.
+**Current state:** The transcript records what was said, but there's no derived data structure tracking what each debater has committed to. If Accelerationist concedes a point in round 3, there's no mechanism to check whether Accelerationist later contradicts that concession.
 
 **Impact:** Without commitment stores, the debate can't detect:
 - Self-contradiction (asserting P then later asserting not-P)
@@ -117,7 +117,7 @@ The AIF paper establishes a formal ontology for representing argumentation with 
 
 **Current state:** The `argument_map` is only generated post-hoc during synthesis. During the actual debate, no argument network is maintained. Each turn is a blob of text with `taxonomy_refs`, not a structured set of claims and inferences.
 
-**Impact:** The debate loses structural information between turns. When Sentinel undercuts Prometheus's argument in round 2, that undercut is captured in text but not in a queryable graph structure until synthesis reconstructs it (lossy, AI-dependent).
+**Impact:** The debate loses structural information between turns. When Safetyist undercuts Accelerationist's argument in round 2, that undercut is captured in text but not in a queryable graph structure until synthesis reconstructs it (lossy, AI-dependent).
 
 ### Gap 6: No Critical Questions for Schemes (Low-Moderate)
 
@@ -322,10 +322,10 @@ Currently the moderator gets `formatEdgeContext` (known tensions from edges.json
 
 ```
 === ARGUMENT NETWORK (claims made so far) ===
-AN-1 (Prometheus): "Scaling compute is sufficient for AGI" [standalone]
-AN-2 (Sentinel): "Novel architectures may be needed" [attacks AN-1 via COUNTEREXAMPLE — undercut]
+AN-1 (Accelerationist): "Scaling compute is sufficient for AGI" [standalone]
+AN-2 (Safetyist): "Novel architectures may be needed" [attacks AN-1 via COUNTEREXAMPLE — undercut]
   Warrant: Historical precedent shows paradigm shifts require architectural innovation, not just scale.
-AN-3 (Cassandra): "Current harms matter more than speculative AGI" [attacks AN-1 via REFRAME — rebut]
+AN-3 (Skeptic): "Current harms matter more than speculative AGI" [attacks AN-1 via REFRAME — rebut]
   Warrant: Redirects the conversation from future capabilities to present measurable impacts.
 
 Unaddressed claims: AN-1 has been attacked twice but neither attack has been responded to.
@@ -495,9 +495,9 @@ When `verifyCommitmentConsistency` detects a contradiction, inject it into the m
 
 ```
 === DETECTED INCONSISTENCY ===
-Prometheus asserted "Scaling compute is sufficient for AGI" in the opening statement
+Accelerationist asserted "Scaling compute is sufficient for AGI" in the opening statement
 but conceded "Novel architectures may be needed" in round 2. The moderator should
-ask Prometheus to reconcile these positions.
+ask Accelerationist to reconcile these positions.
 ```
 
 **Verification:** None needed — the moderator decides whether to act on it.
@@ -981,8 +981,8 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
 ```
 ☑ "Whether scaling compute alone produces AGI"
     BDI layer: belief | Resolvability: resolvable by evidence
-    Prometheus (C1): "Scaling compute is sufficient for AGI"
-    Sentinel (C2): "Novel architectures may be needed"
+    Accelerationist (C1): "Scaling compute is sufficient for AGI"
+    Safetyist (C2): "Novel architectures may be needed"
     → Creates: conflicts/conflict-scaling-compute-agi.json
     [Edit label] [Edit description]
 
@@ -1000,7 +1000,7 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
 
 ☐ acc-desires-002 → skp-beliefs-005: new SUPPORTS edge
     Proposed confidence: 0.70
-    Evidence: Prometheus's argument in round 2 linked these
+    Evidence: Accelerationist's argument in round 2 linked these
 ```
 
 **Section 3: Steelman Refinements**
@@ -1009,7 +1009,7 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
     Current: "Pausing cedes the field to less safety-conscious actors"
     Proposed: "2024 scaling results show capabilities emerging without
     architectural changes, undermining the pause premise"
-    Source: Prometheus cross-respond, round 2
+    Source: Accelerationist cross-respond, round 2
     [Edit proposed text]
 
 ☐ acc-beliefs-001: Refine from_skeptic steelman
@@ -1021,7 +1021,7 @@ After synthesis, a **"Harvest"** button appears in the debate workspace. Clickin
 ☐ "Architectural ceiling hypothesis"
     Suggested POV: situations
     Suggested category: Beliefs
-    Evidence: Sentinel and Cassandra both referenced this concept
+    Evidence: Safetyist and Skeptic both referenced this concept
     → Queues for Invoke-TaxonomyProposal
     [Edit label] [Edit description]
 ```
@@ -1286,7 +1286,7 @@ Reuse the `update-node-field` handler from H1.3, but for `graph_attributes.steel
 
 #### Phase H2 Validation Gate
 
-- [ ] Run a debate where Sentinel strongly attacks an accelerationist node
+- [ ] Run a debate where Safetyist strongly attacks an accelerationist node
 - [ ] Harvest dialog shows the steelman candidate with the current and proposed text
 - [ ] Validation warnings display correctly (too generic, too long, etc.)
 - [ ] User edits the text and applies
@@ -1411,7 +1411,7 @@ For new edges: append to the edges array with `status: "proposed"`, `discovered_
       "suggested_pov": "situations",
       "suggested_category": "Beliefs",
       "source_debate_id": "debate-uuid",
-      "evidence": "Sentinel and Cassandra both referenced this concept across rounds 1-3",
+      "evidence": "Safetyist and Skeptic both referenced this concept across rounds 1-3",
       "status": "queued"
     }
   ]

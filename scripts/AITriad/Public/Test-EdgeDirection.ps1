@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Test-EdgeDirection {
@@ -10,7 +10,7 @@ function Test-EdgeDirection {
         the rationale text matches the stated source→target direction.
         Edges flagged as suspect get direction_flag='suspect' in edges.json.
     .PARAMETER Model
-        AI model to use. Default: gemini-2.5-flash.
+        AI model to use. Default: gemini-3.1-flash-lite.
     .PARAMETER BatchSize
         Number of edges per API call. Default: 20.
     .PARAMETER Status
@@ -30,7 +30,7 @@ function Test-EdgeDirection {
     #>
     [CmdletBinding()]
     param(
-        [string]$Model = 'gemini-2.5-flash',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [int]$BatchSize = 20,
 

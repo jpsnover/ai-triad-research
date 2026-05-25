@@ -75,14 +75,14 @@ Defined in `types.ts`. The root object for all debate state.
 ### POVer Identities
 
 ```typescript
-type PoverId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
+type PoverId = 'Accelerationist' | 'Safetyist' | 'Skeptic' | 'user';
 ```
 
 | ID | Label | POV | Personality |
 |----|-------|-----|-------------|
-| `prometheus` | Prometheus | accelerationist | Confident, forward-looking, frames risk as cost-of-inaction |
-| `sentinel` | Sentinel | safetyist | Methodical, evidence-driven, frames progress as conditional-on-safeguards |
-| `cassandra` | Cassandra | skeptic | Wry, pragmatic, challenges assumptions from both sides |
+| `Accelerationist` | Accelerationist | accelerationist | Confident, forward-looking, frames risk as cost-of-inaction |
+| `Safetyist` | Safetyist | safetyist | Methodical, evidence-driven, frames progress as conditional-on-safeguards |
+| `Skeptic` | Skeptic | skeptic | Wry, pragmatic, challenges assumptions from both sides |
 | `user` | (human) | — | Human participant in user-is-pover mode |
 
 ### Transcript Entry
@@ -937,7 +937,7 @@ npx tsx lib/debate/cli.ts --stdin
 ```json
 {
   "topic": "Should AI development be paused?",
-  "activePovers": ["prometheus", "sentinel", "cassandra"],
+  "activePovers": ["Accelerationist", "Safetyist", "Skeptic"],
   "model": "gemini-2.5-flash",
   "rounds": 3,
   "responseLength": "medium",

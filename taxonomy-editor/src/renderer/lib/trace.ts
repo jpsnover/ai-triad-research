@@ -37,7 +37,7 @@ export interface TraceEvent {
   turn_id?: string;
   /** Per-AI-call UUID when the event is tied to a specific model call. */
   call_id?: string;
-  /** POV speaker label ('prometheus' | 'sentinel' | 'cassandra' | 'user' | 'system'). */
+  /** POV speaker label ('accelerationist' | 'safetyist' | 'skeptic' | 'user' | 'system'). */
   speaker?: string;
   /** Event-specific payload. Keep small — this lands in log storage. */
   data?: Record<string, unknown>;

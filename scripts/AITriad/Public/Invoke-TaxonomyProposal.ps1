@@ -12,7 +12,7 @@ function Invoke-TaxonomyProposal {
 
         Proposals are written to taxonomy/proposals/proposal-{timestamp}.json.
     .PARAMETER Model
-        AI model to use. Defaults to env default or 'gemini-flash-lite-latest'.
+        AI model to use. Defaults to env default or 'gemini-3.1-flash-lite'.
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Temperature
@@ -29,7 +29,7 @@ function Invoke-TaxonomyProposal {
     .EXAMPLE
         Invoke-TaxonomyProposal -DryRun
     .EXAMPLE
-        Invoke-TaxonomyProposal -Model 'gemini-2.5-flash'
+        Invoke-TaxonomyProposal -Model 'gemini-3.1-flash-lite'
     .EXAMPLE
         $h = Get-TaxonomyHealth -PassThru
         Invoke-TaxonomyProposal -HealthData $h
@@ -38,7 +38,7 @@ function Invoke-TaxonomyProposal {
     param(
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model       = 'gemini-flash-lite-latest',
+        [string]$Model       = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey      = '',
 

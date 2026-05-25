@@ -254,7 +254,7 @@ Both confidence and priority should be editable in the Taxonomy Editor. The auto
   "confidence": 0.82,
   "confidence_history": [
     {"date": "2026-05-01", "value": 0.75, "reason": "Initial assignment from epistemic_type + source_refs"},
-    {"date": "2026-05-15", "value": 0.82, "reason": "Debate deb-abc123: claim survived attack by Sentinel (QBAF strength 0.78)"}
+    {"date": "2026-05-15", "value": 0.82, "reason": "Debate deb-abc123: claim survived attack by Safetyist (QBAF strength 0.78)"}
   ],
   // ... existing fields
 }
@@ -313,9 +313,9 @@ Honestly hedging a low-confidence claim is a strength.
 
 Each debater has **doctrinal boundaries** — non-negotiable positions defined in `POVER_INFO.doctrinal_boundaries` and injected into every debate prompt as "positions you must NEVER adopt." These are the system's existing "must not concede" items:
 
-- **Prometheus:** REJECT precautionary principle as default, capability limitations as permanent, regulatory capture framing of all governance, AI progress as inherently zero-sum
-- **Sentinel:** REJECT dismissing existential risk as speculative, speed-over-safety framing, market self-regulation as sufficient, competitive pressure justifying unverified deployment
-- **Cassandra:** REJECT binary framing (existential vs trivial), techno-determinism, insider expertise as sole legitimate view, future hypotheticals overriding present documented harms
+- **Accelerationist:** REJECT precautionary principle as default, capability limitations as permanent, regulatory capture framing of all governance, AI progress as inherently zero-sum
+- **Safetyist:** REJECT dismissing existential risk as speculative, speed-over-safety framing, market self-regulation as sufficient, competitive pressure justifying unverified deployment
+- **Skeptic:** REJECT binary framing (existential vs trivial), techno-determinism, insider expertise as sole legitimate view, future hypotheticals overriding present documented harms
 
 These doctrinal boundaries should **anchor Belief confidence scoring**. Specifically:
 
@@ -337,11 +337,11 @@ These doctrinal boundaries should **anchor Belief confidence scoring**. Specific
 
 **Example:**
 
-Sentinel's doctrinal boundary: "REJECT: Dismissing existential risk as speculative"
+Safetyist's doctrinal boundary: "REJECT: Dismissing existential risk as speculative"
 
 Taxonomy node `saf-beliefs-012`: "Current alignment techniques are insufficient for systems exhibiting emergent goal-directed behavior" — cosine similarity to the boundary embedding: 0.68.
 
-This node is doctrinally anchored. Even if it scores "reasoned" (0.50) on evidential grounding, its effective confidence floor is 0.60. It appears in primary-tier context injection. If Sentinel concedes this Belief without explicit, well-reasoned justification, the sycophancy guard treats it as a doctrinal violation, not a legitimate update.
+This node is doctrinally anchored. Even if it scores "reasoned" (0.50) on evidential grounding, its effective confidence floor is 0.60. It appears in primary-tier context injection. If Safetyist concedes this Belief without explicit, well-reasoned justification, the sycophancy guard treats it as a doctrinal violation, not a legitimate update.
 
 **Data flow:**
 
@@ -362,7 +362,7 @@ This connects the existing "must not concede" infrastructure (prompt-level instr
 Currently, concessions are driven by moderator prompts and move selection. With priority:
 
 - Debaters should concede low-priority Desires more readily than high-priority ones
-- The moderator can reference priority when forcing engagement: "Sentinel, this is your priority-5 value — defend it specifically, not generically."
+- The moderator can reference priority when forcing engagement: "Safetyist, this is your priority-5 value — defend it specifically, not generically."
 - Concession of a priority-5 Desire is a major event — it should be flagged prominently in the transcript
 - **Concession of a doctrinally anchored Belief should trigger a doctrinal violation warning** — the debater has crossed a line it was explicitly told not to cross. This is distinct from a low-priority concession (acceptable) or even a high-priority concession (significant but legitimate). A doctrinal boundary violation suggests the prompt constraints failed, not that the debater genuinely updated.
 

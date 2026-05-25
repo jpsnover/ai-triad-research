@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Show-TriadDialogue {
@@ -6,8 +6,8 @@ function Show-TriadDialogue {
     .SYNOPSIS
         Simulates a structured three-agent debate grounded in the AI Triad taxonomy.
     .DESCRIPTION
-        Runs a multi-round debate between Prometheus (accelerationist), Sentinel (safetyist),
-        and Cassandra (skeptic). Each agent's arguments are grounded in taxonomy nodes and edges.
+        Runs a multi-round debate between Accelerationist (accelerationist), Safetyist (safetyist),
+        and Skeptic (skeptic). Each agent's arguments are grounded in taxonomy nodes and edges.
         Produces opening statements, N debate rounds, and a synthesis. Output is compatible
         with the taxonomy-editor DebateTab.
     .PARAMETER Topic
@@ -17,7 +17,7 @@ function Show-TriadDialogue {
     .PARAMETER OutputFile
         Optional path to write the debate JSON. If omitted, writes to debates/debate-<guid>.json.
     .PARAMETER Model
-        AI model override. Defaults to 'gemini-2.5-flash'.
+        AI model override. Defaults to 'gemini-3.1-flash-lite'.
     .PARAMETER ApiKey
         AI API key override.
     .PARAMETER RepoRoot
@@ -50,7 +50,7 @@ function Show-TriadDialogue {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model = 'gemini-2.5-flash',
+        [string]$Model = 'gemini-3.1-flash-lite',
 
         [string]$ApiKey,
 
@@ -106,22 +106,22 @@ function Show-TriadDialogue {
     # ── Step 2: Define agents ─────────────────────────────────────────────────
     $Agents = @(
         @{
-            Name        = 'Prometheus'
-            Speaker     = 'prometheus'
+            Name        = 'Accelerationist'
+            Speaker     = 'Accelerationist'
             PovKey      = 'accelerationist'
             PovLabel    = 'Accelerationist'
             Description = 'You champion rapid AI development and deployment. You believe AI progress is essential for human flourishing, that open development is safer than restriction, and that the benefits vastly outweigh the risks. You distrust regulatory gatekeeping and favor empirical, results-oriented approaches.'
         }
         @{
-            Name        = 'Sentinel'
-            Speaker     = 'sentinel'
+            Name        = 'Safetyist'
+            Speaker     = 'Safetyist'
             PovKey      = 'safetyist'
             PovLabel    = 'Safetyist'
             Description = 'You prioritize AI safety, alignment research, and careful risk mitigation. You believe powerful AI poses existential risks that demand precaution, that capability gains outpace safety understanding, and that deployment should wait until systems are proven safe. You favor regulation and mandatory safety testing.'
         }
         @{
-            Name        = 'Cassandra'
-            Speaker     = 'cassandra'
+            Name        = 'Skeptic'
+            Speaker     = 'Skeptic'
             PovKey      = 'skeptic'
             PovLabel    = 'Skeptic'
             Description = 'You question AI hype and emphasize present-day harms. You believe current AI systems are less capable than claimed, that the real risks are economic displacement, bias, and power concentration, not sci-fi scenarios. You demand empirical evidence over speculation and focus on protecting workers and communities.'
@@ -387,7 +387,7 @@ DETAIL: $($AudDir.DetailInstruction)
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
     Write-Host "  TRIAD DIALOGUE" -ForegroundColor White
     Write-Host "  Topic: $Topic" -ForegroundColor Gray
-    Write-Host "  Agents: Prometheus, Sentinel, Cassandra  |  Rounds: $Rounds" -ForegroundColor Gray
+    Write-Host "  Agents: Accelerationist, Safetyist, Skeptic  |  Rounds: $Rounds" -ForegroundColor Gray
     Write-Host "$('═' * 72)" -ForegroundColor Cyan
 
     # ── Opening statements ────────────────────────────────────────────────────
@@ -415,9 +415,9 @@ DETAIL: $($AudDir.DetailInstruction)
 
             # Display
             $NameColor = switch ($Agent.Speaker) {
-                'prometheus' { 'Blue' }
-                'sentinel'   { 'Green' }
-                'cassandra'  { 'Yellow' }
+                'Accelerationist' { 'Blue' }
+                'Safetyist'   { 'Green' }
+                'Skeptic'  { 'Yellow' }
             }
             Write-Host "`n  $($Agent.Name.ToUpper()) (Opening):" -ForegroundColor $NameColor
             Write-Host "  $Content" -ForegroundColor White
@@ -457,9 +457,9 @@ DETAIL: $($AudDir.DetailInstruction)
                 $Transcript.Add([PSCustomObject]$Entry)
 
                 $NameColor = switch ($Agent.Speaker) {
-                    'prometheus' { 'Blue' }
-                    'sentinel'   { 'Green' }
-                    'cassandra'  { 'Yellow' }
+                    'Accelerationist' { 'Blue' }
+                    'Safetyist'   { 'Green' }
+                    'Skeptic'  { 'Yellow' }
                 }
                 Write-Host "`n  $($Agent.Name.ToUpper()) (Round $Round):" -ForegroundColor $NameColor
                 Write-Host "  $Content" -ForegroundColor White
@@ -553,7 +553,7 @@ DETAIL: $($AudDir.DetailInstruction)
             refined  = $Topic
             final    = $Topic
         }
-        active_povers   = @('prometheus', 'sentinel', 'cassandra')
+        active_povers   = @('Accelerationist', 'Safetyist', 'Skeptic')
         user_is_pover   = $false
         transcript      = @($Transcript)
         rounds          = $Rounds

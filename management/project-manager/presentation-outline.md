@@ -24,9 +24,9 @@ Jeffrey Snover | Berkman Klein Center Fellow | 2026
 
 For my fellowship, my hypothesis was that the different AI perspectives operate as silo'd monologues. Genuine engagement is hampered by the lack of a common framework. Different camps use the same words to mean different things, and different words to mean the same thing.
 
-- **Accelerationists** (Prometheus): AI capability growth is urgent; regulation is a bottleneck; competitive dynamics between democracies drive responsible deployment
-- **Safetyists** (Sentinel): Current safety measures are inadequate; precautionary approaches are justified; institutional governance must gate high-risk capabilities
-- **Skeptics** (Cassandra): Hypothetical risks distract from demonstrated harms — labor displacement, algorithmic bias, power concentration, accountability gaps
+- **Accelerationists** (Accelerationist): AI capability growth is urgent; regulation is a bottleneck; competitive dynamics between democracies drive responsible deployment
+- **Safetyists** (Safetyist): Current safety measures are inadequate; precautionary approaches are justified; institutional governance must gate high-risk capabilities
+- **Skeptics** (Skeptic): Hypothetical risks distract from demonstrated harms — labor displacement, algorithmic bias, power concentration, accountability gaps
 
 These aren't fringe positions — each has serious intellectual backing, coherent internal logic, and real policy influence. But they rarely engage each other's strongest arguments.
 
@@ -147,7 +147,7 @@ The system doesn't just process documents and run debates. It measures itself.
 
 We built a three-agent debate system grounded in argumentation theory:
 
-- **Prometheus** (Accelerationist), **Sentinel** (Safetyist), **Cassandra** (Skeptic)
+- **Accelerationist** (Accelerationist), **Safetyist** (Safetyist), **Skeptic** (Skeptic)
 - Each agent is grounded in its POV's taxonomy — it can only argue from positions supported by its belief system
 - Not open-ended chat — structured phases:
   - **Thesis-Antithesis**: Stake out positions, challenge core claims
@@ -195,7 +195,7 @@ The debates aren't free-for-all — an active moderator monitors seven determini
 
 These signals feed a composite **Debate Health Score** that drives moderator interventions across six families:
 
-- **Elicitation** — draw out unexplored positions ("Cassandra, you haven't addressed Prometheus's scaling argument")
+- **Elicitation** — draw out unexplored positions ("Skeptic, you haven't addressed Accelerationist's scaling argument")
 - **Repair** — fix failed turns, redirect off-topic tangents
 - **Reconciliation** — surface hidden agreements, propose common ground
 - **Reflection** — force agents to summarize what they've learned from opponents

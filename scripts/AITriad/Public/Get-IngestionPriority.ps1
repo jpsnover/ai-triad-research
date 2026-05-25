@@ -53,7 +53,7 @@ function Get-IngestionPriority {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-flash-lite-latest' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite' }
     }
 
     # ── Step 1: Gather health data ────────────────────────────────────────────

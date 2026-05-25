@@ -23,7 +23,7 @@ function Invoke-POVSummary {
     .PARAMETER ApiKey
         AI API key. If omitted, resolved via backend-specific env var or AI_API_KEY.
     .PARAMETER Model
-        AI model to use. Defaults to "gemini-flash-lite-latest".
+        AI model to use. Defaults to "gemini-3.1-flash-lite".
         Supports Gemini, Claude, and Groq backends.
     .PARAMETER Temperature
         Sampling temperature (0.0-1.0). Default: 0.1
@@ -42,7 +42,7 @@ function Invoke-POVSummary {
     .EXAMPLE
         Invoke-POVSummary -DocId "altman-2024-agi-path" -DryRun
     .EXAMPLE
-        Invoke-POVSummary -DocId "lecun-2024-critique" -Model "gemini-2.5-flash-lite"
+        Invoke-POVSummary -DocId "lecun-2024-critique" -Model "gemini-3.1-flash-lite-lite"
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -55,7 +55,7 @@ function Invoke-POVSummary {
 
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
-        [string]$Model       = "gemini-flash-lite-latest",
+        [string]$Model       = "gemini-3.1-flash-lite",
 
         [ValidateRange(0.0, 1.0)]
         [double]$Temperature = 0.1,

@@ -423,7 +423,7 @@ Metadata fields `concession_candidates_offered` and `concession_considered` are 
 ## Persona-Free Evaluator
 
 ### Design
-An independent evaluator reads the debate with persona labels stripped (Speaker A/B/C, randomized assignment). It receives no POV taxonomy, no personality descriptions, no reference to Prometheus/Sentinel/Cassandra.
+An independent evaluator reads the debate with persona labels stripped (Speaker A/B/C, randomized assignment). It receives no POV taxonomy, no personality descriptions, no reference to Accelerationist/Safetyist/Skeptic.
 
 ### Checkpoints
 | Checkpoint | When | Purpose |
@@ -551,9 +551,9 @@ Each debater has prior modifiers for specific moves reflecting persona tendencie
 
 | Debater | Example Priors |
 |---------|----------------|
-| Prometheus | PIN=0.85 (lower threshold), COMPRESS=1.15 (higher threshold) |
-| Sentinel | CHALLENGE=1.2, COMPRESS=0.85 |
-| Cassandra | PIN=1.3, BALANCE=0.85 |
+| Accelerationist | PIN=0.85 (lower threshold), COMPRESS=1.15 (higher threshold) |
+| Safetyist | CHALLENGE=1.2, COMPRESS=0.85 |
+| Skeptic | PIN=1.3, BALANCE=0.85 |
 
 Priors decay toward 1.0 as the move fires repeatedly for that debater: `adaptiveModifier(prior, count) = prior * (1-0.15)^count + 1.0 * (1 - (1-0.15)^count)`. This prevents the moderator from over-relying on persona-specific patterns.
 

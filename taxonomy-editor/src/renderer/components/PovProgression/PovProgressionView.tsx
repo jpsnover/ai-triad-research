@@ -182,13 +182,13 @@ function makeTurn(
   anById: Map<string, ArgumentNetworkNode>,
 ): TurnSnapshot {
   const byPov: Record<Pover, PovTurnState> = {
-    prometheus: emptyPovState('prometheus'),
-    sentinel: emptyPovState('sentinel'),
-    cassandra: emptyPovState('cassandra'),
+    accelerationist: emptyPovState('accelerationist'),
+    safetyist: emptyPovState('safetyist'),
+    skeptic: emptyPovState('skeptic'),
   };
   for (const entry of entries) {
     const sp = entry.speaker;
-    if (sp === 'prometheus' || sp === 'sentinel' || sp === 'cassandra') {
+    if (sp === 'accelerationist' || sp === 'safetyist' || sp === 'skeptic') {
       byPov[sp] = buildPovState(sp, entry);
     }
   }
@@ -458,7 +458,7 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>none</span>
         )}
         {introduced.map(n => {
-          const speakerInfo = (n.speaker === 'prometheus' || n.speaker === 'sentinel' || n.speaker === 'cassandra')
+          const speakerInfo = (n.speaker === 'accelerationist' || n.speaker === 'safetyist' || n.speaker === 'skeptic')
             ? POVER_INFO[n.speaker] : null;
           const color = speakerInfo?.color ?? 'var(--text-muted)';
           const outline = VERIFICATION_OUTLINE[n.verification_status ?? 'pending'];
@@ -502,9 +502,9 @@ function AnSubstrateLane({ snapshot }: { snapshot: TurnSnapshot }) {
       <table style={{ fontSize: '0.68rem', borderCollapse: 'collapse' }}>
         <tbody>
           {targeted.map((t, i) => {
-            const fromInfo = (t.fromSpeaker === 'prometheus' || t.fromSpeaker === 'sentinel' || t.fromSpeaker === 'cassandra')
+            const fromInfo = (t.fromSpeaker === 'accelerationist' || t.fromSpeaker === 'safetyist' || t.fromSpeaker === 'skeptic')
               ? POVER_INFO[t.fromSpeaker] : null;
-            const toInfo = (t.targetSpeaker === 'prometheus' || t.targetSpeaker === 'sentinel' || t.targetSpeaker === 'cassandra')
+            const toInfo = (t.targetSpeaker === 'accelerationist' || t.targetSpeaker === 'safetyist' || t.targetSpeaker === 'skeptic')
               ? POVER_INFO[t.targetSpeaker] : null;
             const isAttack = t.edgeType === 'attacks';
             return (

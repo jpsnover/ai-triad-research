@@ -62,9 +62,9 @@ function resolveOptions(options?: DebateExportOptions): Required<DebateExportOpt
 // ── Speaker labels ──
 
 const SPEAKER_LABELS: Record<string, string> = {
-  prometheus: 'Prometheus (Accelerationist)',
-  sentinel: 'Sentinel (Safetyist)',
-  cassandra: 'Cassandra (Skeptic)',
+  accelerationist: 'Prometheus (Accelerationist)',
+  safetyist: 'Sentinel (Safetyist)',
+  skeptic: 'Cassandra (Skeptic)',
   user: 'User',
   system: 'System',
 };

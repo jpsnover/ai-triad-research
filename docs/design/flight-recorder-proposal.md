@@ -95,9 +95,9 @@ const DICT_COMPONENT_STORE         = recorder.intern('component', 'debate-store'
 const DICT_MODEL_GEMINI_FLASH      = recorder.intern('model', 'gemini-2.5-flash');
 const DICT_MODEL_CLAUDE_SONNET     = recorder.intern('model', 'claude-sonnet-4-6');
 
-const DICT_POV_PROMETHEUS          = recorder.intern('pov', 'prometheus');
-const DICT_POV_SENTINEL            = recorder.intern('pov', 'sentinel');
-const DICT_POV_CASSANDRA           = recorder.intern('pov', 'cassandra');
+const DICT_POV_PROMETHEUS          = recorder.intern('pov', 'Accelerationist');
+const DICT_POV_SENTINEL            = recorder.intern('pov', 'Safetyist');
+const DICT_POV_CASSANDRA           = recorder.intern('pov', 'Skeptic');
 ```
 
 ### Interning Behavior
@@ -406,9 +406,9 @@ The header gives the AI diagnostic tool immediate orientation: what app, what pl
     {"handle": 2, "category": "component", "value": "qbaf"},
     {"handle": 3, "category": "component", "value": "moderator"},
     {"handle": 4, "category": "model", "value": "gemini-2.5-flash"},
-    {"handle": 5, "category": "pov", "value": "prometheus"},
-    {"handle": 6, "category": "pov", "value": "sentinel"},
-    {"handle": 7, "category": "pov", "value": "cassandra"},
+    {"handle": 5, "category": "pov", "value": "Accelerationist"},
+    {"handle": 6, "category": "pov", "value": "Safetyist"},
+    {"handle": 7, "category": "pov", "value": "Skeptic"},
     {"handle": 8, "category": "node", "value": "acc-belief-042"},
     {"handle": 9, "category": "prompt", "value": "crossRespondPrompt"}
   ]
@@ -420,10 +420,10 @@ The header gives the AI diagnostic tool immediate orientation: what app, what pl
 Dictionary handles are expanded inline by the dump serializer. The persisted file contains full strings, not `$N` references. This is a deliberate choice: the dictionary saves memory in the ring buffer (runtime), but the dump file optimizes for readability (diagnostic time). An AI tool should never need to manually dereference handles.
 
 ```json
-{"_type":"event","_seq":4501,"_ts":1234567.89,"_wall":1746100025123,"type":"ai.request","component":"turn-pipeline","level":"info","debate_id":"ae7c9509","turn_id":"S14","call_id":"k3m9x2f1","speaker":"prometheus","message":"DRAFT stage call","data":{"model":"gemini-2.5-flash","backend":"gemini","purpose":"draft","prompt_chars":18200,"prompt_tokens_est":4550,"attempt":1}}
-{"_type":"event","_seq":4502,"_ts":1234571.23,"_wall":1746100028456,"type":"ai.response","component":"turn-pipeline","level":"info","debate_id":"ae7c9509","turn_id":"S14","call_id":"k3m9x2f1","speaker":"prometheus","data":{"model":"gemini-2.5-flash","response_chars":3400,"response_time_ms":3340,"status":"ok"},"duration_ms":3340}
-{"_type":"event","_seq":4503,"_ts":1234571.45,"_wall":1746100028678,"type":"turn.validate","component":"turn-pipeline","level":"warn","debate_id":"ae7c9509","turn_id":"S14","speaker":"prometheus","message":"Validation failed: grounding check","data":{"outcome":"retry","score":0.45,"dimensions":{"schema":"pass","grounding":"fail","advancement":"pass"},"repair_hints":["Cite specific evidence for the scaling law claim"],"attempt":1}}
-{"_type":"event","_seq":4504,"_ts":1234571.46,"_wall":1746100028679,"type":"turn.repair","component":"turn-pipeline","level":"info","debate_id":"ae7c9509","turn_id":"S14","speaker":"prometheus","message":"Retrying DRAFT with repair hints","data":{"attempt":2,"hints_count":1}}
+{"_type":"event","_seq":4501,"_ts":1234567.89,"_wall":1746100025123,"type":"ai.request","component":"turn-pipeline","level":"info","debate_id":"ae7c9509","turn_id":"S14","call_id":"k3m9x2f1","speaker":"Accelerationist","message":"DRAFT stage call","data":{"model":"gemini-2.5-flash","backend":"gemini","purpose":"draft","prompt_chars":18200,"prompt_tokens_est":4550,"attempt":1}}
+{"_type":"event","_seq":4502,"_ts":1234571.23,"_wall":1746100028456,"type":"ai.response","component":"turn-pipeline","level":"info","debate_id":"ae7c9509","turn_id":"S14","call_id":"k3m9x2f1","speaker":"Accelerationist","data":{"model":"gemini-2.5-flash","response_chars":3400,"response_time_ms":3340,"status":"ok"},"duration_ms":3340}
+{"_type":"event","_seq":4503,"_ts":1234571.45,"_wall":1746100028678,"type":"turn.validate","component":"turn-pipeline","level":"warn","debate_id":"ae7c9509","turn_id":"S14","speaker":"Accelerationist","message":"Validation failed: grounding check","data":{"outcome":"retry","score":0.45,"dimensions":{"schema":"pass","grounding":"fail","advancement":"pass"},"repair_hints":["Cite specific evidence for the scaling law claim"],"attempt":1}}
+{"_type":"event","_seq":4504,"_ts":1234571.46,"_wall":1746100028679,"type":"turn.repair","component":"turn-pipeline","level":"info","debate_id":"ae7c9509","turn_id":"S14","speaker":"Accelerationist","message":"Retrying DRAFT with repair hints","data":{"attempt":2,"hints_count":1}}
 ```
 
 ### Trigger Line

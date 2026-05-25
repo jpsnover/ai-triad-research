@@ -20,6 +20,7 @@ import {
   MOVE_TO_FAMILY,
   MOVE_TO_FORCE,
   FAMILY_BURDEN_WEIGHT,
+  POVER_INFO,
 } from './types.js';
 
 // ── Constants ──────────────────────────────────────────
@@ -34,9 +35,9 @@ const ALL_MOVES: InterventionMove[] = [
 ];
 
 const PERSONA_PRIOR_MODIFIERS: Record<string, Partial<Record<InterventionMove, number>>> = {
-  prometheus: { PIN: 0.85, PROBE: 0.85, COMPRESS: 1.15 },
-  sentinel: { COMPRESS: 0.85, CHALLENGE: 1.2, ACKNOWLEDGE: 0.85 },
-  cassandra: { BALANCE: 0.85, PIN: 1.3, ACKNOWLEDGE: 0.85 },
+  accelerationist: { PIN: 0.85, PROBE: 0.85, COMPRESS: 1.15 },
+  safetyist: { COMPRESS: 0.85, CHALLENGE: 1.2, ACKNOWLEDGE: 0.85 },
+  skeptic: { BALANCE: 0.85, PIN: 1.3, ACKNOWLEDGE: 0.85 },
 };
 
 const DECAY_RATE = 0.15;
@@ -705,8 +706,11 @@ const DIRECT_RESPONSE_PATTERNS: Record<InterventionMove, string> = {
 
 export function buildInterventionBriefInjection(intervention: ModeratorIntervention, responderLabel?: string): string {
   const config = MOVE_RESPONSE_CONFIG[intervention.move];
-  const targetLabel = intervention.target_debater;
-  const isTargeted = !responderLabel || responderLabel.toLowerCase() === targetLabel.toLowerCase();
+  const targetId = intervention.target_debater;
+  const targetLabel = POVER_INFO[targetId as keyof typeof POVER_INFO]?.label ?? targetId;
+  const isTargeted = !responderLabel ||
+    responderLabel.toLowerCase() === targetId.toLowerCase() ||
+    responderLabel.toLowerCase() === targetLabel.toLowerCase();
   const responsePattern = DIRECT_RESPONSE_PATTERNS[intervention.move] || '';
 
   if (!config.field) {

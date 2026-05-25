@@ -194,7 +194,7 @@ export function computeMaxBeliefDivergence(
   let maxResult: BeliefDivergenceResult = {
     symmetric_kl: 0, mean_abs_diff: 0, shared_claims: 0, converged: true,
   };
-  let maxPair: [SpeakerId, SpeakerId] = [states[0]?.speaker ?? 'prometheus', states[1]?.speaker ?? 'sentinel'];
+  let maxPair: [SpeakerId, SpeakerId] = [states[0]?.speaker ?? 'accelerationist', states[1]?.speaker ?? 'safetyist'];
 
   for (let i = 0; i < states.length; i++) {
     for (let j = i + 1; j < states.length; j++) {

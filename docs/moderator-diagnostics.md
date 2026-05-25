@@ -467,12 +467,12 @@ When an intervention (or near-miss) is selected, the right panel shows:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ INTERVENTION: PIN — Round 4 → Prometheus                    │
+│ INTERVENTION: PIN — Round 4 → Accelerationist                    │
 │ Phase: exploration                                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │ MODERATOR TEXT:                                             │
-│ "Prometheus, Sentinel asked whether deployment timelines    │
+│ "Accelerationist, Safetyist asked whether deployment timelines    │
 │  should include mandatory safety audits. You moved to a     │
 │  different topic. Do you agree or disagree?"                │
 │                                                             │
@@ -482,7 +482,7 @@ When an intervention (or near-miss) is selected, the right panel shows:
 │ Signal: concession_opportunity                              │
 │ Value:  missed (opposing claim strength: 0.82)              │
 │ Base threshold: missed + strength ≥ 0.7                     │
-│ Persona modifier: 0.85 (Prometheus: lower PIN threshold)    │
+│ Persona modifier: 0.85 (Accelerationist: lower PIN threshold)    │
 │ Trajectory modifier: 0.85 (health declining 2 turns)        │
 │ Effective threshold: 0.7 × 0.85 × 0.85 = 0.51 — triggered │
 │ Note: would NOT have fired at base threshold (0.82 < 0.7    │
@@ -491,7 +491,7 @@ When an intervention (or near-miss) is selected, the right panel shows:
 │                                                             │
 │ Source: AN-14 "Safety audits should be mandatory before      │
 │         any deployment exceeding 10^25 FLOPs"               │
-│ Source round: 3 (Sentinel)                                  │
+│ Source round: 3 (Safetyist)                                  │
 │                                                             │
 │ HEALTH SCORE AT THIS ROUND:                                 │
 │ Score: 0.52 (↓ from 0.61, declining 2 turns)                │
@@ -503,7 +503,7 @@ When an intervention (or near-miss) is selected, the right panel shows:
 │                                                             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│ RESPONSE (Round 4, Prometheus):                             │
+│ RESPONSE (Round 4, Accelerationist):                             │
 │ pin_response:                                               │
 │   position: conditional                                     │
 │   condition: "only for frontier models above 10^26 FLOPs"   │
@@ -515,8 +515,8 @@ When an intervention (or near-miss) is selected, the right panel shows:
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │ FOLLOW-THROUGH:                                             │
-│ Round 5: Sentinel references AN-14 in rebuttal       ✓     │
-│ Round 6: Cassandra cites "FLOPs threshold" framing   ✓     │
+│ Round 5: Safetyist references AN-14 in rebuttal       ✓     │
+│ Round 6: Skeptic cites "FLOPs threshold" framing   ✓     │
 │ Round 7: No further references                       ─     │
 │                                                             │
 │ Topic persistence: 67% (2 of 3 subsequent rounds)           │
@@ -524,13 +524,13 @@ When an intervention (or near-miss) is selected, the right panel shows:
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │ OTHER TRIGGERS EVALUATED THIS ROUND:                        │
-│ ✗ CLARIFY [repair] → Sentinel: "adequate oversight"         │
+│ ✗ CLARIFY [repair] → Safetyist: "adequate oversight"         │
 │   (signal: 1 use, eff. threshold: ≥ 2) — not triggered     │
-│ ✗ CHALLENGE [elicitation] → Cassandra: drift 0.38           │
+│ ✗ CHALLENGE [elicitation] → Skeptic: drift 0.38           │
 │   (base: 0.30, eff: 0.26) — not triggered (near-miss: 68%) │
 │ ✗ REDIRECT [procedural] → topic "compute governance"        │
 │   relevance 0.65 (eff. threshold: 0.60) — near-miss: 92%   │
-│ ✓ ACKNOWLEDGE [reconciliation] → Sentinel: concession taken │
+│ ✓ ACKNOWLEDGE [reconciliation] → Safetyist: concession taken │
 │   — suppressed: lower priority than PIN this round          │
 │                                                             │
 │ SUPPRESSED: 1 (ACKNOWLEDGE, priority below PIN)             │
@@ -549,7 +549,7 @@ turns) and debater entries (if preceded by an intervention).
 **On a moderator system entry:**
 ```
 MODERATOR CONTEXT
-  Intervention: PIN [elicitation] → Prometheus
+  Intervention: PIN [elicitation] → Accelerationist
   Budget: 3 of 6 used (3 remaining)
   Health score: 0.52 ↓ (declining 2 turns)
   Trajectory modifier: 0.85 (thresholds lowered 15%)
@@ -575,12 +575,12 @@ The existing ConvergenceSignalsPanel turn-by-turn table gains a new column:
 
 | Round | Speaker | ... existing columns ... | Health | Mod |
 |---|---|---|---|---|
-| 3 | Sentinel | ... | 0.71 → | — |
-| 4 | Prometheus | ... | 0.52 ↓ | PIN ✓ |
-| 5 | Sentinel | ... | 0.58 ↑ | — |
-| 6 | Cassandra | ... | 0.63 ↑ | ACK |
-| 7 | Prometheus | ... | 0.68 ↑ | — |
-| 8 | Sentinel | ... | 0.49 ↓ | RDR ✗ |
+| 3 | Safetyist | ... | 0.71 → | — |
+| 4 | Accelerationist | ... | 0.52 ↓ | PIN ✓ |
+| 5 | Safetyist | ... | 0.58 ↑ | — |
+| 6 | Skeptic | ... | 0.63 ↑ | ACK |
+| 7 | Accelerationist | ... | 0.68 ↑ | — |
+| 8 | Safetyist | ... | 0.49 ↓ | RDR ✗ |
 
 The **Health** column shows the debate health score and trend arrow for that
 round. Color-coded: green ≥ 0.6, yellow 0.4-0.6, red < 0.4. This makes it
@@ -612,7 +612,7 @@ INTERVENTION SUMMARY
   Effectiveness: 80% substantive, 60% follow-through
   Health: 0.72 (↑ from min 0.41 at R5) | 1 proactive intervention
   Phase alignment: 4/5 appropriate | Family balance: ✓
-  Targeting: Prometheus ×2, Sentinel ×1, Cassandra ×2 (ratio 2.0)
+  Targeting: Accelerationist ×2, Safetyist ×1, Skeptic ×2 (ratio 2.0)
 ```
 
 ---
@@ -662,9 +662,9 @@ intervention).
 ### Scenario 3: Biased Moderator
 
 **Symptoms in diagnostics:**
-- Balance card shows ratio > 3.0 (e.g., Prometheus gets 4 interventions,
-  Sentinel gets 1, Cassandra gets 0)
-- Detail panels show that triggers are firing legitimately — Prometheus
+- Balance card shows ratio > 3.0 (e.g., Accelerationist gets 4 interventions,
+  Safetyist gets 1, Skeptic gets 0)
+- Detail panels show that triggers are firing legitimately — Accelerationist
   really is evading more — but the imbalance still creates an appearance
   of bias
 - Family breakdown shows the biased debater gets only elicitation (pressure)

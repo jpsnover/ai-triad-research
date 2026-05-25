@@ -5,7 +5,7 @@
 
 ## Problem Statement
 
-The debate system's three agents (Prometheus, Sentinel, Cassandra) each argue from a fixed taxonomy — the taxonomy *is* the identity. This creates a real constraint: the argument space is bounded by the combined content of the three taxonomies. Arguments that cut across perspectives, compromise positions, or gaps in any taxonomy's coverage will never surface through the agents alone.
+The debate system's three agents (Accelerationist, Safetyist, Skeptic) each argue from a fixed taxonomy — the taxonomy *is* the identity. This creates a real constraint: the argument space is bounded by the combined content of the three taxonomies. Arguments that cut across perspectives, compromise positions, or gaps in any taxonomy's coverage will never surface through the agents alone.
 
 Existing mitigations:
 - **Missing Arguments Pass** — post-debate, an unaligned LLM identifies 3-5 strong unmade arguments. But this runs *after* the debate is over.

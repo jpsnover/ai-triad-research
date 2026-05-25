@@ -104,7 +104,7 @@ Invoke-AITDebate
     [-DocPath <string>]
     [-Url <string>]
     [-SituationNodeId <string>]
-    [-Debaters <string[]>]         # Default: @('Prometheus','Sentinel','Cassandra'). Min 2.
+    [-Debaters <string[]>]         # Default: @('Accelerationist','Safetyist','Skeptic'). Min 2.
     [-Protocol <string>]           # Default: 'structured'. Options: 'structured', 'socratic', 'deliberation'
     [-Model <string>]              # Default: $env:AI_MODEL or 'gemini-2.5-flash'
     [-ApiKey <string>]
@@ -130,8 +130,8 @@ Invoke-AITDebate
 - `-SituationNodeId sit-005` — debate grounded in a situation taxonomy node
 
 **Debaters:**
-- `-Debaters Prometheus,Sentinel` — only these two debate (minimum 2)
-- `-Debaters Prometheus,Sentinel,Cassandra` — all three (default)
+- `-Debaters Accelerationist,Safetyist` — only these two debate (minimum 2)
+- `-Debaters Accelerationist,Safetyist,Skeptic` — all three (default)
 - Names are case-insensitive, mapped to POVer IDs
 
 **Flow Control:**
@@ -198,11 +198,11 @@ Invoke-AITDebate
   "topic": { "original": "...", "refined": "...", "final": "..." },
   "protocol_id": "structured",
   "model": "gemini-2.5-flash",
-  "debaters": ["prometheus", "sentinel", "cassandra"],
+  "debaters": ["Accelerationist", "Safetyist", "Skeptic"],
   "created_at": "2026-03-30T...",
   "transcript": [ /* same TranscriptEntry schema as UI */ ],
   "argument_network": { "nodes": [...], "edges": [...] },
-  "commitments": { "prometheus": {...}, "sentinel": {...}, "cassandra": {...} },
+  "commitments": { "Accelerationist": {...}, "Safetyist": {...}, "Skeptic": {...} },
   "synthesis": { /* full SynthesisResult */ },
   "diagnostics": { /* per-entry diagnostics if -DiagnosticsPath */ }
 }
@@ -216,17 +216,17 @@ Invoke-AITDebate
 
 ## Opening Statements
 
-### Prometheus (Accelerationist)
+### Accelerationist (Accelerationist)
 [statement text]
 
-### Sentinel (Safetyist)
+### Safetyist (Safetyist)
 [statement text]
 
 ...
 
 ## Debate Rounds
 
-### Round 1: Sentinel → Prometheus
+### Round 1: Safetyist → Accelerationist
 **Focus:** [moderator's focus point]
 [response text]
 
@@ -235,17 +235,17 @@ Invoke-AITDebate
 ## Synthesis
 
 ### Areas of Agreement
-- [point] (Prometheus, Sentinel)
+- [point] (Accelerationist, Safetyist)
 
 ### Areas of Disagreement
 - [point] [EMPIRICAL] {belief}
-  - Prometheus: [stance]
-  - Sentinel: [stance]
+  - Accelerationist: [stance]
+  - Safetyist: [stance]
   - *Resolution: [prevails] via [criterion]*
 
 ### Argument Map
-- C1 (Prometheus): [claim]
-  ← C2 (Sentinel) rebut via COUNTEREXAMPLE
+- C1 (Accelerationist): [claim]
+  ← C2 (Safetyist) rebut via COUNTEREXAMPLE
 
 ### Cruxes
 - [question] — If yes: [impact]. If no: [impact].
@@ -411,7 +411,7 @@ Invoke-AITDebate -Topic "Should the US impose AI licensing?" -Name "AI Licensing
 $result = Invoke-AITDebate `
     -Topic "The burden of proof rests on those claiming current architectures will scale to AGI" `
     -Name "Burden of Proof" `
-    -Debaters Prometheus,Sentinel,Cassandra `
+    -Debaters Accelerationist,Safetyist,Skeptic `
     -Protocol structured `
     -Model 'gemini-2.5-flash' `
     -Turns 5 `

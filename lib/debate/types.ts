@@ -1,7 +1,25 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-export type SpeakerId = 'prometheus' | 'sentinel' | 'cassandra' | 'user';
+export type SpeakerId = 'accelerationist' | 'safetyist' | 'skeptic' | 'user';
+
+/** Legacy speaker names from pre-rename debates. Used by migration shim. */
+export const LEGACY_SPEAKER_MAP: Record<string, Exclude<SpeakerId, 'user'>> = {
+  prometheus: 'accelerationist',
+  sentinel: 'safetyist',
+  cassandra: 'skeptic',
+};
+
+/** Map legacy speaker IDs to current IDs. Returns the input unchanged if not a legacy name. */
+export function migrateSpeakerId(id: string): string {
+  return LEGACY_SPEAKER_MAP[id] ?? id;
+}
+
+/** Normalize an array of speaker IDs, converting any legacy character names to POV keys.
+ *  e.g. ['prometheus', 'sentinel'] → ['accelerationist', 'safetyist'] */
+export function normalizeActivePovers(povers: string[]): SpeakerId[] {
+  return povers.map(p => migrateSpeakerId(p) as SpeakerId);
+}
 
 /**
  * Progressive debate phases — each phase has different goals and instruction sets.
@@ -1383,7 +1401,7 @@ export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
   personality: string;
   doctrinal_boundaries: string[];
 }> = {
-  prometheus: {
+  accelerationist: {
     label: 'Accelerationist',
     pov: 'accelerationist',
     color: 'var(--color-acc)',
@@ -1395,7 +1413,7 @@ export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
       'REJECT: Framing AI progress as inherently zero-sum between safety and capability',
     ],
   },
-  sentinel: {
+  safetyist: {
     label: 'Safetyist',
     pov: 'safetyist',
     color: 'var(--color-saf)',
@@ -1407,7 +1425,7 @@ export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
       'REJECT: Competitive pressure as justification for deploying unverified systems',
     ],
   },
-  cassandra: {
+  skeptic: {
     label: 'Skeptic',
     pov: 'skeptic',
     color: 'var(--color-skp)',
@@ -1422,7 +1440,7 @@ export const POVER_INFO: Record<Exclude<SpeakerId, 'user'>, {
 };
 
 /** The three AI debater IDs (excludes 'user'). Single source of truth — use instead of literal arrays. */
-export const AI_POVERS = ['prometheus', 'sentinel', 'cassandra'] as const satisfies readonly Exclude<SpeakerId, 'user'>[];
+export const AI_POVERS = ['accelerationist', 'safetyist', 'skeptic'] as const satisfies readonly Exclude<SpeakerId, 'user'>[];
 
 /** The three taxonomy POV keys. Single source of truth — use instead of literal arrays. */
 export const POV_KEYS = ['accelerationist', 'safetyist', 'skeptic'] as const;

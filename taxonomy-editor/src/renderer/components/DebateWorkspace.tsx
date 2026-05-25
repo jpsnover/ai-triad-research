@@ -987,7 +987,7 @@ function FindBar({ query, onQueryChange, current, total, onPrev, onNext, onClose
 function buildExplainPrompt(entry: TranscriptEntry): string {
   const speaker = speakerLabel(entry.speaker);
   const refs = entry.taxonomy_refs || [];
-  let prompt = `Explain this section of a debate between Prometheus (an AI Accelerationist), Sentinel (an AI Safetyist) and Cassandra (an AI Skeptic):\n\n`;
+  let prompt = `Explain this section of a debate between the Accelerationist, the Safetyist, and the Skeptic:\n\n`;
   prompt += `[${speaker} — ${entry.type}]\n${entry.content}\n`;
   if (refs.length > 0) {
     prompt += `\nTaxonomy references cited:\n`;
@@ -2625,9 +2625,9 @@ function OpeningActions() {
 
 /** Main debate phase action bar */
 const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
-  { id: 'prometheus', label: POVER_INFO.prometheus.label, color: POVER_INFO.prometheus.color },
-  { id: 'sentinel', label: POVER_INFO.sentinel.label, color: POVER_INFO.sentinel.color },
-  { id: 'cassandra', label: POVER_INFO.cassandra.label, color: POVER_INFO.cassandra.color },
+  { id: 'accelerationist', label: POVER_INFO.accelerationist.label, color: POVER_INFO.accelerationist.color },
+  { id: 'safetyist', label: POVER_INFO.safetyist.label, color: POVER_INFO.safetyist.color },
+  { id: 'skeptic', label: POVER_INFO.skeptic.label, color: POVER_INFO.skeptic.color },
 ];
 
 function DebaterToggles() {
@@ -2805,7 +2805,7 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
             ref={inputRef}
             className="debate-input"
             type="text"
-            placeholder="Ask a question (@Sentinel to target)..."
+            placeholder="Ask a question (@Safetyist to target)..."
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}

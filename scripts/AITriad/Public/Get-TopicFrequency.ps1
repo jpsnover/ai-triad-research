@@ -23,7 +23,7 @@ function Get-TopicFrequency {
     .PARAMETER ClusterThreshold
         Cosine similarity threshold for agglomerative clustering (0.3-0.9, default 0.55).
     .PARAMETER Model
-        AI model override (default from $env:AI_MODEL or gemini-flash-lite-latest).
+        AI model override (default from $env:AI_MODEL or gemini-3.1-flash-lite).
     .PARAMETER RepoRoot
         Path to the repository root.
     .EXAMPLE
@@ -63,7 +63,7 @@ function Get-TopicFrequency {
     $ErrorActionPreference = 'Stop'
 
     if (-not $Model) {
-        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-flash-lite-latest' }
+        if ($env:AI_MODEL) { $Model = $env:AI_MODEL } else { $Model = 'gemini-3.1-flash-lite' }
     }
 
     # ── Validate environment ─────────────────────────────────────────────────

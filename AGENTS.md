@@ -55,7 +55,7 @@ Code lives here; data lives in `../ai-triad-data`. The file `.aitriad.json` maps
 
 ### Debate Engine (`lib/debate/`, 22 TypeScript files)
 
-Three-agent BDI debate system. Characters: Prometheus (accelerationist), Sentinel (safetyist), Cassandra (skeptic). Entry points: `Show-TriadDialogue` (PowerShell) or `npm run debate` (CLI via tsx). `aiAdapter.ts` abstracts multi-backend AI calls; `prompts.ts` has 27+ prompt templates.
+Three-agent BDI debate system. Characters: Accelerationist (accelerationist), Safetyist (safetyist), Skeptic (skeptic). Entry points: `Show-TriadDialogue` (PowerShell) or `npm run debate` (CLI via tsx). `aiAdapter.ts` abstracts multi-backend AI calls; `prompts.ts` has 27+ prompt templates.
 
 ### Taxonomy Model
 

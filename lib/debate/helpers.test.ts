@@ -394,7 +394,7 @@ describe('parsePoverResponse', () => {
 
   it('handles annotated move objects', () => {
     const json = makePoverJson({
-      move_types: [{ move: 'DISTINGUISH', target: 'prometheus', detail: 'scope narrowing' }],
+      move_types: [{ move: 'DISTINGUISH', target: 'accelerationist', detail: 'scope narrowing' }],
     });
     const result = parsePoverResponse(json);
     expect(result.meta.move_types).toHaveLength(1);
@@ -402,7 +402,7 @@ describe('parsePoverResponse', () => {
     expect(typeof move).toBe('object');
     if (typeof move === 'object') {
       expect(move.move).toBe('DISTINGUISH');
-      expect(move.target).toBe('prometheus');
+      expect(move.target).toBe('accelerationist');
       expect(move.detail).toBe('scope narrowing');
     }
   });
@@ -751,7 +751,7 @@ describe('repairJson adversarial cases (via parseAIJson)', () => {
 {
   "statement": "The accelerationist position on AI governance fundamentally misunderstands the nature of technological risk. When we examine historical precedents — from nuclear energy to genetic engineering — we consistently find that "move fast and break things" approaches lead to catastrophic outcomes.\\n\\nConsider the following evidence:\\n1. The Chernobyl disaster resulted from rushed deployment\\n2. Thalidomide caused birth defects due to inadequate testing\\n\\nAs Sentinel, I must emphasize that safety frameworks are not obstacles to progress — they are prerequisites for sustainable innovation.",
   "taxonomy_refs": [{"node_id": "saf-B-001", "relevance": "direct"}, {"node_id": "saf-D-003", "relevance": "indirect"}],
-  "move_types": [{"move": "EMPIRICAL CHALLENGE", "target": "prometheus", "detail": "historical precedent analysis"}],
+  "move_types": [{"move": "EMPIRICAL CHALLENGE", "target": "accelerationist", "detail": "historical precedent analysis"}],
   "key_assumptions": [{"assumption": "Historical precedents generalize to AI", "if_wrong": "AI may be fundamentally different from prior technologies"}],
   "disagreement_type": "empirical",
   "position_update": "Strengthened conviction that precautionary frameworks are essential"

@@ -155,7 +155,7 @@ The codebase has strong fundamentals — clean type hierarchy, well-layered deba
 | S12 | Security | ~~`open-external` in poviewer lacks URL scheme validation~~ | **DONE** — added `https?://` scheme guard |
 | S13 | Security | ~~Git token in remote URL may leak to Azure logs~~ | **DONE** — redacted tokens from log output |
 | S14 | Security | ~~`.gitignore` doesn't cover `.aitriad-key-*.enc` files~~ | **DONE** — added to secrets section |
-| S15 | Security | ~~Terminal ConstrainedLanguage mode has 500ms race window~~ | **DONE** — sentinel-based lockdown; user input gated until lockdown confirmed |
+| S15 | Security | ~~Terminal ConstrainedLanguage mode has 500ms race window~~ | **DONE** — Safetyist-based lockdown; user input gated until lockdown confirmed |
 | A8 | Architecture | ~~Unused `withRecovery()` utility in `errors.ts` (0 call sites)~~ | **DONE** — deleted 60-line dead function; updated docs |
 | A9 | Architecture | ~~Dead code: `loadNodeEmbeddings()` always returns `{}`~~ | **DONE** — deleted dead function and unused `_nodeEmbeddingsCache` |
 | A10 | Architecture | ~~`stageGenerate` closure duplicated within useDebateStore~~ | **DONE** — extracted `makeStageGenerate()` factory; both call sites use it |

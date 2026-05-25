@@ -111,7 +111,7 @@ The core data structure — a graph of ~565 nodes representing arguments about A
 
 ### 3. Debate Engine
 
-A three-agent BDI debate system in TypeScript (`lib/debate/`, 22+ files). Characters (Prometheus, Sentinel, Cassandra) argue grounded in the taxonomy, with a moderator agent managing interventions, convergence detection, and phase transitions. Produces structured transcripts with QBAF (Quantitative Bipolar Argumentation Framework) networks.
+A three-agent BDI debate system in TypeScript (`lib/debate/`, 22+ files). Characters (Accelerationist, Safetyist, Skeptic) argue grounded in the taxonomy, with a moderator agent managing interventions, convergence detection, and phase transitions. Produces structured transcripts with QBAF (Quantitative Bipolar Argumentation Framework) networks.
 
 **Debate phases:** confrontation → argumentation → concluding (with adaptive phase transitions based on convergence signals).
 

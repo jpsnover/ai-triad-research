@@ -15,7 +15,7 @@ function makeConvergenceSignals(overrides: Partial<ConvergenceSignals> = {}): Co
   return {
     entry_id: 'entry-1',
     round: 3,
-    speaker: 'prometheus',
+    speaker: 'accelerationist',
     move_polarity: { confrontational: 1, collaborative: 1, ratio: 0.5 },
     dialectical_engagement: { targeted: 2, standalone: 1, ratio: 0.67 },
     argument_redundancy: { avg_self_overlap: 0.2, max_self_overlap: 0.3 },

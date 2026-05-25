@@ -82,7 +82,7 @@ export interface SpeakerMapping {
 
 /**
  * Build a randomized speaker mapping. Assignment is shuffled so that
- * 'prometheus' is not always 'Speaker A'.
+ * 'accelerationist' is not always 'Speaker A'.
  */
 export function buildSpeakerMapping(activePovers: SpeakerId[]): SpeakerMapping {
   const labels = ['Speaker A', 'Speaker B', 'Speaker C'];
@@ -106,9 +106,9 @@ export function buildSpeakerMapping(activePovers: SpeakerId[]): SpeakerMapping {
 
 /** POV labels and persona names to strip from transcript text. */
 const PERSONA_TERMS: Record<string, string[]> = {
-  prometheus: ['Prometheus', 'accelerationist', 'Accelerationist'],
-  sentinel: ['Sentinel', 'safetyist', 'Safetyist'],
-  cassandra: ['Cassandra', 'skeptic', 'Skeptic'],
+  accelerationist: ['Prometheus', 'accelerationist', 'Accelerationist'],
+  safetyist: ['Sentinel', 'safetyist', 'Safetyist'],
+  skeptic: ['Cassandra', 'skeptic', 'Skeptic'],
 };
 
 /**

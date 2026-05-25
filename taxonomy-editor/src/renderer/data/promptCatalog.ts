@@ -701,7 +701,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
   {
     id: 'ps-triad-dialogue-system',
     title: 'Triad Dialogue: System',
-    description: 'System prompt for the three debate agents (Prometheus, Sentinel, Cassandra) in structured triad dialogues.',
+    description: 'System prompt for the three debate agents (Accelerationist, Safetyist, Skeptic) in structured triad dialogues.',
     source: 'AITriad/Prompts/triad-dialogue-system.prompt',
     template: '(Loading from disk...)',
     group: 'powershell',
