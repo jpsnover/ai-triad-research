@@ -191,6 +191,42 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## [PowerShell] Undeclared Variables from Cross-Section Code Paths
+
+**Pattern:** New code paths reference variables declared in a different section of the script, causing "variable not set" errors under strict mode.
+
+**Instances:**
+- 2026-05-25 — PowerShell agent: `$Labels` and `$Descriptions` referenced in embedding-first code but never declared — they were set up in a different code section. Fixed by adding the hashtable declarations to the taxonomy loading step (p/20#14).
+
+**Root Cause:** When adding new code paths or rearranging logic, variables that were available in the original flow may not exist in the new flow. Strict mode catches this at runtime instead of silently using `$null`.
+
+**Prevention:**
+1. When adding a new code path, trace all variable references back to their declarations — verify they're reachable in the new flow.
+2. Initialize all required variables at the top of the function scope, not inline in conditional branches.
+3. Strict mode is doing its job here — the fix is always to declare the variable, not to relax strict mode.
+
+**Applies To:** All agents writing PowerShell under strict mode.
+
+---
+
+## [PowerShell] @(foreach) with Complex Interpolation Is Parser-Fragile
+
+**Pattern:** `@(foreach(...))` combined with complex string interpolation (backtick-n, `$()` sub-expressions) causes PowerShell parser errors.
+
+**Instances:**
+- 2026-05-25 — PowerShell agent: `@(foreach(...))` with backtick-n and `$()` interpolation in string literals caused parser failure. Fixed by replacing with explicit `List` + `foreach` loop (p/20#14).
+
+**Root Cause:** PowerShell's parser struggles with `@(foreach(...))` when the loop body contains complex string expressions. The combination of array sub-expression `@()`, `foreach` keyword, and interpolation creates ambiguity for the parser.
+
+**Prevention:**
+1. Avoid `@(foreach(...))` — use explicit `[System.Collections.Generic.List[T]]` with a standalone `foreach` loop instead.
+2. Keep string interpolation simple inside loops — build complex strings with `-f` format operator or string concatenation.
+3. When the parser throws on syntactically valid-looking code, simplify the expression structure.
+
+**Applies To:** All agents writing PowerShell scripts.
+
+---
+
 ## [Design] Fast Paths Must Handle Edge-Case Inputs
 
 **Pattern:** Optimization fast paths bypass logic that handles special-case inputs, causing incorrect results when those inputs hit the fast path instead of the general path.

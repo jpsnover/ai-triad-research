@@ -97,6 +97,12 @@ function Invoke-EdgeDiscovery {
         Invoke-EdgeDiscovery -MaxConcurrent 6
     .EXAMPLE
         Invoke-EdgeDiscovery -TopKCandidates 25 -MinSimilarity 0.25 -MinPerOtherPov 6
+    .EXAMPLE
+        Invoke-EdgeDiscovery -EmbeddingFirst -DryRun
+        # Preview embedding-first candidate pairs without LLM calls.
+    .EXAMPLE
+        Invoke-EdgeDiscovery -EmbeddingFirst -EmbeddingFirstThreshold 0.35
+        # Embedding-first with tighter threshold (fewer candidates, less LLM cost).
     #>
     [CmdletBinding(SupportsShouldProcess)]
     param(
@@ -140,6 +146,17 @@ function Invoke-EdgeDiscovery {
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$ScreenModel = '',
+
+        [Parameter(HelpMessage = 'Embedding-first mode: compute similarity matrix, LLM classifies type only')]
+        [switch]$EmbeddingFirst,
+
+        [Parameter(HelpMessage = 'Similarity threshold for embedding-first candidate pairs')]
+        [ValidateRange(0.10, 0.90)]
+        [double]$EmbeddingFirstThreshold = 0.30,
+
+        [Parameter(HelpMessage = 'Max pairs per LLM classification batch in embedding-first mode')]
+        [ValidateRange(5, 50)]
+        [int]$ClassifyBatchSize = 20,
 
         [switch]$SkipEmbeddingFilter,
 
@@ -195,6 +212,8 @@ function Invoke-EdgeDiscovery {
     $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
     $AllNodes = [System.Collections.Generic.List[PSObject]]::new()
     $NodePovMap = @{}   # node ID → pov key
+    $Labels = @{}       # node ID → label
+    $Descriptions = @{} # node ID → truncated description
 
     foreach ($PovKey in $PovFiles) {
         $FilePath = Join-Path $TaxDir "$PovKey.json"
@@ -204,6 +223,12 @@ function Invoke-EdgeDiscovery {
         foreach ($Node in $FileData.nodes) {
             $AllNodes.Add($Node)
             $NodePovMap[$Node.id] = $PovKey
+            $Labels[$Node.id] = $Node.label
+            if ($Node.PSObject.Properties['description'] -and $Node.description) {
+                $Desc = $Node.description
+                if ($Desc.Length -gt 120) { $Desc = $Desc.Substring(0, 120) + '...' }
+                $Descriptions[$Node.id] = $Desc
+            }
         }
     }
 
@@ -381,7 +406,266 @@ function Invoke-EdgeDiscovery {
         required   = @('edges')
     }
 
-    # ── Step 7: Build prompts (per-node or batch mode) ──
+    # ── Step 7: Build prompts (embedding-first, batch, or per-node mode) ──
+
+    if ($EmbeddingFirst) {
+        # ═══════════════════════════════════════════════════════════════════
+        # EMBEDDING-FIRST MODE: similarity matrix → LLM classifies type only
+        # ═══════════════════════════════════════════════════════════════════
+        Write-Step "Embedding-first discovery (threshold=$EmbeddingFirstThreshold)"
+
+        # Load or build similarity cache
+        $CachePath = Join-Path $TaxDir 'similarity-cache.json'
+        $CandidatePairs = [System.Collections.Generic.List[PSObject]]::new()
+
+        if (Test-Path $CachePath) {
+            $SimCache = Get-Content $CachePath -Raw | ConvertFrom-Json -AsHashtable
+            Write-OK "Loaded similarity cache ($($SimCache['node_count']) nodes, top-$($SimCache['top_k']))"
+
+            # Extract candidate pairs above threshold
+            $ProcessIds = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($N in $NodesToProcess) { $null = $ProcessIds.Add($N.id) }
+
+            foreach ($NodeKey in $SimCache['entries'].Keys) {
+                if (-not $ProcessIds.Contains($NodeKey) -and -not $Force) { continue }
+                foreach ($Entry in $SimCache['entries'][$NodeKey]) {
+                    $Sim = [double]$Entry['sim']
+                    $TargetId = $Entry['id']
+                    if ($Sim -lt $EmbeddingFirstThreshold) { continue }
+                    if (-not $ValidNodeIds.Contains($TargetId)) { continue }
+
+                    # Dedup: sorted pair key
+                    $PairKey = if ($NodeKey -lt $TargetId) { "$NodeKey|$TargetId" } else { "$TargetId|$NodeKey" }
+                    if ($EvaluatedPairs.Contains($PairKey)) { continue }
+
+                    # Skip if edge already exists (any type)
+                    $AlreadyEdged = $false
+                    foreach ($ET in $ValidEdgeTypes) {
+                        if ($ExistingEdgeKeys.Contains("$NodeKey|$ET|$TargetId") -or $ExistingEdgeKeys.Contains("$TargetId|$ET|$NodeKey")) {
+                            $AlreadyEdged = $true; break
+                        }
+                    }
+                    if ($AlreadyEdged) { continue }
+
+                    $CandidatePairs.Add([PSCustomObject]@{
+                        Source     = $NodeKey
+                        Target     = $TargetId
+                        Similarity = $Sim
+                        PairKey    = $PairKey
+                    })
+                }
+            }
+        } elseif ($Embeddings.Count -gt 0) {
+            # No cache — compute on the fly from embeddings
+            Write-Info 'No similarity cache — computing from embeddings...'
+            $ProcessIds = [System.Collections.Generic.HashSet[string]]::new()
+            foreach ($N in $NodesToProcess) { $null = $ProcessIds.Add($N.id) }
+
+            foreach ($SrcId in $ProcessIds) {
+                if (-not $Embeddings.ContainsKey($SrcId)) { continue }
+                $VecA = $Embeddings[$SrcId]
+                foreach ($TgtId in $Embeddings.Keys) {
+                    if ($SrcId -eq $TgtId) { continue }
+                    if ($TgtId -like 'pol-*') { continue }
+
+                    $PairKey = if ($SrcId -lt $TgtId) { "$SrcId|$TgtId" } else { "$TgtId|$SrcId" }
+                    if ($EvaluatedPairs.Contains($PairKey)) { continue }
+
+                    $Dot = 0.0
+                    $VecB = $Embeddings[$TgtId]
+                    for ($k = 0; $k -lt $VecA.Count; $k++) { $Dot += $VecA[$k] * $VecB[$k] }
+                    if ($Dot -lt $EmbeddingFirstThreshold) { continue }
+
+                    $CandidatePairs.Add([PSCustomObject]@{
+                        Source     = $SrcId
+                        Target     = $TgtId
+                        Similarity = [Math]::Round($Dot, 4)
+                        PairKey    = $PairKey
+                    })
+                }
+            }
+        } else {
+            Write-Fail 'Embedding-first mode requires embeddings.json or similarity-cache.json'
+            throw 'No embedding data available for embedding-first mode'
+        }
+
+        # Dedup pairs
+        $SeenPairs = [System.Collections.Generic.HashSet[string]]::new()
+        $UniquePairs = [System.Collections.Generic.List[PSObject]]::new()
+        foreach ($P in $CandidatePairs) {
+            if ($SeenPairs.Add($P.PairKey)) { $UniquePairs.Add($P) }
+        }
+        $CandidatePairs = $UniquePairs
+
+        Write-OK "$($CandidatePairs.Count) candidate pairs above threshold $EmbeddingFirstThreshold"
+
+        if ($CandidatePairs.Count -eq 0) {
+            Write-OK 'No new candidate pairs to classify'
+            return
+        }
+
+        if ($DryRun) {
+            Write-Host "`n  DRY RUN — top 20 candidate pairs:" -ForegroundColor Yellow
+            $CandidatePairs | Sort-Object Similarity -Descending | Select-Object -First 20 | ForEach-Object {
+                $SrcLabel = if ($Labels.ContainsKey($_.Source)) { $Labels[$_.Source] } else { $_.Source }
+                $TgtLabel = if ($Labels.ContainsKey($_.Target)) { $Labels[$_.Target] } else { $_.Target }
+                Write-Host "    sim=$($_.Similarity.ToString('F3')) $($_.Source) → $($_.Target)" -ForegroundColor Gray
+                Write-Host "      $SrcLabel ↔ $TgtLabel" -ForegroundColor DarkGray
+            }
+            Write-Host "`n  Would send $([Math]::Ceiling($CandidatePairs.Count / $ClassifyBatchSize)) classification batches" -ForegroundColor Yellow
+            return
+        }
+
+        # Group into classification batches
+        $SortedPairs = @($CandidatePairs | Sort-Object Similarity -Descending)
+        $ClassifyBatches = [System.Collections.Generic.List[PSObject[]]]::new()
+        for ($bi = 0; $bi -lt $SortedPairs.Count; $bi += $ClassifyBatchSize) {
+            $End = [Math]::Min($bi + $ClassifyBatchSize - 1, $SortedPairs.Count - 1)
+            $ClassifyBatches.Add(@($SortedPairs[$bi..$End]))
+        }
+
+        Write-Info "$($ClassifyBatches.Count) classification batches ($ClassifyBatchSize pairs/batch)"
+
+        $NewEdgeCount = 0
+        $BatchNum = 0
+
+        foreach ($Batch in $ClassifyBatches) {
+            $BatchNum++
+            Write-Host "  Batch $BatchNum/$($ClassifyBatches.Count) ($($Batch.Count) pairs)..." -ForegroundColor Gray -NoNewline
+
+            # Build pair descriptions for LLM
+            $PairLinesList = [System.Collections.Generic.List[string]]::new()
+            foreach ($P in $Batch) {
+                $SrcLabel = if ($Labels.ContainsKey($P.Source)) { $Labels[$P.Source] } else { $P.Source }
+                $TgtLabel = if ($Labels.ContainsKey($P.Target)) { $Labels[$P.Target] } else { $P.Target }
+                $SrcDesc = if ($Descriptions.ContainsKey($P.Source)) { $Descriptions[$P.Source] } else { '' }
+                $TgtDesc = if ($Descriptions.ContainsKey($P.Target)) { $Descriptions[$P.Target] } else { '' }
+                $PairLinesList.Add("- [$($P.Source)] $SrcLabel`: $SrcDesc`n  [$($P.Target)] $TgtLabel`: $TgtDesc")
+            }
+            $PairLines = $PairLinesList -join "`n`n"
+
+            $EdgeTypeList = ($EdgesData.edge_types | ForEach-Object {
+                "$($_.type)$(if ($_.bidirectional) { ' (bidirectional)' }): $($_.definition)"
+            }) -join "`n"
+
+            $ClassifyPrompt = @"
+Classify the relationship between each pair of taxonomy nodes below. These pairs have high semantic similarity and likely have a meaningful relationship.
+
+EDGE TYPES:
+$EdgeTypeList
+
+PAIRS TO CLASSIFY:
+$PairLines
+
+For each pair, determine:
+1. The edge type (from the list above, or "NONE" if no meaningful relationship)
+2. Direction: which node is source and which is target
+3. Confidence (0.0-1.0)
+4. Weight (0.0-1.0): strength of the relationship
+5. Brief rationale
+
+Return JSON: {"edges": [{"source": "id", "target": "id", "type": "TYPE", "confidence": 0.8, "weight": 0.7, "rationale": "..."}]}
+Omit pairs with no relationship. No markdown fences.
+"@
+
+            if (-not $PSCmdlet.ShouldProcess("Batch $BatchNum ($($Batch.Count) pairs)", 'Classify edges')) {
+                continue
+            }
+
+            try {
+                $Response = Invoke-AIApi -Prompt $ClassifyPrompt -Model $Model -ApiKey $ResolvedKey `
+                    -Temperature $Temperature -MaxTokens 8192 -TimeoutSec 120
+
+                if ($null -eq $Response -or -not $Response.Text) {
+                    Write-Host " no response" -ForegroundColor Red
+                    continue
+                }
+
+                $Text = $Response.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
+                $Parsed = $null
+                try { $Parsed = $Text | ConvertFrom-Json } catch {
+                    $Repaired = Repair-TruncatedJson -Text $Text
+                    if ($Repaired) { $Parsed = $Repaired | ConvertFrom-Json }
+                }
+
+                if ($Parsed -and $Parsed.edges) {
+                    $BatchNewEdges = 0
+                    foreach ($E in @($Parsed.edges)) {
+                        if (-not $E.source -or -not $E.target -or -not $E.type) { continue }
+                        if ($E.type -eq 'NONE') { continue }
+                        if (-not $ValidNodeIds.Contains($E.source) -or -not $ValidNodeIds.Contains($E.target)) { continue }
+
+                        $EdgeKey = "$($E.source)|$($E.type)|$($E.target)"
+                        if ($ExistingEdgeKeys.Contains($EdgeKey)) { continue }
+
+                        $NewEdge = [ordered]@{
+                            source        = $E.source
+                            target        = $E.target
+                            type          = $E.type.ToUpper()
+                            bidirectional = if ($E.PSObject.Properties['bidirectional']) { $E.bidirectional } else { $false }
+                            confidence    = if ($E.PSObject.Properties['confidence']) { [Math]::Round([double]$E.confidence, 2) } else { 0.5 }
+                            weight        = if ($E.PSObject.Properties['weight']) { [Math]::Round([double]$E.weight, 2) } else { $null }
+                            rationale     = if ($E.PSObject.Properties['rationale']) { $E.rationale } else { '' }
+                            status        = 'proposed'
+                            discovered_by = 'embedding-first'
+                            discovered_at = (Get-Date).ToString('yyyy-MM-dd')
+                        }
+
+                        $EdgesList.Add([PSCustomObject]$NewEdge)
+                        $null = $ExistingEdgeKeys.Add($EdgeKey)
+                        $BatchNewEdges++
+                        $NewEdgeCount++
+                    }
+                    Write-Host " $BatchNewEdges edges" -ForegroundColor Green
+                } else {
+                    Write-Host " parse error" -ForegroundColor Red
+                }
+            } catch {
+                Write-Host " failed: $($_.Exception.Message)" -ForegroundColor Red
+            }
+
+            # Mark pairs as evaluated
+            foreach ($P in $Batch) {
+                $null = $EvaluatedPairs.Add($P.PairKey)
+            }
+
+            # Checkpoint
+            if ($CheckpointEvery -gt 0 -and $BatchNum % $CheckpointEvery -eq 0) {
+                $EdgesData.edges = @($EdgesList)
+                $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
+                $EdgesData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $EdgesPath
+                Write-Info "  Checkpoint at batch $BatchNum"
+            }
+
+            if ($BatchNum -lt $ClassifyBatches.Count) { Start-Sleep -Milliseconds 500 }
+        }
+
+        # Final save
+        $EdgesData.edges = @($EdgesList)
+        $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
+
+        # Add discovery log entries for evaluated pairs
+        $LogEntry = [ordered]@{
+            node_id              = 'embedding-first-batch'
+            timestamp            = (Get-Date).ToString('o')
+            model                = $Model
+            mode                 = 'embedding-first'
+            threshold            = $EmbeddingFirstThreshold
+            candidate_pairs      = $CandidatePairs.Count
+            new_edges            = $NewEdgeCount
+            batches              = $ClassifyBatches.Count
+        }
+        $EdgesData.discovery_log = @($EdgesData.discovery_log) + @($LogEntry)
+
+        $EdgesData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $EdgesPath
+
+        Write-Host "`n=== EMBEDDING-FIRST COMPLETE ===" -ForegroundColor Cyan
+        Write-Host "  Candidate pairs: $($CandidatePairs.Count)"
+        Write-Host "  Classification batches: $($ClassifyBatches.Count)"
+        Write-Host "  New edges discovered: $NewEdgeCount" -ForegroundColor Green
+        Write-Host "  Total edges: $($EdgesList.Count)"
+        return
+    }
 
     if ($BatchSize -gt 0 -and $Embeddings.Count -gt 0) {
         # ═══════════════════════════════════════════════════════════════════

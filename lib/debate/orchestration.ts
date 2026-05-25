@@ -582,6 +582,14 @@ export async function runModeratorSelection(
   );
   const lastSpeaker = lastSpeakerEntry?.speaker as Exclude<SpeakerId, 'user'> | undefined;
 
+  // Participation floor: force-select a speaker with 0 turns after round 3
+  if (round >= 3 && !activeIntervention) {
+    const zeroTurnSpeakers = activePovers.filter(p => (turnCounts[p] ?? 0) === 0 && p !== lastSpeaker);
+    if (zeroTurnSpeakers.length > 0) {
+      responder = zeroTurnSpeakers[0] as Exclude<SpeakerId, 'user'>;
+    }
+  }
+
   if (!responder || !activePovers.includes(responder) || (responder === lastSpeaker && !activeIntervention)) {
     const alternatives = activePovers.filter(p => p !== lastSpeaker);
     if (alternatives.length > 0) {
