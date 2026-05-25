@@ -260,4 +260,116 @@ This approach makes three contributions: (1) it establishes the first formal, me
 
 ---
 
-*Updated 2026-05-22 by Computational Linguist · AI Triad Research*
+## 9. Multi-Signal Belief Confidence for Structured Argumentation Taxonomies
+
+**Venue fit:** Knowledge Representation (KR), Computational Argumentation (COMMA), Multi-Agent Systems (AAMAS)
+
+### Problem Statement
+
+Structured argumentation taxonomies assign Belief nodes without differentiating their evidential standing. In a BDI taxonomy of AI policy discourse, all 335 Belief nodes carry equal weight in QBAF propagation, taxonomy context injection, and debate grounding. A Belief supported by three independent source documents and six taxonomy support edges is treated identically to an unsourced assertion.
+
+### Prior Approach and Its Limitations
+
+The prior approach classified Beliefs using a single signal: `epistemic_type` cross-referenced with `falsifiability`. This produces at most 4-5 unique confidence values. Empirical validation against 335 Belief nodes showed 100% of assignments landing in just two of five tiers -- Well-supported (62%) and Plausible (38%) -- with the Established, Speculative, and Contested tiers entirely empty.
+
+### Our Approach
+
+We introduce a five-signal deterministic confidence formula: `confidence = clamp(base + evidence_boost + debate_boost + edge_boost, 0.10, 0.95)`. The `base` maps epistemic_type/falsifiability to a starting value (0.40-0.80). The `evidence_boost` adds up to +0.15 based on unique source document count. The `debate_boost` adds up to +0.10 based on debate reference count. The `edge_boost` contributes -0.05 to +0.05 based on the net balance of taxonomy SUPPORTS and CONTRADICTS edges. All signals are drawn from existing metadata -- no LLM calls, no manual annotation.
+
+Validated against 335 Belief nodes, the formula produces 42 unique confidence values distributed across four active tiers: Established (22%), Well-supported (41%), Plausible (34%), and Speculative (3%). New nodes receive base-only confidence and accumulate boosts automatically as they participate in the system.
+
+### Significance
+
+This approach makes three contributions: (1) it is the first empirically validated confidence scoring mechanism for BDI taxonomy nodes that produces meaningful tier differentiation from existing metadata alone; (2) the formula is fully deterministic and auditable -- any confidence value can be traced to its five constituent signals; and (3) the confidence scores integrate directly into QBAF base strengths, context injection ordering, and judge quality assessment, enabling the argumentation system to distinguish well-grounded claims from speculative assertions at every downstream decision point.
+
+---
+
+## 10. Doctrinal Anchoring -- Connecting Agent Identity to Belief Priority
+
+**Venue fit:** Multi-Agent Systems (AAMAS), Computational Argumentation (COMMA)
+
+### Problem Statement
+
+In multi-agent debate systems where agents represent distinct perspectives, each agent carries doctrinal boundaries -- non-negotiable positions that define its epistemic identity. These boundaries are injected as prompt-level natural-language instructions but are entirely disconnected from the data-level scoring that determines argument strength. The QBAF assigns base strengths uniformly, meaning a Belief that instantiates a doctrinal boundary receives no scoring advantage over a peripheral claim.
+
+### Prior Approach and Its Limitations
+
+Prior work treats role commitments as static prompt constraints without formal connection to the argumentation graph. In our system, each debater carries four doctrinal boundary strings that successfully constrain concession behavior at the prompt level, but the QBAF evaluation is blind to them: a doctrinally anchored Belief with weak evidential grounding (confidence 0.20) propagates through DF-QuAD at that low base strength, despite being the claim the agent will fight hardest to defend.
+
+### Our Approach
+
+We bridge prompt-level identity constraints with data-level scoring through embedding-based doctrinal anchoring. At debate setup, each POV's four boundary strings are embedded (all-MiniLM-L6-v2, 384-dim), producing 12 total vectors cached on the session. For each Belief node, cosine similarity against its POV's boundary embeddings determines anchoring status. Anchored Beliefs receive: (1) a configurable confidence floor (0.60) regardless of evidential grounding; (2) injection priority in taxonomy context; (3) high-value attack scoring in the lookahead gate; (4) doctrinal violation warnings if conceded rather than standard concession treatment. The diagnostics display both effective and evidential confidence, preventing conflation of well-supported Beliefs with doctrinally protected ones.
+
+### Significance
+
+This approach makes three contributions: (1) it formally connects agent identity constraints expressed in natural language with quantitative argumentation scoring, closing the gap between what an agent is instructed to defend and what the framework evaluates as defensible; (2) the embedding-based matching requires zero runtime parameters -- boundary embeddings computed once per session at negligible cost; and (3) the integration with confidence floors, injection priority, and sycophancy detection demonstrates that agent identity is not merely a prompt engineering concern but a formal property that should be represented in the argumentation graph.
+
+---
+
+## 11. Per-Claim Taxonomy Attribution via Post-Extraction Embedding
+
+**Venue fit:** Argument Mining (ACL, EMNLP), NLP Applications
+
+### Problem Statement
+
+In debate systems grounded in structured taxonomies, argument network claims are linked to the taxonomy via `taxonomy_refs`. However, attribution operates at the statement level: all claims extracted from a single debate turn inherit the same set of references, regardless of which specific node each claim instantiates. This makes it impossible to attribute a QBAF outcome to a specific taxonomy Belief.
+
+### Prior Approach and Its Limitations
+
+Statement-level attribution is the norm in argument mining. Claim extraction pipelines decompose text into argumentative units but do not ground those units against an external knowledge structure at per-claim granularity. The absence of per-claim attribution blocked confidence evolution (updating a Belief based on its claims' QBAF outcomes), gap analysis, and cross-debate deduplication.
+
+### Our Approach
+
+After claims are extracted and embedded (384-dim, already computed during AN construction), each claim's embedding is compared against all same-POV Belief nodes -- approximately 300 dot products per claim. The result is a `ClaimTaxonomyAttribution` record: `primary_ref` (highest-similarity node), `attribution_confidence` (cosine similarity score), and optional `secondary_refs` (nodes above 0.40). Claims below 0.35 are classified as unattributed with a reason: `novel_argument` or `no_embedding`. A debate-level `unattributed_claim_ratio` metric flags systemic problems when over 50% of claims are unattributed.
+
+### Significance
+
+This approach makes three contributions: (1) it establishes the first per-claim taxonomy attribution mechanism for structured debate systems, enabling causal tracing from QBAF outcomes through individual claims to specific taxonomy nodes; (2) the full-POV comparison discovers attributions that upstream context injection missed, surfacing implicit connections; and (3) the unattributed-claim classification provides a principled mechanism for identifying genuinely novel arguments that should trigger taxonomy expansion.
+
+---
+
+## 12. Cross-Debate Confidence Deduplication for Multi-Model Workflows
+
+**Venue fit:** AI Safety (AAAI, FAccT), Calibration, Multi-Agent Systems
+
+### Problem Statement
+
+Research workflows increasingly run the same debate topic across multiple LLM backends. When debate outcomes update taxonomy node confidence, the same Belief can be attacked by structurally identical arguments from each model. Without cross-debate awareness, confidence reductions compound for what is essentially one piece of evidence.
+
+### Prior Approach and Its Limitations
+
+Existing argumentation systems treat each debate as isolated. Cross-debate aggregation uses simple accumulation. No published system addresses the deduplication problem arising from multi-model debate workflows, because this paradigm is novel.
+
+### Our Approach
+
+A three-layer deduplication mechanism keyed on `(Belief node ID, topic embedding cluster, attack vector embedding cluster)`: (1) topic-based dedup (cosine > 0.80 on topic embeddings) takes the max of two updates rather than summing; (2) attack-vector dedup (cosine > 0.85 on attack claim embeddings) replaces rather than compounds identical arguments; (3) cross-model robustness scoring records confirmation across models as a `robustness` field rather than additional reductions. State is maintained in a lightweight index with embedding model versioning and idempotent recomputation.
+
+### Significance
+
+This approach makes three contributions: (1) it is the first deduplication mechanism for cross-model argumentation workflows; (2) the robustness scoring reframes redundant model agreement as a positive epistemic signal rather than compounding error; and (3) the topic-embedding and attack-vector thresholds establish an empirically calibratable boundary between "same evidence" and "different evidence" in argumentation systems.
+
+---
+
+## 13. Intellectual Lineage as Indirect Relevance Engineering
+
+**Venue fit:** Knowledge Organization (KO, JASIS&T), NLP Applications (EMNLP, NAACL)
+
+### Problem Statement
+
+Taxonomy nodes carry 1,501 intellectual lineage items referencing research traditions and schools of thought. Direct injection of lineage metadata into debate agent prompts produces negligible uptake -- a controlled analysis across 10 debates showed a reference rate of 0.6%.
+
+### Prior Approach and Its Limitations
+
+The initial approach embedded lineage as a weighted field in multi-field node embeddings (description 0.55, assumes 0.35, lineage 0.10). Ablation testing demonstrated that including lineage *degraded* cluster separation by 9.4% with no retrieval benefit. The 1,501 items map to too few distinct categories relative to corpus size. Direct injection -- whether through embeddings or raw text -- treats lineage as content to be consumed when its actual value is structural.
+
+### Our Approach
+
+We reorganize lineage into a three-tier hierarchy: 11 Level 1 families, 55 Level 2 clusters (embedding-based agglomerative clustering, all-MiniLM-L6-v2), and 1,501 Level 3 items. Rather than injecting lineage text, we use L2 distribution as an indirect relevance signal: (1) during topic quality assessment, dominant L2 clusters (top 3, each at 15%+) shape topic framing; (2) nodes whose lineage maps to the debate's dominant clusters receive a +0.08 relevance boost, applied only to near-miss nodes (within 0.06 of the admission threshold). The boost functions as a tiebreaker, not a wholesale override.
+
+### Significance
+
+This approach makes three contributions: (1) it demonstrates that indirect node promotion via relevance boosting outperforms explicit context injection for structured metadata -- a finding generalizable beyond lineage; (2) the three-tier clustering transforms a flat high-cardinality metadata field into a navigable hierarchy useful at different granularities; and (3) the near-miss restriction provides a principled mechanism for metadata-aware tiebreaking that avoids boosting semantically irrelevant nodes.
+
+---
+
+*Updated 2026-05-25 by Computational Linguist · AI Triad Research*

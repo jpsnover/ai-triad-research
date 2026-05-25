@@ -172,6 +172,13 @@ This is a **one-step lookahead** — one extra QBAF propagation per turn, no ext
 
 > **Implementation Status (2026-05):** Partially implemented. The evaluation pipeline is complete in `lookaheadGate.ts`: `evaluateLookahead()`, per-claim marginal analysis (`evaluateLookaheadPerClaim()`), and regeneration hint generation (`buildRegenHint()`). The gate is wired into `debateEngine.ts` and runs after every turn, but regeneration is NOT yet triggered -- the gate currently operates in observation/logging mode only. Wiring the regeneration pathway is the remaining work (deferred pending validation that gate failures correlate with lower judge quality scores).
 
+> **Concession Exemption (2026-05, t/58):** The concession exemption was implemented to prevent the lookahead gate from penalizing concession moves. Concession claims (identified by `supports` edges from the speaker's new claim to an opponent's existing node) are:
+> - Excluded from the utility delta computation (neutral for gate decision)
+> - Classified as `PRESERVE` in per-claim analysis (not `STRONG` or `WEAK`)
+> - Included in retry hints as "CLAIMS TO PRESERVE" so retries don't drop concessions
+>
+> This addresses the perverse incentive where the utility function would reject CONCEDE-AND-PIVOT moves because they lower `position_strength`.
+
 ### 3.4 Anti-Exploit Defenses
 
 **Effort:** Medium | **Value:** Medium | **Architecture change:** Extends extraction pipeline and signal scoring
@@ -270,6 +277,23 @@ function rescoreSituations(
 
 > **Implementation Status (2026-05):** Fully implemented. `reScoreSituationsForCruxes()` in `taxonomyRelevance.ts` (line 302) implements all three proposed adjustments: crux alignment via cosine similarity, diversity bonus (+0.15), and stale penalty (-0.20). Called at phase transitions in `debateEngine.ts` (line 2054). Score adjustments flow into context injection via `_situationScoreAdjustments`.
 
+### 3.6 Doctrinal Boundary Integration
+
+**Effort:** Low | **Value:** High | **Architecture change:** Connects prompt-level identity to data-level scoring
+
+**Problem:** Doctrinal boundaries (`POVER_INFO.doctrinal_boundaries`) define 4 must-not-concede positions per debater, but these constraints existed only in prompt text. The scoring system had no awareness of which Beliefs were doctrinally anchored, creating a gap between what the agent is told to defend and what the system scores as defensible.
+
+**Solution:** Doctrinal boundaries are embedded (all-MiniLM-L6-v2, cached on session) and cosine-matched against Belief nodes to create "doctrinally anchored" Beliefs that:
+
+- Get a confidence floor (0.60, configurable) regardless of evidential grounding
+- Get injection priority in taxonomy context
+- Have attacks counted as high-value in the lookahead gate
+- Trigger doctrinal violation warnings if conceded (distinct from legitimate concession)
+
+This closes the gap between what the agent is told to defend (prompt-level instruction) and what the system scores as defensible (data-level confidence). It also connects to the concession exemption (Section 3.3): while ordinary concessions are exempted from the utility delta to protect intellectual honesty, concessions of doctrinally anchored Beliefs trigger a `doctrinal_violation` calibration event -- the debater has crossed a line its identity requires it to hold.
+
+> **Implementation Status (2026-05):** Implemented in `doctrinalAnchoring.ts`. Boundary embeddings computed once per debate initialization. Cosine matching uses a configurable threshold with sanity checks (warning if <3 or >30% of Beliefs are anchored per POV). Confidence floor, injection priority boost, and lookahead gate integration are all active.
+
 ---
 
 ## 4. Implementation Order
@@ -281,8 +305,9 @@ function rescoreSituations(
 | 3 | 3.2 Opponent-Aware Hints | Medium | None (but better with 3.1 data) | `prompts.ts` (hint generation) |
 | 4 | 3.5 Adaptive Situation Injection | Low | None | `taxonomyRelevance.ts`, `taxonomyContext.ts` |
 | 5 | 3.3 Move-Quality Lookahead | High | 3.1 (utility delta as gate) | `debateRunner.ts` (pipeline change) |
+| 6 | 3.6 Doctrinal Boundary Integration | Low | 3.1 (confidence floor uses utility context) | `doctrinalAnchoring.ts`, `beliefConfidence.ts` |
 
-Phase 1 is a pure calibration addition with no debate-flow changes. Phases 2-4 are independent and can be parallelized. Phase 5 depends on having a working utility function and is the most architecturally invasive.
+Phase 1 is a pure calibration addition with no debate-flow changes. Phases 2-4 are independent and can be parallelized. Phase 5 depends on having a working utility function and is the most architecturally invasive. Phase 6 is low-effort and can run in parallel with any phase after Phase 1.
 
 > **Implementation Status (2026-05):** Phases 1-4 are complete. Phase 5 (lookahead gate) is partially complete -- the evaluation pipeline runs every turn and logs diagnostics, but the regeneration pathway is not yet wired. See Section 3.3 status note.
 
