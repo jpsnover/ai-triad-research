@@ -372,4 +372,30 @@ This approach makes three contributions: (1) it demonstrates that indirect node 
 
 ---
 
+## 14. Intention Operationality: Completing the Weighted BDI Triad
+
+**Venue fit:** Computational Argumentation (COMMA), Multi-Agent Systems (AAMAS)
+
+### Problem Statement
+
+In BDI argumentation taxonomies with weighted scoring, Beliefs carry confidence (0.0-1.0) and Desires carry priority (1-5), but Intentions have no quality signal. A vague umbrella strategy like "Accelerating AI Development" sorts equivalently to a concrete, testable strategy like "Targeting Evidenced Harms Over Speculative Risks." The weighted BDI triad is incomplete -- the system can distinguish well-supported from speculative Beliefs and core from peripheral Desires, but cannot distinguish actionable from abstract Intentions.
+
+### Prior Approach and Its Limitations
+
+The prior approach sorted Intentions by topical relevance alone. Empirical analysis of 254 Intention nodes across three POVs revealed that 88%+ share the same epistemic type (strategic_recommendation) and 90%+ share the same node scope (scheme), making these fields useless as discriminators. Without a quality signal, context injection presents abstract umbrella strategies alongside concrete proposals indiscriminately.
+
+### Our Approach
+
+We introduce a three-signal operationality formula: `operationality = clamp(tree_base + falsifiability_mod + situation_bonus, 1, 5)`. The `tree_base` maps tree position: leaf nodes (terminally actionable) receive 4, mid-tree organizing nodes receive 3, and root umbrellas receive 2 -- inverted from Desire priority, where roots carry the broadest importance. The `falsifiability_mod` adds +1 for testable strategies and -1 for abstract normative framings. The `situation_bonus` adds +1 for Intentions grounded in contested situation nodes (2-5% of nodes). All signals are from existing metadata.
+
+Validated against 254 Intention nodes: ~75% at 4 (operational), ~5% at 5 (highly operational), ~12% at 3 (structured), ~5% at 2 (abstract), ~3% at 1 (vague).
+
+Post-debate evolution updates operationality via a three-condition gate: (1) attribution confidence above 0.60; (2) claim targeted by SPECIFY or EMPIRICAL CHALLENGE move; (3) decisive outcome (QBAF strength above 0.7 or below 0.3). Updates are integer steps of +/-1 with a drift cap of +/-2 from initial assignment.
+
+### Significance
+
+This approach makes three contributions: (1) it completes the weighted BDI triad, giving every category a quality signal answering a distinct epistemic question -- "How well-supported?" (Beliefs), "How important?" (Desires), "How actionable?" (Intentions); (2) the evolution mechanism is calibrated to the specific argumentation moves that test operationality (SPECIFY and EMPIRICAL CHALLENGE), ensuring changes reflect genuine evidence about concreteness under pressure; and (3) the design demonstrates that the same architectural pattern -- deterministic initial assignment, conservative gated evolution, cross-debate deduplication -- generalizes across BDI categories with category-appropriate signals.
+
+---
+
 *Updated 2026-05-25 by Computational Linguist · AI Triad Research*
