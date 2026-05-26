@@ -79,6 +79,48 @@ function computeSeeAlso(
   return top.length >= 2 ? top : scored.slice(0, Math.min(6, scored.length));
 }
 
+/** Extracted from PovTab IIFE to avoid conditional hook calls (React Rules of Hooks). */
+function DoctrinalBoundariesSection({ pov }: { pov: string }) {
+  const speakerKey = POV_TO_SPEAKER[pov.toLowerCase()];
+  const boundaries = speakerKey ? POVER_INFO[speakerKey]?.doctrinal_boundaries : undefined;
+  const storageKey = `doctrinal-boundaries-collapsed-${pov}`;
+  const [collapsed, setCollapsed] = useState(() => {
+    const stored = localStorage.getItem(storageKey);
+    return stored !== null ? stored === 'true' : true;
+  });
+
+  if (!boundaries || boundaries.length === 0) return null;
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(storageKey, String(next));
+  };
+  const accentColor = POVER_INFO[speakerKey!].color;
+  return (
+    <div className="doctrinal-boundaries">
+      <button
+        className="doctrinal-boundaries-header"
+        onClick={toggleCollapsed}
+        aria-expanded={!collapsed}
+      >
+        <span className="doctrinal-boundaries-arrow">{collapsed ? '\u25B8' : '\u25BE'}</span>
+        <span className="doctrinal-boundaries-label">Doctrinal Boundaries ({boundaries.length})</span>
+      </button>
+      {!collapsed && (
+        <div className="doctrinal-boundaries-items">
+          {boundaries.map((b, i) => (
+            <div key={i} className="doctrinal-boundaries-item">
+              <span aria-hidden="true" style={{ color: accentColor }}>✕</span>
+              <span>{b}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PovTab({ pov }: PovTabProps) {
   const {
     selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
@@ -574,44 +616,7 @@ export function PovTab({ pov }: PovTabProps) {
             </div>
           </div>
           {/* Doctrinal Boundaries — collapsible section (t/126) */}
-          {(() => {
-            const speakerKey = POV_TO_SPEAKER[pov.toLowerCase()];
-            const boundaries = speakerKey ? POVER_INFO[speakerKey]?.doctrinal_boundaries : undefined;
-            if (!boundaries || boundaries.length === 0) return null;
-            const storageKey = `doctrinal-boundaries-collapsed-${pov}`;
-            const [collapsed, setCollapsed] = useState(() => {
-              const stored = localStorage.getItem(storageKey);
-              return stored !== null ? stored === 'true' : true; // collapsed by default
-            });
-            const toggleCollapsed = () => {
-              const next = !collapsed;
-              setCollapsed(next);
-              localStorage.setItem(storageKey, String(next));
-            };
-            const accentColor = POVER_INFO[speakerKey].color;
-            return (
-              <div className="doctrinal-boundaries">
-                <button
-                  className="doctrinal-boundaries-header"
-                  onClick={toggleCollapsed}
-                  aria-expanded={!collapsed}
-                >
-                  <span className="doctrinal-boundaries-arrow">{collapsed ? '\u25B8' : '\u25BE'}</span>
-                  <span className="doctrinal-boundaries-label">Doctrinal Boundaries ({boundaries.length})</span>
-                </button>
-                {!collapsed && (
-                  <div className="doctrinal-boundaries-items">
-                    {boundaries.map((b, i) => (
-                      <div key={i} className="doctrinal-boundaries-item">
-                        <span aria-hidden="true" style={{ color: accentColor }}>✕</span>
-                        <span>{b}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+          <DoctrinalBoundariesSection pov={pov} />
           <div className="list-panel-items">
             <NodeTree
               nodes={file.nodes}
