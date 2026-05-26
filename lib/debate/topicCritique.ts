@@ -86,6 +86,8 @@ export interface LineageFrameEntry {
   label: string;
   /** Fraction of activated lineage items in this cluster (0-1). */
   percentage: number;
+  /** Individual tradition names from activated nodes that belong to this cluster. */
+  traditions?: string[];
 }
 
 export interface TopicCritique {
@@ -673,6 +675,7 @@ export interface LineageDistributionInput {
  */
 export function computeLineageDistribution(input: LineageDistributionInput): LineageFrameEntry[] {
   const clusterCounts: Record<string, number> = {};
+  const clusterTraditions: Record<string, Set<string>> = {};
   let totalMapped = 0;
 
   for (const nodeId of input.activatedNodeIds) {
@@ -682,6 +685,7 @@ export function computeLineageDistribution(input: LineageDistributionInput): Lin
       const clusterId = input.nameToCluster[name];
       if (!clusterId || clusterId === 'uncategorized') continue;
       clusterCounts[clusterId] = (clusterCounts[clusterId] ?? 0) + 1;
+      (clusterTraditions[clusterId] ??= new Set()).add(name);
       totalMapped++;
     }
   }
@@ -708,6 +712,7 @@ export function computeLineageDistribution(input: LineageDistributionInput): Lin
       cluster_id: id,
       label: input.clusterLabels[id] ?? id,
       percentage: count / totalMapped,
+      traditions: [...(clusterTraditions[id] ?? [])].sort(),
     }))
     .sort((a, b) => b.percentage - a.percentage);
 

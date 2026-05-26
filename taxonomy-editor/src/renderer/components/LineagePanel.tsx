@@ -47,11 +47,54 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
     return allKeys.find(k => k.toLowerCase() === lower);
   }, [allKeys]);
 
+  // Build L2 label index for filter matching
+  const l2LabelIndex = useMemo(() => {
+    if (!hasL2) return new Map<string, string>();
+    const index = new Map<string, string>(); // l2Id → lowercase label
+    for (const catId of CATEGORY_ORDER) {
+      for (const l2 of getL2CategoriesForL1(catId)) {
+        index.set(l2.id, l2.label.toLowerCase());
+      }
+    }
+    return index;
+  }, [hasL2]);
+
+  // L1 category label index for filter matching
+  const l1LabelIndex = useMemo(() => {
+    const index = new Map<string, string>();
+    for (const catId of CATEGORY_ORDER) {
+      const cat = getCategoryById(catId);
+      index.set(catId, cat.label.toLowerCase());
+    }
+    return index;
+  }, []);
+
   const filtered = useMemo(() => {
     if (!query) return allKeys;
     const q = query.toLowerCase();
-    return allKeys.filter(k => k.toLowerCase().includes(q));
-  }, [query, allKeys]);
+    // Pre-compute which L1 categories and L2 clusters match the query
+    const matchedL1 = new Set<string>();
+    for (const [catId, label] of l1LabelIndex) {
+      if (label.includes(q)) matchedL1.add(catId);
+    }
+    const matchedL2 = new Set<string>();
+    for (const [l2Id, label] of l2LabelIndex) {
+      if (label.includes(q)) matchedL2.add(l2Id);
+    }
+    return allKeys.filter(k => {
+      // Direct name match
+      if (k.toLowerCase().includes(q)) return true;
+      // L1 category match — include all items in matching categories
+      const l1Id = classifyLineage(k);
+      if (matchedL1.has(l1Id)) return true;
+      // L2 cluster match — include all items in matching clusters
+      if (hasL2) {
+        const l2Id = classifyLineageL2(k);
+        if (l2Id && matchedL2.has(l2Id)) return true;
+      }
+      return false;
+    });
+  }, [query, allKeys, hasL2, l1LabelIndex, l2LabelIndex]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, { ungrouped: string[]; l2Groups: Map<string, string[]> }>();

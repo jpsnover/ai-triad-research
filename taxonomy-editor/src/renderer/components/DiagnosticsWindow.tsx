@@ -2605,22 +2605,29 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 12px' }}>
                   Dominant intellectual traditions detected from activated taxonomy nodes. These traditions shape which nodes receive relevance boosts during context injection.
                 </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                   {frame.map(f => (
-                    <div key={f.cluster_id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 160, textAlign: 'right' }}>{f.label}</span>
-                      <div style={{ flex: 1, height: 14, background: 'var(--bg-secondary, #222)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
-                        <div style={{
-                          width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`,
-                          height: '100%',
-                          background: 'linear-gradient(90deg, #f59e0b, #f97316)',
-                          borderRadius: 3,
-                          transition: 'width 0.3s ease',
-                        }} />
+                    <div key={f.cluster_id}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, minWidth: 160, textAlign: 'right' }}>{f.label}</span>
+                        <div style={{ flex: 1, height: 14, background: 'var(--bg-secondary, #222)', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+                          <div style={{
+                            width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, #f59e0b, #f97316)',
+                            borderRadius: 3,
+                            transition: 'width 0.3s ease',
+                          }} />
+                        </div>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, minWidth: 40, textAlign: 'right', color: '#f59e0b' }}>
+                          {(f.percentage * 100).toFixed(0)}%
+                        </span>
                       </div>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, minWidth: 40, textAlign: 'right', color: '#f59e0b' }}>
-                        {(f.percentage * 100).toFixed(0)}%
-                      </span>
+                      {f.traditions && f.traditions.length > 0 && (
+                        <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 168 }}>
+                          {f.traditions.join(', ')}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -4471,14 +4478,21 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         const lb = manifest?.lineage_boost;
                         const maxPct = Math.max(...frame.map((f: { percentage: number }) => f.percentage));
                         return (
-                          <Section title={`Lineage Frame (${frame.length} tradition${frame.length !== 1 ? 's' : ''})`} copyText={frame.map((f: { label?: string; cluster_id: string; percentage: number }) => `${f.label ?? f.cluster_id}: ${f.percentage.toFixed(1)}%`).join('\n')}>
-                            {frame.map((f: { cluster_id: string; label?: string; percentage: number }, i: number) => (
-                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                                <div style={{ flex: 1, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label ?? f.cluster_id}</div>
-                                <div style={{ width: 60, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', flexShrink: 0 }}>
-                                  <div style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`, height: '100%', borderRadius: 3, background: '#f59e0b' }} />
+                          <Section title={`Lineage Frame (${frame.length} categor${frame.length !== 1 ? 'ies' : 'y'})`} copyText={frame.map((f: { label?: string; cluster_id: string; percentage: number; traditions?: string[] }) => `${f.label ?? f.cluster_id}: ${f.percentage.toFixed(1)}%${f.traditions?.length ? ` (${f.traditions.join(', ')})` : ''}`).join('\n')}>
+                            {frame.map((f: { cluster_id: string; label?: string; percentage: number; traditions?: string[] }, i: number) => (
+                              <div key={i} style={{ marginBottom: 6 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <div style={{ flex: 1, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{f.label ?? f.cluster_id}</div>
+                                  <div style={{ width: 60, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', flexShrink: 0 }}>
+                                    <div style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`, height: '100%', borderRadius: 3, background: '#f59e0b' }} />
+                                  </div>
+                                  <div style={{ width: 36, textAlign: 'right', fontSize: '0.68rem', color: 'var(--text-muted)', flexShrink: 0 }}>{f.percentage.toFixed(1)}%</div>
                                 </div>
-                                <div style={{ width: 36, textAlign: 'right', fontSize: '0.68rem', color: 'var(--text-muted)', flexShrink: 0 }}>{f.percentage.toFixed(1)}%</div>
+                                {f.traditions && f.traditions.length > 0 && (
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2, paddingLeft: 4 }}>
+                                    {f.traditions.join(', ')}
+                                  </div>
+                                )}
                               </div>
                             ))}
                             <div style={{ marginTop: 4, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
@@ -5963,6 +5977,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       })()}
                       {/* Taxonomy References */}
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (() => {
+                        const citeManifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+                          lineage_boost?: { promotedNodeIds?: string[]; traditions?: string[] };
+                        } | undefined;
+                        const promotedSet = new Set(citeManifest?.lineage_boost?.promotedNodeIds ?? []);
+                        const boostTraditions = citeManifest?.lineage_boost?.traditions
+                          ?? debate.topic.critique?.lineage_frame?.flatMap((f: { traditions?: string[] }) => f.traditions ?? [])
+                          ?? [];
                         const briefNodes = new Set((() => {
                           const wp = briefStage?.work_product as Record<string, unknown> | undefined;
                           if (!wp) return [] as string[];
@@ -6005,6 +6026,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         >{r.primary ? '★ ' : ''}{r.node_id}</button>
                                         {isNew && (
                                           <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
+                                        )}
+                                        {promotedSet.has(r.node_id) && (
+                                          <span
+                                            title={`Promoted by lineage boost${boostTraditions.length > 0 ? ` — matched ${boostTraditions.join(', ')}` : ''}`}
+                                            style={{ marginLeft: 3, display: 'inline-block', padding: '0 3px', borderRadius: 2, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 700, fontSize: '0.65em', lineHeight: '1.4' }}
+                                          >L</span>
                                         )}
                                       </div>
                                       {nodeLabel && (
@@ -6102,6 +6129,40 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             );
                           })()}
                         </details>
+                        );
+                      })()}
+                      {/* Intellectual Lineage — debate-level tradition distribution (t/205) */}
+                      {(() => {
+                        const frame = debate.topic.critique?.lineage_frame;
+                        if (!frame || frame.length === 0) return null;
+                        const lbManifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+                          lineage_boost?: { boosted?: number; promoted?: number; promotedNodeIds?: string[] };
+                        } | undefined;
+                        const lb = lbManifest?.lineage_boost;
+                        return (
+                          <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+                            Intellectual Lineage ({frame.length})
+                            {lb && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: '#22c55e', fontWeight: 400 }}>boost active</span>}
+                          </summary>
+                            {frame.map((f: { cluster_id: string; label?: string; percentage: number; traditions?: string[] }, i: number) => (
+                              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: '2px solid rgba(245,158,11,0.3)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>{f.label ?? f.cluster_id}</span>
+                                  <span style={{ fontSize: '0.65rem', color: '#f59e0b' }}>{(f.percentage * 100).toFixed(0)}%</span>
+                                </div>
+                                {f.traditions && f.traditions.length > 0 && (
+                                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                                    {f.traditions.join(', ')}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {lb && (
+                              <div style={{ marginTop: 4, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                Boosted: {lb.boosted ?? 0} nodes · Promoted: {lb.promoted ?? 0} nodes
+                              </div>
+                            )}
+                          </details>
                         );
                       })()}
                       {/* ── Per-turn sections ── */}
