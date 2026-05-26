@@ -6156,7 +6156,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         } | undefined;
                         const lb = lbManifest?.lineage_boost;
                         return (
-                          <details><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+                          <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
                             Intellectual Lineage ({frame.length})
                             {lb && <span style={{ marginLeft: 6, fontSize: '0.65rem', color: '#22c55e', fontWeight: 400 }}>boost active</span>}
                           </summary>

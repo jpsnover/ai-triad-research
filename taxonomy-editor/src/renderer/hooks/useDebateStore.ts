@@ -2029,6 +2029,21 @@ async function getRelevantTaxonomyContext(
       });
     }
 
+    // Build injection manifest for diagnostics (mirrors debateEngine's _lastInjectionManifest)
+    const injectionManifest: Record<string, unknown> = {
+      povNodeIds: scoredPov.map(s => s.node.id),
+      povPrimaryIds: scoredPov.filter(s => s.score >= threshold + 0.1).map(s => s.node.id).slice(0, 5),
+      situationNodeIds: scoredCC.map(s => s.node.id),
+    };
+    if (_lb && _lb.boostedNodeIds.length > 0) {
+      injectionManifest.lineage_boost = {
+        boosted: _lb.boostedNodeIds.length,
+        promoted: _lb.promotedCount,
+        boostedNodeIds: _lb.boostedNodeIds.slice(0, 20),
+        promotedNodeIds: _lb.promotedNodeIds.slice(0, 20),
+      };
+    }
+
     // Unwrap ScoredPovNode → PovNode and build nodeScores map
     const filteredPov = scoredPov.map(s => s.node);
     const filteredCC = scoredCC.map(s => s.node);
@@ -2039,7 +2054,7 @@ async function getRelevantTaxonomyContext(
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
-    return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores, nodeSourceMap };
+    return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores, nodeSourceMap, injectionManifest };
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -3998,6 +4013,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             my_claims: meta.my_claims,
             turn_symbols: meta.turn_symbols,
             relevance_sources: relevanceSources,
+            injection_manifest: ctx.injectionManifest,
           },
         });
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
@@ -4297,7 +4313,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           taxonomy_refs: taxonomyRefs,
           policy_refs: meta.policy_refs,
           addressing: 'user',
-          metadata: { ...meta, relevance_sources: relevanceSources },
+          metadata: { ...meta, relevance_sources: relevanceSources, injection_manifest: ctx.injectionManifest },
         });
 
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
@@ -4480,7 +4496,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           taxonomy_refs: taxonomyRefs,
           policy_refs: meta.policy_refs,
           addressing: addressingLabel,
-          metadata: { ...meta, round: crossRespondRound, moderator_trace: { selected: info.label, selection_reason: 'post_termination_final_statement' }, relevance_sources: relevanceSources },
+          metadata: { ...meta, round: crossRespondRound, moderator_trace: { selected: info.label, selection_reason: 'post_termination_final_statement' }, relevance_sources: relevanceSources, injection_manifest: ctx.injectionManifest },
         });
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
         if (lastEntry) {
@@ -4876,6 +4892,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           turn_validation_flagged: validation.outcome === 'accept_with_flag' ? true : undefined,
           concession_candidates_offered: concessionCandidateIds.length > 0 ? concessionCandidateIds : undefined,
           concession_considered: (meta as Record<string, unknown>)?.concession_considered as string | undefined,
+          injection_manifest: ctx.injectionManifest,
         },
       });
 
