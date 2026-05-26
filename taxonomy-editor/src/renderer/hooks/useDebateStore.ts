@@ -1178,7 +1178,7 @@ async function extractClaimsAndUpdateAN(
     extractionTrace.an_nodes_added_ids = commitResult.assignedNodeIds;
     const expectedMinAnCount = commitResult.idBase + newNodes.length;
 
-    await get().saveDebate();
+    await get().saveDebate('extractClaimsAndUpdateAN');
     checkAnInvariants(`post-save(extract,${entryId.slice(-6)})`, get, expectedMinAnCount);
 
     console.log(`[AN] Extracted ${newNodes.length} claims, ${newEdges.length} edges from ${speakerLabel}'s turn`);
@@ -1557,7 +1557,7 @@ async function extractClaimsAndUpdateAN(
       }
     }
     if (factCheckMutated) {
-      try { await get().saveDebate(); } catch (saveErr) {
+      try { await get().saveDebate('extractClaimsAndUpdateAN:verify'); } catch (saveErr) {
         getGlobalRecorder()?.record({
           type: 'system.error',
           component: 'debate-store',
@@ -2449,7 +2449,7 @@ interface DebateStore {
   togglePover: (poverId: SpeakerId) => Promise<void>;
   updatePhase: (phase: DebateSession['phase']) => void;
   updateTopic: (topic: Partial<DebateSession['topic']>) => void;
-  saveDebate: () => Promise<void>;
+  saveDebate: (caller?: string) => Promise<void>;
   setGenerating: (pover: SpeakerId | null) => void;
   setError: (error: string | null) => void;
 
@@ -2742,7 +2742,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const id = await get().createDebate(topic, allPovers, false, 'situations', ccNodeId, sourceContent);
     await get().loadDebate(id);
     get().updatePhase('clarification');
-    await get().saveDebate();
+    await get().saveDebate('createSituationDebate');
     return id;
   },
 
@@ -2800,7 +2800,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // createDebate saves to disk and sets activeDebate directly — no need for loadDebate
     const id = await get().createDebate(topic, allPovers, false, 'topic', claimId, sourceContent);
     get().updatePhase('clarification');
-    await get().saveDebate();
+    await get().saveDebate('createConflictDebate');
     return id;
   },
 
@@ -2970,7 +2970,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       ...(an ? { argument_network: an } : {}),
     };
     set({ activeDebate: updated });
-    await saveDebate();
+    await saveDebate('deleteTranscriptEntries');
   },
 
   togglePover: async (poverId) => {
@@ -2992,7 +2992,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       updated_at: nowISO(),
     };
     set({ activeDebate: newDebate });
-    await saveDebate();
+    await saveDebate('togglePover');
   },
 
   updatePhase: (phase) => {
@@ -3013,7 +3013,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     });
   },
 
-  saveDebate: async () => {
+  saveDebate: async (caller?: string) => {
     const { activeDebate } = get();
     if (!activeDebate) return;
     try {
@@ -3030,9 +3030,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             : s,
         ),
       }));
-      getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length } });
+      getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, caller: caller ?? 'unknown' } });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err) }, data: { caller: caller ?? 'unknown' } });
       set({ debateError: mapErrorToUserMessage(err) });
     }
   },
@@ -3055,6 +3055,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     set({ topicCritiqueLoading: true, debateError: null });
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
+    getGlobalRecorder()?.record({ type: 'topic.critique', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'topicCritique.started', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, model } });
 
     try {
       // Phase A: structural scoring from taxonomy embeddings
@@ -3191,14 +3192,23 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       }
 
-      // Store on session (non-persistent field set once before clarification)
-      const updated = {
-        ...activeDebate,
-        topic: { ...activeDebate.topic, critique, ...(suggestedCritique ? { suggested_critique: suggestedCritique } : {}) },
-        updated_at: nowISO(),
-      };
-      set({ activeDebate: updated, topicCritiqueLoading: false, debateActivity: null });
-      await saveDebate();
+      // Store critique on session — read FRESH state to avoid clobbering phase/transcript
+      // that may have advanced while critique was running (fire-and-forget race).
+      const freshDebate = get().activeDebate;
+      if (freshDebate) {
+        set({
+          activeDebate: {
+            ...freshDebate,
+            topic: { ...freshDebate.topic, critique, ...(suggestedCritique ? { suggested_critique: suggestedCritique } : {}) },
+            updated_at: nowISO(),
+          },
+          topicCritiqueLoading: false,
+          debateActivity: null,
+        });
+      } else {
+        set({ topicCritiqueLoading: false, debateActivity: null });
+      }
+      await get().saveDebate('runTopicCritique');
 
       getGlobalRecorder()?.record({
         type: 'topic.critique', component: 'debate-store', level: 'info',
@@ -3226,6 +3236,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     set({ topicCritiqueLoading: true, debateError: null });
     const model = getConfiguredModel();
+    getGlobalRecorder()?.record({ type: 'topic.critique', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'reEvaluateSuggestedTopic.started', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, model } });
 
     try {
       const taxState = useTaxonomyStore.getState();
@@ -3270,18 +3281,26 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const { text } = await generateTextWithProgress(suggestedPrompt, model, `Re-evaluating suggested topic (${model})`, set);
       const suggestedCritique = parseTopicCritique(text, suggestedStructural);
 
-      // Update only the suggested_critique and rewritten_topic, preserving the original critique
-      const updated = {
-        ...activeDebate,
-        topic: {
-          ...activeDebate.topic,
-          critique: { ...activeDebate.topic.critique!, rewritten_topic: suggestedText },
-          suggested_critique: suggestedCritique,
-        },
-        updated_at: nowISO(),
-      };
-      set({ activeDebate: updated, topicCritiqueLoading: false, debateActivity: null });
-      await saveDebate();
+      // Update only the suggested_critique and rewritten_topic — read FRESH state
+      const freshDebate = get().activeDebate;
+      if (freshDebate) {
+        set({
+          activeDebate: {
+            ...freshDebate,
+            topic: {
+              ...freshDebate.topic,
+              critique: { ...freshDebate.topic.critique!, rewritten_topic: suggestedText },
+              suggested_critique: suggestedCritique,
+            },
+            updated_at: nowISO(),
+          },
+          topicCritiqueLoading: false,
+          debateActivity: null,
+        });
+      } else {
+        set({ topicCritiqueLoading: false, debateActivity: null });
+      }
+      await get().saveDebate('reEvaluateSuggestedTopic');
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -3356,7 +3375,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     set({ debateGenerating: null });
     get().updatePhase('clarification');
-    await saveDebate();
+    await saveDebate('runClarification');
   },
 
   submitAnswersAndSynthesize: async (answers: string) => {
@@ -3536,7 +3555,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       // Synthesis succeeded — auto-advance to the debate
       set({ debateGenerating: null });
-      await saveDebate();
+      await saveDebate('submitAnswersAndSynthesize');
       await get().beginDebate();
       return;
     } catch (err) {
@@ -3550,13 +3569,35 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ debateError: `Topic synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
-      await saveDebate();
+      await saveDebate('submitAnswersAndSynthesize:finally');
     }
 
   },
 
   beginDebate: async () => {
     const { activeDebate, updatePhase, saveDebate, addTranscriptEntry } = get();
+
+    // Lineage pipeline status check — surfaces misconfiguration instantly
+    if (activeDebate) {
+      const lineageFrame = activeDebate.topic?.critique?.lineage_frame;
+      const lineageDataLoaded = isLineageDataLoaded();
+      const frameComputed = !!lineageFrame && lineageFrame.length > 0;
+      const boostWillBeApplied = frameComputed && lineageDataLoaded;
+      getGlobalRecorder()?.record({
+        type: 'lineage.pipeline-status',
+        component: 'debate-store',
+        level: boostWillBeApplied ? 'info' : 'warn',
+        debate_id: activeDebate.id,
+        message: boostWillBeApplied ? 'Lineage pipeline ready' : 'Lineage pipeline incomplete',
+        data: {
+          lineage_data_loaded: lineageDataLoaded,
+          lineage_frame_computed: frameComputed,
+          lineage_frame_traditions: lineageFrame?.map((f: { cluster_id: string; label?: string }) => f.label ?? f.cluster_id) ?? [],
+          boost_configured: boostWillBeApplied,
+          code_path: 'useDebateStore',
+        },
+      });
+    }
 
     // Document pre-analysis: extract i-nodes, tension points, and claims summary
     // Runs here so it executes whether the user submitted answers or skipped clarification
@@ -3654,7 +3695,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         });
       } finally {
         set({ debateGenerating: null });
-        await saveDebate();
+        await saveDebate('beginDebate:docAnalysis');
       }
     }
 
@@ -3680,13 +3721,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const freshDebate = get().activeDebate;
     if (freshDebate?.document_analysis?.i_nodes?.length) {
       updatePhase('edit-claims');
-      await saveDebate();
+      await saveDebate('beginDebate:editClaims');
       return;
     }
 
     // No claims to edit — proceed directly to opening
     get().proceedToOpening();
-    await saveDebate();
+    await saveDebate('beginDebate:proceed');
   },
 
   // ── Phase 2.5: Edit Claims ──────────────────────────────
@@ -3780,7 +3821,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       taxonomy_refs: [],
     });
 
-    void saveDebate();
+    void saveDebate('proceedToOpening');
   },
 
   // ── Phase 3: Opening Statements ─────────────────────────
@@ -3983,7 +4024,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
 
         // Save after each statement so progress persists
-        await saveDebate();
+        await saveDebate('runOpeningStatements:perStatement');
 
         // Extract claims in background (non-blocking)
         if (lastEntry) {
@@ -4053,7 +4094,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Neutral evaluation: baseline checkpoint (after openings, before cross-respond)
     void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry);
 
-    await saveDebate();
+    await saveDebate('runOpeningStatements:end');
 
     // Auto-run initial cross-respond rounds if configured
     const { initialCrossRespondRounds } = get();
@@ -4145,7 +4186,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       taxonomy_refs: [],
     });
 
-    await saveDebate();
+    await saveDebate('submitUserOpening');
   },
 
   // ── Phase 4: Main Debate Loop ────────────────────────────
@@ -4189,7 +4230,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     if (respondingPovers.length === 0) {
       // User targeted themselves or no AI POVers — nothing to generate
-      await saveDebate();
+      await saveDebate('askQuestion:noResponders');
       return;
     }
 
@@ -4290,7 +4331,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     }
 
     set({ debateGenerating: null });
-    await saveDebate();
+    await saveDebate('askQuestion:end');
   },
 
   crossRespond: async () => {
@@ -4456,7 +4497,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
         }
         set({ debateGenerating: null });
-        await saveDebate();
+        await saveDebate('crossRespond:postTermination');
         return;
       }
     }
@@ -4550,7 +4591,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         set({ activeDebate: { ...freshDebate, moderator_state: modResult.modState } });
       }
       set({ debateGenerating: null });
-      await saveDebate();
+      await saveDebate('crossRespond:agreement');
       return;
     }
 
@@ -5326,7 +5367,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     set({ debateGenerating: null });
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} end` , data: { round: crossRespondRound } });
-    await saveDebate();
+    await saveDebate('crossRespond:end');
   },
 
   // ── Phase 5: Synthesis & Probing ──────────────────────────
@@ -5706,6 +5747,71 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
+
+      // Emit lineage.debate-summary — aggregates per-turn lineage boost data for quick impact assessment
+      try {
+        const closedDebate = get().activeDebate;
+        if (closedDebate) {
+          const allBoosted = new Set<string>();
+          const allPromoted = new Set<string>();
+          const allInjected = new Set<string>();
+          const allReferenced = new Set<string>();
+          let turnsWithBoost = 0;
+
+          for (const entry of closedDebate.transcript) {
+            if (entry.type !== 'opening' && entry.type !== 'statement') continue;
+            const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+              lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[] };
+              povNodeIds?: string[];
+            } | undefined;
+            if (!manifest) continue;
+
+            for (const id of (entry.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id)) allReferenced.add(id);
+            for (const id of manifest.povNodeIds ?? []) allInjected.add(id);
+
+            const lb = manifest.lineage_boost;
+            if (lb) {
+              turnsWithBoost++;
+              for (const id of lb.boostedNodeIds ?? []) allBoosted.add(id);
+              for (const id of lb.promotedNodeIds ?? []) allPromoted.add(id);
+            }
+          }
+
+          if (allBoosted.size > 0) {
+            const promotedCited = [...allPromoted].filter(id => allReferenced.has(id));
+            const promotedCitationRate = allPromoted.size > 0 ? promotedCited.length / allPromoted.size : 0;
+            const baselineCitationRate = allInjected.size > 0 ? allReferenced.size / allInjected.size : 0;
+            const frameLabels = closedDebate.topic?.critique?.lineage_frame?.map(
+              (f: { cluster_id: string; label?: string }) => f.label ?? f.cluster_id,
+            ) ?? [];
+
+            getGlobalRecorder()?.record({
+              type: 'lineage.debate-summary',
+              component: 'debate-store',
+              level: 'info',
+              debate_id: closedDebate.id,
+              message: 'Lineage boost debate summary',
+              data: {
+                lineage_frame: frameLabels,
+                turns_with_boost: turnsWithBoost,
+                total_boosted: allBoosted.size,
+                total_promoted: allPromoted.size,
+                promoted_node_ids: [...allPromoted],
+                promoted_cited: promotedCited.length,
+                promoted_citation_rate: Math.round(promotedCitationRate * 1000) / 1000,
+                baseline_citation_rate: Math.round(baselineCitationRate * 1000) / 1000,
+                verdict: promotedCitationRate > 0.15 ? 'high_impact' : promotedCitationRate > 0.05 ? 'moderate_impact' : 'low_impact',
+              },
+            });
+          }
+        }
+      } catch (summaryErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debate-store', level: 'warn',
+          message: 'Lineage debate summary emission failed',
+          error: { name: (summaryErr as Error).name ?? 'Error', message: String(summaryErr) },
+        });
+      }
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -5717,7 +5823,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
-      await saveDebate();
+      await saveDebate('requestSynthesis');
     }
   },
 
@@ -5791,7 +5897,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
-      await saveDebate();
+      await saveDebate('requestProbingQuestions');
     }
   },
 
@@ -6046,7 +6152,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
-      await saveDebate();
+      await saveDebate('factCheckSelection');
     }
   },
 
@@ -6111,7 +6217,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         },
       });
 
-      await saveDebate();
+      await saveDebate('compressOldTranscript');
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -6457,7 +6563,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         updated_at: nowISO(),
       },
     });
-    await saveDebate();
+    await saveDebate('requestReflections');
   },
 
   applyReflectionEdit: async (pover: string, editIndex: number, overrides?: { label?: string; description?: string }) => {
@@ -6768,3 +6874,38 @@ function getNodeLabelForFactCheck(nodeId: string): string {
   }
   return nodeId;
 }
+
+// ── State-clobber detection (t/194) ─────────────────────────────────
+// Zustand subscriber that fires after every set(). Detects phase regressions
+// and transcript shrinkage — both are always bugs caused by stale-state clobbers.
+const PHASE_ORDER: Record<string, number> = { setup: 0, clarification: 1, 'edit-claims': 2, opening: 3, debate: 4, closed: 5 };
+
+useDebateStore.subscribe((state, prev) => {
+  const curr = state.activeDebate;
+  const old = prev.activeDebate;
+  if (!curr || !old || curr.id !== old.id) return;
+
+  // Phase regression detection
+  const currPhaseIdx = PHASE_ORDER[curr.phase] ?? -1;
+  const oldPhaseIdx = PHASE_ORDER[old.phase] ?? -1;
+  if (currPhaseIdx >= 0 && oldPhaseIdx >= 0 && currPhaseIdx < oldPhaseIdx) {
+    console.error(`[STATE-GUARD] Phase regression: ${old.phase} → ${curr.phase}`);
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'state-guard', level: 'error',
+      debate_id: curr.id,
+      message: `Phase regression detected: ${old.phase} → ${curr.phase}`,
+      data: { from: old.phase, to: curr.phase, from_idx: oldPhaseIdx, to_idx: currPhaseIdx, transcript_before: old.transcript.length, transcript_after: curr.transcript.length },
+    });
+  }
+
+  // Transcript shrinkage detection
+  if (curr.transcript.length < old.transcript.length) {
+    console.error(`[STATE-GUARD] Transcript shrinkage: ${old.transcript.length} → ${curr.transcript.length}`);
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'state-guard', level: 'error',
+      debate_id: curr.id,
+      message: `Transcript shrinkage: ${old.transcript.length} → ${curr.transcript.length}`,
+      data: { before: old.transcript.length, after: curr.transcript.length, phase: curr.phase },
+    });
+  }
+});

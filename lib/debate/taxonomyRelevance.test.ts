@@ -211,4 +211,59 @@ describe('selectRelevantNodes — lineage boost', () => {
     expect(diag!.promotedNodeIds).toEqual(['acc-beliefs-002']);
     expect(diag!.promotedCount).toBe(1);
   });
+
+  it('caps promotions at 5 — only top 5 below-threshold nodes cross', () => {
+    // Create 10 nodes all just below threshold, all matching lineage
+    const nodes = Array.from({ length: 10 }, (_, i) =>
+      makeNode(`acc-beliefs-${String(i + 1).padStart(3, '0')}`, 'Beliefs'),
+    );
+    // Scores: 0.43–0.479 (all below 0.48 threshold, all within near-miss floor)
+    const scores = new Map(
+      nodes.map((n, i) => [n.id, 0.43 + i * 0.005]),
+    );
+    // Also add one node already above threshold to verify it always keeps boost
+    const aboveNode = makeNode('acc-beliefs-100', 'Beliefs');
+    nodes.push(aboveNode);
+    scores.set('acc-beliefs-100', 0.55);
+
+    const lineageByNode: Record<string, string[]> = {};
+    for (const n of nodes) lineageByNode[n.id] = ['AI alignment'];
+
+    const lineageBoost: LineageBoostConfig = {
+      traditions: ['ai-safety'],
+      boost: 0.08,
+      lineageByNode,
+      nameToCluster,
+    };
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      lineageBoost,
+    });
+
+    const diag = (result as typeof result & { _lineageBoost?: LineageBoostResult })._lineageBoost;
+    expect(diag).toBeDefined();
+
+    // Only 5 promotions allowed, not 10
+    expect(diag!.promotedCount).toBe(5);
+    expect(diag!.promotedNodeIds).toHaveLength(5);
+
+    // The top 5 by boosted score should be the ones with highest base scores (008–010)
+    // since boostedScore = baseScore + 0.08 and sort is descending
+    for (const id of ['acc-beliefs-010', 'acc-beliefs-009', 'acc-beliefs-008', 'acc-beliefs-007', 'acc-beliefs-006']) {
+      expect(diag!.promotedNodeIds).toContain(id);
+    }
+
+    // Above-threshold node always keeps boost (not subject to cap)
+    expect(diag!.boostedNodeIds).toContain('acc-beliefs-100');
+    // Above-threshold node is NOT a promotion
+    expect(diag!.promotedNodeIds).not.toContain('acc-beliefs-100');
+
+    // Excess below-threshold nodes (001–005) should not be in result (reverted to base < 0.48)
+    const ids = result.map(r => r.node.id);
+    for (const id of ['acc-beliefs-001', 'acc-beliefs-002', 'acc-beliefs-003', 'acc-beliefs-004', 'acc-beliefs-005']) {
+      expect(ids).not.toContain(id);
+    }
+  });
 });

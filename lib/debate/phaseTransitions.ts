@@ -668,10 +668,20 @@ function evaluateThesisExit(
   components.claim_rate_ratio = claimRateRatio;
 
   if (claimRateDeclining || cruxFound) {
+    let reason: string;
+    if (cruxFound) {
+      const cruxDetails = ctx.phase.cruxNodes.map(c => {
+        const node = ctx.network.nodes.find(n => n.id === c.id);
+        const text = node ? node.text.slice(0, 120) : c.id;
+        return `${c.id}: "${text}" (strength: ${c.computedStrength.toFixed(2)}, cross-POV attacks: ${c.crossPovAttackCount})`;
+      });
+      reason = `Crux identified — ${cruxDetails.join('; ')}`;
+    } else {
+      reason = `Claim rate declining (${claimRateRatio.toFixed(2)} of peak)`;
+    }
     return {
       action: 'transition', new_phase: 'argumentation',
-      reason: cruxFound ? 'Crux identified' : `Claim rate declining (${claimRateRatio.toFixed(2)} of peak)`,
-      veto_active: false, force_active: false, confidence_deferred: false, components,
+      reason, veto_active: false, force_active: false, confidence_deferred: false, components,
     };
   }
 

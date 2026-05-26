@@ -2664,10 +2664,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     }
                   }
                   if (allPromoted.size === 0) return null;
-                  const promotedCited = [...allPromoted].filter(id => allReferenced.has(id)).length;
+                  const promotedCitedIds = [...allPromoted].filter(id => allReferenced.has(id));
+                  const promotedCited = promotedCitedIds.length;
                   const promotedRate = promotedCited / allPromoted.size;
                   const baselineRate = allInjected.size > 0 ? allReferenced.size / allInjected.size : 0;
                   const ratio = baselineRate > 0 ? promotedRate / baselineRate : 0;
+                  const verdict = promotedRate > 0.15 ? 'high_impact' : promotedRate > 0.05 ? 'moderate_impact' : 'low_impact';
+                  const verdictLabel = verdict === 'high_impact' ? 'High impact' : verdict === 'moderate_impact' ? 'Moderate impact' : 'Low impact';
+                  const verdictColor = verdict === 'high_impact' ? '#22c55e' : verdict === 'moderate_impact' ? '#f59e0b' : '#ef4444';
+                  const promotedCitedSet = new Set(promotedCitedIds);
                   return (
                     <div style={{
                       marginTop: 12, padding: '8px 12px', borderRadius: 6,
@@ -2687,6 +2692,23 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             ? 'Promoted node citation rate matches baseline'
                             : 'Promoted nodes cited less than baseline — boost had limited effect'}
                       </div>
+                      <div style={{ marginTop: 6, fontWeight: 700, color: verdictColor }}>
+                        Lineage boost: {verdictLabel}
+                      </div>
+                      {allPromoted.size <= 30 && (
+                        <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {[...allPromoted].map(id => (
+                            <span key={id} style={{
+                              padding: '1px 6px', borderRadius: 4, fontSize: '0.6rem', fontFamily: 'monospace',
+                              background: promotedCitedSet.has(id) ? 'rgba(34,197,94,0.15)' : 'rgba(156,163,175,0.15)',
+                              color: promotedCitedSet.has(id) ? '#22c55e' : 'var(--text-muted)',
+                              border: `1px solid ${promotedCitedSet.has(id) ? 'rgba(34,197,94,0.3)' : 'rgba(156,163,175,0.2)'}`,
+                            }} title={promotedCitedSet.has(id) ? 'Cited by debaters' : 'Not cited'}>
+                              {id}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}

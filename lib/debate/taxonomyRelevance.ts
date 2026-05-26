@@ -135,6 +135,20 @@ export function selectRelevantNodes(
       }
     }
 
+    // Cap promotions: only the top 5 below→above-threshold nodes keep the boost
+    const LINEAGE_PROMOTION_CAP = 5;
+    if (promotedIds.length > LINEAGE_PROMOTION_CAP) {
+      // Sort by boosted score descending — keep the best near-miss matches
+      promotedIds.sort((a, b) => (effectiveScores.get(b) ?? 0) - (effectiveScores.get(a) ?? 0));
+      const excess = promotedIds.splice(LINEAGE_PROMOTION_CAP);
+      for (const id of excess) {
+        // Revert to base score
+        effectiveScores.set(id, (effectiveScores.get(id) ?? 0) - lb.boost);
+        const bIdx = boostedIds.indexOf(id);
+        if (bIdx >= 0) boostedIds.splice(bIdx, 1);
+      }
+    }
+
     _lineageBoostResult = { boostedNodeIds: boostedIds, promotedNodeIds: promotedIds, promotedCount: promotedIds.length };
   }
 
