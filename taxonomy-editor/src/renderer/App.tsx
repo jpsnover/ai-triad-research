@@ -26,6 +26,7 @@ import { SummariesTab } from './components/SummariesTab';
 import { CruxesTab } from './components/CruxesTab';
 
 import { initFlightRecorder } from './lib/flightRecorderInit';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { initAnalytics } from './lib/analyticsEmitter';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { GitProgressBanner } from './components/GitProgressBanner';
@@ -230,6 +231,13 @@ function MainApp() {
         setPullResult(`Update failed: ${result.message}`);
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'app',
+        level: 'error',
+        message: 'data pull failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setPullResult(`Error: ${String(err)}`);
     } finally {
       setPulling(false);

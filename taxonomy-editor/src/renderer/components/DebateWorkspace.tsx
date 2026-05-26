@@ -26,6 +26,7 @@ import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { lineageMarkdownComponents } from '../utils/lineageMatcher';
 import { CommentCreationPopover } from './CommentCreationPopover';
 import type { CommentPopoverState } from './CommentCreationPopover';
 import { CommentSidebar } from './CommentSidebar';
@@ -1122,7 +1123,7 @@ function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
         <span className="debate-statement-type">{entry.type}</span>
       </div>
       <div className="debate-statement-content markdown-body">
-        <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(entry.content)}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]} components={lineageMarkdownComponents}>{fixMarkdownLinks(entry.content)}</Markdown>
       </div>
     </div>
   );
@@ -1322,7 +1323,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
           <div className="debate-statement-content markdown-body">
             {findQuery
               ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-              : <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(displayContent)}</Markdown>}
+              : <Markdown remarkPlugins={[remarkGfm]} components={lineageMarkdownComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
             {isTruncated && (
               <span
                 className="debate-tier-truncated"
@@ -1676,7 +1677,7 @@ function FactCheckCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
       <div className="debate-statement-content markdown-body">
         {findQuery
           ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(entry.content)}</Markdown>}
+          : <Markdown remarkPlugins={[remarkGfm]} components={lineageMarkdownComponents}>{fixMarkdownLinks(entry.content)}</Markdown>}
       </div>
       {showWebEvidence && (
         <div className="debate-fact-check-web-evidence">

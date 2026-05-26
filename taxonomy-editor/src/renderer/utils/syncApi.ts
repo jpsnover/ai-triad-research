@@ -15,6 +15,7 @@
  */
 
 import { ActionableError } from '@lib/debate/errors';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export interface SyncStatus {
   enabled: boolean;
@@ -145,7 +146,8 @@ const DISABLED_STATUS: SyncStatus = {
 export async function getSyncStatus(): Promise<SyncStatus> {
   try {
     return await getJson<SyncStatus>('/api/sync/status');
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Sync status unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return DISABLED_STATUS;
   }
 }
@@ -153,7 +155,8 @@ export async function getSyncStatus(): Promise<SyncStatus> {
 export async function listUnsynced(): Promise<UnsyncedFile[]> {
   try {
     return await getJson<UnsyncedFile[]>('/api/sync/unsynced');
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Unsynced list unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return [];
   }
 }
@@ -164,7 +167,8 @@ export async function getFileDiff(relPath: string): Promise<string> {
       `/api/sync/diff?path=${encodeURIComponent(relPath)}`,
     );
     return res.diff || '';
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'File diff unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return '';
   }
 }
@@ -190,7 +194,8 @@ export async function resync(mode: ResyncMode): Promise<ResyncSuccess> {
 export async function getRebaseState(): Promise<RebaseState> {
   try {
     return await getJson<RebaseState>('/api/sync/rebase-state');
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Rebase state unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return { in_progress: false, conflict_files: [], onto_branch: null };
   }
 }
@@ -288,7 +293,8 @@ const DISABLED_DIAGNOSTICS: SyncDiagnostics = {
 export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
   try {
     return await getJson<SyncDiagnostics>('/api/sync/diagnostics');
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Sync diagnostics unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return DISABLED_DIAGNOSTICS;
   }
 }

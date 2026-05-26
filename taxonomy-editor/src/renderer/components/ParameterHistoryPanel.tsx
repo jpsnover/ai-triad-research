@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Types (mirrored from calibrationLogger) ──
 
@@ -132,8 +133,15 @@ export function ParameterHistoryPanel({ onClose }: ParameterHistoryPanelProps) {
           setCurrent(resp.current as ParameterSnapshot);
           setHistory((resp.history ?? []) as ParameterHistoryEntry[]);
         }
-      } catch {
+      } catch (err) {
         // Calibration history unavailable — panel will show empty state.
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'parameter-history',
+          level: 'debug',
+          message: 'Calibration history unavailable',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
       }
       setLoading(false);
     })();

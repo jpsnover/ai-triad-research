@@ -7948,6 +7948,23 @@ body {
   font-size: 0.9rem;
 }
 
+/* ─── Lineage Links (t/201) ──────────────────────────── */
+
+.lineage-link {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(249, 115, 22, 0.35);
+  text-underline-offset: 2px;
+  cursor: help;
+  border-radius: 2px;
+  transition: background 0.15s, text-decoration-color 0.15s;
+}
+
+.lineage-link:hover {
+  text-decoration-color: rgba(249, 115, 22, 0.8);
+  background: rgba(249, 115, 22, 0.08);
+}
+
 /* ─── Detail Tier Pills (DT-3) ────────────────────────── */
 
 .debate-tier-pills {

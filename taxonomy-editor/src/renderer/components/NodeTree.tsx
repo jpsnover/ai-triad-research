@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { PovNode, Category } from '../types/taxonomy';
 
 export type SortMode = 'id' | 'label' | 'similarity' | 'priority';
@@ -93,7 +94,9 @@ function loadCollapsed(): Set<string> {
     }
     // First run or version bump — default collapsed & store the version
     localStorage.setItem(COLLAPSE_VERSION_KEY, String(COLLAPSE_VERSION));
-  } catch { /* ignore */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'node-tree', level: 'warn', message: 'collapsed state load failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
   // Default: all categories collapsed
   return new Set(CATEGORY_ORDER);
 }

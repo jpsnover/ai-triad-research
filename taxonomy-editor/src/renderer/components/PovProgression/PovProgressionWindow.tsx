@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { DebateSession } from '../../types/debate';
 import { PovProgressionView } from './PovProgressionView';
 
@@ -55,8 +56,15 @@ export function PovProgressionWindow() {
           }
         }
         setNodeLabels(labels);
-      } catch {
+      } catch (err) {
         // non-fatal — chips just render without labels
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'pov-progression',
+          level: 'debug',
+          message: 'Failed to load taxonomy files for node label lookup',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
       }
     })();
     return () => { cancelled = true; };

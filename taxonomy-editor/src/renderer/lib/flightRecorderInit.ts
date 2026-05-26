@@ -108,6 +108,7 @@ async function persistDump(
     });
   } catch (err) {
     console.warn('[flight-recorder] Failed to persist dump:', err);
+    /* flight recorder init — silent by design (can't log to itself) */
   }
 }
 
@@ -133,7 +134,7 @@ function createPopupShim(origin: string): FlightRecorder {
     try {
       electronAPI.forwardFlightEvent(stamped);
     } catch {
-      // Main window may have closed — silently drop
+      /* flight recorder init — silent by design (main window may have closed) */
     }
   };
 
@@ -150,7 +151,7 @@ function createPopupShim(origin: string): FlightRecorder {
         message: `Dictionary registration from ${origin}`,
         data: { _origin: origin, _dict_category: category, _dict_value: `${origin}/${value}` },
       });
-    } catch { /* silently drop */ }
+    } catch { /* flight recorder init — silent by design */ }
     return handle;
   };
 
@@ -212,7 +213,7 @@ export function initFlightRecorder(): FlightRecorder {
             void api.clipboardWriteText(result.filePath);
           });
         }
-      } catch { /* fallback: dump request forwarded as event */ }
+      } catch { /* flight recorder init — silent by design (dump request forwarded as event) */ }
     };
 
     return shim;
@@ -272,7 +273,7 @@ export function initFlightRecorder(): FlightRecorder {
         const debateMod = (window as any).__ZUSTAND_STORES__?.debate;
         const taxMod = (window as any).__ZUSTAND_STORES__?.taxonomy;
         if (debateMod && taxMod) _stores = { useDebateStore: debateMod, useTaxonomyStore: taxMod };
-      } catch { /* not ready yet */ }
+      } catch { /* flight recorder init — silent by design (stores not ready yet) */ }
     }
     return _stores;
   }
@@ -360,6 +361,7 @@ export function initFlightRecorder(): FlightRecorder {
         },
       };
     } catch {
+      /* flight recorder init — silent by design (can't log to itself) */
       return {};
     }
   });

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export interface PolicySourceReference {
   docId: string;
@@ -32,7 +33,7 @@ async function getPolicySourceIndex(): Promise<PolicySourceIndex> {
   try {
     _policyIndexCache = (await api.buildPolicySourceIndex()) as PolicySourceIndex;
   } catch (err) {
-    console.error('[PolicySourcesPanel] Failed to build index:', err);
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'policy-sources', level: 'error', message: 'Failed to build policy source index', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     _policyIndexCache = {};
   }
   _policyIndexLoading = false;

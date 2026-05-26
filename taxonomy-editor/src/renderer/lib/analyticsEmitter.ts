@@ -60,6 +60,7 @@ async function flush(): Promise<void> {
       body: JSON.stringify({ events: batch }),
     });
   } catch {
+    /* telemetry — silent by design */
     // Re-queue on failure (drop if buffer gets too large)
     if (buffer.length < 500) {
       buffer.unshift(...batch);
@@ -79,7 +80,7 @@ export async function initAnalytics(): Promise<void> {
       const data = await res.json() as { user: string };
       user = data.user || '_anonymous';
     }
-  } catch { /* keep _anonymous */ }
+  } catch { /* telemetry — silent by design */ }
 
   // Session start event
   emit('session.start', 'navigation', { userAgent: navigator.userAgent });
@@ -100,7 +101,7 @@ export async function initAnalytics(): Promise<void> {
         }
       },
     );
-  } catch { /* store not available yet — skip */ }
+  } catch { /* telemetry — silent by design (store not available yet) */ }
 
   // Flush every 30s
   flushTimer = setInterval(() => { void flush(); }, 30_000);

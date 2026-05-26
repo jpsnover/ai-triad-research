@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useCommentStore, COMMENT_TYPES, COMMENT_TYPE_META } from '../hooks/useCommentStore';
 import { useUsernameStore } from '../hooks/useUsernameStore';
 import type { CommentType, TextRange, DetailTier } from '@lib/debate/comments';
@@ -98,7 +99,14 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
         body: body.trim() || undefined,
       });
       onClose();
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'comment-popover',
+        level: 'error',
+        message: 'failed to save comment',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setError('Failed to save comment');
     } finally {
       setSubmitting(false);

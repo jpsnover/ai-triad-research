@@ -107,7 +107,7 @@ export function showDumpToast(opts: {
         a.download = opts.filename;
         a.click();
         URL.revokeObjectURL(url);
-      } catch (err) { link.textContent = `Download failed: ${err}`; }
+      } catch (err) { link.textContent = `Download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
     };
     toast.appendChild(link);
 
@@ -136,7 +136,7 @@ export function showDumpToast(opts: {
           a.download = opts.serverFilename!;
           a.click();
           URL.revokeObjectURL(url);
-        } catch (err) { serverLink.textContent = `Server download failed: ${err}`; }
+        } catch (err) { serverLink.textContent = `Server download failed: ${err}`; /* flight recorder UI — silent by design (error shown in toast) */ }
       };
       toast.appendChild(serverLink);
     }

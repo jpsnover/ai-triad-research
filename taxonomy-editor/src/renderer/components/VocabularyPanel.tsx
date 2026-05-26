@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { StandardizedTerm, ColloquialTerm, LintViolation, CampOrigin, CoinageStatus } from '@lib/dictionary';
 
 const POV_COLORS: Record<string, string> = {
@@ -52,8 +53,15 @@ export function VocabularyPanel() {
             setColloquial(data.colloquial ?? []);
             setLintResults(data.lintViolations ?? []);
           }
-        } catch {
+        } catch (err) {
           // No dictionary API available — empty state
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'vocabulary-panel',
+            level: 'debug',
+            message: 'Dictionary API unavailable',
+            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          });
         }
       }
     } finally {

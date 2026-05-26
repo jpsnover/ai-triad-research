@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 const STORAGE_KEY = 'taxonomy-editor-panel-width';
 const DEFAULT_WIDTH = 320;
@@ -15,7 +16,7 @@ function getStoredWidth(): number {
       const n = parseInt(stored, 10);
       if (n >= MIN_WIDTH && n <= MAX_WIDTH) return n;
     }
-  } catch { /* ignore */ }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read panel width from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
   return DEFAULT_WIDTH;
 }
 
@@ -47,7 +48,7 @@ export function useResizablePanel() {
         dragging.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        try { localStorage.setItem(STORAGE_KEY, String(width)); } catch { /* ignore */ }
+        try { localStorage.setItem(STORAGE_KEY, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
       }
     };
 
@@ -78,7 +79,7 @@ function getStoredRightWidth(opts: RightPanelOptions): number {
       const n = parseInt(stored, 10);
       if (n >= opts.minWidth && n <= opts.maxWidth) return n;
     }
-  } catch { /* ignore */ }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read right panel width from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
   return opts.defaultWidth;
 }
 
@@ -111,7 +112,7 @@ export function useResizableRightPanel(opts: RightPanelOptions) {
         dragging.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        try { localStorage.setItem(opts.storageKey, String(width)); } catch { /* ignore */ }
+        try { localStorage.setItem(opts.storageKey, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save right panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
       }
     };
 
@@ -142,7 +143,7 @@ function getStoredHeight(opts: VerticalSplitOptions): number {
       const n = parseInt(stored, 10);
       if (n >= opts.minHeight && n <= opts.maxHeight) return n;
     }
-  } catch { /* ignore */ }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read panel height from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
   return opts.defaultHeight;
 }
 
@@ -174,7 +175,7 @@ export function useResizableVerticalSplit(opts: VerticalSplitOptions) {
         dragging.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        try { localStorage.setItem(opts.storageKey, String(height)); } catch { /* ignore */ }
+        try { localStorage.setItem(opts.storageKey, String(height)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel height', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
       }
     };
 

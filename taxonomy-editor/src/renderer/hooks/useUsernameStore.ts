@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { create } from 'zustand';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 const STORAGE_KEY = 'taxonomy-editor-username';
 
@@ -9,17 +10,18 @@ function loadUsername(): string | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored && stored.trim() ? stored.trim() : null;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to load username from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return null;
   }
 }
 
 function saveUsername(username: string): void {
-  try { localStorage.setItem(STORAGE_KEY, username); } catch { /* ignore */ }
+  try { localStorage.setItem(STORAGE_KEY, username); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to save username', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
 }
 
 function removeUsername(): void {
-  try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(STORAGE_KEY); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to remove username', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
 }
 
 export function validateUsername(value: string): string | null {

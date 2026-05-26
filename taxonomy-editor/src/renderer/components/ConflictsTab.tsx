@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useKeyboardNav } from '../hooks/useKeyboardNav';
 import { useResizablePanel } from '../hooks/useResizablePanel';
@@ -31,7 +32,15 @@ function loadCollapsedClusters(): Set<string> {
     }
     localStorage.setItem(COLLAPSE_VERSION_KEY, String(COLLAPSE_VERSION));
     localStorage.removeItem(COLLAPSE_STORAGE_KEY);
-  } catch { /* ignore */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'conflicts-tab',
+      level: 'warn',
+      message: 'failed to load collapsed clusters from localStorage',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+  }
   return new Set(); // empty = will be initialized from cluster labels on first render
 }
 

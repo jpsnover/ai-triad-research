@@ -238,8 +238,14 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
       await api.clipboardWriteText(editText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'prompts-panel',
+        level: 'debug',
+        message: 'Failed to write prompt text to clipboard',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
     }
   };
 

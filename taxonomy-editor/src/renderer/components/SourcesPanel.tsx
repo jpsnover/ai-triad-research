@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export interface SourceReference {
   docId: string;
@@ -35,7 +36,7 @@ async function getNodeSourceIndex(): Promise<NodeSourceIndex> {
   try {
     _indexCache = (await api.buildNodeSourceIndex()) as NodeSourceIndex;
   } catch (err) {
-    console.error('[SourcesPanel] Failed to build index:', err);
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sources-panel', level: 'error', message: 'Failed to build node source index', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     _indexCache = {};
   }
   _indexLoading = false;

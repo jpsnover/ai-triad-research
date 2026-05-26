@@ -206,7 +206,8 @@ function parseNavigation(text: string): { content: string; navigation?: Navigate
     const nav = JSON.parse(navMatch[1]) as NavigateCommand;
     const content = text.replace(/```navigate\s*\n[\s\S]*?\n```/, '').trim();
     return { content, navigation: nav };
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'debug', message: 'Navigation block JSON parse failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return { content: text };
   }
 }
@@ -218,7 +219,8 @@ function parseSuggestions(text: string): { content: string; suggestions?: string
     const suggestions = JSON.parse(sugMatch[1]) as string[];
     const content = text.replace(/```suggestions\s*\n[\s\S]*?\n```/, '').trim();
     return { content, suggestions };
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'debug', message: 'Suggestions block JSON parse failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return { content: text };
   }
 }
@@ -720,7 +722,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       }]);
     } finally {
       for (const cleanup of cleanups) {
-        try { cleanup(); } catch {}
+        try { cleanup(); } catch (cleanupErr) { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'warn', message: 'Effect cleanup failed', error: { name: (cleanupErr as Error).name ?? 'Error', message: String(cleanupErr) } }); }
       }
       setGenerating(false);
       setActivity(null);

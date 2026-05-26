@@ -8,6 +8,7 @@
  */
 
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { formatTaxonomyContext } from './taxonomyContext';
 import type { TaxonomyContext } from './taxonomyContext';
@@ -178,7 +179,14 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
         return null;
       }
     }
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'prompt-preview',
+      level: 'warn',
+      message: 'Failed to assemble prompt preview',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return null;
   }
 

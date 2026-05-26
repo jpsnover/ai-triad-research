@@ -4461,6 +4461,36 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </Section>
                       )}
 
+                      {/* Lineage Frame — debate-level context for how grounding was biased */}
+                      {(() => {
+                        const frame = debate.topic.critique?.lineage_frame;
+                        if (!frame || frame.length === 0) return null;
+                        const manifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
+                          lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[] };
+                        } | undefined;
+                        const lb = manifest?.lineage_boost;
+                        const maxPct = Math.max(...frame.map((f: { percentage: number }) => f.percentage));
+                        return (
+                          <Section title={`Lineage Frame (${frame.length} tradition${frame.length !== 1 ? 's' : ''})`} copyText={frame.map((f: { label?: string; cluster_id: string; percentage: number }) => `${f.label ?? f.cluster_id}: ${f.percentage.toFixed(1)}%`).join('\n')}>
+                            {frame.map((f: { cluster_id: string; label?: string; percentage: number }, i: number) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                                <div style={{ flex: 1, fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label ?? f.cluster_id}</div>
+                                <div style={{ width: 60, height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', flexShrink: 0 }}>
+                                  <div style={{ width: `${maxPct > 0 ? (f.percentage / maxPct) * 100 : 0}%`, height: '100%', borderRadius: 3, background: '#f59e0b' }} />
+                                </div>
+                                <div style={{ width: 36, textAlign: 'right', fontSize: '0.68rem', color: 'var(--text-muted)', flexShrink: 0 }}>{f.percentage.toFixed(1)}%</div>
+                              </div>
+                            ))}
+                            <div style={{ marginTop: 4, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                              Boost: {lb ? <span style={{ color: '#22c55e' }}>active</span> : <span>inactive</span>}
+                              {lb && lb.promotedNodeIds && lb.promotedNodeIds.length > 0 && (
+                                <> · {lb.promotedNodeIds.length} promoted</>
+                              )}
+                            </div>
+                          </Section>
+                        );
+                      })()}
+
                       {entry.content && entry.type === 'opening' && (
                         <Section title="Statement" defaultOpen copyText={entry.content}>
                           <div style={{ fontSize: '0.75rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>

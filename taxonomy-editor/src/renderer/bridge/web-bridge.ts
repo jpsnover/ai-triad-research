@@ -8,6 +8,7 @@
 import type { AppAPI } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── HTTP helpers ──
 
@@ -106,7 +107,15 @@ function ensureEventSocket(): void {
       if (listeners) {
         for (const cb of listeners) cb(msg.data);
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'web-bridge',
+        level: 'debug',
+        message: 'Failed to parse WebSocket event message',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
   };
 
   eventWs.onclose = () => {
@@ -142,7 +151,15 @@ function ensureTerminalSocket(): WebSocket {
       } else if (msg.type === 'exit') {
         for (const cb of terminalExitCallbacks) cb();
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'web-bridge',
+        level: 'debug',
+        message: 'Failed to parse WebSocket terminal message',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
   };
 
   terminalWs.onclose = () => {

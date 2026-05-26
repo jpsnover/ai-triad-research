@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../types/taxonomy';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
@@ -87,7 +88,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
       setActiveTab('debate');
       onLaunched();
     } catch (err) {
-      console.error('[SituationDebatePanel] Launch failed:', err);
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-debate', level: 'error', message: 'debate launch failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     } finally {
       setLaunching(false);
     }

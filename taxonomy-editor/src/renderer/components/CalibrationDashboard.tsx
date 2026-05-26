@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Types ──
 
@@ -168,7 +169,15 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
         if (resp?.validationReport) {
           setValidationReport(resp.validationReport as ValidationReport);
         }
-      } catch { /* unavailable */ }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'calibration-dashboard',
+          level: 'debug',
+          message: 'Calibration log unavailable',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+      }
       setLoading(false);
     })();
   }, []);

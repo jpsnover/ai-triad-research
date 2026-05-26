@@ -70,7 +70,16 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
     if (mode === 'raw') {
       try {
         regex = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      } catch { return []; }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-source-viewer',
+          level: 'warn',
+          message: 'failed to compile search regex',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+        return [];
+      }
     } else {
       regex = wildcardToRegex(query);
     }

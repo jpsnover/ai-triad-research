@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { ReflectionEdit, ReflectionResult, ConsensusCluster } from '../hooks/useDebateStore';
@@ -372,6 +373,7 @@ function EditCard({ edit, pover, editIndex }: {
                   setApplyError(result.error ?? 'Save failed — check SaveBar for details');
                 }
               } catch (err) {
+                getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'reflection edit apply failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
                 setApplyError(String(err));
               } finally {
                 setApplying(false);

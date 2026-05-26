@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface ApiKeyDialogProps {
   onClose: () => void;
@@ -21,6 +22,13 @@ export function ApiKeyDialog({ onClose }: ApiKeyDialogProps) {
       await api.setApiKey(key.trim());
       onClose();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'api-key-dialog',
+        level: 'warn',
+        message: 'failed to save API key',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setError(String(err));
     } finally {
       setSaving(false);

@@ -175,7 +175,7 @@ export function trace(
       flushTimer = setTimeout(() => { void flush(); }, FLUSH_INTERVAL_MS);
     }
   } catch {
-    // Telemetry must never break the caller.
+    /* telemetry — silent by design (must never break the caller) */
   }
 }
 
@@ -206,8 +206,7 @@ export async function flush(): Promise<void> {
       console.warn('[trace] server rejected batch:', res.status);
     }
   } catch {
-    // Network failure: drop the batch and continue. Trace loss is acceptable;
-    // blocking the UI on telemetry delivery is not.
+    /* telemetry — silent by design (network failure, trace loss acceptable) */
   } finally {
     flushInFlight = false;
   }
@@ -226,7 +225,7 @@ if (typeof window !== 'undefined' && !isElectron()) {
       const blob = new Blob([body], { type: 'application/json' });
       navigator.sendBeacon(ENDPOINT, blob);
     } catch {
-      // Best effort.
+      /* telemetry — silent by design (best effort beacon) */
     }
   });
 }

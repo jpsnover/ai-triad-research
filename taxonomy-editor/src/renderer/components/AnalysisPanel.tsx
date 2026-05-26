@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -25,7 +26,14 @@ function extractRefinedJson(markdown: string): Record<string, unknown> | null {
   if (!match) return null;
   try {
     return JSON.parse(match[1]) as Record<string, unknown>;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'analysis-panel',
+      level: 'debug',
+      message: 'failed to parse refined JSON from markdown',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return null;
   }
 }

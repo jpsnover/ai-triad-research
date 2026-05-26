@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../types/taxonomy';
 import { interpretationText } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -69,7 +70,9 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
       await api.clipboardWriteText(researchText);
       setResearchCopied(true);
       setTimeout(() => setResearchCopied(false), 2000);
-    } catch { /* ignore */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-detail', level: 'warn', message: 'clipboard write failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
   };
 
   const allPovIds = getAllNodeIds().filter(id => nodeTypeFromId(id) !== 'situation');

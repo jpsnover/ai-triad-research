@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { Pov, PovNode, Category } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { AggregatedCrux } from '../hooks/useTaxonomyStore';
@@ -167,7 +168,9 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
       await api.clipboardWriteText(researchText);
       setResearchCopied(true);
       setTimeout(() => setResearchCopied(false), 2000);
-    } catch { /* ignore */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'node-detail', level: 'warn', message: 'clipboard write failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
   };
 
   // When switching to Related tab, set relatedNodeId and load edges without switching toolbar

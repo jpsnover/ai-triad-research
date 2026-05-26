@@ -9,6 +9,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type {
   DebateSession,
   ClaimExtractionTrace,
@@ -335,7 +336,15 @@ export function ExtractionTimelinePanel({ debate }: Props) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         if (window.opener) window.opener.focus();
       }
-    } catch { /* ignore cross-window access */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'extraction-timeline',
+        level: 'debug',
+        message: 'Cross-window DOM access failed during transcript scroll',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
   };
 
   if (traces.length === 0) {

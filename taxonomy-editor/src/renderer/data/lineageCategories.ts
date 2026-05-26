@@ -6,6 +6,7 @@
 // with regex fallback for items not in the mapping.
 
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export interface LineageCategory {
   id: string;
@@ -47,7 +48,13 @@ export async function loadLineageCategoriesData(): Promise<void> {
     lineageMapping = raw.mapping ?? {};
     dataLoaded = true;
   } catch (err) {
-    console.warn('[lineageCategories] Failed to load L2 data:', err);
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'lineage-data',
+      level: 'warn',
+      message: 'Failed to load L2 lineage category data',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
   }
 }
 

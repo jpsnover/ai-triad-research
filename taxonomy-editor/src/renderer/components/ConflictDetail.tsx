@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from './DeleteConfirmDialog';
@@ -72,7 +73,13 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
       await createConflictDebate(conflict.claim_id);
       setActiveTab('debate');
     } catch (err) {
-      console.error('[ConflictDetail] Failed to create debate:', err);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'conflict-detail',
+        level: 'error',
+        message: 'failed to create debate from conflict',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
     } finally {
       setDebateCreating(false);
     }

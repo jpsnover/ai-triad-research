@@ -135,6 +135,13 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           }
         }
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'new-debate-dialog',
+          level: 'error',
+          message: 'failed to fetch URL content for debate source',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         finalContent = `[Failed to fetch URL content: ${err}]`;
       }
     }

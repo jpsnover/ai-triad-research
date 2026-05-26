@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
 
 interface Proposal {
@@ -92,6 +93,7 @@ export function ProposalReviewDialog({ onClose }: ProposalReviewDialogProps) {
       const result = await api.saveProposal(filename, data);
       setSaveResult(result.error ?? 'Saved');
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'proposal-review', level: 'error', message: 'proposal save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       setSaveResult(String(err));
     } finally {
       setSaving(false);

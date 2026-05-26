@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 interface TypeaheadSelectProps {
@@ -28,7 +29,15 @@ export function TypeaheadSelect({ options, onSelect, placeholder }: TypeaheadSel
       try {
         const pattern = lower.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
         regex = new RegExp(pattern);
-      } catch { /* fall through to includes */ }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'typeahead-select',
+          level: 'debug',
+          message: 'Wildcard regex construction failed; falling back to includes search',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+      }
     }
     return options.filter(id => {
       const label = getLabelForId(id);
