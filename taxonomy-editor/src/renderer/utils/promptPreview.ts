@@ -28,6 +28,7 @@ import {
   contextCompressionPrompt,
   situationClarificationPrompt,
 } from '../prompts/debate';
+import { formatLineageContext } from '@lib/debate/topicCritique';
 import { POVER_INFO } from '../types/debate';
 
 function estimateTokens(text: string): number {
@@ -79,6 +80,9 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
   const transcript = formatTranscript();
   const sections: { name: string; charCount: number; tokenEstimate: number }[] = [];
 
+  const lineageFrame = session.topic?.critique?.lineage_frame;
+  const lineageCtx = lineageFrame && lineageFrame.length > 0 ? formatLineageContext(lineageFrame) : undefined;
+
   let text = '';
 
   try {
@@ -111,6 +115,8 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
           taxonomyBlock,
           session.source_content ?? '',
           true,
+          undefined, undefined, undefined, undefined,
+          lineageCtx,
         );
         sections.push(section('Instructions', text.slice(0, text.indexOf(taxonomyBlock))));
         sections.push(section('Taxonomy Context', taxonomyBlock));
@@ -126,6 +132,8 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
           transcript,
           '(question would appear here)',
           'all',
+          undefined, undefined, undefined,
+          lineageCtx,
         );
         sections.push(section('Instructions', text.length.toString()));
         sections.push(section('Taxonomy Context', taxonomyBlock));

@@ -2253,7 +2253,7 @@ function buildDebateResponsePrompt(
   audience?: DebateAudience,
 ): string {
   const info = POVER_INFO[poverId];
-  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience);
+  return debateResponsePrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, question, addressing, sourceContent, length, docAnalysis, audience, buildLineageContext());
 }
 
 function formatGapHint(gapInjections?: GapInjection[]): string {
