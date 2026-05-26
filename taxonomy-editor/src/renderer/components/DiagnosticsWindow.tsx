@@ -5978,12 +5978,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       {/* Taxonomy References */}
                       {Array.isArray((citeStage.work_product as Record<string, unknown>).taxonomy_refs) && (() => {
                         const citeManifest = (entry.metadata as Record<string, unknown>)?.injection_manifest as {
-                          lineage_boost?: { promotedNodeIds?: string[]; traditions?: string[] };
+                          lineage_boost?: { boostedNodeIds?: string[]; promotedNodeIds?: string[]; traditions?: string[] };
                         } | undefined;
-                        const promotedSet = new Set(citeManifest?.lineage_boost?.promotedNodeIds ?? []);
-                        const boostTraditions = citeManifest?.lineage_boost?.traditions
+                        const lb = citeManifest?.lineage_boost;
+                        const boostedSet = new Set(lb?.boostedNodeIds ?? []);
+                        const promotedSet = new Set(lb?.promotedNodeIds ?? []);
+                        const boostTraditions = lb?.traditions
                           ?? debate.topic.critique?.lineage_frame?.flatMap((f: { traditions?: string[] }) => f.traditions ?? [])
                           ?? [];
+                        const frameLabels = debate.topic.critique?.lineage_frame?.map((f: { label: string }) => f.label) ?? boostTraditions;
                         const briefNodes = new Set((() => {
                           const wp = briefStage?.work_product as Record<string, unknown> | undefined;
                           if (!wp) return [] as string[];
@@ -6004,7 +6007,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             : [];
                         })());
                         return (
-                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>Taxonomy References</summary>
+                        <details open><summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+                          Taxonomy References
+                          {boostedSet.size > 0 && (
+                            <span style={{ marginLeft: 6, fontWeight: 400, fontSize: '0.65rem', color: '#f59e0b' }}>
+                              {boostedSet.size} lineage-boosted{promotedSet.size > 0 ? `, ${promotedSet.size} promoted` : ''}
+                              {frameLabels.length > 0 && <> · {frameLabels.join(', ')}</>}
+                            </span>
+                          )}
+                        </summary>
                           <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                             <colgroup>
                               <col style={{ width: 180 }} />
@@ -6027,12 +6038,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         {isNew && (
                                           <span title="New: not in Brief's relevant taxonomy nodes" style={{ marginLeft: 3, color: '#22c55e', fontWeight: 700, fontSize: '0.8em' }}>+</span>
                                         )}
-                                        {promotedSet.has(r.node_id) && (
+                                        {promotedSet.has(r.node_id) ? (
                                           <span
-                                            title={`Promoted by lineage boost${boostTraditions.length > 0 ? ` — matched ${boostTraditions.join(', ')}` : ''}`}
-                                            style={{ marginLeft: 3, display: 'inline-block', padding: '0 3px', borderRadius: 2, background: 'rgba(245,158,11,0.2)', color: '#f59e0b', fontWeight: 700, fontSize: '0.65em', lineHeight: '1.4' }}
+                                            title={`Promoted into context by lineage boost — would not appear without boost${boostTraditions.length > 0 ? ` (${boostTraditions.join(', ')})` : ''}`}
+                                            style={{ marginLeft: 3, display: 'inline-block', padding: '0 4px', borderRadius: 2, background: 'rgba(245,158,11,0.25)', color: '#f59e0b', fontWeight: 700, fontSize: '0.65em', lineHeight: '1.4' }}
+                                          >L↑</span>
+                                        ) : boostedSet.has(r.node_id) ? (
+                                          <span
+                                            title={`Relevance score boosted by lineage matching${boostTraditions.length > 0 ? ` (${boostTraditions.join(', ')})` : ''}`}
+                                            style={{ marginLeft: 3, display: 'inline-block', padding: '0 3px', borderRadius: 2, background: 'rgba(245,158,11,0.12)', color: '#d97706', fontWeight: 600, fontSize: '0.65em', lineHeight: '1.4' }}
                                           >L</span>
-                                        )}
+                                        ) : null}
                                       </div>
                                       {nodeLabel && (
                                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 1 }} title={nodeLabel}>
