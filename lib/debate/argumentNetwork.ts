@@ -14,6 +14,8 @@ import { computeFactCheckStrength } from './qbaf.js';
 import type { WebEvidenceItem } from './qbaf.js';
 import { detectAmbiguityCollapse, findSourcePassage } from './ambiguityDetector.js';
 import { fuzzyCorrectNodeId } from './nodeIdUtils.js';
+import { disambiguateTerms } from './vocabularyDisambiguation.js';
+import type { CampOrigin } from '../dictionary/types.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -841,6 +843,9 @@ export interface ProcessClaimsOptions {
    *  When provided, Belief claims get QBAF-adjusted base_strength from
    *  retrieved evidence. Requires Node.js filesystem access. */
   sourcesDir?: string;
+  /** Colloquial terms for post-extraction vocabulary disambiguation. When provided,
+   *  bare terms in claim text are resolved to canonical forms based on speaker POV. */
+  colloquialTerms?: import('../dictionary/types').ColloquialTerm[];
 }
 
 export interface ProcessClaimsInput {
@@ -1089,6 +1094,17 @@ export function processExtractedClaims(
         rejected.push({ text: claim.text, reason: 'low_marginal_value', overlap_pct: Math.round(overlap * 100) });
         rejectionReasons['low_marginal_value'] = (rejectionReasons['low_marginal_value'] ?? 0) + 1;
         continue;
+      }
+    }
+
+    // Post-extraction vocabulary disambiguation
+    if (options.colloquialTerms && options.colloquialTerms.length > 0) {
+      const vocab = disambiguateTerms(node.text, speaker as CampOrigin, options.colloquialTerms);
+      const resolved = vocab.terms.filter(t => !t.ambiguous);
+      if (resolved.length > 0) {
+        node.vocabulary_tags = resolved.map(t => ({
+          colloquial: t.bare, canonical: t.canonical, offset: t.offset,
+        }));
       }
     }
 

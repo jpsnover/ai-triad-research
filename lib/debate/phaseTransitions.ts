@@ -671,9 +671,7 @@ function evaluateThesisExit(
     let reason: string;
     if (cruxFound) {
       const cruxDetails = ctx.phase.cruxNodes.map(c => {
-        const node = ctx.network.nodes.find(n => n.id === c.id);
-        const text = node ? node.text.slice(0, 120) : c.id;
-        return `${c.id}: "${text}" (strength: ${c.computedStrength.toFixed(2)}, cross-POV attacks: ${c.crossPovAttackCount})`;
+        return `${c.id} (strength: ${c.computedStrength.toFixed(2)}, cross-POV attacks: ${c.crossPovAttackCount})`;
       });
       reason = `Crux identified — ${cruxDetails.join('; ')}`;
     } else {

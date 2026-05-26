@@ -27,6 +27,7 @@ import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverage
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { lineageMarkdownComponents } from '../utils/lineageMatcher';
+import { getDebateMarkdownComponents, type VocabResolution } from '../utils/vocabularyAnnotations';
 import { CommentCreationPopover } from './CommentCreationPopover';
 import type { CommentPopoverState } from './CommentCreationPopover';
 import { CommentSidebar } from './CommentSidebar';
@@ -1149,8 +1150,14 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   const anNodeId = activeDebate?.argument_network?.nodes?.find(
     n => n.source_entry_id === entry.id
   )?.id ?? null;
-  const netDelta = (entry.metadata as Record<string, unknown> | undefined)?.qbaf_net_delta as number | undefined;
-  const turnSymbols = (entry.metadata as Record<string, unknown> | undefined)?.turn_symbols as { symbol: string; tooltip: string }[] | undefined;
+  const meta = entry.metadata as Record<string, unknown> | undefined;
+  const netDelta = meta?.qbaf_net_delta as number | undefined;
+  const turnSymbols = meta?.turn_symbols as { symbol: string; tooltip: string }[] | undefined;
+  const vocabResolutions = meta?.vocabulary_resolutions as VocabResolution[] | undefined;
+  const mdComponents = useMemo(
+    () => getDebateMarkdownComponents(vocabResolutions),
+    [vocabResolutions],
+  );
 
   // Tier display logic (DT-3)
   const hasSummaries = entry.summaries != null;
@@ -1323,7 +1330,7 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
           <div className="debate-statement-content markdown-body">
             {findQuery
               ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-              : <Markdown remarkPlugins={[remarkGfm]} components={lineageMarkdownComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
+              : <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
             {isTruncated && (
               <span
                 className="debate-tier-truncated"

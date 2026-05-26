@@ -456,3 +456,77 @@ describe('processExtractedClaims — concession speaker guard', () => {
     expect(result.commitments.conceded).toContain('Voluntary compliance achieves better outcomes than prescriptive mandates');
   });
 });
+
+describe('vocabulary_tags on AN nodes', () => {
+  const baseInput = {
+    statement: 'The alignment problem requires accountability mechanisms to address bias in safety-critical systems',
+    speaker: 'safetyist',
+    entryId: 'entry-1',
+    taxonomyRefIds: [],
+    turnNumber: 1,
+    existingNodes: [],
+    existingEdgeCount: 0,
+    startNodeId: 1,
+  };
+
+  const colloquialTerms = [
+    {
+      $schema_version: '1.0.0',
+      colloquial_term: 'alignment',
+      status: 'do_not_use_bare' as const,
+      translation_required: true,
+      resolves_to: [
+        { standardized_term: 'safety_alignment', when: 'safety context', default_for_camp: 'safetyist' as const, confidence_typical: 'high' as const },
+        { standardized_term: 'commercial_alignment', when: 'product context', default_for_camp: 'accelerationist' as const, confidence_typical: 'high' as const },
+      ],
+      first_added: '2026-01-01',
+      last_reviewed: '2026-01-01',
+    },
+    {
+      $schema_version: '1.0.0',
+      colloquial_term: 'accountability',
+      status: 'do_not_use_bare' as const,
+      translation_required: true,
+      resolves_to: [
+        { standardized_term: 'accountability_algorithmic', when: 'AI context', default_for_camp: 'skeptic' as const, confidence_typical: 'high' as const },
+      ],
+      first_added: '2026-01-01',
+      last_reviewed: '2026-01-01',
+    },
+  ];
+
+  it('adds vocabulary_tags when colloquialTerms provided', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'The alignment problem requires accountability mechanisms to address bias in safety-critical systems',
+      }],
+    }, {
+      groundingOverlapThreshold: 0.1,
+      isClassifyPath: false,
+      colloquialTerms,
+    });
+
+    expect(result.newNodes).toHaveLength(1);
+    const node = result.newNodes[0];
+    expect(node.vocabulary_tags).toBeDefined();
+    // 'alignment' resolves for safetyist, 'accountability' has no safetyist default (only skeptic) → single resolution fallback
+    expect(node.vocabulary_tags!.some(t => t.canonical === 'safety_alignment')).toBe(true);
+    expect(node.vocabulary_tags!.some(t => t.canonical === 'accountability_algorithmic')).toBe(true);
+  });
+
+  it('omits vocabulary_tags when colloquialTerms not provided', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{
+        text: 'The alignment problem requires accountability mechanisms to address bias in safety-critical systems',
+      }],
+    }, {
+      groundingOverlapThreshold: 0.1,
+      isClassifyPath: false,
+    });
+
+    expect(result.newNodes).toHaveLength(1);
+    expect(result.newNodes[0].vocabulary_tags).toBeUndefined();
+  });
+});

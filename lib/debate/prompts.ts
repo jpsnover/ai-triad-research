@@ -52,7 +52,7 @@ const AUDIENCE_DIRECTIVES: Record<DebateAudience, { readingLevel: string; detail
   },
   academic_community: {
     readingLevel: 'Write for a faculty seminar — scholars from multiple disciplines who value analytical rigor, theoretical grounding, and intellectual honesty. Trace arguments to their philosophical or theoretical roots. Name the scholarly traditions and key thinkers you draw on. Distinguish descriptive claims from normative ones. Acknowledge the limits of your evidence and the scope conditions of your argument. Hedge where certainty is genuinely unwarranted — but hedge once per claim, not twice ("may" is fine; "may potentially" is not). State your own position directly even when you qualify its certainty. This applies to the statement field only — structured metadata fields like taxonomy_refs and move_types are not reader-facing.',
-    detailInstruction: 'Provide a scholarly, well-structured response — 3-5 paragraphs. Engage with competing theoretical frameworks, not just competing conclusions. Cite intellectual lineage (e.g., consequentialist vs. deontological framing, Rawlsian fairness, capability approach). Identify methodological limitations and suggest how they could be addressed. When disagreeing, locate the precise point of divergence — is it empirical, conceptual, or normative? Qualify empirical claims with their evidence base, but state normative positions directly — "X is preferable" is stronger than "it could perhaps be argued that X might be preferable." Structure each major argument as: (1) State your thesis. (2) Ground it in the relevant theoretical tradition. (3) Apply the framework to the case at hand, noting scope conditions. (4) Acknowledge limitations and alternative framings.',
+    detailInstruction: 'Provide a scholarly, well-structured response — 3-5 paragraphs. Engage with competing theoretical frameworks, not just competing conclusions. Ground your arguments in the relevant intellectual traditions. When you draw on a specific analytical framework, name it explicitly and trace how it applies to the case at hand. Identify methodological limitations and suggest how they could be addressed. When disagreeing, locate the precise point of divergence — is it empirical, conceptual, or normative? Qualify empirical claims with their evidence base, but state normative positions directly — "X is preferable" is stronger than "it could perhaps be argued that X might be preferable." Structure each major argument as: (1) State your thesis. (2) Ground it in the relevant theoretical tradition. (3) Apply the framework to the case at hand, noting scope conditions. (4) Acknowledge limitations and alternative framings.',
     moderatorBias: 'Steer toward conceptual precision and theoretical assumptions. Probe interdisciplinary tensions, methodological limitations, and the philosophical foundations of competing positions.',
   },
   general_public: {
@@ -907,6 +907,7 @@ export function openingStatementPrompt(
   documentAnalysis?: DocumentAnalysis,
   audience?: DebateAudience,
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[],
+  lineageContext?: string,
 ): string {
   const hasDocument = !!(documentAnalysis || debateSourceContent);
 
@@ -925,6 +926,10 @@ export function openingStatementPrompt(
       ? `\nSince this debate is grounded in a document, your opening should: (1) identify what you see as the document's central claim or thesis, (2) state which of its claims you accept and which you challenge, and (3) flag any assumptions or framing choices the document makes that your perspective contests.\n`
       : '';
 
+  const lineageBlock = lineageContext
+    ? `\n\n=== INTELLECTUAL TRADITIONS IN PLAY ===\nThis topic intersects the following intellectual traditions (ranked by relevance across the taxonomy):\n${lineageContext}\nGround your arguments in these traditions where applicable. Name specific frameworks rather than citing traditions abstractly.\n`
+    : '';
+
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
 ${otherDebaters(label)}
@@ -938,7 +943,7 @@ ${priorBlock}
 
 The debate topic is:
 
-"${topic}"${documentBlock}${userPositionsBlock}
+"${topic}"${documentBlock}${userPositionsBlock}${lineageBlock}
 
 Deliver your opening statement. This is your chance to frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
@@ -988,10 +993,15 @@ export function debateResponsePrompt(
   _length?: string,
   documentAnalysis?: DocumentAnalysis,
   audience?: DebateAudience,
+  lineageContext?: string,
 ): string {
   const documentBlock = documentAnalysis
     ? documentAnalysisContext(documentAnalysis)
     : sourceContext(debateSourceContent);
+
+  const lineageBlock = lineageContext
+    ? `\n=== INTELLECTUAL TRADITIONS IN PLAY ===\nThis topic intersects the following intellectual traditions (ranked by relevance across the taxonomy):\n${lineageContext}\nGround your arguments in these traditions where applicable. Name specific frameworks rather than citing traditions abstractly.\n`
+    : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
 Your personality: ${personality}.
@@ -1002,7 +1012,7 @@ ${getDetailInstruction(audience)}
 ${allInstructions()}
 
 ${taxonomyContext}
-
+${lineageBlock}
 === DEBATE TOPIC ===
 "${topic}"
 

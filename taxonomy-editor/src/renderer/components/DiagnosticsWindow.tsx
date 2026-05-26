@@ -2719,6 +2719,87 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     </div>
                   );
                 })()}
+                {/* Vocabulary Disambiguation Aggregate (t/212) */}
+                {(() => {
+                  const allResolved: { colloquial: string; canonical: string; confidence: string; speaker: string }[] = [];
+                  const allAmbiguous: { colloquial: string; speaker: string }[] = [];
+                  for (const e of debate.transcript) {
+                    if (e.speaker === 'system' || e.speaker === 'moderator' || e.speaker === 'user') continue;
+                    const meta = e.metadata as Record<string, unknown> | undefined;
+                    const res = meta?.vocabulary_resolutions as { colloquial: string; canonical: string; confidence: string }[] | undefined;
+                    const amb = meta?.vocabulary_ambiguities as { colloquial: string }[] | undefined;
+                    if (res) for (const r of res) allResolved.push({ ...r, speaker: speakerLabel(e.speaker) });
+                    if (amb) for (const a of amb) allAmbiguous.push({ colloquial: a.colloquial, speaker: speakerLabel(e.speaker) });
+                  }
+                  if (allResolved.length === 0 && allAmbiguous.length === 0) return null;
+                  // Group by colloquial term → canonical form(s) with speakers
+                  const grouped = new Map<string, { canonical: string; confidence: string; speakers: Set<string>; count: number }>();
+                  for (const r of allResolved) {
+                    const key = `${r.colloquial}→${r.canonical}`;
+                    const existing = grouped.get(key);
+                    if (existing) {
+                      existing.speakers.add(r.speaker);
+                      existing.count++;
+                    } else {
+                      grouped.set(key, { canonical: r.canonical, confidence: r.confidence, speakers: new Set([r.speaker]), count: 1 });
+                    }
+                  }
+                  return (
+                    <div style={{ marginTop: 20 }}>
+                      <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem' }}>Vocabulary Disambiguation</h4>
+                      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 8px' }}>
+                        Colloquial terms resolved to canonical forms based on speaker POV.
+                        {allResolved.length > 0 && <> <strong>{allResolved.length}</strong> resolved across {grouped.size} unique mappings.</>}
+                        {allAmbiguous.length > 0 && <> <span style={{ color: '#d97706' }}><strong>{allAmbiguous.length}</strong> ambiguous.</span></>}
+                      </p>
+                      {grouped.size > 0 && (
+                        <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', marginBottom: 8 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                              <th style={{ textAlign: 'left', padding: '3px 8px', color: 'var(--text-muted)' }}>Colloquial</th>
+                              <th style={{ textAlign: 'left', padding: '3px 8px', color: 'var(--text-muted)' }}>Canonical Form</th>
+                              <th style={{ textAlign: 'center', padding: '3px 8px', color: 'var(--text-muted)' }}>Conf.</th>
+                              <th style={{ textAlign: 'left', padding: '3px 8px', color: 'var(--text-muted)' }}>Speakers</th>
+                              <th style={{ textAlign: 'center', padding: '3px 8px', color: 'var(--text-muted)' }}>Hits</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[...grouped.entries()].sort((a, b) => b[1].count - a[1].count).map(([key, v]) => {
+                              const colloquial = key.split('→')[0];
+                              return (
+                                <tr key={key} style={{ borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
+                                  <td style={{ padding: '3px 8px' }}>
+                                    <span className="vocab-term" style={{ textDecoration: 'none', cursor: 'default' }}>{colloquial}</span>
+                                  </td>
+                                  <td style={{ padding: '3px 8px', color: 'var(--text-secondary)' }}>{v.canonical}</td>
+                                  <td style={{
+                                    padding: '3px 8px', textAlign: 'center', fontWeight: 600,
+                                    color: v.confidence === 'high' ? '#22c55e' : v.confidence === 'low' ? '#ef4444' : '#d97706',
+                                  }}>{v.confidence}</td>
+                                  <td style={{ padding: '3px 8px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>{[...v.speakers].join(', ')}</td>
+                                  <td style={{ padding: '3px 8px', textAlign: 'center' }}>{v.count}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      )}
+                      {allAmbiguous.length > 0 && (
+                        <div style={{ padding: '6px 10px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: '0.68rem' }}>
+                          <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 4 }}>Ambiguous terms (needs review):</div>
+                          {[...new Set(allAmbiguous.map(a => a.colloquial))].map((term, i) => {
+                            const speakers = [...new Set(allAmbiguous.filter(a => a.colloquial === term).map(a => a.speaker))];
+                            return (
+                              <div key={i} style={{ marginLeft: 8, marginBottom: 2 }}>
+                                &ldquo;{term}&rdquo; <span style={{ color: 'var(--text-muted)' }}>— {speakers.join(', ')}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -5243,6 +5324,74 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </div>
                         </details>
                       )}
+                      {/* Vocabulary Disambiguation (t/212) */}
+                      {(() => {
+                        const entryMeta = entry.metadata as Record<string, unknown> | undefined;
+                        const vocabRes = entryMeta?.vocabulary_resolutions as { colloquial: string; canonical: string; confidence: string; offset?: number }[] | undefined;
+                        const vocabAmb = entryMeta?.vocabulary_ambiguities as { colloquial: string; offset?: number }[] | undefined;
+                        if ((!vocabRes || vocabRes.length === 0) && (!vocabAmb || vocabAmb.length === 0)) return null;
+                        return (
+                          <details open>
+                            <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.72rem', margin: '6px 0' }}>
+                              Disambiguated Terms ({(vocabRes?.length ?? 0) + (vocabAmb?.length ?? 0)})
+                              {vocabAmb && vocabAmb.length > 0 && (
+                                <span style={{ marginLeft: 6, color: '#d97706', fontWeight: 500 }}>
+                                  {vocabAmb.length} ambiguous
+                                </span>
+                              )}
+                            </summary>
+                            {vocabRes && vocabRes.length > 0 && (() => {
+                              // Dedup: same colloquial+canonical → keep highest confidence
+                              const confRank = { high: 3, medium: 2, low: 1 } as Record<string, number>;
+                              const seen = new Map<string, typeof vocabRes[0]>();
+                              for (const r of vocabRes) {
+                                const key = `${r.colloquial}|${r.canonical}`;
+                                const existing = seen.get(key);
+                                if (!existing || (confRank[r.confidence] ?? 0) > (confRank[existing.confidence] ?? 0)) {
+                                  seen.set(key, r);
+                                }
+                              }
+                              const deduped = [...seen.values()].sort((a, b) =>
+                                a.colloquial.localeCompare(b.colloquial) || a.canonical.localeCompare(b.canonical)
+                              );
+                              return (
+                              <table style={{ fontSize: '0.68rem', borderCollapse: 'collapse', marginBottom: 6 }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <th style={{ textAlign: 'left', padding: '1px 4px', color: 'var(--text-muted)' }}>Term</th>
+                                    <th style={{ textAlign: 'left', padding: '1px 4px', color: 'var(--text-muted)' }}>Canonical</th>
+                                    <th style={{ textAlign: 'center', padding: '1px 4px', color: 'var(--text-muted)' }}>Conf</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {deduped.map((r, i) => (
+                                    <tr key={i} style={{ borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
+                                      <td style={{ padding: '1px 4px' }}>{r.colloquial}</td>
+                                      <td style={{ padding: '1px 4px', color: 'var(--text-secondary)' }}>{r.canonical}</td>
+                                      <td style={{
+                                        padding: '1px 4px', textAlign: 'center', fontWeight: 600,
+                                        color: r.confidence === 'high' ? '#22c55e' : r.confidence === 'low' ? '#ef4444' : '#d97706',
+                                      }}>{r.confidence}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              );
+                            })()}
+                            {vocabAmb && vocabAmb.length > 0 && (
+                              <div style={{ padding: '4px 8px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: '0.68rem', marginBottom: 4 }}>
+                                <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Ambiguous — needs review:</div>
+                                {vocabAmb.map((a, i) => (
+                                  <div key={i} style={{ marginLeft: 8 }}>
+                                    &ldquo;{a.colloquial}&rdquo;
+                                    {a.offset != null && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>@{a.offset}</span>}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </details>
+                        );
+                      })()}
                       {/* Fact-check evidence detail — shows web search evidence, queries, and citations */}
                       {entry.type === 'fact-check' && (() => {
                         const fcMeta = (entry.metadata as Record<string, unknown>)?.fact_check as Record<string, unknown> | undefined;

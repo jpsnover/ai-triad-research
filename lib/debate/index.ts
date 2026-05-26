@@ -43,6 +43,7 @@ export * from './documentAnalysis.js';
 export * from './turnValidator.js';
 export * from './taxonomyGapAnalysis.js';
 export * from './vocabularyContext.js';
+export * from './vocabularyDisambiguation.js';
 export * from './neutralEvaluator.js';
 export * from './signalConfidence.js';
 export * from './pragmaticSignals.js';

@@ -126,7 +126,7 @@ export function PovTab({ pov }: PovTabProps) {
     selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
     similarResults, similarLoading, similarError,
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
-    navigateToSearchRelated,
+    navigateToSearchRelated, navigateToLineage,
     attributeFilter, attributeInfo,
     clusterView, clusterLoading, clusterError, runClusterView, clearClusterView,
     relatedNodeId, showRelatedEdges, selectedEdge,
@@ -142,6 +142,14 @@ export function PovTab({ pov }: PovTabProps) {
   const [lineageSecondaryValue, setLineageSecondaryValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
   const [refPreviewNodeId, setRefPreviewNodeId] = useState<string | null>(null);
+  const [lineageCtxMenu, setLineageCtxMenu] = useState<{ x: number; y: number; key: string } | null>(null);
+  // Close lineage context menu on outside click
+  useEffect(() => {
+    if (!lineageCtxMenu) return;
+    const handler = () => setLineageCtxMenu(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [lineageCtxMenu]);
   // Clear pane 3 webview + secondary/ref previews when a different lineage value is selected in pane 1
   useEffect(() => { setLineageLinkUrl(null); setLineageSecondaryValue(null); setRefPreviewNodeId(null); }, [lineagePreviewValue]);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
@@ -352,17 +360,42 @@ export function PovTab({ pov }: PovTabProps) {
     const renderSeeAlso = () => seeAlsoItems.length > 0 && (
       <div className="lineage-detail-section">
         <div className="lineage-detail-label">See Also</div>
-        <div className="lineage-detail-links">
+        <div className="lineage-detail-links" style={{ position: 'relative' }}>
           {seeAlsoItems.map(({ key, label }) => (
             <button
               key={key}
               className={`btn btn-sm${lineageSecondaryValue === key ? '' : ' btn-ghost'}`}
               onClick={() => setLineageSecondaryValue(lineageSecondaryValue === key ? null : key)}
-              title={`Preview: ${label}`}
+              onContextMenu={(e) => { e.preventDefault(); setLineageCtxMenu({ x: e.clientX, y: e.clientY, key }); }}
+              title={`Preview: ${label} (right-click → Go To)`}
             >
               {label}
             </button>
           ))}
+          {lineageCtxMenu && (
+            <div
+              style={{
+                position: 'fixed', left: lineageCtxMenu.x, top: lineageCtxMenu.y, zIndex: 9999,
+                background: 'var(--bg-primary, #1a1a2e)', border: '1px solid var(--border, #333)',
+                borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '2px 0',
+                minWidth: 160,
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <button
+                style={{
+                  display: 'block', width: '100%', padding: '6px 14px', border: 'none',
+                  background: 'transparent', color: 'var(--text-primary)', fontSize: '0.78rem',
+                  textAlign: 'left', cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--accent, #3b82f6)'; (e.target as HTMLElement).style.color = '#fff'; }}
+                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; (e.target as HTMLElement).style.color = 'var(--text-primary)'; }}
+                onClick={() => { navigateToLineage(lineageCtxMenu.key); setLineageCtxMenu(null); }}
+              >
+                Go To in Lineage Panel
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );

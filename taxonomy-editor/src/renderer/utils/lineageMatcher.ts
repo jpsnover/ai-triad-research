@@ -10,6 +10,7 @@
 
 import React from 'react';
 import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../data/lineageCategories';
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 let cachedRegex: RegExp | null = null;
 let cachedLookup: Map<string, { name: string; l1: string; l2: string; l2Label: string }> | null = null;
@@ -80,13 +81,24 @@ function linkifyText(text: string, keyPrefix: string): React.ReactNode {
     const matchedText = match[0];
     const info = lookup.get(matchedText.toLowerCase());
 
+    const lineageName = info?.name ?? matchedText;
+    // Show L2 qualifier for short/common terms to disambiguate
+    const showQualifier = info?.l2Label && matchedText.length <= 20;
+    const displayContent = showQualifier
+      ? [matchedText, React.createElement('span', { key: 'q', className: 'lineage-link-qualifier' }, ` (${info!.l2Label})`)]
+      : matchedText;
     parts.push(
-      React.createElement('span', {
+      React.createElement('a', {
         key: `${keyPrefix}-${matchCount++}`,
         className: 'lineage-link',
-        title: info ? `${info.l2Label} · ${info.l1}` : matchedText,
-        'data-lineage-name': info?.name ?? matchedText,
-      }, matchedText),
+        href: '#',
+        'data-lineage-name': lineageName,
+        onClick: (e: React.MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation();
+          useTaxonomyStore.getState().navigateToLineage(lineageName);
+        },
+      }, ...(Array.isArray(displayContent) ? displayContent : [displayContent])),
     );
     lastIndex = regex.lastIndex;
   }

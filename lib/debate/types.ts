@@ -865,6 +865,8 @@ export interface ArgumentNetworkNode {
   };
   /** Post-extraction taxonomy attribution: which POV node(s) this claim instantiates. */
   claim_taxonomy_attribution?: ClaimTaxonomyAttribution;
+  /** Post-extraction vocabulary disambiguation: bare colloquial terms resolved to canonical forms. */
+  vocabulary_tags?: { colloquial: string; canonical: string; offset: number }[];
 }
 
 export interface ClaimTaxonomyAttribution {

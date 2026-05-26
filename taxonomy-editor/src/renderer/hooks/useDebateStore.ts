@@ -114,7 +114,8 @@ import { computeTreePriority } from '@lib/debate/desirePriority';
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from '@lib/debate/doctrinalAnchoring';
 import type { BoundaryEmbeddings } from '@lib/debate/doctrinalAnchoring';
 import { computeOperationality } from '@lib/debate/intentionOperationality';
-import type { StandardizedTerm, ColloquialTerm } from '@lib/dictionary/types';
+import type { StandardizedTerm, ColloquialTerm, CampOrigin } from '@lib/dictionary/types';
+import { disambiguateTerms } from '@lib/debate/vocabularyDisambiguation';
 import { usePromptConfigStore } from './usePromptConfigStore';
 import { api } from '@bridge';
 import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../data/lineageCategories';
@@ -2927,7 +2928,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
   },
 
   addTranscriptEntry: (entry) => {
-    const { activeDebate } = get();
+    const { activeDebate, vocabularyTerms } = get();
     const entryId = generateId();
     if (!activeDebate) return entryId;
     const full: TranscriptEntry = {
@@ -2935,6 +2936,28 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       id: entryId,
       timestamp: nowISO(),
     };
+
+    // Post-hoc vocabulary disambiguation for debater statements (mirrors debateEngine.ts)
+    if (vocabularyTerms?.colloquial &&
+        (full.type === 'opening' || full.type === 'statement') &&
+        full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
+      const poverPov = POVER_INFO[full.speaker as Exclude<SpeakerId, 'user'>]?.pov as CampOrigin | undefined;
+      if (poverPov) {
+        const result = disambiguateTerms(full.content, poverPov, vocabularyTerms.colloquial);
+        if (result.terms.length > 0) {
+          full.metadata = full.metadata ?? {};
+          full.metadata.vocabulary_resolutions = result.terms
+            .filter(t => !t.ambiguous)
+            .map(t => ({ colloquial: t.bare, canonical: t.canonical, confidence: t.confidence, offset: t.offset }));
+          if (result.ambiguousCount > 0) {
+            full.metadata.vocabulary_ambiguities = result.terms
+              .filter(t => t.ambiguous)
+              .map(t => ({ colloquial: t.bare, offset: t.offset }));
+          }
+        }
+      }
+    }
+
     const updated: DebateSession = {
       ...activeDebate,
       updated_at: nowISO(),

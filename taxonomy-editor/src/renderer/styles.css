@@ -7950,12 +7950,14 @@ body {
 
 /* ─── Lineage Links (t/201) ──────────────────────────── */
 
+a.lineage-link,
 .lineage-link {
+  color: inherit;
   text-decoration: underline;
   text-decoration-style: dotted;
   text-decoration-color: rgba(249, 115, 22, 0.35);
   text-underline-offset: 2px;
-  cursor: help;
+  cursor: pointer;
   border-radius: 2px;
   transition: background 0.15s, text-decoration-color 0.15s;
 }
@@ -7963,6 +7965,47 @@ body {
 .lineage-link:hover {
   text-decoration-color: rgba(249, 115, 22, 0.8);
   background: rgba(249, 115, 22, 0.08);
+}
+
+.lineage-link-qualifier {
+  font-size: 0.75em;
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ─── Vocabulary Annotations (t/212) ──────────────────── */
+
+a.vocab-term,
+.vocab-term {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: rgba(168, 85, 247, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: background 0.15s, text-decoration-color 0.15s;
+}
+
+.vocab-term:hover {
+  text-decoration-color: rgba(168, 85, 247, 0.8);
+  background: rgba(168, 85, 247, 0.08);
+}
+
+.vocab-confidence-high {
+  text-decoration-color: rgba(34, 197, 94, 0.4);
+}
+.vocab-confidence-high:hover {
+  text-decoration-color: rgba(34, 197, 94, 0.8);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.vocab-confidence-low {
+  text-decoration-color: rgba(239, 68, 68, 0.4);
+}
+.vocab-confidence-low:hover {
+  text-decoration-color: rgba(239, 68, 68, 0.8);
+  background: rgba(239, 68, 68, 0.08);
 }
 
 /* ─── Detail Tier Pills (DT-3) ────────────────────────── */

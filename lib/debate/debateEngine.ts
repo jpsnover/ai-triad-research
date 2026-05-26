@@ -100,6 +100,8 @@ import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
 import { formatVocabularyContext } from './vocabularyContext.js';
+import { disambiguateTerms } from './vocabularyDisambiguation.js';
+import type { CampOrigin } from '../dictionary/types.js';
 import type { ContextInjectionManifest } from './taxonomyContext.js';
 import { documentAnalysisPrompt, buildTaxonomySample } from './documentAnalysis.js';
 import type { DocumentAnalysis } from './types.js';
@@ -845,6 +847,29 @@ export class DebateEngine {
   private addEntry(entry: Omit<TranscriptEntry, 'id' | 'timestamp'>): TranscriptEntry {
     const full: TranscriptEntry = { id: generateId(), timestamp: nowISO(), ...entry };
     this.session.transcript.push(full);
+
+    // Post-hoc vocabulary disambiguation for debater statements
+    if (this.config.vocabulary?.colloquialTerms &&
+        (full.type === 'opening' || full.type === 'statement') &&
+        full.speaker !== 'system' && full.speaker !== 'moderator' && full.speaker !== 'user') {
+      const result = disambiguateTerms(
+        full.content,
+        full.speaker as CampOrigin,
+        this.config.vocabulary.colloquialTerms,
+      );
+      if (result.terms.length > 0) {
+        full.metadata = full.metadata ?? {};
+        full.metadata.vocabulary_resolutions = result.terms
+          .filter(t => !t.ambiguous)
+          .map(t => ({ colloquial: t.bare, canonical: t.canonical, confidence: t.confidence, offset: t.offset }));
+        if (result.ambiguousCount > 0) {
+          full.metadata.vocabulary_ambiguities = result.terms
+            .filter(t => t.ambiguous)
+            .map(t => ({ colloquial: t.bare, offset: t.offset }));
+        }
+      }
+    }
+
     return full;
   }
 
@@ -4351,6 +4376,7 @@ Return ONLY JSON (no markdown, no code fences):
       {
         groundingOverlapThreshold: overlapThreshold,
         isClassifyPath: !!(debaterClaims && debaterClaims.length > 0),
+        colloquialTerms: this.config.vocabulary?.colloquialTerms,
       },
     );
 

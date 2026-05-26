@@ -210,7 +210,7 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
           if (totalItems === 0) return null;
           const cat = getCategoryById(catId);
           const isCollapsed = collapsedL1.has(catId);
-          const l2Cats = hasL2 ? getL2CategoriesForL1(catId) : [];
+          const l2Cats = hasL2 ? [...getL2CategoriesForL1(catId)].sort((a, b) => a.label.localeCompare(b.label)) : [];
 
           return (
             <div key={catId} className="lineage-category-group">
