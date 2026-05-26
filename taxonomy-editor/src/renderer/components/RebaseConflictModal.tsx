@@ -19,6 +19,7 @@ import {
   abortRebase,
   type RebaseState,
 } from '../utils/syncApi';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface Props {
   open: boolean;
@@ -107,6 +108,13 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
       const next = res.remaining_files[0] ?? null;
       if (next !== selected) setSelected(next);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'rebase-conflict-modal',
+        level: 'error',
+        message: 'Failed to resolve rebase file',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(null);
@@ -132,6 +140,13 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
       setSelected(res.conflict_files[0] ?? null);
       setState(s => ({ ...s, conflict_files: res.conflict_files }));
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'rebase-conflict-modal',
+        level: 'error',
+        message: 'Continue rebase failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(null);
@@ -146,6 +161,13 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
       onAborted(res.message);
       onClose();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'rebase-conflict-modal',
+        level: 'error',
+        message: 'Abort rebase failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(null);

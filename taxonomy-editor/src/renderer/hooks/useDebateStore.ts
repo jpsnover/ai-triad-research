@@ -250,7 +250,8 @@ function getConfiguredModel(): string {
     const globalModel = localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
     console.log(`[model] Using global model: ${globalModel}`);
     return globalModel;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to read configured model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     return 'gemini-flash-lite-latest';
   }
 }
@@ -357,6 +358,13 @@ async function summarizeTranscriptEntry(
       }
       return; // success
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'warn',
+        message: `Summarize entry failed (attempt ${attempt + 1}/${MAX_RETRIES})`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn(`[debate] summarizeEntry failed (attempt ${attempt + 1}/${MAX_RETRIES}):`, err);
     }
   }
@@ -368,7 +376,7 @@ async function summarizeTranscriptEntry(
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
       useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Entry summarization failed — detail level pills unavailable'] });
     }
-  } catch { /* store may not be ready */ }
+  } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Store not ready during summarizeEntry warning push', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
 }
 
 /**
@@ -441,7 +449,7 @@ function recordDiagnostic(
   set({ activeDebate: updatedDebate });
 
   // Broadcast to popout window
-  try { api.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
+  try { api.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (recordDiagnostic)', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
 }
 
 /** djb2 hash for prompt fingerprinting. */
@@ -780,6 +788,13 @@ async function extractClaimsAndUpdateAN(
         response_chars: text.length,
       });
     } catch (callErr) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Claim extraction AI call failed',
+        error: { name: (callErr as Error).name ?? 'Error', message: String(callErr) },
+      });
       extractionTrace.response_time_ms = Date.now() - callStartedAt;
       extractionTrace.status = 'adapter_error';
       extractionTrace.error_message = String(callErr);
@@ -804,6 +819,13 @@ async function extractClaimsAndUpdateAN(
     try {
       parsed = JSON.parse(cleaned) as typeof parsed;
     } catch (parseErr) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Claim extraction JSON parse failed',
+        error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+      });
       extractionTrace.status = extractionTrace.response_truncated ? 'truncated_response' : 'parse_error';
       extractionTrace.error_message = String(parseErr);
       commitTrace();
@@ -892,7 +914,7 @@ async function extractClaimsAndUpdateAN(
       try {
         const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
         if (vector && vector.length > 0) node.embedding = vector;
-      } catch { /* embedding failure never blocks extraction */ }
+      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'AN node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
     }
 
     // Per-claim taxonomy attribution (t/110): compare AN embeddings against same-POV Belief nodes
@@ -939,7 +961,8 @@ async function extractClaimsAndUpdateAN(
           extractionTrace.attribution_missing_embedding = attrResult.missing_embedding;
           extractionTrace.attribution_novel_argument = attrResult.novel_argument;
           extractionTrace.attribution_decisions = attrResult.decisions;
-        } catch {
+        } catch (e) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Claim taxonomy attribution failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } });
           // Attribution failure never blocks extraction
         }
       }
@@ -1028,7 +1051,7 @@ async function extractClaimsAndUpdateAN(
               try {
                 const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
                 if (vector && vector.length > 0) node.embedding = vector;
-              } catch { /* non-blocking */ }
+              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Regen claim embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
             }
 
             // Per-claim evaluation on retry claims
@@ -1067,6 +1090,13 @@ async function extractClaimsAndUpdateAN(
             // Stop early if we pass
             if (retryResult.pass) break;
           } catch (regenErr) {
+            getGlobalRecorder()?.record({
+              type: 'system.error',
+              component: 'debate-store',
+              level: 'warn',
+              message: `Lookahead regen attempt ${attempt + 1} extraction failed`,
+              error: { name: (regenErr as Error).name ?? 'Error', message: String(regenErr) },
+            });
             console.warn(`[Lookahead] Regen attempt ${attempt + 1} extraction failed:`, regenErr);
             break;
           }
@@ -1115,6 +1145,13 @@ async function extractClaimsAndUpdateAN(
         };
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Lookahead pre-commit gate evaluation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn('[Lookahead] Pre-commit gate evaluation failed (non-blocking):', err);
     }
     if (lookaheadDiag) recordDiagnostic(get, set, entryId, { lookahead: lookaheadDiag });
@@ -1209,7 +1246,8 @@ async function extractClaimsAndUpdateAN(
               cachedEmbeddings[entryId] = vector;
             }
             turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
-          } catch {
+          } catch (e) {
+            getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Convergence turn embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } });
             if (Object.keys(cachedEmbeddings).length > 0) {
               turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
             }
@@ -1275,6 +1313,13 @@ async function extractClaimsAndUpdateAN(
             getGlobalRecorder()?.record({ type: 'debate.signal', component: 'process-reward', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: `Process reward: ${pr.score.toFixed(3)}`, data: { score: pr.score, ...pr.components } });
           }
         } catch (convErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'debate-store',
+            level: 'warn',
+            message: 'Convergence signal computation failed',
+            error: { name: (convErr as Error).name ?? 'Error', message: String(convErr) },
+          });
           console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
           pushWarning(get, set, 'Convergence analysis skipped this turn');
         }
@@ -1301,6 +1346,13 @@ async function extractClaimsAndUpdateAN(
           turnNumber,
         );
       } catch (cruxErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Crux resolution tracker update failed',
+          error: { name: (cruxErr as Error).name ?? 'Error', message: String(cruxErr) },
+        });
         console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);
         pushWarning(get, set, 'Crux resolution tracking skipped');
       }
@@ -1352,6 +1404,13 @@ async function extractClaimsAndUpdateAN(
           }
         }
       } catch (nliErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Steelman NLI validation failed',
+          error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr) },
+        });
         console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);
         pushWarning(get, set, 'Steelman validation skipped this turn');
       }
@@ -1380,6 +1439,13 @@ async function extractClaimsAndUpdateAN(
           webQueries = searchResult.searchQueries || [];
           webCitations = searchResult.citations || [];
         } catch (searchErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'debate-store',
+            level: 'warn',
+            message: `Inline verify web search failed for ${pNode.id}`,
+            error: { name: (searchErr as Error).name ?? 'Error', message: String(searchErr) },
+          });
           console.warn(`[Verify] Web search failed for ${pNode.id}, proceeding without:`, searchErr);
           pushWarning(get, set, 'Web verification unavailable for some claims');
           webContext = '(Web search unavailable)';
@@ -1478,6 +1544,13 @@ async function extractClaimsAndUpdateAN(
           }
         }
       } catch (verifyErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: `Inline verification failed for ${pNode.id}`,
+          error: { name: (verifyErr as Error).name ?? 'Error', message: String(verifyErr) },
+        });
         console.warn(`[Verify] Inline verification failed for ${pNode.id} (non-blocking):`, verifyErr);
         pushWarning(get, set, 'Claim verification skipped');
         pNode.verification_status = 'pending';
@@ -1485,6 +1558,13 @@ async function extractClaimsAndUpdateAN(
     }
     if (factCheckMutated) {
       try { await get().saveDebate(); } catch (saveErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Failed to persist inline fact-check mutations',
+          error: { name: (saveErr as Error).name ?? 'Error', message: String(saveErr) },
+        });
         console.warn('[Verify] Failed to persist inline fact-check mutations:', saveErr);
         pushWarning(get, set, 'Fact-check results could not be saved');
       }
@@ -1497,13 +1577,20 @@ async function extractClaimsAndUpdateAN(
     commitTrace();
 
     // Broadcast updated state to popout
-    try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch { /* ignore */ }
+    try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-store',
+      level: 'error',
+      message: 'Claim extraction failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
     pushWarning(get, set, 'Argument extraction skipped this turn');
     if (!extractionTrace.error_message) extractionTrace.error_message = String(err);
     if (extractionTrace.status === 'ok') extractionTrace.status = 'adapter_error';
-    try { commitTrace(); } catch { /* ignore */ }
+    try { commitTrace(); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'commitTrace failed during error recovery', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
     trace(TraceEventName.AN_EXTRACT_FAILED, {
       debate_id: debate.id,
       turn_id: entryId,
@@ -1607,6 +1694,13 @@ async function getSourceEvidenceIndex(): Promise<Record<string, unknown> | undef
     _cachedEvidenceIndex = result;
     return result ?? undefined;
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-store',
+      level: 'warn',
+      message: 'Failed to load source evidence index',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     console.error(`[debate-store] getSourceEvidenceIndex ERROR:`, err);
     _cachedEvidenceIndex = null;
     return undefined;
@@ -1622,7 +1716,14 @@ async function getDocTitles(): Promise<Record<string, string> | undefined> {
     const result = await bridge.loadDocTitles();
     _cachedDocTitles = result;
     return result ?? undefined;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-store',
+      level: 'warn',
+      message: 'Failed to load doc titles',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     _cachedDocTitles = null;
     return undefined;
   }
@@ -1781,6 +1882,13 @@ async function getRelevantTaxonomyContext(
         }
         _doctrinalAnchoringApplied.add(pov);
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Doctrinal anchoring failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         console.warn('[doctrinal] Anchoring failed (non-blocking):', err);
         _doctrinalAnchoringApplied.add(pov); // don't retry on failure
       }
@@ -1909,6 +2017,18 @@ async function getRelevantTaxonomyContext(
     const scoredPov = selectRelevantNodes(allPovNodes, scores, relevanceOpts);
     const scoredCC = selectRelevantSituationNodes(allCCNodes, scores, threshold, 3, 15);
 
+    // Log lineage boost outcome — confirms how many nodes were actually promoted
+    const _lb = (scoredPov as unknown as { _lineageBoost?: { boostedNodeIds: string[]; promotedNodeIds: string[]; promotedCount: number } })._lineageBoost;
+    if (_lb) {
+      getGlobalRecorder()?.record({
+        type: 'lineage.boost-result',
+        component: 'debate-store',
+        level: 'info',
+        message: 'Lineage boost result after selectRelevantNodes',
+        data: { boosted_count: _lb.boostedNodeIds.length, promoted_count: _lb.promotedCount, promoted_node_ids: _lb.promotedNodeIds, total_selected: scoredPov.length, total_candidates: allPovNodes.length },
+      });
+    }
+
     // Unwrap ScoredPovNode → PovNode and build nodeScores map
     const filteredPov = scoredPov.map(s => s.node);
     const filteredCC = scoredCC.map(s => s.node);
@@ -1921,6 +2041,13 @@ async function getRelevantTaxonomyContext(
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores, nodeSourceMap };
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-store',
+      level: 'warn',
+      message: 'Taxonomy relevance scoring failed, using unfiltered fallback',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
     // Surface warning via store — useDebateStore is defined below but accessible at call time
     try {
@@ -1930,7 +2057,7 @@ async function getRelevantTaxonomyContext(
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Taxonomy relevance scoring unavailable'] });
       }
-    } catch { /* store may not be ready during init */ }
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Store not ready during relevance scoring fallback', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     // Fallback: first 21 POV nodes + first 10 CC nodes
     return {
@@ -2480,9 +2607,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         setTimeout(() => {
           api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry });
         }, 1000);
-      }).catch(() => { /* ignore */ });
+      }).catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to open diagnostics window', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); });
     } else {
-      try { void api.closeDiagnosticsWindow?.(); } catch { /* ignore */ }
+      try { void api.closeDiagnosticsWindow?.(); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to close diagnostics window', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
       set({ diagPopoutOpen: false });
     }
   },
@@ -2493,7 +2620,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     try {
       const debate = get().activeDebate;
       api.sendDiagnosticsState({ debate, selectedEntry: entryId, forceSelect: !!force });
-    } catch { /* popout may not exist */ }
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast to popout failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
   },
 
   setDiagPopoutOpen: (open) => set({ diagPopoutOpen: open }),
@@ -2503,7 +2630,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     try {
       const raw = await api.listDebateSessionsMeta();
       set({ sessions: raw as DebateSessionSummary[], sessionsLoading: false });
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Failed to load debate sessions',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ sessionsLoading: false });
     }
   },
@@ -2733,6 +2867,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       await get().loadSessions();
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate deleted' });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Failed to delete debate',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: mapErrorToUserMessage(err) });
     }
   },
@@ -2751,6 +2892,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
       await get().loadSessions();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Failed to rename debate',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: mapErrorToUserMessage(err) });
     }
   },
@@ -3032,6 +3180,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             console.log(`[TopicCritique] Suggested topic scored ${parsed.composite_score} < original ${critique.composite_score} — discarding suggestion`);
           }
         } catch (sugErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'debate-store',
+            level: 'warn',
+            message: 'Suggested topic scoring failed',
+            error: { name: (sugErr as Error).name ?? 'Error', message: String(sugErr) },
+          });
           console.warn('[TopicCritique] Suggested topic scoring failed (non-blocking):', sugErr);
         }
       }
@@ -3052,6 +3207,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         data: { structural: structuralScore.total, frame: critique.frame_score?.total ?? 0, rating: critique.rating },
       });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Topic critique failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn('[TopicCritique] Failed (non-blocking):', err);
       set({ topicCritiqueLoading: false, debateActivity: null });
     }
@@ -3121,6 +3283,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ activeDebate: updated, topicCritiqueLoading: false, debateActivity: null });
       await saveDebate();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Re-evaluate suggested topic failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn('[TopicCritique] Re-evaluate suggested failed (non-blocking):', err);
       set({ topicCritiqueLoading: false, debateActivity: null });
     }
@@ -3170,6 +3339,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         });
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Failed to generate clarifying questions',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       addTranscriptEntry({
         type: 'system',
         speaker: 'system',
@@ -3251,6 +3427,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             }
             console.log(`[TopicRefinement] Attempt ${attempt + 1}: score ${candidateCritique.composite_score} < baseline ${baselineScore} — discarding`);
           } catch (scoreErr) {
+            getGlobalRecorder()?.record({
+              type: 'system.error',
+              component: 'debate-store',
+              level: 'warn',
+              message: 'Topic refinement scoring failed, accepting candidate',
+              error: { name: (scoreErr as Error).name ?? 'Error', message: String(scoreErr) },
+            });
             // Scoring failed — accept the candidate rather than blocking refinement
             console.warn('[TopicRefinement] Scoring failed, accepting candidate:', scoreErr);
             bestTopic = candidate;
@@ -3262,6 +3445,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           break;
         }
       } catch (genErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'error',
+          message: `Topic refinement attempt ${attempt + 1} generation failed`,
+          error: { name: (genErr as Error).name ?? 'Error', message: String(genErr) },
+        });
         console.warn(`[TopicRefinement] Attempt ${attempt + 1} generation failed:`, genErr);
         break;
       }
@@ -3333,6 +3523,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (seedErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'User seed claim extraction failed',
+          error: { name: (seedErr as Error).name ?? 'Error', message: String(seedErr) },
+        });
         console.warn('[debate] User seed claim extraction failed (non-fatal):', seedErr);
         pushWarning(get, set, 'User position extraction skipped — debaters will not see your stated positions in the graph');
       }
@@ -3343,6 +3540,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       await get().beginDebate();
       return;
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Topic synthesis failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: `Topic synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
@@ -3417,7 +3621,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               try {
                 const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
                 if (vector && vector.length > 0) node.embedding = vector;
-              } catch { /* embedding failure never blocks seeding */ }
+              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Doc i-node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
             }
 
             set({
@@ -3433,6 +3637,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'error',
+          message: 'Document analysis failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         console.warn('[debate] Document analysis failed:', err);
         pushWarning(get, set, 'Document analysis could not be completed');
         addTranscriptEntry({
@@ -3454,6 +3665,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         set({ vocabularyTerms: { standardized: dict.standardized as StandardizedTerm[], colloquial: dict.colloquial as ColloquialTerm[] } });
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Vocabulary loading failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn('[debate] Vocabulary loading failed, debates will use bare terms:', err);
       pushWarning(get, set, 'Vocabulary dictionary unavailable — debates will use bare terms');
     }
@@ -3689,6 +3907,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               (_stage, label) => set({ debateActivity: label }),
             );
           } catch (err) {
+            getGlobalRecorder()?.record({
+              type: 'system.error',
+              component: 'debate-store',
+              level: 'warn',
+              message: `Opening retry failed for ${info.label}`,
+              error: { name: (err as Error).name ?? 'Error', message: String(err) },
+            });
             console.warn(`[debate-store] Opening retry failed for ${info.label}:`, err);
           }
           if (!isStillValid()) {
@@ -3811,7 +4036,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           try {
             const result = await api.computeQueryEmbedding(entry.content.slice(0, 1000));
             openingEmbeddings[entry.speaker] = result.vector;
-          } catch { /* non-critical */ }
+          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Opening embedding computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
         }
         // Store on session metadata for cross-respond access
         if (Object.keys(openingEmbeddings).length > 0) {
@@ -3823,7 +4048,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       }
-    } catch { /* non-critical */ }
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Opening embeddings caching failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
 
     // Neutral evaluation: baseline checkpoint (after openings, before cross-respond)
     void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry);
@@ -3838,12 +4063,19 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (adaptive?.enabled) {
         // Adaptive: run until phase transitions signal termination (up to maxTotalRounds)
         const weights = loadProvisionalWeights();
-        const maxRounds = weights.pacing_presets[adaptive.pacing]?.maxTotalRounds ?? 12;
+        const pacingPresetName = adaptive.pacing ?? 'moderate';
+        const pacingPreset = weights.pacing_presets[pacingPresetName] ?? weights.pacing_presets.moderate;
+        const maxRounds = pacingPreset?.maxTotalRounds ?? 12;
+        const loopDebateId = freshDebate?.id;
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: 'Adaptive loop started', data: { pacing: pacingPresetName, maxTotalRounds: maxRounds, argumentationExit: pacingPreset?.argumentationExit, concludingExit: pacingPreset?.concludingExit } });
+        let loopExitReason = 'maxRounds_exhausted';
+        let loopIterations = 0;
         for (let i = 0; i < maxRounds; i++) {
+          loopIterations = i + 1;
           const d = get().activeDebate;
-          if (!d) break;
+          if (!d) { loopExitReason = 'debate_null'; break; }
           // Stop if phase reached termination
-          if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') break;
+          if (d.adaptive_staging?.phase_state?.current_phase === 'terminated') { loopExitReason = 'phase_terminated'; break; }
           const preLen = d.transcript.length;
           try {
             await get().crossRespond();
@@ -3851,16 +4083,34 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             console.error(`[debate] Adaptive loop iteration ${i} failed:`, loopErr);
             getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: d.id, message: `Adaptive loop failed at iteration ${i}`, data: { iteration: i, error: String(loopErr), stack: (loopErr as Error).stack?.slice(0, 500) } });
             set({ debateError: `Cross-respond failed: ${(loopErr as Error).message?.slice(0, 200) ?? String(loopErr)}` });
+            loopExitReason = 'crossRespond_error';
             break;
           }
           // If crossRespond returned without adding a debater statement (e.g. agreement
           // detected), break to avoid re-running moderator selection in a loop.
           const post = get().activeDebate;
-          if (!post || post.transcript.length === preLen || !post.transcript.slice(preLen).some(e => e.type === 'statement')) break;
+          if (!post) { loopExitReason = 'post_debate_null'; break; }
+          if (post.transcript.length === preLen) {
+            loopExitReason = `no_transcript_growth(preLen=${preLen},postLen=${post.transcript.length})`;
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: no transcript growth', data: { iteration: i, preLen, postLen: post.transcript.length, phase: post.adaptive_staging?.phase_state?.current_phase } });
+            break;
+          }
+          if (!post.transcript.slice(preLen).some(e => e.type === 'statement')) {
+            const newEntryTypes = post.transcript.slice(preLen).map(e => e.type);
+            loopExitReason = `no_statement_in_new_entries(types=${newEntryTypes.join(',')})`;
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: no statement in new entries', data: { iteration: i, preLen, postLen: post.transcript.length, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
+            break;
+          }
         }
-        // Auto-trigger synthesis when adaptive debate terminates
+        // Log loop completion with full context
         const finalDebate = get().activeDebate;
-        if (finalDebate?.adaptive_staging?.phase_state?.current_phase === 'terminated') {
+        const finalPhase = finalDebate?.adaptive_staging?.phase_state?.current_phase;
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: `Adaptive loop ended: ${loopExitReason}`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, transcript_length: finalDebate?.transcript?.length, an_nodes: finalDebate?.argument_network?.nodes?.length } });
+        // Auto-trigger synthesis when adaptive debate terminates OR loop exhausted
+        if (finalPhase === 'terminated') {
+          await get().requestSynthesis();
+        } else if (finalDebate && loopExitReason === 'maxRounds_exhausted') {
+          getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Forcing synthesis: loop exhausted without phase termination', data: { iterations: loopIterations, maxRounds, final_phase: finalPhase } });
           await get().requestSynthesis();
         }
       } else if (initialCrossRespondRounds > 0) {
@@ -4023,6 +4273,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
         }
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'error',
+          message: `${info.label} failed to respond (user prompt)`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         addTranscriptEntry({
           type: 'system',
           speaker: 'system',
@@ -4275,6 +4532,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
       if (!isStillValid()) return;
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Cross-respond moderator selection failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });
       return;
     }
@@ -4619,6 +4883,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               const { statement: newStatement, meta: newMeta } = regenAssembled;
               return { statement: newStatement, debaterClaims: newMeta.my_claims };
             } catch (err) {
+              getGlobalRecorder()?.record({
+                type: 'system.error',
+                component: 'debate-store',
+                level: 'warn',
+                message: 'Lookahead response regeneration failed',
+                error: { name: (err as Error).name ?? 'Error', message: String(err) },
+              });
               console.warn('[Lookahead] Response regeneration failed:', err);
               return null;
             }
@@ -4669,7 +4940,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
               }
             }
           }
-        } catch { /* non-critical */ }
+        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Position drift detection failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
       }
       // ── Neutral evaluation: midpoint checkpoint ──
       try {
@@ -4682,7 +4953,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             void runNeutralCheckpoint('midpoint', get, set as any, addTranscriptEntry);
           }
         }
-      } catch { /* non-critical */ }
+      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Neutral midpoint checkpoint failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
 
       // ── Gap injection — scheduled at midpoint + responsive every 3 rounds after ──
       try {
@@ -4790,6 +5061,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (gapErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Gap injection analysis failed',
+          error: { name: (gapErr as Error).name ?? 'Error', message: String(gapErr) },
+        });
         console.warn('[Gap Injection] Gap analysis failed (non-blocking):', gapErr);
         pushWarning(get, set, 'Gap analysis skipped this turn');
       }
@@ -4800,6 +5078,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         content: `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}`,
         taxonomy_refs: [],
       });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: `Pipeline failed for ${responderPover} R${crossRespondRound}`, data: { round: crossRespondRound, speaker: responderPover, error: String(err), stack: (err as Error).stack?.slice(0, 500), transcript_length: get().activeDebate?.transcript.length } });
     }
 
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate.id, message: `Cross-respond turn complete, entering post-processing`, data: { round: crossRespondRound, speaker: responderPover, transcript_length: get().activeDebate?.transcript.length } });
@@ -4968,20 +5247,28 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           try {
             const val = Math.max(0, Math.min(1, signal.compute(signalCtx)));
             recordSignalHistory(signal.id, crossRespondRound, val);
-          } catch { /* signal computation failed — skip */ }
+          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Phase signal computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
         }
 
-        // Flight recorder telemetry
+        // Flight recorder telemetry — per-round state snapshot for diagnostics
         getGlobalRecorder()?.record({
           type: 'debate.round', component: 'adaptive-staging', level: 'info',
           debate_id: postDebate.id,
           message: `Phase evaluation: ${advanced.current_phase} R${crossRespondRound}`,
           data: {
             round: crossRespondRound, phase: advanced.current_phase,
+            rounds_in_phase: advanced.rounds_in_phase,
+            total_rounds_elapsed: advanced.total_rounds_elapsed,
             saturation_score: satScore, convergence_score: convScore,
+            argumentation_exit_threshold: advanced.argumentation_exit_threshold,
+            concluding_exit_threshold: advanced.concluding_exit_threshold,
             health_score: asHealthScore, action: result.action,
             reason: result.reason, confidence_deferred: result.confidence_deferred,
             network_nodes: signalCtx.network.nodeCount,
+            network_edges: signalCtx.network.edgeCount,
+            api_calls_used: advanced.api_calls_used,
+            maxTotalRounds: config.maxTotalRounds,
+            transcript_length: postDebate.transcript.length,
           },
         });
 
@@ -5239,6 +5526,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (maErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Missing arguments detection failed',
+          error: { name: (maErr as Error).name ?? 'Error', message: String(maErr) },
+        });
         console.warn('[Missing Args] Pass failed (non-blocking):', maErr);
         pushWarning(get, set, 'Missing argument detection skipped');
       }
@@ -5310,6 +5604,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (trErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Taxonomy refinement pass failed',
+          error: { name: (trErr as Error).name ?? 'Error', message: String(trErr) },
+        });
         console.warn('[Taxonomy Refinement] Pass failed (non-blocking):', trErr);
         pushWarning(get, set, 'Taxonomy refinement suggestions skipped');
       }
@@ -5347,6 +5648,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (ccErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Cross-cutting proposals detection failed',
+          error: { name: (ccErr as Error).name ?? 'Error', message: String(ccErr) },
+        });
         console.warn('[Cross-Cutting Proposals] Pass failed (non-blocking):', ccErr);
         pushWarning(get, set, 'Cross-cutting proposal detection skipped');
       }
@@ -5382,6 +5690,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (tgaErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Taxonomy gap analysis failed',
+          error: { name: (tgaErr as Error).name ?? 'Error', message: String(tgaErr) },
+        });
         console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
         pushWarning(get, set, 'Taxonomy gap analysis skipped');
       }
@@ -5392,6 +5707,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Synthesis failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
@@ -5459,6 +5781,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         metadata: { probing_questions: questions, round: probingRound },
       });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Probing questions generation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
@@ -5543,6 +5872,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       searchQueries = searchResult.searchQueries || [];
       webCitations = searchResult.citations || [];
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Fact-check web search failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);
       pushWarning(get, set, 'Web search unavailable for fact-check');
       webContext = '(Web search unavailable)';
@@ -5700,6 +6036,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         }
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Fact check failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
@@ -5770,6 +6113,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
       await saveDebate();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Context compression failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ debateError: `Context compression failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ debateGenerating: null });
@@ -5789,6 +6139,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const result = await api.generateNewsReport(activeDebate.id);
       set({ newsReport: result.article, newsReportLoading: false });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'News report generation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       set({ newsReportError: `News report generation failed: ${err instanceof Error ? err.message : String(err)}`, newsReportLoading: false });
     }
   },
@@ -5941,6 +6298,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
                 if (fixed.proposed_label) edit.proposed_label = fixed.proposed_label;
               }
             } catch (retryErr) {
+              getGlobalRecorder()?.record({
+                type: 'system.error',
+                component: 'debate-store',
+                level: 'warn',
+                message: `DOLCE compliance retry ${attempt} failed for edit ${ei}`,
+                error: { name: (retryErr as Error).name ?? 'Error', message: String(retryErr) },
+              });
               console.warn(`[debate] DOLCE retry ${attempt} failed for edit ${ei}:`, retryErr);
               break;
             }
@@ -5956,6 +6320,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         set({ reflections: [...results] });
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'error',
+          message: `Reflection generation failed for ${info.label}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         results.push({
           pover: povKey,
           label: info.label,
@@ -6047,6 +6418,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           }
         }
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Consensus detection failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         console.warn('[reflections] Consensus detection failed (non-fatal):', err);
       }
     }
@@ -6332,6 +6710,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       set({ consensusClusters: updatedClusters, reflections: updatedReflections });
       return { ok: true };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: 'Accept consensus failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
   },

@@ -61,6 +61,8 @@ Three-agent BDI debate system. Characters: Accelerationist (accelerationist), Sa
 
 Four POV camps with BDI categories (Beliefs, Desires, Intentions). Node IDs: `{pov}-{category}-{NNN}` where pov is `acc`/`saf`/`skp`/`cc`. Policy actions use `pol-*` IDs in a shared registry (`policy_actions.json`). Embeddings: all-MiniLM-L6-v2, 384-dim in `embeddings.json`.
 
+**Data File Convention:** Project JSON files use nested structures — never assume flat schemas. Always inspect a sample (`head` or `jq`) before coding against data files. Common patterns: enriched fields live under `node.graph_attributes.*` (not at node root), `embeddings.json` wraps entries under `data['nodes']` with metadata at top level, and field types vary per context (list vs dict). Check `type()` / `isinstance()` before calling type-specific methods.
+
 ### AI Backends
 
 Configured in `ai-models.json` (single source of truth for PS and Electron). Backends: Google Gemini (free tier), Anthropic Claude, Groq (free tier). Keys via `Register-AIBackend` or env vars (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `AI_API_KEY` fallback).

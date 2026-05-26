@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup, type DataSourceId } from '../data/promptCatalog';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
@@ -237,7 +238,14 @@ export function PromptInspector() {
       if (result) return result;
       // Fallback to template for prompts we can't assemble (PS backend, etc.)
       return { text: selected.template, tokenEstimate: estimateTokens(selected.template), sections: [] };
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'prompt-inspector',
+        level: 'warn',
+        message: 'Prompt preview generation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return null;
     }
     // configVersion included to re-trigger when config knobs change
@@ -259,7 +267,15 @@ export function PromptInspector() {
       await navigator.clipboard.writeText(livePreview.text);
       setCopyFeedback(true);
       setTimeout(() => setCopyFeedback(false), 1500);
-    } catch { /* clipboard unavailable */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'prompt-inspector',
+        level: 'warn',
+        message: 'Clipboard write failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
   }, [livePreview]);
 
   const diffLines = useMemo(() => {

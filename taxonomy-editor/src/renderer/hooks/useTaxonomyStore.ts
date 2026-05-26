@@ -132,7 +132,9 @@ function getStoredBackend(): AIBackend {
   try {
     const stored = localStorage.getItem('taxonomy-editor-ai-backend');
     if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai') return stored;
-  } catch { /* ignore */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI backend from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
   return 'gemini';
 }
 
@@ -140,7 +142,9 @@ function getStoredModel(): AIModel {
   try {
     const stored = localStorage.getItem('taxonomy-editor-gemini-model');
     if (stored && ALL_MODEL_IDS.has(stored)) return stored as AIModel;
-  } catch { /* ignore */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
   const backend = getStoredBackend();
   return DEFAULT_MODELS[backend];
 }
@@ -184,6 +188,7 @@ export async function initAIModels(): Promise<void> {
 
     console.log(`[AI Models] Loaded ${config.models.length} models from ai-models.json`);
   } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load ai-models.json config', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     console.warn('[AI Models] Failed to load ai-models.json, using built-in defaults:', err);
   }
 }
@@ -224,7 +229,10 @@ function loadAnalysisCache(): Map<string, AnalysisCacheEntry> {
     if (!raw) return new Map();
     const arr: [string, AnalysisCacheEntry][] = JSON.parse(raw);
     return new Map(arr);
-  } catch { return new Map(); }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load analysis cache from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    return new Map();
+  }
 }
 
 function saveAnalysisCache(cache: Map<string, AnalysisCacheEntry>): void {
@@ -233,14 +241,18 @@ function saveAnalysisCache(cache: Map<string, AnalysisCacheEntry>): void {
     const entries = [...cache.entries()];
     const trimmed = entries.slice(-50);
     localStorage.setItem(ANALYSIS_CACHE_KEY, JSON.stringify(trimmed));
-  } catch { /* ignore */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to save analysis cache to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
 }
 
 function getStoredTheme(): ColorScheme {
   try {
     const stored = localStorage.getItem('taxonomy-editor-theme');
     if (stored === 'light' || stored === 'dark' || stored === 'bkc' || stored === 'harvard' || stored === 'system') return stored;
-  } catch { /* ignore */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored theme from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
   return 'light';
 }
 
@@ -252,7 +264,9 @@ function applyTheme(scheme: ColorScheme) {
   } else {
     root.setAttribute('data-theme', scheme);
   }
-  try { localStorage.setItem('taxonomy-editor-theme', scheme); } catch { /* ignore */ }
+  try { localStorage.setItem('taxonomy-editor-theme', scheme); } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist theme to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
 }
 
 export interface PolicyRegistryEntry {
@@ -570,7 +584,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         try {
           const cleaned = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
           labels = JSON.parse(cleaned);
-        } catch {
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to parse conflict cluster labels from AI response', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);
         }
       } else {
@@ -610,6 +625,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       set({ conflictClusters: multiClusters, conflictClusterLoading: false });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run conflict cluster view', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ conflictClusterLoading: false, conflictClusterError: mapErrorToUserMessage(err) });
     }
   },
@@ -663,7 +679,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         try {
           const cleaned = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
           labels = JSON.parse(cleaned);
-        } catch {
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to parse POV cluster labels from AI response', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);
         }
       } else {
@@ -769,6 +786,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
           }
         }
       } catch (nliErr) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'NLI misfit detection failed during cluster view', error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr) } });
         console.warn('[clusterView] NLI misfit detection failed, continuing without:', nliErr);
       }
 
@@ -782,6 +800,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       set({ clusterView: { clusters: multiClusters, misfits: misfits.size > 0 ? misfits : undefined }, clusterLoading: false });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run POV cluster view', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ clusterLoading: false, clusterError: mapErrorToUserMessage(err) });
     }
   },
@@ -846,6 +865,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
       set({ analysisResult: text, analysisLoading: false, analysisStep: 0, analysisCached: false });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run distinction analysis', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });
     } finally {
       unsubscribe();
@@ -977,6 +997,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       set({ analysisStep: 4, analysisRetry: null });
       set({ analysisResult: text, analysisLoading: false, analysisStep: 0 });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run node critique', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });
     } finally {
       unsubscribe();
@@ -987,7 +1008,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     try {
       const has = await api.hasApiKey();
       set({ hasApiKey: has });
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to check API key availability', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ hasApiKey: false });
     }
   },
@@ -1075,6 +1097,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       console.log(`[semantic-search] Found ${results.length} results above threshold`);
       set({ semanticResults: results, embeddingLoading: false });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Semantic search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.error('[semantic-search] Error during semantic search for query "' + query + '":', err);
       const detail = mapErrorToUserMessage(err);
       set({
@@ -1124,6 +1147,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       const filtered = results.filter(r => r.id !== nodeId);
       set({ similarResults: filtered, similarLoading: false, similarStep: null });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Similar node search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ similarLoading: false, similarStep: null, similarError: mapErrorToUserMessage(err) });
     }
   },
@@ -1187,17 +1211,23 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         track(steps[4], api.loadPolicyRegistry()),
       ]);
       // Defer conflict-related data — not needed for startup or debate viewing
-      void api.loadConflictFiles().then((c) => set({ conflicts: c as ConflictFile[] })).catch(() => {});
+      void api.loadConflictFiles().then((c) => set({ conflicts: c as ConflictFile[] })).catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict files (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      });
       void api.loadConflictClusters().then((d) => {
         const clusters = d && typeof d === 'object' && Array.isArray((d as { clusters: unknown }).clusters)
           ? (d as { clusters: { label: string; nodeIds: string[] }[] }).clusters : null;
         set({ conflictClusters: clusters });
-      }).catch(() => {});
+      }).catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict clusters (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      });
       void api.loadAggregatedCruxes().then((d) => {
         const cruxes = d && typeof d === 'object' && Array.isArray((d as { cruxes: unknown }).cruxes)
           ? (d as { cruxes: AggregatedCrux[] }).cruxes : null;
         set({ aggregatedCruxes: cruxes });
-      }).catch(() => {});
+      }).catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load aggregated cruxes (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      });
       // Load L2 lineage categories (non-blocking, used by LineagePanel)
       void loadLineageCategoriesData();
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
@@ -1217,6 +1247,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         embeddingDirty: true,
       });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to load taxonomy data', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ loading: false, backgroundLoading: false, saveError: mapErrorToUserMessage(err) });
     }
   },
@@ -1364,6 +1395,7 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       }
       if (nodesToEmbed.length > 0) {
         api.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           console.warn('[save] Failed to update embeddings:', err);
         });
       }
@@ -1946,14 +1978,20 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
 
   aiBackend: getStoredBackend(),
   setAIBackend: (backend) => {
-    try { localStorage.setItem('taxonomy-editor-ai-backend', backend); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-ai-backend', backend); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI backend to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     const newModel = DEFAULT_MODELS[backend];
-    try { localStorage.setItem('taxonomy-editor-gemini-model', newModel); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-gemini-model', newModel); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI model to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     set({ aiBackend: backend, geminiModel: newModel });
   },
   geminiModel: getStoredModel(),
   setGeminiModel: (model) => {
-    try { localStorage.setItem('taxonomy-editor-gemini-model', model); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-gemini-model', model); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI model selection to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     set({ geminiModel: model });
   },
 
@@ -1964,20 +2002,30 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
   },
 
   paneSpacing: (() => {
-    try { return (localStorage.getItem('taxonomy-editor-pane-spacing') as 'normal' | 'concise') || 'normal'; } catch { return 'normal' as const; }
+    try { return (localStorage.getItem('taxonomy-editor-pane-spacing') as 'normal' | 'concise') || 'normal'; } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read pane spacing from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      return 'normal' as const;
+    }
   })(),
   setPaneSpacing: (spacing) => {
-    try { localStorage.setItem('taxonomy-editor-pane-spacing', spacing); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-pane-spacing', spacing); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist pane spacing to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     document.documentElement.setAttribute('data-pane-spacing', spacing);
     set({ paneSpacing: spacing });
   },
 
   qbafEnabled: (() => {
     // Default to true — Q-0 calibration passed (hybrid: AI for Desires/Intentions, human for Beliefs)
-    try { const v = localStorage.getItem('taxonomy-editor-qbaf'); return v === null ? true : v === 'true'; } catch { return true; }
+    try { const v = localStorage.getItem('taxonomy-editor-qbaf'); return v === null ? true : v === 'true'; } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read QBAF setting from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      return true;
+    }
   })(),
   setQbafEnabled: (enabled) => {
-    try { localStorage.setItem('taxonomy-editor-qbaf', String(enabled)); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-qbaf', String(enabled)); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist QBAF setting to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     set({ qbafEnabled: enabled });
   },
 
@@ -1988,24 +2036,32 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
         const n = parseInt(stored, 10);
         if (n >= 60 && n <= 200) return n;
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read zoom level from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     return 100;
   })(),
 
   zoomIn: () => {
     const next = Math.min(200, get().zoomLevel + 10);
-    try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom level to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     set({ zoomLevel: next });
   },
 
   zoomOut: () => {
     const next = Math.max(60, get().zoomLevel - 10);
-    try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom level to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     set({ zoomLevel: next });
   },
 
   zoomReset: () => {
-    try { localStorage.setItem('taxonomy-editor-zoom', '100'); } catch { /* ignore */ }
+    try { localStorage.setItem('taxonomy-editor-zoom', '100'); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom reset to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
     set({ zoomLevel: 100 });
   },
 
@@ -2081,7 +2137,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
     try {
       const raw = await api.loadEdges();
       set({ edgesFile: raw as EdgesFile | null, edgesLoading: false });
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to load edges file', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ edgesLoading: false });
     }
   },

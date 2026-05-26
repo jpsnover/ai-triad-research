@@ -34,6 +34,7 @@ import { useCommentStore, COMMENT_TYPE_META } from '../hooks/useCommentStore';
 import type { Comment, DetailTier } from '@lib/debate/comments';
 import { UsernamePromptDialog } from './UsernamePromptDialog';
 import { triggerManualDump } from '../lib/flightRecorderInit';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Phase 7: Context menu state ──────────────────────────
 interface ContextMenuState {
@@ -3218,7 +3219,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     const documentClaims = activeDebate.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
     try {
       return computeCoverageMap(anNodes, documentClaims);
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-workspace',
+        level: 'warn',
+        message: 'Coverage map computation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return null;
     }
   }, [activeDebate?.argument_network?.nodes, activeDebate?.document_analysis?.i_nodes]);
@@ -3229,7 +3237,14 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     if (nodes.length === 0) return null;
     try {
       return computeStrengthWeightedCoverage(coverageMap, nodes, edges);
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-workspace',
+        level: 'warn',
+        message: 'Strength-weighted coverage computation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return null;
     }
   }, [coverageMap, activeDebate?.argument_network]);

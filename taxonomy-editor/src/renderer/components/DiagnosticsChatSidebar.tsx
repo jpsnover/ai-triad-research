@@ -6,6 +6,7 @@ import type { DebateSession } from '../types/debate';
 import { POVER_INFO } from '../types/debate';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -34,7 +35,14 @@ interface Props {
 function getModel(): string {
   try {
     return localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'diagnostics-chat-sidebar',
+      level: 'warn',
+      message: 'Failed to read model from localStorage',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return 'gemini-flash-lite-latest';
   }
 }
@@ -255,22 +263,56 @@ function loadSessionMessages(): ChatMessage[] {
   try {
     const raw = sessionStorage.getItem(SESSION_MESSAGES_KEY);
     return raw ? JSON.parse(raw) as ChatMessage[] : [];
-  } catch { return []; }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'diagnostics-chat-sidebar',
+      level: 'warn',
+      message: 'Failed to load session messages from sessionStorage',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+    return [];
+  }
 }
 
 function saveSessionMessages(msgs: ChatMessage[]) {
-  try { sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(msgs)); } catch {}
+  try { sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(msgs)); } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'diagnostics-chat-sidebar',
+      level: 'warn',
+      message: 'Failed to save session messages to sessionStorage',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+  }
 }
 
 function loadPromptHistory(): string[] {
   try {
     const raw = sessionStorage.getItem(SESSION_HISTORY_KEY);
     return raw ? JSON.parse(raw) as string[] : [];
-  } catch { return []; }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'diagnostics-chat-sidebar',
+      level: 'warn',
+      message: 'Failed to load prompt history from sessionStorage',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+    return [];
+  }
 }
 
 function savePromptHistory(history: string[]) {
-  try { sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(history)); } catch {}
+  try { sessionStorage.setItem(SESSION_HISTORY_KEY, JSON.stringify(history)); } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'diagnostics-chat-sidebar',
+      level: 'warn',
+      message: 'Failed to save prompt history to sessionStorage',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+  }
 }
 
 function buildHelpText(): string {
@@ -453,7 +495,15 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           if (file?.nodes) {
             result.set(pov, file.nodes.map(n => ({ id: n.id, label: n.label, category: n.category, description: n.description })));
           }
-        } catch { /* non-fatal */ }
+        } catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'diagnostics-chat-sidebar',
+            level: 'warn',
+            message: `Failed to load taxonomy file for ${pov}`,
+            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          });
+        }
       }
       if (!cancelled) setTaxonomies(result);
     })();
@@ -654,6 +704,13 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         onNavigate(navigation);
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'diagnostics-chat-sidebar',
+        level: 'error',
+        message: 'Chat message generation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setStreamingText('');
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),

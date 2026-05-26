@@ -11,6 +11,7 @@ import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
 import { AI_POVERS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 
 export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
 
@@ -164,7 +165,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       },
     );
     await loadDebate(id);
-    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: useAdaptiveStaging } });
+    const _creationWeights = useAdaptiveStaging ? (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds }; } catch { return null; } })() : null;
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: useAdaptiveStaging, ..._creationWeights && { adaptive_config: _creationWeights } } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();

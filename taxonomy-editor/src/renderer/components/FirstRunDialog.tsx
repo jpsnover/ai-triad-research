@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 const isWeb = import.meta.env.VITE_TARGET === 'web';
 
@@ -33,6 +34,13 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
           setStatus('error');
         }
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'first-run-dialog',
+          level: 'error',
+          message: 'Failed to locate data directory',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         setMessage(String(err));
         setStatus('error');
       }
@@ -69,6 +77,13 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
         setMessage(result.message);
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'first-run-dialog',
+        level: 'error',
+        message: 'Failed to download data repo',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setStatus('error');
       setMessage(String(err));
     }

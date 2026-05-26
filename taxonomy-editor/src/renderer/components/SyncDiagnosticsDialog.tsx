@@ -8,6 +8,7 @@ import {
   setGithubCredentials, clearGithubCredentials,
   type SyncDiagnostics, type SyncStatus, type DiagnosticsFile, type EditCounts,
 } from '../utils/syncApi';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { GitProgressBanner } from './GitProgressBanner';
 
 interface SyncDiagnosticsDialogProps {
@@ -56,7 +57,16 @@ function formatDate(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  } catch { return iso; }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'sync-diagnostics-dialog',
+      level: 'warn',
+      message: 'Failed to format date string',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+    return iso;
+  }
 }
 
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
@@ -102,6 +112,13 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
       setDiag(diagData);
       setSyncStatus(statusData);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'sync-diagnostics-dialog',
+        level: 'error',
+        message: 'Failed to fetch sync diagnostics',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setFetchError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
@@ -124,6 +141,13 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
       setAction({ running: false, label: '', error: null, success: `${label} completed.` });
       void refresh();
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'sync-diagnostics-dialog',
+        level: 'error',
+        message: `Sync action "${label}" failed`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setAction({ running: false, label: '', error: `${label} failed: ${err instanceof Error ? err.message : String(err)}`, success: null });
     }
   };
@@ -225,6 +249,13 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                         setAction({ running: false, label: '', error: 'Credentials were saved but could not be validated. Check your token.', success: null });
                       }
                     } catch (err) {
+                      getGlobalRecorder()?.record({
+                        type: 'system.error',
+                        component: 'sync-diagnostics-dialog',
+                        level: 'error',
+                        message: 'Set GitHub credentials failed',
+                        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+                      });
                       setAction({ running: false, label: '', error: `Set credentials failed: ${err instanceof Error ? err.message : String(err)}`, success: null });
                     }
                   }}
@@ -425,6 +456,13 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                       setPrFormOpen(false);
                       void refresh();
                     } catch (err) {
+                      getGlobalRecorder()?.record({
+                        type: 'system.error',
+                        component: 'sync-diagnostics-dialog',
+                        level: 'error',
+                        message: 'Create pull request failed',
+                        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+                      });
                       setAction({
                         running: false, label: '',
                         error: `Create Pull Request failed: ${err instanceof Error ? err.message : String(err)}`,

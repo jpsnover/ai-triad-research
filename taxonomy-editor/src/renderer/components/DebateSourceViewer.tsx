@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 type SearchMode = 'raw' | 'wildcard' | 'similar';
 
@@ -32,7 +33,14 @@ function wildcardToRegex(pattern: string): RegExp | null {
   try {
     const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
     return new RegExp(escaped, 'gi');
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-source-viewer',
+      level: 'warn',
+      message: 'Invalid wildcard pattern',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return null;
   }
 }
@@ -132,6 +140,13 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
       })));
       setActiveMatchIdx(0);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-source-viewer',
+        level: 'error',
+        message: 'Similar search failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('[DebateSourceViewer] Similar search error:', err);
       setMatches([]);
     }

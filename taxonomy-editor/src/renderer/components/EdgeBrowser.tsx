@@ -160,6 +160,13 @@ export function EdgeBrowser() {
       const raw = await api.loadEdges();
       useTaxonomyStore.setState({ edgesFile: raw as EdgesFile | null });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'edge-browser',
+        level: 'error',
+        message: 'Edge reload failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('Edge reload failed:', err);
     }
   }, []);
@@ -200,6 +207,13 @@ export function EdgeBrowser() {
         }
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'edge-browser',
+        level: 'error',
+        message: 'Edge status update failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('Status update failed:', err);
     }
   }, [reloadEdges, filters]);
@@ -210,6 +224,13 @@ export function EdgeBrowser() {
       await reloadEdges();
       getGlobalRecorder()?.record({ type: 'user.action', component: 'edge-browser', level: 'info', message: 'edge.swap_direction', data: { index } });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'edge-browser',
+        level: 'error',
+        message: 'Edge swap direction failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.error('Swap direction failed:', err);
     }
   }, [reloadEdges]);

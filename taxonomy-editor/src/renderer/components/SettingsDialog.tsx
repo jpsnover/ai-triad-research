@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { ColorScheme, AIBackend, AIModel } from '../hooks/useTaxonomyStore';
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../hooks/useTaxonomyStore';
@@ -125,6 +126,13 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       setKeyInput('');
       setKeySuccess(`${AI_BACKENDS.find(b => b.value === aiBackend)?.label} key saved`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'settings-dialog',
+        level: 'error',
+        message: 'Failed to save API key',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setKeyError(String(err));
     } finally {
       setSavingKey(false);
@@ -143,6 +151,13 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       // Force re-render so dropdowns pick up new model lists
       forceUpdate(n => n + 1);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'settings-dialog',
+        level: 'error',
+        message: 'Failed to refresh AI models',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setRefreshError(err instanceof Error ? err.message : String(err));
     } finally {
       setRefreshing(false);

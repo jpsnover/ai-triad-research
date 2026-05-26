@@ -22,6 +22,7 @@ import {
   type SyncStatus,
   type ResyncMode,
 } from '../utils/syncApi';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { RebaseConflictModal } from './RebaseConflictModal';
 import { GitProgressBanner } from './GitProgressBanner';
 
@@ -404,6 +405,13 @@ function CreatePrDialog({ files, status, onCancel, onDone, onError }: CreatePrDi
         : `Updated PR #${res.number}. ${res.url}`;
       await onDone(msg);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'unsynced-changes-drawer',
+        level: 'error',
+        message: 'Create/update pull request failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(false);
@@ -474,6 +482,13 @@ function ResyncDialog({ status, hasLocalChanges, onCancel, onDone, onConflicts, 
       if (res.conflicts) { onConflicts(res.message); return; }
       await onDone(res.message);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'unsynced-changes-drawer',
+        level: 'error',
+        message: `Resync (${mode}) failed`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
       setSubmitting(null);

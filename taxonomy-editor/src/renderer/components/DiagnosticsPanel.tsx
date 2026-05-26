@@ -3,6 +3,7 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -1039,7 +1040,14 @@ function OverviewView() {
     const documentClaims = activeDebate.document_analysis.i_nodes.map(n => ({ id: n.id, text: n.text }));
     try {
       return computeCoverageMap(anNodes, documentClaims);
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'diagnostics-panel',
+        level: 'warn',
+        message: 'Coverage map computation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return null;
     }
   }, [activeDebate?.argument_network?.nodes, activeDebate?.document_analysis?.i_nodes]);
@@ -1048,7 +1056,14 @@ function OverviewView() {
     if (!coverageMap || !an || an.nodes.length === 0) return null;
     try {
       return computeStrengthWeightedCoverage(coverageMap, an.nodes, an.edges);
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'diagnostics-panel',
+        level: 'warn',
+        message: 'Strength-weighted coverage computation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return null;
     }
   }, [coverageMap, an]);
@@ -1652,7 +1667,16 @@ export function DiagnosticsPanel() {
     useShallow(s => ({ selectedDiagEntry: s.selectedDiagEntry, selectDiagEntry: s.selectDiagEntry }))
   );
   const [height, setHeight] = useState(() => {
-    try { return parseInt(localStorage.getItem('diag-panel-height') || '250', 10); } catch { return 250; }
+    try { return parseInt(localStorage.getItem('diag-panel-height') || '250', 10); } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'diagnostics-panel',
+        level: 'warn',
+        message: 'Failed to load panel height from localStorage',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      return 250;
+    }
   });
   const dragging = useRef(false);
   const startY = useRef(0);
@@ -1672,7 +1696,15 @@ export function DiagnosticsPanel() {
     };
     const onMouseUp = () => {
       dragging.current = false;
-      try { localStorage.setItem('diag-panel-height', String(height)); } catch { /* ignore */ }
+      try { localStorage.setItem('diag-panel-height', String(height)); } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'diagnostics-panel',
+          level: 'warn',
+          message: 'Failed to save panel height to localStorage',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+      }
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };

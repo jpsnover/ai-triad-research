@@ -46,8 +46,8 @@ function makeConfig(overrides: Partial<PhaseTransitionConfig> = {}): PhaseTransi
 function makePhaseState(overrides: Partial<PhaseState> = {}): PhaseState {
   return {
     current_phase: 'argumentation',
-    rounds_in_phase: 3,
-    total_rounds_elapsed: 5,
+    rounds_in_phase: 7,  // past min_argumentation_rounds (2 × 3 speakers = 6)
+    total_rounds_elapsed: 10,
     regression_count: 0,
     argumentation_exit_threshold: 0.65,
     concluding_exit_threshold: 0.70,
@@ -655,11 +655,12 @@ describe('evaluatePhaseTransition', () => {
       expect(result.reason).toContain('Cold start');
     });
 
-    it('force-transitions on max thesis rounds', () => {
+    it('force-transitions on max thesis turns', () => {
       const w = loadProvisionalWeights();
+      const speakers = 3; // activePovsCount in test context
       const state = makePhaseState({
         current_phase: 'confrontation',
-        rounds_in_phase: w.phase_bounds.max_confrontation_rounds,
+        rounds_in_phase: w.phase_bounds.max_confrontation_rounds * speakers,
       });
       const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
@@ -671,9 +672,10 @@ describe('evaluatePhaseTransition', () => {
 
     it('stays when not all POVs have responded', () => {
       const w = loadProvisionalWeights();
+      const speakers = 3;
       const state = makePhaseState({
         current_phase: 'confrontation',
-        rounds_in_phase: w.phase_bounds.min_confrontation_rounds,
+        rounds_in_phase: w.phase_bounds.min_confrontation_rounds * speakers,
       });
       const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: false, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
@@ -684,9 +686,10 @@ describe('evaluatePhaseTransition', () => {
 
     it('transitions when crux is found and all POVs responded', () => {
       const w = loadProvisionalWeights();
+      const speakers = 3;
       const state = makePhaseState({
         current_phase: 'confrontation',
-        rounds_in_phase: w.phase_bounds.min_confrontation_rounds,
+        rounds_in_phase: w.phase_bounds.min_confrontation_rounds * speakers,
       });
       const ctx = makeSignalContext({
         phase: {
@@ -718,11 +721,12 @@ describe('evaluatePhaseTransition', () => {
       expect(result.reason).toContain('Cold start');
     });
 
-    it('force-transitions on max exploration rounds', () => {
+    it('force-transitions on max exploration turns', () => {
       const w = loadProvisionalWeights();
+      const speakers = 3;
       const state = makePhaseState({
         current_phase: 'argumentation',
-        rounds_in_phase: w.phase_bounds.max_argumentation_rounds,
+        rounds_in_phase: w.phase_bounds.max_argumentation_rounds * speakers,
       });
       const ctx = makeSignalContext();
       const config = makeConfig();
@@ -737,7 +741,7 @@ describe('evaluatePhaseTransition', () => {
       const softBudget = 12 * w.budget.soft_multiplier;
       const state = makePhaseState({
         current_phase: 'argumentation',
-        rounds_in_phase: 3,
+        rounds_in_phase: 7, // past min_argumentation (2×3=6)
         api_calls_used: softBudget,
       });
       const ctx = makeSignalContext();
@@ -749,7 +753,7 @@ describe('evaluatePhaseTransition', () => {
     });
 
     it('force-transitions when debate is dead (recycling > 0.8 AND fatigue > 0.8)', () => {
-      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3 });
+      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 7 });
       const ctx = makeSignalContext({
         convergenceSignals: {
           argument_redundancy: { avg_self_overlap: 0.85, semantic_max_similarity: 0.9 },
@@ -772,7 +776,7 @@ describe('evaluatePhaseTransition', () => {
     it('fires fresh-crux veto when saturation above threshold but crux just discovered', () => {
       const state = makePhaseState({
         current_phase: 'argumentation',
-        rounds_in_phase: 3,
+        rounds_in_phase: 7, // past min_argumentation (2×3=6)
         argumentation_exit_threshold: 0.01, // very low so saturation exceeds it
       });
       // Need a crux node that was added at the current round
@@ -832,11 +836,12 @@ describe('evaluatePhaseTransition', () => {
       expect(result.reason).toContain('Cold start');
     });
 
-    it('terminates on max synthesis rounds', () => {
+    it('terminates on max synthesis turns', () => {
       const w = loadProvisionalWeights();
+      const speakers = 3;
       const state = makePhaseState({
         current_phase: 'concluding',
-        rounds_in_phase: w.phase_bounds.max_concluding_rounds,
+        rounds_in_phase: w.phase_bounds.max_concluding_rounds * speakers,
       });
       const ctx = makeSignalContext({
         phase: {
@@ -861,7 +866,7 @@ describe('evaluatePhaseTransition', () => {
       const cruxNode = makeNode('novel-crux', 'accelerationist', 5, 0.8);
       const state = makePhaseState({
         current_phase: 'concluding',
-        rounds_in_phase: 2,
+        rounds_in_phase: 7, // past min_concluding (2×3=6)
         regression_count: 0,
       });
       const ctx = makeSignalContext({
@@ -889,10 +894,10 @@ describe('evaluatePhaseTransition', () => {
             { round: 5, speaker: 'safetyist', text: 'Y', extraction_status: 'ok', claims_accepted: 2, claims_rejected: 0, category_validity_ratio: 1.0 },
           ],
         },
-        // Make convergence look stable (no stall)
+        // Make convergence look stable; null movingAverage bypasses stability confidence gating
         priorSignals: {
           get: (id: string, _rb: number) => id === '_convergence_score' ? 0.50 : 0.5,
-          movingAverage: () => 0.5,
+          movingAverage: () => null,
         },
         convergenceSignals: {
           argument_redundancy: { avg_self_overlap: 0.1, semantic_max_similarity: 0.1 },
@@ -956,7 +961,7 @@ describe('evaluatePhaseTransition', () => {
 
   describe('confidence gating', () => {
     it('defers when extraction confidence is low', () => {
-      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 3 });
+      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 7 });
       const ctx = makeSignalContext({
         extraction: {
           lastRoundStatus: 'parse_error',

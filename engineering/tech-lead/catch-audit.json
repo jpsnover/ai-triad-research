@@ -1,0 +1,1220 @@
+[
+  {
+    "file": "taxonomy-editor/src/renderer/App.tsx",
+    "line": 232,
+    "category": "other",
+    "preview": "} catch (err) { setPullResult(`Error: ${String(err)}`);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/bridge/instrumentBridge.ts",
+    "line": 114,
+    "category": "other",
+    "preview": "} catch (err) { // Sync throw (rare for bridge methods)"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/bridge/web-bridge.ts",
+    "line": 109,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/bridge/web-bridge.ts",
+    "line": 145,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/AnalysisPanel.tsx",
+    "line": 28,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/ApiKeyDialog.tsx",
+    "line": 23,
+    "category": "other",
+    "preview": "} catch (err) { setError(String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/CalibrationDashboard.tsx",
+    "line": 171,
+    "category": "other",
+    "preview": "} catch { /* unavailable */ } setLoading(false);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/CommentCreationPopover.tsx",
+    "line": 101,
+    "category": "other",
+    "preview": "} catch { setError('Failed to save comment');"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/ConflictDetail.tsx",
+    "line": 74,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[ConflictDetail] Failed to create debate:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/ConflictsTab.tsx",
+    "line": 34,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return new Set(); // empty = will be initialized from cluster labels on first render"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateSourceViewer.tsx",
+    "line": 35,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateSourceViewer.tsx",
+    "line": 65,
+    "category": "other",
+    "preview": "} catch { return []; } } else {"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateSourceViewer.tsx",
+    "line": 134,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[DebateSourceViewer] Similar search error:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateTab.tsx",
+    "line": 88,
+    "category": "other",
+    "preview": "} catch { return []; } });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateTab.tsx",
+    "line": 162,
+    "category": "other",
+    "preview": "} catch (err) { setExportStatus(`Export failed: ${err}`);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateTab.tsx",
+    "line": 679,
+    "category": "other",
+    "preview": "} catch { /* fall through */ } return { includeTaxonomyRefs: true, includeReasoning: true };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateTab.tsx",
+    "line": 698,
+    "category": "other",
+    "preview": "} catch { /* ignore quota errors */ } onConfirm(options);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateWorkspace.tsx",
+    "line": 3221,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DebateWorkspace.tsx",
+    "line": 3232,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsChatSidebar.tsx",
+    "line": 37,
+    "category": "other",
+    "preview": "} catch { return 'gemini-flash-lite-latest';"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsChatSidebar.tsx",
+    "line": 201,
+    "category": "other",
+    "preview": "} catch { return { content: text };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsChatSidebar.tsx",
+    "line": 213,
+    "category": "other",
+    "preview": "} catch { return { content: text };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsChatSidebar.tsx",
+    "line": 258,
+    "category": "other",
+    "preview": "} catch { return []; } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsChatSidebar.tsx",
+    "line": 269,
+    "category": "other",
+    "preview": "} catch { return []; } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsChatSidebar.tsx",
+    "line": 456,
+    "category": "other",
+    "preview": "} catch { /* non-fatal */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsChatSidebar.tsx",
+    "line": 656,
+    "category": "other",
+    "preview": "} catch (err) { setStreamingText('');"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsPanel.tsx",
+    "line": 1042,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsPanel.tsx",
+    "line": 1051,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsWindow.tsx",
+    "line": 2193,
+    "category": "other",
+    "preview": "} catch { // non-fatal \u2014 table still renders without detail panel lookup"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsWindow.tsx",
+    "line": 2204,
+    "category": "other",
+    "preview": "} catch { // non-fatal"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/DiagnosticsWindow.tsx",
+    "line": 2211,
+    "category": "other",
+    "preview": "} catch { // non-fatal"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/EdgeBrowser.tsx",
+    "line": 162,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('Edge reload failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/EdgeBrowser.tsx",
+    "line": 174,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('Bulk update failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/EdgeBrowser.tsx",
+    "line": 202,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('Status update failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/EdgeBrowser.tsx",
+    "line": 212,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('Swap direction failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/ExtractionTimelinePanel.tsx",
+    "line": 338,
+    "category": "other",
+    "preview": "} catch { /* ignore cross-window access */ } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/FirstRunDialog.tsx",
+    "line": 35,
+    "category": "other",
+    "preview": "} catch (err) { setMessage(String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/FirstRunDialog.tsx",
+    "line": 71,
+    "category": "other",
+    "preview": "} catch (err) { setStatus('error');"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 274,
+    "category": "other",
+    "preview": "} catch (err) { setConflicts(prev => prev.map(c => c.id === item.id ? { ...c, generatedLabel: item.point.slice(0, 60), generatedDescription: item.poin"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 311,
+    "category": "other",
+    "preview": "} catch { setSteelmans(prev => prev.map(s => s.id === item.id ? { ...s, proposedSteelman: item.sourceExcerpt.slice(0, 150), warnings: ['AI condensatio"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 363,
+    "category": "other",
+    "preview": "} catch { setConcepts(prev => prev.map(c => c.id === item.id ? { ...c, suggestedLabel: item.text.slice(0, 40), suggestedDescription: item.text, warnin"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 407,
+    "category": "other",
+    "preview": "} catch { manifest.push({ type: 'conflict', action: 'created', id: conflictId, status: 'rejected' });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 423,
+    "category": "other",
+    "preview": "} catch { manifest.push({ type: 'steelman', action: 'updated', id: item.targetNodeId, status: 'rejected' });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 436,
+    "category": "other",
+    "preview": "} catch { manifest.push({ type: 'debate_ref', action: 'added', id: item.nodeId, status: 'rejected' });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 461,
+    "category": "other",
+    "preview": "} catch { manifest.push({ type: 'verdict', action: 'updated', id: conflictSlug, status: 'rejected' });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/HarvestDialog.tsx",
+    "line": 484,
+    "category": "other",
+    "preview": "} catch { manifest.push({ type: 'concept', action: 'queued', id: item.id, status: 'rejected' });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/NewDebateDialog.tsx",
+    "line": 137,
+    "category": "other",
+    "preview": "} catch (err) { finalContent = `[Failed to fetch URL content: ${err}]`;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/NodeDetail.tsx",
+    "line": 170,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/NodeTree.tsx",
+    "line": 96,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } // Default: all categories collapsed"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/ParameterHistoryPanel.tsx",
+    "line": 135,
+    "category": "other",
+    "preview": "} catch { // Calibration history unavailable \u2014 panel will show empty state."
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/PolicySourcesPanel.tsx",
+    "line": 34,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[PolicySourcesPanel] Failed to build index:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/PromptInspector.tsx",
+    "line": 240,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/PromptInspector.tsx",
+    "line": 262,
+    "category": "other",
+    "preview": "} catch { /* clipboard unavailable */ } }, [livePreview]);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/PromptsPanel.tsx",
+    "line": 241,
+    "category": "other",
+    "preview": "} catch { // fallback"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/ProposalReviewDialog.tsx",
+    "line": 94,
+    "category": "other",
+    "preview": "} catch (err) { setSaveResult(String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/RebaseConflictModal.tsx",
+    "line": 109,
+    "category": "other",
+    "preview": "} catch (err) { onError(err instanceof Error ? err.message : String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/RebaseConflictModal.tsx",
+    "line": 134,
+    "category": "other",
+    "preview": "} catch (err) { onError(err instanceof Error ? err.message : String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/RebaseConflictModal.tsx",
+    "line": 148,
+    "category": "other",
+    "preview": "} catch (err) { onError(err instanceof Error ? err.message : String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/ReflectionsPanel.tsx",
+    "line": 374,
+    "category": "other",
+    "preview": "} catch (err) { setApplyError(String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SettingsDialog.tsx",
+    "line": 127,
+    "category": "other",
+    "preview": "} catch (err) { setKeyError(String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SettingsDialog.tsx",
+    "line": 145,
+    "category": "other",
+    "preview": "} catch (err) { setRefreshError(err instanceof Error ? err.message : String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SituationDebatePanel.tsx",
+    "line": 89,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[SituationDebatePanel] Launch failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SituationDetail.tsx",
+    "line": 72,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SituationsTab.tsx",
+    "line": 38,
+    "category": "other",
+    "preview": "} catch { return true; } });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SituationsTab.tsx",
+    "line": 48,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return new Set(['__default_collapsed__']); // sentinel: collapse all on first load"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SourcesPanel.tsx",
+    "line": 37,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[SourcesPanel] Failed to build index:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SyncDiagnosticsDialog.tsx",
+    "line": 59,
+    "category": "other",
+    "preview": "} catch { return iso; } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SyncDiagnosticsDialog.tsx",
+    "line": 104,
+    "category": "other",
+    "preview": "} catch (err) { setFetchError(err instanceof Error ? err.message : String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SyncDiagnosticsDialog.tsx",
+    "line": 126,
+    "category": "other",
+    "preview": "} catch (err) { setAction({ running: false, label: '', error: `${label} failed: ${err instanceof Error ? err.message : String(err)}`, success: null })"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SyncDiagnosticsDialog.tsx",
+    "line": 227,
+    "category": "other",
+    "preview": "} catch (err) { setAction({ running: false, label: '', error: `Set credentials failed: ${err instanceof Error ? err.message : String(err)}`, success: "
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/SyncDiagnosticsDialog.tsx",
+    "line": 427,
+    "category": "other",
+    "preview": "} catch (err) { setAction({ running: false, label: '', error: `Create Pull Request failed: ${err instanceof Error ? err.message : String(err)}`, succe"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/TypeaheadSelect.tsx",
+    "line": 31,
+    "category": "other",
+    "preview": "} catch { /* fall through to includes */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/UnsyncedChangesDrawer.tsx",
+    "line": 406,
+    "category": "other",
+    "preview": "} catch (err) { onError(err instanceof Error ? err.message : String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/UnsyncedChangesDrawer.tsx",
+    "line": 476,
+    "category": "other",
+    "preview": "} catch (err) { onError(err instanceof Error ? err.message : String(err));"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/VocabularyPanel.tsx",
+    "line": 55,
+    "category": "other",
+    "preview": "} catch { // No dictionary API available \u2014 empty state"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/components/PovProgression/PovProgressionWindow.tsx",
+    "line": 58,
+    "category": "other",
+    "preview": "} catch { // non-fatal \u2014 chips just render without labels"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/data/lineageCategories.ts",
+    "line": 49,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[lineageCategories] Failed to load L2 data:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 40,
+    "category": "other",
+    "preview": "} catch { return 'gemini-flash-lite-latest';"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 90,
+    "category": "other",
+    "preview": "} catch { return { response: text.trim(), taxonomyRefs: [] };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 161,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[chat] Failed to load sessions:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 198,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ chatError: `Failed to load chat: ${err}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 214,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ chatError: `Failed to delete chat: ${err}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 233,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[chat] Rename failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 312,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ chatError: `Failed to start conversation: ${mapErrorToUserMessage(err)}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useChatStore.ts",
+    "line": 397,
+    "category": "other",
+    "preview": "} catch (err) { if (!isStillValid()) return;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useCommentStore.ts",
+    "line": 165,
+    "category": "has_state_update",
+    "preview": "} catch { set({ commentsFile: emptyFile(debateId), loading: false });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 233,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn(`[Neutral Eval] ${checkpoint} failed (non-blocking):`, err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 253,
+    "category": "other",
+    "preview": "} catch { return 'gemini-flash-lite-latest';"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 359,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn(`[debate] summarizeEntry failed (attempt ${attempt + 1}/${MAX_RETRIES}):`, err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 371,
+    "category": "other",
+    "preview": "} catch { /* store may not be ready */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 782,
+    "category": "other",
+    "preview": "} catch (callErr) { extractionTrace.response_time_ms = Date.now() - callStartedAt;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 806,
+    "category": "other",
+    "preview": "} catch (parseErr) { extractionTrace.status = extractionTrace.response_truncated ? 'truncated_response' : 'parse_error';"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 895,
+    "category": "other",
+    "preview": "} catch { /* embedding failure never blocks extraction */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 942,
+    "category": "other",
+    "preview": "} catch { // Attribution failure never blocks extraction"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1031,
+    "category": "other",
+    "preview": "} catch { /* non-blocking */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1069,
+    "category": "has_console_log",
+    "preview": "} catch (regenErr) { console.warn(`[Lookahead] Regen attempt ${attempt + 1} extraction failed:`, regenErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1117,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[Lookahead] Pre-commit gate evaluation failed (non-blocking):', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1212,
+    "category": "other",
+    "preview": "} catch { if (Object.keys(cachedEmbeddings).length > 0) { turnEmbeddings = new Map(Object.entries(cachedEmbeddings)); }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1277,
+    "category": "has_console_log",
+    "preview": "} catch (convErr) { console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1303,
+    "category": "has_console_log",
+    "preview": "} catch (cruxErr) { console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1354,
+    "category": "has_console_log",
+    "preview": "} catch (nliErr) { console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1382,
+    "category": "has_console_log",
+    "preview": "} catch (searchErr) { console.warn(`[Verify] Web search failed for ${pNode.id}, proceeding without:`, searchErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1480,
+    "category": "has_console_log",
+    "preview": "} catch (verifyErr) { console.warn(`[Verify] Inline verification failed for ${pNode.id} (non-blocking):`, verifyErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1501,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[AN] Claim extraction failed (non-blocking):', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1609,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error(`[debate-store] getSourceEvidenceIndex ERROR:`, err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1625,
+    "category": "other",
+    "preview": "} catch { _cachedDocTitles = null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1783,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[doctrinal] Anchoring failed (non-blocking):', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1935,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 1945,
+    "category": "other",
+    "preview": "} catch { /* store may not be ready during init */ } const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, sourc"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 2508,
+    "category": "other",
+    "preview": "} catch { /* popout may not exist */ } },"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 2518,
+    "category": "has_state_update",
+    "preview": "} catch { set({ sessionsLoading: false });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 2732,
+    "category": "has_recorder",
+    "preview": "} catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load "
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 2747,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: mapErrorToUserMessage(err) });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 2765,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: mapErrorToUserMessage(err) });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 2898,
+    "category": "has_recorder",
+    "preview": "} catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Fa"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3046,
+    "category": "has_console_log",
+    "preview": "} catch (sugErr) { console.warn('[TopicCritique] Suggested topic scoring failed (non-blocking):', sugErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3066,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[TopicCritique] Failed (non-blocking):', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3135,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[TopicCritique] Re-evaluate suggested failed (non-blocking):', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3184,
+    "category": "other",
+    "preview": "} catch (err) { addTranscriptEntry({ type: 'system', speaker: 'system', content: `Failed to generate clarifying questions: ${mapErrorToUserMessage(err"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3265,
+    "category": "other",
+    "preview": "} catch (scoreErr) { // Scoring failed \u2014 accept the candidate rather than blocking refinement"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3276,
+    "category": "has_console_log",
+    "preview": "} catch (genErr) { console.warn(`[TopicRefinement] Attempt ${attempt + 1} generation failed:`, genErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3347,
+    "category": "has_console_log",
+    "preview": "} catch (seedErr) { console.warn('[debate] User seed claim extraction failed (non-fatal):', seedErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3357,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: `Topic synthesis failed: ${mapErrorToUserMessage(err)}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3432,
+    "category": "other",
+    "preview": "} catch { /* embedding failure never blocks seeding */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3447,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[debate] Document analysis failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3468,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[debate] Vocabulary loading failed, debates will use bare terms:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3703,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn(`[debate-store] Opening retry failed for ${info.label}:`, err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3779,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error(`[debate] ${info.label} opening statement failed:`, err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3826,
+    "category": "other",
+    "preview": "} catch { /* non-critical */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3838,
+    "category": "other",
+    "preview": "} catch { /* non-critical */ } "
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 3869,
+    "category": "has_console_log",
+    "preview": "} catch (loopErr) { console.error(`[debate] Adaptive loop iteration ${i} failed:`, loopErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 4062,
+    "category": "other",
+    "preview": "} catch (err) { addTranscriptEntry({ type: 'system', speaker: 'system', content: `${info.label} failed to respond: ${mapErrorToUserMessage(err)}`, tax"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 4314,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 4658,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[Lookahead] Response regeneration failed:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 4709,
+    "category": "other",
+    "preview": "} catch { /* non-critical */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 4722,
+    "category": "other",
+    "preview": "} catch { /* non-critical */ } "
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 4829,
+    "category": "has_console_log",
+    "preview": "} catch (gapErr) { console.warn('[Gap Injection] Gap analysis failed (non-blocking):', gapErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 4833,
+    "category": "other",
+    "preview": "} catch (err) { addTranscriptEntry({ type: 'system', speaker: 'system', content: `${info.label} failed to cross-respond: ${mapErrorToUserMessage(err)}"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5009,
+    "category": "other",
+    "preview": "} catch { /* signal computation failed \u2014 skip */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5080,
+    "category": "has_console_log",
+    "preview": "} catch (postErr) { console.error('[crossRespond] Post-processing failed:', postErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5287,
+    "category": "has_console_log",
+    "preview": "} catch (maErr) { console.warn('[Missing Args] Pass failed (non-blocking):', maErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5358,
+    "category": "has_console_log",
+    "preview": "} catch (trErr) { console.warn('[Taxonomy Refinement] Pass failed (non-blocking):', trErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5395,
+    "category": "has_console_log",
+    "preview": "} catch (ccErr) { console.warn('[Cross-Cutting Proposals] Pass failed (non-blocking):', ccErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5430,
+    "category": "has_console_log",
+    "preview": "} catch (tgaErr) { console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5440,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5507,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5591,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5748,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5818,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ debateError: `Context compression failed: ${mapErrorToUserMessage(err)}` });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5837,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ newsReportError: `News report generation failed: ${err instanceof Error ? err.message : String(err)}`, newsReportLoading: false "
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 5989,
+    "category": "has_console_log",
+    "preview": "} catch (retryErr) { console.warn(`[debate] DOLCE retry ${attempt} failed for edit ${ei}:`, retryErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 6004,
+    "category": "other",
+    "preview": "} catch (err) { results.push({ pover: povKey, label: info.label, reflection_summary: `Error: ${mapErrorToUserMessage(err)}`, edits: [], });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 6095,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[reflections] Consensus detection failed (non-fatal):', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 6250,
+    "category": "has_recorder",
+    "preview": "} catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'reflectionEnrichment.failed'"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useDebateStore.ts",
+    "line": 6380,
+    "category": "other",
+    "preview": "} catch (err) { return { ok: false, error: err instanceof Error ? err.message : String(err) };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/usePromptConfigStore.ts",
+    "line": 45,
+    "category": "other",
+    "preview": "} catch { return {};"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/usePromptConfigStore.ts",
+    "line": 53,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useResizablePanel.ts",
+    "line": 18,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return DEFAULT_WIDTH;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useResizablePanel.ts",
+    "line": 81,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return opts.defaultWidth;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useResizablePanel.ts",
+    "line": 145,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return opts.defaultHeight;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 135,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return 'gemini';"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 143,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } const backend = getStoredBackend();"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 186,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[AI Models] Failed to load ai-models.json, using built-in defaults:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 227,
+    "category": "other",
+    "preview": "} catch { return new Map(); } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 236,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 243,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return 'light';"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 573,
+    "category": "other",
+    "preview": "} catch { labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 612,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ conflictClusterLoading: false, conflictClusterError: mapErrorToUserMessage(err) });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 666,
+    "category": "other",
+    "preview": "} catch { labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 771,
+    "category": "has_console_log",
+    "preview": "} catch (nliErr) { console.warn('[clusterView] NLI misfit detection failed, continuing without:', nliErr);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 784,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ clusterLoading: false, clusterError: mapErrorToUserMessage(err) });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 848,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 979,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 990,
+    "category": "has_state_update",
+    "preview": "} catch { set({ hasApiKey: false });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 1077,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.error('[semantic-search] Error during semantic search for query \"' + query + '\":', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 1126,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ similarLoading: false, similarStep: null, similarError: mapErrorToUserMessage(err) });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 1219,
+    "category": "has_state_update",
+    "preview": "} catch (err) { set({ loading: false, backgroundLoading: false, saveError: mapErrorToUserMessage(err) });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 1370,
+    "category": "has_recorder",
+    "preview": "} catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.failed', data: { error:"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 1991,
+    "category": "other",
+    "preview": "} catch { /* ignore */ } return 100;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useTaxonomyStore.ts",
+    "line": 2084,
+    "category": "has_state_update",
+    "preview": "} catch { set({ edgesLoading: false });"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/hooks/useUsernameStore.ts",
+    "line": 12,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/analyticsEmitter.ts",
+    "line": 62,
+    "category": "other",
+    "preview": "} catch { // Re-queue on failure (drop if buffer gets too large)"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/analyticsEmitter.ts",
+    "line": 82,
+    "category": "other",
+    "preview": "} catch { /* keep _anonymous */ } "
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/analyticsEmitter.ts",
+    "line": 103,
+    "category": "other",
+    "preview": "} catch { /* store not available yet \u2014 skip */ } "
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/dumpToast.ts",
+    "line": 110,
+    "category": "other",
+    "preview": "} catch (err) { link.textContent = `Download failed: ${err}`; } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/dumpToast.ts",
+    "line": 139,
+    "category": "other",
+    "preview": "} catch (err) { serverLink.textContent = `Server download failed: ${err}`; } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/flightRecorderInit.ts",
+    "line": 98,
+    "category": "other",
+    "preview": "} catch { /* server dump is best-effort */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/flightRecorderInit.ts",
+    "line": 109,
+    "category": "has_console_log",
+    "preview": "} catch (err) { console.warn('[flight-recorder] Failed to persist dump:', err);"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/flightRecorderInit.ts",
+    "line": 135,
+    "category": "other",
+    "preview": "} catch { // Main window may have closed \u2014 silently drop"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/flightRecorderInit.ts",
+    "line": 153,
+    "category": "other",
+    "preview": "} catch { /* silently drop */ } return handle;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/flightRecorderInit.ts",
+    "line": 215,
+    "category": "other",
+    "preview": "} catch { /* fallback: dump request forwarded as event */ } };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/flightRecorderInit.ts",
+    "line": 275,
+    "category": "other",
+    "preview": "} catch { /* not ready yet */ } }"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/flightRecorderInit.ts",
+    "line": 362,
+    "category": "other",
+    "preview": "} catch { return {};"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/trace.ts",
+    "line": 177,
+    "category": "other",
+    "preview": "} catch { // Telemetry must never break the caller."
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/trace.ts",
+    "line": 208,
+    "category": "other",
+    "preview": "} catch { // Network failure: drop the batch and continue. Trace loss is acceptable;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/lib/trace.ts",
+    "line": 228,
+    "category": "other",
+    "preview": "} catch { // Best effort."
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/utils/promptPreview.ts",
+    "line": 181,
+    "category": "other",
+    "preview": "} catch { return null;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/utils/syncApi.ts",
+    "line": 148,
+    "category": "other",
+    "preview": "} catch { return DISABLED_STATUS;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/utils/syncApi.ts",
+    "line": 156,
+    "category": "other",
+    "preview": "} catch { return [];"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/utils/syncApi.ts",
+    "line": 167,
+    "category": "other",
+    "preview": "} catch { return '';"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/utils/syncApi.ts",
+    "line": 193,
+    "category": "other",
+    "preview": "} catch { return { in_progress: false, conflict_files: [], onto_branch: null };"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/utils/syncApi.ts",
+    "line": 291,
+    "category": "other",
+    "preview": "} catch { return DISABLED_DIAGNOSTICS;"
+  },
+  {
+    "file": "taxonomy-editor/src/renderer/utils/syncApi.ts",
+    "line": 321,
+    "category": "other",
+    "preview": "} catch (err) { store.failOp(err instanceof Error ? err.message : String(err));"
+  }
+]

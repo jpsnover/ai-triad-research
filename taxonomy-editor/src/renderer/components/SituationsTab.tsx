@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { SituationNode } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useDebateStore } from '../hooks/useDebateStore';
@@ -35,7 +36,16 @@ export function SituationsTab() {
     try {
       const v = localStorage.getItem('taxonomy-editor-sit-hierarchy');
       return v === null ? true : v === 'true';
-    } catch { return true; }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'situations-tab',
+        level: 'warn',
+        message: 'Failed to load hierarchy view preference from localStorage',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      return true;
+    }
   });
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
     try {
@@ -45,7 +55,15 @@ export function SituationsTab() {
         if (raw) return new Set(JSON.parse(raw));
       }
       localStorage.setItem('taxonomy-editor-sit-collapsed-version', '3');
-    } catch { /* ignore */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'situations-tab',
+        level: 'warn',
+        message: 'Failed to load collapsed groups from localStorage',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
     return new Set(['__default_collapsed__']); // sentinel: collapse all on first load
   });
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);

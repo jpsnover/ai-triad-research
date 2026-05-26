@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -85,7 +86,16 @@ export function DebateTab() {
     try {
       const saved = localStorage.getItem('debate-custom-order');
       return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'warn',
+        message: 'Failed to load custom debate order from localStorage',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      return [];
+    }
   });
 
   const saveCustomOrder = useCallback((order: string[]) => {
@@ -160,6 +170,13 @@ export function DebateTab() {
         setTimeout(() => setExportStatus(null), 4000);
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'error',
+        message: 'Debate export failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setExportStatus(`Export failed: ${err}`);
       setTimeout(() => setExportStatus(null), 4000);
     }
@@ -676,7 +693,15 @@ function loadExportOptions(): ExportOptions {
         includeReasoning: parsed.includeReasoning ?? true,
       };
     }
-  } catch { /* fall through */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'debate-tab',
+      level: 'warn',
+      message: 'Failed to load export options from localStorage',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+  }
   return { includeTaxonomyRefs: true, includeReasoning: true };
 }
 
@@ -695,7 +720,15 @@ function ExportOptionsDialog({
   const handleConfirm = () => {
     try {
       localStorage.setItem(EXPORT_OPTIONS_STORAGE_KEY, JSON.stringify(options));
-    } catch { /* ignore quota errors */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-tab',
+        level: 'warn',
+        message: 'Failed to save export options to localStorage',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
     onConfirm(options);
   };
 

@@ -272,6 +272,13 @@ IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxono
           warnings,
         } : c));
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: 'AI conflict description generation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         setConflicts(prev => prev.map(c => c.id === item.id ? {
           ...c,
           generatedLabel: item.point.slice(0, 60),
@@ -308,7 +315,14 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
         setSteelmans(prev => prev.map(s => s.id === item.id ? {
           ...s, proposedSteelman: condensed, warnings,
         } : s));
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: 'AI steelman condensation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         setSteelmans(prev => prev.map(s => s.id === item.id ? {
           ...s, proposedSteelman: item.sourceExcerpt.slice(0, 150),
           warnings: ['AI condensation failed — using truncated original'],
@@ -360,7 +374,14 @@ Return ONLY JSON (no markdown):
           suggestedCategory: parsed.category || item.suggestedCategory,
           warnings,
         } : c));
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: 'AI concept proposal generation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         setConcepts(prev => prev.map(c => c.id === item.id ? {
           ...c,
           suggestedLabel: item.text.slice(0, 40),
@@ -404,7 +425,14 @@ Return ONLY JSON (no markdown):
         });
         manifest.push({ type: 'conflict', action: 'created', id: conflictId, status: 'applied' });
         applied++;
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: `Failed to create conflict ${conflictId}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         manifest.push({ type: 'conflict', action: 'created', id: conflictId, status: 'rejected' });
         failed++;
       }
@@ -420,7 +448,14 @@ Return ONLY JSON (no markdown):
         await api.harvestUpdateSteelman(item.targetNodeId, item.attackerPov, item.proposedSteelman);
         manifest.push({ type: 'steelman', action: 'updated', id: `${item.targetNodeId}:from_${item.attackerPov}`, status: 'applied' });
         applied++;
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: `Failed to update steelman for ${item.targetNodeId}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         manifest.push({ type: 'steelman', action: 'updated', id: item.targetNodeId, status: 'rejected' });
         failed++;
       }
@@ -433,7 +468,14 @@ Return ONLY JSON (no markdown):
         await api.harvestAddDebateRef(item.nodeId, activeDebate.id);
         manifest.push({ type: 'debate_ref', action: 'added', id: item.nodeId, status: 'applied' });
         applied++;
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: `Failed to add debate ref for ${item.nodeId}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         manifest.push({ type: 'debate_ref', action: 'added', id: item.nodeId, status: 'rejected' });
         failed++;
       }
@@ -458,7 +500,14 @@ Return ONLY JSON (no markdown):
         });
         manifest.push({ type: 'verdict', action: 'updated', id: conflictSlug, status: 'applied' });
         applied++;
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: `Failed to add verdict for ${conflictSlug}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         manifest.push({ type: 'verdict', action: 'updated', id: conflictSlug, status: 'rejected' });
         failed++;
       }
@@ -481,7 +530,14 @@ Return ONLY JSON (no markdown):
         });
         manifest.push({ type: 'concept', action: 'queued', id: item.suggestedLabel, status: 'applied' });
         applied++;
-      } catch {
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'harvest-dialog',
+          level: 'error',
+          message: `Failed to queue concept ${item.id}`,
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         manifest.push({ type: 'concept', action: 'queued', id: item.id, status: 'rejected' });
         failed++;
       }

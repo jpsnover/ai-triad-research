@@ -525,7 +525,19 @@ export function evaluatePhaseTransition(
   healthScore?: { value: number; consecutive_decline: number },
 ): PredicateResult {
   const w = loadProvisionalWeights();
-  const pb = w.phase_bounds;
+  const rawPb = w.phase_bounds;
+  // Phase bounds are expressed in "rounds" (all speakers get one turn).
+  // Scale by active debater count so each speaker gets a full turn per round.
+  const s = Math.max(1, ctx.transcript.activePovsCount);
+  const pb = {
+    ...rawPb,
+    min_confrontation_rounds: rawPb.min_confrontation_rounds * s,
+    max_confrontation_rounds: rawPb.max_confrontation_rounds * s,
+    min_argumentation_rounds: rawPb.min_argumentation_rounds * s,
+    max_argumentation_rounds: rawPb.max_argumentation_rounds * s,
+    min_concluding_rounds: rawPb.min_concluding_rounds * s,
+    max_concluding_rounds: rawPb.max_concluding_rounds * s,
+  };
   const coldStart = state.rounds_in_phase < (
     state.current_phase === 'confrontation' ? pb.min_confrontation_rounds
     : state.current_phase === 'argumentation' ? pb.min_argumentation_rounds
@@ -613,27 +625,27 @@ export function evaluatePhaseTransition(
   // Phase-specific predicates
   switch (state.current_phase) {
     case 'confrontation':
-      return evaluateThesisExit(state, ctx, signals, pb, coldStart, satScore);
+      return evaluateThesisExit(state, ctx, signals, pb, s, coldStart, satScore);
     case 'argumentation':
-      return evaluateExplorationExit(state, ctx, signals, config, w, coldStart, satScore);
+      return evaluateExplorationExit(state, ctx, signals, config, w, pb, s, coldStart, satScore);
     case 'concluding':
-      return evaluateConcludingExit(state, ctx, config, w, coldStart, convScore);
+      return evaluateConcludingExit(state, ctx, config, w, pb, s, coldStart, convScore);
   }
 }
 
 function evaluateThesisExit(
   state: PhaseState, ctx: SignalContext, _signals: Signal[],
-  pb: Record<string, number>, coldStart: boolean, _satScore: number,
+  pb: Record<string, number>, s: number, coldStart: boolean, _satScore: number,
 ): PredicateResult {
   const components: Record<string, number> = { rounds_in_phase: state.rounds_in_phase };
 
   if (coldStart) {
-    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_confrontation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
+    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_confrontation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Hard cap
   if (state.rounds_in_phase >= pb.max_confrontation_rounds) {
-    return { action: 'transition', new_phase: 'argumentation', reason: `Max thesis rounds (${pb.max_confrontation_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
+    return { action: 'transition', new_phase: 'argumentation', reason: `Max thesis turns (${pb.max_confrontation_rounds / s} rounds × ${s} speakers)`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   // Must have all POVs responded
@@ -668,9 +680,9 @@ function evaluateThesisExit(
 
 function evaluateExplorationExit(
   state: PhaseState, ctx: SignalContext, _signals: Signal[],
-  config: PhaseTransitionConfig, w: ProvisionalWeights, coldStart: boolean, satScore: number,
+  config: PhaseTransitionConfig, w: ProvisionalWeights,
+  pb: Record<string, number>, s: number, coldStart: boolean, satScore: number,
 ): PredicateResult {
-  const pb = w.phase_bounds;
   const components: Record<string, number> = {
     rounds_in_phase: state.rounds_in_phase,
     argumentative_saturation_score: satScore,
@@ -678,12 +690,12 @@ function evaluateExplorationExit(
   };
 
   if (coldStart) {
-    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_argumentation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
+    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_argumentation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Force exits
   if (state.rounds_in_phase >= pb.max_argumentation_rounds) {
-    return { action: 'transition', new_phase: 'concluding', reason: `Max exploration rounds (${pb.max_argumentation_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
+    return { action: 'transition', new_phase: 'concluding', reason: `Max exploration turns (${pb.max_argumentation_rounds / s} rounds × ${s} speakers)`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   const softBudget = config.maxTotalRounds * w.budget.soft_multiplier;
@@ -733,9 +745,9 @@ function evaluateExplorationExit(
 
 function evaluateConcludingExit(
   state: PhaseState, ctx: SignalContext, config: PhaseTransitionConfig,
-  w: ProvisionalWeights, coldStart: boolean, convScore: number,
+  w: ProvisionalWeights, pb: Record<string, number>, s: number,
+  coldStart: boolean, convScore: number,
 ): PredicateResult {
-  const pb = w.phase_bounds;
   const components: Record<string, number> = {
     rounds_in_phase: state.rounds_in_phase,
     convergence_score: convScore,
@@ -744,12 +756,12 @@ function evaluateConcludingExit(
   };
 
   if (coldStart) {
-    return { action: 'stay', reason: `Cold start (round ${state.rounds_in_phase} < min ${pb.min_concluding_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
+    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_concluding_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Force exits
   if (state.rounds_in_phase >= pb.max_concluding_rounds) {
-    return { action: 'terminate', reason: `Max synthesis rounds (${pb.max_concluding_rounds})`, veto_active: false, force_active: true, confidence_deferred: false, components };
+    return { action: 'terminate', reason: `Max synthesis turns (${pb.max_concluding_rounds / s} rounds × ${s} speakers)`, veto_active: false, force_active: true, confidence_deferred: false, components };
   }
 
   // Synthesis stall
@@ -900,17 +912,17 @@ export function buildPhaseContext(state: PhaseState, config: PhaseTransitionConf
 function buildPhaseRationale(state: PhaseState, satScore: number, convScore: number): string {
   switch (state.current_phase) {
     case 'confrontation':
-      return `Thesis-antithesis phase, round ${state.rounds_in_phase}. Debaters are establishing positions.`;
+      return `Thesis-antithesis phase, turn ${state.rounds_in_phase}. Debaters are establishing positions.`;
     case 'argumentation': {
       const pct = (satScore * 100).toFixed(0);
       const threshPct = (state.argumentation_exit_threshold * 100).toFixed(0);
       const regrNote = state.regression_count > 0 ? ` (${state.regression_count} regression${state.regression_count > 1 ? 's' : ''})` : '';
-      return `Exploration phase, round ${state.rounds_in_phase}. Saturation at ${pct}% of ${threshPct}% threshold${regrNote}.`;
+      return `Exploration phase, turn ${state.rounds_in_phase}. Saturation at ${pct}% of ${threshPct}% threshold${regrNote}.`;
     }
     case 'concluding': {
       const pct = (convScore * 100).toFixed(0);
       const threshPct = (state.concluding_exit_threshold * 100).toFixed(0);
-      return `Synthesis phase, round ${state.rounds_in_phase}. Convergence at ${pct}% of ${threshPct}% threshold.`;
+      return `Synthesis phase, turn ${state.rounds_in_phase}. Convergence at ${pct}% of ${threshPct}% threshold.`;
     }
   }
 }

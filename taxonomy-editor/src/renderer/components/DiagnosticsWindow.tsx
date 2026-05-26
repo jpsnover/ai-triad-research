@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext, Fragment } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, TurnValidationTrail, TurnValidation, TurnValidationDimensions, TurnAttempt } from '../types/debate';
 import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
@@ -2190,8 +2191,14 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           if (typeof label === 'string') labels.set(id, label);
         }
         setNodeLabels(labels);
-      } catch {
-        // non-fatal — table still renders without detail panel lookup
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'diagnostics-window',
+          level: 'warn',
+          message: 'Failed to load taxonomy files for node lookup',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
       }
       try {
         const registryRaw = await api.loadPolicyRegistry() as { policies?: { id: string; action: string; source_povs: string[]; member_count: number }[] } | null;
@@ -2201,15 +2208,27 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           for (const p of policies) pm.set(p.id, p);
           setPolicyMap(pm);
         }
-      } catch {
-        // non-fatal
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'diagnostics-window',
+          level: 'warn',
+          message: 'Failed to load policy registry',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
       }
       try {
         const raw = await api.loadEdges() as { edges?: TaxRefEdge[] } | null;
         if (cancelled) return;
         if (raw && Array.isArray(raw.edges)) setAllEdges(raw.edges);
-      } catch {
-        // non-fatal
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'diagnostics-window',
+          level: 'warn',
+          message: 'Failed to load edges data',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
       }
     })();
     return () => { cancelled = true; };
