@@ -5336,7 +5336,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               Disambiguated Terms ({(vocabRes?.length ?? 0) + (vocabAmb?.length ?? 0)})
                               {vocabAmb && vocabAmb.length > 0 && (
                                 <span style={{ marginLeft: 6, color: '#d97706', fontWeight: 500 }}>
-                                  {vocabAmb.length} ambiguous
+                                  {new Set(vocabAmb.map(a => a.colloquial)).size} ambiguous
                                 </span>
                               )}
                             </summary>
@@ -5378,17 +5378,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               </table>
                               );
                             })()}
-                            {vocabAmb && vocabAmb.length > 0 && (
+                            {vocabAmb && vocabAmb.length > 0 && (() => {
+                              const unique = [...new Set(vocabAmb.map(a => a.colloquial))].sort((a, b) => a.localeCompare(b));
+                              return (
                               <div style={{ padding: '4px 8px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4, fontSize: '0.68rem', marginBottom: 4 }}>
-                                <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Ambiguous — needs review:</div>
-                                {vocabAmb.map((a, i) => (
-                                  <div key={i} style={{ marginLeft: 8 }}>
-                                    &ldquo;{a.colloquial}&rdquo;
-                                    {a.offset != null && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>@{a.offset}</span>}
-                                  </div>
+                                <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Ambiguous terms:</div>
+                                {unique.map((term, i) => (
+                                  <div key={i} style={{ marginLeft: 8 }}>&ldquo;{term}&rdquo;</div>
                                 ))}
                               </div>
-                            )}
+                              );
+                            })()}
                           </details>
                         );
                       })()}

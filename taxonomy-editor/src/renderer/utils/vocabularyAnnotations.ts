@@ -9,7 +9,6 @@
 
 import React from 'react';
 import { injectLineageLinks } from './lineageMatcher';
-import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 export interface VocabResolution {
   colloquial: string;
@@ -50,6 +49,7 @@ function linkifyVocabText(
   text: string,
   matcher: { regex: RegExp; lookup: Map<string, { colloquial: string; canonical: string; confidence: string }> },
   keyPrefix: string,
+  onVocabClick?: () => void,
 ): React.ReactNode {
   const { regex, lookup } = matcher;
   regex.lastIndex = 0;
@@ -66,19 +66,16 @@ function linkifyVocabText(
     const matchedText = match[0];
     const info = lookup.get(matchedText.toLowerCase());
 
-    const canonical = info?.canonical;
     parts.push(
       React.createElement('a', {
         key: `${keyPrefix}-v${matchCount++}`,
         className: `vocab-term vocab-confidence-${info?.confidence ?? 'medium'}`,
         href: '#',
         'data-vocab-colloquial': info?.colloquial ?? matchedText,
-        'data-vocab-canonical': canonical,
+        'data-vocab-canonical': info?.canonical,
         onClick: (e: React.MouseEvent) => {
           e.preventDefault();
-          if (canonical) {
-            useTaxonomyStore.getState().navigateToLineage(canonical);
-          }
+          onVocabClick?.();
         },
       }, matchedText),
     );
@@ -99,13 +96,14 @@ function injectVocabLinks(
   children: React.ReactNode,
   matcher: { regex: RegExp; lookup: Map<string, { colloquial: string; canonical: string; confidence: string }> },
   keyPrefix = 'vb',
+  onVocabClick?: () => void,
 ): React.ReactNode {
   return React.Children.map(children, (child, i) => {
     if (typeof child === 'string') {
-      return linkifyVocabText(child, matcher, `${keyPrefix}-${i}`);
+      return linkifyVocabText(child, matcher, `${keyPrefix}-${i}`, onVocabClick);
     }
     if (typeof child === 'number') {
-      return linkifyVocabText(String(child), matcher, `${keyPrefix}-${i}`);
+      return linkifyVocabText(String(child), matcher, `${keyPrefix}-${i}`, onVocabClick);
     }
     if (!React.isValidElement(child)) return child;
 
@@ -117,7 +115,7 @@ function injectVocabLinks(
       return React.cloneElement(
         child,
         {},
-        injectVocabLinks(props.children as React.ReactNode, matcher, `${keyPrefix}-${i}`),
+        injectVocabLinks(props.children as React.ReactNode, matcher, `${keyPrefix}-${i}`, onVocabClick),
       );
     }
     return child;
@@ -132,24 +130,25 @@ function injectVocabLinks(
  */
 export function getDebateMarkdownComponents(
   vocabResolutions: VocabResolution[] | null | undefined,
+  onVocabClick?: () => void,
+  onLineageClick?: () => void,
 ): Record<string, React.ComponentType<{ children?: React.ReactNode; node?: unknown }>> {
   const matcher = vocabResolutions && vocabResolutions.length > 0
     ? buildVocabMatcher(vocabResolutions)
     : null;
 
   if (!matcher) {
-    // No vocab data — import and return static lineage-only components
-    // (inline to avoid circular dependency at module level)
+    const injectLg = (children: React.ReactNode) => injectLineageLinks(children, 'lg', onLineageClick);
     return {
-      p: ({ children, node: _, ...props }) => React.createElement('p', props, injectLineageLinks(children)),
-      li: ({ children, node: _, ...props }) => React.createElement('li', props, injectLineageLinks(children)),
-      td: ({ children, node: _, ...props }) => React.createElement('td', props, injectLineageLinks(children)),
-      blockquote: ({ children, node: _, ...props }) => React.createElement('blockquote', props, injectLineageLinks(children)),
+      p: ({ children, node: _, ...props }) => React.createElement('p', props, injectLg(children)),
+      li: ({ children, node: _, ...props }) => React.createElement('li', props, injectLg(children)),
+      td: ({ children, node: _, ...props }) => React.createElement('td', props, injectLg(children)),
+      blockquote: ({ children, node: _, ...props }) => React.createElement('blockquote', props, injectLg(children)),
     };
   }
 
   // Chain: vocab first, then lineage
-  const inject = (children: React.ReactNode) => injectLineageLinks(injectVocabLinks(children, matcher));
+  const inject = (children: React.ReactNode) => injectLineageLinks(injectVocabLinks(children, matcher, 'vb', onVocabClick), 'lg', onLineageClick);
 
   return {
     p: ({ children, node: _, ...props }) => React.createElement('p', props, inject(children)),

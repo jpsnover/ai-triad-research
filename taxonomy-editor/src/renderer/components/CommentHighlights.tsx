@@ -139,7 +139,7 @@ function CommentTooltip({ comments }: { comments: Comment[] }) {
             </span>
             <span className="comment-tooltip-author">{c.author}</span>
             <span className="comment-tooltip-preview">
-              {c.body.length > 60 ? c.body.slice(0, 57) + '...' : c.body}
+              {(c.body ?? '').length > 60 ? (c.body ?? '').slice(0, 57) + '...' : (c.body ?? '')}
             </span>
           </div>
         );

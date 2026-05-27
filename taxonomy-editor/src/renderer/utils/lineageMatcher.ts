@@ -10,7 +10,6 @@
 
 import React from 'react';
 import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../data/lineageCategories';
-import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 let cachedRegex: RegExp | null = null;
 let cachedLookup: Map<string, { name: string; l1: string; l2: string; l2Label: string }> | null = null;
@@ -62,7 +61,7 @@ function getMatcher(): { regex: RegExp; lookup: Map<string, { name: string; l1: 
 /**
  * Replace lineage name matches in a plain text string with styled React elements.
  */
-function linkifyText(text: string, keyPrefix: string): React.ReactNode {
+function linkifyText(text: string, keyPrefix: string, onLineageClick?: () => void): React.ReactNode {
   const matcher = getMatcher();
   if (!matcher) return text;
 
@@ -96,7 +95,7 @@ function linkifyText(text: string, keyPrefix: string): React.ReactNode {
         onClick: (e: React.MouseEvent) => {
           e.preventDefault();
           e.stopPropagation();
-          useTaxonomyStore.getState().navigateToLineage(lineageName);
+          onLineageClick?.();
         },
       }, ...(Array.isArray(displayContent) ? displayContent : [displayContent])),
     );
@@ -114,18 +113,36 @@ function linkifyText(text: string, keyPrefix: string): React.ReactNode {
 const SKIP_ELEMENTS = new Set(['code', 'pre', 'a', 'script', 'style']);
 
 /**
+ * Extract unique lineage names found in a plain text string.
+ * Returns deduped, sorted array of canonical lineage names.
+ */
+export function extractLineageNames(text: string): string[] {
+  const matcher = getMatcher();
+  if (!matcher) return [];
+  const { regex, lookup } = matcher;
+  regex.lastIndex = 0;
+  const names = new Set<string>();
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const info = lookup.get(match[0].toLowerCase());
+    if (info) names.add(info.name);
+  }
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+/**
  * Recursively process React children, replacing text nodes with lineage-linked versions.
  * Call this inside react-markdown's `components` prop overrides.
  */
-export function injectLineageLinks(children: React.ReactNode, keyPrefix = 'lg'): React.ReactNode {
+export function injectLineageLinks(children: React.ReactNode, keyPrefix = 'lg', onLineageClick?: () => void): React.ReactNode {
   if (!isLineageDataLoaded()) return children;
 
   return React.Children.map(children, (child, i) => {
     if (typeof child === 'string') {
-      return linkifyText(child, `${keyPrefix}-${i}`);
+      return linkifyText(child, `${keyPrefix}-${i}`, onLineageClick);
     }
     if (typeof child === 'number') {
-      return linkifyText(String(child), `${keyPrefix}-${i}`);
+      return linkifyText(String(child), `${keyPrefix}-${i}`, onLineageClick);
     }
     if (!React.isValidElement(child)) return child;
 
@@ -139,7 +156,7 @@ export function injectLineageLinks(children: React.ReactNode, keyPrefix = 'lg'):
       return React.cloneElement(
         child,
         {},
-        injectLineageLinks(props.children as React.ReactNode, `${keyPrefix}-${i}`),
+        injectLineageLinks(props.children as React.ReactNode, `${keyPrefix}-${i}`, onLineageClick),
       );
     }
     return child;
@@ -156,3 +173,19 @@ export const lineageMarkdownComponents: Record<string, React.ComponentType<{ chi
   td: ({ children, node: _, ...props }) => React.createElement('td', props, injectLineageLinks(children)),
   blockquote: ({ children, node: _, ...props }) => React.createElement('blockquote', props, injectLineageLinks(children)),
 };
+
+/**
+ * Factory version of lineageMarkdownComponents that accepts an onClick callback.
+ */
+export function getLineageMarkdownComponents(
+  onLineageClick?: () => void,
+): Record<string, React.ComponentType<{ children?: React.ReactNode; node?: unknown }>> {
+  if (!onLineageClick) return lineageMarkdownComponents;
+  const inject = (children: React.ReactNode) => injectLineageLinks(children, 'lg', onLineageClick);
+  return {
+    p: ({ children, node: _, ...props }) => React.createElement('p', props, inject(children)),
+    li: ({ children, node: _, ...props }) => React.createElement('li', props, inject(children)),
+    td: ({ children, node: _, ...props }) => React.createElement('td', props, inject(children)),
+    blockquote: ({ children, node: _, ...props }) => React.createElement('blockquote', props, inject(children)),
+  };
+}

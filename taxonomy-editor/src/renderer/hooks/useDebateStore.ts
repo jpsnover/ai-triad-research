@@ -2433,7 +2433,7 @@ interface DebateStore {
   audience: DebateAudience;
   setAudience: (audience: DebateAudience) => void;
   /** Set display tier for a specific transcript entry (DT-3). */
-  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence') => void;
+  setEntryDisplayTier: (entryId: string, tier: 'claims' | 'brief' | 'medium' | 'detailed' | 'reasoning' | 'convergence' | 'terms' | 'lineage') => void;
   debateProgress: { attempt: number; maxRetries: number; backoffSeconds?: number; limitType?: string; limitMessage?: string; phase?: string } | null;
   debateActivity: string | null; // human-readable description of what's happening
   inspectedNodeId: string | null; // Phase 6: node currently shown in pane 3
