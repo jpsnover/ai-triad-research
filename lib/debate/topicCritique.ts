@@ -119,8 +119,15 @@ export interface TopicCritique {
 
 // ── Constants ─────────────────────────────────────────────
 
-/** Embedding similarity threshold for node activation. */
+/** Embedding similarity threshold for POV node activation. */
 const ACTIVATION_THRESHOLD = 0.35;
+
+/** Higher threshold for situation nodes — same-domain embeddings cluster tightly,
+ *  so 0.35 activates nearly the entire catalog (~90%). 0.50 yields 15-30. */
+const SITUATION_ACTIVATION_THRESHOLD = 0.50;
+
+/** Hard cap on activated situation nodes (safety net if threshold alone isn't enough). */
+const MAX_ACTIVATED_SITUATIONS = 30;
 
 /** Per-POV node count thresholds for abstraction level scoring. */
 const ABSTRACTION_SWEET_SPOT = { min: 8, max: 15 };
@@ -139,8 +146,10 @@ export interface StructuralScoreInput {
   embeddings: Record<string, { pov: string; vector: number[] }>;
   /** Source evidence index (optional — absent means evidence coverage = 0). */
   evidenceIndex?: SourceEvidenceIndex;
-  /** Override the activation similarity threshold (default 0.35). */
+  /** Override the POV node activation similarity threshold (default 0.35). */
   similarityThreshold?: number;
+  /** Override the situation node activation threshold (default 0.50). */
+  situationSimilarityThreshold?: number;
 }
 
 /**
@@ -150,22 +159,37 @@ export interface StructuralScoreInput {
 export function computeStructuralScore(input: StructuralScoreInput): StructuralScore {
   const threshold = input.similarityThreshold ?? ACTIVATION_THRESHOLD;
 
-  // 1. Compute similarity for all nodes and filter activated
+  // 1. Compute similarity for all nodes and filter activated.
+  //    Situation nodes use a higher threshold (t/244) — same-domain embeddings
+  //    cluster tightly at 0.35, activating nearly the entire catalog.
   const activated: StructuralScore['activated_nodes'] = [];
+  const sitCandidates: StructuralScore['activated_nodes'] = [];
+  const sitThreshold = input.situationSimilarityThreshold ?? SITUATION_ACTIVATION_THRESHOLD;
 
   for (const [nodeId, entry] of Object.entries(input.embeddings)) {
     if (!entry.vector || entry.vector.length === 0) continue;
     const sim = cosineSimilarity(input.topicEmbedding, entry.vector);
-    if (sim >= threshold) {
+    const isSit = nodeId.startsWith('sit-') || nodeId.startsWith('cc-');
+    const nodeThreshold = isSit ? sitThreshold : threshold;
+    if (sim >= nodeThreshold) {
       const povNode = input.povNodes.find(n => n.id === nodeId);
-      activated.push({
+      const entry2 = {
         id: nodeId,
         similarity: sim,
         pov: povNode?.pov ?? entry.pov,
         category: povNode?.category,
-      });
+      };
+      if (isSit) {
+        sitCandidates.push(entry2);
+      } else {
+        activated.push(entry2);
+      }
     }
   }
+
+  // Cap activated situations at MAX_ACTIVATED_SITUATIONS, keeping highest similarity
+  sitCandidates.sort((a, b) => b.similarity - a.similarity);
+  activated.push(...sitCandidates.slice(0, MAX_ACTIVATED_SITUATIONS));
 
   // Sort by similarity descending
   activated.sort((a, b) => b.similarity - a.similarity);

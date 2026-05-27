@@ -530,3 +530,58 @@ describe('vocabulary_tags on AN nodes', () => {
     expect(result.newNodes[0].vocabulary_tags).toBeUndefined();
   });
 });
+
+describe('situation grounding (t/243)', () => {
+  const baseInput = {
+    statement: 'AI governance should prioritize safety mechanisms to address autonomous weapons deployment risks',
+    speaker: 'safetyist',
+    entryId: 'entry-1',
+    taxonomyRefIds: ['saf-beliefs-001'],
+    turnNumber: 1,
+    existingNodes: [],
+    existingEdgeCount: 0,
+    startNodeId: 1,
+  };
+  const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
+
+  it('adds sit- refs when claim text overlaps with activated situation', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{ text: 'Autonomous weapons deployment risks require governance safety mechanisms to prevent catastrophic outcomes' }],
+      activatedSituations: [
+        { id: 'sit-042', text: 'Autonomous weapons deployment international governance frameworks for lethal autonomous systems' },
+        { id: 'sit-099', text: 'Quantum computing post-quantum cryptography standards migration' },
+      ],
+    }, baseOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    expect(result.newNodes[0].taxonomy_refs).toContain('saf-beliefs-001');
+    expect(result.newNodes[0].taxonomy_refs).toContain('sit-042');
+    expect(result.newNodes[0].taxonomy_refs).not.toContain('sit-099');
+  });
+
+  it('does not duplicate sit- refs already present from cite stage', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      taxonomyRefIds: ['saf-beliefs-001', 'sit-042'],
+      claims: [{ text: 'Autonomous weapons deployment risks require governance safety mechanisms' }],
+      activatedSituations: [
+        { id: 'sit-042', text: 'Autonomous weapons deployment international governance frameworks' },
+      ],
+    }, baseOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    const sitRefs = result.newNodes[0].taxonomy_refs.filter(r => r === 'sit-042');
+    expect(sitRefs).toHaveLength(1);
+  });
+
+  it('skips grounding when no activated situations provided', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{ text: 'Autonomous weapons deployment risks require governance safety mechanisms' }],
+    }, baseOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    expect(result.newNodes[0].taxonomy_refs).toEqual(['saf-beliefs-001']);
+  });
+});

@@ -328,6 +328,49 @@ describe('computeStructuralScore — situation activation', () => {
     });
     expect(result.situation_activation).toBe(1);
   });
+
+  it('applies higher threshold to situation nodes than POV nodes (t/244)', () => {
+    // Vector with cosine similarity ~0.45 to TOPIC_VEC — above POV threshold (0.35) but below situation threshold (0.50)
+    const midVec = [0.45, 0, 0, 0, 0, 0, 0, 0, 0, Math.sqrt(1 - 0.45 * 0.45)];
+    const nodes = [makeNode('acc-beliefs-001', 'accelerationist', 'Beliefs')];
+    const embeddings = Object.fromEntries([
+      makeEmbedding('acc-beliefs-001', 'accelerationist', midVec),
+      makeEmbedding('sit-001', 'situations', midVec),
+      makeEmbedding('sit-002', 'situations', midVec),
+    ]);
+    const result = computeStructuralScore({
+      topicEmbedding: TOPIC_VEC,
+      povNodes: nodes,
+      situationNodes: [{ id: 'sit-001' }, { id: 'sit-002' }],
+      embeddings,
+    });
+    // POV node should activate (0.45 > 0.35), situation nodes should NOT (0.45 < 0.50)
+    expect(result.activated_nodes.some(n => n.id === 'acc-beliefs-001')).toBe(true);
+    expect(result.activated_nodes.some(n => n.id === 'sit-001')).toBe(false);
+    expect(result.situation_activation).toBe(0);
+  });
+
+  it('caps activated situations at 30', () => {
+    const nodes = [makeNode('acc-beliefs-001', 'accelerationist', 'Beliefs')];
+    // Create 50 situation nodes all at high similarity
+    const sitEntries = Array.from({ length: 50 }, (_, i) => {
+      const id = `sit-${String(i + 1).padStart(3, '0')}`;
+      return makeEmbedding(id, 'situations', TOPIC_VEC);
+    });
+    const embeddings = Object.fromEntries([
+      makeEmbedding('acc-beliefs-001', 'accelerationist', TOPIC_VEC),
+      ...sitEntries,
+    ]);
+    const sitNodes = Array.from({ length: 50 }, (_, i) => ({ id: `sit-${String(i + 1).padStart(3, '0')}` }));
+    const result = computeStructuralScore({
+      topicEmbedding: TOPIC_VEC,
+      povNodes: nodes,
+      situationNodes: sitNodes,
+      embeddings,
+    });
+    const sitActivated = result.activated_nodes.filter(n => n.id.startsWith('sit-'));
+    expect(sitActivated.length).toBeLessThanOrEqual(30);
+  });
 });
 
 // ── critiqueTopicPrompt ─────────────────────────────────

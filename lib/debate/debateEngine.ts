@@ -249,6 +249,8 @@ export class DebateEngine {
   private _lastInjectionManifest: ContextInjectionManifest | null = null;
   /** Full relevance score map (POV + situation nodes) from last context build. */
   private _lastRelevanceScores: Map<string, number> | null = null;
+  /** Activated situation nodes from last context injection — for AN situation grounding (t/243). */
+  private _activatedSituations: { id: string; text: string }[] = [];
   /** Speaker mapping for neutral evaluator — built once, reused across checkpoints. */
   private _neutralMapping: SpeakerMapping | null = null;
   /** Whether the midpoint neutral evaluation has already run this debate. */
@@ -1298,6 +1300,11 @@ export class DebateEngine {
       policyRegistry: ctx.policyRegistry,
       nodeScores: scores,
     };
+    // Cache activated situations for AN claim grounding (t/243)
+    this._activatedSituations = filteredSit.map(s => ({
+      id: s.node.id,
+      text: `${s.node.label} ${s.node.description}`,
+    }));
     this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
     this._lastInjectionManifest.scoring_mode = scoringMode;
 
@@ -4307,6 +4314,7 @@ Return ONLY JSON (no markdown, no code fences):
         startNodeId: an.nodes.length + 1,
         taxonomyEdges: this.taxonomy.edges?.edges,
         knownNodeIds: this.getKnownNodeIds(),
+        activatedSituations: this._activatedSituations.length > 0 ? this._activatedSituations : undefined,
       },
       {
         groundingOverlapThreshold: overlapThreshold,

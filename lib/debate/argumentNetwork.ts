@@ -863,6 +863,9 @@ export interface ProcessClaimsInput {
   knownNodeIds?: Set<string>;
   /** IDs of nodes identified as crux nodes. Used by marginal value filter to exempt crux-connected claims. */
   cruxNodeIds?: Set<string>;
+  /** Activated situation nodes for claim-level grounding. When provided, claims with sufficient word overlap
+   *  get sit- IDs added to taxonomy_refs — bridging situation context into AN structure. */
+  activatedSituations?: { id: string; text: string }[];
 }
 
 export interface ProcessClaimsResult {
@@ -1105,6 +1108,21 @@ export function processExtractedClaims(
         node.vocabulary_tags = resolved.map(t => ({
           colloquial: t.bare, canonical: t.canonical, offset: t.offset,
         }));
+      }
+    }
+
+    // Situation grounding: propagate sit- refs from activated situation nodes
+    // when the claim text has sufficient word overlap with the situation description.
+    // The cite stage rarely produces sit- IDs (its prompt focuses on POV nodes),
+    // so this bridges situation context into AN structure for QBAF visibility.
+    if (input.activatedSituations && input.activatedSituations.length > 0) {
+      const existingRefs = new Set(node.taxonomy_refs);
+      for (const sit of input.activatedSituations) {
+        if (existingRefs.has(sit.id)) continue;
+        if (wordOverlap(claim.text, sit.text) >= 0.15) {
+          node.taxonomy_refs = [...node.taxonomy_refs, sit.id];
+          existingRefs.add(sit.id);
+        }
       }
     }
 
