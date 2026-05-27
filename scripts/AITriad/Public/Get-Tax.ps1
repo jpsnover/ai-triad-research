@@ -73,6 +73,15 @@ function Get-Tax {
     .EXAMPLE
         Get-Tax -Id 'acc-desires-*' | Get-Tax
         # Pipeline by property name — objects with an Id property.
+    .EXAMPLE
+        Get-Tax -Today
+        # Nodes modified today (checks change_history[0].date).
+    .EXAMPLE
+        Get-Tax -Since '2026-05-25'
+        # Nodes modified since May 25.
+    .EXAMPLE
+        Get-Tax -POV accelerationist -Since (Get-Date).AddDays(-7)
+        # Accelerationist nodes changed in the last 7 days.
     #>
     [CmdletBinding(DefaultParameterSetName = 'Text')]
     param(
@@ -105,7 +114,13 @@ function Get-Tax {
         [double]$Threshold = 0.80,
 
         [Parameter(ParameterSetName = 'Overlaps')]
-        [switch]$CrossPOV
+        [switch]$CrossPOV,
+
+        [Parameter(ParameterSetName = 'Text')]
+        [switch]$Today,
+
+        [Parameter(ParameterSetName = 'Text')]
+        [datetime]$Since
     )
 
     begin {
@@ -282,6 +297,8 @@ function Get-Tax {
     $HasLabel  = ($null -ne $Label) -and ($Label.Length -gt 0)
     $HasDesc   = ($null -ne $Description) -and ($Description.Length -gt 0)
     $HasTextFilter = $HasId -or $HasLabel -or $HasDesc
+    $HasTemporal = $Today -or $null -ne $Since
+    $TodayUtcStr = if ($Today) { (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') } else { $null }
 
     foreach ($Key in $MatchingKeys | Sort-Object) {
         $Entry = $script:TaxonomyData[$Key]
@@ -303,6 +320,27 @@ function Get-Tax {
                     }
                 }
                 if (-not $Match) { continue }
+            }
+
+            # Temporal filters: check most recent change_history entry
+            if ($HasTemporal) {
+                if (-not $Node.PSObject.Properties['change_history'] -or -not $Node.change_history) { continue }
+                $LatestDate = $null
+                foreach ($H in $Node.change_history) {
+                    if ($H.PSObject.Properties['date'] -and $H.date) { $LatestDate = $H.date; break }
+                }
+                if (-not $LatestDate) { continue }
+
+                if ($Today) {
+                    $DateStr = $LatestDate.Substring(0, 10)  # yyyy-MM-dd from ISO 8601
+                    if ($DateStr -ne $TodayUtcStr) { continue }
+                }
+                if ($null -ne $Since) {
+                    $ParsedDate = [datetime]::MinValue
+                    if ([datetime]::TryParse($LatestDate, [ref]$ParsedDate)) {
+                        if ($ParsedDate -lt $Since) { continue }
+                    } else { continue }
+                }
             }
 
             ConvertTo-TaxonomyNode -PovKey $Key -Node $Node

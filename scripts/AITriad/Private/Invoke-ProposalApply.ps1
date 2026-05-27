@@ -85,7 +85,9 @@ function Invoke-ProposalApply {
                 }
             }
 
-            $Raw.nodes += $NewNode
+            $NodeObj = [PSCustomObject]$NewNode
+            Add-ChangeHistoryEntry -Node $NodeObj -Action 'created' -Fields @($NewNode.Keys | Where-Object { $_ -ne 'id' })
+            $Raw.nodes += $NodeObj
         }
 
         'RELABEL' {

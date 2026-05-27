@@ -6469,6 +6469,38 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </Section>
                       )}
 
+                      {/* Extraction status + re-extract button (t/226) */}
+                      {(() => {
+                        const status = (diag as Record<string, unknown> | undefined)?.extraction_status as string | undefined;
+                        const sketchCount = (meta?.my_claims as unknown[] | undefined)?.length ?? 0;
+                        const acceptedCount = diag?.extracted_claims?.accepted?.length ?? 0;
+                        const showReExtract = sketchCount > 0 && acceptedCount === 0 && status !== 'pending';
+                        if (!status && !showReExtract) return null;
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: '0.7rem' }}>
+                            {status === 'pending' && (
+                              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(59,130,246,0.15)', color: '#3b82f6', fontWeight: 600, fontSize: '0.62rem' }}>EXTRACTING...</span>
+                            )}
+                            {status === 'failed' && (
+                              <span style={{ padding: '2px 8px', borderRadius: 3, background: 'rgba(220,38,38,0.15)', color: '#dc2626', fontWeight: 600, fontSize: '0.62rem' }}>EXTRACTION FAILED</span>
+                            )}
+                            {showReExtract && (
+                              <button
+                                style={{
+                                  padding: '3px 10px', borderRadius: 4, border: '1px solid #3b82f6',
+                                  background: 'rgba(59,130,246,0.1)', color: '#3b82f6', cursor: 'pointer',
+                                  fontWeight: 600, fontSize: '0.65rem',
+                                }}
+                                onClick={() => api.requestReExtractClaims(entry.id)}
+                                title="Re-run claim extraction for this entry"
+                              >
+                                Re-extract Claims
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {diag?.extracted_claims && (
                         <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
                           {diag.extracted_claims.accepted.map((c, i) => {

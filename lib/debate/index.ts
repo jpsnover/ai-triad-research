@@ -37,6 +37,7 @@ export * from './cruxResolution.js';
 export * from './tieredCompression.js';
 export * from './moderator.js';
 export * from './gapCheck.js';
+export * from './synthesisPhases.js';
 export * from './orchestration.js';
 export * from './sessionPruning.js';
 export * from './documentAnalysis.js';

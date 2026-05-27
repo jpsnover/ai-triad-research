@@ -982,6 +982,8 @@ export interface EntryDiagnostics {
   evaluator_warning?: string;
   /** Lookahead gate diagnostics — move-quality evaluation between draft and commit (t/21). */
   lookahead?: import('./lookaheadGate.js').LookaheadDiagnostics;
+  /** Tracks whether claim extraction has completed for this entry (t/226). */
+  extraction_status?: 'pending' | 'complete' | 'failed';
 }
 
 // ── Turn pipeline types ──────────────────────────────
@@ -1014,6 +1016,18 @@ export interface StageDiagnostics {
   validation_failed?: boolean;
   /** Validation error hints that caused the retry. Only set when validation_failed is true. */
   validation_errors?: string[];
+  /** Per-component char counts for prompt growth forensics (t/221). */
+  prompt_component_chars?: PromptComponentChars;
+}
+
+/** Per-component char counts for prompt growth forensics (t/221). */
+export interface PromptComponentChars {
+  taxonomy_chars: number;
+  transcript_chars: number;
+  hints_chars: number;
+  edge_chars: number;
+  commitment_chars: number;
+  an_summary_chars: number;
 }
 
 /** Provenance metadata stamped on work products after LLM parsing.

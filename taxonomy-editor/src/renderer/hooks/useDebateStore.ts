@@ -17,6 +17,7 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 
 declare const __APP_VERSION__: string;
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { triggerManualDump } from '../lib/flightRecorderInit';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
@@ -105,6 +106,7 @@ import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
 import type { LookaheadDiagnostics, LookaheadGateResult, ClaimAnalysis, PerClaimResult } from '@lib/debate/lookaheadGate';
 import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatCritiqueForRefinement, formatStructuralContext, computeLineageDistribution, formatLineageContext } from '@lib/debate/topicCritique';
+import { decomposeResolutionPrompt } from '@lib/debate/prompts';
 import type { TopicCritique, LineageFrameEntry } from '@lib/debate/topicCritique';
 import { shouldRunGapCheck, findUnengagedHighRelevanceNodes, collectEngagedNodeIds, MAX_GAP_INJECTIONS } from '@lib/debate/gapCheck';
 import { runNeutralEvaluation, buildSpeakerMapping } from '@lib/debate/neutralEvaluator';
@@ -687,6 +689,31 @@ type LookaheadRegenCallback = (guidance: {
   debaterClaims?: { claim: string; targets: string[] }[];
 } | null>;
 
+/**
+ * Detect zero-claim extraction despite having claim sketches (t/227).
+ * Records a flight recorder error and auto-triggers a dump.
+ */
+function detectZeroClaims(
+  get: () => any, set: (partial: any) => void,
+  debateId: string, entryId: string, speaker: SpeakerId,
+  sketchCount: number, acceptedCount: number,
+  reason: string, rejectionReasons?: Record<string, number>,
+): void {
+  if (sketchCount === 0 || acceptedCount > 0) return;
+  const speakerLabel = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
+  const msg = `Claim extraction for ${speakerLabel} produced 0 claims from ${sketchCount} sketches (${reason})`;
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'claim-extraction-monitor',
+    level: 'error',
+    message: msg,
+    data: { debate_id: debateId, turn_id: entryId, speaker, sketch_count: sketchCount, reason, rejection_reasons: rejectionReasons },
+  });
+  pushWarning(get, set, msg);
+  // Auto-trigger flight recorder dump for diagnosis
+  try { triggerManualDump(); } catch { /* flight recorder dump — silent by design */ }
+}
+
 async function extractClaimsAndUpdateAN(
   statement: string,
   speaker: SpeakerId,
@@ -707,10 +734,13 @@ async function extractClaimsAndUpdateAN(
   const priorClaims = an.nodes.map(n => ({ id: n.id, text: n.text, speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label || n.speaker }));
   const speakerLabel = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
 
+  const sketchCount = debaterClaims?.length ?? 0;
+
   const extractStartedAt = Date.now();
   const anCountBefore = an.nodes.length;
   const turnRound = (debate.transcript?.length ?? 0) + 1;
   const EXTRACTION_PROMPT_VERSION = 'v1.4';
+  recordDiagnostic(get, set, entryId, { extraction_status: 'pending' as const });
   trace(TraceEventName.AN_EXTRACT_START, {
     debate_id: debate.id,
     turn_id: entryId,
@@ -835,6 +865,8 @@ async function extractClaimsAndUpdateAN(
     if (!parsed.claims || !Array.isArray(parsed.claims)) {
       extractionTrace.status = 'empty_response';
       commitTrace();
+      recordDiagnostic(get, set, entryId, { extraction_status: 'complete' as const });
+      detectZeroClaims(get, set, debate.id, entryId, speaker, sketchCount, 0, 'no_claims_array');
       trace(TraceEventName.AN_EXTRACT_COMPLETE, {
         debate_id: debate.id,
         turn_id: entryId,
@@ -897,6 +929,8 @@ async function extractClaimsAndUpdateAN(
       extractionTrace.status = 'no_new_nodes';
       extractionTrace.an_node_count_after = anCountBefore;
       commitTrace();
+      recordDiagnostic(get, set, entryId, { extraction_status: 'complete' as const });
+      detectZeroClaims(get, set, debate.id, entryId, speaker, sketchCount, 0, 'all_claims_rejected', extractionTrace.rejection_reasons);
       trace(TraceEventName.AN_EXTRACT_COMPLETE, {
         debate_id: debate.id,
         turn_id: entryId,
@@ -1574,6 +1608,7 @@ async function extractClaimsAndUpdateAN(
     // Record claim extraction diagnostics
     recordDiagnostic(get, set, entryId, {
       extracted_claims: { accepted: diagAccepted, rejected: diagRejected },
+      extraction_status: 'complete' as const,
     });
     commitTrace();
 
@@ -1592,6 +1627,8 @@ async function extractClaimsAndUpdateAN(
     if (!extractionTrace.error_message) extractionTrace.error_message = String(err);
     if (extractionTrace.status === 'ok') extractionTrace.status = 'adapter_error';
     try { commitTrace(); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'commitTrace failed during error recovery', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+    recordDiagnostic(get, set, entryId, { extraction_status: 'failed' as const });
+    detectZeroClaims(get, set, debate.id, entryId, speaker, sketchCount, 0, 'extraction_failed');
     trace(TraceEventName.AN_EXTRACT_FAILED, {
       debate_id: debate.id,
       turn_id: entryId,
@@ -2024,9 +2061,11 @@ async function getRelevantTaxonomyContext(
       getGlobalRecorder()?.record({
         type: 'lineage.boost-result',
         component: 'debate-store',
-        level: 'info',
-        message: 'Lineage boost result after selectRelevantNodes',
-        data: { boosted_count: _lb.boostedNodeIds.length, promoted_count: _lb.promotedCount, promoted_node_ids: _lb.promotedNodeIds, total_selected: scoredPov.length, total_candidates: allPovNodes.length },
+        level: _lb.promotedCount > 0 ? 'info' : 'debug',
+        message: _lb.promotedCount > 0
+          ? `Lineage boost promoted ${_lb.promotedCount} nodes`
+          : 'Lineage boost applied but promoted 0 nodes',
+        data: { boosted_count: _lb.boostedNodeIds.length, promoted_count: _lb.promotedCount, promoted_node_ids: _lb.promotedNodeIds?.slice(0, 10), total_selected: scoredPov.length, total_candidates: allPovNodes.length },
       });
     }
 
@@ -2528,6 +2567,9 @@ interface DebateStore {
 
   // Phase 8: Context Window Management
   compressOldTranscript: () => Promise<void>;
+
+  // Claim re-extraction (t/226)
+  reExtractClaims: (entryId: string) => Promise<void>;
 }
 
 export const useDebateStore = create<DebateStore>((set, get) => ({
@@ -3530,6 +3572,69 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         taxonomy_refs: [],
         metadata: { refined_topic: refinedTopic, refinement_kept_original: keptOriginal || undefined, refinement_score: bestScore || undefined },
       });
+
+      // ── Clause decomposition (t/181) — decompose refined topic into atomic clauses ──
+      try {
+        if (refinedTopic && refinedTopic.trim().length > 0) {
+          const clausePrompt = decomposeResolutionPrompt(refinedTopic);
+          const { text: clauseText } = await generateTextWithProgress(clausePrompt, model, `Decomposing topic into clauses (${model})`, set);
+          if (isStillValid()) {
+            const clauseParsed = parseAIJson<{ clauses?: unknown }>(clauseText);
+            if (Array.isArray(clauseParsed?.clauses)) {
+              const clauses = (clauseParsed.clauses as unknown[])
+                .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+                .map(c => c.trim());
+              if (clauses.length > 0) {
+                get().updateTopic({ clauses });
+              }
+            }
+          }
+        }
+      } catch (clauseErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debate-store', level: 'warn',
+          message: 'Resolution clause decomposition failed (non-fatal)',
+          error: { name: (clauseErr as Error).name ?? 'Error', message: String(clauseErr) },
+        });
+      }
+
+      // ── Resolution anchor embeddings (t/181) — for ArCo drift detection ──
+      try {
+        const topicForEmbed = get().activeDebate?.topic.final;
+        if (topicForEmbed && topicForEmbed.trim().length > 0) {
+          const { vector } = await api.computeQueryEmbedding(topicForEmbed.slice(0, 1000));
+          if (vector && vector.length > 0 && isStillValid()) {
+            get().updateTopic({ embedding: vector });
+          }
+
+          // Embed each clause for per-turn clause-coverage signal
+          const currentClauses = get().activeDebate?.topic.clauses;
+          if (currentClauses && currentClauses.length > 0 && isStillValid()) {
+            const clauseVectors: number[][] = [];
+            for (const clause of currentClauses) {
+              try {
+                const { vector: cv } = await api.computeQueryEmbedding(clause.slice(0, 500));
+                if (cv && cv.length > 0) clauseVectors.push(cv);
+              } catch (cvErr) {
+                getGlobalRecorder()?.record({
+                  type: 'system.error', component: 'debate-store', level: 'debug',
+                  message: `Clause embedding failed for clause ${currentClauses.indexOf(clause)}`,
+                  error: { name: (cvErr as Error).name ?? 'Error', message: String(cvErr) },
+                });
+              }
+            }
+            if (clauseVectors.length === currentClauses.length && isStillValid()) {
+              get().updateTopic({ clause_embeddings: clauseVectors });
+            }
+          }
+        }
+      } catch (embedErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debate-store', level: 'warn',
+          message: 'Resolution anchor embedding failed — ArCo drift signal unavailable',
+          error: { name: (embedErr as Error).name ?? 'Error', message: String(embedErr) },
+        });
+      }
 
       // Extract user seed claims from Q&A and inject into argument network
       try {
@@ -5405,6 +5510,69 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
     }
 
+    // ── Auto-probing (t/179) — fire probing questions at interval after each round ──
+    const PROBING_INTERVAL = 2; // every N rounds, matching CLI default
+    const currentDebate = get().activeDebate;
+    const isTerminated = currentDebate?.adaptive_staging?.phase_state?.current_phase === 'terminated';
+    if (!isTerminated && crossRespondRound > 0 && crossRespondRound % PROBING_INTERVAL === 0) {
+      try {
+        const probDebate = get().activeDebate;
+        if (probDebate && isStillValid()) {
+          const probModel = getConfiguredModel();
+          const probTranscript = formatRecentTranscript(probDebate.transcript, 50);
+
+          const probReferencedNodes = new Set<string>();
+          for (const entry of probDebate.transcript) {
+            for (const ref of entry.taxonomy_refs) probReferencedNodes.add(ref.node_id);
+          }
+          const probAllNodeIds: string[] = [];
+          for (const pov of POV_KEYS) {
+            const ctx = getTaxonomyContext(pov);
+            for (const n of ctx.povNodes) probAllNodeIds.push(`[${n.id}] ${n.label}`);
+          }
+          const probCcCtx = getTaxonomyContext('accelerationist');
+          for (const n of probCcCtx.situationNodes) probAllNodeIds.push(`[${n.id}] ${n.label}`);
+
+          const probUnreferenced = probAllNodeIds.filter((desc) => {
+            const match = desc.match(/^\[([^\]]+)\]/);
+            return match && !probReferencedNodes.has(match[1]);
+          }).slice(0, 20);
+
+          const probHasSourceDoc = probDebate.source_type === 'document' || probDebate.source_type === 'url';
+          const probPrompt = buildProbingQuestionsPrompt(probDebate.topic.final, probTranscript, probUnreferenced, probHasSourceDoc, probDebate.audience);
+
+          const { text: probText } = await generateTextWithProgress(probPrompt, probModel, `Auto-probing questions R${crossRespondRound} (${probModel})`, set);
+          if (isStillValid()) {
+            type ProbingQ = { text: string; targets: string[] };
+            let probQuestions: ProbingQ[] = [];
+            const probParsed = parseAIJson<{ questions?: ProbingQ[] } | ProbingQ[]>(probText);
+            if (probParsed && typeof probParsed === 'object' && 'questions' in probParsed && Array.isArray(probParsed.questions)) {
+              probQuestions = probParsed.questions;
+            } else if (Array.isArray(probParsed)) {
+              probQuestions = probParsed;
+            }
+            if (probQuestions.length === 0) {
+              probQuestions = [{ text: probText.trim(), targets: [] }];
+            }
+
+            addTranscriptEntry({
+              type: 'probing',
+              speaker: 'system',
+              content: probQuestions.map((q, i) => `${i + 1}. ${q.text}`).join('\n'),
+              taxonomy_refs: [],
+              metadata: { probing_questions: probQuestions, round: crossRespondRound, auto_triggered: true },
+            });
+          }
+        }
+      } catch (probErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debate-store', level: 'warn',
+          message: `Auto-probing questions failed at round ${crossRespondRound} (non-fatal)`,
+          error: { name: (probErr as Error).name ?? 'Error', message: String(probErr) },
+        });
+      }
+    }
+
     set({ debateGenerating: null });
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} end` , data: { round: crossRespondRound } });
     await saveDebate('crossRespond:end');
@@ -6891,6 +7059,30 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         argument_network: { ...debate.argument_network, nodes },
       },
     });
+  },
+
+  reExtractClaims: async (entryId: string) => {
+    const debate = get().activeDebate;
+    if (!debate) return;
+    const entry = debate.transcript.find(e => e.id === entryId);
+    if (!entry || (entry.type !== 'statement' && entry.type !== 'opening')) return;
+    const statement = typeof entry.content === 'string' ? entry.content : '';
+    if (!statement) return;
+    const speaker = entry.speaker as SpeakerId;
+    const taxonomyRefIds = (entry.taxonomy_refs ?? []).map(r => r.node_id);
+    const myClaims = (entry.metadata as Record<string, unknown> | undefined)?.my_claims as { claim: string; targets: string[] }[] | undefined;
+    try {
+      await extractClaimsAndUpdateAN(statement, speaker, entryId, taxonomyRefIds, get, set, myClaims);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-store',
+        level: 'error',
+        message: `Re-extraction failed for entry ${entryId}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      pushWarning(get, set, `Re-extraction failed: ${mapErrorToUserMessage(err)}`);
+    }
   },
 }));
 

@@ -67,9 +67,6 @@ import {
   selectReframingMetaphor,
   crossRespondPrompt,
   debateSynthesisPrompt,
-  synthExtractPrompt,
-  synthMapPrompt,
-  synthEvaluatePrompt,
   probingQuestionsPrompt,
   entrySummarizationPrompt,
   missingArgumentsPrompt,
@@ -96,7 +93,8 @@ import {
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
-import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
+import { updateCruxTracker } from './cruxResolution.js';
+import { runSynthesisPhases } from './synthesisPhases.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
 import { formatVocabularyContext } from './vocabularyContext.js';
@@ -122,9 +120,7 @@ import {
 import {
   generateId,
   nowISO,
-  stripCodeFences,
   parseJsonRobust,
-  extractArraysFromPartialJson,
   formatRecentTranscript,
   parsePoverResponse,
   getMoveName,
@@ -2570,7 +2566,7 @@ export class DebateEngine {
 
     // Opponent-aware strategic hints (t/20): computed from AN + commitments, no LLM calls
     const anForHints = this.session.argument_network;
-    const strategicHints = anForHints && this.session.commitments
+    const hintsResult = anForHints && this.session.commitments
       ? computeStrategicHints(
           responder,
           anForHints.nodes,
@@ -2579,6 +2575,10 @@ export class DebateEngine {
           round,
         )
       : undefined;
+    const strategicHints = hintsResult?.hints;
+    if (hintsResult && hintsResult.dropped > 0) {
+      console.log(`[strategic-hints] Dropped ${hintsResult.dropped} hint(s) due to char budget`);
+    }
 
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
@@ -3103,93 +3103,28 @@ export class DebateEngine {
     this.progress('concluding', undefined, 'Generating synthesis');
 
     const fullTranscript = formatRecentTranscript(this.session.transcript, 50, this.session.context_summaries);
-    const hasSourceDoc = this.config.sourceType === 'document' || this.config.sourceType === 'url';
 
-    // Policy context
-    let policyContext = '';
-    if (this.taxonomy.policyRegistry.length > 0) {
-      const policyLines = this.taxonomy.policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`);
-      policyContext = `\n\n=== POLICY REGISTRY (reference pol-NNN IDs for policy implications) ===\n${policyLines.join('\n')}`;
-    }
-
-    const start = Date.now();
-    let concludingData: Record<string, unknown> = {};
-
-    // Phase 1: Extract core synthesis
-    this.checkAborted();
-    this.progress('concluding', undefined, 'Phase 1/3: Extracting agreements and disagreements');
-    const cruxContext = (this.session.crux_tracker?.length ?? 0) > 0
-      ? formatCruxResolutionContext(this.session.crux_tracker!)
+    const policyLines = this.taxonomy.policyRegistry.length > 0
+      ? this.taxonomy.policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`)
       : undefined;
-    const extractText = await this.generate(
-      synthExtractPrompt(this.session.topic.final, fullTranscript, this.config.audience, cruxContext),
-      'Synthesis Phase 1: Extract', 60_000,
-    );
-    let extractData: Record<string, unknown> = {};
-    try {
-      extractData = parseJsonRobust(extractText) as Record<string, unknown>;
-    } catch {
-      extractData = extractArraysFromPartialJson(stripCodeFences(extractText));
-      if (Object.keys(extractData).length === 0) {
-        this.warn('Synthesis Phase 1 parse', 'Both JSON parsers returned empty — synthesis data will be incomplete', 'Proceeding with partial synthesis');
-      } else {
-        this.warn('Synthesis Phase 1 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
-      }
-    }
-    if (Object.keys(extractData).length === 0) {
-      this.warn('Synthesis Phase 1', 'AI returned empty or unparseable output — synthesis data will be incomplete', 'Proceeding with partial synthesis');
-    }
-    Object.assign(concludingData, extractData);
 
-    // Phase 2: Build argument map
-    this.checkAborted();
-    this.progress('concluding', undefined, 'Phase 2/3: Building argument map');
-    const disagreementsSummary = JSON.stringify(extractData.areas_of_disagreement ?? []);
-    const mapText = await this.generate(
-      synthMapPrompt(this.session.topic.final, fullTranscript, disagreementsSummary, hasSourceDoc, this.config.audience),
-      'Synthesis Phase 2: Map', 60_000,
+    const result = await runSynthesisPhases(
+      {
+        topic: this.session.topic.final,
+        transcript: fullTranscript,
+        audience: this.config.audience,
+        cruxTracker: this.session.crux_tracker,
+        policyLines,
+        hasSourceDoc: this.config.sourceType === 'document' || this.config.sourceType === 'url',
+      },
+      (prompt, label) => this.generate(prompt, label, 60_000),
+      (_phase, label) => this.progress('concluding', undefined, label),
+      (context, problem, nextStep) => this.warn(context, problem, nextStep),
+      () => this.checkAborted(),
     );
-    let mapData: Record<string, unknown> = {};
-    try {
-      mapData = parseJsonRobust(mapText) as Record<string, unknown>;
-    } catch {
-      mapData = extractArraysFromPartialJson(stripCodeFences(mapText));
-      if (Object.keys(mapData).length === 0) {
-        this.warn('Synthesis Phase 2 parse', 'Both JSON parsers returned empty — argument map data will be incomplete', 'Proceeding with partial synthesis');
-      } else {
-        this.warn('Synthesis Phase 2 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
-      }
-    }
-    if (Object.keys(mapData).length === 0) {
-      this.warn('Synthesis Phase 2', 'AI returned empty or unparseable output — argument map will be incomplete', 'Proceeding with partial synthesis');
-    }
-    Object.assign(concludingData, mapData);
 
-    // Phase 3: Evaluate preferences + policy implications
-    this.checkAborted();
-    this.progress('concluding', undefined, 'Phase 3/3: Evaluating preferences');
-    const argMapSummary = JSON.stringify(mapData.argument_map ?? []);
-    const evalText = await this.generate(
-      synthEvaluatePrompt(this.session.topic.final, disagreementsSummary, argMapSummary, policyContext, this.config.audience),
-      'Synthesis Phase 3: Evaluate', 60_000,
-    );
-    let evalData: Record<string, unknown> = {};
-    try {
-      evalData = parseJsonRobust(evalText) as Record<string, unknown>;
-    } catch {
-      evalData = extractArraysFromPartialJson(stripCodeFences(evalText));
-      if (Object.keys(evalData).length === 0) {
-        this.warn('Synthesis Phase 3 parse', 'Both JSON parsers returned empty — evaluation data will be incomplete', 'Proceeding with partial synthesis');
-      } else {
-        this.warn('Synthesis Phase 3 parse', 'Primary JSON parse failed, recovered partial data via fallback', 'Synthesis may be incomplete');
-      }
-    }
-    if (Object.keys(evalData).length === 0) {
-      this.warn('Synthesis Phase 3', 'AI returned empty or unparseable output — evaluation data will be incomplete', 'Proceeding with partial synthesis');
-    }
-    Object.assign(concludingData, evalData);
-
-    const elapsed = Date.now() - start;
+    const concludingData = result.data;
+    const elapsed = result.elapsed_ms;
 
     // Format readable content
     const lines: string[] = [];
@@ -3282,7 +3217,7 @@ export class DebateEngine {
     });
 
     this.recordDiagnostic(entry.id, {
-      raw_response: JSON.stringify({ extractData, mapData, evalData }),
+      raw_response: JSON.stringify(result.rawResponses),
       model: this.config.model,
       response_time_ms: elapsed,
     });

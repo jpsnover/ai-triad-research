@@ -58,12 +58,12 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
 const SKIP = new Set([
   // Event listeners return unsubscribe functions, not promises
   'onChatStreamChunk', 'onChatStreamDone', 'onChatStreamError',
-  'onDiagnosticsStateUpdate', 'onDiagnosticsPopoutClosed',
+  'onDiagnosticsStateUpdate', 'onDiagnosticsPopoutClosed', 'onReExtractClaims',
   'onDebateWindowLoad', 'onDebatePopoutClosed',
   'onGenerateTextProgress', 'onReloadTaxonomy', 'onFocusNode',
   'onTerminalData', 'onTerminalExit',
   // Sync methods
-  'sendDiagnosticsState',
+  'sendDiagnosticsState', 'requestReExtractClaims',
   'focusNodeInMainWindow',
   // Avoid recursion — dump calls the bridge itself
   'dumpFlightRecorder',

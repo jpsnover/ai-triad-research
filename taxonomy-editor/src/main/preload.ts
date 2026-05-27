@@ -38,6 +38,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadLineageCategories: (): Promise<unknown> =>
     ipcRenderer.invoke('load-lineage-categories'),
 
+  loadLineageInfo: (): Promise<Record<string, unknown>> =>
+    ipcRenderer.invoke('load-lineage-info'),
+
   loadConflictFiles: (): Promise<unknown[]> =>
     ipcRenderer.invoke('load-conflict-files'),
 
@@ -204,6 +207,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: Electron.IpcRendererEvent, state: unknown) => callback(state);
     ipcRenderer.on('diagnostics-state-update', listener);
     return () => { ipcRenderer.removeListener('diagnostics-state-update', listener); };
+  },
+  requestReExtractClaims: (entryId: string): void => ipcRenderer.send('request-re-extract-claims', entryId),
+  onReExtractClaims: (callback: (entryId: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, entryId: string) => callback(entryId);
+    ipcRenderer.on('re-extract-claims', listener);
+    return () => { ipcRenderer.removeListener('re-extract-claims', listener); };
   },
   getCliFileArg: (): Promise<{ type: string; path: string } | null> =>
     ipcRenderer.invoke('get-cli-file-arg'),

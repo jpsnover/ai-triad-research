@@ -53,6 +53,8 @@ export interface ElectronAPI {
   closeDiagnosticsWindow: () => Promise<void>;
   sendDiagnosticsState: (state: unknown) => void;
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
+  requestReExtractClaims: (entryId: string) => void;
+  onReExtractClaims: (callback: (entryId: string) => void) => () => void;
   getCliFileArg: () => Promise<{ type: string; path: string; data?: unknown; error?: string } | null>;
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
   openDebateWindow: (debateId: string) => Promise<void>;

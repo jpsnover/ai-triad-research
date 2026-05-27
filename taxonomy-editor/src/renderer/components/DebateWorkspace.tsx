@@ -28,7 +28,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { lineageMarkdownComponents, extractLineageNames } from '../utils/lineageMatcher';
 import { getDebateMarkdownComponents, type VocabResolution } from '../utils/vocabularyAnnotations';
-import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
+import { getLineageInfo } from '../data/lineageLookup';
 import { CommentCreationPopover } from './CommentCreationPopover';
 import type { CommentPopoverState } from './CommentCreationPopover';
 import { CommentSidebar } from './CommentSidebar';
@@ -36,6 +36,8 @@ import { CommentHighlightedText, useEntryCommentCount } from './CommentHighlight
 import { useCommentStore, COMMENT_TYPE_META } from '../hooks/useCommentStore';
 import type { Comment, DetailTier } from '@lib/debate/comments';
 import { UsernamePromptDialog } from './UsernamePromptDialog';
+import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
+import type { NavigateCommand } from './DiagnosticsChatSidebar';
 import { triggerManualDump } from '../lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
@@ -372,7 +374,7 @@ function LineageTermsView({ content }: { content: string }) {
         {names.length} lineage reference{names.length !== 1 ? 's' : ''}
       </div>
       {names.map((name, i) => {
-        const info = INTELLECTUAL_LINEAGES[name];
+        const info = getLineageInfo(name);
         return (
           <div key={i} style={{ marginBottom: 10, padding: '4px 8px' }}>
             <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{name}</div>
@@ -3367,12 +3369,21 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     });
     return unsub;
   }, [setDiagPopoutOpen]);
+
+  // Listen for re-extract claims requests from popout (t/226)
+  useEffect(() => {
+    const unsub = api.onReExtractClaims((entryId: string) => {
+      void useDebateStore.getState().reExtractClaims(entryId);
+    });
+    return unsub;
+  }, []);
   const hasTriggeredOpening = useRef(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [commentPopover, setCommentPopover] = useState<CommentPopoverState | null>(null);
   const [showCCDetails, setShowCCDetails] = useState(false);
   const [showParamHistory, setShowParamHistory] = useState(false);
   const [showEvaluation, setShowEvaluation] = useState(false);
+  const [debateChatOpen, setDebateChatOpen] = useState(false);
   const { commentsFile, loadComments: loadDebateComments, unloadComments, sidebarOpen: commentSidebarOpen, toggleSidebar: toggleCommentSidebar } = useCommentStore();
 
   // Load comments when debate changes
@@ -3390,6 +3401,13 @@ export function DebateWorkspace({ onExport, exportStatus }: {
     setToolbarPanel('search');
     void runSemanticSearch(query, new Set(), new Set());
   }, [runSemanticSearch, setStoreFindQuery, setStoreFindMode, setToolbarPanel]);
+
+  const handleChatNavigate = useCallback((cmd: NavigateCommand) => {
+    if (cmd.entry) {
+      const el = document.getElementById(`debate-entry-${cmd.entry}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, []);
 
   // ── Find state ────────────────────────────────────────
   const [findVisible, setFindVisible] = useState(false);
@@ -3600,6 +3618,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
   const isCrossCutting = activeDebate.source_type === 'situations';
 
   return (
+    <div className="debate-workspace-row">
     <div className="debate-workspace">
       {/* Fixed toolbar — always visible */}
       <div className="debate-toolbar">
@@ -3622,6 +3641,13 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             Details
           </button>
         )}
+        <button
+          className={`btn btn-sm${debateChatOpen ? ' active' : ''}`}
+          onClick={() => setDebateChatOpen(v => !v)}
+          title={debateChatOpen ? 'Hide Debate Chat' : 'Open Debate Chat — ask questions about the debate'}
+        >
+          Debate Chat
+        </button>
         <button
           className={`btn btn-sm${commentSidebarOpen ? ' active' : ''}`}
           onClick={toggleCommentSidebar}
@@ -3854,6 +3880,18 @@ export function DebateWorkspace({ onExport, exportStatus }: {
 
       {/* Username prompt dialog (mounted once for all comment flows) */}
       <UsernamePromptDialog />
+    </div>
+    {/* Debate Chat sidebar — outside workspace column, inside row */}
+    {debateChatOpen && (
+      <DiagnosticsChatSidebar
+        debate={activeDebate}
+        selectedEntry={null}
+        currentTab="transcript"
+        onNavigate={handleChatNavigate}
+        embedded
+        onClose={() => setDebateChatOpen(false)}
+      />
+    )}
     </div>
   );
 }

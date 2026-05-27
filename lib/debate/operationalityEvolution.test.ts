@@ -7,6 +7,8 @@ import {
   applyOperationalityDriftCap,
   computeOperationalityUpdates,
   computeCrossPovAdoption,
+  computeProductiveStrategy,
+  computeSelfConcession,
   buildOperationalityHistoryEntry,
   ATTRIBUTION_THRESHOLD,
   STRENGTH_DROP_THRESHOLD,
@@ -313,6 +315,223 @@ describe('computeCrossPovAdoption', () => {
       new Map([['acc-intentions-001', 3]]),
       'debate-1',
       { accelerationist: 'accelerationist', safetyist: 'safetyist' },
+    );
+
+    expect(updates).toHaveLength(0);
+  });
+});
+
+// ── computeProductiveStrategy ───────────────────────────
+
+describe('computeProductiveStrategy', () => {
+  it('produces +1 when Intention grounds 3+ claims with avg strength > 0.5', () => {
+    const intention = makeIntentionNode('acc-intentions-001', 3);
+    const claims = [
+      makeClaimNode('c-1', { strength: 0.7, intentionRef: 'acc-intentions-001', attrConf: 0.80 }),
+      makeClaimNode('c-2', { strength: 0.6, intentionRef: 'acc-intentions-001', attrConf: 0.75 }),
+      makeClaimNode('c-3', { strength: 0.8, intentionRef: 'acc-intentions-001', attrConf: 0.85 }),
+    ];
+
+    const updates = computeProductiveStrategy(
+      claims,
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 3]]),
+      'debate-1',
+    );
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0].reason).toBe('productive_strategy');
+    expect(updates[0].delta).toBe(1);
+    expect(updates[0].new_value).toBe(4);
+  });
+
+  it('skips when fewer than 3 claims', () => {
+    const intention = makeIntentionNode('acc-intentions-001', 3);
+    const claims = [
+      makeClaimNode('c-1', { strength: 0.7, intentionRef: 'acc-intentions-001', attrConf: 0.80 }),
+      makeClaimNode('c-2', { strength: 0.6, intentionRef: 'acc-intentions-001', attrConf: 0.75 }),
+    ];
+
+    const updates = computeProductiveStrategy(
+      claims,
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 3]]),
+      'debate-1',
+    );
+
+    expect(updates).toHaveLength(0);
+  });
+
+  it('skips when avg strength <= 0.5', () => {
+    const intention = makeIntentionNode('acc-intentions-001', 3);
+    const claims = [
+      makeClaimNode('c-1', { strength: 0.3, intentionRef: 'acc-intentions-001', attrConf: 0.80 }),
+      makeClaimNode('c-2', { strength: 0.4, intentionRef: 'acc-intentions-001', attrConf: 0.75 }),
+      makeClaimNode('c-3', { strength: 0.3, intentionRef: 'acc-intentions-001', attrConf: 0.85 }),
+    ];
+
+    const updates = computeProductiveStrategy(
+      claims,
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 3]]),
+      'debate-1',
+    );
+
+    expect(updates).toHaveLength(0);
+  });
+
+  it('skips claims with low attribution confidence', () => {
+    const intention = makeIntentionNode('acc-intentions-001', 3);
+    const claims = [
+      makeClaimNode('c-1', { strength: 0.7, intentionRef: 'acc-intentions-001', attrConf: 0.80 }),
+      makeClaimNode('c-2', { strength: 0.6, intentionRef: 'acc-intentions-001', attrConf: 0.75 }),
+      makeClaimNode('c-3', { strength: 0.8, intentionRef: 'acc-intentions-001', attrConf: 0.40 }), // below threshold
+    ];
+
+    const updates = computeProductiveStrategy(
+      claims,
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 3]]),
+      'debate-1',
+    );
+
+    expect(updates).toHaveLength(0); // only 2 qualifying claims
+  });
+
+  it('respects alreadyUpdated set', () => {
+    const intention = makeIntentionNode('acc-intentions-001', 3);
+    const claims = [
+      makeClaimNode('c-1', { strength: 0.7, intentionRef: 'acc-intentions-001', attrConf: 0.80 }),
+      makeClaimNode('c-2', { strength: 0.6, intentionRef: 'acc-intentions-001', attrConf: 0.75 }),
+      makeClaimNode('c-3', { strength: 0.8, intentionRef: 'acc-intentions-001', attrConf: 0.85 }),
+    ];
+
+    const updates = computeProductiveStrategy(
+      claims,
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 3]]),
+      'debate-1',
+      new Set(['acc-intentions-001']),
+    );
+
+    expect(updates).toHaveLength(0);
+  });
+});
+
+// ── computeSelfConcession ───────────────────────────────
+
+describe('computeSelfConcession', () => {
+  it('produces -1 when advocate concedes text overlapping with Intention', () => {
+    const intention: PovNode = {
+      id: 'acc-intentions-001',
+      category: 'Intentions',
+      label: 'Accelerate deployment through automated compliance frameworks',
+      description: 'Accelerate deployment through automated compliance frameworks to reduce regulatory friction',
+      parent_id: null, children: [], situation_refs: [],
+      operationality: 4,
+    };
+
+    const updates = computeSelfConcession(
+      [],
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 4]]),
+      {
+        accelerationist: {
+          asserted: [],
+          conceded: ['automated compliance frameworks cannot reduce regulatory friction without human oversight'],
+          challenged: [],
+        },
+      },
+      'debate-1',
+      { accelerationist: 'accelerationist', safetyist: 'safetyist' },
+    );
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0].reason).toBe('self_concession');
+    expect(updates[0].delta).toBe(-1);
+    expect(updates[0].new_value).toBe(3);
+  });
+
+  it('ignores concessions from opponent POV', () => {
+    const intention: PovNode = {
+      id: 'acc-intentions-001',
+      category: 'Intentions',
+      label: 'Accelerate deployment through automated compliance frameworks',
+      description: 'Accelerate deployment through automated compliance frameworks to reduce regulatory friction',
+      parent_id: null, children: [], situation_refs: [],
+      operationality: 4,
+    };
+
+    const updates = computeSelfConcession(
+      [],
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 4]]),
+      {
+        safetyist: {
+          asserted: [],
+          conceded: ['automated compliance frameworks cannot reduce regulatory friction without human oversight'],
+          challenged: [],
+        },
+      },
+      'debate-1',
+      { accelerationist: 'accelerationist', safetyist: 'safetyist' },
+    );
+
+    expect(updates).toHaveLength(0);
+  });
+
+  it('ignores concessions with insufficient word overlap', () => {
+    const intention: PovNode = {
+      id: 'acc-intentions-001',
+      category: 'Intentions',
+      label: 'Accelerate deployment through automated compliance frameworks',
+      description: 'Accelerate deployment through automated compliance frameworks to reduce regulatory friction',
+      parent_id: null, children: [], situation_refs: [],
+      operationality: 4,
+    };
+
+    const updates = computeSelfConcession(
+      [],
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 4]]),
+      {
+        accelerationist: {
+          asserted: [],
+          conceded: ['safety testing is valuable'],
+          challenged: [],
+        },
+      },
+      'debate-1',
+      { accelerationist: 'accelerationist', safetyist: 'safetyist' },
+    );
+
+    expect(updates).toHaveLength(0);
+  });
+
+  it('respects alreadyUpdated set', () => {
+    const intention: PovNode = {
+      id: 'acc-intentions-001',
+      category: 'Intentions',
+      label: 'Accelerate deployment through automated compliance frameworks',
+      description: 'Accelerate deployment through automated compliance frameworks to reduce regulatory friction',
+      parent_id: null, children: [], situation_refs: [],
+      operationality: 4,
+    };
+
+    const updates = computeSelfConcession(
+      [],
+      new Map([['acc-intentions-001', intention]]),
+      new Map([['acc-intentions-001', 4]]),
+      {
+        accelerationist: {
+          asserted: [],
+          conceded: ['automated compliance frameworks cannot reduce regulatory friction without human oversight'],
+          challenged: [],
+        },
+      },
+      'debate-1',
+      { accelerationist: 'accelerationist', safetyist: 'safetyist' },
+      new Set(['acc-intentions-001']),
     );
 
     expect(updates).toHaveLength(0);

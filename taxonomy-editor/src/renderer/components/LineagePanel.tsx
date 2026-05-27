@@ -3,18 +3,16 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import {
   CATEGORY_ORDER,
   classifyLineage, classifyLineageL2, getCategoryById,
   getL2Categories, getL2CategoriesForL1, isLineageDataLoaded,
 } from '../data/lineageCategories';
+import { getAllLineages, getLineageInfo } from '../data/lineageLookup';
 
 interface LineagePanelProps {
   onSelectValue?: (value: string) => void;
 }
-
-const catalogKeys = new Set(Object.keys(INTELLECTUAL_LINEAGES));
 
 export function LineagePanel({ onSelectValue }: LineagePanelProps) {
   const { pendingLineageValue, accelerationist, safetyist, skeptic, situations } = useTaxonomyStore();
@@ -28,7 +26,7 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
 
   // Merge catalog keys with actual taxonomy lineage values
   const allKeys = useMemo(() => {
-    const keys = new Set(catalogKeys);
+    const keys = new Set(Object.keys(getAllLineages()));
     for (const pov of [accelerationist, safetyist, skeptic] as const) {
       if (pov) for (const n of pov.nodes) {
         for (const l of n.graph_attributes?.intellectual_lineage ?? []) { const s = typeof l === 'string' ? l : (l as { name?: string })?.name; if (s) keys.add(s); }
@@ -233,7 +231,7 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
                           <span className="lineage-category-count">({l2Items.length})</span>
                         </div>
                         {!l2Collapsed && l2Items.map(key => {
-                          const info = INTELLECTUAL_LINEAGES[key];
+                          const info = getLineageInfo(key);
                           return (
                             <div key={key} data-lineage-key={key}
                               className={`lineage-panel-item lineage-panel-item-l2-indented${key === selectedKey ? ' selected' : ''}`}
@@ -245,7 +243,7 @@ export function LineagePanel({ onSelectValue }: LineagePanelProps) {
                     );
                   })}
                   {group.ungrouped.map(key => {
-                    const info = INTELLECTUAL_LINEAGES[key];
+                    const info = getLineageInfo(key);
                     return (
                       <div key={key} data-lineage-key={key}
                         className={`lineage-panel-item lineage-panel-item-indented${key === selectedKey ? ' selected' : ''}`}

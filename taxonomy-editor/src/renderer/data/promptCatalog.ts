@@ -40,7 +40,20 @@ import {
   chatOpeningPrompt,
   chatContinuationPrompt,
 } from '../prompts/chat';
-import { nodeCritiquePrompt } from '../prompts/analysis';
+import { nodeCritiquePrompt, reflectionNodeEnrichmentPrompt } from '../prompts/analysis';
+import {
+  newsReportPrompt,
+  citeRetryPrompt,
+  draftQualityCheckPrompt,
+  consensusSituationPrompt,
+  dolceComplianceRetryPrompt,
+  decomposeResolutionPrompt,
+} from '@lib/debate/prompts';
+import { extractClaimsPrompt, classifyClaimsPrompt } from '@lib/debate/argumentNetwork';
+import { classifyConcessionsPrompt } from '@lib/debate/concessionTracker';
+import { documentAnalysisPrompt } from '@lib/debate/documentAnalysis';
+import { critiqueTopicPrompt } from '@lib/debate/topicCritique';
+import { buildRepairPrompt } from '@lib/debate/turnValidator';
 
 export type PromptGroup = 'debate-setup' | 'debate-turns' | 'debate-analysis' | 'moderator' | 'chat' | 'taxonomy' | 'research' | 'powershell';
 export type DataSourceId = 'taxonomyNodes' | 'situationNodes' | 'vulnerabilities' | 'fallacies' | 'policyRegistry' | 'sourceDocument' | 'commitments' | 'argumentNetwork' | 'establishedPoints';
@@ -489,6 +502,17 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     phase: 'concluding',
     applicableDataSources: ['taxonomyNodes', 'commitments', 'argumentNetwork'],
   },
+  {
+    id: 'debate-news-report',
+    title: 'Debate: News Report',
+    description: 'Transforms a completed debate into a 700-900 word news-style explainer article with headline, lede, interleaved perspectives, common ground, crux classification, and policy implications.',
+    source: 'lib/debate/prompts.ts',
+    template: newsReportPrompt('{topic}', '{synthesisJson}', '{argumentSummary}', '{transcriptHighlights}'),
+    group: 'debate-analysis',
+    purpose: 'Fires after synthesis. Produces a journalist-style article for general audience consumption. Uses human-readable labels (Accelerationist advocates, Safety researchers, AI skeptics) instead of agent names.',
+    phase: 'concluding',
+    applicableDataSources: ['argumentNetwork', 'policyRegistry'],
+  },
 
   // === Chat ===
   {
@@ -820,5 +844,148 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
       { name: '-BatchSize', type: 'number', default: '5', description: 'Nodes processed per API call' },
     ],
+  },
+
+  // === Debate pipeline: Quality & repair prompts ===
+  {
+    id: 'debate-cite-retry',
+    title: 'Debate: Cite Retry',
+    description: 'Retries weak taxonomy_refs from the cite stage — asks the LLM to strengthen or drop refs with filler relevance explanations.',
+    source: 'lib/debate/prompts.ts',
+    template: citeRetryPrompt(
+      [{ node_id: '{node_id}', relevance: '{weak_relevance}' }],
+      '{draft_statement}',
+      '{taxonomy_context}',
+    ),
+    group: 'debate-turns',
+    purpose: 'Fires when the cite stage produces refs with generic/filler relevance strings. For each flagged ref, the LLM must either strengthen the relevance with a specific mechanism or drop the ref entirely.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes'],
+  },
+  {
+    id: 'debate-draft-quality-check',
+    title: 'Debate: Draft Quality Check',
+    description: 'Pre-grounding quality gate that checks if a draft statement is grounded, falsifiable, and engages the opponent.',
+    source: 'lib/debate/prompts.ts',
+    template: draftQualityCheckPrompt('{statement}', '{opponent_statement}', '{speaker}', '{pov}', 'argumentation', 2),
+    group: 'debate-turns',
+    purpose: 'Fires between draft and cite stages. A fast yes/no quality gate: is the draft grounded (cites specifics), falsifiable (makes testable claims), and engaging (responds to the opponent)? If belief confidences are available, also checks rhetoric calibration.',
+    phase: 'response',
+    applicableDataSources: ['commitments'],
+  },
+  {
+    id: 'debate-turn-repair',
+    title: 'Debate: Turn Repair',
+    description: 'Appends repair instructions to a failed turn prompt, guiding the LLM to fix schema, grounding, advancement, or clarification failures.',
+    source: 'lib/debate/turnValidator.ts',
+    template: '(Template is dynamically appended to the original prompt — view repair hints in the Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires when a turn fails validation (up to 3 retries). Appends specific repair instructions based on which validation dimensions failed: schema compliance, grounding quality, debate advancement, or clarification proposals.',
+    phase: 'response',
+    applicableDataSources: ['taxonomyNodes', 'argumentNetwork'],
+  },
+  {
+    id: 'debate-decompose-resolution',
+    title: 'Debate: Decompose Resolution',
+    description: 'Splits a compound debate resolution into independently debatable atomic clauses.',
+    source: 'lib/debate/prompts.ts',
+    template: decomposeResolutionPrompt('{resolution}'),
+    group: 'debate-setup',
+    purpose: 'Fires during topic analysis. Decomposes compound resolutions (joined by "and", "or", commas) into 1-6 atomic clauses that can each be debated independently. Preserves concrete nouns verbatim.',
+    phase: 'clarification',
+    applicableDataSources: [],
+  },
+  {
+    id: 'debate-topic-critique',
+    title: 'Debate: Topic Critique',
+    description: 'Evaluates a debate topic on five FRAME dimensions (conditionality, mechanism, stakeholder breadth, tension, scope) and rewrites it for maximum productivity.',
+    source: 'lib/debate/topicCritique.ts',
+    template: critiqueTopicPrompt('{topic}'),
+    group: 'debate-setup',
+    purpose: 'Fires during topic refinement. Scores the topic on five frame dimensions (0-2 each), identifies weaknesses, and produces a rewritten topic that preserves strengths while addressing gaps. Ensures debates generate falsifiable claims.',
+    phase: 'clarification',
+    applicableDataSources: ['taxonomyNodes'],
+  },
+
+  // === Argument Network prompts ===
+  {
+    id: 'debate-extract-claims',
+    title: 'Debate: Extract Claims',
+    description: 'Extracts 3-6 key claims from a debate statement, maps relationships to prior claims, and classifies BDI category, base strength, and argumentation schemes.',
+    source: 'lib/debate/argumentNetwork.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires after every debate turn. The core argument network builder: extracts claims from the statement, classifies supports/attacks relationships with prior claims, identifies argumentation schemes, and grades extraction confidence and evidential grounding.',
+    phase: 'response',
+    applicableDataSources: ['argumentNetwork'],
+  },
+  {
+    id: 'debate-classify-claims',
+    title: 'Debate: Classify Claims',
+    description: 'Validates debater-supplied claim sketches and classifies their relationship types (supports/attacks, scheme, warrant) against the argument network.',
+    source: 'lib/debate/argumentNetwork.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-turns',
+    purpose: 'Fires after each turn when the debater provides my_claims sketches. A lighter alternative to full extraction: the debater identified WHAT claims it made, and this analyst classifies HOW they relate to prior claims.',
+    phase: 'response',
+    applicableDataSources: ['argumentNetwork'],
+  },
+  {
+    id: 'debate-classify-concessions',
+    title: 'Debate: Classify Concessions',
+    description: 'Classifies concessions as full, conditional, or tactical, maps them to affected taxonomy nodes, and identifies BDI impact layer.',
+    source: 'lib/debate/concessionTracker.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'Fires post-debate during concession analysis. Classifies each concession by type (full/conditional/tactical), identifies which taxonomy node was undermined, and which BDI layer was affected.',
+    phase: 'concluding',
+    applicableDataSources: ['taxonomyNodes', 'commitments'],
+  },
+  {
+    id: 'debate-document-analysis',
+    title: 'Debate: Document Analysis',
+    description: 'Extracts structured i-nodes (claims) from a source document, classifies types, maps to taxonomy, and identifies tension points for debate.',
+    source: 'lib/debate/documentAnalysis.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-setup',
+    purpose: 'Fires at the start of document-grounded debates. Extracts all key claims as information nodes (i-nodes), classifies their types (empirical/normative/definitional/assumption/evidence), maps to taxonomy nodes, and identifies cross-perspective tension points.',
+    phase: 'clarification',
+    applicableDataSources: ['sourceDocument', 'taxonomyNodes'],
+  },
+
+  // === Post-debate: Compliance & convergence ===
+  {
+    id: 'debate-consensus-situation',
+    title: 'Debate: Consensus Situation',
+    description: 'Creates a unified situation node from multiple converging perspective proposals, with per-POV interpretations and convergence type classification.',
+    source: 'lib/debate/prompts.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'Fires post-synthesis when multiple perspectives independently propose nodes that converge on the same concept. Creates a neutral situation node with each perspective\'s interpretation and classifies convergence as full, partial, or conditional.',
+    phase: 'concluding',
+    applicableDataSources: ['taxonomyNodes', 'situationNodes'],
+  },
+  {
+    id: 'debate-dolce-compliance-retry',
+    title: 'Debate: DOLCE Compliance Retry',
+    description: 'Retries a taxonomy edit proposal that failed DOLCE genus-differentia compliance, providing specific violation feedback.',
+    source: 'lib/debate/prompts.ts',
+    template: '(Template requires runtime context — view in Prompt Inspector or Full Prompt tab)',
+    group: 'debate-analysis',
+    purpose: 'Fires when a proposed taxonomy edit fails DOLCE compliance validation (up to 3 attempts). Provides the exact violations and required format, asking the LLM to fix the proposed_description while preserving all other fields.',
+    phase: 'concluding',
+    applicableDataSources: ['taxonomyNodes'],
+  },
+
+  // === Taxonomy: Reflection enrichment ===
+  {
+    id: 'reflection-node-enrichment',
+    title: 'Reflection: Node Enrichment',
+    description: 'Generates rich analytical attributes (epistemic type, rhetorical strategy, intellectual lineage, etc.) for taxonomy nodes created during debate reflection.',
+    source: 'prompts/analysis.ts',
+    template: reflectionNodeEnrichmentPrompt({ id: '{node_id}', label: '{label}', description: '{description}', category: '{category}', pov: '{pov}' }),
+    group: 'taxonomy',
+    purpose: 'Fires after debate reflection creates new taxonomy nodes. Generates the same rich attributes as the PowerShell attribute extraction pipeline: epistemic_type, rhetorical_strategy, assumes, falsifiability, audience, emotional_register, intellectual_lineage, steelman_vulnerability, and node_scope.',
+    applicableDataSources: ['taxonomyNodes'],
   },
 ];

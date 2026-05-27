@@ -361,6 +361,10 @@ get('/api/lineage-categories', async (_req, res) => {
   json(res, await fileIO.readLineageCategories());
 });
 
+get('/api/lineage-info', async (_req, res) => {
+  json(res, await fileIO.readLineageEnrichments());
+});
+
 // ── Edges ──
 
 let edgesCache: unknown = null;
@@ -886,7 +890,8 @@ post('/api/debates/:id/news-report', async (req, res) => {
     const docAnalysis = (session.document_analysis as string | undefined) ?? undefined;
     const topic = ((session.topic as Record<string, unknown>)?.refined ?? (session.topic as Record<string, unknown>)?.original ?? '') as string;
 
-    const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis);
+    const audience = (session.audience as string | undefined) ?? undefined;
+    const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../lib/debate/types.js').DebateAudience | undefined);
     const result = await ai.generateText(prompt);
     json(res, { article: result.text });
   } catch (err) { error(res, String(err)); }

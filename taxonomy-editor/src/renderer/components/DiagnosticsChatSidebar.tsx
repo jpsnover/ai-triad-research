@@ -30,6 +30,10 @@ interface Props {
   selectedEntry: string | null;
   currentTab: string;
   onNavigate: (cmd: NavigateCommand) => void;
+  /** When true, renders inline without the floating toggle button. Parent controls visibility. */
+  embedded?: boolean;
+  /** Called when the user clicks close in embedded mode. */
+  onClose?: () => void;
 }
 
 function getModel(): string {
@@ -137,7 +141,7 @@ function buildSystemPrompt(debate: DebateSession, taxonomies?: Map<string, TaxNo
   const tabs = ['details', 'brief', 'plan', 'draft', 'cite', 'claims', 'tax-refs', 'tax-context', 'prompt', 'response'];
   const overviewTabs = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence'];
 
-  return `You are a debate diagnostics analyst. Help the user explore the debate. Be concise — 2-3 sentences max unless they ask for detail.
+  return `You are a debate analyst. Help the user explore the debate. Be concise — 2-3 sentences max unless they ask for detail.
 
 CRITICAL RULE: When the user says "show", "go to", "open", or "navigate" to ANY entry or tab, you MUST include a navigate block. This is your primary function. Do it EVERY time.
 
@@ -329,7 +333,7 @@ function buildHelpText(): string {
     '- `/compare S21 S13` — Compare two entries',
     '',
     '**Keyboard shortcuts:**',
-    '- `Ctrl+Shift+D` — Toggle chat panel',
+    '- `Ctrl+Shift+D` — Toggle Debate Chat',
     '- `Escape` — Minimize (or exit fullscreen)',
     '- `Ctrl+L` — Clear chat (when input focused)',
     '- `Tab` — Auto-complete commands',
@@ -464,8 +468,8 @@ function handleCompareCommand(debate: DebateSession, args: string): string | nul
   ].join('\n');
 }
 
-export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNavigate }: Props) {
-  const [open, setOpen] = useState(false);
+export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNavigate, embedded, onClose }: Props) {
+  const [open, setOpen] = useState(!!embedded);
   const [messages, setMessages] = useState<ChatMessage[]>(loadSessionMessages);
   const [input, setInput] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -542,7 +546,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       if (!open) return;
       if (e.key === 'Escape') {
         e.preventDefault();
-        setOpen(false);
+        if (embedded && onClose) onClose(); else setOpen(false);
         return;
       }
       if (e.ctrlKey && e.key === 'l') {
@@ -823,7 +827,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)',
       }}>
         <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f59e0b' }}>
-          Debate Diagnostics Chat
+          Debate Chat
         </span>
         <span style={{
           fontSize: '0.6rem', color: 'var(--text-muted)',
@@ -841,7 +845,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
           >Clear</button>
         )}
         <button
-          onClick={() => setOpen(false)}
+          onClick={() => { if (embedded && onClose) onClose(); else setOpen(false); }}
           title="Close chat (Esc)"
           style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1 }}
         >&times;</button>
@@ -854,7 +858,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       }}>
         {messages.length === 0 && !generating && (
           <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px 0', textAlign: 'center' }}>
-            Ask questions about the debate diagnostics.
+            Ask questions about the debate.
             <br /><br />
             <span style={{ fontSize: '0.68rem' }}>
               Try: "Show me the brief for S21"
@@ -1033,10 +1037,11 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
   }, [width]);
 
   if (!open) {
+    if (embedded) return null;
     return (
       <button
         onClick={() => setOpen(true)}
-        title="Open diagnostics chat (Ctrl+Shift+D)"
+        title="Open Debate Chat (Ctrl+Shift+D)"
         style={{
           position: 'fixed', right: 12, bottom: 12, zIndex: 1000,
           width: 44, height: 44, borderRadius: '50%',

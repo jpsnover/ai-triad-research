@@ -7166,9 +7166,17 @@ body {
 
 /* ─── Debate Workspace ────────────────────────────────── */
 
+.debate-workspace-row {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+}
 .debate-workspace {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   height: 100%;
   overflow: hidden;
 }
@@ -12085,6 +12093,43 @@ a.vocab-term,
   overflow-y: auto;
   padding: 4px 0;
 }
+.pi-search { padding: 6px 8px; border-bottom: 1px solid var(--border-color); }
+.pi-search-row { display: flex; align-items: center; gap: 2px; }
+.pi-search-input {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-color);
+  outline: none;
+}
+.pi-search-input:focus { border-color: var(--accent-color); }
+.pi-search-clear {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  font-size: 1rem; line-height: 1; padding: 0 4px;
+}
+.pi-search-clear:hover { color: var(--text-color); }
+.pi-search-mode { display: flex; gap: 2px; margin-top: 4px; }
+.pi-mode-pill {
+  flex: 1;
+  padding: 2px 0;
+  font-size: 0.65rem;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.pi-mode-pill:hover { background: var(--bg-secondary); }
+.pi-mode-active {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+.pi-mode-active:hover { background: var(--accent-color); }
 .pi-group { margin-bottom: 4px; }
 .pi-group-header {
   font-size: 0.65rem;

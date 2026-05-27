@@ -35,6 +35,7 @@ export interface AppAPI {
   saveTaxonomyFile: (pov: string, data: unknown) => Promise<void>;
   loadPolicyRegistry: () => Promise<unknown>;
   loadLineageCategories: () => Promise<unknown>;
+  loadLineageInfo: () => Promise<Record<string, unknown>>;
   loadEdges: () => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
   swapEdgeDirection: (index: number) => Promise<unknown>;
@@ -195,6 +196,8 @@ export interface AppAPI {
   // --- Event listeners (return unsubscribe function) ---
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
+  requestReExtractClaims: (entryId: string) => void;
+  onReExtractClaims: (callback: (entryId: string) => void) => () => void;
   onDebateWindowLoad: (callback: (debateId: string) => void) => () => void;
   onDebatePopoutClosed: (callback: () => void) => () => void;
   onGenerateTextProgress: (callback: (progress: {

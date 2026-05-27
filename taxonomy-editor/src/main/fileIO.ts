@@ -266,6 +266,31 @@ export function readLineageCategories(): unknown {
   return parseJsonFile(filePath);
 }
 
+let lineageInfoCache: Record<string, unknown> | null = null;
+
+export function readLineageEnrichments(): Record<string, unknown> {
+  if (lineageInfoCache) return lineageInfoCache;
+  const filePath = path.join(getDataRootPath(), 'calibration', 'lineage-enrichments.json');
+  if (!fs.existsSync(filePath)) return {};
+  try {
+    const raw = parseJsonFile(filePath) as Record<string, { category?: string; description?: string; url?: string | null }>;
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(raw)) {
+      result[key] = {
+        label: key,
+        summary: entry.description ?? '',
+        example: '',
+        frequency: entry.category ? `Category: ${entry.category}` : '',
+        links: entry.url ? [{ label: 'Reference', url: entry.url }] : [],
+      };
+    }
+    lineageInfoCache = result;
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 export function writeTaxonomyFile(pov: string, data: unknown): void {
   // Situations migration: write to whichever file currently exists (prefer situations.json)
   if (pov === 'situations') {

@@ -23,6 +23,7 @@ import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   ClaimTaxonomyAttribution,
+  CommitmentStore,
 } from './types.js';
 
 // ── Configuration ───────────────────────────────────────
@@ -32,6 +33,17 @@ export const STRENGTH_DROP_THRESHOLD = 0.3;
 export const STRENGTH_SURVIVE_THRESHOLD = 0.7;
 export const MAX_DRIFT = 2;
 export const SPECIFY_SCHEMES = ['SPECIFY', 'EMPIRICAL CHALLENGE'];
+export const PRODUCTIVE_MIN_CLAIMS = 3;
+export const PRODUCTIVE_MIN_AVG_STRENGTH = 0.5;
+const MIN_WORD_LENGTH = 5;
+const MIN_OVERLAP_WORDS = 3;
+
+/** Extract significant words from text for overlap matching. */
+function significantWords(text: string): Set<string> {
+  return new Set(
+    text.toLowerCase().split(/\s+/).filter(w => w.length >= MIN_WORD_LENGTH),
+  );
+}
 
 // ── Gate types ──────────────────────────────────────────
 
@@ -271,6 +283,145 @@ export function computeCrossPovAdoption(
       new_value: currentOp + cappedDelta,
       debate_id,
       claim_id: targetNode.id,
+    });
+  }
+
+  return updates;
+}
+
+// ── Productive strategy detection ────────────────────────
+
+/**
+ * Compute productive_strategy updates: Intention grounded 3+ claims in a
+ * single debate with avg strength > 0.5 → +1.
+ */
+export function computeProductiveStrategy(
+  nodes: ArgumentNetworkNode[],
+  intentions: Map<string, PovNode>,
+  initial_operationalities: Map<string, number>,
+  debate_id: string,
+  alreadyUpdated?: Set<string>,
+): OperationalityUpdate[] {
+  const updates: OperationalityUpdate[] = [];
+
+  // Group claims by attributed Intention
+  const claimsByIntention = new Map<string, ArgumentNetworkNode[]>();
+  for (const node of nodes) {
+    const attr = node.claim_taxonomy_attribution;
+    if (!attr?.primary_ref) continue;
+    if (attr.attribution_confidence <= ATTRIBUTION_THRESHOLD) continue;
+
+    const intentionId = attr.primary_ref;
+    const intention = intentions.get(intentionId);
+    if (!intention || intention.category !== 'Intentions') continue;
+
+    if (!claimsByIntention.has(intentionId)) claimsByIntention.set(intentionId, []);
+    claimsByIntention.get(intentionId)!.push(node);
+  }
+
+  for (const [intentionId, claims] of claimsByIntention) {
+    if (alreadyUpdated?.has(intentionId)) continue;
+    if (claims.length < PRODUCTIVE_MIN_CLAIMS) continue;
+
+    const avgStrength = claims.reduce((sum, c) =>
+      sum + (c.computed_strength ?? c.base_strength ?? 0.5), 0) / claims.length;
+    if (avgStrength <= PRODUCTIVE_MIN_AVG_STRENGTH) continue;
+
+    const intention = intentions.get(intentionId)!;
+    const currentOp = intention.operationality ?? 3;
+    const initialOp = initial_operationalities.get(intentionId) ?? currentOp;
+    const cappedDelta = applyOperationalityDriftCap(currentOp, initialOp, 1);
+    if (cappedDelta === 0) continue;
+
+    updates.push({
+      intention_id: intentionId,
+      reason: 'productive_strategy',
+      delta: cappedDelta,
+      new_value: currentOp + cappedDelta,
+      debate_id,
+    });
+  }
+
+  return updates;
+}
+
+// ── Self-concession detection ────────────────────────────
+
+/**
+ * Compute self_concession updates: Intention's advocate conceded the strategy → -1.
+ * Matches conceded text against Intention node descriptions via significant word overlap.
+ */
+export function computeSelfConcession(
+  nodes: ArgumentNetworkNode[],
+  intentions: Map<string, PovNode>,
+  initial_operationalities: Map<string, number>,
+  commitments: Record<string, CommitmentStore>,
+  debate_id: string,
+  speakerPovMap: Record<string, string>,
+  alreadyUpdated?: Set<string>,
+): OperationalityUpdate[] {
+  const updates: OperationalityUpdate[] = [];
+
+  // Map Intention IDs to their owning POV
+  const intentionPovMap = new Map<string, string>();
+  for (const [id] of intentions) {
+    if (id.startsWith('acc-')) intentionPovMap.set(id, 'accelerationist');
+    else if (id.startsWith('saf-')) intentionPovMap.set(id, 'safetyist');
+    else if (id.startsWith('skp-')) intentionPovMap.set(id, 'skeptic');
+  }
+
+  // Build reverse map: pov → speakers
+  const povSpeakers = new Map<string, string[]>();
+  for (const [speaker, pov] of Object.entries(speakerPovMap)) {
+    if (!povSpeakers.has(pov)) povSpeakers.set(pov, []);
+    povSpeakers.get(pov)!.push(speaker);
+  }
+
+  for (const [intentionId, intention] of intentions) {
+    if (intention.category !== 'Intentions') continue;
+    if (alreadyUpdated?.has(intentionId)) continue;
+
+    const intPov = intentionPovMap.get(intentionId);
+    if (!intPov) continue;
+
+    // Get conceded texts from speakers of this Intention's POV
+    const speakers = povSpeakers.get(intPov) ?? [];
+    const concededTexts: string[] = [];
+    for (const spk of speakers) {
+      const store = commitments[spk];
+      if (store?.conceded) concededTexts.push(...store.conceded);
+    }
+    if (concededTexts.length === 0) continue;
+
+    // Check if any concession overlaps with the Intention's description
+    const intentionWords = significantWords(intention.description ?? intention.label ?? '');
+    if (intentionWords.size < MIN_OVERLAP_WORDS) continue;
+
+    let matched = false;
+    for (const concText of concededTexts) {
+      const concWords = significantWords(concText);
+      let overlap = 0;
+      for (const w of concWords) {
+        if (intentionWords.has(w)) overlap++;
+      }
+      if (overlap >= MIN_OVERLAP_WORDS) {
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) continue;
+
+    const currentOp = intention.operationality ?? 3;
+    const initialOp = initial_operationalities.get(intentionId) ?? currentOp;
+    const cappedDelta = applyOperationalityDriftCap(currentOp, initialOp, -1);
+    if (cappedDelta === 0) continue;
+
+    updates.push({
+      intention_id: intentionId,
+      reason: 'self_concession',
+      delta: cappedDelta,
+      new_value: currentOp + cappedDelta,
+      debate_id,
     });
   }
 

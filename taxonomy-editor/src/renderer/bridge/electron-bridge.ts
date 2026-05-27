@@ -18,6 +18,7 @@ export const api: AppAPI = {
   saveTaxonomyFile: (pov, data) => window.electronAPI.saveTaxonomyFile(pov, data),
   loadPolicyRegistry: () => window.electronAPI.loadPolicyRegistry(),
   loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
+  loadLineageInfo: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).loadLineageInfo() as Promise<Record<string, unknown>>,
   loadEdges: () => window.electronAPI.loadEdges(),
   updateEdgeStatus: (i, s) => window.electronAPI.updateEdgeStatus(i, s),
   swapEdgeDirection: (i) => window.electronAPI.swapEdgeDirection(i),
@@ -156,6 +157,8 @@ export const api: AppAPI = {
   // Event listeners
   onDiagnosticsStateUpdate: (cb) => window.electronAPI.onDiagnosticsStateUpdate(cb),
   onDiagnosticsPopoutClosed: (cb) => window.electronAPI.onDiagnosticsPopoutClosed(cb),
+  requestReExtractClaims: (entryId) => window.electronAPI.requestReExtractClaims(entryId),
+  onReExtractClaims: (cb) => window.electronAPI.onReExtractClaims(cb),
   onDebateWindowLoad: (cb) => window.electronAPI.onDebateWindowLoad(cb),
   onDebatePopoutClosed: (cb) => window.electronAPI.onDebatePopoutClosed(cb),
   onGenerateTextProgress: (cb) => window.electronAPI.onGenerateTextProgress(cb),

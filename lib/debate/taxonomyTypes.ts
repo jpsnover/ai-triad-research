@@ -87,6 +87,16 @@ export interface PovNode {
   operationality_history?: WeightHistoryEntry[];
   /** Concession history — tracks cross-debate concessions affecting this node. Absent in pre-tracking nodes. */
   concession_history?: ConcessionRecord[];
+  /** Last 5 modifications to this node (FIFO). */
+  change_history?: ChangeHistoryEntry[];
+}
+
+export type ChangeAction = 'created' | 'modified' | 'deprecated';
+
+export interface ChangeHistoryEntry {
+  date: string;
+  action: ChangeAction;
+  fields: string[];
 }
 
 export type ConcessionType = 'full' | 'conditional' | 'tactical';

@@ -287,7 +287,7 @@ describe('detectStrategyShifts', () => {
 // ── computeStrategicHints (integration) ──────────────────
 
 describe('computeStrategicHints', () => {
-  it('returns string array combining all hint types', () => {
+  it('returns StrategicHintsResult combining all hint types', () => {
     const nodes = [
       // Prometheus has 3 acc refs, safetyist has none
       makeNode({ id: 'AN-1', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-001'] }),
@@ -298,16 +298,35 @@ describe('computeStrategicHints', () => {
     const edges: ArgumentNetworkEdge[] = [];
     const commitments = emptyCommitments();
 
-    const hints = computeStrategicHints('accelerationist', nodes, edges, commitments, 3);
-    expect(Array.isArray(hints)).toBe(true);
-    expect(hints.every(h => typeof h === 'string')).toBe(true);
+    const result = computeStrategicHints('accelerationist', nodes, edges, commitments, 3);
+    expect(Array.isArray(result.hints)).toBe(true);
+    expect(result.hints.every(h => typeof h === 'string')).toBe(true);
+    expect(result.dropped).toBe(0);
     // Should have at least the capability gap hint
-    expect(hints.length).toBeGreaterThanOrEqual(1);
+    expect(result.hints.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('returns empty array when no hints generated', () => {
+  it('returns empty hints when no hints generated', () => {
     const nodes = [makeNode({ id: 'AN-1', speaker: 'accelerationist' })];
-    const hints = computeStrategicHints('accelerationist', nodes, [], emptyCommitments(), 1);
-    expect(hints).toHaveLength(0);
+    const result = computeStrategicHints('accelerationist', nodes, [], emptyCommitments(), 1);
+    expect(result.hints).toHaveLength(0);
+    expect(result.dropped).toBe(0);
+  });
+
+  it('drops lower-priority hints when char budget exceeded', () => {
+    const nodes = [
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', taxonomy_refs: ['acc-beliefs-001'] }),
+      makeNode({ id: 'AN-2', speaker: 'accelerationist', taxonomy_refs: ['acc-desires-002'] }),
+      makeNode({ id: 'AN-3', speaker: 'accelerationist', taxonomy_refs: ['acc-intentions-003'] }),
+      makeNode({ id: 'AN-4', speaker: 'safetyist', taxonomy_refs: ['saf-beliefs-001'] }),
+    ];
+    const edges: ArgumentNetworkEdge[] = [];
+    const commitments = emptyCommitments();
+
+    // Use a tiny budget that can only fit one hint
+    const result = computeStrategicHints('accelerationist', nodes, edges, commitments, 3, 50);
+    // The first hint always fits (even if over budget, when hints is empty)
+    expect(result.hints.length).toBe(1);
+    expect(result.dropped).toBeGreaterThanOrEqual(0);
   });
 });

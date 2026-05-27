@@ -248,6 +248,32 @@ export async function readLineageCategories(): Promise<unknown | null> {
   try { return JSON.parse(raw); } catch { return null; }
 }
 
+// ── Lineage enrichments ──
+
+let lineageInfoCache: Record<string, unknown> | null = null;
+
+export async function readLineageEnrichments(): Promise<Record<string, unknown>> {
+  if (lineageInfoCache) return lineageInfoCache;
+  const filePath = path.join(getDataRoot(), 'calibration', 'lineage-enrichments.json');
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return {};
+  try {
+    const data = JSON.parse(raw) as Record<string, { category?: string; description?: string; url?: string | null }>;
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(data)) {
+      result[key] = {
+        label: key,
+        summary: entry.description ?? '',
+        example: '',
+        frequency: entry.category ? `Category: ${entry.category}` : '',
+        links: entry.url ? [{ label: 'Reference', url: entry.url }] : [],
+      };
+    }
+    lineageInfoCache = result;
+    return result;
+  } catch { return {}; }
+}
+
 // ── Policy registry ──
 
 export async function readPolicyRegistry(): Promise<unknown | null> {

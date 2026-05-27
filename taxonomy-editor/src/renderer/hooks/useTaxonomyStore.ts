@@ -44,6 +44,7 @@ import { distinctionAnalysisPrompt, nodeCritiquePrompt } from '../prompts/analys
 import type { NodeCritiqueContext } from '../prompts/analysis';
 import { api } from '@bridge';
 import { loadLineageCategoriesData } from '../data/lineageCategories';
+import { loadLineageInfoData } from '../data/lineageLookup';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export type PinnedData =
@@ -1230,6 +1231,8 @@ export const useTaxonomyStore = create<TaxonomyState>((set, get) => ({
       });
       // Load L2 lineage categories (non-blocking, used by LineagePanel)
       void loadLineageCategoriesData();
+      // Load lineage info from data repo (non-blocking, replaces static INTELLECTUAL_LINEAGES import)
+      void loadLineageInfoData();
       const regData = polReg as { policies: PolicyRegistryEntry[] } | null;
       for (const povFile of [saf, skp] as PovTaxonomyFile[]) {
         if (povFile?.nodes) {

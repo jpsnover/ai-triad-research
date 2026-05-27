@@ -72,7 +72,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('persist-edges', edges),
 
   getNodesByPovCategory: (pov: string, category?: string): Promise<unknown[]> =>
-    ipcRenderer.invoke('get-nodes-by-pov-category', pov, category),
+    ipcRenderer.invoke('get-nodes-by-pov-category', pov, ...(category ? [category] : [])),
 
   // Clipboard (Electron 40: renderer clipboard API deprecated)
   clipboardWriteText: (text: string): Promise<void> =>

@@ -87,6 +87,14 @@ export const GraphAttributesSchema = z.strictObject({
 
 // ── Taxonomy node schemas ─────────────────────────────────
 
+const ChangeActionSchema = z.enum(['created', 'modified', 'deprecated']);
+
+const ChangeHistoryEntrySchema = z.object({
+  date: z.string(),
+  action: ChangeActionSchema,
+  fields: z.array(z.string()),
+});
+
 const WeightHistoryEntrySchema = z.object({
   date: z.string(),
   value: z.number(),
@@ -119,6 +127,16 @@ export const PovNodeSchema = z.object({
   priority_history: z.array(WeightHistoryEntrySchema).optional(),
   operationality: z.number().int().min(1).max(5).optional(),
   operationality_history: z.array(WeightHistoryEntrySchema).optional(),
+  concession_history: z.array(z.object({
+    debate_id: z.string(),
+    speaker: z.string(),
+    text: z.string(),
+    turn: z.number(),
+    conceded_to: z.string(),
+    concession_type: z.enum(['full', 'conditional', 'tactical']),
+    bdi_impact: z.enum(['belief', 'desire', 'intention']),
+  })).optional(),
+  change_history: z.array(ChangeHistoryEntrySchema).optional(),
 });
 
 export const SituationNodeSchema = z.object({

@@ -22,6 +22,7 @@ import {
   readPolicyRegistry,
   readAggregatedCruxes,
   readLineageCategories,
+  readLineageEnrichments,
   discoverSources,
   loadSummary,
   loadSnapshot,
@@ -103,6 +104,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('load-lineage-categories', () => {
     return readLineageCategories();
+  });
+
+  ipcMain.handle('load-lineage-info', () => {
+    return readLineageEnrichments();
   });
 
   ipcMain.handle('load-conflict-files', () => {
@@ -683,7 +688,8 @@ export function registerIpcHandlers(): void {
     const docAnalysis = (session.document_analysis as string | undefined) ?? undefined;
     const topic = ((session.topic as Record<string, unknown>)?.refined ?? (session.topic as Record<string, unknown>)?.original ?? '') as string;
 
-    const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis);
+    const audience = (session.audience as string | undefined) ?? undefined;
+    const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../lib/debate/types.js').DebateAudience | undefined);
     const text = await generateText(prompt);
     return { article: text };
   });
@@ -957,6 +963,15 @@ export function registerIpcHandlers(): void {
     for (const win of BrowserWindow.getAllWindows()) {
       if (win.webContents !== event.sender) {
         win.webContents.send('flight-event-from-popup', payload);
+      }
+    }
+  });
+
+  // Forward re-extract-claims request from popout to main window (t/226)
+  ipcMain.on('request-re-extract-claims', (event, entryId: string) => {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.webContents !== event.sender) {
+        win.webContents.send('re-extract-claims', entryId);
       }
     }
   });

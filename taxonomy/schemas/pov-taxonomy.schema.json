@@ -195,6 +195,32 @@
           "type": "array",
           "description": "Operationality change log. Each entry records a value change and reason.",
           "items": { "$ref": "#/$defs/WeightHistoryEntry" }
+        },
+        "change_history": {
+          "type": "array",
+          "description": "Last 5 modifications to this node (FIFO). Each entry records a date, action, and changed fields.",
+          "items": { "$ref": "#/$defs/ChangeHistoryEntry" }
+        }
+      }
+    },
+    "ChangeHistoryEntry": {
+      "type": "object",
+      "required": ["date", "action", "fields"],
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "ISO 8601 date of the modification."
+        },
+        "action": {
+          "type": "string",
+          "enum": ["created", "modified", "deprecated"],
+          "description": "Kind of change applied to the node."
+        },
+        "fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of field names that were affected."
         }
       }
     },

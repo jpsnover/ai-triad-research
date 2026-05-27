@@ -309,6 +309,23 @@ export interface CalibrationDataPoint {
   process_reward_stddev: number | null;
   /** Minimum process reward (identifies weakest turns) */
   process_reward_min: number | null;
+
+  // ── Prompt size tracking (t/219) ──
+  /** Maximum prompt chars across all pipeline stages in this debate */
+  max_prompt_chars: number | null;
+  /** Mean prompt chars across all pipeline stages in this debate */
+  mean_prompt_chars: number | null;
+
+  // ── Per-component prompt breakdown (t/221) ──
+  /** Maximum per-component char counts across all stages (null if no data). */
+  max_component_chars: {
+    taxonomy_chars: number;
+    transcript_chars: number;
+    hints_chars: number;
+    edge_chars: number;
+    commitment_chars: number;
+    an_summary_chars: number;
+  } | null;
 }
 
 // ── Extraction logic ────────────────────────────────────────
@@ -761,6 +778,47 @@ export function extractCalibrationData(
     }
   }
 
+  // ── Prompt size tracking (t/219) ──
+  let maxPromptChars: number | null = null;
+  let meanPromptChars: number | null = null;
+  const promptCharSamples: number[] = [];
+  const diagEntries = session.diagnostics?.entries ?? {};
+  for (const entryDiag of Object.values(diagEntries)) {
+    const stages = (entryDiag as { stage_diagnostics?: { prompt?: string }[] }).stage_diagnostics;
+    if (stages) {
+      for (const sd of stages) {
+        if (sd.prompt) promptCharSamples.push(sd.prompt.length);
+      }
+    }
+    const et = (entryDiag as { extraction_trace?: { prompt_chars?: number } }).extraction_trace;
+    if (et?.prompt_chars) promptCharSamples.push(et.prompt_chars);
+  }
+  if (promptCharSamples.length > 0) {
+    maxPromptChars = Math.max(...promptCharSamples);
+    meanPromptChars = Math.round(promptCharSamples.reduce((a, b) => a + b, 0) / promptCharSamples.length);
+  }
+
+  // ── Per-component prompt breakdown (t/221) ──
+  let maxComponentChars: CalibrationDataPoint['max_component_chars'] = null;
+  for (const entryDiag2 of Object.values(diagEntries)) {
+    const stages2 = (entryDiag2 as { stage_diagnostics?: { prompt_component_chars?: { taxonomy_chars: number; transcript_chars: number; hints_chars: number; edge_chars: number; commitment_chars: number; an_summary_chars: number } }[] }).stage_diagnostics;
+    if (!stages2) continue;
+    for (const sd of stages2) {
+      const cc = sd.prompt_component_chars;
+      if (!cc) continue;
+      if (!maxComponentChars) {
+        maxComponentChars = { ...cc };
+      } else {
+        maxComponentChars.taxonomy_chars = Math.max(maxComponentChars.taxonomy_chars, cc.taxonomy_chars);
+        maxComponentChars.transcript_chars = Math.max(maxComponentChars.transcript_chars, cc.transcript_chars);
+        maxComponentChars.hints_chars = Math.max(maxComponentChars.hints_chars, cc.hints_chars);
+        maxComponentChars.edge_chars = Math.max(maxComponentChars.edge_chars, cc.edge_chars);
+        maxComponentChars.commitment_chars = Math.max(maxComponentChars.commitment_chars, cc.commitment_chars);
+        maxComponentChars.an_summary_chars = Math.max(maxComponentChars.an_summary_chars, cc.an_summary_chars);
+      }
+    }
+  }
+
   return {
     schema_version: 1,
     debate_id: session.id,
@@ -981,6 +1039,11 @@ export function extractCalibrationData(
       if (!prs || prs.length === 0) return null;
       return Math.min(...prs.map(pr => pr.score));
     })(),
+
+    max_prompt_chars: maxPromptChars,
+    mean_prompt_chars: meanPromptChars,
+
+    max_component_chars: maxComponentChars,
   };
 }
 

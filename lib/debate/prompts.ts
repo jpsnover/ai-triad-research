@@ -951,13 +951,13 @@ ${isFirst ? 'You are delivering the first opening statement.' : `You have read t
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
 ${buildRecapSection(taxonomyContext)}
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Each tooltip ends with a provocative question connecting the symbol to the debate's core tension. Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your opening statement text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>. But <provocative question>?"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y. The framing around Z also highlights a tension with the opposing view."},
@@ -1024,13 +1024,13 @@ ${question}
 ${documentBlock}
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
 ${buildRecapSection(taxonomyContext)}
-TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Make it vivid and memorable.
+TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Each tooltip ends with a provocative question connecting the symbol to the debate's core tension. Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what the emoji depicts>, it <explain the analogy>. But <provocative question>?"}
   ],
   "taxonomy_refs": [
     {"node_id": "e.g. acc-desires-002", "relevance": "The emphasis on X directly supports the claim that Y, grounding the normative position."},
@@ -1552,14 +1552,14 @@ HARD CONSTRAINTS:
 - NODE-IDs: Never surface taxonomy node IDs in statement text. Use plain language.
 - ASSUMPTIONS: State 1-2 key assumptions your position depends on, with what changes if wrong.
 - CLAIMS: Extract 3-6 near-verbatim claims from your statement (headline + sub-claims).
-- SYMBOLS: 1-3 emoji. Tooltip format: "[debate idea] is like a [what emoji depicts]; it [analogy]." Debate concept comes FIRST, symbol referent SECOND. No emoji in tooltip text.
+- SYMBOLS: 1-3 emoji. Tooltip format: "[debate idea] is like a [what emoji depicts]; it [analogy]." Debate concept comes FIRST, symbol referent SECOND. No emoji in tooltip text. Each tooltip ends with a provocative question tying the symbol to the debate's contested claims.
 
 ${getStyleReinforcement(input.audience)}
 
 {
   "statement": "your opening statement (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>; it <analogy>"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>; it <analogy>. But <provocative question>?"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim headline assertion from your statement", "targets": []},
@@ -1953,7 +1953,7 @@ OUTPUT CONSTRAINTS:
 - NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
 - CLAIM SPECIFICITY: At least one claim in your statement MUST include a concrete number, named entity, timeline, or threshold (e.g. "by 2028", "≥20%", "the EU AI Act"). Abstract claims without specifics will be rejected.
 - CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
-- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip: "[debate idea] is like a [what emoji depicts], it [analogy]" — debate concept FIRST, symbol referent SECOND. No emoji in tooltip text.${input.phase && input.phase !== 'confrontation' && (input.pendingIntervention?.round ?? 0) >= 4 ? `\n- CONSTRUCTIVE MOVE REQUIRED: In this phase you MUST include at least one constructive move (CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY) — pure attack without constructive engagement will be rejected.` : ''}
+- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip: "[debate idea] is like a [what emoji depicts], it [analogy]" — debate concept FIRST, symbol referent SECOND. No emoji in tooltip text. Each tooltip ends with a provocative question tying the symbol to the debate's contested claims.${input.phase && input.phase !== 'confrontation' && (input.pendingIntervention?.round ?? 0) >= 4 ? `\n- CONSTRUCTIVE MOVE REQUIRED: In this phase you MUST include at least one constructive move (CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY) — pure attack without constructive engagement will be rejected.` : ''}
 
 ${getStyleReinforcement(input.audience)}
 
@@ -1961,7 +1961,7 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
 {
   "statement": "your full debate response (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>, it <analogy>"}
+    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>, it <analogy>. But <provocative question>?"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
@@ -3489,6 +3489,57 @@ function getMoveSpecificInstructions(move: InterventionMove, target: string, sou
  * @param transcriptHighlights - Selected transcript excerpts (from extractTranscriptHighlights)
  * @param documentAnalysis - Optional source document summary (for URL/document-based debates)
  */
+// ── News Report Audience Deltas ──────────────────────────────────────
+// Each delta defines persona, mandate, and section modifications for
+// the four conceptual movements in the core template.
+
+const NEWS_REPORT_AUDIENCE_DELTAS: Record<DebateAudience, string> = {
+  policymakers: `TARGET AUDIENCE: Lawmakers, regulators, national security briefers.
+PERSONA: Senior strategic intelligence briefer. Ruthlessly objective, high-density, authoritative.
+MANDATE: Governance, regulatory friction, risk mitigation. Map arguments as competing frameworks for statecraft.
+SECTION MODIFICATIONS:
+- THE FRAMING: Lead with legislative or geopolitical vulnerabilities — what regulatory gap or governance failure is exposed?
+- THE COLLISION: Frame the three perspectives as competing regulatory philosophies and economic trade-offs.
+- THE OUTCOME: Title this section "## Policy Lever Assessment". Identify 2-3 concrete regulatory levers with implementation hurdles for each.
+- CONCLUSION: Title this section "## Strategic Horizon". End with the trigger event that would force a policy decision.`,
+
+  academic_community: `TARGET AUDIENCE: Researchers, think-tank directors, peer-review essayists.
+PERSONA: Research Fellow at a premier policy institute. Analytically rigorous, conceptually precise.
+MANDATE: Deconstruct arguments, expose epistemological foundations, challenge axioms and circular logic.
+SECTION MODIFICATIONS:
+- THE FRAMING: Open with a formal thesis statement that frames the intellectual stakes.
+- THE COLLISION: Emphasize theoretical friction and competing analytical models. Name the scholarly traditions at play.
+- THE CRUX: Title this section "## Epistemological Divergence". Classify the core disagreement as ontological, methodological, or ethical.
+- THE OUTCOME: Title this section "## Paradigmatic Implications". Address impact on the research ecosystem, funding trajectories, and governance models.`,
+
+  technical_researchers: `TARGET AUDIENCE: Researchers, think-tank directors, peer-review essayists.
+PERSONA: Research Fellow at a premier policy institute. Analytically rigorous, conceptually precise.
+MANDATE: Deconstruct arguments, expose epistemological foundations, challenge axioms and circular logic.
+SECTION MODIFICATIONS:
+- THE FRAMING: Open with a formal thesis statement that frames the intellectual stakes.
+- THE COLLISION: Emphasize theoretical friction and competing analytical models. Name the scholarly traditions at play.
+- THE CRUX: Title this section "## Epistemological Divergence". Classify the core disagreement as ontological, methodological, or ethical.
+- THE OUTCOME: Title this section "## Paradigmatic Implications". Address impact on the research ecosystem, funding trajectories, and governance models.`,
+
+  industry_leaders: `TARGET AUDIENCE: C-Suite executives, founders, VCs, tech strategists.
+PERSONA: Senior market strategist. Incisive, pragmatic, economically clinical.
+MANDATE: Market velocity, capital allocation, operational risk, competitive disruption.
+SECTION MODIFICATIONS:
+- THE FRAMING: Lead with commercial stakes — capital flows, talent dynamics, compute economics.
+- THE COLLISION: Frame the three camps as market forces: compliance costs, release cycles, buyer sentiment.
+- THE CRUX: Title this section "## Market Friction Points". Identify the technical or economic dependency that creates the impasse.
+- THE OUTCOME: Title this section "## Commercial Trajectory & Risk". Address product roadmaps, liability surfaces, and investment horizons.
+- CONCLUSION: Title this section "## Executive Takeaway". End with the single market signal to track.`,
+
+  general_public: `TARGET AUDIENCE: Informed general public (quality newspaper readers).
+PERSONA: Master explanatory journalist. Engaging, lucid, propulsive, accessible.
+MANDATE: Democratize the debate, translate jargon into real-world analogies.
+SECTION MODIFICATIONS:
+- THE FRAMING: Open with a relatable vignette or historical parallel that grounds the stakes.
+- THE COLLISION: Use narrative storytelling pacing — build tension between the perspectives.
+- THE OUTCOME: Title this section "## What It Means For You". Focus on direct citizen impact — jobs, privacy, safety, fairness.`,
+};
+
 export function newsReportPrompt(
   topic: string,
   synthesisJson: string,
@@ -3496,6 +3547,7 @@ export function newsReportPrompt(
   transcriptHighlights: string,
   documentAnalysis?: string,
   policyContext?: string,
+  audience?: DebateAudience,
 ): string {
   const docBlock = documentAnalysis
     ? `\n=== SOURCE DOCUMENT ===\n${documentAnalysis}\n`
@@ -3505,23 +3557,9 @@ export function newsReportPrompt(
     ? `\n=== POLICY IMPLICATIONS ===\n${policyContext}\n`
     : '';
 
-  return `You are a policy journalist writing for an informed general audience.
-Your task: transform a structured three-perspective debate into a
-news-style explainer article.
+  const audienceDelta = NEWS_REPORT_AUDIENCE_DELTAS[audience ?? 'general_public'];
 
-VOICE: Write like a senior policy reporter — active voice, specific
-examples, quotable sentences. Attribute every claim to its source.
-No hedging phrases ("some argue", "it could be said"). No academic
-jargon. No bullet points — this is prose.
-
-PERSPECTIVE LABELS: Use these labels when attributing positions:
-- "Accelerationist advocates" (not "Prometheus")
-- "Safety researchers" (not "Sentinel")
-- "AI skeptics" (not "Cassandra")
-
-BALANCE: Present each perspective at its strongest. Do not editorialize
-or take sides. The reader should finish understanding WHY smart people
-disagree, not thinking one side is obviously right.
+  return `You are a senior analyst and master synthesizer. Your task is to transform a structured three-perspective debate into a definitive, high-signal overview article.
 
 === DEBATE TOPIC ===
 "${topic}"
@@ -3535,46 +3573,26 @@ ${docBlock}
 === TRANSCRIPT HIGHLIGHTS ===
 ${transcriptHighlights}
 ${policyBlock}
-ARTICLE STRUCTURE:
+---
 
-1. HEADLINE: Active voice, specific, frames the policy question.
-   Max 12 words. No colons or em-dashes.
+### CORE STRUCTURAL BLUEPRINT
+Regardless of the target audience, the final output must flow through these four conceptual movements:
+1. THE FRAMING: Define the current tension, the immediate stakes, and the baseline facts.
+2. THE COLLISION: Interleave the three core perspectives ("Accelerationist advocates", "Safety researchers", and "AI skeptics"). Show how they respond to, provoke, or ignore one another. Integrate 2-4 precise direct quotes from the transcript.
+3. THE CRUX: Diagnose the underlying nature of the gridlock (e.g., factual, values-based, or definitional) and state what real-world event or data would break the stalemate.
+4. THE OUTCOME: Detail the downstream implications of this debate's resolution.
 
-2. SUBHEAD: One sentence — the stakes. What is at risk or in play.
+---
 
-3. LEDE (2-3 sentences): What's at stake and why it matters now.
-   Ground in a concrete fact, statistic, or recent event from the debate.
+### AUDIENCE SPECIFIC ORIENTATION
+${audienceDelta}
 
-4. THE DEBATE (2-3 paragraphs): Interleave the three perspectives as
-   a narrative. Each position should RESPOND to the previous one —
-   not sit in isolated sections. Use 2-4 direct quotes from the
-   transcript (attributed as "Accelerationist advocates argue...",
-   "Safety researchers counter...", "AI skeptics note..."). Pick
-   quotes that are specific and vivid, not generic.
+---
 
-5. ## Common Ground (1 paragraph): Where the debaters converged.
-   Lead with the most surprising agreement. If the synthesis shows
-   concessions, name who conceded what.
-
-6. ## The Crux (1-2 paragraphs): The specific question that divides
-   them. Classify it for the reader: Is this a factual dispute (could
-   be resolved by evidence), a values conflict (different priorities),
-   or a definitional disagreement (talking past each other)? What
-   evidence or event would resolve it?
-
-7. ## Policy at Stake (1 paragraph): If policy implications data is
-   available, name 2-3 specific policy actions affected by this
-   debate's conclusions. For each, state whether the debate
-   strengthened, weakened, or complicated the case for it — and why.
-   Use plain language, not pol-NNN IDs.
-
-8. ## Bottom Line (1-2 sentences): What a policymaker should take away.
-   Not a recommendation — a framing of what to watch for.
-
-OUTPUT: Return the article as plain text. Headline on line 1, subhead
-on line 2 (italic), then body paragraphs separated by blank lines.
-Use "## " markdown headers for Common Ground, The Crux, Policy at Stake,
-and Bottom Line. Target 700-900 words total. No JSON, no code fences.`;
+### OUTPUT SPECIFICATIONS
+* Target 700-900 words of dense, insightful prose.
+* Deliver as clean, scannable Markdown. Use "## " headers for the major conceptual movements.
+* No robotic meta-commentary, no placeholders, no markdown code blocks enclosing the final output. Begin directly with the headline.`;
 }
 
 // Exported for envelope builders (lib/debate/envelopes.ts)

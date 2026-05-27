@@ -177,6 +177,8 @@ export function PromptInspector() {
   const [showDiff, setShowDiff] = useState(false);
   const [baselinePreview, setBaselinePreview] = useState<PromptPreviewResult | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchMode, setSearchMode] = useState<'label' | 'content'>('label');
 
   const [psPromptContent, setPsPromptContent] = useState<Record<string, string>>({});
   const [psPromptLoading, setPsPromptLoading] = useState(false);
@@ -195,14 +197,21 @@ export function PromptInspector() {
   });
 
   const grouped = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const map = new Map<PromptGroup, PromptCatalogEntry[]>();
     for (const g of GROUP_ORDER) map.set(g, []);
     for (const entry of PROMPT_CATALOG) {
+      if (q) {
+        const haystack = searchMode === 'label'
+          ? `${entry.title} ${entry.description}`.toLowerCase()
+          : `${entry.title} ${entry.template} ${entry.purpose} ${entry.description}`.toLowerCase();
+        if (!haystack.includes(q)) continue;
+      }
       const list = map.get(entry.group);
       if (list) list.push(entry);
     }
     return map;
-  }, []);
+  }, [searchQuery, searchMode]);
 
   const selected = useMemo(
     () => PROMPT_CATALOG.find(e => e.id === selectedId) ?? null,
@@ -288,6 +297,34 @@ export function PromptInspector() {
     <div className="prompt-inspector">
       {/* Zone 1: Prompt Selector (sidebar) */}
       <div className="pi-selector">
+        <div className="pi-search">
+          <div className="pi-search-row">
+            <input
+              type="text"
+              className="pi-search-input"
+              placeholder={searchMode === 'label' ? 'Search by label...' : 'Search prompt content...'}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                className="pi-search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >&times;</button>
+            )}
+          </div>
+          <div className="pi-search-mode">
+            <button
+              className={`pi-mode-pill ${searchMode === 'label' ? 'pi-mode-active' : ''}`}
+              onClick={() => setSearchMode('label')}
+            >Label</button>
+            <button
+              className={`pi-mode-pill ${searchMode === 'content' ? 'pi-mode-active' : ''}`}
+              onClick={() => setSearchMode('content')}
+            >Content</button>
+          </div>
+        </div>
         {GROUP_ORDER.map(group => {
           const entries = grouped.get(group);
           if (!entries || entries.length === 0) return null;

@@ -197,6 +197,7 @@ function Invoke-BDIWeightAssignment {
                     $Node | Add-Member -NotePropertyName 'confidence_history' -NotePropertyValue @(
                         [ordered]@{ date = $Today; value = $Confidence; delta = 0; reason = 'Initial multi-signal assignment' }
                     ) -Force
+                    Add-ChangeHistoryEntry -Node $Node -Action 'modified' -Fields @('confidence', 'confidence_history')
                 }
 
                 $BeliefCount++
@@ -228,6 +229,7 @@ function Invoke-BDIWeightAssignment {
                     $Node | Add-Member -NotePropertyName 'priority_history' -NotePropertyValue @(
                         [ordered]@{ date = $Today; value = $Priority; delta = 0; reason = $Reason }
                     ) -Force
+                    Add-ChangeHistoryEntry -Node $Node -Action 'modified' -Fields @('priority', 'priority_history')
                 }
 
                 $DesireCount++
@@ -273,6 +275,7 @@ function Invoke-BDIWeightAssignment {
                     $Node | Add-Member -NotePropertyName 'operationality_history' -NotePropertyValue @(
                         [ordered]@{ date = $Today; value = $Operationality; delta = 0; reason = $Reason }
                     ) -Force
+                    Add-ChangeHistoryEntry -Node $Node -Action 'modified' -Fields @('operationality', 'operationality_history')
                 }
 
                 $IntentionCount++

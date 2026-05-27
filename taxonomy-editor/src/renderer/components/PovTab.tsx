@@ -19,8 +19,7 @@ import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { PromptDetailPanel } from './PromptsPanel';
 import { FallacyDetailPanel } from './FallacyPanel';
 import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
-import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
-import { getLineageInfo } from '../data/lineageLookup';
+import { getLineageInfo, getAllLineages } from '../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../data/lineageCategories';
 import { POV_KEYS, POVER_INFO } from '@lib/debate/types';
 import type { SpeakerId } from '@lib/debate/types';
@@ -55,7 +54,8 @@ function computeSeeAlso(
   rawKey: string,
   info: { label: string; summary: string } | null,
 ): { key: string; label: string }[] {
-  const currentKey = Object.keys(INTELLECTUAL_LINEAGES).find(k =>
+  const lineages = getAllLineages();
+  const currentKey = Object.keys(lineages).find(k =>
     k.toLowerCase() === rawKey.toLowerCase()
   ) ?? rawKey;
   const currentCat = classifyLineage(currentKey);
@@ -63,7 +63,7 @@ function computeSeeAlso(
 
   type Scored = { key: string; label: string; score: number };
   const scored: Scored[] = [];
-  for (const [key, inf] of Object.entries(INTELLECTUAL_LINEAGES)) {
+  for (const [key, inf] of Object.entries(lineages)) {
     if (key === currentKey) continue;
     const cand = tokenize(`${inf.label} ${inf.summary}`);
     let overlap = 0;

@@ -265,9 +265,19 @@ export function detectStrategyShifts(
 
 // ── Public API ─────────────────────────────────────────
 
+/** Default character budget for the strategic hints block. */
+export const DEFAULT_HINT_CHAR_BUDGET = 2048;
+
+export interface StrategicHintsResult {
+  hints: string[];
+  /** Number of hints dropped due to char budget. */
+  dropped: number;
+}
+
 /**
  * Compute all strategic hints for the current speaker's plan stage.
- * Returns formatted hint strings ready for prompt injection.
+ * Returns formatted hint strings ready for prompt injection, capped at charBudget.
+ * Priority when budget exceeded: commitment traps > strategy shifts > capability gaps.
  * Pure computation — no LLM calls.
  */
 export function computeStrategicHints(
@@ -276,12 +286,30 @@ export function computeStrategicHints(
   edges: readonly ArgumentNetworkEdge[],
   commitments: Record<string, CommitmentStore>,
   currentRound: number,
-): string[] {
+  charBudget: number = DEFAULT_HINT_CHAR_BUDGET,
+): StrategicHintsResult {
   const rollingWindowStart = Math.max(1, currentRound - 2);
 
   const traps = detectCommitmentTraps(currentSpeaker, nodes, commitments);
-  const gaps = detectCapabilityGaps(currentSpeaker, nodes);
   const shifts = detectStrategyShifts(nodes, edges, rollingWindowStart);
+  const gaps = detectCapabilityGaps(currentSpeaker, nodes);
 
-  return [...traps, ...gaps, ...shifts].map(h => h.hint);
+  // Priority order: traps > shifts > gaps
+  const all: StrategicHint[] = [...traps, ...shifts, ...gaps];
+
+  const hints: string[] = [];
+  let usedChars = 0;
+  let dropped = 0;
+
+  for (const h of all) {
+    const newTotal = usedChars + h.hint.length;
+    if (newTotal > charBudget && hints.length > 0) {
+      dropped++;
+      continue;
+    }
+    hints.push(h.hint);
+    usedChars += h.hint.length;
+  }
+
+  return { hints, dropped };
 }

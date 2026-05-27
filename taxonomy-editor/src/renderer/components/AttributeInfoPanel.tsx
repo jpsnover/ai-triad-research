@@ -6,10 +6,9 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { RHETORICAL_STRATEGIES } from '../data/rhetoricalStrategyInfo';
 import { EPISTEMIC_TYPES } from '../data/epistemicTypeInfo';
 import { EMOTIONAL_REGISTERS } from '../data/emotionalRegisterInfo';
-import { INTELLECTUAL_LINEAGES } from '../data/intellectualLineageInfo';
 import type { AttributeInfo } from '../data/epistemicTypeInfo';
 import { classifyLineage, getCategoryById, getL2CategoryLabel } from '../data/lineageCategories';
-import { lookupLineage } from '../data/lineageLookup';
+import { lookupLineage, getAllLineages } from '../data/lineageLookup';
 import { api } from '@bridge';
 
 interface AttributeInfoPanelProps {
@@ -23,12 +22,14 @@ const FIELD_LABELS: Record<string, string> = {
   intellectual_lineage: 'Intellectual Lineage',
 };
 
-const DATA_SOURCES: Record<string, Record<string, AttributeInfo>> = {
-  rhetorical_strategy: RHETORICAL_STRATEGIES,
-  epistemic_type: EPISTEMIC_TYPES,
-  emotional_register: EMOTIONAL_REGISTERS,
-  intellectual_lineage: INTELLECTUAL_LINEAGES,
-};
+function getDataSources(): Record<string, Record<string, AttributeInfo>> {
+  return {
+    rhetorical_strategy: RHETORICAL_STRATEGIES,
+    epistemic_type: EPISTEMIC_TYPES,
+    emotional_register: EMOTIONAL_REGISTERS,
+    intellectual_lineage: getAllLineages(),
+  };
+}
 
 function formatValue(val: string): string {
   return val.replace(/_/g, ' ');
@@ -41,12 +42,13 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
   // "See Also" — related lineage entries in the same category (lineage field only)
   const seeAlso = useMemo(() => {
     if (!attributeInfo || attributeInfo.field !== 'intellectual_lineage') return [];
-    const currentKey = Object.keys(INTELLECTUAL_LINEAGES).find(k =>
+    const lineages = getAllLineages();
+    const currentKey = Object.keys(lineages).find(k =>
       k.toLowerCase() === attributeInfo.value.toLowerCase()
     ) ?? attributeInfo.value;
     const currentCat = classifyLineage(currentKey);
     const siblings: { key: string; label: string }[] = [];
-    for (const [key, info] of Object.entries(INTELLECTUAL_LINEAGES)) {
+    for (const [key, info] of Object.entries(lineages)) {
       if (key === currentKey) continue;
       if (classifyLineage(key) === currentCat) {
         siblings.push({ key, label: info.label });
@@ -69,7 +71,7 @@ export function AttributeInfoPanel({ width }: AttributeInfoPanelProps) {
   }
 
   const { field, value } = attributeInfo;
-  const dataSource = DATA_SOURCES[field];
+  const dataSource = getDataSources()[field];
   // Lookup: lineage uses canonicalizing resolver (strips parens, casing); other
   // fields use case-insensitive fallback since parenthetical variants don't apply.
   const info = field === 'intellectual_lineage'

@@ -178,14 +178,17 @@ const diagChannel = typeof BroadcastChannel !== 'undefined'
 
 const diagCallbacks = new Set<(state: unknown) => void>();
 const diagClosedCallbacks = new Set<() => void>();
+const reExtractCallbacks = new Set<(entryId: string) => void>();
 
 // Receive diagnostics state from the main tab (or from this tab if inline)
 diagChannel?.addEventListener('message', (event) => {
-  const msg = event.data as { type: string; payload?: unknown };
+  const msg = event.data as { type: string; payload?: unknown; entryId?: string };
   if (msg.type === 'diagnostics-state' && msg.payload) {
     for (const cb of diagCallbacks) cb(msg.payload);
   } else if (msg.type === 'diagnostics-closed') {
     for (const cb of diagClosedCallbacks) cb();
+  } else if (msg.type === 're-extract-claims' && msg.entryId) {
+    for (const cb of reExtractCallbacks) cb(msg.entryId);
   }
 });
 
@@ -202,6 +205,7 @@ const rawApi: AppAPI = {
   saveTaxonomyFile: (pov, data) => put(`/api/taxonomy/${encodeURIComponent(pov)}`, data).then(() => {}),
   loadPolicyRegistry: () => get('/api/policy-registry'),
   loadLineageCategories: () => get('/api/lineage-categories'),
+  loadLineageInfo: () => get<Record<string, unknown>>('/api/lineage-info'),
   loadEdges: () => get('/api/edges'),
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
   swapEdgeDirection: (index) => put('/api/edges/swap', { index }),
@@ -479,6 +483,13 @@ const rawApi: AppAPI = {
   onDiagnosticsPopoutClosed: (cb) => {
     diagClosedCallbacks.add(cb);
     return () => { diagClosedCallbacks.delete(cb); };
+  },
+  requestReExtractClaims: (entryId) => {
+    diagChannel?.postMessage({ type: 're-extract-claims', entryId });
+  },
+  onReExtractClaims: (cb) => {
+    reExtractCallbacks.add(cb);
+    return () => { reExtractCallbacks.delete(cb); };
   },
   onDebateWindowLoad: () => () => {}, // Web mode: debate ID comes via URL hash
   onDebatePopoutClosed: () => () => {},

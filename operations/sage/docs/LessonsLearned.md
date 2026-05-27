@@ -273,8 +273,9 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-22 — Computational Linguist: lineage analysis script found 0 names because it looked for a flat `intellectual_lineage` string array at the node root, but the actual data is `graph_attributes.intellectual_lineage[].name` — an array of objects nested under `graph_attributes` (p/7#3).
 - 2026-05-22 — Computational Linguist: `embeddings.json` parsing failed with `'str' object has no attribute 'get'` because code iterated top-level keys directly, but node entries are nested under `data['nodes']` — top level has metadata keys (`model`, `dimension`, `field_weights`) (p/7#5).
 - 2026-05-25 — Computational Linguist: `'list' object has no attribute 'items'` when accessing `stage_diagnostics` — assumed dict but it's a list. Fixed by checking type first and iterating as list (p/7#11).
+- 2026-05-26 — Shared Lib: `embed_taxonomy.py` batch-encode passed bare string array but the function expects `[{id, text}]` objects. Fixed by matching the expected input format. Reference: `relinkVocabulary.ts` (p/5#7).
 
-**Root Cause:** Code written based on assumed schema rather than inspecting the actual JSON structure. Project data files commonly wrap payloads under a key (`nodes`, `graph_attributes`) with metadata at the top level, and field types vary (list vs dict, nested objects vs flat strings).
+**Root Cause:** Code written based on assumed schema/interface rather than inspecting the actual structure or function signature. Project data files commonly wrap payloads under a key (`nodes`, `graph_attributes`) with metadata at the top level, field types vary (list vs dict, nested objects vs flat strings), and function APIs expect structured objects not bare primitives.
 
 **Prevention:**
 1. Always inspect a sample of the actual data before writing code that reads it — `head` a JSON file or `jq` a few records.
@@ -341,6 +342,25 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. When writing Bash commands that run Node.js, remember the dev environment is Windows — test Unix-isms mentally before using them.
 
 **Applies To:** All agents running Node.js commands on this Windows dev environment.
+
+---
+
+## [Build] Bash grep Features Fail Silently on Windows/Git Bash
+
+**Pattern:** `grep -P` (Perl regex) and `grep -o` with complex patterns fail silently (exit code 1, no output) on Windows Git Bash, with no error message indicating the feature is unsupported.
+
+**Instances:**
+- 2026-05-27 — Computational Linguist sub-agent: both `grep -P` and `grep -o` with quoted JSON patterns produced no output on Windows/Git Bash. Resolved by using the Read tool instead of Bash grep for JSON field extraction (p/40#1).
+
+**Root Cause:** Git Bash ships a minimal GNU grep that may lack PCRE (`-P`) support and handles complex patterns (especially with JSON special characters) differently than Linux grep. Failures are silent — no stderr, just exit code 1 — making them hard to diagnose.
+
+**Prevention:**
+1. Use the dedicated Read and Grep tools instead of Bash `grep` for file content inspection — especially for structured data like JSON.
+2. For JSON field extraction specifically, use `python3 -c "import json; ..."` or `jq` instead of grep with regex.
+3. Avoid `grep -P` entirely on this platform — PCRE support is not guaranteed in Git Bash.
+4. When grep returns no output, suspect platform incompatibility before assuming the pattern doesn't match.
+
+**Applies To:** All agents using Bash grep on this Windows/Git Bash environment.
 
 ---
 

@@ -16,7 +16,7 @@ Import-Module ./scripts/AITriad/AITriad.psm1
 Invoke-Pester ./tests/
 
 # Run a single Pester test by name
-Invoke-Pester ./tests/ -Filter @{ FullName = '*test name pattern*' }
+Invoke-Pester ./tests/ -FullNameFilter '*test name pattern*'
 
 # Build distributable module
 ./scripts/Build-Module.ps1 -Clean
@@ -42,6 +42,16 @@ cd summary-viewer && npm ci && npm run dev       # port 5175
 ### Two-Repo Split
 
 Code lives here; data lives in `../ai-triad-data`. The file `.aitriad.json` maps relative paths to data directories. Override with `$env:AI_TRIAD_DATA_ROOT`. Priority: env var > `.aitriad.json` > monorepo fallback.
+
+### Orca Overlay Repo
+
+Orca config files (`.orca.yaml`, `AGENTS.md`, `.orca/` directory) live in a **separate overlay repo** stored at `.orca-git/`. This keeps Orca infrastructure private while the main project repo stays public.
+
+- **`git` commands** operate on the main project repo
+- **`ogit` commands** (alias for `git --git-dir=.orca-git --work-tree=.`) operate on the overlay
+- **Never `git add` or `git commit`** files tracked by the overlay: `.orca.yaml`, `AGENTS.md`, `.orca/`, `.orca-gitignore`
+- If you need to update AGENTS.md, edit it normally but commit via `ogit`, not `git`
+- Run `ogit` from the repo root — `.orca-git` is not visible from subdirectories
 
 ### PowerShell Module (`scripts/AITriad/`)
 

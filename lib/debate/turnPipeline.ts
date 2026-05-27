@@ -17,6 +17,7 @@ import type {
   TaxonomyRef,
   DebatePhase,
   StageProvenance,
+  PromptComponentChars,
 } from './types.js';
 import type { DocumentAnalysis } from './types.js';
 import { POVER_INFO } from './types.js';
@@ -302,6 +303,20 @@ export async function runTurnPipeline(
   const pipelineStart = Date.now();
   const isOuterRetry = (input.repairHints?.length ?? 0) > 0;
 
+  // Per-component char counts for prompt growth forensics (t/221)
+  const hintsChars =
+    (input.concessionHint?.length ?? 0) +
+    (input.strategicHints?.reduce((sum, h) => sum + h.length, 0) ?? 0) +
+    (input.priorFlaggedHints?.reduce((sum, h) => sum + h.length, 0) ?? 0);
+  const promptComponentChars: PromptComponentChars = {
+    taxonomy_chars: input.taxonomyContext?.length ?? 0,
+    transcript_chars: input.recentTranscript?.length ?? 0,
+    hints_chars: hintsChars,
+    edge_chars: input.edgeContext?.length ?? 0,
+    commitment_chars: input.commitmentContext?.length ?? 0,
+    an_summary_chars: input.establishedPoints?.length ?? 0,
+  };
+
   // ── Stage 1: BRIEF ──
   let brief: BriefWorkProduct;
   let briefJson: string;
@@ -341,6 +356,7 @@ export async function runTurnPipeline(
       response_time_ms: elapsed, work_product: briefParsed.product as unknown as Record<string, unknown>,
       parse_error: briefParsed.error,
       retry_trigger: isOuterRetry ? 'orchestration-rerun' : 'initial',
+      prompt_component_chars: promptComponentChars,
     });
     if (briefParsed.error) {
       throw new ActionableError({
@@ -449,6 +465,7 @@ export async function runTurnPipeline(
         parse_error: planParsed.error,
         retry_trigger: isOuterRetry ? 'orchestration-rerun' : planAttempt > 0 ? 'stage-retry' : 'initial',
         repair_hints_in: planRepairHints.length > 0 ? planRepairHints : undefined,
+        prompt_component_chars: promptComponentChars,
       });
       if (planParsed.error) {
         throw new ActionableError({
@@ -721,6 +738,7 @@ export async function runTurnPipeline(
       parse_error: draftParsed.error,
       retry_trigger: draftAttempt === 0 && !isOuterRetry ? 'initial' : draftAttempt > 0 ? 'stage-retry' : 'orchestration-rerun',
       repair_hints_in: draftRepairHints.length > 0 ? [...draftRepairHints] : undefined,
+      prompt_component_chars: promptComponentChars,
     });
     draft = tagProvenance(draftParsed.product, {
       pipeline_run: isOuterRetry ? 1 : 0,
@@ -1105,6 +1123,7 @@ export async function runTurnPipeline(
         temperature: 0.1,
         response_time_ms: preCheckElapsed,
         work_product: preCheckResult as unknown as Record<string, unknown>,
+        prompt_component_chars: promptComponentChars,
       });
 
       const allPass = preCheckResult.grounded && preCheckResult.falsifiable && preCheckResult.engages;
@@ -1164,6 +1183,7 @@ export async function runTurnPipeline(
           model: input.model, temperature: temps.draft_temperature,
           response_time_ms: retryElapsed, work_product: retryDraftParsed.product as unknown as Record<string, unknown>,
           parse_error: retryDraftParsed.error,
+          prompt_component_chars: promptComponentChars,
         });
         if (!retryDraftParsed.error && retryDraftParsed.product?.statement) {
           draft = tagProvenance(retryDraftParsed.product, {
@@ -1224,6 +1244,7 @@ export async function runTurnPipeline(
       parse_error: citeParsed.error,
       retry_trigger: isOuterRetry ? 'orchestration-rerun' : citeAttempt > 0 ? 'stage-retry' : 'initial',
       repair_hints_in: citeRepairHints.length > 0 ? [...citeRepairHints] : undefined,
+      prompt_component_chars: promptComponentChars,
     });
 
     // Per-stage cite validation
@@ -1280,6 +1301,7 @@ export async function runTurnPipeline(
       model: input.model, temperature: temps.cite_temperature,
       response_time_ms: elapsed, work_product: retryParsed.product as unknown as Record<string, unknown>,
       parse_error: retryParsed.error,
+      prompt_component_chars: promptComponentChars,
     });
 
     if (!retryParsed.error && retryParsed.product?.taxonomy_refs) {
