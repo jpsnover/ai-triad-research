@@ -14,7 +14,7 @@ import {
   computeEmbeddings as onnxComputeEmbeddings,
   getExecutionProvider as onnxGetEP,
   dispose as onnxDispose,
-} from '../../../lib/embeddings/onnxEmbedding';
+} from '../../../lib/embeddings/onnxEmbedding.js';
 console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 console.log('[embeddings] Tavily import OK');
@@ -74,7 +74,7 @@ export function warmupEmbeddingModel(): void {
   console.log('[embeddings] Warming up embedding model (trying ONNX native first)...');
   const t0 = Date.now();
 
-  onnxTryWarmup().then(ready => {
+  onnxTryWarmup().then((ready: boolean) => {
     if (ready) {
       _onnxReady = true;
       const ep = onnxGetEP();
