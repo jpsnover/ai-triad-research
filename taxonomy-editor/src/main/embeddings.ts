@@ -8,6 +8,13 @@ import { loadApiKey } from './apiKeyStore';
 import { net } from 'electron';
 import { PROJECT_ROOT } from './fileIO';
 import { ActionableError } from '../../../lib/debate/errors';
+import {
+  tryWarmup as onnxTryWarmup,
+  computeEmbedding as onnxComputeEmbedding,
+  computeEmbeddings as onnxComputeEmbeddings,
+  getExecutionProvider as onnxGetEP,
+  dispose as onnxDispose,
+} from '../../../lib/embeddings/onnxEmbedding';
 console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
 console.log('[embeddings] Tavily import OK');
@@ -52,32 +59,47 @@ function findEmbedScript(): string {
 const EMBED_SCRIPT = findEmbedScript();
 const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
-// ---------- Warm-up: preload sentence_transformers model ----------
+// ---------- Warm-up: ONNX native → Python subprocess fallback ----------
 
 let _warmupDone = false;
+let _onnxReady = false;
 
 /**
- * Fire-and-forget: spawns a trivial encode so Python loads the model into memory.
- * Subsequent computeQueryViaLocalPython calls will start much faster because
- * the OS has the model files and libraries in its disk cache.
+ * Fire-and-forget: tries ONNX native runtime first (GPU/CPU, no Python needed).
+ * Falls back to Python sentence_transformers if ONNX init fails.
  */
 export function warmupEmbeddingModel(): void {
   if (_warmupDone) return;
   _warmupDone = true;
-  console.log('[embeddings] Warming up local embedding model...');
+  console.log('[embeddings] Warming up embedding model (trying ONNX native first)...');
   const t0 = Date.now();
-  execFile(
-    PYTHON,
-    [EMBED_SCRIPT, 'encode', 'warmup'],
-    { timeout: 120_000, maxBuffer: 1024 * 1024 },
-    (err, _stdout, _stderr) => {
-      if (err) {
-        console.warn('[embeddings] Warmup failed (non-fatal):', err.message);
-      } else {
-        console.log(`[embeddings] Warmup complete in ${Date.now() - t0}ms`);
-      }
-    },
-  );
+
+  onnxTryWarmup().then(ready => {
+    if (ready) {
+      _onnxReady = true;
+      const ep = onnxGetEP();
+      console.log(`[embeddings] ONNX warmup OK in ${Date.now() - t0}ms (EP=${ep})`);
+    } else {
+      console.log('[embeddings] ONNX unavailable, falling back to Python subprocess');
+      execFile(
+        PYTHON,
+        [EMBED_SCRIPT, 'encode', 'warmup'],
+        { timeout: 120_000, maxBuffer: 1024 * 1024 },
+        (err) => {
+          if (err) {
+            console.warn('[embeddings] Python warmup failed (non-fatal):', err.message);
+          } else {
+            console.log(`[embeddings] Python warmup complete in ${Date.now() - t0}ms`);
+          }
+        },
+      );
+    }
+  });
+}
+
+/** Dispose ONNX session on app shutdown. */
+export async function disposeEmbeddingModel(): Promise<void> {
+  if (_onnxReady) await onnxDispose();
 }
 
 // ---------- Local embeddings from embeddings.json ----------
@@ -146,11 +168,16 @@ export async function computeEmbeddings(
     }
   }
 
-  // If there are missing entries, fall back to Gemini API
+  // If there are missing entries, use ONNX → Gemini API fallback
   if (missingIndices.length > 0) {
-    console.log(`[embeddings] ${missingIndices.length} of ${texts.length} texts need API embedding`);
+    console.log(`[embeddings] ${missingIndices.length} of ${texts.length} texts need embedding`);
     const missingTexts = missingIndices.map(i => texts[i]);
-    const apiVectors = await computeEmbeddingsViaApi(missingTexts);
+    let apiVectors: number[][];
+    if (_onnxReady) {
+      apiVectors = await onnxComputeEmbeddings(missingTexts);
+    } else {
+      apiVectors = await computeEmbeddingsViaApi(missingTexts);
+    }
     for (let j = 0; j < missingIndices.length; j++) {
       results[missingIndices[j]] = apiVectors[j];
     }
@@ -163,13 +190,18 @@ export async function computeEmbeddings(
 
 /**
  * Compute a query embedding for a single text.
- * Uses the local Python sentence-transformers model (same model as embeddings.json).
- * Falls back to Gemini API if Python is unavailable.
+ * Priority: ONNX native → Python sentence-transformers → Gemini API.
  */
 export async function computeQueryEmbedding(text: string): Promise<number[]> {
+  if (_onnxReady) {
+    try {
+      return await onnxComputeEmbedding(text);
+    } catch (err) {
+      console.warn('[embeddings] ONNX embedding failed, trying Python fallback:', err);
+    }
+  }
   try {
-    const vector = await computeQueryViaLocalPython(text);
-    return vector;
+    return await computeQueryViaLocalPython(text);
   } catch (err) {
     console.warn('[embeddings] Local Python embedding failed, falling back to Gemini API:', err);
     return computeQueryViaApi(text);
@@ -197,27 +229,38 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
 
   console.log(`[embeddings] Updating ${nodes.length} node embeddings...`);
 
-  // Call Python batch-encode via stdin
-  const vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
-    const child = execFile(
-      PYTHON,
-      [EMBED_SCRIPT, 'batch-encode'],
-      { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
-      (err, stdout, stderr) => {
-        if (err) {
-          reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`));
-          return;
-        }
-        try {
-          resolve(JSON.parse(stdout) as Record<string, number[]>);
-        } catch (parseErr) {
-          reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
-        }
-      },
-    );
-    child.stdin!.write(inputJson);
-    child.stdin!.end();
-  });
+  // Try ONNX native batch, fall back to Python subprocess
+  let vectors: Record<string, number[]>;
+  if (_onnxReady) {
+    console.log(`[embeddings] Using ONNX native batch (EP=${onnxGetEP()})`);
+    const texts = items.map(n => n.text);
+    const vecs = await onnxComputeEmbeddings(texts);
+    vectors = {};
+    for (let i = 0; i < items.length; i++) {
+      vectors[items[i].id] = vecs[i];
+    }
+  } else {
+    vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
+      const child = execFile(
+        PYTHON,
+        [EMBED_SCRIPT, 'batch-encode'],
+        { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+        (err, stdout, stderr) => {
+          if (err) {
+            reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`));
+            return;
+          }
+          try {
+            resolve(JSON.parse(stdout) as Record<string, number[]>);
+          } catch (parseErr) {
+            reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
+          }
+        },
+      );
+      child.stdin!.write(inputJson);
+      child.stdin!.end();
+    });
+  }
 
   // Read existing embeddings.json (fresh, not from cache)
   let data: EmbeddingsFile;
