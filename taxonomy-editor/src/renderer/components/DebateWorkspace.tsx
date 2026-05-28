@@ -374,6 +374,13 @@ function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
   );
 }
 
+const POV_COLOR_VAR: Record<string, string> = {
+  accelerationist: 'var(--color-acc)',
+  safetyist: 'var(--color-saf)',
+  skeptic: 'var(--color-skp)',
+  situations: 'var(--color-sit)',
+};
+
 function LineageTermsView({ content }: { content: string }) {
   const names = useMemo(() => extractLineageNames(content), [content]);
   if (names.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No lineage references found</div>;
@@ -599,13 +606,6 @@ function ClaimsView({ entryId, debate }: { entryId?: string; debate: { argument_
 }
 
 // ── Phase 6: Taxonomy cross-navigation helpers ──────────
-
-const POV_COLOR_VAR: Record<string, string> = {
-  accelerationist: 'var(--color-acc)',
-  safetyist: 'var(--color-saf)',
-  skeptic: 'var(--color-skp)',
-  situations: 'var(--color-sit)',
-};
 
 /** Map node_id prefix to the taxonomy tab and CSS color */
 function nodeIdToTab(nodeId: string): { tab: TabId; colorVar: string } {

@@ -23,6 +23,9 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 let lineageData: Record<string, AttributeInfo> = {};
 let initialized = false;
 
+// Build canonical -> original key index lazily (rebuilt when data changes).
+let canonicalIndex: Map<string, string> | null = null;
+
 /**
  * Seed the lineage lookup module with data from the bridge API.
  * Safe to call multiple times — subsequent calls replace the data.
@@ -58,8 +61,6 @@ export function canonicalizeLineageKey(raw: string): string {
     .toLowerCase();
 }
 
-// Build canonical -> original key index lazily (rebuilt when data changes).
-let canonicalIndex: Map<string, string> | null = null;
 function getCanonicalIndex(): Map<string, string> {
   if (canonicalIndex) return canonicalIndex;
   const idx = new Map<string, string>();
