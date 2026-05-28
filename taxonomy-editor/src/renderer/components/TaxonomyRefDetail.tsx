@@ -16,6 +16,8 @@ export interface TaxRefNode {
   conflict_ids?: string[];
   debate_refs?: string[];
   interpretations?: { accelerationist?: unknown; safetyist?: unknown; skeptic?: unknown };
+  /** Mean pairwise cosine distance across POV interpretation embeddings (0-1). */
+  interpretation_divergence?: number;
   graph_attributes?: {
     epistemic_type?: string;
     rhetorical_strategy?: string;
@@ -177,7 +179,7 @@ export function TaxonomyRefDetail({ nodeId, node, pov, onClose, edges }: Props) 
           </div>
 
           <div style={{ paddingTop: 12, fontSize: '0.82rem', lineHeight: 1.55 }}>
-            {tab === 'content' && <ContentTab node={node} />}
+            {tab === 'content' && <ContentTab node={node} isSituation={isSituation} />}
             {tab === 'related' && <RelatedTab node={node} nodeId={nodeId} edges={edges} />}
             {tab === 'attributes' && <AttributesTab node={node} />}
             {tab === 'pov-acc' && <PovInterpretationTab interp={interps?.accelerationist} povLabel="Accelerationist" povColor="var(--color-acc, #f59e0b)" />}
@@ -205,8 +207,11 @@ const chipStyle: React.CSSProperties = {
   marginRight: 6, marginBottom: 4,
 };
 
-function ContentTab({ node }: { node: TaxRefNode }) {
+function ContentTab({ node, isSituation }: { node: TaxRefNode; isSituation?: boolean }) {
   const ga = node.graph_attributes;
+  const div = isSituation ? node.interpretation_divergence : undefined;
+  const divColor = div != null ? (div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444') : undefined;
+  const divLabel = div != null ? (div > 0.40 ? 'high' : div >= 0.20 ? 'moderate' : 'low') : undefined;
   return (
     <>
       {node.description && (
@@ -216,6 +221,35 @@ function ContentTab({ node }: { node: TaxRefNode }) {
             padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6,
             background: 'var(--bg-secondary)', whiteSpace: 'pre-wrap', fontSize: '0.82rem',
           }}>{node.description}</div>
+        </div>
+      )}
+
+      {div != null && (
+        <div>
+          <div style={sectionHeader}>Interpretation Divergence</div>
+          <div style={{
+            padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 6,
+            background: 'var(--bg-secondary)', fontSize: '0.82rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ fontWeight: 600, fontSize: '1.1rem', color: divColor }}>{div.toFixed(2)}</span>
+              <span style={{
+                fontSize: '0.68rem', fontWeight: 600, color: divColor,
+                padding: '2px 8px', borderRadius: 10,
+                background: `${divColor}18`,
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+              }}>{divLabel}</span>
+              <div style={{ flex: 1, height: 8, background: 'var(--bg-tertiary, var(--border))', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.round(div * 100)}%`, height: '100%', background: divColor, borderRadius: 4 }} />
+              </div>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+              Mean pairwise cosine distance across the three POV interpretation embeddings.
+              {div > 0.40 ? ' High divergence indicates strong disagreement between perspectives.'
+                : div >= 0.20 ? ' Moderate divergence — perspectives partially overlap.'
+                : ' Low divergence suggests near-consensus across perspectives.'}
+            </div>
+          </div>
         </div>
       )}
 

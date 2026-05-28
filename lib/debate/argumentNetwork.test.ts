@@ -531,6 +531,64 @@ describe('vocabulary_tags on AN nodes', () => {
   });
 });
 
+describe('political salience QBAF boost (t/247)', () => {
+  const baseInput = {
+    statement: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare',
+    speaker: 'safetyist',
+    entryId: 'entry-1',
+    taxonomyRefIds: [],
+    turnNumber: 1,
+    existingNodes: [],
+    existingEdgeCount: 0,
+    startNodeId: 1,
+  };
+  const baseOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
+
+  it('applies +0.10 boost for high political_salience in policymaker debates', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'high', base_strength: 0.5 }],
+      audience: 'policymakers',
+    }, baseOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    expect(result.newNodes[0].political_salience).toBe('high');
+    expect(result.newNodes[0].base_strength).toBeCloseTo(0.6);
+  });
+
+  it('does not boost medium or low salience', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'medium', base_strength: 0.5 }],
+      audience: 'policymakers',
+    }, baseOptions);
+
+    expect(result.newNodes[0].political_salience).toBe('medium');
+    expect(result.newNodes[0].base_strength).toBeCloseTo(0.5);
+  });
+
+  it('does not apply salience in non-policymaker debates', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'high', base_strength: 0.5 }],
+      audience: 'technical_researchers',
+    }, baseOptions);
+
+    expect(result.newNodes[0].political_salience).toBeUndefined();
+    expect(result.newNodes[0].base_strength).toBeCloseTo(0.5);
+  });
+
+  it('caps boosted base_strength at 1.0', () => {
+    const result = processExtractedClaims({
+      ...baseInput,
+      claims: [{ text: 'The EU AI Act Section 6 mandates conformity assessments for high-risk systems deployed in healthcare', political_salience: 'high', base_strength: 0.95 }],
+      audience: 'policymakers',
+    }, baseOptions);
+
+    expect(result.newNodes[0].base_strength).toBe(1.0);
+  });
+});
+
 describe('situation grounding (t/243)', () => {
   const baseInput = {
     statement: 'AI governance should prioritize safety mechanisms to address autonomous weapons deployment risks',

@@ -22,6 +22,20 @@ import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 import { api } from '@bridge';
 
+type SitSortMode = 'label' | 'id' | 'divergence';
+
+function sortSituationNodes(nodes: SituationNode[], mode: SitSortMode): SituationNode[] {
+  if (mode === 'id') return [...nodes].sort((a, b) => a.id.localeCompare(b.id));
+  if (mode === 'divergence') {
+    return [...nodes].sort((a, b) => {
+      const da = a.interpretation_divergence ?? -1;
+      const db = b.interpretation_divergence ?? -1;
+      return db - da; // highest first; nodes without score sort to end
+    });
+  }
+  return [...nodes].sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+}
+
 export function SituationsTab() {
   const {
     situations, selectedNodeId, setSelectedNodeId, createSituationNode,
@@ -32,6 +46,7 @@ export function SituationsTab() {
   } = useTaxonomyStore();
   const [listCollapsed, setListCollapsed] = useState(false);
   const [detailCollapsed, setDetailCollapsed] = useState(false);
+  const [sitSortMode, setSitSortMode] = useState<SitSortMode>('label');
   const [hierarchyView, setHierarchyView] = useState<boolean>(() => {
     try {
       const v = localStorage.getItem('taxonomy-editor-sit-hierarchy');
@@ -146,21 +161,25 @@ export function SituationsTab() {
         cMap.set(n.parent_id, list);
       }
     }
-    const r = allNodes.filter(n => !n.parent_id && cMap.has(n.id))
-      .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
-    const s = allNodes.filter(n => !n.parent_id && !cMap.has(n.id))
-      .sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+    const r = sortSituationNodes(allNodes.filter(n => !n.parent_id && cMap.has(n.id)), sitSortMode);
+    const s = sortSituationNodes(allNodes.filter(n => !n.parent_id && !cMap.has(n.id)), sitSortMode);
     // Sort children within each group
     for (const [key, children] of cMap) {
-      cMap.set(key, children.sort((a, b) => (a.label || '').localeCompare(b.label || '')));
+      cMap.set(key, sortSituationNodes(children, sitSortMode));
     }
     return { roots: r, childMap: cMap, standalones: s };
-  }, [situations]);
+  }, [situations, sitSortMode]);
+
+  // Sorted flat list for flat view
+  const sortedFlatNodes = useMemo(() => {
+    if (!situations) return [];
+    return sortSituationNodes([...situations.nodes], sitSortMode);
+  }, [situations, sitSortMode]);
 
   // Ordered IDs for keyboard nav — hierarchy-aware when in tree view
   const orderedIds = useMemo(() => {
     if (!situations) return [];
-    if (!hierarchyView) return situations.nodes.map(n => n.id);
+    if (!hierarchyView) return sortedFlatNodes.map(n => n.id);
     const ids: string[] = [];
     for (const root of roots) {
       ids.push(root.id);
@@ -359,6 +378,16 @@ export function SituationsTab() {
           <div className="list-panel-header">
             <h2>Situations</h2>
             <div className="list-panel-header-actions">
+              <select
+                className="sort-select"
+                value={sitSortMode}
+                onChange={(e) => setSitSortMode(e.target.value as SitSortMode)}
+                title="Sort situations"
+              >
+                <option value="label">Sort: Name</option>
+                <option value="id">Sort: ID</option>
+                <option value="divergence">Sort: Divergence</option>
+              </select>
               <button
                 className={`btn btn-sm${hierarchyView ? '' : ' btn-ghost'}`}
                 onClick={toggleHierarchy}
@@ -400,6 +429,7 @@ export function SituationsTab() {
                           onSelect={setSelectedNodeId}
                           indent
                           relationship={child.parent_relationship}
+                          divergence={sitSortMode === 'divergence' ? child.interpretation_divergence : undefined}
                         />
                       ))}
                     </div>
@@ -415,17 +445,19 @@ export function SituationsTab() {
                     label={node.label}
                     isSelected={selectedNodeId === node.id}
                     onSelect={setSelectedNodeId}
+                    divergence={sitSortMode === 'divergence' ? node.interpretation_divergence : undefined}
                   />
                 ))}
               </>
             ) : (
-              situations.nodes.map((node) => (
+              sortedFlatNodes.map((node) => (
                 <ListItem
                   key={node.id}
                   id={node.id}
                   label={node.label}
                   isSelected={selectedNodeId === node.id}
                   onSelect={setSelectedNodeId}
+                  divergence={sitSortMode === 'divergence' ? node.interpretation_divergence : undefined}
                 />
               ))
             )}
@@ -508,13 +540,14 @@ const REL_LABELS: Record<string, string> = {
   specializes: 'specializes',
 };
 
-function ListItem({ id, label, isSelected, onSelect, indent, relationship }: {
+function ListItem({ id, label, isSelected, onSelect, indent, relationship, divergence }: {
   id: string;
   label: string;
   isSelected: boolean;
   onSelect: (id: string) => void;
   indent?: boolean;
   relationship?: string | null;
+  divergence?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -534,6 +567,14 @@ function ListItem({ id, label, isSelected, onSelect, indent, relationship }: {
       <div className="node-item-id">
         {id}
         {relationship && <span className="node-item-rel">{REL_LABELS[relationship] || relationship}</span>}
+        {divergence != null && (
+          <span
+            className={`node-item-divergence${divergence > 0.4 ? ' high' : divergence >= 0.2 ? ' medium' : ' low'}`}
+            title={`Interpretation divergence: ${divergence.toFixed(3)}`}
+          >
+            {divergence.toFixed(2)}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -113,6 +113,7 @@ import {
   selectRelevantNodes,
   selectRelevantSituationNodes,
   buildRelevanceQuery,
+  computePolicymakerRelevanceBoost,
   type RelevanceOptions,
   type ANClaimEmbedding,
   reScoreSituationsForCruxes,
@@ -874,6 +875,25 @@ export class DebateEngine {
   private recordDiagnostic(entryId: string, data: Partial<EntryDiagnostics>): void {
     const diag = this.session.diagnostics!;
     diag.entries[entryId] = { ...diag.entries[entryId], ...data };
+
+    // Aggregate per-stage token counts into entry-level totals
+    const stages = data.stage_diagnostics;
+    if (stages && stages.length > 0) {
+      let entryInput = 0;
+      let entryOutput = 0;
+      let hasTokens = false;
+      for (const s of stages) {
+        if (s.input_tokens != null) { entryInput += s.input_tokens; hasTokens = true; }
+        if (s.output_tokens != null) { entryOutput += s.output_tokens; hasTokens = true; }
+      }
+      if (hasTokens) {
+        diag.entries[entryId].input_tokens = entryInput;
+        diag.entries[entryId].output_tokens = entryOutput;
+        // Accumulate into overview totals
+        diag.overview.total_input_tokens = (diag.overview.total_input_tokens ?? 0) + entryInput;
+        diag.overview.total_output_tokens = (diag.overview.total_output_tokens ?? 0) + entryOutput;
+      }
+    }
   }
 
   /** Update situation citation tracking (t/192). Recomputes from full transcript each turn. */
@@ -1293,7 +1313,21 @@ export class DebateEngine {
     }
 
     const scoredPov = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
-    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, scores, { ...relevanceOpts, maxTotal: undefined }, 3, 15);
+
+    // Apply policymaker situation relevance boost before selection
+    const sitScores = new Map(scores);
+    const policyBoostedSitIds: string[] = [];
+    if (this.session.audience === 'policymakers') {
+      for (const sit of ctx.situationNodes) {
+        const boost = computePolicymakerRelevanceBoost(sit, this.session.audience);
+        if (boost > 0) {
+          sitScores.set(sit.id, (sitScores.get(sit.id) ?? 0) + boost);
+          policyBoostedSitIds.push(sit.id);
+        }
+      }
+    }
+
+    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, sitScores, { ...relevanceOpts, maxTotal: undefined }, 3, 15);
     const filteredCtx = {
       povNodes: scoredPov.map(s => s.node),
       situationNodes: filteredSit.map(s => s.node),
@@ -1316,6 +1350,14 @@ export class DebateEngine {
         promoted: lbResult.promotedCount,
         boostedNodeIds: lbResult.boostedNodeIds.slice(0, 20),
         promotedNodeIds: lbResult.promotedNodeIds.slice(0, 20),
+      };
+    }
+
+    // Log policymaker situation boost diagnostics
+    if (policyBoostedSitIds.length > 0) {
+      (this._lastInjectionManifest as Record<string, unknown>).policymaker_situation_boost = {
+        boosted: policyBoostedSitIds.length,
+        situations: policyBoostedSitIds.slice(0, 20),
       };
     }
     this._lastRelevanceScores = scores;
@@ -1506,7 +1548,7 @@ export class DebateEngine {
       if (lineageFrame.length > 0) {
         structuralContext += '\n' + formatLineageContext(lineageFrame);
       }
-      const prompt = critiqueTopicPrompt(this.session.topic.final, structuralContext);
+      const prompt = critiqueTopicPrompt(this.session.topic.final, structuralContext, this.session.audience);
       const text = await this.generate(prompt, 'Topic critique');
       const critique = parseTopicCritique(text, structuralScore);
 
@@ -4224,9 +4266,9 @@ Return ONLY JSON (no markdown, no code fences):
 
     let prompt: string;
     if (debaterClaims && debaterClaims.length > 0) {
-      prompt = classifyClaimsPrompt(statement, POVER_INFO[speaker].label, debaterClaims, priorClaims);
+      prompt = classifyClaimsPrompt(statement, POVER_INFO[speaker].label, debaterClaims, priorClaims, this.session.audience);
     } else {
-      prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims);
+      prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims, this.session.audience);
     }
 
     const anNodeCountBefore = an.nodes.length;
@@ -4315,6 +4357,7 @@ Return ONLY JSON (no markdown, no code fences):
         taxonomyEdges: this.taxonomy.edges?.edges,
         knownNodeIds: this.getKnownNodeIds(),
         activatedSituations: this._activatedSituations.length > 0 ? this._activatedSituations : undefined,
+        audience: this.session.audience,
       },
       {
         groundingOverlapThreshold: overlapThreshold,

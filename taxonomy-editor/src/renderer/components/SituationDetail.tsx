@@ -217,6 +217,30 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
               {err('description') && <div className="error-text">{err('description')}</div>}
             </div>
 
+            {node.interpretation_divergence != null && (() => {
+              const div = node.interpretation_divergence;
+              const color = div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444';
+              const label = div > 0.40 ? 'High divergence' : div >= 0.20 ? 'Moderate divergence' : 'Low divergence';
+              return (
+                <div className="form-group">
+                  <label>Interpretation Divergence</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+                    <span style={{ fontWeight: 600, fontSize: '1.05rem', fontFamily: 'monospace', color }}>{div.toFixed(2)}</span>
+                    <div style={{ flex: 1, height: 8, background: 'var(--bg-tertiary, var(--border))', borderRadius: 4, overflow: 'hidden', maxWidth: 160 }}>
+                      <div style={{ width: `${Math.round(div * 100)}%`, height: '100%', background: color, borderRadius: 4 }} />
+                    </div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                    Mean pairwise cosine distance across the three POV interpretation embeddings.
+                    {div > 0.40 ? ' Perspectives disagree strongly on this situation.'
+                      : div >= 0.20 ? ' Perspectives partially overlap on this situation.'
+                      : ' Perspectives are near-consensus on this situation.'}
+                  </div>
+                </div>
+              );
+            })()}
+
             {node.graph_attributes?.steelman_vulnerability && (
               <div className="form-group">
                 <label>Steelman Vulnerability</label>
@@ -304,13 +328,13 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
                 <FieldHelp text="POV-specific nodes that relate to this situation." />
               </label>
               <div className="chip-list">
-                {node.linked_nodes.map((id) => (
+                {(node.linked_nodes ?? []).map((id) => (
                   <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
                 ))}
               </div>
               {!readOnly && (
                 <TypeaheadSelect
-                  options={allPovIds.filter(id => !node.linked_nodes.includes(id))}
+                  options={allPovIds.filter(id => !(node.linked_nodes ?? []).includes(id))}
                   onSelect={addLinked}
                   placeholder="Search linked nodes..."
                 />

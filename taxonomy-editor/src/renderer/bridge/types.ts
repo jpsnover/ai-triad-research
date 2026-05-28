@@ -110,6 +110,12 @@ export interface AppAPI {
     facts: unknown[]; keyPoints: unknown[]; formattedBlock: string;
     nodesCovered: string[]; totalCandidates: number;
   }>;
+  runEvidenceQbaf: (claimText: string, claimId: string, model?: string) => Promise<{
+    computed_strength: number;
+    qbaf_iterations: number;
+    evidence_items: Array<{ id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }>;
+    claim_id: string;
+  } | null>;
 
   // --- Debate sessions ---
   listDebateSessions: () => Promise<unknown[]>;

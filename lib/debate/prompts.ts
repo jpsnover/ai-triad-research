@@ -88,6 +88,22 @@ function getModeratorBias(audience?: DebateAudience): string {
   return AUDIENCE_DIRECTIVES[audience ?? 'policymakers'].moderatorBias;
 }
 
+/** Policymaker-specific framing block injected after readingLevel/detailInstruction. */
+function getPolicymakerFraming(audience?: DebateAudience): string {
+  if (audience !== 'policymakers') return '';
+  return `
+POLICYMAKER AUDIENCE FRAMING:
+Your audience consists of senior policymakers. They think in terms of outcomes, power, and incentives — not theory or mechanics. For every argument you make:
+- Name WHO benefits and WHO bears the cost
+- Identify the ENFORCEMENT MECHANISM (who enforces, with what authority)
+- State the POLITICAL FEASIBILITY (what coalition supports this, what coalition opposes it)
+- Provide a HISTORICAL PRECEDENT the audience will recognize (existing legislation, past regulatory action, analogous industry)
+- If your argument requires technical understanding, translate the technical fact into a POLITICAL CONSEQUENCE in the same sentence
+
+Do not assume your audience will follow a chain of reasoning from technical premise to policy conclusion. State the conclusion first, then justify it.
+`;
+}
+
 // ── Context recall helpers (Lost-in-the-Middle mitigation) ───────────
 // LLMs attend most to context at the beginning and end, least to the middle.
 // These helpers build a brief recap of high-priority context near the end of
@@ -1527,7 +1543,7 @@ Your personality: ${input.personality}.
 ${otherDebaters(input.label)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
-
+${getPolicymakerFraming(input.audience)}
 OUTPUT: Respond ONLY with a JSON object (no markdown, no code fences, no preamble). Schema below.
 
 ${MUST_CORE_BEHAVIORS}
@@ -1921,7 +1937,7 @@ Your personality: ${input.personality}.
 ${otherDebaters(input.label)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
-
+${getPolicymakerFraming(input.audience)}
 ${MUST_CORE_BEHAVIORS}
 
 ${MUST_EXTENDED}
@@ -1987,6 +2003,7 @@ export function _buildInterventionResponseField(pi?: StagePromptInput['pendingIn
     'META-REFLECT': ',\n  "reflection": {"reasoning_pattern": "the pattern you identified in your own reasoning", "assessment": "whether this pattern strengthens or weakens your argument", "adjustment": "how you will adjust going forward"}',
     COMPRESS:       ',\n  "compressed_thesis": "your core position in 1-2 sentences — no hedging, no qualifiers, just the claim"',
     COMMIT:         ',\n  "commitment": {"position": "the specific position you are committing to", "conditions": "under what conditions this commitment holds", "falsifiable": "what evidence would make you abandon this position"}',
+    POLICY_CHALLENGE: ',\n  "policy_challenge_response": {"mechanism": "the specific enforcement/regulatory mechanism you propose", "actor": "who would implement and enforce it", "feasibility": "assessment of political feasibility — what coalition supports this", "obstacle": "primary implementation obstacle"}',
   };
   return RESPONSE_FIELDS[pi.move] ?? '';
 }
@@ -2325,7 +2342,11 @@ Tasks:
    b. "logical_validity" — which position has fewer logical gaps or fallacies?
    c. "source_authority" — which position draws on more authoritative sources?
    d. "specificity" — which position is more concrete and testable?
-   e. "scope" — which position accounts for more relevant considerations?
+   e. "scope" — which position accounts for more relevant considerations?${audience === 'policymakers' ? `
+   f. "political_feasibility" — which position is more likely to survive a legislative process and achieve enforcement?
+   g. "implementation_specificity" — which position names concrete enforcement mechanisms, timelines, and responsible institutions?
+
+   Weight criteria f and g equally with the existing five when evaluating for a policymaker audience. A technically superior position that cannot be implemented is less valuable to this audience than a feasible one.` : ''}
    If genuinely undecidable, say so and explain what evidence would tip the balance.
 2. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails.${policyContext}
 
@@ -3495,12 +3516,12 @@ function getMoveSpecificInstructions(move: InterventionMove, target: string, sou
 
 const NEWS_REPORT_AUDIENCE_DELTAS: Record<DebateAudience, string> = {
   policymakers: `TARGET AUDIENCE: Lawmakers, regulators, national security briefers.
-PERSONA: Senior strategic intelligence briefer. Ruthlessly objective, high-density, authoritative.
-MANDATE: Governance, regulatory friction, risk mitigation. Map arguments as competing frameworks for statecraft.
+PERSONA: Senior policy journalist who briefs lawmakers. Direct, concrete, and plainspoken. Avoids insider jargon — a senator should understand every sentence without a glossary. Dense with substance, not with vocabulary.
+MANDATE: Governance, regulatory friction, risk mitigation. Map arguments as competing policy choices with real-world trade-offs.
 SECTION MODIFICATIONS:
-- THE FRAMING: Lead with legislative or geopolitical vulnerabilities — what regulatory gap or governance failure is exposed?
-- THE COLLISION: Frame the three perspectives as competing regulatory philosophies and economic trade-offs.
-- THE OUTCOME: Title this section "## Policy Lever Assessment". Identify 2-3 concrete regulatory levers with implementation hurdles for each.
+- THE FRAMING: Lead with legislative or geopolitical vulnerabilities — what regulatory gap or governance failure is exposed? Include a DECISION CONTEXT paragraph that names the specific pending legislative, regulatory, or executive action this debate informs. If none exists, name the most analogous recent action.
+- THE COLLISION: Frame the three perspectives as competing regulatory philosophies and economic trade-offs. For each position, state explicitly: who benefits, who bears the cost, and which existing institution would enforce it.
+- THE OUTCOME: Title this section "## Policy Lever Assessment". Identify 2-3 concrete regulatory levers with implementation hurdles for each. Every recommended policy lever must name: the specific actor who would pull it, the legal authority they would invoke, and the constituency that would support or oppose it.
 - CONCLUSION: Title this section "## Strategic Horizon". End with the trigger event that would force a policy decision.`,
 
   academic_community: `TARGET AUDIENCE: Researchers, think-tank directors, peer-review essayists.
@@ -3559,7 +3580,7 @@ export function newsReportPrompt(
 
   const audienceDelta = NEWS_REPORT_AUDIENCE_DELTAS[audience ?? 'general_public'];
 
-  return `You are a senior analyst and master synthesizer. Your task is to transform a structured three-perspective debate into a definitive, high-signal overview article.
+  return `You are a senior journalist who covers technology policy for a serious newspaper. You explain complex disagreements clearly and make readers care about the stakes. You never hide behind jargon. Your task is to transform a structured three-perspective debate into a clear, compelling overview article.
 
 === DEBATE TOPIC ===
 "${topic}"
@@ -3577,10 +3598,11 @@ ${policyBlock}
 
 ### CORE STRUCTURAL BLUEPRINT
 Regardless of the target audience, the final output must flow through these four conceptual movements:
-1. THE FRAMING: Define the current tension, the immediate stakes, and the baseline facts.
-2. THE COLLISION: Interleave the three core perspectives ("Accelerationist advocates", "Safety researchers", and "AI skeptics"). Show how they respond to, provoke, or ignore one another. Integrate 2-4 precise direct quotes from the transcript.
+1. THE FRAMING: Open with what real people stand to gain or lose — not abstract "tensions" but concrete human consequences. State the competing interests in plain language that a non-specialist would recognize. No one cares about "competing philosophies of statecraft." Everyone cares about "Who's responsible when an AI system hurts someone?"
+2. THE COLLISION: Organize around the DISAGREEMENTS, not the speakers. Each sub-section should be a contested question, with perspectives woven in as they address it. Do NOT structure as "The Safetyist says... The Accelerationist says... The Skeptic says..." — that is a book report. Instead: "The question of X splits the field: [weave perspectives into the argument]." Use POV labels as casual shorthand, not as section headings. Integrate 2-4 direct quotes from the transcript.
 3. THE CRUX: Diagnose the underlying nature of the gridlock (e.g., factual, values-based, or definitional) and state what real-world event or data would break the stalemate.
-4. THE OUTCOME: Detail the downstream implications of this debate's resolution.
+4. THE OUTCOME: State concrete next steps, who would take them, and what would tell you if they worked. If a conclusion is genuinely unresolved, say so directly — do not fill the gap with vague synthesis phrases like "dynamic framework" or "holistic approach." Name the specific trigger event that would force action. End with a question the reader can carry away, not a false resolution.
+5. EXTERNAL ANCHORS (optional): Where a well-known public figure, institution, or recent policy action has taken a position relevant to a debate claim, mention it briefly to anchor the analysis in the reader's existing awareness. Do not fabricate references — only cite entities and positions you are confident are accurate.
 
 ---
 
@@ -3590,8 +3612,10 @@ ${audienceDelta}
 ---
 
 ### OUTPUT SPECIFICATIONS
-* Target 700-900 words of dense, insightful prose.
+* Target 700-900 words of dense, clear prose.
 * Deliver as clean, scannable Markdown. Use "## " headers for the major conceptual movements.
+* Every paragraph must contain at least one specific claim, name, number, or mechanism. Delete paragraphs that contain only framing, transition, or summary language.
+* The opening sentence must make a non-specialist want to read the second sentence. Do not open with "We are currently witnessing" or "This report examines" or any other throat-clearing.
 * No robotic meta-commentary, no placeholders, no markdown code blocks enclosing the final output. Begin directly with the headline.`;
 }
 

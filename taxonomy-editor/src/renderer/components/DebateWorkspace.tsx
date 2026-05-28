@@ -32,7 +32,7 @@ import { getLineageInfo } from '../data/lineageLookup';
 import { CommentCreationPopover } from './CommentCreationPopover';
 import type { CommentPopoverState } from './CommentCreationPopover';
 import { CommentSidebar } from './CommentSidebar';
-import { CommentHighlightedText, useEntryCommentCount } from './CommentHighlights';
+import { CommentHighlightedText, useEntryCommentCount, useHasCommentHighlights } from './CommentHighlights';
 import { useCommentStore, COMMENT_TYPE_META } from '../hooks/useCommentStore';
 import type { Comment, DetailTier } from '@lib/debate/comments';
 import { UsernamePromptDialog } from './UsernamePromptDialog';
@@ -310,7 +310,7 @@ function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, lineHeight: 1, marginTop: 2, flexShrink: 0 }}
           >{expanded ? '\u25BC' : '\u25B6'}</button>
         ) : <span style={{ width: 10, flexShrink: 0 }} />}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: node.political_salience ? '84px 110px 72px 180px 200px 60px 80px' : '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
           {/* Col 1: AN ID */}
           <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
           {/* Col 2: Speaker */}
@@ -338,6 +338,15 @@ function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
           <span style={{ color: 'var(--text-muted)' }}>
             {hasEdges ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
           </span>
+          {/* Col 7: Political salience (policymaker debates only) */}
+          {node.political_salience && (
+            <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '1px 6px', borderRadius: 3 }}>
+              <span style={{ marginRight: 3 }}>
+                {node.political_salience === 'high' ? '🔴' : node.political_salience === 'medium' ? '🟡' : '⚪'}
+              </span>
+              {node.political_salience}
+            </span>
+          )}
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}>{node.text}</div>
@@ -559,11 +568,27 @@ function ClaimsView({ entryId, debate }: { entryId?: string; debate: { argument_
   const caCount = an.edges.filter(e => entryNodes.some(n => n.id === e.target) && e.type === 'attacks').length;
   const raCount = an.edges.filter(e => entryNodes.some(n => n.id === e.target) && e.type === 'supports').length;
 
+  // Political salience histogram (policymaker debates only)
+  const salienceCounts = (() => {
+    const high = entryNodes.filter(n => n.political_salience === 'high').length;
+    const medium = entryNodes.filter(n => n.political_salience === 'medium').length;
+    const low = entryNodes.filter(n => n.political_salience === 'low').length;
+    return (high + medium + low > 0) ? { high, medium, low } : null;
+  })();
+
   return (
     <div className="claims-view" style={{ fontSize: '0.8rem' }}>
       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>
         {entryNodes.length} claim{entryNodes.length !== 1 ? 's' : ''} · {caCount} attack{caCount !== 1 ? 's' : ''} · {raCount} support{raCount !== 1 ? 's' : ''}
       </div>
+      {salienceCounts && (
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={{ fontWeight: 600 }}>Salience:</span>
+          <span>🔴 {salienceCounts.high} high</span>
+          <span>🟡 {salienceCounts.medium} med</span>
+          <span>⚪ {salienceCounts.low} low</span>
+        </div>
+      )}
       {entryNodes.map(node => {
         const attacks = an.edges.filter(e => e.target === node.id && e.type === 'attacks');
         const supports = an.edges.filter(e => e.target === node.id && e.type === 'supports');
@@ -1345,6 +1370,8 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
   // Moderator interventions and system steps always show full content
   const activeTier = isSubstantive ? (entry.display_tier ?? defaultTier) : 'detailed';
   const showTierPills = isSubstantive;
+  // When comment highlights are active, hide the markdown to avoid text duplication
+  const hasHighlights = useHasCommentHighlights(entry.id, activeTier as DetailTier);
   let displayContent: string;
   let isTruncated = false;
   if (hasSummaries && activeTier === 'brief') {
@@ -1519,18 +1546,20 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         />
       ) : (
         <>
-          <div className="debate-statement-content markdown-body">
-            {findQuery
-              ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-              : <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
-            {isTruncated && (
-              <span
-                className="debate-tier-truncated"
-                onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, 'detailed'); }}
-                title="Click to show full content"
-              >... show full</span>
-            )}
-          </div>
+          {!hasHighlights && (
+            <div className="debate-statement-content markdown-body">
+              {findQuery
+                ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
+                : <Markdown remarkPlugins={[remarkGfm]} components={mdComponents}>{fixMarkdownLinks(displayContent)}</Markdown>}
+              {isTruncated && (
+                <span
+                  className="debate-tier-truncated"
+                  onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, 'detailed'); }}
+                  title="Click to show full content"
+                >... show full</span>
+              )}
+            </div>
+          )}
           <CommentHighlightedText text={displayContent} entryId={entry.id} activeTier={activeTier as DetailTier} />
         </>
       )}
@@ -2084,6 +2113,9 @@ const DIMENSION_LABELS: Record<string, string> = {
   stakeholder: 'Stakeholders',
   tension: 'Tension',
   scope: 'Scope',
+  actor_specificity: 'Actors',
+  decision_proximity: 'Decision Prox.',
+  constituency_impact: 'Constituency',
 };
 
 const DIMENSION_TOOLTIPS: Record<string, string> = {
@@ -2097,6 +2129,9 @@ const DIMENSION_TOOLTIPS: Record<string, string> = {
   stakeholder: 'Stakeholder breadth — does the topic name multiple actors with distinct roles and distributed responsibility?\n\nGood: "How should developers, regulators, and civil society actors share responsibility for AI safety?" vs. bad: "Should tech companies self-regulate?"',
   tension: 'Tension acknowledgment — does the topic explicitly name a trade-off or invite meta-level disagreement?\n\nGood: "How should policymakers navigate the tension between AI innovation speed and precautionary safety requirements?" surfaces a genuine dilemma.',
   scope: 'Scope boundedness — does the topic specify concrete artifacts, timeframes, or domains rather than remaining open-ended?\n\nGood: "Should the EU AI Act\'s risk classification framework be adopted as a global standard by 2030?" vs. bad: "What should AI policy look like?"',
+  actor_specificity: 'Actor specificity (policymaker) — does the topic name specific actors, agencies, or institutions rather than abstract entities?\n\n0 = abstract ("stakeholders"), 1 = general types ("regulators"), 2 = named actors ("the FTC")',
+  decision_proximity: 'Decision proximity (policymaker) — how close is the topic to a pending policy decision or action?\n\n0 = theoretical, 1 = general governance, 2 = pending action (named bill, rulemaking)',
+  constituency_impact: 'Constituency impact (policymaker) — does the topic identify specific affected groups?\n\n0 = no groups named, 1 = general population, 2 = specific constituencies',
 };
 
 const RATING_COLORS: Record<string, string> = {
@@ -2244,6 +2279,26 @@ function CritiqueColumn({ critique, label, topicText, accentColor, action }: {
           </div>
           {(['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const).map(key => {
             const val = critique.frame_score![key] as number;
+            return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.78rem' }} title={DIMENSION_TOOLTIPS[key]}>
+                <span style={{ width: 90, color: 'var(--text-secondary)', cursor: 'help', borderBottom: '1px dotted var(--text-muted, #999)' }}>{DIMENSION_LABELS[key]}</span>
+                <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
+                <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* Policymaker political operationality sub-scores (t/251) */}
+      {critique.frame_score?.actor_specificity != null && (
+        <>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: '#ef4444' }}>
+            Political Operationality ({((critique.frame_score.actor_specificity ?? 0) + (critique.frame_score.decision_proximity ?? 0) + (critique.frame_score.constituency_impact ?? 0))}/6)
+          </div>
+          {(['actor_specificity', 'decision_proximity', 'constituency_impact'] as const).map(key => {
+            const val = critique.frame_score![key] as number | undefined;
+            if (val == null) return null;
             return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.78rem' }} title={DIMENSION_TOOLTIPS[key]}>
                 <span style={{ width: 90, color: 'var(--text-secondary)', cursor: 'help', borderBottom: '1px dotted var(--text-muted, #999)' }}>{DIMENSION_LABELS[key]}</span>
@@ -3323,6 +3378,29 @@ function TopicScoreComparison() {
                     <td style={{ textAlign: 'center', padding: '2px 8px' }}>{neu.frame_score.total}/10</td>
                     <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(old.frame_score.total, neu.frame_score.total)}</td>
                   </tr>
+                  {/* Policymaker political operationality sub-scores (t/251) */}
+                  {old.frame_score.actor_specificity != null && neu.frame_score.actor_specificity != null && (
+                    <>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td colSpan={4} style={{ padding: '8px 8px 2px', fontWeight: 700, fontSize: '0.7rem', color: '#ef4444' }}>
+                          Political Operationality
+                        </td>
+                      </tr>
+                      {(['actor_specificity', 'decision_proximity', 'constituency_impact'] as const).map(key => {
+                        const ov = old.frame_score![key] as number | undefined;
+                        const nv = neu.frame_score![key] as number | undefined;
+                        if (ov == null || nv == null) return null;
+                        return (
+                          <tr key={key}>
+                            <td style={{ padding: '2px 8px', color: 'var(--text-secondary)' }}>{DIMENSION_LABELS[key]}</td>
+                            <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(ov, 2)}</td>
+                            <td style={{ textAlign: 'center', padding: '2px 8px' }}>{scoreCell(nv, 2)}</td>
+                            <td style={{ textAlign: 'center', padding: '2px 8px' }}>{deltaCell(ov, nv)}</td>
+                          </tr>
+                        );
+                      })}
+                    </>
+                  )}
                 </>
               )}
 
@@ -3641,13 +3719,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
             Details
           </button>
         )}
-        <button
-          className={`btn btn-sm${debateChatOpen ? ' active' : ''}`}
-          onClick={() => setDebateChatOpen(v => !v)}
-          title={debateChatOpen ? 'Hide Debate Chat' : 'Open Debate Chat — ask questions about the debate'}
-        >
-          Debate Chat
-        </button>
+{/* Debate Chat button moved to FAB at bottom-right */}
         <button
           className={`btn btn-sm${commentSidebarOpen ? ' active' : ''}`}
           onClick={toggleCommentSidebar}
@@ -3733,6 +3805,9 @@ export function DebateWorkspace({ onExport, exportStatus }: {
               <span className="debate-audience-badge">
                 {DEBATE_AUDIENCES.find(a => a.id === activeDebate.audience)?.label ?? activeDebate.audience}
               </span>
+            )}
+            {activeDebate.debate_model && (
+              <span className="debate-model-badge">{activeDebate.debate_model}</span>
             )}
             {coverageMap && <CoverageBadge coverageMap={coverageMap} strengthWeighted={strengthWeighted} />}
           </div>
@@ -3881,6 +3956,15 @@ export function DebateWorkspace({ onExport, exportStatus }: {
       {/* Username prompt dialog (mounted once for all comment flows) */}
       <UsernamePromptDialog />
     </div>
+    {/* Debate Chat FAB — bottom-right floating button */}
+    <button
+      className={`debate-chat-fab${debateChatOpen ? ' active' : ''}`}
+      onClick={() => setDebateChatOpen(v => !v)}
+      title={debateChatOpen ? 'Hide Debate Chat' : 'Open Debate Chat — ask questions about the debate'}
+      aria-label="Debate Chat"
+    >
+      {debateChatOpen ? '\u2715' : '\uD83D\uDCAC'}
+    </button>
     {/* Debate Chat sidebar — outside workspace column, inside row */}
     {debateChatOpen && (
       <DiagnosticsChatSidebar

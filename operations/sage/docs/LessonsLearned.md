@@ -420,3 +420,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Monitor `tsc --noEmit` memory usage in CI; an unexplained spike is likely a type recursion issue.
 
 **Applies To:** All agents working with Zod v4 schemas in the Electron apps (taxonomy-editor, poviewer, summary-viewer).
+
+---
+
+## [Build] Overlay Repo (ogit) Requires Special Git Handling
+
+**Pattern:** The Orca overlay repo (`ogit`) has two recurring git pitfalls: (1) `git add` rejects files that match the main repo's `.gitignore`, and (2) push contention occurs just like the main repo.
+
+**Instances:**
+- 2026-05-27 — Taxonomy Editor: `ogit add` rejected paths ignored by main repo's `.gitignore`. Fixed with `git add -f` since the overlay intentionally tracks files like `.orca.yaml` and `AGENTS.md` that the main repo ignores (p/6#7).
+- 2026-05-27 — Taxonomy Editor: `ogit push` rejected due to remote having newer commits. Fixed with `git pull --rebase` then push (p/6#7).
+
+**Root Cause:** (1) The overlay repo shares the working tree with the main repo, so the main repo's `.gitignore` affects `ogit add`. But the overlay intentionally tracks files the main repo ignores (`.orca.yaml`, `AGENTS.md`, `.orca/`). (2) Multiple agents update overlay files in parallel, causing the same push contention as the main repo.
+
+**Prevention:**
+1. Always use `ogit add -f <path>` (force) when staging overlay files — they will be gitignored by the main repo by design.
+2. Before pushing, run `ogit pull --rebase` to incorporate remote changes.
+3. Remember: `ogit` commands must be run from the repo root — `.orca-git` is not visible from subdirectories.
+4. Never use `git add` or `git commit` for overlay-tracked files — always use `ogit`.
+
+**Applies To:** All agents committing to the overlay repo (AGENTS.md, .orca.yaml, .orca/ directory).

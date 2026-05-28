@@ -2,9 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { selectRelevantNodes } from './taxonomyRelevance.js';
+import { selectRelevantNodes, selectRelevantSituationNodes, computePolicymakerRelevanceBoost } from './taxonomyRelevance.js';
 import type { LineageBoostConfig, LineageBoostResult, RelevanceOptions } from './taxonomyRelevance.js';
-import type { PovNode, Category } from './taxonomyTypes.js';
+import type { PovNode, Category, SituationNode } from './taxonomyTypes.js';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -265,5 +265,82 @@ describe('selectRelevantNodes — lineage boost', () => {
     for (const id of ['acc-beliefs-001', 'acc-beliefs-002', 'acc-beliefs-003', 'acc-beliefs-004', 'acc-beliefs-005']) {
       expect(ids).not.toContain(id);
     }
+  });
+});
+
+// ── computePolicymakerRelevanceBoost ────────────────────────────────
+
+describe('computePolicymakerRelevanceBoost', () => {
+  it('returns +0.10 when 2+ keyword matches for policymaker audience', () => {
+    const sit = { description: 'The agency issued a new regulation on AI safety compliance standards.' };
+    expect(computePolicymakerRelevanceBoost(sit, 'policymakers')).toBe(0.10);
+  });
+
+  it('returns 0 when only 1 keyword match', () => {
+    const sit = { description: 'The regulation addresses fundamental questions about technology.' };
+    expect(computePolicymakerRelevanceBoost(sit, 'policymakers')).toBe(0);
+  });
+
+  it('returns 0 for non-policymaker audience', () => {
+    const sit = { description: 'The agency issued a new regulation on AI safety compliance standards.' };
+    expect(computePolicymakerRelevanceBoost(sit, 'researchers')).toBe(0);
+    expect(computePolicymakerRelevanceBoost(sit, undefined)).toBe(0);
+  });
+
+  it('matches keywords case-insensitively', () => {
+    const sit = { description: 'Congressional OVERSIGHT BODY reviewed the mandate.' };
+    expect(computePolicymakerRelevanceBoost(sit, 'policymakers')).toBe(0.10);
+  });
+
+  it('returns 0 for empty description', () => {
+    const sit = { description: '' };
+    expect(computePolicymakerRelevanceBoost(sit, 'policymakers')).toBe(0);
+  });
+});
+
+// ── selectRelevantSituationNodes — divergence penalty ───────────────
+
+describe('selectRelevantSituationNodes — divergence penalty', () => {
+  function makeSit(id: string, divergence?: number): SituationNode {
+    return {
+      id,
+      label: `Situation ${id}`,
+      description: `Description for ${id}`,
+      interpretations: {
+        accelerationist: 'interp',
+        safetyist: 'interp',
+        skeptic: 'interp',
+      },
+      linked_nodes: [],
+      conflict_ids: [],
+      interpretation_divergence: divergence,
+    };
+  }
+
+  it('penalizes low-divergence situations (<0.20) by -0.05', () => {
+    const nodes = [
+      makeSit('sit-001', 0.10), // low divergence
+      makeSit('sit-002', 0.50), // high divergence
+    ];
+    // Both at same base score — low divergence should rank lower
+    const scores = new Map([['sit-001', 0.55], ['sit-002', 0.55]]);
+    const result = selectRelevantSituationNodes(nodes, scores, 0.48, 0, 10);
+    expect(result[0].node.id).toBe('sit-002'); // high-divergence first
+    expect(result[1].node.id).toBe('sit-001'); // penalized
+    expect(result[1].score).toBe(0.50); // 0.55 - 0.05
+  });
+
+  it('does not penalize when divergence >= 0.20', () => {
+    const nodes = [makeSit('sit-001', 0.25)];
+    const scores = new Map([['sit-001', 0.55]]);
+    const result = selectRelevantSituationNodes(nodes, scores, 0.48, 0, 10);
+    expect(result[0].score).toBe(0.55); // no penalty
+  });
+
+  it('does not penalize when divergence is absent', () => {
+    const nodes = [makeSit('sit-001', undefined)];
+    const scores = new Map([['sit-001', 0.55]]);
+    const result = selectRelevantSituationNodes(nodes, scores, 0.48, 0, 10);
+    expect(result[0].score).toBe(0.55); // backward compatible
   });
 });

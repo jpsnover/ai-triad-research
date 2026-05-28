@@ -320,6 +320,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('load-doc-titles'),
   getSourceEvidence: (nodeIds: string[], pov: string): Promise<unknown> =>
     ipcRenderer.invoke('get-source-evidence', nodeIds, pov),
+  runEvidenceQbaf: (claimText: string, claimId: string, model?: string): Promise<unknown> =>
+    ipcRenderer.invoke('run-evidence-qbaf', claimText, claimId, model),
 
   // Debate sessions
   listDebateSessions: (): Promise<unknown[]> =>

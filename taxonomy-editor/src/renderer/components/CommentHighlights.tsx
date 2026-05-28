@@ -193,3 +193,32 @@ export function useEntryCommentCount(entryId: string): number {
     return commentsFile.comments.filter(c => c.textRange.entryId === entryId).length;
   }, [commentsFile, entryId]);
 }
+
+/**
+ * Returns true when CommentHighlightedText will render highlighted segments
+ * for this entry+tier (after applying filters). Used by the parent to hide
+ * the markdown-rendered text and avoid duplication.
+ */
+export function useHasCommentHighlights(entryId: string, activeTier: DetailTier): boolean {
+  const commentsFile = useCommentStore(s => s.commentsFile);
+  const filters = useCommentStore(s => s.filters);
+  return useMemo(() => {
+    if (!commentsFile) return false;
+    let comments = commentsFile.comments.filter(
+      c => c.textRange.entryId === entryId && c.textRange.tier === activeTier,
+    );
+    const { types, authors, searchText, showResolved } = filters;
+    if (!showResolved) comments = comments.filter(c => !c.resolved);
+    if (types.size > 0) comments = comments.filter(c => types.has(c.type));
+    if (authors.size > 0) comments = comments.filter(c => authors.has(c.author));
+    if (searchText.trim()) {
+      const q = searchText.trim().toLowerCase();
+      comments = comments.filter(c =>
+        c.body.toLowerCase().includes(q)
+        || c.textRange.selectedText.toLowerCase().includes(q)
+        || c.author.toLowerCase().includes(q),
+      );
+    }
+    return comments.length > 0;
+  }, [commentsFile, entryId, activeTier, filters]);
+}

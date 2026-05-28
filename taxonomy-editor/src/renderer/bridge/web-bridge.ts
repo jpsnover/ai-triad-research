@@ -286,6 +286,7 @@ const rawApi: AppAPI = {
   loadSourceEvidenceIndex: () => get<Record<string, unknown> | null>('/api/source-evidence-index').catch(() => null),
   loadDocTitles: () => get<Record<string, string> | null>('/api/doc-titles').catch(() => null),
   getSourceEvidence: (nodeIds, pov) => post('/api/source-evidence', { nodeIds, pov }),
+  runEvidenceQbaf: (claimText, claimId, model) => post('/api/evidence-qbaf', { claimText, claimId, model }).catch(() => null),
 
   // Debate sessions
   listDebateSessions: () => get('/api/debates'),

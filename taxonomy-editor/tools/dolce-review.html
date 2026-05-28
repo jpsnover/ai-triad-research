@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOLCE Refinement Review</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/diff_match_patch/20121119/diff_match_patch.js"></script>
+<style>
+  :root {
+    --bg: #0f172a; --bg2: #1e293b; --bg3: #334155; --border: #475569;
+    --text: #e2e8f0; --text2: #94a3b8; --text3: #64748b;
+    --green: #22c55e; --green-bg: rgba(34,197,94,0.12);
+    --red: #ef4444; --red-bg: rgba(239,68,68,0.12);
+    --amber: #f59e0b; --amber-bg: rgba(245,158,11,0.12);
+    --blue: #3b82f6; --blue-bg: rgba(59,130,246,0.12);
+    --purple: #a855f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+  /* ── Header ── */
+  .header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; position: sticky; top: 0; z-index: 100; }
+  .header h1 { font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+  .header-meta { font-size: 0.78rem; color: var(--text2); }
+  .header-actions { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+
+  /* ── Controls bar ── */
+  .controls { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .filter-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 0.75rem; cursor: pointer; transition: all 0.15s; }
+  .filter-btn.active { background: var(--blue-bg); color: var(--blue); border-color: var(--blue); }
+  .filter-btn:hover { border-color: var(--text2); }
+  .sort-select { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 0.75rem; }
+  .reviewer-input { padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-size: 0.75rem; width: 140px; }
+
+  /* ── Progress bar ── */
+  .progress-bar { height: 4px; background: var(--bg3); border-radius: 2px; flex: 1; min-width: 100px; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 2px; transition: width 0.3s; }
+  .progress-label { font-size: 0.7rem; color: var(--text3); white-space: nowrap; }
+
+  /* ── Drop zone / file input ── */
+  .drop-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; border: 2px dashed var(--border); border-radius: 12px; margin: 40px; padding: 40px; text-align: center; transition: border-color 0.2s; }
+  .drop-zone.dragover { border-color: var(--blue); background: var(--blue-bg); }
+  .drop-zone h2 { font-size: 1.2rem; }
+  .drop-zone p { color: var(--text2); font-size: 0.85rem; }
+  .file-input-label { padding: 10px 24px; background: var(--blue); color: white; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+  .file-input-label:hover { opacity: 0.9; }
+  #file-input { display: none; }
+
+  /* ── Card list ── */
+  .card-list { padding: 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Proposal card ── */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .card.compliant { opacity: 0.6; }
+  .card.accepted { border-color: var(--green); }
+  .card.dismissed { border-color: var(--red); opacity: 0.5; }
+  .card-header { padding: 12px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+  .card-header:hover { background: var(--bg3); }
+  .card-toggle { font-size: 0.7rem; color: var(--text3); transition: transform 0.2s; }
+  .card-toggle.open { transform: rotate(90deg); }
+  .card-node-id { font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace; font-size: 0.78rem; color: var(--blue); }
+  .card-label { font-size: 0.85rem; flex: 1; }
+  .card-status { font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .card-status.compliant { background: var(--green-bg); color: var(--green); }
+  .card-status.needs_changes { background: var(--amber-bg); color: var(--amber); }
+  .card-status.accepted { background: var(--green-bg); color: var(--green); }
+  .card-status.dismissed { background: var(--red-bg); color: var(--red); }
+  .severity-pills { display: flex; gap: 4px; }
+  .severity-pill { font-size: 0.6rem; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+  .severity-pill.critical { background: var(--red-bg); color: var(--red); }
+  .severity-pill.major { background: var(--amber-bg); color: var(--amber); }
+  .severity-pill.suggestion { background: var(--blue-bg); color: var(--blue); }
+
+  .card-body { display: none; padding: 0 16px 16px; }
+  .card-body.open { display: block; }
+
+  /* ── Diff panes ── */
+  .diff-container { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .diff-pane { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-size: 0.8rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; min-height: 60px; }
+  .diff-pane-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 6px; }
+  .diff-del { background: var(--red-bg); color: var(--red); text-decoration: line-through; border-radius: 2px; padding: 0 2px; }
+  .diff-ins { background: var(--green-bg); color: var(--green); border-radius: 2px; padding: 0 2px; }
+
+  /* ── Attributes diff ── */
+  .attr-diff { margin-bottom: 12px; }
+  .attr-diff-title { font-size: 0.72rem; font-weight: 700; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
+  .attr-row { display: flex; gap: 8px; align-items: baseline; font-size: 0.78rem; padding: 3px 0; border-bottom: 1px solid var(--bg3); }
+  .attr-field { font-weight: 600; color: var(--purple); min-width: 140px; font-family: monospace; font-size: 0.72rem; }
+  .attr-old { color: var(--red); text-decoration: line-through; }
+  .attr-arrow { color: var(--text3); }
+  .attr-new { color: var(--green); }
+
+  /* ── Issues list ── */
+  .issues-list { margin-bottom: 12px; }
+  .issues-title { font-size: 0.72rem; font-weight: 700; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
+  .issue-row { padding: 6px 10px; background: var(--bg); border-radius: 6px; margin-bottom: 4px; font-size: 0.78rem; }
+  .issue-meta { display: flex; gap: 6px; align-items: center; margin-bottom: 2px; }
+  .issue-rationale { color: var(--text2); font-size: 0.75rem; }
+
+  /* ── Action buttons ── */
+  .card-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .action-btn { padding: 6px 16px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--text); font-size: 0.78rem; cursor: pointer; font-weight: 600; transition: all 0.15s; }
+  .action-btn:hover { background: var(--bg3); }
+  .action-btn.accept { border-color: var(--green); color: var(--green); }
+  .action-btn.accept:hover { background: var(--green-bg); }
+  .action-btn.dismiss { border-color: var(--red); color: var(--red); }
+  .action-btn.dismiss:hover { background: var(--red-bg); }
+  .action-btn.edit { border-color: var(--amber); color: var(--amber); }
+  .action-btn.edit:hover { background: var(--amber-bg); }
+  .action-btn.skip { color: var(--text3); }
+  .kbd { font-size: 0.6rem; padding: 1px 4px; border: 1px solid var(--border); border-radius: 3px; margin-left: 4px; color: var(--text3); font-family: monospace; }
+
+  /* ── Edit textarea ── */
+  .edit-area { width: 100%; min-height: 80px; background: var(--bg); border: 1px solid var(--amber); border-radius: 6px; color: var(--text); padding: 8px; font-size: 0.8rem; font-family: inherit; margin: 8px 0; resize: vertical; }
+
+  /* ── Dismiss reason ── */
+  .dismiss-area { width: 100%; min-height: 40px; background: var(--bg); border: 1px solid var(--red); border-radius: 6px; color: var(--text); padding: 8px; font-size: 0.8rem; font-family: inherit; margin: 8px 0; resize: vertical; }
+
+  /* ── Export buttons ── */
+  .btn { padding: 6px 14px; border-radius: 6px; border: none; font-size: 0.78rem; cursor: pointer; font-weight: 600; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-blue { background: var(--blue); color: #fff; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Keyboard hint ── */
+  .keyboard-hint { position: fixed; bottom: 16px; right: 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.7rem; color: var(--text3); z-index: 50; }
+  .keyboard-hint span { color: var(--text2); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Drop zone (shown when no file loaded) -->
+  <div id="drop-zone" class="drop-zone">
+    <h2>DOLCE Refinement Review</h2>
+    <p>Load a proposals JSON file to begin reviewing refinement proposals.</p>
+    <label class="file-input-label" for="file-input">Choose File</label>
+    <input type="file" id="file-input" accept=".json">
+    <p style="font-size:0.75rem; color:var(--text3)">or drag &amp; drop a file here</p>
+  </div>
+
+  <!-- Main UI (hidden until file loaded) -->
+  <div id="main-ui" style="display:none">
+    <div class="header">
+      <h1>DOLCE Refinement Review</h1>
+      <span id="file-name" class="header-meta"></span>
+      <div class="header-actions">
+        <button class="btn btn-green" id="export-accepted" disabled>Export Accepted</button>
+        <button class="btn btn-red" id="export-dismissed" disabled>Export Dismissed</button>
+        <button class="btn btn-blue" id="load-new">Load New File</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <label style="font-size:0.72rem; color:var(--text3)">Reviewer:</label>
+      <input type="text" class="reviewer-input" id="reviewer-name" placeholder="Your name" />
+
+      <span style="color:var(--border)">|</span>
+
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="needs_changes">Needs Changes</button>
+      <button class="filter-btn" data-filter="accepted">Accepted</button>
+      <button class="filter-btn" data-filter="dismissed">Dismissed</button>
+      <button class="filter-btn" data-filter="compliant">Compliant</button>
+
+      <span style="color:var(--border)">|</span>
+
+      <select class="sort-select" id="sort-mode">
+        <option value="severity">Sort: Severity</option>
+        <option value="category">Sort: Category</option>
+        <option value="node_id">Sort: Node ID</option>
+      </select>
+
+      <span style="color:var(--border)">|</span>
+
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+      <span class="progress-label" id="progress-label">0 / 0 reviewed</span>
+    </div>
+
+    <div class="card-list" id="card-list"></div>
+  </div>
+</div>
+
+<div class="keyboard-hint" id="keyboard-hint" style="display:none">
+  <span>A</span> Accept &nbsp; <span>D</span> Dismiss &nbsp; <span>E</span> Edit &nbsp; <span>S</span> Skip &nbsp; <span>J/K</span> Navigate
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── State ──
+  let proposals = null;       // raw loaded data
+  let reviewState = {};       // { [id]: { decision: 'accepted'|'dismissed'|null, reason, editedText, editedAttrs } }
+  let activeFilter = 'all';
+  let sortMode = 'severity';
+  let focusedCardIdx = -1;
+  let storageKey = '';
+
+  const SEVERITY_ORDER = { critical: 0, major: 1, suggestion: 2 };
+
+  // ── DOM refs ──
+  const dropZone = document.getElementById('drop-zone');
+  const mainUi = document.getElementById('main-ui');
+  const fileInput = document.getElementById('file-input');
+  const fileNameEl = document.getElementById('file-name');
+  const cardList = document.getElementById('card-list');
+  const progressFill = document.getElementById('progress-fill');
+  const progressLabel = document.getElementById('progress-label');
+  const exportAccepted = document.getElementById('export-accepted');
+  const exportDismissed = document.getElementById('export-dismissed');
+  const loadNew = document.getElementById('load-new');
+  const sortSelect = document.getElementById('sort-mode');
+  const reviewerInput = document.getElementById('reviewer-name');
+  const keyboardHint = document.getElementById('keyboard-hint');
+
+  // ── File loading ──
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) loadFile(e.target.files[0]);
+  });
+
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+  });
+
+  loadNew.addEventListener('click', () => {
+    fileInput.value = '';
+    fileInput.click();
+  });
+
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data.proposals || !Array.isArray(data.proposals)) {
+          alert('Invalid proposals file: missing "proposals" array');
+          return;
+        }
+        proposals = data;
+        storageKey = 'dolce-review-' + (file.name || 'unknown');
+        fileNameEl.textContent = file.name + ' — ' + data.total_nodes + ' nodes, model: ' + (data.model || '?');
+        loadState();
+        dropZone.style.display = 'none';
+        mainUi.style.display = '';
+        keyboardHint.style.display = '';
+        render();
+      } catch (err) {
+        alert('Failed to parse JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // ── localStorage persistence ──
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        reviewState = saved.reviewState || {};
+        reviewerInput.value = saved.reviewer || '';
+      } else {
+        reviewState = {};
+      }
+    } catch { reviewState = {}; }
+  }
+
+  function saveState() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        reviewState,
+        reviewer: reviewerInput.value,
+      }));
+    } catch { /* storage full — silent */ }
+  }
+
+  reviewerInput.addEventListener('input', saveState);
+
+  // ── Sorting & filtering ──
+  function getMaxSeverity(p) {
+    if (!p.issues || !p.issues.length) return 3;
+    return Math.min(...p.issues.map(i => SEVERITY_ORDER[i.severity] ?? 3));
+  }
+
+  function getSorted() {
+    let items = [...proposals.proposals];
+    if (sortMode === 'severity') {
+      items.sort((a, b) => getMaxSeverity(a) - getMaxSeverity(b) || a.id.localeCompare(b.id));
+    } else if (sortMode === 'category') {
+      items.sort((a, b) => {
+        const ca = (a.issues?.[0]?.category || 'zzz');
+        const cb = (b.issues?.[0]?.category || 'zzz');
+        return ca.localeCompare(cb) || a.id.localeCompare(b.id);
+      });
+    } else {
+      items.sort((a, b) => a.id.localeCompare(b.id));
+    }
+    return items;
+  }
+
+  function getFiltered(items) {
+    if (activeFilter === 'all') return items;
+    if (activeFilter === 'accepted') return items.filter(p => reviewState[p.id]?.decision === 'accepted');
+    if (activeFilter === 'dismissed') return items.filter(p => reviewState[p.id]?.decision === 'dismissed');
+    if (activeFilter === 'needs_changes') return items.filter(p => p.status === 'needs_changes' && !reviewState[p.id]?.decision);
+    if (activeFilter === 'compliant') return items.filter(p => p.status === 'compliant');
+    return items;
+  }
+
+  // ── Diff rendering ──
+  const dmp = new diff_match_patch();
+
+  function renderWordDiff(oldText, newText) {
+    if (!oldText && !newText) return { left: '', right: '' };
+    const a = oldText || '';
+    const b = newText || '';
+    const d = dmp.diff_main(a, b);
+    dmp.diff_cleanupSemantic(d);
+
+    let left = '', right = '';
+    for (const [op, text] of d) {
+      const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      if (op === 0) {
+        left += escaped;
+        right += escaped;
+      } else if (op === -1) {
+        left += '<span class="diff-del">' + escaped + '</span>';
+      } else {
+        right += '<span class="diff-ins">' + escaped + '</span>';
+      }
+    }
+    return { left, right };
+  }
+
+  // ── Progress ──
+  function updateProgress() {
+    if (!proposals) return;
+    const needsReview = proposals.proposals.filter(p => p.status === 'needs_changes');
+    const reviewed = needsReview.filter(p => reviewState[p.id]?.decision);
+    const total = needsReview.length;
+    const done = reviewed.length;
+    const pct = total > 0 ? (done / total * 100) : 0;
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = done + ' / ' + total + ' reviewed';
+
+    const acceptedCount = Object.values(reviewState).filter(r => r.decision === 'accepted').length;
+    const dismissedCount = Object.values(reviewState).filter(r => r.decision === 'dismissed').length;
+    exportAccepted.disabled = acceptedCount === 0;
+    exportDismissed.disabled = dismissedCount === 0;
+    exportAccepted.textContent = 'Export Accepted (' + acceptedCount + ')';
+    exportDismissed.textContent = 'Export Dismissed (' + dismissedCount + ')';
+  }
+
+  // ── Render ──
+  function render() {
+    const sorted = getSorted();
+    const filtered = getFiltered(sorted);
+    cardList.innerHTML = '';
+    focusedCardIdx = -1;
+
+    if (filtered.length === 0) {
+      cardList.innerHTML = '<div style="text-align:center;color:var(--text3);padding:40px">No proposals match the current filter.</div>';
+      updateProgress();
+      return;
+    }
+
+    filtered.forEach((p, idx) => {
+      const state = reviewState[p.id] || {};
+      const isCompliant = p.status === 'compliant';
+      const isExpanded = !isCompliant && !state.decision;
+
+      const card = document.createElement('div');
+      card.className = 'card' + (isCompliant ? ' compliant' : '') +
+        (state.decision === 'accepted' ? ' accepted' : '') +
+        (state.decision === 'dismissed' ? ' dismissed' : '');
+      card.dataset.idx = idx;
+      card.dataset.id = p.id;
+
+      // Severity pills
+      const severityCounts = {};
+      (p.issues || []).forEach(i => { severityCounts[i.severity] = (severityCounts[i.severity] || 0) + 1; });
+      const pillsHtml = Object.entries(severityCounts)
+        .sort((a, b) => (SEVERITY_ORDER[a[0]] ?? 3) - (SEVERITY_ORDER[b[0]] ?? 3))
+        .map(([sev, count]) => '<span class="severity-pill ' + sev + '">' + count + ' ' + sev + '</span>')
+        .join('');
+
+      const statusClass = state.decision || p.status;
+      const statusLabel = state.decision || (isCompliant ? 'compliant' : 'needs changes');
+
+      card.innerHTML = '<div class="card-header">' +
+        '<span class="card-toggle' + (isExpanded ? ' open' : '') + '">&#9654;</span>' +
+        '<span class="card-node-id">' + p.id + '</span>' +
+        '<span class="card-label">' + escHtml(p.label || '') + '</span>' +
+        '<div class="severity-pills">' + pillsHtml + '</div>' +
+        '<span class="card-status ' + statusClass + '">' + statusLabel + '</span>' +
+        '</div>' +
+        '<div class="card-body' + (isExpanded ? ' open' : '') + '" id="body-' + p.id + '">' +
+        renderCardBody(p, state) +
+        '</div>';
+
+      // Toggle expand
+      card.querySelector('.card-header').addEventListener('click', () => {
+        const body = card.querySelector('.card-body');
+        const toggle = card.querySelector('.card-toggle');
+        body.classList.toggle('open');
+        toggle.classList.toggle('open');
+      });
+
+      cardList.appendChild(card);
+    });
+
+    bindCardActions();
+    updateProgress();
+  }
+
+  function renderCardBody(p, state) {
+    let html = '';
+    const current = p.current || {};
+    const proposed = p.proposed || {};
+
+    // Description diff
+    if (current.description || proposed.description) {
+      const { left, right } = renderWordDiff(current.description || '', proposed.description || '');
+      html += '<div class="diff-container">' +
+        '<div class="diff-pane"><div class="diff-pane-label">Current</div>' + left + '</div>' +
+        '<div class="diff-pane"><div class="diff-pane-label">Proposed</div>' + right + '</div>' +
+        '</div>';
+    }
+
+    // Graph attributes diff
+    const currentAttrs = current.graph_attributes || {};
+    const proposedAttrs = proposed.graph_attributes || {};
+    const allKeys = new Set([...Object.keys(currentAttrs), ...Object.keys(proposedAttrs)]);
+    const changedKeys = [...allKeys].filter(k => JSON.stringify(currentAttrs[k]) !== JSON.stringify(proposedAttrs[k]));
+
+    if (changedKeys.length > 0) {
+      html += '<div class="attr-diff"><div class="attr-diff-title">Graph Attributes Changes</div>';
+      for (const k of changedKeys) {
+        const oldVal = currentAttrs[k] != null ? formatAttrVal(currentAttrs[k]) : '(none)';
+        const newVal = proposedAttrs[k] != null ? formatAttrVal(proposedAttrs[k]) : '(removed)';
+        html += '<div class="attr-row">' +
+          '<span class="attr-field">' + escHtml(k) + '</span>' +
+          '<span class="attr-old">' + escHtml(oldVal) + '</span>' +
+          '<span class="attr-arrow">&rarr;</span>' +
+          '<span class="attr-new">' + escHtml(newVal) + '</span>' +
+          '</div>';
+      }
+      html += '</div>';
+    }
+
+    // Issues list
+    if (p.issues && p.issues.length > 0) {
+      html += '<div class="issues-list"><div class="issues-title">Issues (' + p.issues.length + ')</div>';
+      for (const issue of p.issues) {
+        html += '<div class="issue-row">' +
+          '<div class="issue-meta">' +
+          '<span class="severity-pill ' + issue.severity + '">' + issue.severity + '</span>' +
+          '<span style="color:var(--purple);font-size:0.72rem;font-weight:600">' + escHtml(issue.category || '') + '</span>' +
+          '</div>' +
+          '<div class="issue-rationale">' + escHtml(issue.rationale || '') + '</div>' +
+          '</div>';
+      }
+      html += '</div>';
+    }
+
+    // Action buttons (only for needs_changes that haven't been decided)
+    if (p.status === 'needs_changes') {
+      if (state.decision === 'accepted') {
+        html += '<div class="card-actions"><span style="color:var(--green);font-size:0.8rem;font-weight:600">&#10003; Accepted' +
+          (state.editedText ? ' (edited)' : '') + '</span>' +
+          '<button class="action-btn skip" data-action="undo" data-id="' + p.id + '">Undo</button></div>';
+      } else if (state.decision === 'dismissed') {
+        html += '<div class="card-actions"><span style="color:var(--red);font-size:0.8rem;font-weight:600">&#10007; Dismissed</span>' +
+          (state.reason ? '<span style="color:var(--text3);font-size:0.75rem"> — ' + escHtml(state.reason) + '</span>' : '') +
+          '<button class="action-btn skip" data-action="undo" data-id="' + p.id + '">Undo</button></div>';
+      } else {
+        html += '<div class="card-actions">' +
+          '<button class="action-btn accept" data-action="accept" data-id="' + p.id + '">Accept<span class="kbd">A</span></button>' +
+          '<button class="action-btn dismiss" data-action="dismiss" data-id="' + p.id + '">Dismiss<span class="kbd">D</span></button>' +
+          '<button class="action-btn edit" data-action="edit" data-id="' + p.id + '">Edit &amp; Accept<span class="kbd">E</span></button>' +
+          '<button class="action-btn skip" data-action="skip" data-id="' + p.id + '">Skip<span class="kbd">S</span></button>' +
+          '</div>';
+      }
+    }
+
+    return html;
+  }
+
+  function bindCardActions() {
+    cardList.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleAction(btn.dataset.action, btn.dataset.id);
+      });
+    });
+  }
+
+  function handleAction(action, id) {
+    const p = proposals.proposals.find(x => x.id === id);
+    if (!p) return;
+
+    if (action === 'accept') {
+      reviewState[id] = { decision: 'accepted', accepted_at: new Date().toISOString() };
+      saveState();
+      render();
+      advanceFocus(id);
+    } else if (action === 'dismiss') {
+      // Show dismiss reason textarea
+      const body = document.getElementById('body-' + id);
+      if (!body) return;
+      const existing = body.querySelector('.dismiss-area');
+      if (existing) {
+        // Confirm dismiss
+        reviewState[id] = {
+          decision: 'dismissed',
+          dismissed_at: new Date().toISOString(),
+          reason: existing.value.trim(),
+        };
+        saveState();
+        render();
+        advanceFocus(id);
+      } else {
+        // Insert textarea + confirm button
+        const actionsDiv = body.querySelector('.card-actions');
+        if (actionsDiv) {
+          const ta = document.createElement('textarea');
+          ta.className = 'dismiss-area';
+          ta.placeholder = 'Reason for dismissal (optional)...';
+          actionsDiv.parentNode.insertBefore(ta, actionsDiv);
+          ta.focus();
+
+          const confirmBtn = document.createElement('button');
+          confirmBtn.className = 'action-btn dismiss';
+          confirmBtn.textContent = 'Confirm Dismiss';
+          confirmBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            reviewState[id] = {
+              decision: 'dismissed',
+              dismissed_at: new Date().toISOString(),
+              reason: ta.value.trim(),
+            };
+            saveState();
+            render();
+            advanceFocus(id);
+          });
+          actionsDiv.prepend(confirmBtn);
+        }
+      }
+    } else if (action === 'edit') {
+      const body = document.getElementById('body-' + id);
+      if (!body) return;
+      const existing = body.querySelector('.edit-area');
+      if (existing) {
+        // Confirm edit & accept
+        reviewState[id] = {
+          decision: 'accepted',
+          accepted_at: new Date().toISOString(),
+          editedText: existing.value,
+        };
+        saveState();
+        render();
+        advanceFocus(id);
+      } else {
+        const actionsDiv = body.querySelector('.card-actions');
+        if (actionsDiv) {
+          const ta = document.createElement('textarea');
+          ta.className = 'edit-area';
+          ta.value = (p.proposed || {}).description || '';
+          actionsDiv.parentNode.insertBefore(ta, actionsDiv);
+          ta.focus();
+
+          const confirmBtn = document.createElement('button');
+          confirmBtn.className = 'action-btn edit';
+          confirmBtn.textContent = 'Confirm Edit & Accept';
+          confirmBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            reviewState[id] = {
+              decision: 'accepted',
+              accepted_at: new Date().toISOString(),
+              editedText: ta.value,
+            };
+            saveState();
+            render();
+            advanceFocus(id);
+          });
+          actionsDiv.prepend(confirmBtn);
+        }
+      }
+    } else if (action === 'skip') {
+      advanceFocus(id);
+    } else if (action === 'undo') {
+      delete reviewState[id];
+      saveState();
+      render();
+    }
+  }
+
+  function advanceFocus(currentId) {
+    const cards = cardList.querySelectorAll('.card');
+    for (let i = 0; i < cards.length; i++) {
+      if (cards[i].dataset.id === currentId && i + 1 < cards.length) {
+        const nextCard = cards[i + 1];
+        const body = nextCard.querySelector('.card-body');
+        const toggle = nextCard.querySelector('.card-toggle');
+        if (body && !body.classList.contains('open')) {
+          body.classList.add('open');
+          toggle.classList.add('open');
+        }
+        nextCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        focusedCardIdx = i + 1;
+        return;
+      }
+    }
+  }
+
+  // ── Keyboard shortcuts ──
+  document.addEventListener('keydown', (e) => {
+    if (!proposals) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+    const cards = cardList.querySelectorAll('.card');
+    if (!cards.length) return;
+
+    if (e.key === 'j' || e.key === 'J') {
+      e.preventDefault();
+      focusedCardIdx = Math.min(focusedCardIdx + 1, cards.length - 1);
+      expandAndScroll(cards[focusedCardIdx]);
+    } else if (e.key === 'k' || e.key === 'K') {
+      e.preventDefault();
+      focusedCardIdx = Math.max(focusedCardIdx - 1, 0);
+      expandAndScroll(cards[focusedCardIdx]);
+    } else if (focusedCardIdx >= 0 && focusedCardIdx < cards.length) {
+      const id = cards[focusedCardIdx].dataset.id;
+      if (e.key === 'a' || e.key === 'A') { e.preventDefault(); handleAction('accept', id); }
+      else if (e.key === 'd' || e.key === 'D') { e.preventDefault(); handleAction('dismiss', id); }
+      else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); handleAction('edit', id); }
+      else if (e.key === 's' || e.key === 'S') { e.preventDefault(); handleAction('skip', id); }
+    }
+  });
+
+  function expandAndScroll(card) {
+    if (!card) return;
+    const body = card.querySelector('.card-body');
+    const toggle = card.querySelector('.card-toggle');
+    if (body && !body.classList.contains('open')) {
+      body.classList.add('open');
+      toggle.classList.add('open');
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── Filter buttons ──
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  // ── Sort ──
+  sortSelect.addEventListener('change', () => {
+    sortMode = sortSelect.value;
+    render();
+  });
+
+  // ── Export ──
+  exportAccepted.addEventListener('click', () => {
+    const accepted = [];
+    for (const [id, state] of Object.entries(reviewState)) {
+      if (state.decision !== 'accepted') continue;
+      const p = proposals.proposals.find(x => x.id === id);
+      if (!p) continue;
+      const entry = {
+        id,
+        accepted_at: state.accepted_at || new Date().toISOString(),
+        edited: !!state.editedText,
+        proposed_description: state.editedText || (p.proposed || {}).description || '',
+      };
+      if (p.proposed?.graph_attributes) {
+        entry.proposed_graph_attributes = p.proposed.graph_attributes;
+      }
+      accepted.push(entry);
+    }
+
+    const output = {
+      reviewed_at: new Date().toISOString(),
+      reviewer: reviewerInput.value || 'anonymous',
+      source_proposals: proposals.source_file || 'unknown',
+      accepted,
+    };
+    downloadJson(output, 'accepted-changes.json');
+  });
+
+  exportDismissed.addEventListener('click', () => {
+    const dismissed = [];
+    for (const [id, state] of Object.entries(reviewState)) {
+      if (state.decision !== 'dismissed') continue;
+      dismissed.push({
+        id,
+        dismissed_at: state.dismissed_at || new Date().toISOString(),
+        reason: state.reason || '',
+      });
+    }
+
+    const output = { dismissed };
+    downloadJson(output, 'dismissed-changes.json');
+  });
+
+  function downloadJson(data, filename) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ── Helpers ──
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function formatAttrVal(v) {
+    if (Array.isArray(v)) return v.join(', ');
+    if (typeof v === 'object' && v !== null) return JSON.stringify(v);
+    return String(v);
+  }
+})();
+</script>
+</body>
+</html>

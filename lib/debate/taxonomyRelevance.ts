@@ -202,7 +202,14 @@ export function selectRelevantSituationNodes(
       : (opts.embeddingThreshold ?? 0.48)
   );
   const scored = situationNodes
-    .map(n => ({ node: n, score: scores.get(n.id) || 0 }))
+    .map(n => {
+      let score = scores.get(n.id) || 0;
+      // Deprioritize near-consensus situations (low interpretation divergence)
+      if (n.interpretation_divergence != null && n.interpretation_divergence < 0.20) {
+        score -= 0.05;
+      }
+      return { node: n, score };
+    })
     .sort((a, b) => b.score - a.score || a.node.id.localeCompare(b.node.id));
 
   const aboveThreshold = scored.filter(s => s.score >= threshold);
@@ -280,6 +287,24 @@ export function buildRelevanceQuery(
 ): string {
   const combined = `${topic}\n\n${recentTranscript}`;
   return combined.length > maxLength ? combined.slice(0, maxLength) : combined;
+}
+
+// ── Policymaker situation relevance boost ───────────────────────────
+
+const POLICYMAKER_KEYWORDS = /\b(regulation|regulatory|legislation|legislative|enforcement|agency|commission|mandate|compliance|jurisdiction|statute|executive order|rulemaking|oversight body|congressional|parliamentary)\b/gi;
+
+/**
+ * Compute a relevance boost for situation nodes in policymaker-audience debates.
+ * Returns +0.10 when 2+ institutional/regulatory keywords appear in the description.
+ * Returns 0 for non-policymaker audiences or fewer than 2 matches.
+ */
+export function computePolicymakerRelevanceBoost(
+  situation: Pick<SituationNode, 'description'>,
+  audience?: string,
+): number {
+  if (audience !== 'policymakers') return 0;
+  const matches = (situation.description || '').match(POLICYMAKER_KEYWORDS) || [];
+  return matches.length >= 2 ? 0.10 : 0;
 }
 
 // ── AN-based relevance scoring ──────────────────────────────────────
@@ -436,7 +461,10 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
 
     // Convert to adjustment (preserving original numeric behavior)
     let adjustment = 0;
-    adjustment += relevance * 0.25; // crux alignment scaled to [0, 0.25]
+    // Scale crux relevance by interpretation divergence — high-divergence situations
+    // matching a crux are more valuable than crux-adjacent situations where POVs agree
+    const divergenceScale = 0.7 + 0.3 * (sit.interpretation_divergence ?? 0.3);
+    adjustment += (relevance * divergenceScale) * 0.25; // crux alignment scaled to [0, 0.25]
     if (diversity > 0) adjustment += DIVERSITY_BONUS;
     if (freshness === 0) adjustment += STALE_PENALTY;
 

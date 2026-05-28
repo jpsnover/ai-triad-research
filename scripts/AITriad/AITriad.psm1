@@ -375,7 +375,7 @@ Export-ModuleMember -Function @(
     'Test-AITJudgeModel'
     'Repair-AITSummaryMappings'
     'Invoke-EdgeWeightEvaluation'
-    'Normalize-Markdown'
+    'Repair-Markdown'
     'Compare-DebateRuns'
     'Invoke-DebateAB'
     'Get-AICostReport'

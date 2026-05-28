@@ -198,6 +198,16 @@ function EntryView({ entryId }: { entryId: string }) {
               <span className="diag-k">Response time:</span> <span className="diag-v">{((diag.response_time_ms ?? 0) / 1000).toFixed(1)}s</span>
             </div>
           )}
+          {(diag.input_tokens != null || diag.output_tokens != null) && (
+            <div className="diag-kv">
+              <span className="diag-k">Tokens:</span>
+              <span className="diag-v">
+                {diag.input_tokens != null ? diag.input_tokens.toLocaleString() : '\u2014'} in
+                {' / '}
+                {diag.output_tokens != null ? diag.output_tokens.toLocaleString() : '\u2014'} out
+              </span>
+            </div>
+          )}
         </CollapsibleSection>
       )}
 
@@ -318,6 +328,22 @@ function EntryView({ entryId }: { entryId: string }) {
                 <div className="diag-muted" style={{ whiteSpace: 'pre-wrap' }}>{trace.critical_questions}</div>
               </div>
             )}
+            {/* Implementation Challenge move (policymaker debates, t/251) */}
+            {trace.selection_reason === 'implementation_challenge' && (
+              <div className="diag-kv" style={{ marginTop: 4 }}>
+                <span className="diag-badge" style={{ fontSize: '0.6rem', fontWeight: 700, background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 6px', borderRadius: 3 }}>
+                  IMPLEMENTATION CHALLENGE
+                </span>
+                {(trace as Record<string, unknown>).implementation_challenge_trigger && (() => {
+                  const trigger = (trace as Record<string, unknown>).implementation_challenge_trigger as { round?: number; operationality_score?: number; convergence_score?: number };
+                  return (
+                    <span className="diag-muted" style={{ marginLeft: 6 }}>
+                      round {trigger.round ?? '?'} · operationality {trigger.operationality_score?.toFixed(2) ?? '?'} · convergence {trigger.convergence_score?.toFixed(2) ?? '?'}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
             {trace.argument_network_snapshot && (
               <div style={{ fontSize: '0.7rem', marginTop: 4 }}>
                 <div className="diag-k">Argument Network at Decision:</div>
@@ -358,7 +384,7 @@ function EntryView({ entryId }: { entryId: string }) {
         return (
           <>
             {stages.map(s => (
-              <CollapsibleSection key={s.stage} title={`${s.stage.toUpperCase()} — ${s.model} (temp=${s.temperature}, ${((s.response_time_ms ?? 0) / 1000).toFixed(1)}s)`}>
+              <CollapsibleSection key={s.stage} title={`${s.stage.toUpperCase()} — ${s.model} (temp=${s.temperature}, ${((s.response_time_ms ?? 0) / 1000).toFixed(1)}s${s.input_tokens != null || s.output_tokens != null ? `, ${(s.input_tokens ?? 0).toLocaleString()}/${(s.output_tokens ?? 0).toLocaleString()} tok` : ''})`}>
                 {s.stage === 'brief' && !!(s.work_product as Record<string, unknown>).situation_assessment && (
                   <div style={{ padding: 6, marginBottom: 6, borderLeft: `3px solid ${stageColors[s.stage]}40`, fontSize: '0.75rem' }}>
                     {String((s.work_product as Record<string, unknown>).situation_assessment)}
@@ -366,12 +392,38 @@ function EntryView({ entryId }: { entryId: string }) {
                 )}
                 {s.stage === 'brief' && Array.isArray((s.work_product as Record<string, unknown>).strongest_angles) && (
                   <div style={{ marginBottom: 6 }}>
-                    {((s.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string }[]).map((a, i) => (
-                      <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.angle}</div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{a.why}</div>
-                      </div>
-                    ))}
+                    {((s.work_product as Record<string, unknown>).strongest_angles as { angle: string; why: string; grounding?: { node_id: string; why: string }[] }[]).map((a, i) => {
+                      const sitGrounding = (a.grounding ?? []).filter(g => g.node_id.startsWith('sit-') || g.node_id.startsWith('cc-'));
+                      const sitNodes = useTaxonomyStore.getState().situations?.nodes;
+                      return (
+                        <div key={i} style={{ margin: '3px 0', paddingLeft: 8, borderLeft: `2px solid ${stageColors[s.stage]}40` }}>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>{a.angle}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{a.why}</div>
+                          {sitGrounding.length > 0 && sitNodes && (
+                            <div style={{ marginTop: 2 }}>
+                              {sitGrounding.map(g => {
+                                const sit = sitNodes.find(n => n.id === g.node_id);
+                                const div = sit?.interpretation_divergence;
+                                if (div == null) return (
+                                  <span key={g.node_id} style={{ display: 'inline-block', fontSize: '0.6rem', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: 'var(--bg-secondary)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                    {g.node_id}
+                                  </span>
+                                );
+                                const color = div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444';
+                                const isLow = div < 0.20;
+                                return (
+                                  <span key={g.node_id} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.6rem', marginRight: 6, padding: '1px 5px', borderRadius: 3, background: isLow ? '#ef444418' : 'var(--bg-secondary)', fontFamily: 'monospace' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>{g.node_id}</span>
+                                    <span style={{ color, fontWeight: 600 }}>div:{div.toFixed(2)}</span>
+                                    {isLow && <span title="Low divergence — may not generate disagreement">⚠</span>}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 {s.stage === 'plan' && !!(s.work_product as Record<string, unknown>).strategic_goal && (
@@ -555,6 +607,56 @@ function EntryView({ entryId }: { entryId: string }) {
                     <div className="diag-v">~{manifest.totalTokenEstimate?.toLocaleString()}</div>
                   </div>
                 </div>
+                {/* Policymaker situation boost (t/251) */}
+                {(manifest as Record<string, unknown>).policymaker_situation_boost && (() => {
+                  const psb = (manifest as Record<string, unknown>).policymaker_situation_boost as { boosted: number; keywords_matched?: string[] };
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                      <div>
+                        <div className="diag-k">Policymaker Boost</div>
+                        <div className="diag-v">{psb.boosted} situation{psb.boosted !== 1 ? 's' : ''} boosted</div>
+                      </div>
+                      {psb.keywords_matched && psb.keywords_matched.length > 0 && (
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <div className="diag-k">Keywords Matched</div>
+                          <div className="diag-v">{psb.keywords_matched.join(', ')}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {/* Per-situation divergence scores (t/254) */}
+                {injectedSit.length > 0 && (() => {
+                  const sitNodes = useTaxonomyStore.getState().situations?.nodes;
+                  if (!sitNodes) return null;
+                  const sitWithDiv = injectedSit
+                    .map(id => sitNodes.find(n => n.id === id))
+                    .filter((n): n is NonNullable<typeof n> => !!n && n.interpretation_divergence != null);
+                  if (sitWithDiv.length === 0) return null;
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      <div className="diag-k" style={{ marginBottom: 4 }}>Situation Divergence</div>
+                      {sitWithDiv.map(sit => {
+                        const div = sit.interpretation_divergence!;
+                        const color = div > 0.40 ? '#22c55e' : div >= 0.20 ? '#f59e0b' : '#ef4444';
+                        const label = div > 0.40 ? 'high' : div >= 0.20 ? 'moderate' : 'low';
+                        const cited = referencedIds.has(sit.id);
+                        const barWidth = Math.round(div * 100);
+                        return (
+                          <div key={sit.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.7rem' }}>
+                            <span style={{ fontFamily: 'monospace', minWidth: 52, color: cited ? 'var(--accent)' : 'var(--text-muted)' }}>{sit.id}</span>
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>{sit.label}</span>
+                            <span style={{ minWidth: 36, textAlign: 'right', color: 'var(--text-muted)' }}>{div.toFixed(2)}</span>
+                            <div style={{ width: 50, height: 8, background: 'var(--bg-secondary)', borderRadius: 2, overflow: 'hidden' }}>
+                              <div style={{ width: `${barWidth}%`, height: '100%', background: color, borderRadius: 2 }} />
+                            </div>
+                            <span style={{ fontSize: '0.6rem', color, fontWeight: 600, minWidth: 28 }}>{label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 {unusedRefs.length > 0 && (
                   <div style={{ color: 'var(--warning)', marginTop: 4 }}>
                     {unusedRefs.length} referenced node(s) not in injected context — hallucinated refs?
@@ -565,6 +667,39 @@ function EntryView({ entryId }: { entryId: string }) {
           })()}
         </CollapsibleSection>
       )}
+
+      {/* Synthesis Preferences — show political_feasibility + implementation_specificity scores (t/251) */}
+      {entry.type === 'concluding' && (meta?.synthesis as Record<string, unknown> | undefined)?.preferences && (() => {
+        const prefs = (meta!.synthesis as Record<string, unknown>).preferences as { conflict: string; prevails: string; criterion: string; rationale: string }[];
+        const policymakerCriteria = ['political_feasibility', 'implementation_specificity'];
+        const hasPolicymaker = prefs.some(p => policymakerCriteria.includes(p.criterion));
+        if (prefs.length === 0) return null;
+        return (
+          <CollapsibleSection title={`Synthesis Preferences (${prefs.length})${hasPolicymaker ? ' — policymaker criteria active' : ''}`}>
+            <div style={{ fontSize: '0.72rem' }}>
+              {prefs.map((p, i) => {
+                const isPolicyCriterion = policymakerCriteria.includes(p.criterion);
+                return (
+                  <div key={i} style={{ marginBottom: 6, padding: '4px 6px', background: 'var(--bg-secondary)', borderRadius: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                      <span className="diag-badge" style={{
+                        fontSize: '0.6rem', fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+                        background: isPolicyCriterion ? 'rgba(239,68,68,0.15)' : 'rgba(99,102,241,0.15)',
+                        color: isPolicyCriterion ? '#ef4444' : '#6366f1',
+                      }}>
+                        {p.criterion.replace(/_/g, ' ')}
+                      </span>
+                      <span style={{ fontWeight: 600 }}>→ {p.prevails}</span>
+                    </div>
+                    <div className="diag-muted">{p.conflict}</div>
+                    <div style={{ color: 'var(--text-secondary)', marginTop: 2 }}>{p.rationale}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </CollapsibleSection>
+        );
+      })()}
 
       {/* Taxonomy Context */}
       {diag?.taxonomy_context && (
@@ -1450,6 +1585,19 @@ function OverviewView() {
           <div className="diag-kv"><span className="diag-k">Total response time:</span> <span className="diag-v">{((diag.overview.total_response_time_ms ?? 0) / 1000).toFixed(1)}s</span></div>
           <div className="diag-kv"><span className="diag-k">Claims accepted:</span> <span className="diag-v">{diag.overview.claims_accepted}</span></div>
           <div className="diag-kv"><span className="diag-k">Claims rejected:</span> <span className="diag-v">{diag.overview.claims_rejected}</span></div>
+          {(diag.overview.total_input_tokens != null || diag.overview.total_output_tokens != null) && (
+            <div className="diag-kv">
+              <span className="diag-k">Total tokens:</span>
+              <span className="diag-v">
+                {diag.overview.total_input_tokens != null ? diag.overview.total_input_tokens.toLocaleString() : '\u2014'} in
+                {' / '}
+                {diag.overview.total_output_tokens != null ? diag.overview.total_output_tokens.toLocaleString() : '\u2014'} out
+                {diag.overview.total_input_tokens != null && diag.overview.total_output_tokens != null && (
+                  <> ({(diag.overview.total_input_tokens + diag.overview.total_output_tokens).toLocaleString()} total)</>
+                )}
+              </span>
+            </div>
+          )}
           {Object.keys(diag.overview.move_type_counts).length > 0 && (
             <div style={{ marginTop: 6 }}>
               <span className="diag-k">Move types:</span>

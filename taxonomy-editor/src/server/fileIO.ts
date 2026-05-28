@@ -874,7 +874,7 @@ export async function harvestSaveManifest(manifest: Record<string, unknown>): Pr
 
 // ── Summaries & Sources ──
 
-function getSourcesDir(): string | null {
+export function getSourcesDir(): string | null {
   // Sources may live in a separate repo (ai-triad-sources).
   // getSourcesRoot() returns null when the path doesn't exist.
   const sourcesRoot = getSourcesRoot();

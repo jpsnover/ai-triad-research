@@ -2093,6 +2093,32 @@ async function getRelevantTaxonomyContext(
 
     console.log(`[taxonomy] Relevance-filtered: ${filteredPov.length} POV nodes (from ${allPovNodes.length}), ${filteredCC.length} CC nodes (from ${allCCNodes.length})`);
 
+    // Situation divergence summary — surfaces interpretation alignment at debate setup
+    {
+      const withDiv = filteredCC.filter(n => n.interpretation_divergence != null);
+      if (withDiv.length > 0) {
+        const high = withDiv.filter(n => n.interpretation_divergence! > 0.40).length;
+        const medium = withDiv.filter(n => n.interpretation_divergence! >= 0.20 && n.interpretation_divergence! <= 0.40).length;
+        const low = withDiv.filter(n => n.interpretation_divergence! < 0.20).length;
+        const mean = withDiv.reduce((s, n) => s + n.interpretation_divergence!, 0) / withDiv.length;
+        const deprioritized = allCCNodes.filter(n => n.interpretation_divergence != null && n.interpretation_divergence < 0.20).length - low;
+        getGlobalRecorder()?.record({
+          type: 'situation.divergence-summary',
+          component: 'debate-store',
+          level: low > 0 ? 'warn' : 'info',
+          message: `Situation divergence: ${high} high, ${medium} moderate, ${low} low (mean ${mean.toFixed(2)})`,
+          data: {
+            activated_count: withDiv.length,
+            high_divergence: high,
+            medium_divergence: medium,
+            low_divergence: low,
+            mean_divergence: Math.round(mean * 100) / 100,
+            deprioritized_count: deprioritized > 0 ? deprioritized : 0,
+          },
+        });
+      }
+    }
+
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     return { povNodes: filteredPov, situationNodes: filteredCC, policyRegistry, nodeScores, nodeSourceMap, injectionManifest };
   } catch (err) {
@@ -5948,6 +5974,72 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         });
         console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
         pushWarning(get, set, 'Taxonomy gap analysis skipped');
+      }
+
+      // Evidence QBAF — score Belief nodes against source corpus (t/241)
+      try {
+        const eqDebate = get().activeDebate;
+        const eqAN = eqDebate?.argument_network;
+        if (eqAN && eqAN.nodes.length > 0) {
+          const beliefNodes = eqAN.nodes.filter(
+            n => n.bdi_category === 'belief' && n.specificity === 'precise',
+          );
+          if (beliefNodes.length > 0) {
+            const updatedNodes = [...eqAN.nodes];
+            let scored = 0;
+            for (const node of beliefNodes.slice(0, 5)) {
+              try {
+                const result = await api.runEvidenceQbaf(node.text, node.id, model);
+                if (result && result.evidence_items.length > 0) {
+                  const idx = updatedNodes.findIndex(n => n.id === node.id);
+                  if (idx >= 0) {
+                    updatedNodes[idx] = {
+                      ...updatedNodes[idx],
+                      base_strength: result.computed_strength,
+                      scoring_method: 'evidence_qbaf',
+                      verification_status: result.computed_strength >= 0.6 ? 'verified'
+                        : result.computed_strength <= 0.4 ? 'disputed' : 'unverifiable',
+                      evidence_graph: {
+                        evidence_items: result.evidence_items,
+                        computed_strength: result.computed_strength,
+                        qbaf_iterations: result.qbaf_iterations,
+                      },
+                    };
+                    scored++;
+                  }
+                }
+              } catch (nodeErr) {
+                getGlobalRecorder()?.record({
+                  type: 'system.error',
+                  component: 'debate-store',
+                  level: 'debug',
+                  message: `Evidence QBAF failed for node ${node.id}`,
+                  error: { name: (nodeErr as Error).name ?? 'Error', message: String(nodeErr) },
+                });
+              }
+            }
+            if (scored > 0 && isStillValid()) {
+              const freshEqDebate = get().activeDebate;
+              if (freshEqDebate) {
+                set({
+                  activeDebate: {
+                    ...freshEqDebate,
+                    argument_network: { ...freshEqDebate.argument_network!, nodes: updatedNodes, edges: freshEqDebate.argument_network!.edges },
+                  },
+                });
+              }
+            }
+          }
+        }
+      } catch (eqErr) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'debate-store',
+          level: 'warn',
+          message: 'Evidence QBAF pass failed (non-fatal)',
+          error: { name: (eqErr as Error).name ?? 'Error', message: String(eqErr) },
+        });
+        pushWarning(get, set, 'Evidence QBAF scoring skipped');
       }
 
       // Neutral evaluation: final checkpoint (after synthesis)

@@ -77,6 +77,7 @@ export function extractClaimsPrompt(
   statement: string,
   speaker: string,
   priorClaims: PriorClaim[],
+  audience?: string,
 ): string {
   const priorBlock = priorClaims.length > 0
     ? priorClaims.map(c => `  ${c.id} (${c.speaker}): ${c.text}`).join('\n')
@@ -146,15 +147,20 @@ For each claim, also classify:
    "ambiguity_resolved": "none" (the source makes a clear, unambiguous claim) | "acknowledged" (the source hedges or presents multiple readings, and this extraction preserves that uncertainty) | "collapsed" (the source hedges or presents multiple readings, but this extraction picks one and states it as settled)}
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Prometheus") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
-
+${audience === 'policymakers' ? `
+- "political_salience": classify each claim's relevance to political decision-making:
+  "high" = Names a specific bill, agency, budget line, executive order, identifiable constituency, or references a specific court ruling or legal standard (e.g., Chevron deference, Section 230, strict liability standard). The claim could appear in a committee hearing or regulatory comment letter.
+  "medium" = Relevant to governance but requires translation to connect to a pending decision. Discusses institutional structures, regulatory frameworks, or enforcement in general terms.
+  "low" = Technically important but requires multiple inferential steps to connect to any pending political decision.
+` : ''}
 ${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown). Two example claim shapes:
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
-{"text": "...", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]}
+{"text": "...", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
 
 Example 2 — Desire claim (includes bdi_sub_scores; NO base_strength):
-{"text": "...", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]}
+{"text": "...", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
 
 Full responds_to shape (same for all BDI categories):
 {
@@ -189,6 +195,7 @@ export function classifyClaimsPrompt(
   speaker: string,
   debaterClaims: { claim: string; targets: string[] }[],
   priorClaims: PriorClaim[],
+  audience?: string,
 ): string {
   const priorBlock = priorClaims.length > 0
     ? priorClaims.map(c => `  ${c.id} (${c.speaker}): ${c.text}`).join('\n')
@@ -253,15 +260,20 @@ Also classify each claim:
    "ambiguity_resolved": "none" | "acknowledged" | "collapsed"}
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
-
+${audience === 'policymakers' ? `
+- "political_salience": classify each claim's relevance to political decision-making:
+  "high" = Names a specific bill, agency, budget line, executive order, identifiable constituency, or references a specific court ruling or legal standard (e.g., Chevron deference, Section 230, strict liability standard). The claim could appear in a committee hearing or regulatory comment letter.
+  "medium" = Relevant to governance but requires translation to connect to a pending decision. Discusses institutional structures, regulatory frameworks, or enforcement in general terms.
+  "low" = Technically important but requires multiple inferential steps to connect to any pending political decision.
+` : ''}
 ${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown). Two example claim shapes:
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
-{"text": "...", "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]}
+{"text": "...", "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
 
 Example 2 — Intention claim (includes bdi_sub_scores; NO base_strength):
-{"text": "...", "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]}
+{"text": "...", "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "low"' : ''}}
 
 Full responds_to shape (same for all BDI categories):
 {
@@ -820,6 +832,8 @@ export interface RawExtractedClaim {
   steelman_of?: string | null;
   /** ThinkPRM verification chain for Belief claims (t/455 Stage 3). */
   belief_verification?: BeliefVerification;
+  /** Policymaker debates only: political salience classification. */
+  political_salience?: 'high' | 'medium' | 'low';
   responds_to?: {
     prior_claim_id: string;
     relationship: string;
@@ -866,6 +880,8 @@ export interface ProcessClaimsInput {
   /** Activated situation nodes for claim-level grounding. When provided, claims with sufficient word overlap
    *  get sit- IDs added to taxonomy_refs — bridging situation context into AN structure. */
   activatedSituations?: { id: string; text: string }[];
+  /** Debate audience — when 'policymakers', political_salience is extracted and QBAF boost applied. */
+  audience?: string;
 }
 
 export interface ProcessClaimsResult {
@@ -1108,6 +1124,18 @@ export function processExtractedClaims(
         node.vocabulary_tags = resolved.map(t => ({
           colloquial: t.bare, canonical: t.canonical, offset: t.offset,
         }));
+      }
+    }
+
+    // Policymaker political salience: carry forward from extraction and apply QBAF boost.
+    // Only fires on explicit 'high', never on undefined. +0.10 boost capped at 1.0.
+    if (input.audience === 'policymakers' && claim.political_salience) {
+      const salience = claim.political_salience as 'high' | 'medium' | 'low';
+      if (salience === 'high' || salience === 'medium' || salience === 'low') {
+        node.political_salience = salience;
+        if (salience === 'high') {
+          node.base_strength = Math.min(1.0, (node.base_strength ?? 0.5) + 0.10);
+        }
       }
     }
 

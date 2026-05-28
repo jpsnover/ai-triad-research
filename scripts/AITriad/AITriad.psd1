@@ -90,7 +90,7 @@
         'Test-AITJudgeModel'
         'Repair-AITSummaryMappings'
         'Invoke-EdgeWeightEvaluation'
-        'Normalize-Markdown'
+        'Repair-Markdown'
         'Compare-DebateRuns'
         'Invoke-DebateAB'
         'Show-OSSLicenses'

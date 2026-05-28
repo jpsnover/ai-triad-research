@@ -338,12 +338,14 @@ export async function runTurnPipeline(
     });
     let briefPrompt: string;
     let briefRaw: string;
+    let briefUsage: { inputTokens: number; outputTokens: number } | undefined;
     t0 = Date.now();
     if (envelopeGenerate) {
       const env = briefStageEnvelope(stageInput);
       briefPrompt = flattenEnvelope(env);
       const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.brief_temperature } }, `${input.label} brief`);
       briefRaw = resp.text;
+      briefUsage = resp.usage;
     } else {
       briefPrompt = briefStagePrompt(stageInput);
       briefRaw = await generate(briefPrompt, input.model, { temperature: temps.brief_temperature }, `${input.label} brief`);
@@ -357,6 +359,8 @@ export async function runTurnPipeline(
       parse_error: briefParsed.error,
       retry_trigger: isOuterRetry ? 'orchestration-rerun' : 'initial',
       prompt_component_chars: promptComponentChars,
+      input_tokens: briefUsage?.inputTokens,
+      output_tokens: briefUsage?.outputTokens,
     });
     if (briefParsed.error) {
       throw new ActionableError({
@@ -440,6 +444,7 @@ export async function runTurnPipeline(
       });
       let planPromptText: string;
       let planRaw: string;
+      let planUsage: { inputTokens: number; outputTokens: number } | undefined;
       t0 = Date.now();
       if (envelopeGenerate) {
         const env = planStageEnvelope(stageInput, briefJson);
@@ -449,6 +454,7 @@ export async function runTurnPipeline(
         planPromptText = flattenEnvelope(env);
         const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.plan_temperature } }, `${input.label} plan`);
         planRaw = resp.text;
+        planUsage = resp.usage;
       } else {
         planPromptText = planStagePrompt(stageInput, briefJson);
         if (planRepairHints.length > 0) {
@@ -466,6 +472,8 @@ export async function runTurnPipeline(
         retry_trigger: isOuterRetry ? 'orchestration-rerun' : planAttempt > 0 ? 'stage-retry' : 'initial',
         repair_hints_in: planRepairHints.length > 0 ? planRepairHints : undefined,
         prompt_component_chars: promptComponentChars,
+        input_tokens: planUsage?.inputTokens,
+        output_tokens: planUsage?.outputTokens,
       });
       if (planParsed.error) {
         throw new ActionableError({
@@ -633,6 +641,7 @@ export async function runTurnPipeline(
     });
     let draftPromptText: string;
     let draftRaw: string;
+    let draftUsage: { inputTokens: number; outputTokens: number } | undefined;
     t0 = Date.now();
     // Build targeted repair block from prior failure — translates hints into
     // specific prompt modifications placed in the recency window, not generic appendix.
@@ -681,6 +690,7 @@ export async function runTurnPipeline(
       draftPromptText = flattenEnvelope(env);
       const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft`);
       draftRaw = resp.text;
+      draftUsage = resp.usage;
     } else {
       draftPromptText = draftStagePrompt(stageInput, briefJson, planJson);
       // Inject repair block first
@@ -739,6 +749,8 @@ export async function runTurnPipeline(
       retry_trigger: draftAttempt === 0 && !isOuterRetry ? 'initial' : draftAttempt > 0 ? 'stage-retry' : 'orchestration-rerun',
       repair_hints_in: draftRepairHints.length > 0 ? [...draftRepairHints] : undefined,
       prompt_component_chars: promptComponentChars,
+      input_tokens: draftUsage?.inputTokens,
+      output_tokens: draftUsage?.outputTokens,
     });
     draft = tagProvenance(draftParsed.product, {
       pipeline_run: isOuterRetry ? 1 : 0,
@@ -1134,6 +1146,7 @@ export async function runTurnPipeline(
         const repairBlock = buildRepairBlock(draftRepairHints, draft.statement);
         let retryDraftPrompt: string;
         let retryDraftRaw: string;
+        let retryDraftUsage: { inputTokens: number; outputTokens: number } | undefined;
         const retryT0 = Date.now();
         if (envelopeGenerate) {
           const env = draftStageEnvelope(stageInput, briefJson, planJson);
@@ -1156,6 +1169,7 @@ export async function runTurnPipeline(
           retryDraftPrompt = flattenEnvelope(env);
           const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.draft_temperature } }, `${input.label} draft (quality retry)`);
           retryDraftRaw = resp.text;
+          retryDraftUsage = resp.usage;
         } else {
           retryDraftPrompt = draftStagePrompt(stageInput, briefJson, planJson);
           if (repairBlock) {
@@ -1184,6 +1198,8 @@ export async function runTurnPipeline(
           response_time_ms: retryElapsed, work_product: retryDraftParsed.product as unknown as Record<string, unknown>,
           parse_error: retryDraftParsed.error,
           prompt_component_chars: promptComponentChars,
+          input_tokens: retryDraftUsage?.inputTokens,
+          output_tokens: retryDraftUsage?.outputTokens,
         });
         if (!retryDraftParsed.error && retryDraftParsed.product?.statement) {
           draft = tagProvenance(retryDraftParsed.product, {
@@ -1219,6 +1235,7 @@ export async function runTurnPipeline(
     });
     let citePromptText: string;
     let citeRaw: string;
+    let citeUsage: { inputTokens: number; outputTokens: number } | undefined;
     t0 = Date.now();
     if (envelopeGenerate) {
       const env = citeStageEnvelope(stageInput, planJson, draftJson);
@@ -1228,6 +1245,7 @@ export async function runTurnPipeline(
       citePromptText = flattenEnvelope(env);
       const resp = await envelopeGenerate({ envelope: env, model: input.model, options: { temperature: temps.cite_temperature } }, `${input.label} cite`);
       citeRaw = resp.text;
+      citeUsage = resp.usage;
     } else {
       citePromptText = citeStagePrompt(stageInput, planJson, draftJson);
       if (citeRepairHints.length > 0) {
@@ -1245,6 +1263,8 @@ export async function runTurnPipeline(
       retry_trigger: isOuterRetry ? 'orchestration-rerun' : citeAttempt > 0 ? 'stage-retry' : 'initial',
       repair_hints_in: citeRepairHints.length > 0 ? [...citeRepairHints] : undefined,
       prompt_component_chars: promptComponentChars,
+      input_tokens: citeUsage?.inputTokens,
+      output_tokens: citeUsage?.outputTokens,
     });
 
     // Per-stage cite validation
@@ -1348,6 +1368,7 @@ function extractDraftMeta(draft: DraftWorkProduct): PoverResponseMeta {
     ...(draft as Record<string, unknown>).pin_response != null ? { pin_response: (draft as Record<string, unknown>).pin_response } : {},
     ...(draft as Record<string, unknown>).probe_response != null ? { probe_response: (draft as Record<string, unknown>).probe_response } : {},
     ...(draft as Record<string, unknown>).challenge_response != null ? { challenge_response: (draft as Record<string, unknown>).challenge_response } : {},
+    ...(draft as Record<string, unknown>).policy_challenge_response != null ? { policy_challenge_response: (draft as Record<string, unknown>).policy_challenge_response } : {},
     ...(draft as Record<string, unknown>).clarification != null ? { clarification: (draft as Record<string, unknown>).clarification } : {},
     ...(draft as Record<string, unknown>).check_response != null ? { check_response: (draft as Record<string, unknown>).check_response } : {},
     ...(draft as Record<string, unknown>).revoice_response != null ? { revoice_response: (draft as Record<string, unknown>).revoice_response } : {},

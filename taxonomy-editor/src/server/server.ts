@@ -1063,6 +1063,41 @@ post('/api/source-evidence', async (_req, res, body) => {
   }
 });
 
+// ── Evidence QBAF (runs full pipeline server-side) ──
+
+post('/api/evidence-qbaf', async (_req, res, body) => {
+  const { claimText, claimId, model } = body as { claimText: string; claimId: string; model?: string };
+  if (!claimText || !claimId) { error(res, 'claimText and claimId are required', 400); return; }
+
+  const sourcesDir = fileIO.getSourcesDir();
+  if (!sourcesDir || !fs.existsSync(sourcesDir)) { json(res, null); return; }
+
+  try {
+    const { retrieveEvidence } = await import('../../../lib/debate/evidenceRetriever.js');
+    const { buildEvidenceQbaf } = await import('../../../lib/debate/evidenceQbaf.js');
+    type AIAdapter = import('../../../lib/debate/aiAdapter.js').AIAdapter;
+
+    const evidenceItems = retrieveEvidence(claimText, sourcesDir, { topK: 10 });
+    if (evidenceItems.length === 0) { json(res, null); return; }
+
+    const adapter: AIAdapter = {
+      generateText: async (prompt: string, mdl: string) => {
+        const result = await ai.generateText(prompt, mdl);
+        return result.text;
+      },
+    };
+
+    const evalModel = model || 'gemini-flash-lite-latest';
+    const result = await buildEvidenceQbaf(claimText, evidenceItems, adapter, evalModel, {
+      claimBaseStrength: 0.5,
+    });
+    json(res, { ...result, claim_id: claimId });
+  } catch (err) {
+    log.api.warn({ err }, `evidence-qbaf failed for ${claimId}`);
+    json(res, null);
+  }
+});
+
 // ── Proposals ──
 
 get('/api/proposals', async (_req, res) => { json(res, await fileIO.listProposals()); });

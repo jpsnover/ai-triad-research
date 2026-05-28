@@ -139,6 +139,8 @@ export interface SituationNode {
   parent_relationship?: 'is_a' | 'part_of' | 'specializes' | null;
   /** Rationale for the parent relationship. */
   parent_rationale?: string | null;
+  /** Mean pairwise cosine distance across the three POV interpretation embeddings (0-1). */
+  interpretation_divergence?: number;
   /** Tracks origin when this node was created via consensus detection. */
   convergence_source?: {
     debate_id: string;

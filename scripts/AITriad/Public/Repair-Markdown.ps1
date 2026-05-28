@@ -23,15 +23,15 @@
 .PARAMETER Text
     The Markdown text to normalize.
 .EXAMPLE
-    $Clean = Normalize-Markdown -Text (ConvertFrom-Pdf -PdfPath doc.pdf)
+    $Clean = Repair-Markdown -Text (ConvertFrom-Pdf -PdfPath doc.pdf)
 
     Cleans PDF-extracted Markdown before writing a snapshot.
 .EXAMPLE
-    $md = Get-Content snapshot.md -Raw; Normalize-Markdown -Text $md | Set-Content snapshot.md
+    $md = Get-Content snapshot.md -Raw; Repair-Markdown -Text $md | Set-Content snapshot.md
 
     Re-normalizes an existing snapshot in-place.
 #>
-function Normalize-Markdown {
+function Repair-Markdown {
     param([Parameter(Mandatory)][string]$Text)
 
     # Unicode NFC normalization (e + combining accent -> precomposed e-acute)

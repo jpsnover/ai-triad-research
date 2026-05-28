@@ -23,6 +23,7 @@ import {
   getResponseFieldForMove,
   getMoveResponseConfig,
   getConcludingResponder,
+  shouldFirePolicyChallenge,
 } from './moderator.js';
 import type {
   ModeratorState,
@@ -1126,5 +1127,88 @@ describe('getConcludingResponder', () => {
     });
     const t = transcript('accelerationist', 'safetyist', 'skeptic');
     expect(getConcludingResponder(state, povers, t)).toBe('accelerationist');
+  });
+});
+
+describe('shouldFirePolicyChallenge (t/249)', () => {
+  const baseInput = {
+    audience: 'policymakers' as const,
+    phase: 'argumentation' as const,
+    argumentationRoundCount: 4,
+    convergenceSignals: [
+      { move_polarity: { ratio: 0.7 } },
+      { move_polarity: { ratio: 0.65 } },
+      { move_polarity: { ratio: 0.72 } },
+    ],
+    intentionNodes: [
+      { specificity: 'abstract' },
+      { specificity: 'general' },
+      { specificity: 'abstract' },
+    ],
+  };
+
+  const makeModState = (overrides: Partial<ModeratorState> = {}): ModeratorState => ({
+    ...initModeratorState(10, ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[]),
+    rounds_since_last_intervention: 3,
+    ...overrides,
+  });
+
+  it('fires when all 4 conditions are met', () => {
+    const result = shouldFirePolicyChallenge(
+      baseInput,
+      makeModState(),
+      ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[],
+    );
+    expect(result).not.toBeNull();
+  });
+
+  it('does not fire for non-policymaker audience', () => {
+    const result = shouldFirePolicyChallenge(
+      { ...baseInput, audience: 'technical_researchers' },
+      makeModState(),
+      ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[],
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire before 3 argumentation rounds', () => {
+    const result = shouldFirePolicyChallenge(
+      { ...baseInput, argumentationRoundCount: 2 },
+      makeModState(),
+      ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[],
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire when collaborative ratio is low', () => {
+    const result = shouldFirePolicyChallenge(
+      { ...baseInput, convergenceSignals: [{ move_polarity: { ratio: 0.3 } }] },
+      makeModState(),
+      ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[],
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire when intention nodes are precise', () => {
+    const result = shouldFirePolicyChallenge(
+      { ...baseInput, intentionNodes: [{ specificity: 'precise' }, { specificity: 'precise' }] },
+      makeModState(),
+      ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[],
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire twice in the same debate', () => {
+    const state = makeModState({
+      intervention_history: [
+        { round: 5, move: 'POLICY_CHALLENGE' as InterventionMove, family: 'elicitation', target: 'safetyist' as SpeakerId, burden: 1.0 },
+      ],
+    });
+    const result = shouldFirePolicyChallenge(
+      baseInput,
+      state,
+      ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[],
+    );
+    expect(result).toBeNull();
   });
 });

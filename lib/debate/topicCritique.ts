@@ -20,6 +20,7 @@ import { cosineSimilarity } from './taxonomyRelevance.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { PovNode, SituationNode, Category } from './taxonomyTypes.js';
 import type { SourceEvidenceIndex } from './evidenceFromSummaries.js';
+import type { DebateAudience } from './types.js';
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -75,7 +76,13 @@ export interface FrameScore {
   tension: 0 | 1 | 2;
   /** Scope boundedness: open-ended (0) → partial (1) → concrete artifacts (2). */
   scope: 0 | 1 | 2;
-  /** Sum of all frame dimensions (0-10). */
+  /** Actor specificity (policymaker only): abstract (0) → general types (1) → named actors (2). */
+  actor_specificity?: 0 | 1 | 2;
+  /** Decision proximity (policymaker only): theoretical (0) → general governance (1) → pending action (2). */
+  decision_proximity?: 0 | 1 | 2;
+  /** Constituency impact (policymaker only): no groups (0) → general population (1) → specific groups (2). */
+  constituency_impact?: 0 | 1 | 2;
+  /** Sum of all frame dimensions (0-10, or 0-16 for policymakers). */
   total: number;
 }
 
@@ -141,7 +148,7 @@ export interface StructuralScoreInput {
   /** All POV nodes across all perspectives. */
   povNodes: readonly { id: string; pov: string; category: Category }[];
   /** Situation/cross-cutting nodes. */
-  situationNodes: readonly { id: string }[];
+  situationNodes: readonly { id: string; interpretation_divergence?: number }[];
   /** Node embeddings map: nodeId → { pov, vector }. */
   embeddings: Record<string, { pov: string; vector: number[] }>;
   /** Source evidence index (optional — absent means evidence coverage = 0). */
@@ -158,6 +165,14 @@ export interface StructuralScoreInput {
  */
 export function computeStructuralScore(input: StructuralScoreInput): StructuralScore {
   const threshold = input.similarityThreshold ?? ACTIVATION_THRESHOLD;
+
+  // Build divergence lookup for situation nodes
+  const sitDivergence = new Map<string, number>();
+  for (const sit of input.situationNodes) {
+    if (sit.interpretation_divergence != null) {
+      sitDivergence.set(sit.id, sit.interpretation_divergence);
+    }
+  }
 
   // 1. Compute similarity for all nodes and filter activated.
   //    Situation nodes use a higher threshold (t/244) — same-domain embeddings
@@ -215,7 +230,7 @@ export function computeStructuralScore(input: StructuralScoreInput): StructuralS
   const evidence_coverage = scoreEvidenceCoverage(activated, input.evidenceIndex);
   const bdi_heterogeneity = scoreBdiHeterogeneity(bdiDist);
   const abstraction_level = scoreAbstractionLevel(povDist);
-  const situation_activation = scoreSituationActivation(activated);
+  const situation_activation = scoreSituationActivation(activated, sitDivergence);
 
   const total = crux_density + evidence_coverage + bdi_heterogeneity + abstraction_level + situation_activation;
 
@@ -314,10 +329,27 @@ function scoreAbstractionLevel(povDist: Record<string, number>): 0 | 1 | 2 {
   return 0;
 }
 
-function scoreSituationActivation(activated: StructuralScore['activated_nodes']): 0 | 1 | 2 {
-  const sitCount = activated.filter(n => n.id.startsWith('sit-') || n.id.startsWith('cc-')).length;
-  if (sitCount >= 2) return 2;
-  if (sitCount === 1) return 1;
+function scoreSituationActivation(
+  activated: StructuralScore['activated_nodes'],
+  sitDivergence?: Map<string, number>,
+): 0 | 1 | 2 {
+  const sitNodes = activated.filter(n => n.id.startsWith('sit-') || n.id.startsWith('cc-'));
+  if (sitNodes.length === 0) return 0;
+
+  // Weight by interpretation divergence when available — a topic activating
+  // 3 high-divergence situations scores higher than 5 low-divergence ones
+  if (sitDivergence && sitDivergence.size > 0) {
+    const weightedCount = sitNodes.reduce(
+      (sum, s) => sum + (sitDivergence.get(s.id) ?? 0.3), 0,
+    );
+    if (weightedCount >= 0.6) return 2; // ~2 medium-divergence situations
+    if (weightedCount >= 0.3) return 1; // ~1 medium-divergence situation
+    return 0;
+  }
+
+  // Fallback: raw count when no divergence data
+  if (sitNodes.length >= 2) return 2;
+  if (sitNodes.length === 1) return 1;
   return 0;
 }
 
@@ -327,7 +359,7 @@ function scoreSituationActivation(activated: StructuralScore['activated_nodes'])
  * Build the LLM prompt for Phase B frame analysis.
  * Single call — returns structured JSON with frame scores + rewritten topic.
  */
-export function critiqueTopicPrompt(topic: string, structuralContext?: string): string {
+export function critiqueTopicPrompt(topic: string, structuralContext?: string, audience?: DebateAudience): string {
   const structuralBlock = structuralContext
     ? `
 
@@ -335,6 +367,30 @@ export function critiqueTopicPrompt(topic: string, structuralContext?: string): 
 ${structuralContext}
 
 Your REWRITTEN TOPIC must address any structural warnings above in addition to improving frame scores.
+`
+    : '';
+
+  const policymakerBlock = audience === 'policymakers'
+    ? `
+
+Additionally, score these three POLITICAL OPERATIONALITY dimensions (0, 1, or 2 each):
+
+6. **Actor specificity** (does the topic name specific institutional actors?)
+   - 0: Only abstract categories ("stakeholders", "society")
+   - 1: General institutional types ("regulators", "tech companies")
+   - 2: Specific named actors (agencies, companies, legislatures, courts)
+
+7. **Decision proximity** (is there a pending decision this debate could inform?)
+   - 0: Purely theoretical, no connection to pending action
+   - 1: Relevant to governance but no specific pending decision
+   - 2: References a concrete regulatory, legislative, or executive action
+
+8. **Constituency impact** (can the outcome be traced to identifiable groups?)
+   - 0: No identifiable affected groups
+   - 1: General population impact
+   - 2: Specific voter, donor, or industry groups identified
+
+For a policymaker audience, ensure the rewritten topic names specific institutional actors, references a concrete regulatory or legislative context, and identifies which constituencies are affected.
 `
     : '';
 
@@ -366,7 +422,7 @@ Score the topic on these five FRAME dimensions. Each dimension scores 0, 1, or 2
    - 0: Open-ended, no constraints
    - 1: Partially bounded (some context given)
    - 2: Concrete artifacts, specific tension, bounded scope
-
+${policymakerBlock}
 TOPIC: "${topic}"
 
 TASK: Score the topic, then rewrite it. Follow these steps IN ORDER:
@@ -383,7 +439,10 @@ Respond with ONLY this JSON (no markdown fences, no explanation):
     "mechanism": <0|1|2>,
     "stakeholder": <0|1|2>,
     "tension": <0|1|2>,
-    "scope": <0|1|2>
+    "scope": <0|1|2>${audience === 'policymakers' ? `,
+    "actor_specificity": <0|1|2>,
+    "decision_proximity": <0|1|2>,
+    "constituency_impact": <0|1|2>` : ''}
   },
   "issues": [
     {
@@ -425,6 +484,9 @@ export function parseTopicCritique(
       stakeholder?: number;
       tension?: number;
       scope?: number;
+      actor_specificity?: number;
+      decision_proximity?: number;
+      constituency_impact?: number;
     };
     issues?: TopicIssue[];
     reframe_suggestions?: ReframeSuggestion[];
@@ -440,6 +502,9 @@ export function parseTopicCritique(
     scope: clampScore(fs.scope),
     total: 0,
   };
+  if (fs.actor_specificity != null) frameScore.actor_specificity = clampScore(fs.actor_specificity);
+  if (fs.decision_proximity != null) frameScore.decision_proximity = clampScore(fs.decision_proximity);
+  if (fs.constituency_impact != null) frameScore.constituency_impact = clampScore(fs.constituency_impact);
   frameScore.total = frameScore.conditionality + frameScore.mechanism +
     frameScore.stakeholder + frameScore.tension + frameScore.scope;
 

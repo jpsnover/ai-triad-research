@@ -44,7 +44,7 @@ import {
 } from './chatIO';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport';
 import { storeApiKey, hasApiKey } from './apiKeyStore';
-import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT } from './fileIO';
+import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir } from './fileIO';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings';
 import type { ChatMessage } from './embeddings';
 import { refreshAIModels } from './modelDiscovery';
@@ -764,6 +764,37 @@ export function registerIpcHandlers(): void {
   });
 
   // ── Chat session handlers ─���───────────────────────────
+  // ── Evidence QBAF (runs full pipeline in main process) ──
+  ipcMain.handle('run-evidence-qbaf', async (_event, claimText: string, claimId: string, model?: string) => {
+    const sourcesDir = getSourcesDir();
+    if (!sourcesDir || !fs.existsSync(sourcesDir)) return null;
+
+    try {
+      const { retrieveEvidence } = await import('../../../lib/debate/evidenceRetriever.js');
+      const { buildEvidenceQbaf } = await import('../../../lib/debate/evidenceQbaf.js');
+      type AIAdapter = import('../../../lib/debate/aiAdapter.js').AIAdapter;
+
+      const evidenceItems = retrieveEvidence(claimText, sourcesDir, { topK: 10 });
+      if (evidenceItems.length === 0) return null;
+
+      const adapter: AIAdapter = {
+        generateText: async (prompt: string, mdl: string, opts?: { temperature?: number; maxTokens?: number }) => {
+          return generateText(prompt, mdl, undefined, undefined, opts?.temperature);
+        },
+      };
+
+      const evalModel = model || 'gemini-flash-lite-latest';
+      const result = await buildEvidenceQbaf(claimText, evidenceItems, adapter, evalModel, {
+        claimBaseStrength: 0.5,
+      });
+      return { ...result, claim_id: claimId };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[ipc] run-evidence-qbaf failed for ${claimId}: ${msg}`);
+      return null;
+    }
+  });
+
   ipcMain.handle('list-chat-sessions', () => {
     return listChatSessions();
   });

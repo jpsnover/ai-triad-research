@@ -1,10 +1,11 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore, MODELS_BY_BACKEND } from '../hooks/useTaxonomyStore';
+import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, initAIModels } from '../hooks/useTaxonomyStore';
+import type { AIBackend } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../types/debate';
 import { DEBATE_PROTOCOLS } from '../data/debateProtocols';
@@ -30,6 +31,7 @@ const SOURCE_ICONS: Record<DebateSourceType, string> = {
   document: '\uD83D\uDCC4',  // page
   url: '\uD83C\uDF10',       // globe
   situations: '\uD83D\uDCCB', // clipboard (unused but typed)
+  other: '\uD83D\uDCE6',     // package
 };
 
 const FORMAT_ICONS: Record<string, string> = {
@@ -77,6 +79,72 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [useAdaptiveStaging, setUseAdaptiveStaging] = useState(false);
   const [evaluatorModel, setEvaluatorModel] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showModelModal, setShowModelModal] = useState(false);
+  const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
+  const [hasApiKey, setHasApiKey] = useState<Record<string, boolean>>({});
+  const [refreshingModels, setRefreshingModels] = useState(false);
+  const [otherTab, setOtherTab] = useState<'canned' | 'queued'>('canned');
+  const [queuedTopics, setQueuedTopics] = useState<{ text: string; sourceType: DebateSourceType; sourceRef: string; timestamp: string }[]>(() => {
+    try {
+      const raw = localStorage.getItem('taxonomy-editor-topic-queue');
+      return raw ? JSON.parse(raw) : [];
+    } catch { /* localStorage parse — silent by design */ return []; }
+  });
+
+  const persistQueue = (next: typeof queuedTopics) => {
+    setQueuedTopics(next);
+    localStorage.setItem('taxonomy-editor-topic-queue', JSON.stringify(next));
+  };
+
+  const handleQueueTopic = () => {
+    if (!topic.trim()) return;
+    const entry = { text: topic.trim(), sourceType, sourceRef: sourceRef.trim(), timestamp: new Date().toISOString() };
+    persistQueue([...queuedTopics, entry]);
+    onClose();
+  };
+
+  const handleRemoveQueued = (idx: number) => {
+    persistQueue(queuedTopics.filter((_, i) => i !== idx));
+  };
+
+  useEffect(() => {
+    if (!showModelModal) return;
+    void Promise.all(
+      AI_BACKENDS.map(async (b) => {
+        const has = await api.hasApiKey(b.value);
+        return [b.value, has] as [string, boolean];
+      }),
+    ).then(results => setHasApiKey(Object.fromEntries(results)));
+  }, [showModelModal]);
+
+  const openModelModal = () => {
+    const model = useCustomModel ? customModel : globalModel;
+    for (const [backend, models] of Object.entries(MODELS_BY_BACKEND)) {
+      if (models.some(m => m.value === model)) {
+        setModalBackend(backend as AIBackend);
+        break;
+      }
+    }
+    setShowModelModal(true);
+  };
+
+  const handleRefreshModels = async () => {
+    setRefreshingModels(true);
+    try {
+      await api.refreshAIModels();
+      await initAIModels();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'new-debate-dialog',
+        level: 'error',
+        message: 'Failed to refresh AI models',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    } finally {
+      setRefreshingModels(false);
+    }
+  };
 
   // Get situation nodes for potential topics
   const situationNodes = useMemo(() => {
@@ -107,7 +175,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     setTopic(`${label}: ${description}`);
   };
 
-  const hasSource = sourceType === 'topic'
+  const hasSource = sourceType === 'topic' || sourceType === 'other'
     ? topic.trim().length > 0
     : sourceType === 'document'
       ? sourceContent.length > 0
@@ -159,9 +227,9 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       finalTopic,
       povers,
       userIsPover,
-      sourceType,
-      sourceType === 'topic' ? '' : sourceRef.trim(),
-      sourceType === 'topic' ? '' : finalContent,
+      sourceType === 'other' ? 'topic' : sourceType,
+      sourceType === 'topic' || sourceType === 'other' ? '' : sourceRef.trim(),
+      sourceType === 'topic' || sourceType === 'other' ? '' : finalContent,
       debateModelOverride,
       protocolId,
       temperature,
@@ -203,7 +271,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             {/* Source type radios */}
             <label className="ndd-field-label">Source</label>
             <div className="ndd-source-types">
-              {(['topic', 'document', 'url'] as DebateSourceType[]).map(st => (
+              {(['topic', 'document', 'url', 'other'] as DebateSourceType[]).map(st => (
                 <label key={st} className={`ndd-source-option${sourceType === st ? ' active' : ''}`}>
                   <input type="radio" name="sourceType" value={st} checked={sourceType === st} onChange={() => setSourceType(st)} />
                   <span className="ndd-source-icon">{SOURCE_ICONS[st]}</span>
@@ -271,25 +339,80 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               </>
             )}
 
-            {/* Potential Topics — scrollable situation cards */}
-            {sourceType === 'topic' && situationNodes.length > 0 && (
+            {/* "Other" source: tabbed Canned / Queued topics */}
+            {sourceType === 'other' && (
               <>
-                <label className="ndd-field-label">Potential Topics ({situationNodes.length})</label>
-                <div className="ndd-potential-topics">
-                  {situationNodes.map(node => (
-                    <button
-                      key={node.id}
-                      className={`ndd-topic-card${topic.startsWith(node.label) ? ' selected' : ''}`}
-                      onClick={() => handleTopicCardClick(node.label, node.description)}
-                    >
-                      <div className="ndd-topic-card-header">
-                        <span className="ndd-topic-card-icon">{'\uD83D\uDCA1'}</span>
-                        <span className="ndd-topic-card-title">{node.label}</span>
-                      </div>
-                      <p className="ndd-topic-card-desc">{node.description}</p>
-                    </button>
-                  ))}
+                <label className="ndd-field-label">Topic</label>
+                <textarea
+                  className="ndd-topic-input"
+                  placeholder="Type a custom topic or pick from Canned / Queued below."
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  rows={3}
+                  autoFocus
+                />
+                <div className="ndd-other-tabs">
+                  <button
+                    className={`ndd-other-tab${otherTab === 'canned' ? ' active' : ''}`}
+                    onClick={() => setOtherTab('canned')}
+                  >
+                    Canned Topics ({situationNodes.length})
+                  </button>
+                  <button
+                    className={`ndd-other-tab${otherTab === 'queued' ? ' active' : ''}`}
+                    onClick={() => setOtherTab('queued')}
+                  >
+                    Queued Topics ({queuedTopics.length})
+                  </button>
                 </div>
+                {otherTab === 'canned' && situationNodes.length > 0 && (
+                  <div className="ndd-potential-topics">
+                    {situationNodes.map(node => (
+                      <button
+                        key={node.id}
+                        className={`ndd-topic-card${topic.startsWith(node.label) ? ' selected' : ''}`}
+                        onClick={() => handleTopicCardClick(node.label, node.description)}
+                      >
+                        <div className="ndd-topic-card-header">
+                          <span className="ndd-topic-card-icon">{'\uD83D\uDCA1'}</span>
+                          <span className="ndd-topic-card-title">{node.label}</span>
+                        </div>
+                        <p className="ndd-topic-card-desc">{node.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {otherTab === 'queued' && (
+                  <div className="ndd-potential-topics">
+                    {queuedTopics.length === 0 && (
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '12px 0' }}>
+                        No queued topics yet. Use "Queue Topic" to save topics for later.
+                      </p>
+                    )}
+                    {queuedTopics.map((qt, idx) => (
+                      <button
+                        key={idx}
+                        className={`ndd-topic-card${topic === qt.text ? ' selected' : ''}`}
+                        onClick={() => setTopic(qt.text)}
+                      >
+                        <div className="ndd-topic-card-header">
+                          <span className="ndd-topic-card-icon">{'\uD83D\uDCCB'}</span>
+                          <span className="ndd-topic-card-title" style={{ flex: 1 }}>{qt.text.slice(0, 80)}{qt.text.length > 80 ? '…' : ''}</span>
+                          <span
+                            className="ndd-queued-remove"
+                            title="Remove from queue"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveQueued(idx); }}
+                          >
+                            &times;
+                          </span>
+                        </div>
+                        <p className="ndd-topic-card-desc" style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                          Queued {new Date(qt.timestamp).toLocaleDateString()}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -298,46 +421,40 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           <div className="ndd-col-right">
             <h3 className="ndd-section-heading">Configuration</h3>
 
-            {/* Format — large radio cards */}
+            {/* Format */}
             <label className="ndd-field-label">Format</label>
-            <div className="ndd-format-cards">
+            <select
+              className="ndd-format-select"
+              value={protocolId}
+              onChange={(e) => setProtocolId(e.target.value)}
+            >
               {DEBATE_PROTOCOLS.map(p => (
-                <label key={p.id} className={`ndd-format-card${protocolId === p.id ? ' active' : ''}`}>
-                  <input type="radio" name="protocol" value={p.id} checked={protocolId === p.id} onChange={() => setProtocolId(p.id)} />
-                  <span className="ndd-format-icon">{FORMAT_ICONS[p.id] || '\u2696\uFE0F'}</span>
-                  <div className="ndd-format-text">
-                    <span className="ndd-format-name">{p.label}</span>
-                    <span className="ndd-format-desc">{p.description}</span>
-                  </div>
-                </label>
+                <option key={p.id} value={p.id}>
+                  {p.label} — {p.description}
+                </option>
               ))}
-            </div>
+            </select>
 
             {/* AI Model */}
             <label className="ndd-field-label">AI Model</label>
             <div className="ndd-model-section">
-              <label className="ndd-model-toggle">
-                <input
-                  type="checkbox"
-                  checked={useCustomModel}
-                  onChange={(e) => setUseCustomModel(e.target.checked)}
-                />
-                Use a different model
-              </label>
-              {!useCustomModel && (
-                <span className="ndd-model-current">Current: {globalModel}</span>
-              )}
-              {useCustomModel && (
-                <select
-                  className="ndd-model-select"
-                  value={customModel}
-                  onChange={(e) => setCustomModel(e.target.value)}
+              <div className="ndd-model-display">
+                <span className="ndd-model-badge" title={useCustomModel ? customModel : globalModel}>
+                  {(() => {
+                    const modelId = useCustomModel ? customModel : globalModel;
+                    const entry = availableModels.find(m => m.value === modelId);
+                    return entry ? entry.label : modelId;
+                  })()}
+                </span>
+                {useCustomModel && <span className="ndd-model-override-tag">override</span>}
+                <button
+                  className="btn btn-sm ndd-models-btn"
+                  onClick={openModelModal}
+                  type="button"
                 >
-                  {availableModels.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
-              )}
+                  Models
+                </button>
+              </div>
             </div>
 
             {/* Dialectical Style */}
@@ -463,10 +580,107 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
         {/* Footer */}
         <div className="ndd-footer">
           <button className="btn ndd-cancel-btn" onClick={onClose}>Cancel</button>
+          <button
+            className="btn ndd-queue-btn"
+            onClick={handleQueueTopic}
+            disabled={!topic.trim() || creating}
+            title="Save this topic to the queue for later"
+          >
+            Queue Topic
+          </button>
           <button className="btn btn-primary ndd-start-btn" onClick={handleStart} disabled={!canStart || creating}>
             {creating ? 'Creating...' : 'Start Debate'}
           </button>
         </div>
+
+        {/* Model Configuration Modal */}
+        {showModelModal && (
+          <div className="ndd-model-overlay" onClick={() => setShowModelModal(false)}>
+            <div className="ndd-model-dialog" onClick={e => e.stopPropagation()}>
+              <div className="ndd-model-dialog-header">
+                <h3>Model Configuration</h3>
+                <button className="ndd-close-btn" onClick={() => setShowModelModal(false)} aria-label="Close">&times;</button>
+              </div>
+
+              <div className="ndd-model-dialog-body">
+                <label className="ndd-model-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!useCustomModel}
+                    onChange={() => {
+                      if (!useCustomModel) {
+                        setUseCustomModel(true);
+                        setCustomModel(globalModel);
+                      } else {
+                        setUseCustomModel(false);
+                      }
+                    }}
+                  />
+                  Use global default
+                </label>
+                {!useCustomModel && (
+                  <span className="ndd-model-current">Global: {globalModel}</span>
+                )}
+
+                {useCustomModel && (
+                  <>
+                    <div className="ndd-model-row">
+                      <label className="ndd-model-row-label">Backend</label>
+                      <select
+                        className="ndd-model-select"
+                        value={modalBackend}
+                        onChange={(e) => {
+                          const backend = e.target.value as AIBackend;
+                          setModalBackend(backend);
+                          const models = MODELS_BY_BACKEND[backend];
+                          if (models?.length) setCustomModel(models[0].value);
+                        }}
+                      >
+                        {AI_BACKENDS.map(b => (
+                          <option key={b.value} value={b.value}>
+                            {b.label}{hasApiKey[b.value] === false ? ' (no key)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="ndd-model-row">
+                      <label className="ndd-model-row-label">Model</label>
+                      <select
+                        className="ndd-model-select"
+                        value={customModel}
+                        onChange={(e) => setCustomModel(e.target.value)}
+                      >
+                        {(MODELS_BY_BACKEND[modalBackend] || []).map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                <div className="ndd-model-actions">
+                  <button
+                    className="btn btn-sm"
+                    onClick={handleRefreshModels}
+                    disabled={refreshingModels}
+                  >
+                    {refreshingModels ? 'Refreshing...' : 'Refresh Models'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="ndd-model-dialog-footer">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setShowModelModal(false)}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

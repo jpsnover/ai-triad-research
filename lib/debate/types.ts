@@ -295,7 +295,7 @@ export interface ContextSummary {
   tier?: 'recent' | 'medium' | 'distant';
 }
 
-export type DebateSourceType = 'topic' | 'document' | 'url' | 'situations';
+export type DebateSourceType = 'topic' | 'document' | 'url' | 'situations' | 'other';
 
 export type DebateAudience =
   | 'policymakers'
@@ -867,6 +867,8 @@ export interface ArgumentNetworkNode {
   claim_taxonomy_attribution?: ClaimTaxonomyAttribution;
   /** Post-extraction vocabulary disambiguation: bare colloquial terms resolved to canonical forms. */
   vocabulary_tags?: { colloquial: string; canonical: string; offset: number }[];
+  /** Policymaker debates only: political salience of this claim for policy decision-making. */
+  political_salience?: 'high' | 'medium' | 'low';
 }
 
 export interface ClaimTaxonomyAttribution {
@@ -984,6 +986,10 @@ export interface EntryDiagnostics {
   lookahead?: import('./lookaheadGate.js').LookaheadDiagnostics;
   /** Tracks whether claim extraction has completed for this entry (t/226). */
   extraction_status?: 'pending' | 'complete' | 'failed';
+  /** Total input tokens consumed across all stages in this entry. */
+  input_tokens?: number;
+  /** Total output tokens produced across all stages in this entry. */
+  output_tokens?: number;
 }
 
 // ── Turn pipeline types ──────────────────────────────
@@ -1018,6 +1024,10 @@ export interface StageDiagnostics {
   validation_errors?: string[];
   /** Per-component char counts for prompt growth forensics (t/221). */
   prompt_component_chars?: PromptComponentChars;
+  /** Input tokens consumed by this stage's API call (from CacheUsage). */
+  input_tokens?: number;
+  /** Output tokens produced by this stage's API call (from CacheUsage). */
+  output_tokens?: number;
 }
 
 /** Per-component char counts for prompt growth forensics (t/221). */
@@ -1237,6 +1247,10 @@ export interface DebateOverviewDiagnostics {
   claims_rejected: number;
   move_type_counts: Record<string, number>;
   disagreement_type_counts: Record<string, number>;
+  /** Total input tokens consumed across all entries in the debate. */
+  total_input_tokens?: number;
+  /** Total output tokens produced across all entries in the debate. */
+  total_output_tokens?: number;
   /** Situation citation tracking (t/192). Counts how many debate turns cited at least one sit- ID. */
   situation_citations?: {
     /** Number of debate turns that cited at least one sit- ID in taxonomy_refs. */
@@ -1775,6 +1789,12 @@ export interface InterventionResponseFields {
     concessions: string[];
     conditions_for_change: string[];
     sharpest_disagreements: Record<string, string>;
+  };
+  policy_challenge_response?: {
+    mechanism: string;
+    actor: string;
+    feasibility: string;
+    obstacle: string;
   };
 }
 

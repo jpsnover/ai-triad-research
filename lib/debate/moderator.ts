@@ -30,6 +30,7 @@ const ALL_MOVES: InterventionMove[] = [
   'PIN', 'PROBE', 'CHALLENGE',
   'CLARIFY', 'CHECK', 'SUMMARIZE',
   'ACKNOWLEDGE', 'REVOICE',
+  'POLICY_CHALLENGE',
   'META-REFLECT',
   'COMPRESS', 'COMMIT',
 ];
@@ -57,6 +58,7 @@ const MOVE_BUDGET_COST: Record<InterventionMove, number> = {
   ACKNOWLEDGE: 1.0,
   REVOICE: 1.0,
   'META-REFLECT': 0.34,
+  POLICY_CHALLENGE: 0.34,
   COMPRESS: 1.0,
   COMMIT: 0,
 };
@@ -155,6 +157,11 @@ const MOVE_RESPONSE_CONFIG: Record<InterventionMove, MoveResponseConfig> = {
     field: 'commitment',
     hardCompliance: true,
     schema: '{ "concessions": [...], "conditions_for_change": [...], "sharpest_disagreements": { "opponent": "..." } }',
+  },
+  POLICY_CHALLENGE: {
+    field: 'policy_challenge_response',
+    hardCompliance: true,
+    schema: '{ "mechanism": "the specific enforcement mechanism addressed", "actor": "who would implement/enforce", "feasibility": "assessment of political feasibility", "obstacle": "primary implementation obstacle" }',
   },
   ACKNOWLEDGE: { field: null, hardCompliance: false, schema: '' },
   BALANCE: { field: null, hardCompliance: false, schema: '' },
@@ -695,6 +702,7 @@ const DIRECT_RESPONSE_PATTERNS: Record<InterventionMove, string> = {
   CHECK: 'Your first paragraph MUST begin with "I was responding to [opponent]\'s point about [specific claim]" OR "I was not responding to that point — the point I was addressing was [X]." Then a paragraph break before your substantive argument.',
   REVOICE: 'Your first paragraph MUST begin with "That restates my point accurately" OR "That restates my point inaccurately — what I actually meant was [correction]." Then a paragraph break before your substantive argument.',
   'META-REFLECT': 'Your first paragraph MUST begin with "I would change my position if [specific, falsifiable condition]" OR "The assumption we are all relying on without examining it is [X]." Then a paragraph break before your substantive argument.',
+  POLICY_CHALLENGE: 'Your first paragraph MUST begin with "The mechanism I propose is [specific enforcement/regulatory mechanism]." Follow with: who implements it, under what legal authority, and what the primary obstacle to implementation is. Then a paragraph break before your substantive argument.',
   COMPRESS: 'Your ENTIRE statement must be a single sentence of 40 words or fewer. No preamble, no qualification, no additional paragraphs. Just the core thesis.',
   COMMIT: 'Your first paragraph MUST state three things in three sentences: "I concede [X]." "I still hold [Y]." "I would change if [Z]." Then a paragraph break before elaboration.',
   REDIRECT: '',
@@ -902,6 +910,78 @@ export function getConcludingResponder(
     if (!committed.has(p)) return p;
   }
   return null;
+}
+
+// ── Policymaker POLICY_CHALLENGE automation ──────────
+
+export interface PolicyChallengeInput {
+  audience?: string;
+  phase: DebatePhase;
+  argumentationRoundCount: number;
+  convergenceSignals: { move_polarity: { ratio: number } }[];
+  intentionNodes: { specificity?: string }[];
+}
+
+/**
+ * Deterministic trigger for POLICY_CHALLENGE in policymaker debates.
+ * Fires when ALL conditions hold:
+ * 1. audience === 'policymakers'
+ * 2. Debate in argumentation phase for 3+ rounds
+ * 3. Recent collaborative ratio > 0.60 (debaters converging)
+ * 4. Average specificity of intention claims < 3.0 (discussion is abstract)
+ *
+ * Returns the target debater (the one with the most abstract intention claims)
+ * or null if conditions aren't met.
+ */
+export function shouldFirePolicyChallenge(
+  input: PolicyChallengeInput,
+  state: ModeratorState,
+  activePovers: SpeakerId[],
+): SpeakerId | null {
+  if (input.audience !== 'policymakers') return null;
+  if (input.phase !== 'argumentation') return null;
+  if (input.argumentationRoundCount < 3) return null;
+
+  // Already fired this debate — don't repeat
+  if (state.intervention_history.some(h => h.move === 'POLICY_CHALLENGE')) return null;
+
+  // Cooldown check
+  if (state.rounds_since_last_intervention < state.required_gap) return null;
+
+  // Condition 3: collaborative ratio > 0.60 from recent convergence signals
+  const recentSignals = input.convergenceSignals.slice(-3);
+  if (recentSignals.length === 0) return null;
+  const avgCollabRatio = recentSignals.reduce((s, c) => s + c.move_polarity.ratio, 0) / recentSignals.length;
+  if (avgCollabRatio <= 0.60) return null;
+
+  // Condition 4: average specificity of intention claims is abstract
+  const intentionNodes = input.intentionNodes;
+  if (intentionNodes.length === 0) return null;
+  const specMap: Record<string, number> = { abstract: 1, general: 2, precise: 3 };
+  const avgSpec = intentionNodes.reduce((s, n) => s + (specMap[n.specificity ?? 'general'] ?? 2), 0) / intentionNodes.length;
+  if (avgSpec >= 3.0) return null;
+
+  // Pick target: debater with most burden headroom (least burdened)
+  let target: SpeakerId = activePovers[0];
+  let minBurden = Infinity;
+  for (const p of activePovers) {
+    const burden = state.burden_per_debater[p] ?? 0;
+    if (burden < minBurden) {
+      minBurden = burden;
+      target = p;
+    }
+  }
+
+  const recorder = getGlobalRecorder();
+  recorder?.record('moderator', 'policy_challenge_trigger', {
+    collab_ratio: avgCollabRatio,
+    avg_intention_specificity: avgSpec,
+    intention_count: intentionNodes.length,
+    argumentation_rounds: input.argumentationRoundCount,
+    target,
+  });
+
+  return target;
 }
 
 // ── Exports ────────────────────────────────────────────

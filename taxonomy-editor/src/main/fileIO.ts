@@ -136,6 +136,7 @@ const SUMMARIES_DIR = resolveDataPath(_config.summaries_dir);
 const SOURCES_DIR = resolveDataPath(_config.sources_dir);
 
 export { PROJECT_ROOT, resolveDataPath };
+export function getSourcesDir(): string { return SOURCES_DIR; }
 export function getSummariesDir(): string { return SUMMARIES_DIR; }
 
 const POV_FILE_MAP: Record<string, string> = {

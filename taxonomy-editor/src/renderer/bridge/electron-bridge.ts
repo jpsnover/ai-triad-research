@@ -41,6 +41,7 @@ export const api: AppAPI = {
   loadSourceEvidenceIndex: () => window.electronAPI.loadSourceEvidenceIndex(),
   loadDocTitles: () => window.electronAPI.loadDocTitles(),
   getSourceEvidence: (nodeIds, pov) => window.electronAPI.getSourceEvidence(nodeIds, pov),
+  runEvidenceQbaf: (claimText, claimId, model) => window.electronAPI.runEvidenceQbaf(claimText, claimId, model),
 
   // Data management
   isDataAvailable: () => window.electronAPI.isDataAvailable(),

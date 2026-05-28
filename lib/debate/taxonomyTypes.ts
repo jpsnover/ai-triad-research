@@ -153,6 +153,8 @@ export interface SituationNode {
   /** Cross-POV disagreement classification — added in dolce-phase-4. Absent in older nodes. */
   disagreement_type?: 'definitional' | 'interpretive' | 'structural';
   debate_refs?: string[];
+  /** Mean pairwise cosine distance across the three POV interpretation embeddings (0–1). */
+  interpretation_divergence?: number;
   /** Present when this situation node was created from debate consensus detection (t/510). */
   convergence_source?: {
     debate_id: string;

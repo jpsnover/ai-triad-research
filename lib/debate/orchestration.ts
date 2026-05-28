@@ -48,6 +48,7 @@ import {
   buildIntervention,
   buildInterventionBriefInjection,
   getConcludingResponder,
+  shouldFirePolicyChallenge,
 } from './moderator.js';
 
 import {
@@ -409,6 +410,95 @@ export async function runModeratorSelection(
         callbacks.warn('Moderator synthesis COMMIT generation', err, 'Proceeding without COMMIT intervention');
       }
     }
+  } else if (await (async () => {
+    // ── Policymaker POLICY_CHALLENGE automation ──
+    // Count argumentation rounds
+    const argRoundCount = (transcript as TranscriptEntry[])
+      .filter(e => (e.type === 'statement') && e.metadata?.debate_phase === 'argumentation')
+      .length;
+    const intentionNodes = (an?.nodes ?? []).filter(n => n.bdi_category === 'intention');
+    const policyChallengeTarget = shouldFirePolicyChallenge(
+      {
+        audience,
+        phase,
+        argumentationRoundCount: Math.floor(argRoundCount / activePovers.length),
+        convergenceSignals: (convergenceSignals ?? []).slice(-3) as { move_polarity: { ratio: number } }[],
+        intentionNodes,
+      },
+      modState,
+      activePovers,
+    );
+    if (policyChallengeTarget) {
+      responder = policyChallengeTarget as Exclude<SpeakerId, 'user'>;
+      focusPoint = 'Address the implementation specifics: Who writes the regulation? Which agency enforces it? What is the budget? What happens when the first company challenges it in court?';
+      addressing = policyChallengeTarget;
+      selectionResultObj = {
+        responder: policyChallengeTarget,
+        addressing: policyChallengeTarget as SpeakerId,
+        focus_point: focusPoint,
+        agreement_detected: false,
+        intervene: true,
+        suggested_move: 'POLICY_CHALLENGE' as InterventionMove,
+        target_debater: policyChallengeTarget,
+        trigger_reasoning: 'Automatic POLICY_CHALLENGE: policymaker audience, high convergence but abstract intention claims',
+      };
+      const validation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+      if (validation.proceed) {
+        try {
+          const stage2Prompt = moderatorInterventionPrompt(
+            validation.validated_move,
+            validation.validated_family,
+            poverInfo[validation.validated_target]?.label ?? validation.validated_target,
+            'Automatic policymaker POLICY_CHALLENGE — debaters converging on principles without addressing implementation',
+            undefined,
+            formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries),
+            audience,
+            sourceDocSummary,
+            resolution,
+            resolutionClauses,
+          );
+          const stage2Text = await callbacks.generate(
+            stage2Prompt, model, { temperature: 0.7, timeoutMs: 60_000 },
+            `Round ${round}: Moderator POLICY_CHALLENGE → ${poverInfo[policyChallengeTarget]?.label}`,
+          );
+          const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
+          const interventionText = stage2Parsed.text as string;
+          if (interventionText && interventionText.trim().length > 0) {
+            activeIntervention = buildIntervention(
+              validation, interventionText,
+              'Automatic policymaker POLICY_CHALLENGE',
+              { signal: 'policy_challenge_trigger', round },
+            );
+            interventionBriefInjection = buildInterventionBriefInjection(
+              activeIntervention, poverInfo[responder!]?.label ?? responder!,
+            );
+            callbacks.addEntry({
+              type: 'intervention',
+              speaker: 'moderator',
+              content: interventionText,
+              taxonomy_refs: [],
+              addressing: validation.validated_target,
+              intervention_metadata: {
+                family: activeIntervention.family,
+                move: activeIntervention.move,
+                force: activeIntervention.force,
+                burden: activeIntervention.burden,
+                target_debater: activeIntervention.target_debater,
+                trigger_reason: activeIntervention.trigger_reason,
+                source_evidence: activeIntervention.source_evidence,
+              },
+            });
+            callbacks.progress('debate', undefined, `Moderator: POLICY_CHALLENGE → ${poverInfo[policyChallengeTarget]?.label}`);
+          }
+        } catch (err) {
+          callbacks.warn('Moderator POLICY_CHALLENGE generation', err, 'Proceeding without POLICY_CHALLENGE intervention');
+        }
+      }
+      return true;
+    }
+    return false;
+  })()) {
+    // POLICY_CHALLENGE handled above via IIFE
   } else {
     // ── Stage 1: Enhanced moderator selection ──
     const topicAnchoringBlock = buildTopicAnchoringBlock(resolution, resolutionClauses, topicDriftState);
@@ -854,6 +944,13 @@ export async function executeTurnWithRetry(
       const citeHints = actionableHints.filter(h => classifyHintTarget(h) === 'cite');
       const draftHints = actionableHints.filter(h => classifyHintTarget(h) !== 'cite');
       const isCiteOnly = draftHints.length === 0;
+      // Save diagnostics for frozen stages — the retry pipeline skips them,
+      // so their entries would otherwise be lost from stage_diagnostics.
+      const frozenStageIds = new Set<string>(['brief', 'plan', 'evidence']);
+      if (isCiteOnly) frozenStageIds.add('draft');
+      const carriedDiags = pipelineResult.stage_diagnostics.filter(
+        s => frozenStageIds.has(s.stage),
+      );
       pipelineResult = await callbacks.runPipeline({
         ...input.pipelineInput,
         repairHints: isCiteOnly ? citeHints : actionableHints,
@@ -862,6 +959,8 @@ export async function executeTurnWithRetry(
         frozenDraft: isCiteOnly ? pipelineResult.draft : undefined,
         frozenEvidenceBlock: pipelineResult.evidenceBlock,
       });
+      // Carry forward frozen stage diagnostics so the full pipeline trace is preserved
+      pipelineResult.stage_diagnostics = [...carriedDiags, ...pipelineResult.stage_diagnostics];
     } catch (err) {
       // Pipeline parse failure on retry — treat as failed attempt, break with current validation
       console.warn(`[orchestration] Pipeline retry ${attemptIdx} failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
