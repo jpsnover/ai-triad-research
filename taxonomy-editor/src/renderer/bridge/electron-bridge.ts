@@ -15,7 +15,7 @@ import {
 } from '../utils/localEmbedding';
 
 // Fire-and-forget: start local embedding init on module load
-tryInitLocalEmbedding();
+void tryInitLocalEmbedding();
 
 export const api: AppAPI = {
   // Taxonomy directories
