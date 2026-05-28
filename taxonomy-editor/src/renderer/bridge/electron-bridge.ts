@@ -6,6 +6,16 @@
  * Used when the app runs inside Electron (desktop mode).
  */
 import type { AppAPI } from './types';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import {
+  tryInitLocalEmbedding,
+  isLocalEmbeddingReady,
+  localComputeEmbedding,
+  localComputeEmbeddings,
+} from '../utils/localEmbedding';
+
+// Fire-and-forget: start local embedding init on module load
+tryInitLocalEmbedding();
 
 export const api: AppAPI = {
   // Taxonomy directories
@@ -68,10 +78,45 @@ export const api: AppAPI = {
   onChatStreamError: (cb) => window.electronAPI.onChatStreamError(cb),
   setDebateTemperature: (temp) => window.electronAPI.setDebateTemperature(temp),
 
-  // Embeddings & NLI
-  computeEmbeddings: (texts, ids) => window.electronAPI.computeEmbeddings(texts, ids),
+  // Embeddings & NLI — local WebNN/WASM first, IPC fallback
+  computeEmbeddings: async (texts, ids) => {
+    // When IDs are provided, local cache in main process is likely faster
+    if (ids || !isLocalEmbeddingReady()) {
+      return window.electronAPI.computeEmbeddings(texts, ids);
+    }
+    try {
+      const vectors = await localComputeEmbeddings(texts);
+      return { vectors };
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'electron-bridge',
+        level: 'error',
+        message: 'Local batch embedding failed, falling back to IPC',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      return window.electronAPI.computeEmbeddings(texts, ids);
+    }
+  },
   updateNodeEmbeddings: (nodes) => window.electronAPI.updateNodeEmbeddings(nodes),
-  computeQueryEmbedding: (text) => window.electronAPI.computeQueryEmbedding(text),
+  computeQueryEmbedding: async (text) => {
+    if (isLocalEmbeddingReady()) {
+      try {
+        const vector = await localComputeEmbedding(text);
+        return { vector };
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'electron-bridge',
+          level: 'error',
+          message: 'Local query embedding failed, falling back to IPC',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+        return window.electronAPI.computeQueryEmbedding(text);
+      }
+    }
+    return window.electronAPI.computeQueryEmbedding(text);
+  },
   nliClassify: (pairs) => window.electronAPI.nliClassify(pairs),
 
   // Debate sessions
