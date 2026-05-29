@@ -1,0 +1,77 @@
+{
+  "summarization": [],
+  "lineage": [
+    {
+      "name": "Effective Altruism",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 72527,
+      "response_preview": "{\n\"name\": \"Effective Altruism\",\n\"description\": \"Effective Altruism (EA) is a philosophy and social movement that advocates for using evidence and reason to determine the most effective ways to benefit"
+    },
+    {
+      "name": "Regulatory Capture Theory",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 49902,
+      "response_preview": "{\n  \"name\": \"Regulatory Capture Theory\",\n  \"description\": \"Regulatory capture is a theory describing a situation where a regulatory agency, created to act in the public interest, instead advances the "
+    },
+    {
+      "name": "Rawlsian Distributive Justice",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 41128,
+      "response_preview": "{\n\"name\": \"Rawlsian Distributive Justice\",\n\"description\": \"Rawlsian distributive justice, derived from John Rawls' A Theory of Justice, posits that a just society must organize its institutions to ens"
+    },
+    {
+      "name": "Chicago School Economics",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 41368,
+      "response_preview": "{\n\"name\": \"Chicago School Economics\",\n\"description\": \"The Chicago School is a prominent school of economic thought that emphasizes free markets, limited government intervention, and methodological ind"
+    },
+    {
+      "name": "Precautionary Principle",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 43675,
+      "response_preview": "{\n\"name\": \"Precautionary Principle\",\n\"description\": \"The Precautionary Principle suggests that if an activity or technology poses a plausible threat of harm to human health or the environment, protect"
+    },
+    {
+      "name": "Techno-Optimism",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 43851,
+      "response_preview": "{\n  \"name\": \"Techno-Optimism\",\n  \"description\": \"Techno-optimism is the belief that technological advancements are the primary drivers of human progress and that technology will solve most of humanity"
+    },
+    {
+      "name": "Critical Race Theory",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 41996,
+      "response_preview": "{\n\"name\": \"Critical Race Theory\",\n\"description\": \"A legal and academic framework that examines how race and racism are embedded in legal systems, policies, and social structures. It posits that race i"
+    },
+    {
+      "name": "Institutional Economics",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 40464,
+      "response_preview": "{\n\"name\": \"Institutional Economics\",\n\"description\": \"Institutional economics is an interdisciplinary field that studies the role of institutions\u2014the formal and informal rules, norms, and organizations"
+    },
+    {
+      "name": "Game Theory (Strategic Interaction)",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 48940,
+      "response_preview": "{\n\"name\": \"Game Theory (Strategic Interaction)\",\n\"description\": \"Game theory is a mathematical framework used to model strategic interactions between rational decision-makers. It analyzes how individu"
+    },
+    {
+      "name": "Social Contract Theory",
+      "ok": true,
+      "json_compliant": true,
+      "elapsed_ms": 42733,
+      "response_preview": "{\n\"name\": \"Social Contract Theory\",\n\"description\": \"Social Contract Theory posits that individuals implicitly agree to surrender certain freedoms to a governing authority in exchange for protection an"
+    }
+  ],
+  "steelman": [],
+  "attributes": []
+}

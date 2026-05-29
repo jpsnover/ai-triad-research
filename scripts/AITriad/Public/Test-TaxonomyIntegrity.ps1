@@ -217,6 +217,40 @@ function Test-TaxonomyIntegrity {
         $Issues.Add([PSCustomObject]@{ Check = 'DanglingParent'; Severity = 'Error'; Count = $DanglingParents.Count; Detail = "parent_id refs non-existent nodes: $Detail" })
     } else { $Passed++ }
 
+    # ── Check 7b: Parent BDI category mismatch ──
+    $Checks++
+    $CategoryMismatches = @()
+    $NodeCategoryMap = @{}
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
+        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
+            if ($Node.PSObject.Properties['category'] -and $Node.category) {
+                $NodeCategoryMap[$Node.id] = $Node.category
+            }
+        }
+    }
+    foreach ($PovKey in @('accelerationist', 'safetyist', 'skeptic')) {
+        if (-not $LoadedFiles.ContainsKey($PovKey)) { continue }
+        foreach ($Node in $LoadedFiles[$PovKey].Data.nodes) {
+            if (-not $Node.parent_id) { continue }
+            $NodeCat = if ($Node.PSObject.Properties['category']) { $Node.category } else { $null }
+            $ParentCat = $NodeCategoryMap[$Node.parent_id]
+            if ($NodeCat -and $ParentCat -and $NodeCat -ne $ParentCat) {
+                $CategoryMismatches += [PSCustomObject]@{
+                    NodeId    = $Node.id
+                    NodeCat   = $NodeCat
+                    ParentId  = $Node.parent_id
+                    ParentCat = $ParentCat
+                    POV       = $PovKey
+                }
+            }
+        }
+    }
+    if ($CategoryMismatches.Count -gt 0) {
+        $Detail = ($CategoryMismatches | ForEach-Object { "$($_.NodeId) ($($_.NodeCat)) parent=$($_.ParentId) ($($_.ParentCat))" }) -join '; '
+        $Issues.Add([PSCustomObject]@{ Check = 'ParentCategoryMismatch'; Severity = 'Warning'; Count = $CategoryMismatches.Count; Detail = "parent_id points to different BDI category: $Detail" })
+    } else { $Passed++ }
+
     # ── Check 8: Dangling situation_refs ──
     $Checks++
     $SitIds = [System.Collections.Generic.HashSet[string]]::new()

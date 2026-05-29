@@ -9,6 +9,7 @@ import { generateViaGemini } from './providers/gemini.js';
 import { generateViaClaude } from './providers/claude.js';
 import { generateViaGroq } from './providers/groq.js';
 import { generateViaOpenAI } from './providers/openai.js';
+import { generateViaOllama } from './providers/ollama.js';
 
 export interface AIClientDeps {
   fetch: FetchFn;
@@ -33,6 +34,7 @@ export function callProvider(
     case 'claude': return generateViaClaude(fetchFn, prompt, apiModelId, apiKey, opts);
     case 'groq': return generateViaGroq(fetchFn, prompt, apiModelId, apiKey, opts);
     case 'openai': return generateViaOpenAI(fetchFn, prompt, apiModelId, apiKey, opts);
+    case 'ollama': return generateViaOllama(fetchFn, prompt, apiModelId, apiKey, opts);
     default: return generateViaGemini(fetchFn, prompt, apiModelId, apiKey, opts);
   }
 }

@@ -518,7 +518,7 @@ export interface GenerateTextProgress {
   limitMessage: string;
 }
 
-type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
+type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama';
 
 // ── API model ID mapping — loaded from ai-models.json via shared buildModelIdMap ──
 
@@ -579,8 +579,8 @@ export async function generateText(
   const backend = resolveBackend(friendlyModel);
   const resolvedModel = resolveApiModelId(friendlyModel);
 
-  const apiKey = loadApiKey(backend);
-  const keySource = apiKey ? 'Electron encrypted store' : '(not found)';
+  const apiKey = backend === 'ollama' ? 'ollama-local' : loadApiKey(backend);
+  const keySource = backend === 'ollama' ? 'local (no key needed)' : apiKey ? 'Electron encrypted store' : '(not found)';
   if (!apiKey) {
     const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
     const backendName = names[backend] ?? backend;
@@ -651,7 +651,7 @@ export async function generateChatStream(
   const backend = resolveBackend(friendlyModel);
   const resolvedModel = resolveApiModelId(friendlyModel);
 
-  const apiKey = loadApiKey(backend);
+  const apiKey = backend === 'ollama' ? 'ollama-local' : loadApiKey(backend);
   if (!apiKey) {
     const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI' };
     const backendName = names[backend] ?? backend;

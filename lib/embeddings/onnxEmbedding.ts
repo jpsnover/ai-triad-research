@@ -1,0 +1,502 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+/**
+ * Native ONNX Runtime embedding module for all-MiniLM-L6-v2.
+ *
+ * Replaces the Python subprocess dependency for embedding computation.
+ * Uses onnxruntime-node with DirectML (GPU) or CPU execution provider.
+ * On Intel hardware with OpenVINO EP available, NPU acceleration is used.
+ *
+ * The module auto-downloads the ONNX model and tokenizer files from
+ * Hugging Face on first use, caching them locally.
+ *
+ * Exports:
+ *   - computeEmbedding(text)     — single text → 384-dim vector
+ *   - computeEmbeddings(texts)   — batch texts → array of 384-dim vectors
+ *   - warmup()                   — preload model + tokenizer
+ *   - isReady()                  — check if model is loaded
+ */
+
+import fs from 'fs';
+import path from 'path';
+import https from 'https';
+
+// ── Types (onnxruntime-node is a peer dependency, resolved at runtime) ──
+
+interface OrtModule {
+  InferenceSession: {
+    create(path: string, options?: { executionProviders?: string[] }): Promise<OrtSession>;
+  };
+  Tensor: new (type: string, data: Float32Array | BigInt64Array, dims: number[]) => OrtTensor;
+  listSupportedBackends(): { name: string; bundled: boolean }[];
+}
+
+interface OrtSession {
+  run(feeds: Record<string, OrtTensor>): Promise<Record<string, OrtTensor>>;
+  release(): Promise<void>;
+}
+
+interface OrtTensor {
+  data: Float32Array | BigInt64Array;
+  dims: readonly number[];
+}
+
+// ── Constants ─────────────────────────────────────────
+
+const MODEL_ID = 'Xenova/all-MiniLM-L6-v2';
+const MODEL_FILES = {
+  model: 'onnx/model_quantized.onnx',
+  tokenizer: 'tokenizer.json',
+  config: 'tokenizer_config.json',
+};
+const HF_BASE = `https://huggingface.co/${MODEL_ID}/resolve/main`;
+const EMBEDDING_DIM = 384;
+const MAX_SEQ_LENGTH = 128; // all-MiniLM-L6-v2 max is 256, but 128 covers most taxonomy text
+
+// ── State ─────────────────────────────────────────────
+
+let _ort: OrtModule | null = null;
+let _session: OrtSession | null = null;
+let _tokenizer: WordPieceTokenizer | null = null;
+let _initPromise: Promise<void> | null = null;
+let _modelDir: string | null = null;
+let _selectedEP: string = 'none';
+
+// ── WordPiece Tokenizer ───────────────────────────────
+
+interface TokenizerJson {
+  model: {
+    type: string;
+    vocab: Record<string, number>;
+    unk_token?: string;
+    continuing_subword_prefix?: string;
+    max_input_chars_per_word?: number;
+  };
+  normalizer?: { type: string; lowercase?: boolean; strip_accents?: boolean };
+  pre_tokenizer?: { type: string };
+}
+
+class WordPieceTokenizer {
+  private vocab: Map<string, number>;
+  private unkToken: string;
+  private unkId: number;
+  private prefix: string;
+  private maxChars: number;
+  private clsId: number;
+  private sepId: number;
+  private padId: number;
+
+  constructor(tokenizerJson: TokenizerJson) {
+    this.vocab = new Map(Object.entries(tokenizerJson.model.vocab));
+    this.unkToken = tokenizerJson.model.unk_token ?? '[UNK]';
+    this.unkId = this.vocab.get(this.unkToken) ?? 0;
+    this.prefix = tokenizerJson.model.continuing_subword_prefix ?? '##';
+    this.maxChars = tokenizerJson.model.max_input_chars_per_word ?? 100;
+    this.clsId = this.vocab.get('[CLS]') ?? 101;
+    this.sepId = this.vocab.get('[SEP]') ?? 102;
+    this.padId = this.vocab.get('[PAD]') ?? 0;
+  }
+
+  /**
+   * Tokenize and encode text into input_ids, attention_mask, token_type_ids.
+   * Follows BERT tokenization: [CLS] tokens [SEP] with padding to maxLen.
+   */
+  encode(text: string, maxLen: number = MAX_SEQ_LENGTH): {
+    inputIds: number[];
+    attentionMask: number[];
+    tokenTypeIds: number[];
+  } {
+    // Normalize: lowercase + basic cleaning
+    const normalized = text.toLowerCase().replace(/[\x00-\x1f]+/g, ' ').trim();
+
+    // Pre-tokenize: split on whitespace and punctuation
+    const words = this.preTokenize(normalized);
+
+    // WordPiece tokenize each word
+    const tokens: number[] = [this.clsId];
+    for (const word of words) {
+      if (tokens.length >= maxLen - 1) break; // leave room for [SEP]
+      const subTokens = this.wordPiece(word);
+      for (const t of subTokens) {
+        if (tokens.length >= maxLen - 1) break;
+        tokens.push(t);
+      }
+    }
+    tokens.push(this.sepId);
+
+    // Pad to maxLen
+    const inputIds = new Array(maxLen).fill(this.padId);
+    const attentionMask = new Array(maxLen).fill(0);
+    const tokenTypeIds = new Array(maxLen).fill(0);
+
+    for (let i = 0; i < tokens.length; i++) {
+      inputIds[i] = tokens[i];
+      attentionMask[i] = 1;
+    }
+
+    return { inputIds, attentionMask, tokenTypeIds };
+  }
+
+  private preTokenize(text: string): string[] {
+    // Split on whitespace, then separate punctuation
+    const words: string[] = [];
+    for (const part of text.split(/\s+/)) {
+      if (!part) continue;
+      // Split punctuation from words but keep them as separate tokens
+      let current = '';
+      for (const ch of part) {
+        if (this.isPunctuation(ch)) {
+          if (current) { words.push(current); current = ''; }
+          words.push(ch);
+        } else {
+          current += ch;
+        }
+      }
+      if (current) words.push(current);
+    }
+    return words;
+  }
+
+  private isPunctuation(ch: string): boolean {
+    const code = ch.charCodeAt(0);
+    // ASCII punctuation ranges
+    if ((code >= 33 && code <= 47) || (code >= 58 && code <= 64) ||
+        (code >= 91 && code <= 96) || (code >= 123 && code <= 126)) {
+      return true;
+    }
+    // Unicode general punctuation
+    if (code >= 0x2000 && code <= 0x206F) return true;
+    return false;
+  }
+
+  private wordPiece(word: string): number[] {
+    if (word.length > this.maxChars) return [this.unkId];
+
+    const tokens: number[] = [];
+    let start = 0;
+
+    while (start < word.length) {
+      let end = word.length;
+      let found = false;
+
+      while (start < end) {
+        const substr = start > 0
+          ? this.prefix + word.slice(start, end)
+          : word.slice(start, end);
+
+        if (this.vocab.has(substr)) {
+          tokens.push(this.vocab.get(substr)!);
+          found = true;
+          break;
+        }
+        end--;
+      }
+
+      if (!found) {
+        tokens.push(this.unkId);
+        break;
+      }
+      start = end;
+    }
+
+    return tokens;
+  }
+}
+
+// ── Model Management ──────────────────────────────────
+
+function getModelDir(): string {
+  if (_modelDir) return _modelDir;
+
+  // Check for model in data directory first, then fallback to user cache
+  const candidates = [
+    path.join(process.cwd(), '.cache', 'onnx-models', 'all-MiniLM-L6-v2'),
+    path.join(process.env.HOME || process.env.USERPROFILE || '', '.cache', 'onnx-models', 'all-MiniLM-L6-v2'),
+  ];
+
+  for (const dir of candidates) {
+    if (fs.existsSync(path.join(dir, 'model_quantized.onnx'))) {
+      _modelDir = dir;
+      return dir;
+    }
+  }
+
+  // Default to user cache for downloads
+  _modelDir = candidates[candidates.length - 1];
+  return _modelDir;
+}
+
+function downloadFile(url: string, dest: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+
+    const get = (u: string) => {
+      https.get(u, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode!)) {
+          res.resume(); // drain response before following redirect
+          const location = res.headers.location;
+          if (location) {
+            const resolved = location.startsWith('/') ? new URL(location, u).href : location;
+            get(resolved);
+            return;
+          }
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          reject(new Error(`Download failed: HTTP ${res.statusCode} for ${u}`));
+          return;
+        }
+        const file = fs.createWriteStream(dest);
+        res.pipe(file);
+        file.on('finish', () => { file.close(); resolve(); });
+      }).on('error', reject);
+    };
+    get(url);
+  });
+}
+
+async function ensureModelFiles(): Promise<string> {
+  const dir = getModelDir();
+
+  const needed: { url: string; dest: string }[] = [];
+
+  const modelPath = path.join(dir, 'model_quantized.onnx');
+  if (!fs.existsSync(modelPath)) {
+    needed.push({ url: `${HF_BASE}/${MODEL_FILES.model}`, dest: modelPath });
+  }
+
+  const tokenizerPath = path.join(dir, 'tokenizer.json');
+  if (!fs.existsSync(tokenizerPath)) {
+    needed.push({ url: `${HF_BASE}/${MODEL_FILES.tokenizer}`, dest: tokenizerPath });
+  }
+
+  if (needed.length > 0) {
+    console.log(`[onnxEmbedding] Downloading ${needed.length} model files to ${dir}...`);
+    for (const { url, dest } of needed) {
+      const name = path.basename(dest);
+      console.log(`[onnxEmbedding]   Downloading ${name}...`);
+      await downloadFile(url, dest);
+      console.log(`[onnxEmbedding]   ${name} OK (${(fs.statSync(dest).size / 1024 / 1024).toFixed(1)} MB)`);
+    }
+  }
+
+  return dir;
+}
+
+// ── Initialization ────────────────────────────────────
+
+async function init(): Promise<void> {
+  // Load onnxruntime-node dynamically (it's a native module)
+  try {
+    _ort = require('onnxruntime-node') as OrtModule;
+  } catch (err) {
+    throw new Error(
+      `onnxruntime-node not installed. Run: npm install onnxruntime-node\n${err}`
+    );
+  }
+
+  const dir = await ensureModelFiles();
+  const modelPath = path.join(dir, 'model_quantized.onnx');
+  const tokenizerPath = path.join(dir, 'tokenizer.json');
+
+  // Load tokenizer
+  const tokenizerJson = JSON.parse(
+    fs.readFileSync(tokenizerPath, 'utf-8'),
+  ) as TokenizerJson;
+  _tokenizer = new WordPieceTokenizer(tokenizerJson);
+
+  // Determine best execution provider
+  const backends = _ort.listSupportedBackends();
+  const backendNames = backends.map(b => b.name);
+  let executionProviders: string[];
+
+  if (backendNames.includes('openvino')) {
+    executionProviders = ['openvino', 'cpu'];
+    _selectedEP = 'openvino';
+  } else if (backendNames.includes('dml')) {
+    executionProviders = ['dml', 'cpu'];
+    _selectedEP = 'dml';
+  } else {
+    executionProviders = ['cpu'];
+    _selectedEP = 'cpu';
+  }
+  console.log(`[onnxEmbedding] Using ${_selectedEP} EP (available: ${backendNames.join(', ')})`);
+
+  // Create session
+  const t0 = Date.now();
+  _session = await _ort.InferenceSession.create(modelPath, { executionProviders });
+  console.log(`[onnxEmbedding] Model loaded in ${Date.now() - t0}ms (${EMBEDDING_DIM}d, quantized, EP=${_selectedEP})`);
+}
+
+async function ensureReady(): Promise<void> {
+  if (_session && _tokenizer) return;
+  if (!_initPromise) {
+    _initPromise = init().catch(err => {
+      _initPromise = null;
+      throw err;
+    });
+  }
+  await _initPromise;
+}
+
+// ── Inference ─────────────────────────────────────────
+
+function meanPool(
+  lastHidden: Float32Array,
+  attentionMask: number[],
+  seqLen: number,
+  hiddenSize: number,
+): Float32Array {
+  const result = new Float32Array(hiddenSize);
+  let tokenCount = 0;
+
+  for (let i = 0; i < seqLen; i++) {
+    if (attentionMask[i] === 0) continue;
+    tokenCount++;
+    for (let j = 0; j < hiddenSize; j++) {
+      result[j] += lastHidden[i * hiddenSize + j];
+    }
+  }
+
+  if (tokenCount > 0) {
+    for (let j = 0; j < hiddenSize; j++) {
+      result[j] /= tokenCount;
+    }
+  }
+
+  return result;
+}
+
+function l2Normalize(vec: Float32Array): number[] {
+  let norm = 0;
+  for (let i = 0; i < vec.length; i++) {
+    norm += vec[i] * vec[i];
+  }
+  norm = Math.sqrt(norm);
+  const result = new Array(vec.length);
+  if (norm > 0) {
+    for (let i = 0; i < vec.length; i++) {
+      result[i] = vec[i] / norm;
+    }
+  } else {
+    result.fill(0);
+  }
+  return result;
+}
+
+// ── Public API ────────────────────────────────────────
+
+/**
+ * Preload the ONNX model and tokenizer.
+ * Call this at startup for faster first inference.
+ * Throws if onnxruntime-node is missing or model download fails.
+ */
+export async function warmup(): Promise<void> {
+  await ensureReady();
+}
+
+/**
+ * Try to initialize the ONNX runtime. Returns true if ready, false if
+ * onnxruntime-node is unavailable or model loading fails.
+ * Consumers can use this to decide whether to fall back to Python subprocess.
+ */
+export async function tryWarmup(): Promise<boolean> {
+  try {
+    await ensureReady();
+    return true;
+  } catch (err) {
+    console.warn(`[onnxEmbedding] Initialization failed, Python fallback recommended: ${err}`);
+    return false;
+  }
+}
+
+/** Check if the model is loaded and ready for inference. */
+export function isReady(): boolean {
+  return _session != null && _tokenizer != null;
+}
+
+/** Return the active execution provider ('openvino', 'dml', 'cpu', or 'none' if not initialized). */
+export function getExecutionProvider(): string {
+  return _selectedEP;
+}
+
+/**
+ * Compute a 384-dim embedding for a single text.
+ * The model and tokenizer are loaded on first call.
+ */
+export async function computeEmbedding(text: string): Promise<number[]> {
+  await ensureReady();
+  const results = await computeEmbeddings([text]);
+  return results[0];
+}
+
+/**
+ * Compute 384-dim embeddings for a batch of texts.
+ * Processes all texts in a single forward pass for efficiency.
+ */
+export async function computeEmbeddings(texts: string[]): Promise<number[][]> {
+  await ensureReady();
+  if (texts.length === 0) return [];
+
+  const ort = _ort!;
+  const session = _session!;
+  const tokenizer = _tokenizer!;
+
+  const batchSize = texts.length;
+  const seqLen = MAX_SEQ_LENGTH;
+
+  // Tokenize all texts
+  const allInputIds = new BigInt64Array(batchSize * seqLen);
+  const allAttentionMask = new BigInt64Array(batchSize * seqLen);
+  const allTokenTypeIds = new BigInt64Array(batchSize * seqLen);
+  const masks: number[][] = [];
+
+  for (let b = 0; b < batchSize; b++) {
+    const { inputIds, attentionMask, tokenTypeIds } = tokenizer.encode(texts[b], seqLen);
+    masks.push(attentionMask);
+    const offset = b * seqLen;
+    for (let i = 0; i < seqLen; i++) {
+      allInputIds[offset + i] = BigInt(inputIds[i]);
+      allAttentionMask[offset + i] = BigInt(attentionMask[i]);
+      allTokenTypeIds[offset + i] = BigInt(tokenTypeIds[i]);
+    }
+  }
+
+  // Create tensors
+  const feeds: Record<string, OrtTensor> = {
+    input_ids: new ort.Tensor('int64', allInputIds, [batchSize, seqLen]),
+    attention_mask: new ort.Tensor('int64', allAttentionMask, [batchSize, seqLen]),
+    token_type_ids: new ort.Tensor('int64', allTokenTypeIds, [batchSize, seqLen]),
+  };
+
+  // Run inference
+  const output = await session.run(feeds);
+
+  // Extract last_hidden_state (or the first output)
+  const outputKey = Object.keys(output)[0];
+  const hiddenState = output[outputKey];
+  const hiddenData = hiddenState.data as Float32Array;
+  const hiddenSize = hiddenState.dims[hiddenState.dims.length - 1];
+
+  // Mean pool + normalize each item in the batch
+  const results: number[][] = [];
+  for (let b = 0; b < batchSize; b++) {
+    const offset = b * seqLen * hiddenSize;
+    const slice = hiddenData.subarray(offset, offset + seqLen * hiddenSize);
+    const pooled = meanPool(slice, masks[b], seqLen, hiddenSize);
+    results.push(l2Normalize(pooled));
+  }
+
+  return results;
+}
+
+/** Release the ONNX session. Call on app shutdown. */
+export async function dispose(): Promise<void> {
+  if (_session) {
+    await _session.release();
+    _session = null;
+  }
+  _tokenizer = null;
+  _initPromise = null;
+}

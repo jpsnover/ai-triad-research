@@ -15,6 +15,11 @@
     {
       "id": "openai",
       "label": "OpenAI"
+    },
+    {
+      "id": "ollama",
+      "label": "Ollama (Local)",
+      "local": true
     }
   ],
   "models": [
@@ -341,12 +346,20 @@
       "apiModelId": "gpt-5.5-pro",
       "label": "GPT-5.5 Pro",
       "backend": "openai"
+    },
+    {
+      "id": "ollama-gemma4-e4b",
+      "apiModelId": "gemma4:4b-it-q4_0",
+      "label": "Gemma 4 E4B (Local)",
+      "backend": "ollama",
+      "local": true
     }
   ],
   "defaults": {
     "gemini": "gemini-3.1-flash-lite",
     "claude": "claude-sonnet-4-6",
-    "groq": "groq-openai-gpt-oss-120b"
+    "groq": "groq-openai-gpt-oss-120b",
+    "ollama": "ollama-gemma4-e4b"
   },
   "fallbackChains": {
     "gemini-3.1-pro-preview": ["gemini-2.5-pro", "gemini-2.5-flash"],
@@ -368,7 +381,8 @@
     "gemini": 1048576,
     "claude": 1048576,
     "groq": 131072,
-    "openai": 131072
+    "openai": 131072,
+    "ollama": 131072
   },
   "pricing": {
     "_comment": "USD per 1M tokens. cachedInputPer1M is the reduced rate for cache-hit input tokens. Updated 2026-05-03.",

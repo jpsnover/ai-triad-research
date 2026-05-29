@@ -585,6 +585,14 @@ export async function runTurnPipeline(
             keyPoints: evidenceBrief.keyPoints as unknown as Record<string, unknown>[],
             nodesCovered: evidenceBrief.nodesCovered,
             totalCandidates: evidenceBrief.totalCandidates,
+            ...(evidenceBrief.diversity ? {
+              raw_count: evidenceBrief.diversity.raw_count,
+              candidate_count: evidenceBrief.diversity.candidate_count,
+              dedup_removed: evidenceBrief.diversity.dedup_removed,
+              source_diversity: evidenceBrief.diversity.source_diversity,
+              has_dispute: evidenceBrief.diversity.has_dispute,
+              temporal_range: evidenceBrief.diversity.temporal_range,
+            } : {}),
           } as unknown as Record<string, unknown>,
         });
       }

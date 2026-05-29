@@ -26,6 +26,8 @@ export interface GenerateOptions {
   responseSchema?: Record<string, unknown>;
   systemMessage?: string;
   tools?: ToolDefinition[];
+  /** Task purpose for tiered model routing (e.g., 'summarization', 'draft'). */
+  purpose?: string;
 }
 
 export interface ProviderResult {
@@ -51,6 +53,6 @@ export interface RetryProgress {
   limitMessage: string;
 }
 
-export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai';
+export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama';
 
 export type FetchFn = typeof globalThis.fetch;

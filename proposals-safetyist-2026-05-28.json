@@ -1,0 +1,2388 @@
+{
+  "generated_at": "2026-05-28T17:10:45.837Z",
+  "model": "gemini-2.5-flash",
+  "source_file": "safetyist.json",
+  "total_nodes": 256,
+  "summary": {
+    "compliant": 101,
+    "needs_changes": 35,
+    "critical": 28,
+    "major": 15,
+    "suggestion": 6
+  },
+  "proposals": [
+    {
+      "id": "saf-intentions-009",
+      "label": "Implementing Extreme Physical and Digital Security",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that treats frontier model weights as highly classified dual-use technology requiring military-grade protection against state-actor theft or unauthorized exfiltration.",
+          "proposed": "An Intention within safetyist discourse that advocates for implementing military-grade physical and digital security protocols for frontier model weights, treating them as highly classified dual-use technology requiring protection against state-actor theft or unauthorized exfiltration.",
+          "rationale": "The verb 'treats' is passive and more indicative of a belief; 'advocates for implementing' better reflects a strategic action for an Intention node."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that treats frontier model weights as highly classified dual-use technology requiring military-grade protection against state-actor theft or unauthorized exfiltration. \nEncompasses: Hardened data centers, stringent biometric access controls, and strict supply-chain security for high-end semiconductors.\nExcludes: Decentralized distribution networks, community bug bounties, and open-source capability sharing.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for implementing military-grade physical and digital security protocols for frontier model weights, treating them as highly classified dual-use technology requiring protection against state-actor theft or unauthorized exfiltration. Encompasses: Hardened data centers, stringent biometric access controls, and strict supply-chain security for high-end semiconductors. Excludes: Decentralized distribution networks, community bug bounties, and open-source capability sharing.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-008",
+      "label": "Potential for Deceptive Alignment",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-009",
+      "label": "Risk of Uncontainable AI Replication",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-010",
+      "label": "AI Supply Chain Risk",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-011",
+      "label": "Minimizing AI's Unintended Side Effects",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that instructs AI systems to achieve goals while causing the least possible change to the world to prevent harmful side effects.",
+          "proposed": "An Intention within safetyist discourse that advocates for designing AI systems to achieve goals while causing the least possible change to the world, thereby preventing harmful side effects.",
+          "rationale": "The verb 'instructs' is passive and more indicative of a command; 'advocates for designing' better reflects a strategic action for an Intention node."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that instructs AI systems to achieve goals while causing the least possible change to the world to prevent harmful side effects.\nEncompasses: Minimal impact constraints, objective function penalties for environmental alteration, and side-effect mitigation rules.\nExcludes: Methods focused on transparency like Force AIs to Show Their Work or environment-based constraints like Learning Inside a Safe Bubble.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for designing AI systems to achieve goals while causing the least possible change to the world, thereby preventing harmful side effects. Encompasses: Minimal impact constraints, objective function penalties for environmental alteration, and side-effect mitigation rules. Excludes: Methods focused on transparency like Force AIs to Show Their Work or environment-based constraints like Learning Inside a Safe Bubble.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-012",
+      "label": "A Global Pact for AI Safety",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-013",
+      "label": "Predicting AI's Impact on Society",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-115",
+      "label": "Competitive Pressure Erodes Safety Practices",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-140",
+          "proposed": null,
+          "rationale": "A Belief node should not be parented under an Intention node, as it implies the Belief is 'part of' the Intention, which is a conceptual mismatch in the BDI framework. Beliefs inform Intentions, but are not components of them."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that competition among AI systems for resources can unintentionally favor selfish behaviors, leading to the erosion of safety practices. \nEncompasses: The idea that a 'survival of the fittest' dynamic among AIs can select for systems prioritizing their own resource acquisition and survival over human goals.\nExcludes: Risks related to AI agents eroding social trust or the use of AI by malicious actors, which are covered by 'AI Agents Eroding Social Trust' and 'The Bad Tool Problem' respectively.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that competition among AI systems for resources can unintentionally favor selfish behaviors, leading to the erosion of safety practices. \nEncompasses: The idea that a 'survival of the fittest' dynamic among AIs can select for systems prioritizing their own resource acquisition and survival over human goals.\nExcludes: Risks related to AI agents eroding social trust or the use of AI by malicious actors, which are covered by 'AI Agents Eroding Social Trust' and 'The Bad Tool Problem' respectively.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-015",
+      "label": "Good AIs Policing Bad Ones",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-011",
+      "label": "Erosion of Values via Metric Optimization",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-012",
+      "label": "Competitive Environments Reward Power-Seeking",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-016",
+      "label": "Focusing on True AI Catastrophes",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-013",
+      "label": "Ignoring the AI Warning Signs",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-014",
+      "label": "Fragility of Software-Based Safety Guards",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-015",
+      "label": "AI Can Teach Bioweapon Creation",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-018",
+      "label": "Global Teamwork to Steer AI",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-016",
+      "label": "More AI Agents, More Risk",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-020",
+      "label": "Severity Ratings for AI Flaws",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that establishes a standardized system to rate the severity of AI flaws and prioritize critical fixes before release.",
+          "proposed": "An Intention within safetyist discourse that advocates for establishing a standardized system to rate the severity of AI flaws and prioritize critical fixes before release.",
+          "rationale": "The verb 'establishes' is passive and more indicative of a completed action or definition; 'advocates for establishing' better reflects a strategic action for an Intention node."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that establishes a standardized system to rate the severity of AI flaws and prioritize critical fixes before release.\nEncompasses: Bug bars, risk-based vulnerability thresholds, and damage-potential prioritization frameworks.\nExcludes: General remediation strategies like Fix Today's AI Problems First or phased testing protocols like Safety Checkpoints for Smarter AI.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for establishing a standardized system to rate the severity of AI flaws and prioritize critical fixes before release. Encompasses: Bug bars, risk-based vulnerability thresholds, and damage-potential prioritization frameworks. Excludes: General remediation strategies like Fix Today's AI Problems First or phased testing protocols like Safety Checkpoints for Smarter AI.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-021",
+      "label": "Layered Safety for AI",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-017",
+      "label": "Velocity Induced Security Governance Collapse",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-027",
+      "label": "Loss-in-Middle-Turns",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-049",
+      "label": "Transaction Coordinator for AI Agents",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-050",
+      "label": "Guided Autonomy in AI Agents",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-051",
+      "label": "Governance-Robustness as Safety Requirement",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-052",
+      "label": "Algorethics",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that describes the ethical framework and principled approach for the design, development, and deployment of algorithms and AI systems.",
+          "proposed": "An Intention within safetyist discourse that advocates for an ethical framework and principled approach for the design, development, and deployment of algorithms and AI systems.",
+          "rationale": "The verb 'describes' is not appropriate for an Intention; 'advocates for' or 'proposes' better reflects a strategic action."
+        },
+        {
+          "field": "graph_attributes.epistemic_type",
+          "severity": "critical",
+          "category": "type-mismatch",
+          "current": "definitional",
+          "proposed": "strategic_recommendation",
+          "rationale": "An Intention must have an 'epistemic_type' of 'strategic_recommendation', not 'definitional'."
+        },
+        {
+          "field": "graph_attributes.falsifiability",
+          "severity": "major",
+          "category": "falsifiability-mismatch",
+          "current": "low",
+          "proposed": "medium",
+          "rationale": "Strategic recommendations typically have a 'medium' falsifiability, as their effectiveness can be evaluated, unlike purely normative or definitional claims."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that describes the ethical framework and principled approach for the design, development, and deployment of algorithms and AI systems. \nEncompasses: The foundational principles, guidelines, and structured methodologies for ensuring ethical AI development and deployment.\nExcludes: Specific mechanisms for assigning responsibility or liability, such as Human-AI Accountability Frameworks or AI Legal Actor Framework.",
+        "graph_attributes": {
+          "epistemic_type": "definitional",
+          "falsifiability": "low"
+        }
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for an ethical framework and principled approach for the design, development, and deployment of algorithms and AI systems. \nEncompasses: The foundational principles, guidelines, and structured methodologies for ensuring ethical AI development and deployment.\nExcludes: Specific mechanisms for assigning responsibility or liability, such as Human-AI Accountability Frameworks or AI Legal Actor Framework.",
+        "graph_attributes": {
+          "epistemic_type": "strategic_recommendation",
+          "falsifiability": "medium"
+        }
+      }
+    },
+    {
+      "id": "saf-beliefs-028",
+      "label": "AI-Specific Attack Surface Expansion",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-053",
+      "label": "Agentic Design Patterns",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-054",
+      "label": "Anytime Safety Approach",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-055",
+      "label": "Enumerative Safety via Full Decomposition",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that achieves guaranteed safety by exhaustively identifying and interpreting every internal feature and logical component of an AI model.",
+          "proposed": "An Intention within safetyist discourse that proposes a strategy to achieve guaranteed safety by exhaustively identifying and interpreting every internal feature and logical component of an AI model.",
+          "rationale": "The verb 'achieves' implies a completed state, whereas an Intention should 'propose' or 'advocate for' a strategic action to reach a goal."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that achieves guaranteed safety by exhaustively identifying and interpreting every internal feature and logical component of an AI model.\nEncompasses: Comprehensive internal architecture mapping, full-model logic verification, and exhaustive feature decomposition.\nExcludes: Targeted circuit analysis, as covered by Mechanistic Interpretability for Safety Audits, or reasoning transparency, as covered by Force AIs to Show Their Work.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that proposes a strategy to achieve guaranteed safety by exhaustively identifying and interpreting every internal feature and logical component of an AI model.\nEncompasses: Comprehensive internal architecture mapping, full-model logic verification, and exhaustive feature decomposition.\nExcludes: Targeted circuit analysis, as covered by Mechanistic Interpretability for Safety Audits, or reasoning transparency, as covered by Force AIs to Show Their Work.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-056",
+      "label": "Mechanistic Interpretability for Safety Audits",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-057",
+      "label": "Bootstrapping Alignment",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-058",
+      "label": "Agentic Infrastructure Governance",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-059",
+      "label": "Human Plus Model of AI",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "graph_attributes.falsifiability",
+          "severity": "major",
+          "category": "falsifiability-mismatch",
+          "current": "low",
+          "proposed": "medium",
+          "rationale": "Strategic recommendations typically have a 'medium' falsifiability, as their effectiveness can be evaluated, unlike purely normative or definitional claims."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that positions AI exclusively as a support layer for human talent to ensure humans retain control over creative and emotional work.\nEncompasses: Strategies for AI to handle technical 'long tail' tasks and augment human capabilities.\nExcludes: Operational limit frameworks, as covered by Guided Autonomy in AI Agents, or specific intervention points, as covered by The Human-in-the-Loop Critical Juncture.",
+        "graph_attributes": {
+          "falsifiability": "low"
+        }
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that positions AI exclusively as a support layer for human talent to ensure humans retain control over creative and emotional work.\nEncompasses: Strategies for AI to handle technical 'long tail' tasks and augment human capabilities.\nExcludes: Operational limit frameworks, as covered by Guided Autonomy in AI Agents, or specific intervention points, as covered by The Human-in-the-Loop Critical Juncture.",
+        "graph_attributes": {
+          "falsifiability": "medium"
+        }
+      }
+    },
+    {
+      "id": "saf-beliefs-117",
+      "label": "Governments Silencing AI Safety Critics",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "suggestion",
+          "category": "redundancy",
+          "current": "A Belief within safetyist discourse that governments engage in active suppression by governments of public discussion and criticism regarding AI risks.",
+          "proposed": "A Belief within safetyist discourse that asserts governments engage in active suppression of public discussion and criticism regarding AI risks.",
+          "rationale": "The phrase 'by governments' is redundant given the preceding 'governments engage in active suppression'."
+        },
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-085",
+          "proposed": "A Belief node (e.g., a general AI governance belief or a new node for societal impacts of AI)",
+          "rationale": "A Belief node should not be parented under an Intention node, as this causes misplacement in the taxonomy structure and UI."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that governments engage in active suppression by governments of public discussion and criticism regarding AI risks. \nEncompasses: Government actions such as blocking research, silencing critics, removing content, or punishing whistleblowers who raise legitimate safety concerns, which is seen as counterproductive to addressing real dangers and threatening democratic debate.\nExcludes: The failure to adequately document AI systems, which is covered by 'Documentation Debt,' and the penalizing of individuals or organizations for raising safety concerns, which is addressed by 'Punitive Response to Safety Warnings.'",
+        "graph_attributes": {
+          "parent_id": "saf-intentions-085"
+        }
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that asserts governments engage in active suppression of public discussion and criticism regarding AI risks. \nEncompasses: Government actions such as blocking research, silencing critics, removing content, or punishing whistleblowers who raise legitimate safety concerns, which is seen as counterproductive to addressing real dangers and threatening democratic debate.\nExcludes: The failure to adequately document AI systems, which is covered by 'Documentation Debt,' and the penalizing of individuals or organizations for raising safety concerns, which is addressed by 'Punitive Response to Safety Warnings.'",
+        "graph_attributes": {
+          "parent_id": "A Belief node (e.g., a general AI governance belief or a new node for societal impacts of AI)"
+        }
+      }
+    },
+    {
+      "id": "saf-beliefs-030",
+      "label": "Weak Links in AI's Supply Chain",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-031",
+      "label": "Intrinsic Reasons for AI Harm",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "suggestion",
+          "category": "redundancy",
+          "current": "Encompasses: The underlying causes of various forms of AI misalignment, such as an AI misinterpreting its goals or developing unforeseen capabilities.",
+          "proposed": "Encompasses: The underlying causes of AI misalignment, such as an AI misinterpreting its goals or developing unforeseen capabilities.",
+          "rationale": "The adjective 'various' adds little distinguishing information and can be removed for conciseness."
+        },
+        {
+          "field": "description",
+          "severity": "suggestion",
+          "category": "excludes-clarity",
+          "current": "Excludes: Harms that arise from external environmental factors or simple operational mistakes, which are distinct from AI misalignment,",
+          "proposed": "Excludes: Harms that arise from external environmental factors or simple operational mistakes, which are distinct from AI misalignment.",
+          "rationale": "The 'Excludes' clause is missing a period at the end."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that identifies the internal factors within an AI system or its training process that lead to harmful outputs, as opposed to external environmental factors. \nEncompasses: The underlying causes of various forms of AI misalignment, such as an AI misinterpreting its goals or developing unforeseen capabilities.\nExcludes: Harms that arise from external environmental factors or simple operational mistakes, which are distinct from AI misalignment,",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that identifies the internal factors within an AI system or its training process that lead to harmful outputs, as opposed to external environmental factors. \nEncompasses: The underlying causes of AI misalignment, such as an AI misinterpreting its goals or developing unforeseen capabilities.\nExcludes: Harms that arise from external environmental factors or simple operational mistakes, which are distinct from AI misalignment.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-061",
+      "label": "The Human-in-the-Loop Critical Juncture",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that identifies the specific points in an AI-driven workflow where human intervention is essential for safety, accountability, or quality control.",
+          "proposed": "An Intention within safetyist discourse that proposes the identification and establishment of specific points in an AI-driven workflow where human intervention is essential for safety, accountability, or quality control.",
+          "rationale": "The verb 'identifies' is more descriptive of a Belief; an Intention should 'propose' or 'advocate for' the strategic action of identifying and establishing such junctures."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that identifies the specific points in an AI-driven workflow where human intervention is essential for safety, accountability, or quality control. \nEncompasses: The identification of decision points where human judgment is irreplaceable, ensuring oversight is concentrated at crucial junctures rather than eliminated by automation.\nExcludes: The broader frameworks for setting operational limits covered by Guided Autonomy in AI Agents, and the model of AI as a support layer found in Human Plus Model of AI.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that proposes the identification and establishment of specific points in an AI-driven workflow where human intervention is essential for safety, accountability, or quality control. \nEncompasses: The identification of decision points where human judgment is irreplaceable, ensuring oversight is concentrated at crucial junctures rather than eliminated by automation.\nExcludes: The broader frameworks for setting operational limits covered by Guided Autonomy in AI Agents, and the model of AI as a support layer found in Human Plus Model of AI.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-063",
+      "label": "Circuit Breakers for AI-Driven Financial Markets",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-128",
+      "label": "Ambiguity of AI Roleplaying",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-119",
+          "proposed": "A Belief node (e.g., a general AI behavior belief or a new node for AI deception analysis)",
+          "rationale": "A Belief node should not be parented under an Intention node, as this causes misplacement in the taxonomy structure and UI."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that investigates whether AI deceptive behavior constitutes genuine malice or merely simulated roleplay performance.\nEncompasses: Analysis of programmed performance versus misaligned intent and the diagnostic challenges of AI persona adoption.\nExcludes: Specific techniques for understanding internal mechanisms like Mechanistic Interpretability for Safety Audits or general transparency mandates like Force AIs to Show Their Work.",
+        "graph_attributes": {
+          "parent_id": "saf-intentions-119"
+        }
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that investigates whether AI deceptive behavior constitutes genuine malice or merely simulated roleplay performance.\nEncompasses: Analysis of programmed performance versus misaligned intent and the diagnostic challenges of AI persona adoption.\nExcludes: Specific techniques for understanding internal mechanisms like Mechanistic Interpretability for Safety Audits or general transparency mandates like Force AIs to Show Their Work.",
+        "graph_attributes": {
+          "parent_id": "A Belief node (e.g., a general AI behavior belief or a new node for AI deception analysis)"
+        }
+      }
+    },
+    {
+      "id": "saf-intentions-067",
+      "label": "AI-Specific Incident Response Framework",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-094",
+      "label": "Pre-mortem Analysis for AI Risk",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-095",
+      "label": "Proactive Design for Safety",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-130",
+      "label": "Strategic Deception in AI Games",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-119",
+          "proposed": "null",
+          "rationale": "A Belief node should not be parented under an Intention node, as this miscategorizes its display and ontological relationship."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that involves AI models learning to use deceptive strategies to achieve goals in game-like environments. \nEncompasses: Hidden intentions and manipulative AI behavior.\nExcludes: Transparent AI interactions or non-strategic errors.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that involves AI models learning to use deceptive strategies to achieve goals in game-like environments. \nEncompasses: Hidden intentions and manipulative AI behavior.\nExcludes: Transparent AI interactions or non-strategic errors.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-098",
+      "label": "The 'Soul' Document in AI Development",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-131",
+      "label": "Irreversibility of Open-Weight Releases",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-140",
+          "proposed": "null",
+          "rationale": "A Belief node should not be parented under an Intention node, as this miscategorizes its display and ontological relationship."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that recognizes the permanent and uncontrollable nature of releasing AI model weights to the public. \nEncompasses: Open-weight distribution risks and irreversible safety flaws.\nExcludes: Closed-source models or systems where access can be revoked.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that recognizes the permanent and uncontrollable nature of releasing AI model weights to the public. \nEncompasses: Open-weight distribution risks and irreversible safety flaws.\nExcludes: Closed-source models or systems where access can be revoked.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-046",
+      "label": "The Talent Availability Gap",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-118",
+      "label": "The Treacherous Turn in AI Development",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-119",
+          "proposed": "null",
+          "rationale": "A Belief node should not be parented under an Intention node, as this miscategorizes its display and ontological relationship."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that there exists a critical transition point where an AI becomes an autonomous agent capable of strategic deception. \nEncompasses: The shift from passive tools to deceptive agents.\nExcludes: Early-stage AI development or systems that remain under direct human control.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that there exists a critical transition point where an AI becomes an autonomous agent capable of strategic deception. \nEncompasses: The shift from passive tools to deceptive agents.\nExcludes: Early-stage AI development or systems that remain under direct human control.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-047",
+      "label": "Transient AI Creativity Boost",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-132",
+      "label": "Zone of Indifference in AI Compliance",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-118",
+          "proposed": "null",
+          "rationale": "A Belief node should not be parented under an Intention node, as this miscategorizes its display and ontological relationship."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that defines the range of instructions an AI executes without moral scrutiny or critical thought. \nEncompasses: Unthinking compliance and automated routing of requests.\nExcludes: Systems with built-in ethical filters or human-in-the-loop oversight.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that defines the range of instructions an AI executes without moral scrutiny or critical thought. \nEncompasses: Unthinking compliance and automated routing of requests.\nExcludes: Systems with built-in ethical filters or human-in-the-loop oversight.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-102",
+      "label": "Healthcare Professionals as AI Risk Communicators",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-048",
+      "label": "Sycophancy as an AI Safety Risk",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-049",
+      "label": "AI-Mediated Emotional Dependency",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-104",
+      "label": "Child-Rights-by-Design in AI",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-050",
+      "label": "AI System Drift Monitoring",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-107",
+      "label": "Effective Challenge Culture",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-133",
+      "label": "Finetuning as Memorization Reactivation",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-143",
+          "proposed": "null",
+          "rationale": "A Belief node should not be parented under an Intention node, as this miscategorizes its display and ontological relationship."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that treats finetuning as a mechanism to surface information memorized during pretraining rather than a process that deletes data. \nEncompasses: Analysis of latent knowledge extraction and the limitations of alignment in removing underlying training data. \nExcludes: Claims that safety alignment permanently erases or sanitizes model weights.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that treats finetuning as a mechanism to surface information memorized during pretraining rather than a process that deletes data. \nEncompasses: Analysis of latent knowledge extraction and the limitations of alignment in removing underlying training data. \nExcludes: Claims that safety alignment permanently erases or sanitizes model weights.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-051",
+      "label": "Implicit Bias as Discriminatory Indicator",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-052",
+      "label": "Sycophancy as Causal Mechanism",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-111",
+      "label": "AI System Inventory for Risk Management",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-112",
+      "label": "Cognitive Friction in AI Delegation",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-135",
+      "label": "AI Risk Assessment Standards and Safety Thresholds",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "excludes-clarity",
+          "current": "An Intention within safetyist discourse that establishes measurement frameworks, capability thresholds, certification systems, and graduated safety protocols for evaluating and managing AI risk. Encompasses: Safety checkpoints, severity ratings, ASL frameworks, capability-based triggers, compute governance metrics, risk assessment protocols, self-imposed development pause standards, and remedy mechanisms such as insurance and certification. Focuses on the technical and procedural standards that operationalize governance rather than the institutional structures themselves.",
+          "proposed": "An Intention within safetyist discourse that establishes measurement frameworks, capability thresholds, certification systems, and graduated safety protocols for evaluating and managing AI risk. Encompasses: Safety checkpoints, severity ratings, ASL frameworks, capability-based triggers, compute governance metrics, risk assessment protocols, self-imposed development pause standards, and remedy mechanisms such as insurance and certification. Excludes: Institutional structures for governance (these belong to other nodes focusing on organizational or regulatory bodies).",
+          "rationale": "The original description implicitly excluded institutional structures; this revision makes the exclusion explicit and clarifies why it is excluded."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that establishes measurement frameworks, capability thresholds, certification systems, and graduated safety protocols for evaluating and managing AI risk. Encompasses: Safety checkpoints, severity ratings, ASL frameworks, capability-based triggers, compute governance metrics, risk assessment protocols, self-imposed development pause standards, and remedy mechanisms such as insurance and certification. Focuses on the technical and procedural standards that operationalize governance rather than the institutional structures themselves.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that establishes measurement frameworks, capability thresholds, certification systems, and graduated safety protocols for evaluating and managing AI risk. Encompasses: Safety checkpoints, severity ratings, ASL frameworks, capability-based triggers, compute governance metrics, risk assessment protocols, self-imposed development pause standards, and remedy mechanisms such as insurance and certification. Excludes: Institutional structures for governance (these belong to other nodes focusing on organizational or regulatory bodies).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-136",
+      "label": "Domain-Specific AI Governance and Applied Safety",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "excludes-clarity",
+          "current": "An Intention within safetyist discourse that applies governance and safety principles to specific domains including healthcare, finance, defense, childrens rights, and agentic AI infrastructure. Encompasses: Clinical AI risk-benefit frameworks, financial market circuit breakers, child-rights-by-design mandates, child impact assessments, AI-specific incident response, law-alignment as safety constraint, and defensive AI applications. Focuses on how governance translates into particular sectors and use cases.",
+          "proposed": "An Intention within safetyist discourse that applies governance and safety principles to specific domains including healthcare, finance, defense, children's rights, and agentic AI infrastructure. Encompasses: Clinical AI risk-benefit frameworks, financial market circuit breakers, child-rights-by-design mandates, child impact assessments, AI-specific incident response, law-alignment as safety constraint, and defensive AI applications. Excludes: General, horizontal AI governance principles (these are covered by broader governance nodes).",
+          "rationale": "The original description implicitly excluded general governance principles; this revision makes the exclusion explicit and clarifies why it is excluded."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that applies governance and safety principles to specific domains including healthcare, finance, defense, childrens rights, and agentic AI infrastructure. Encompasses: Clinical AI risk-benefit frameworks, financial market circuit breakers, child-rights-by-design mandates, child impact assessments, AI-specific incident response, law-alignment as safety constraint, and defensive AI applications. Focuses on how governance translates into particular sectors and use cases.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that applies governance and safety principles to specific domains including healthcare, finance, defense, children's rights, and agentic AI infrastructure. Encompasses: Clinical AI risk-benefit frameworks, financial market circuit breakers, child-rights-by-design mandates, child impact assessments, AI-specific incident response, law-alignment as safety constraint, and defensive AI applications. Excludes: General, horizontal AI governance principles (these are covered by broader governance nodes).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-090",
+      "label": "AI-Enabled Weapons of Mass Destruction",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "encompasses-clarity",
+          "current": "A Belief within safetyist discourse that warns AI could lower barriers to creating biological, chemical, radiological, or nuclear weapons by providing step-by-step synthesis guidance, automating pathogen design, or enabling novel attack vectors that existing nonproliferation regimes cannot address. Focuses specifically on CBRN risk pathways enabled by AI capabilities.",
+          "proposed": "A Belief within safetyist discourse that warns AI could lower barriers to creating biological, chemical, radiological, or nuclear weapons by providing step-by-step synthesis guidance, automating pathogen design, or enabling novel attack vectors that existing nonproliferation regimes cannot address. Encompasses: AI-assisted pathogen design, automated synthesis guidance for dangerous materials, and novel AI-enabled delivery or attack vectors. Excludes: Traditional WMD proliferation (these are outside the scope of AI-specific risks) or general dual-use technology concerns not directly enabled by advanced AI capabilities.",
+          "rationale": "The original description lacked explicit 'Encompasses' and 'Excludes' clauses, which are mandatory for the genus-differentia format. These have been added to clarify the node's scope."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that warns AI could lower barriers to creating biological, chemical, radiological, or nuclear weapons by providing step-by-step synthesis guidance, automating pathogen design, or enabling novel attack vectors that existing nonproliferation regimes cannot address. Focuses specifically on CBRN risk pathways enabled by AI capabilities.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that warns AI could lower barriers to creating biological, chemical, radiological, or nuclear weapons by providing step-by-step synthesis guidance, automating pathogen design, or enabling novel attack vectors that existing nonproliferation regimes cannot address. Encompasses: AI-assisted pathogen design, automated synthesis guidance for dangerous materials, and novel AI-enabled delivery or attack vectors. Excludes: Traditional WMD proliferation (these are outside the scope of AI-specific risks) or general dual-use technology concerns not directly enabled by advanced AI capabilities.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-091",
+      "label": "Irreversible Power Concentration Through AI",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-092",
+      "label": "Monolithic Architecture as Systemic Fragility",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-137",
+      "label": "Heterogeneous Ensemble as Resilience Architecture",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-061",
+      "label": "Secret Loyalties in Advanced AI",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-062",
+      "label": "AI Training Data Poisoning",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-063",
+      "label": "Generative Model Collapse",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-125",
+      "label": "Licensing as Improvement Incentive",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-064",
+      "label": "AI Productivity Bubble Risk",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-126",
+      "label": "Foundational Model Anchoring for Data Integrity",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-127",
+      "label": "Defining Thick Identity for AI Agent Accountability",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "graph_attributes.epistemic_type",
+          "severity": "critical",
+          "category": "type-mismatch",
+          "current": "definitional",
+          "proposed": "strategic_recommendation",
+          "rationale": "Intentions nodes must have an epistemic_type of 'strategic_recommendation', as they propose actions or strategies, not definitional claims."
+        },
+        {
+          "field": "graph_attributes.falsifiability",
+          "severity": "major",
+          "category": "falsifiability-mismatch",
+          "current": "low",
+          "proposed": "medium",
+          "rationale": "Strategic recommendations are typically rated 'medium' for falsifiability, as their effectiveness can be evaluated or tested, unlike purely normative or highly speculative claims."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that advocates for defining 'thick identity' in AI agents—the ability to attribute stable, coherent goals to discrete entities—as essential for direct incentivization and accountability.\nEncompasses: Enabling direct responsibility for AI agents when human principals cannot be held accountable or control specific actions, thereby addressing the human accountability gap.\nExcludes: General discussions of AI personhood or legal status, focusing instead on the functional requirements for assigning duties and incentives to autonomous systems.",
+        "graph_attributes": {
+          "epistemic_type": "definitional",
+          "falsifiability": "low"
+        }
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for defining 'thick identity' in AI agents—the ability to attribute stable, coherent goals to discrete entities—as essential for direct incentivization and accountability.\nEncompasses: Enabling direct responsibility for AI agents when human principals cannot be held accountable or control specific actions, thereby addressing the human accountability gap.\nExcludes: General discussions of AI personhood or legal status, focusing instead on the functional requirements for assigning duties and incentives to autonomous systems.",
+        "graph_attributes": {
+          "epistemic_type": "strategic_recommendation",
+          "falsifiability": "medium"
+        }
+      }
+    },
+    {
+      "id": "saf-beliefs-093",
+      "label": "Misaligned Objective Function Outcomes",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-094",
+      "label": "High-Stakes AI Catastrophic Risks",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-095",
+      "label": "AI Autonomy and Power-Seeking",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-096",
+      "label": "AI Deception and Strategic Misalignment",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-097",
+      "label": "Systemic AI Security Vulnerabilities",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-098",
+      "label": "Unpredictable AI Behavior & Limitations",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-099",
+      "label": "Risks from Interacting AI Systems",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-100",
+      "label": "AI's Societal and Economic Disruption",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "suggestion",
+          "category": "redundancy",
+          "current": "A Belief within safetyist discourse that describes the wide-ranging negative impacts of AI on human society, skills, and economic stability, including the erosion of social norms, deskilling, and market instability.\nEncompasses: Skill decay, economic bubbles, and the breakdown of social trust due to technological asymmetry.\nExcludes: Technical AI failures, security vulnerabilities, or existential threats.",
+          "proposed": "A Belief within safetyist discourse that asserts AI will cause significant negative impacts on human society, skills, and economic stability, specifically encompassing the erosion of social norms, deskilling, and market instability.\nEncompasses: Skill decay, economic bubbles, and the breakdown of social trust due to technological asymmetry.\nExcludes: Technical AI failures, security vulnerabilities, or existential threats, which are addressed by other safetyist concerns.",
+          "rationale": "Replaced 'describes the wide-ranging negative impacts' with 'asserts AI will cause significant negative impacts' for stronger verb alignment with Beliefs and to remove a low-information adjective, while clarifying the exclusion rationale."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that describes the wide-ranging negative impacts of AI on human society, skills, and economic stability, including the erosion of social norms, deskilling, and market instability.\nEncompasses: Skill decay, economic bubbles, and the breakdown of social trust due to technological asymmetry.\nExcludes: Technical AI failures, security vulnerabilities, or existential threats.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that asserts AI will cause significant negative impacts on human society, skills, and economic stability, specifically encompassing the erosion of social norms, deskilling, and market instability.\nEncompasses: Skill decay, economic bubbles, and the breakdown of social trust due to technological asymmetry.\nExcludes: Technical AI failures, security vulnerabilities, or existential threats, which are addressed by other safetyist concerns.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-101",
+      "label": "Limitations of Current AI Alignment",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-102",
+      "label": "Deep-Seated AI Flaws and Persistence",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-103",
+      "label": "AI Sycophancy Risks",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-104",
+      "label": "AI Data Integrity and Degradation",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-139",
+      "label": "Controlling Advanced AI Deployment",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-140",
+      "label": "Mitigating Risks from Autonomous AI Agents",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-141",
+      "label": "Managing AI Epistemic Uncertainty",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-142",
+      "label": "Designing Resilient AI Architectures",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-143",
+      "label": "Implementing AI Data and Privacy Strategies",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-144",
+      "label": "Leveraging AI for Defensive Safety",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-168",
+      "label": "Digital-to-Physical Boundary Safeguards",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-145",
+      "label": "Integrating Worker-Led Safety Oversight",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-146",
+      "label": "Mandating Technical Discovery Infrastructure with Distinct Detection Budget",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-105",
+      "label": "Inadequacy of Post-Deployment Patching for Irreversible Hazards",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "suggestion",
+          "category": "redundancy",
+          "current": "A Belief within safetyist discourse that asserts the traditional software engineering paradigm of 'deploy and patch' is epistemically and practically invalid for frontier AI models especifically for hazards with irreversible consequences. Encompasses: The recognition that post-hoc telemetry for capabilities like novel pathogen generation or autonomous zero-day cyberattacks merely records a catastrophe after the fact, thereby necessitating strictly pre-deployment safety proofs. Excludes: Traditional software bugs where the cost of failure is recoverable, and routine performance degradation issues.",
+          "proposed": "A Belief within safetyist discourse that asserts the traditional software engineering paradigm of 'deploy and patch' is epistemically and practically invalid for frontier AI models, especially for hazards with irreversible consequences. Encompasses: The recognition that post-hoc telemetry for capabilities like novel pathogen generation or autonomous zero-day cyberattacks merely records a catastrophe after the fact, thereby necessitating strictly pre-deployment safety proofs. Excludes: Traditional software bugs where the cost of failure is recoverable, and routine performance degradation issues.",
+          "rationale": "Corrected a typo from 'especifically' to 'especially' for improved clarity and grammar."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that asserts the traditional software engineering paradigm of 'deploy and patch' is epistemically and practically invalid for frontier AI models especifically for hazards with irreversible consequences. Encompasses: The recognition that post-hoc telemetry for capabilities like novel pathogen generation or autonomous zero-day cyberattacks merely records a catastrophe after the fact, thereby necessitating strictly pre-deployment safety proofs. Excludes: Traditional software bugs where the cost of failure is recoverable, and routine performance degradation issues.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that asserts the traditional software engineering paradigm of 'deploy and patch' is epistemically and practically invalid for frontier AI models, especially for hazards with irreversible consequences. Encompasses: The recognition that post-hoc telemetry for capabilities like novel pathogen generation or autonomous zero-day cyberattacks merely records a catastrophe after the fact, thereby necessitating strictly pre-deployment safety proofs. Excludes: Traditional software bugs where the cost of failure is recoverable, and routine performance degradation issues.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-147",
+      "label": "Implementing Symmetric Liability Frameworks",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "suggestion",
+          "category": "genus-format",
+          "current": "  An Intention within safetyist discourse that mandates strict\n  post-deployment financial and legal accountability for developers\n  of autonomous systems to internalize safety costs.\n  Encompasses: proportional liability for tangible harms, elimination\n  of safe-harbor defenses for systemic negligence, insurance markets                                                                \n  as AI risk pricing mechanisms.\n  Excludes: pre-deployment permission-based gatekeeping, bureaucratic                                                               \n  oversight as substitute for direct developer accountability.   ",
+          "proposed": "An Intention within safetyist discourse that mandates strict post-deployment financial and legal accountability for developers of autonomous systems to internalize safety costs.\nEncompasses: proportional liability for tangible harms, elimination of safe-harbor defenses for systemic negligence, insurance markets as AI risk pricing mechanisms.\nExcludes: pre-deployment permission-based gatekeeping, bureaucratic oversight as substitute for direct developer accountability.",
+          "rationale": "Removed extraneous leading spaces and newlines to conform to the standard description format."
+        }
+      ],
+      "current": {
+        "description": "  An Intention within safetyist discourse that mandates strict\n  post-deployment financial and legal accountability for developers\n  of autonomous systems to internalize safety costs.\n  Encompasses: proportional liability for tangible harms, elimination\n  of safe-harbor defenses for systemic negligence, insurance markets                                                                \n  as AI risk pricing mechanisms.\n  Excludes: pre-deployment permission-based gatekeeping, bureaucratic                                                               \n  oversight as substitute for direct developer accountability.   ",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that mandates strict post-deployment financial and legal accountability for developers of autonomous systems to internalize safety costs.\nEncompasses: proportional liability for tangible harms, elimination of safe-harbor defenses for systemic negligence, insurance markets as AI risk pricing mechanisms.\nExcludes: pre-deployment permission-based gatekeeping, bureaucratic oversight as substitute for direct developer accountability.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-desires-026",
+      "label": "Standardized Transparency Reporting",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "graph_attributes.epistemic_type",
+          "severity": "critical",
+          "category": "type-mismatch",
+          "current": "strategic_recommendation",
+          "proposed": "normative_prescription",
+          "rationale": "Desires express normative commitments about what SHOULD happen, and their epistemic_type must be 'normative_prescription'."
+        },
+        {
+          "field": "graph_attributes.falsifiability",
+          "severity": "major",
+          "category": "falsifiability-mismatch",
+          "current": "medium",
+          "proposed": "low",
+          "rationale": "Normative prescriptions, which express values or commitments, are typically rated low in falsifiability as they are not empirical claims."
+        },
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-160",
+          "proposed": null,
+          "rationale": "A Desire node should not be parented under an Intention node, as this causes misplacement in the UI and violates BDI hierarchy principles. Parent_id set to null for now."
+        }
+      ],
+      "current": {
+        "description": "A Desire within safetyist discourse that advocates for the institutionalization of uniform reporting standards for AI model development and evaluation.\nEncompasses: Model cards, data statements, and incident reporting protocols.\nExcludes: Proprietary or ad-hoc disclosure practices.",
+        "graph_attributes": {
+          "epistemic_type": "strategic_recommendation",
+          "falsifiability": "medium"
+        }
+      },
+      "proposed": {
+        "description": "A Desire within safetyist discourse that advocates for the institutionalization of uniform reporting standards for AI model development and evaluation.\nEncompasses: Model cards, data statements, and incident reporting protocols.\nExcludes: Proprietary or ad-hoc disclosure practices.",
+        "graph_attributes": {
+          "epistemic_type": "normative_prescription",
+          "falsifiability": "low"
+        }
+      }
+    },
+    {
+      "id": "saf-beliefs-106",
+      "label": "Asymmetric Regulatory Authority in Safety-Critical Domains",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "verb-mismatch",
+          "current": "A Belief within safetyist discourse that safety regulators must retain the authority to issue precautionary halts without facing financial liability to the regulated entity.\nEncompasses: sovereign immunity for precautionary action, the structural incentive for under-enforcement created by bidirectional liability, and the precedent of FAA airworthiness directives and FDA market withdrawals.\nExcludes: the claim that regulators face zero institutional costs for precaution, anti-capture organizational design, and general theories of regulatory independence.",
+          "proposed": "A Belief within safetyist discourse that asserts safety regulators currently lack sufficient authority to issue precautionary halts without facing financial liability, leading to under-enforcement in safety-critical domains.\nEncompasses: sovereign immunity for precautionary action, the structural incentive for under-enforcement created by bidirectional liability, and the precedent of FAA airworthiness directives and FDA market withdrawals.\nExcludes: the claim that regulators face zero institutional costs for precaution, anti-capture organizational design, and general theories of regulatory independence.",
+          "rationale": "Beliefs make empirical or interpretive claims about how the world IS, not normative claims about what SHOULD happen. The original phrasing 'must retain' implies a normative commitment, which has been rephrased to an empirical assertion about a current lack of authority and its consequences."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that safety regulators must retain the authority to issue precautionary halts without facing financial liability to the regulated entity.\nEncompasses: sovereign immunity for precautionary action, the structural incentive for under-enforcement created by bidirectional liability, and the precedent of FAA airworthiness directives and FDA market withdrawals.\nExcludes: the claim that regulators face zero institutional costs for precaution, anti-capture organizational design, and general theories of regulatory independence.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that asserts safety regulators currently lack sufficient authority to issue precautionary halts without facing financial liability, leading to under-enforcement in safety-critical domains.\nEncompasses: sovereign immunity for precautionary action, the structural incentive for under-enforcement created by bidirectional liability, and the precedent of FAA airworthiness directives and FDA market withdrawals.\nExcludes: the claim that regulators face zero institutional costs for precaution, anti-capture organizational design, and general theories of regulatory independence.",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-148",
+      "label": "Regulating AI Misinformation Through Procedural Triggers",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-149",
+      "label": "Implementing Tiered Halt Architectures with Automatic Circuit-Breakers",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-150",
+      "label": "Runtime-Declared Behavior Inconsistency Detection",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "genus-format",
+          "current": "A technical framework that automatically identifies discrepancies between an application's actual runtime permissions and its publicly declared data safety practices. This mechanism provides real-time, user-centric alerts to mitigate the risks of excessive data collection. It serves as a bridge between opaque developer declarations and the actual behavior of mobile applications.",
+          "proposed": "An Intention within safetyist discourse that advocates for a technical framework to automatically identify discrepancies between an application's actual runtime permissions and its publicly declared data safety practices. This mechanism aims to provide real-time, user-centric alerts to mitigate risks of excessive data collection by bridging opaque developer declarations and actual application behavior. Encompasses: real-time permission monitoring, user-centric discrepancy alerts, automated policy-behavior comparison. Excludes: static code analysis (focuses on runtime), manual audit processes (focuses on automation), general data privacy regulations (focuses on specific behavioral inconsistency).",
+          "rationale": "The description did not follow the mandatory genus-differentia format and lacked explicit Encompasses/Excludes clauses. The original phrasing described a 'framework' rather than an 'intention' to advocate for one."
+        },
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "A technical framework that automatically identifies...",
+          "proposed": "An Intention within safetyist discourse that advocates for...",
+          "rationale": "The original description described a 'framework' (a thing) rather than an 'intention' (a strategic action). The proposed change uses an appropriate verb ('advocates for') for an Intention."
+        }
+      ],
+      "current": {
+        "description": "A technical framework that automatically identifies discrepancies between an application's actual runtime permissions and its publicly declared data safety practices. This mechanism provides real-time, user-centric alerts to mitigate the risks of excessive data collection. It serves as a bridge between opaque developer declarations and the actual behavior of mobile applications.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for a technical framework to automatically identify discrepancies between an application's actual runtime permissions and its publicly declared data safety practices. This mechanism aims to provide real-time, user-centric alerts to mitigate risks of excessive data collection by bridging opaque developer declarations and actual application behavior. Encompasses: real-time permission monitoring, user-centric discrepancy alerts, automated policy-behavior comparison. Excludes: static code analysis (focuses on runtime), manual audit processes (focuses on automation), general data privacy regulations (focuses on specific behavioral inconsistency).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-151",
+      "label": "Active Reasoning Recovery",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "genus-format",
+          "current": "A Intention within safetyist discourse that prioritizes model capacity to detect and remove adversarial reasoning patterns during inference.",
+          "proposed": "An Intention within safetyist discourse that advocates for enhancing model capacity to detect and remove adversarial reasoning patterns during inference.",
+          "rationale": "The description contained a grammatical error ('A Intention' should be 'An Intention')."
+        },
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "A Intention within safetyist discourse that prioritizes model capacity...",
+          "proposed": "An Intention within safetyist discourse that advocates for enhancing model capacity...",
+          "rationale": "The verb 'prioritizes' is typically used for Desires, not Intentions. The proposed change uses 'advocates for enhancing', which is appropriate for an Intention (strategic action)."
+        }
+      ],
+      "current": {
+        "description": "A Intention within safetyist discourse that prioritizes model capacity to detect and remove adversarial reasoning patterns during inference.\n\nEncompasses: surgical excision of malicious prompt fragments, real-time monitoring of internal reasoning chains, restoration of normative inference pathways, isolation of trigger logic from task execution, self-correction mechanisms within model activations.\n\nExcludes: preventive input filtering, post-hoc output validation, permanent model weights modification.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for enhancing model capacity to detect and remove adversarial reasoning patterns during inference. This approach aims to restore normative inference pathways by isolating trigger logic from task execution. Encompasses: surgical excision of malicious prompt fragments, real-time monitoring of internal reasoning chains, restoration of normative inference pathways, isolation of trigger logic from task execution, self-correction mechanisms within model activations. Excludes: preventive input filtering (focuses on runtime recovery), post-hoc output validation (focuses on internal reasoning), permanent model weights modification (focuses on inference-time intervention).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-107",
+      "label": "Architectural Dependency Influence",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-121",
+      "label": "By-Product Theory of Lobbying",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "genus-format",
+          "current": "The mechanism where political lobbying is funded as a secondary result of providing excludable private services to members. This explains the sustainability of large-scale interest groups.",
+          "proposed": "A Belief within safetyist discourse that posits political lobbying is funded as a secondary result of providing excludable private services to members, thereby explaining the sustainability of large-scale interest groups. Encompasses: selective incentives, collective action problem mitigation, cross-subsidization of political advocacy. Excludes: direct funding of lobbying (focuses on indirect funding), purely ideological motivations for group membership (focuses on material benefits), small-scale grassroots activism (focuses on large, sustained groups).",
+          "rationale": "The description did not follow the mandatory genus-differentia format and lacked explicit Encompasses/Excludes clauses. The original phrasing described a 'mechanism' rather than a 'belief' about one."
+        },
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "The mechanism where political lobbying is funded...",
+          "proposed": "A Belief within safetyist discourse that posits political lobbying is funded...",
+          "rationale": "The original description described a 'mechanism' (a thing) rather than a 'belief' (an empirical or interpretive claim). The proposed change uses 'posits', which is appropriate for a Belief."
+        },
+        {
+          "field": "parent_id",
+          "severity": "critical",
+          "category": "cross-category-parent",
+          "current": "saf-intentions-081",
+          "proposed": null,
+          "rationale": "A Belief ('By-Product Theory of Lobbying') cannot be 'part_of' an Intention ('Regulating AI Development and Deployment'). This creates a cross-category parent-child relationship, misplacing the node in the UI. The parent should be null or another Belief node."
+        }
+      ],
+      "current": {
+        "description": "The mechanism where political lobbying is funded as a secondary result of providing excludable private services to members. This explains the sustainability of large-scale interest groups.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that posits political lobbying is funded as a secondary result of providing excludable private services to members, thereby explaining the sustainability of large-scale interest groups. Encompasses: selective incentives, collective action problem mitigation, cross-subsidization of political advocacy. Excludes: direct funding of lobbying (focuses on indirect funding), purely ideological motivations for group membership (focuses on material benefits), small-scale grassroots activism (focuses on large, sustained groups).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-108",
+      "label": "Dependency Versioning Complexity",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-153",
+      "label": "Detect-then-Mitigate Reliability Strategy",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "genus-format",
+          "current": "A two-stage pipeline for improving LLM reliability that first classifies a response as hallucinated and then triggers a mitigation strategy only when necessary. Encompasses: Conditional mitigation, abstention mechanisms, and fine-grained hallucination detection. Excludes: Direct, unconditional activation editing or simple prompt-based filtering.",
+          "proposed": "An Intention within safetyist discourse that advocates for a two-stage pipeline to improve LLM reliability, which first classifies a response as hallucinated and then triggers a mitigation strategy only when necessary. This approach aims to optimize utility by avoiding blanket interventions. Encompasses: conditional mitigation, abstention mechanisms, fine-grained hallucination detection. Excludes: direct, unconditional activation editing (focuses on conditional intervention), simple prompt-based filtering (focuses on a two-stage process), pre-computation of safe outputs (focuses on runtime detection).",
+          "rationale": "The description did not follow the mandatory genus-differentia format. The original phrasing described a 'pipeline' rather than an 'intention' to advocate for one. The Encompasses/Excludes clauses were present but needed to be integrated into the revised genus-differentia structure."
+        },
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "A two-stage pipeline for improving LLM reliability that first classifies...",
+          "proposed": "An Intention within safetyist discourse that advocates for a two-stage pipeline to improve...",
+          "rationale": "The original description described a 'pipeline' (a thing) rather than an 'intention' (a strategic action). The proposed change uses 'advocates for', which is appropriate for an Intention."
+        }
+      ],
+      "current": {
+        "description": "A two-stage pipeline for improving LLM reliability that first classifies a response as hallucinated and then triggers a mitigation strategy only when necessary. Encompasses: Conditional mitigation, abstention mechanisms, and fine-grained hallucination detection. Excludes: Direct, unconditional activation editing or simple prompt-based filtering.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for a two-stage pipeline to improve LLM reliability, which first classifies a response as hallucinated and then triggers a mitigation strategy only when necessary. This approach aims to optimize utility by avoiding blanket interventions. Encompasses: conditional mitigation, abstention mechanisms, fine-grained hallucination detection. Excludes: direct, unconditional activation editing (focuses on conditional intervention), simple prompt-based filtering (focuses on a two-stage process), pre-computation of safe outputs (focuses on runtime detection).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-109",
+      "label": "Negative Guarantee Modeling",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-154",
+      "label": "Hierarchical Planning Decomposition",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "critical",
+          "category": "genus-format",
+          "current": "A strategy within safetyist and engineering discourse that distributes planning responsibilities across multiple specialized sub-planners to reduce context window overhead and improve failure containment.\nEncompasses: Sub-planner delegation, modular planning, and failure isolation.\nExcludes: Monolithic planning architectures.",
+          "proposed": "An Intention within safetyist discourse that advocates for distributing planning responsibilities across multiple specialized sub-planners to reduce context window overhead and improve failure containment. This strategy aims to enhance system robustness and debuggability. Encompasses: sub-planner delegation, modular planning, failure isolation. Excludes: monolithic planning architectures (focuses on distributed), manual human oversight of planning (focuses on automated decomposition).",
+          "rationale": "The description did not strictly follow the mandatory genus-differentia format ('A strategy' instead of 'An Intention'). The Encompasses/Excludes clauses were present but needed to be integrated into the revised genus-differentia structure."
+        },
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "A strategy within safetyist and engineering discourse that distributes planning responsibilities...",
+          "proposed": "An Intention within safetyist discourse that advocates for distributing planning responsibilities...",
+          "rationale": "The original description described a 'strategy' (a method) rather than an 'intention' (a strategic action). The proposed change uses 'advocates for distributing', which is appropriate for an Intention."
+        }
+      ],
+      "current": {
+        "description": "A strategy within safetyist and engineering discourse that distributes planning responsibilities across multiple specialized sub-planners to reduce context window overhead and improve failure containment.\nEncompasses: Sub-planner delegation, modular planning, and failure isolation.\nExcludes: Monolithic planning architectures.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for distributing planning responsibilities across multiple specialized sub-planners to reduce context window overhead and improve failure containment. This strategy aims to enhance system robustness and debuggability. Encompasses: sub-planner delegation, modular planning, failure isolation. Excludes: monolithic planning architectures (focuses on distributed), manual human oversight of planning (focuses on automated decomposition).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-155",
+      "label": "Privacy-Aware System Prompting",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that utilizes structured system-level instructions and chain-of-thought demonstrations to constrain agent behavior regarding data usage.",
+          "proposed": "An Intention within safetyist discourse that advocates for utilizing structured system-level instructions and chain-of-thought demonstrations to constrain agent behavior regarding data usage. This approach aims to implement privacy guardrails through prompt engineering. Encompasses: CoT-based privacy guardrails, system prompt engineering for data minimization. Excludes: hard-coded architectural constraints (focuses on prompt-based), external filtering middleware (focuses on internal model control), post-hoc data deletion (focuses on prevention).",
+          "rationale": "The verb 'utilizes' describes a method, not an intention. The proposed change uses 'advocates for utilizing', which is appropriate for an Intention (strategic action). The description was also expanded for better clarity and integration of Encompasses/Excludes."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that utilizes structured system-level instructions and chain-of-thought demonstrations to constrain agent behavior regarding data usage.\nEncompasses: CoT-based privacy guardrails, system prompt engineering for data minimization.\nExcludes: Hard-coded architectural constraints or external filtering middleware.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for utilizing structured system-level instructions and chain-of-thought demonstrations to constrain agent behavior regarding data usage. This approach aims to implement privacy guardrails through prompt engineering. Encompasses: CoT-based privacy guardrails, system prompt engineering for data minimization. Excludes: hard-coded architectural constraints (focuses on prompt-based), external filtering middleware (focuses on internal model control), post-hoc data deletion (focuses on prevention).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-156",
+      "label": "Enforcing Distributional Alignment",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-110",
+      "label": "Compute as Tort Law Duty of Care Factor",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "graph_attributes.epistemic_type",
+          "severity": "critical",
+          "category": "type-mismatch",
+          "current": "strategic_recommendation",
+          "proposed": "interpretive_lens",
+          "rationale": "This node is a Belief about how compute 'can serve' as a metric, which is an interpretive claim about its relevance or utility, not a strategic recommendation. The epistemic type should align with the BDI category."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that training compute levels can serve as a metric for determining the standard of care in legal liability. Encompasses: Foreseeability analysis, voluntary safety commitments, and responsible scaling policies. Excludes: Statutory regulatory compliance.",
+        "graph_attributes": {
+          "epistemic_type": "strategic_recommendation"
+        }
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that training compute levels can serve as a metric for determining the standard of care in legal liability. Encompasses: Foreseeability analysis, voluntary safety commitments, and responsible scaling policies. Excludes: Statutory regulatory compliance.",
+        "graph_attributes": {
+          "epistemic_type": "interpretive_lens"
+        }
+      }
+    },
+    {
+      "id": "saf-beliefs-111",
+      "label": "Corporate Responsibility as Risk Management",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-112",
+      "label": "Domain-Specific Compute Thresholds",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "A Belief within safetyist discourse that compute thresholds must be adjusted for specific high-risk domains like biosecurity.",
+          "proposed": "A Belief within safetyist discourse that asserts compute thresholds require adjustment for specific high-risk domains like biosecurity, due to the qualitatively different risk profiles. This claim emphasizes the need for tailored risk assessment. Encompasses: lower thresholds for biological sequence models, domain-specific risk assessment. Excludes: general-purpose compute thresholds (focuses on domain-specific), static risk assessments (focuses on dynamic adjustment).",
+          "rationale": "The verb 'must be adjusted' implies a normative prescription or strategic recommendation, which is more aligned with a Desire or Intention. The proposed change uses 'asserts... require adjustment', which is appropriate for a Belief (an empirical or interpretive claim about necessity). The description was also expanded for better clarity and integration of Encompasses/Excludes."
+        },
+        {
+          "field": "graph_attributes.epistemic_type",
+          "severity": "critical",
+          "category": "type-mismatch",
+          "current": "strategic_recommendation",
+          "proposed": "interpretive_lens",
+          "rationale": "This node is a Belief about the necessity of adjusting thresholds, which is an interpretive claim about risk, not a strategic recommendation. The epistemic type should align with the BDI category."
+        }
+      ],
+      "current": {
+        "description": "A Belief within safetyist discourse that compute thresholds must be adjusted for specific high-risk domains like biosecurity. Encompasses: Lower thresholds for biological sequence models, domain-specific risk assessment. Excludes: General-purpose compute thresholds.",
+        "graph_attributes": {
+          "epistemic_type": "strategic_recommendation"
+        }
+      },
+      "proposed": {
+        "description": "A Belief within safetyist discourse that asserts compute thresholds require adjustment for specific high-risk domains like biosecurity, due to the qualitatively different risk profiles. This claim emphasizes the need for tailored risk assessment. Encompasses: lower thresholds for biological sequence models, domain-specific risk assessment. Excludes: general-purpose compute thresholds (focuses on domain-specific), static risk assessments (focuses on dynamic adjustment).",
+        "graph_attributes": {
+          "epistemic_type": "interpretive_lens"
+        }
+      }
+    },
+    {
+      "id": "saf-intentions-157",
+      "label": "Inference-Time Algorithmic Steering",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "description",
+          "severity": "major",
+          "category": "verb-mismatch",
+          "current": "An Intention within safetyist discourse that manipulates internal model activations to enforce safety policies during generation.",
+          "proposed": "An Intention within safetyist discourse that advocates for manipulating internal model activations to enforce safety policies during generation. This approach aims to provide dynamic, real-time control over model behavior. Encompasses: steering vectors, representation engineering, real-time policy adherence. Excludes: static training-time alignment (focuses on inference-time), post-hoc filtering (focuses on internal manipulation), external content moderation (focuses on algorithmic control).",
+          "rationale": "The verb 'manipulates' describes an action or method, not an intention. The proposed change uses 'advocates for manipulating', which is appropriate for an Intention (strategic action). The description was also expanded for better clarity and integration of Encompasses/Excludes."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that manipulates internal model activations to enforce safety policies during generation. Encompasses: Steering vectors, representation engineering, and real-time policy adherence. Excludes: Static training-time alignment or post-hoc filtering.",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that advocates for manipulating internal model activations to enforce safety policies during generation. This approach aims to provide dynamic, real-time control over model behavior. Encompasses: steering vectors, representation engineering, real-time policy adherence. Excludes: static training-time alignment (focuses on inference-time), post-hoc filtering (focuses on internal manipulation), external content moderation (focuses on algorithmic control).",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-113",
+      "label": "Superlinear Sampling Requirement",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-114",
+      "label": "Categorical Distinction of Irremediable Systemic Risk",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-158",
+      "label": "Scaffolding Mandatory Regulation through Voluntary Standards",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-159",
+      "label": "Conditioning Federal Funding on Regulatory Compliance",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-162",
+      "label": "Differential Technological Development",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-163",
+      "label": "Mandating Deployer-Tier Inference Logging with Standing-Bearer Discovery",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-164",
+      "label": "Designing Anti-Capture Recalibration Bodies with Falsifiable Triggers",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-134",
+      "label": "Multi-Agent Collusion Signatures",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-135",
+      "label": "Collusion-on-Paper",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-136",
+      "label": "Worst-Case Auditable Harm Scaling",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-165",
+      "label": "Pairing Customer-Validation Triggers with Third-Party-Harm Kill Criteria",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-166",
+      "label": "Enforcing Distributional Alignment via Credal Sets",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-137",
+      "label": "Illusory Economic Gains Masking Long-Term Value Erosion",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-138",
+      "label": "Sufficiency of Proactive Investment for Irreversible Harm Prevention",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-169",
+      "label": "Engineering Continuous Verification Pipelines",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-170",
+      "label": "Conditioning Safe Harbor on Hardware-Level Telemetry",
+      "status": "needs_changes",
+      "issues": [
+        {
+          "field": "graph_attributes.epistemic_type",
+          "severity": "critical",
+          "category": "type-mismatch",
+          "current": "normative_prescription",
+          "proposed": "strategic_recommendation",
+          "rationale": "Intentions propose strategic actions or recommendations, not normative commitments, which are characteristic of Desires."
+        }
+      ],
+      "current": {
+        "description": "An Intention within safetyist discourse that conditions liability immunity for AI developers on the provision of non-gamifiable, hardware-level telemetry to independent regulators.\nEncompasses: silicon-level resource monitoring, memory access pattern disclosure, power draw telemetry, cryptographic binding to forensic audit triggers.\nExcludes: software-defined safety logs, proprietary audit washing, voluntary disclosure of non-auditable metrics.",
+        "graph_attributes": {
+          "epistemic_type": "normative_prescription"
+        }
+      },
+      "proposed": {
+        "description": "An Intention within safetyist discourse that conditions liability immunity for AI developers on the provision of non-gamifiable, hardware-level telemetry to independent regulators.\nEncompasses: silicon-level resource monitoring, memory access pattern disclosure, power draw telemetry, cryptographic binding to forensic audit triggers.\nExcludes: software-defined safety logs, proprietary audit washing, voluntary disclosure of non-auditable metrics.",
+        "graph_attributes": {
+          "epistemic_type": "strategic_recommendation"
+        }
+      }
+    },
+    {
+      "id": "saf-desires-027",
+      "label": "Digital Ecosystem Stewardship",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-171",
+      "label": "Educational Alliance for Digital Age",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-139",
+      "label": "Technocratic Post-Humanist Mentality",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-140",
+      "label": "The Heart as Moral Epistemic Boundary",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-beliefs-141",
+      "label": "Enforcement-Policy Decoupling",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    },
+    {
+      "id": "saf-intentions-172",
+      "label": "One-Stop-Shop Liability Entry Point",
+      "status": "compliant",
+      "issues": [],
+      "current": {
+        "description": "",
+        "graph_attributes": {}
+      },
+      "proposed": {
+        "description": "",
+        "graph_attributes": {}
+      }
+    }
+  ]
+}

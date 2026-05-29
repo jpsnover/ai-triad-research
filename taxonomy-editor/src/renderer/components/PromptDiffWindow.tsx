@@ -11,7 +11,7 @@ import type { PromptNode, DiffViewMode } from './PromptDiffTree';
 import { PromptDiffPane } from './PromptDiffPane';
 import type { PaneData, PaneDiffLine } from './PromptDiffPane';
 import { POVER_INFO } from '../types/debate';
-import type { SpeakerId } from '../types/debate';
+import type { SpeakerId, DebateSession } from '../types/debate';
 
 const MAX_PANES = 4;
 
@@ -109,38 +109,14 @@ function buildDiffBlocks(lines: DiffLine[]): { startFrac: number; endFrac: numbe
   return blocks;
 }
 
-export function PromptDiffWindow() {
-  const { debateId: initialDebateId, entryId: initialEntryId } = parseHashParams();
-  const [focusedEntryId, setFocusedEntryId] = useState(initialEntryId);
+/** Embeddable prompt diff content — used both in standalone window and DiagnosticsWindow tab. */
+export function PromptDiffContent({ debate, focusedEntryId: externalFocusedEntryId, embedded }: { debate: DebateSession | null; focusedEntryId?: string; embedded?: boolean }) {
+  const [focusedEntryId, setFocusedEntryId] = useState(externalFocusedEntryId ?? '');
 
-  const { activeDebate, loadDebate } = useDebateStore(useShallow(s => ({
-    activeDebate: s.activeDebate,
-    loadDebate: s.loadDebate,
-  })));
-
-  // Load debate if needed
+  // Sync when parent changes the focused entry
   useEffect(() => {
-    if (initialDebateId && activeDebate?.id !== initialDebateId) {
-      void loadDebate(initialDebateId);
-    }
-  }, [initialDebateId, activeDebate?.id, loadDebate]);
-
-  const debate = activeDebate?.id === initialDebateId ? activeDebate : null;
-
-  // Listen for context updates from Electron (when window is reused)
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window as Record<string, unknown>).electronAPI) {
-      const api = (window as Record<string, unknown>).electronAPI as {
-        onPromptDiffContext?: (cb: (ctx: { debateId: string; entryId: string }) => void) => void;
-      };
-      api.onPromptDiffContext?.((ctx) => {
-        setFocusedEntryId(ctx.entryId);
-        if (ctx.debateId !== initialDebateId) {
-          void loadDebate(ctx.debateId);
-        }
-      });
-    }
-  }, [initialDebateId, loadDebate]);
+    if (externalFocusedEntryId) setFocusedEntryId(externalFocusedEntryId);
+  }, [externalFocusedEntryId]);
 
   // Pane state
   const [paneNodes, setPaneNodes] = useState<PromptNode[]>([]);
@@ -327,8 +303,9 @@ export function PromptDiffWindow() {
     return () => window.removeEventListener('keydown', handler);
   }, [paneNodes, focusedPane, closePane, syncScroll, searchOpen, totalMatches, outlineBlocks, scrollTop, panes]);
 
-  // Window title
+  // Window title (standalone mode only)
   useEffect(() => {
+    if (embedded) return;
     if (debate && focusedEntryId) {
       const entry = debate.transcript.find(e => e.id === focusedEntryId);
       if (entry) {
@@ -337,7 +314,7 @@ export function PromptDiffWindow() {
         document.title = `${modeLabel} — S${idx + 1} ${speakerLabel(entry.speaker)} (${entry.type})`;
       }
     }
-  }, [debate, focusedEntryId, viewMode]);
+  }, [debate, focusedEntryId, viewMode, embedded]);
 
   if (!debate) {
     return (
@@ -353,7 +330,7 @@ export function PromptDiffWindow() {
     : '';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: embedded ? '100%' : '100vh', flex: embedded ? 1 : undefined, background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
       {/* Toolbar */}
       <div style={{
         borderBottom: '1px solid var(--border-color)',
@@ -590,4 +567,42 @@ export function PromptDiffWindow() {
       </div>
     </div>
   );
+}
+
+/** Standalone window wrapper — loads debate from hash params and renders PromptDiffContent. */
+export function PromptDiffWindow() {
+  const { debateId: initialDebateId, entryId: initialEntryId } = parseHashParams();
+
+  const { activeDebate, loadDebate } = useDebateStore(useShallow(s => ({
+    activeDebate: s.activeDebate,
+    loadDebate: s.loadDebate,
+  })));
+
+  // Load debate if needed
+  useEffect(() => {
+    if (initialDebateId && activeDebate?.id !== initialDebateId) {
+      void loadDebate(initialDebateId);
+    }
+  }, [initialDebateId, activeDebate?.id, loadDebate]);
+
+  const debate = activeDebate?.id === initialDebateId ? activeDebate : null;
+
+  const [focusedEntryId, setFocusedEntryId] = useState(initialEntryId);
+
+  // Listen for context updates from Electron (when window is reused)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as Record<string, unknown>).electronAPI) {
+      const eApi = (window as Record<string, unknown>).electronAPI as {
+        onPromptDiffContext?: (cb: (ctx: { debateId: string; entryId: string }) => void) => void;
+      };
+      eApi.onPromptDiffContext?.((ctx) => {
+        setFocusedEntryId(ctx.entryId);
+        if (ctx.debateId !== initialDebateId) {
+          void loadDebate(ctx.debateId);
+        }
+      });
+    }
+  }, [initialDebateId, loadDebate]);
+
+  return <PromptDiffContent debate={debate} focusedEntryId={focusedEntryId} />;
 }

@@ -13,7 +13,8 @@ Subcommands
   find-overlaps  Find node pairs with high embedding similarity.
   encode         Encode a single text to an embedding vector.
   batch-encode   Encode multiple texts from stdin JSON.
-  nli-classify   Classify text pairs as entailment/neutral/contradiction.
+  nli-classify       Classify text pairs as entailment/neutral/contradiction.
+  similarity-matrix  Compute full pairwise similarity matrix (NumPy-accelerated).
 
 Uses the local all-MiniLM-L6-v2 model for embeddings and
 cross-encoder/nli-deberta-v3-small for NLI classification (both via
@@ -131,7 +132,7 @@ def _classify_pairs_nli(nli_model, pairs):
     return results
 
 
-SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json"}
+SKIP_FILES = {"embeddings.json", "edges.json", "policy_actions.json", "lineage_categories.json", "_archived_edges.json", "interpretation_embeddings.json"}
 
 # Resolved at runtime from .aitriad.json
 CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
@@ -711,6 +712,95 @@ def cmd_find_overlaps(args):
     json.dump(pairs, sys.stdout, indent=2)
 
 
+def cmd_similarity_matrix(args):
+    """Compute pairwise cosine similarity matrix and output top-K per node.
+
+    Uses NumPy vectorized matrix multiply for sub-second computation on 942+ nodes.
+    Output is JSON suitable for similarity-cache.json.
+    """
+    import hashlib
+    import time
+
+    emb_path = TAXONOMY_DIR / "embeddings.json"
+    if not emb_path.exists():
+        print("Error: embeddings.json not found", file=sys.stderr)
+        sys.exit(1)
+
+    t0 = time.time()
+    raw = emb_path.read_text(encoding="utf-8-sig")
+    data = json.loads(raw)
+
+    # Compute file hash for cache invalidation
+    emb_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+    # Collect node vectors (exclude policies if requested)
+    node_ids = []
+    vectors = []
+    for nid, entry in data["nodes"].items():
+        if nid.startswith("pol-") and not args.include_policies:
+            continue
+        if entry.get("degenerate"):
+            continue
+        vec = entry.get("vector")
+        if not vec:
+            continue
+        node_ids.append(nid)
+        vectors.append(vec)
+
+    n = len(node_ids)
+    if n == 0:
+        json.dump({"error": "no vectors found"}, sys.stdout)
+        return
+
+    # Vectorized similarity: V @ V.T (vectors are L2-normalized)
+    V = np.array(vectors, dtype=np.float32)
+    sim_matrix = V @ V.T  # n x n
+
+    top_k = args.top_k
+    threshold = args.threshold
+
+    # Extract top-K per node
+    entries = {}
+    for i in range(n):
+        row = sim_matrix[i]
+        # Get indices sorted by similarity descending, skip self (i)
+        indices = np.argsort(row)[::-1]
+        top = []
+        for j in indices:
+            if j == i:
+                continue
+            sim = float(row[j])
+            if sim < threshold:
+                break  # sorted descending, so all remaining are below threshold
+            top.append({"id": node_ids[j], "sim": round(sim, 4)})
+            if len(top) >= top_k:
+                break
+        entries[node_ids[i]] = top
+
+    elapsed = time.time() - t0
+
+    result = {
+        "embeddings_hash": emb_hash,
+        "generated_at": __import__("datetime").datetime.now().isoformat(),
+        "top_k": top_k,
+        "node_count": n,
+        "compute_seconds": round(elapsed, 3),
+        "threshold": threshold,
+        "entries": entries,
+    }
+
+    if args.output:
+        out_path = Path(args.output)
+        out_path.write_text(json.dumps(result), encoding="utf-8")
+        print(
+            f"Similarity cache: {n} nodes × top-{top_k} in {elapsed:.2f}s → {out_path}",
+            file=sys.stderr,
+        )
+    else:
+        json.dump(result, sys.stdout)
+        print(f"\nComputed {n} nodes × top-{top_k} in {elapsed:.2f}s", file=sys.stderr)
+
+
 def cmd_nli_classify(args):
     """Classify text pairs as entailment, neutral, or contradiction.
 
@@ -830,6 +920,16 @@ def main():
         help="Classify text pairs from stdin JSON [{text_a, text_b}] as entailment/neutral/contradiction",
     )
 
+    # similarity-matrix — compute full pairwise similarity and output top-K cache
+    sm = sub.add_parser(
+        "similarity-matrix",
+        help="Compute pairwise cosine similarity matrix and output top-K per node (NumPy-accelerated)",
+    )
+    sm.add_argument("--top-k", type=int, default=30, help="Top K similar nodes per node (default 30)")
+    sm.add_argument("--threshold", type=float, default=0.10, help="Minimum similarity to include (default 0.10)")
+    sm.add_argument("--output", "-o", default=None, help="Output file path (default: stdout)")
+    sm.add_argument("--include-policies", action="store_true", help="Include pol-* nodes in matrix")
+
     args = parser.parse_args()
     _resolve_taxonomy_dir(args.taxonomy_dir)
 
@@ -845,6 +945,8 @@ def main():
         cmd_batch_encode(args)
     elif args.command == "nli-classify":
         cmd_nli_classify(args)
+    elif args.command == "similarity-matrix":
+        cmd_similarity_matrix(args)
 
 
 if __name__ == "__main__":

@@ -414,9 +414,25 @@ function Invoke-EdgeDiscovery {
         # ═══════════════════════════════════════════════════════════════════
         Write-Step "Embedding-first discovery (threshold=$EmbeddingFirstThreshold)"
 
-        # Load or build similarity cache
+        # Load or build similarity cache (prefer NumPy-accelerated rebuild)
         $CachePath = Join-Path $TaxDir 'similarity-cache.json'
         $CandidatePairs = [System.Collections.Generic.List[PSObject]]::new()
+
+        # Auto-rebuild cache if missing or stale
+        $NeedRebuild = -not (Test-Path $CachePath)
+        if (-not $NeedRebuild) {
+            $CacheMTime = (Get-Item $CachePath).LastWriteTimeUtc
+            $EmbMTime = if (Test-Path (Join-Path $TaxDir 'embeddings.json')) { (Get-Item (Join-Path $TaxDir 'embeddings.json')).LastWriteTimeUtc } else { [datetime]::MinValue }
+            if ($EmbMTime -gt $CacheMTime) { $NeedRebuild = $true }
+        }
+        if ($NeedRebuild) {
+            $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
+            $PyCmd = if (Get-Command python -ErrorAction SilentlyContinue) { 'python' } else { 'python3' }
+            if (Test-Path $EmbedScript) {
+                Write-Info 'Rebuilding similarity cache (NumPy-accelerated)...'
+                & $PyCmd $EmbedScript similarity-matrix --top-k 30 --threshold 0.20 -o $CachePath 2>&1 | ForEach-Object { Write-Verbose $_ }
+            }
+        }
 
         if (Test-Path $CachePath) {
             $SimCache = Get-Content $CachePath -Raw | ConvertFrom-Json -AsHashtable

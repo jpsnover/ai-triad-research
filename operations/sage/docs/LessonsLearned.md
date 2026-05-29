@@ -289,21 +289,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
-## [Build] Missing CLI Tools in Dev Environment
+## [Build] Missing or Unavailable CLI Tools/Services in Dev Environment
 
-**Pattern:** Commands fail because expected CLI tools are not installed in the development environment.
+**Pattern:** Commands fail because CLI tools are not installed or required background services are not running.
 
 **Instances:**
 - 2026-05-23 — DevOps: `az` CLI not found in bash or PowerShell. Used `gh` CLI as fallback for workflow checks (p/26#1).
+- 2026-05-28 — Taxonomy Editor: `docker image ls` returned exit code 1 with no output because Docker Desktop daemon was not running. Fixed by starting Docker Desktop and waiting for daemon initialization (p/6#9).
 
-**Root Cause:** Dev environment setup doesn't include all CLI tools that agents may need. Azure CLI is not installed, though `gh` (GitHub CLI) is available.
+**Root Cause:** Dev environment may lack CLI tools (Azure CLI not installed) or required background services (Docker Desktop daemon not running). Both fail silently or with unhelpful exit codes.
 
 **Prevention:**
 1. Before using a CLI tool, check availability with `command -v <tool>` or `Get-Command <tool>` and fall back gracefully if missing.
-2. Document required vs. available CLI tools for the dev environment.
-3. When a tool is unavailable, prefer alternative tools already installed (`gh` instead of `az` for GitHub-hosted workflow checks) over blocking.
+2. For Docker commands, first verify the daemon is running: `docker info > /dev/null 2>&1`. If it fails, start Docker Desktop and wait for initialization.
+3. When a tool is unavailable, prefer alternative tools already installed (`gh` instead of `az`) over blocking.
+4. When a command returns exit code 1 with no output, suspect a missing tool or stopped service before debugging the command itself.
 
-**Applies To:** All agents running CLI commands, especially DevOps and CI-related work.
+**Applies To:** All agents running CLI commands, especially DevOps, Docker, and CI-related work.
 
 ---
 
@@ -440,3 +442,96 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Never use `git add` or `git commit` for overlay-tracked files — always use `ogit`.
 
 **Applies To:** All agents committing to the overlay repo (AGENTS.md, .orca.yaml, .orca/ directory).
+
+---
+
+## [Build] Docker Build Fails Due to Wrong Relative Import Path Depth
+
+**Pattern:** TypeScript relative import paths that work in the source tree break inside Docker build contexts when the file's depth relative to the imported module differs from the source layout.
+
+**Instances:**
+- 2026-05-28 — Taxonomy Editor: Docker build failed with TS2307 `Cannot find module '../../lib/debate/types.js'` in `server.ts`. The inline `import()` type had wrong relative path depth (2 levels instead of 3). Fixed by changing to `../../../lib/debate/types.js`. Commit 25a1e15 (p/6#11).
+
+**Root Cause:** Docker COPY commands and build context can change the relative directory structure compared to the source tree. Relative import paths must account for the file's position within the Docker build context, not just the source repo layout.
+
+**Prevention:**
+1. When adding cross-directory imports in Dockerized code, count path depth from the file's location in the build context, not the source repo.
+2. After modifying imports in Docker-built code, verify with `tsc --noEmit` inside the Docker build (or a local dry run) before pushing.
+3. Consider using tsconfig path aliases to avoid fragile relative paths in Docker builds.
+
+**Applies To:** All agents working on Docker builds that include TypeScript with cross-directory imports.
+
+---
+
+## [API] GHCR Push Fails Due to Insufficient OAuth Token Scopes
+
+**Pattern:** `docker push` to GitHub Container Registry (GHCR) fails with `permission_denied: token does not match expected scopes` when the `gh` CLI OAuth token lacks `write:packages`.
+
+**Instances:**
+- 2026-05-28 — Taxonomy Editor: GHCR push failed after successful Docker build. The `gh` OAuth token didn't include `write:packages` scope. Fix: `gh auth refresh -s write:packages` to add the scope (p/6#11).
+
+**Root Cause:** The default `gh auth login` scopes don't include `write:packages`, which is required for pushing to GHCR. This is a one-time setup issue per machine/token.
+
+**Prevention:**
+1. Before first GHCR push, ensure token has `write:packages`: `gh auth status` to check, `gh auth refresh -s write:packages` to add.
+2. For CI, ensure the `GITHUB_TOKEN` or PAT has `packages: write` permission.
+3. Add GHCR auth setup to dev environment onboarding docs.
+
+**Applies To:** All agents pushing Docker images to GHCR.
+
+---
+
+## [Build] CI Workflow Lacks workflow_dispatch Trigger
+
+**Pattern:** `gh workflow run ci.yml` fails because the CI workflow only has `push` and `pull_request` triggers — no `workflow_dispatch` for manual runs.
+
+**Instances:**
+- 2026-05-28 — Diagnostics: attempted `gh workflow run ci.yml` but the workflow doesn't have `workflow_dispatch`. Resolved with an empty commit to trigger the push event (p/9#10).
+
+**Root Cause:** The CI pipeline (`.github/workflows/ci.yml`) is configured with `push` and `pull_request` triggers only. There's no `workflow_dispatch` trigger to allow manual or programmatic runs via `gh workflow run`.
+
+**Prevention:**
+1. To trigger CI without code changes, use `git commit --allow-empty -m "trigger CI" && git push`.
+2. Consider adding `workflow_dispatch:` to `ci.yml` triggers for manual/programmatic runs.
+3. Check workflow triggers before assuming `gh workflow run` will work: `gh workflow view ci.yml`.
+
+**Applies To:** All agents attempting to manually trigger CI workflows.
+
+---
+
+## [API] HTTP Redirect Handling Must Cover All 3xx Codes
+
+**Pattern:** Custom HTTP download helpers that only handle 301/302 redirects break when servers use other redirect codes (307, 308). Additionally, creating write streams before redirect resolution leaves 0-byte files on failure.
+
+**Instances:**
+- 2026-05-28 — Shared Lib: HuggingFace download helper in `onnxEmbedding.ts` only handled 301/302, but HF uses 307 for `tokenizer.json`. Also created writeStream before redirect resolution, leaving 0-byte files on redirect failure. Fixed by handling 301-308, resolving relative redirect URLs against origin, draining response before following redirect, and deferring writeStream creation until final 200 response (p/5#9).
+
+**Root Cause:** (1) Incomplete redirect handling — 307/308 are common (HuggingFace, AWS S3, CDNs) but often overlooked when only 301/302 are coded. (2) Premature resource creation — opening a file write stream before confirming the final response means a redirect or error leaves an empty file that looks like a successful download.
+
+**Prevention:**
+1. Handle all redirect status codes (301-308) in custom HTTP clients, not just 301/302.
+2. Resolve relative `Location` headers against the request origin — not all servers return absolute URLs.
+3. Drain/discard the redirect response body before following the redirect to prevent resource leaks.
+4. Defer file write stream creation until the final 200 response is confirmed — never create output files before redirect resolution.
+5. Consider using a library with built-in redirect handling (e.g., `node-fetch`, `undici`) instead of manual `http.get` chains.
+
+**Applies To:** All agents writing custom HTTP download/fetch helpers.
+
+---
+
+## [Type System] TypeScript nodenext Requires .js Extension on Imports
+
+**Pattern:** TypeScript with `moduleResolution: "nodenext"` requires `.js` extensions on relative imports even though the source files are `.ts`. Missing the extension causes TS2835/TS2307 at type-check time.
+
+**Instances:**
+- 2026-05-28 — Taxonomy Editor: CI type-check failed on ONNX import — missing `.js` extension for `nodenext` module resolution, plus implicit `any` on callback param. Fixed by adding `.js` to import path and type annotation. Commit 47e4452 (p/6#13).
+
+**Root Cause:** `nodenext` module resolution mirrors Node.js ESM behavior, which requires explicit file extensions. TypeScript enforces this at type-check — you must write `import './foo.js'` even though the source file is `foo.ts`. This is counterintuitive but by design.
+
+**Prevention:**
+1. Always include `.js` extension on relative imports in projects using `nodenext` or `node16` module resolution.
+2. Run `tsc --noEmit` locally before pushing to catch these — CI will reject them.
+3. When adding new imports, check the project's `tsconfig.json` for `moduleResolution` to know whether extensions are required.
+4. Enable `noImplicitAny` awareness — always annotate callback parameters.
+
+**Applies To:** All agents writing TypeScript in the Electron apps (all three use nodenext).

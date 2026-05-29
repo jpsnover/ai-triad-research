@@ -27,6 +27,7 @@ import { TaxonomyGapPanel } from './TaxonomyGapPanel';
 import { GroundingPanel } from './GroundingPanel';
 import { PovProgressionView } from './PovProgression/PovProgressionView';
 import { triggerManualDump } from '../lib/flightRecorderInit';
+import { PromptDiffContent } from './PromptDiffWindow';
 
 declare const __COMPONENT_VERSIONS__: Record<string, string>;
 
@@ -2105,7 +2106,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context' | 'prompt-diff';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
   // Detail pane now takes full height when an entry is selected (no resize needed).
@@ -2309,6 +2310,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       'lineage': !!(debate.topic.critique?.lineage_frame && debate.topic.critique.lineage_frame.length > 0),
       'adaptive': !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics,
       'pov-progression': true,
+      'prompt-diff': true,
     };
     return tabVisibility[overviewTab] ? overviewTab : 'transcript';
   }, [overviewTab, debate, an, commitments]);
@@ -2382,7 +2384,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression'];
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff'];
           const visible = OVERVIEW_TABS.filter(id => {
             if (id === 'argument-network') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
@@ -2495,6 +2497,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'adaptive', label: 'Adaptive', visible: !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics },
               { id: 'pov-progression', label: 'Perspective Progression', visible: true },
               { id: 'fr-context', label: 'Flight Recorder', visible: true },
+              { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
             ];
             return (
               <div style={{
@@ -2545,24 +2548,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     )}
                   </div>
                 ))}
-                {/* Prompt Diff tool launcher — always visible */}
-                <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
-                  <button
-                    onClick={() => {
-                      const entryId = selectedEntry ?? debate.transcript[0]?.id ?? '';
-                      void api.openPromptDiffWindow(debate.id, entryId);
-                    }}
-                    title="Open Prompt Diff viewer for this debate"
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left',
-                      padding: '4px 8px', fontSize: '0.7rem', fontWeight: 600,
-                      borderRadius: 4, cursor: 'pointer',
-                      border: '1px solid rgba(168,85,247,0.3)',
-                      background: 'rgba(168,85,247,0.1)',
-                      color: '#a855f7',
-                    }}
-                  >Prompt Diff</button>
-                </div>
               </div>
             );
           })()}
@@ -3472,6 +3457,17 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
+          {/* Prompt Diff — embedded in pane 2 */}
+          {effectiveOverviewTab === 'prompt-diff' && (
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
+              <PromptDiffContent
+                debate={debate}
+                focusedEntryId={selectedEntry ?? debate.transcript[0]?.id ?? ''}
+                embedded
+              />
+            </div>
+          )}
+
           {/* Transcript list for selection — hidden when an entry is selected (sidebar handles navigation) */}
           {effectiveOverviewTab === 'transcript' && !selectedEntry && (() => {
             const speakers = Array.from(new Set(debate.transcript.map(e => e.speaker)));
@@ -3629,12 +3625,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             </span>
             {diag?.stage_diagnostics?.some(s => s.prompt) && debate && (
               <button
-                onClick={() => void api.openPromptDiffWindow(debate.id, entry.id)}
-                title="Open Prompt Diff viewer for this entry"
+                onClick={() => { setSelectedEntry(entry.id); setOverviewTab('prompt-diff'); setLocalOverride(true); }}
+                title="View Prompt Diff for this entry"
                 style={{
                   marginLeft: 8, padding: '2px 8px', fontSize: '0.65rem', fontWeight: 600,
-                  borderRadius: 4, border: '1px solid rgba(168,85,247,0.3)',
-                  background: 'rgba(168,85,247,0.1)', color: '#a855f7',
+                  borderRadius: 4, border: 'none',
+                  background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
                   cursor: 'pointer',
                 }}
               >Prompt Diff</button>

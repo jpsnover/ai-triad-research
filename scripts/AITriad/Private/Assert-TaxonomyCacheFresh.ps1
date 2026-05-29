@@ -35,7 +35,8 @@ function Assert-TaxonomyCacheFresh {
     $NeedReload = $false
     foreach ($File in Get-ChildItem -Path $TaxDir -Filter '*.json' -File) {
         if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json',
-            '_archived_edges.json', 'lineage_categories.json') { continue }
+            '_archived_edges.json', 'lineage_categories.json', 'interpretation_embeddings.json',
+            'source_evidence_index.json', 'similarity-cache.json') { continue }
 
         $Cached = $script:TaxonomyFileTimestamps[$File.FullName]
         if (-not $Cached -or $File.LastWriteTime -gt $Cached) {
@@ -51,7 +52,8 @@ function Assert-TaxonomyCacheFresh {
 
         foreach ($File in Get-ChildItem -Path $TaxDir -Filter '*.json' -File) {
             if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json',
-                '_archived_edges.json', 'lineage_categories.json') { continue }
+                '_archived_edges.json', 'lineage_categories.json', 'interpretation_embeddings.json',
+                'source_evidence_index.json', 'similarity-cache.json') { continue }
             if ($File.Length -gt 10MB) { continue }
             try {
                 $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json

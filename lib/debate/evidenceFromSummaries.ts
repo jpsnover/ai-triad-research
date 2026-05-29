@@ -18,6 +18,8 @@ export interface SourceFact {
   doc_id: string;
   specificity: string;
   temporal_bound?: string | null;
+  /** Stance toward the linked taxonomy node: supports/disputes/qualifies. */
+  doc_position?: string;
 }
 
 export interface SourceKeyPoint {
@@ -35,12 +37,22 @@ export interface SourceEvidenceIndex {
   };
 }
 
+export interface EvidenceDiversityDiag {
+  raw_count: number;
+  candidate_count: number;
+  dedup_removed: number;
+  source_diversity: number;
+  has_dispute: boolean;
+  temporal_range: [string | null, string | null];
+}
+
 export interface EvidenceBrief {
   facts: SourceFact[];
   keyPoints: SourceKeyPoint[];
   formattedBlock: string;
   nodesCovered: string[];
   totalCandidates: number;
+  diversity?: EvidenceDiversityDiag;
 }
 
 /** Map of doc_id → human-readable document title (legacy, still accepted) */
@@ -54,6 +66,26 @@ export interface DocMeta {
 }
 export type DocMetaMap = Record<string, DocMeta>;
 
+// ── Diverse evidence configuration ────────────────────────
+
+export interface DiverseEvidenceConfig {
+  /** Significant word overlap threshold for semantic dedup. Default 0.50. */
+  dedupOverlapThreshold: number;
+  /** Diversity bonus for facts from unused source documents. Default 0.20. */
+  sourceBonus: number;
+  /** Diversity bonus for facts from unused temporal periods. Default 0.10. */
+  temporalBonus: number;
+  /** One-time bonus for the first disputing fact. Default 0.30. */
+  disputeBonus: number;
+}
+
+const DEFAULT_DIVERSE_CONFIG: DiverseEvidenceConfig = {
+  dedupOverlapThreshold: 0.50,
+  sourceBonus: 0.20,
+  temporalBonus: 0.10,
+  disputeBonus: 0.30,
+};
+
 // ── Evidence retrieval ────────────────────────────────────
 
 const SPECIFICITY_RANK: Record<string, number> = {
@@ -63,8 +95,151 @@ const SPECIFICITY_RANK: Record<string, number> = {
   unknown: 0,
 };
 
+const SPECIFICITY_WEIGHT: Record<string, number> = {
+  precise: 1.0,
+  qualified: 0.67,
+  vague: 0.33,
+  unknown: 0.1,
+};
+
+// Stopwords for semantic dedup — words that don't contribute to meaning comparison
+const STOPWORDS = new Set([
+  'the', 'and', 'that', 'this', 'with', 'from', 'have', 'will', 'their', 'they',
+  'there', 'which', 'what', 'when', 'where', 'because', 'these', 'those', 'about',
+  'would', 'could', 'should', 'than', 'then', 'also', 'into', 'over', 'under',
+  'such', 'some', 'been', 'being', 'other', 'more', 'most', 'just', 'like',
+]);
+
+// ── Semantic dedup ────────────────────────────────────────
+
+const MIN_WORD_LENGTH = 4;
+
+/** Extract significant words (≥4 chars, lowered, stopwords removed). */
+function sigWords(text: string): Set<string> {
+  const words = new Set<string>();
+  for (const w of text.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (w.length >= MIN_WORD_LENGTH && !STOPWORDS.has(w)) words.add(w);
+  }
+  return words;
+}
+
+/** Compute overlap ratio: shared words / smaller set size. */
+function wordOverlap(a: Set<string>, b: Set<string>): number {
+  const smaller = a.size <= b.size ? a : b;
+  const larger = a.size > b.size ? a : b;
+  let shared = 0;
+  for (const w of smaller) if (larger.has(w)) shared++;
+  return shared / Math.max(smaller.size, 1);
+}
+
+/**
+ * Semantic dedup: group facts with >threshold significant word overlap,
+ * keep the highest-specificity representative per cluster.
+ */
+function semanticDedup(facts: SourceFact[], threshold: number): SourceFact[] {
+  // Sort by specificity first — ensures the best fact becomes the representative
+  const sorted = [...facts].sort((a, b) =>
+    (SPECIFICITY_RANK[b.specificity] ?? 0) - (SPECIFICITY_RANK[a.specificity] ?? 0),
+  );
+
+  const clusters: { representative: SourceFact; words: Set<string> }[] = [];
+  for (const fact of sorted) {
+    const fw = sigWords(fact.claim);
+    let merged = false;
+    for (const cluster of clusters) {
+      if (wordOverlap(fw, cluster.words) >= threshold) {
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) {
+      clusters.push({ representative: fact, words: fw });
+    }
+  }
+  return clusters.map(c => c.representative);
+}
+
+// ── Diverse greedy select ─────────────────────────────────
+
+/** Extract a year from temporal_bound (e.g., "2024", "pre-2020", "2023-2024"). */
+function extractYear(temporal: string | null | undefined): string | null {
+  if (!temporal) return null;
+  const match = temporal.match(/\d{4}/);
+  return match ? match[0] : null;
+}
+
+/**
+ * Greedy selection maximizing information diversity within a budget.
+ * Diversity bonuses: new source, new year, first disputing fact.
+ */
+function diverseGreedySelect(
+  facts: SourceFact[],
+  maxFacts: number,
+  config: DiverseEvidenceConfig,
+): SourceFact[] {
+  if (facts.length <= maxFacts) return facts;
+
+  // Pre-sort by base specificity score (descending)
+  const sorted = [...facts].sort((a, b) =>
+    (SPECIFICITY_WEIGHT[b.specificity] ?? 0.1) - (SPECIFICITY_WEIGHT[a.specificity] ?? 0.1),
+  );
+
+  const selected: SourceFact[] = [];
+  const usedDocs = new Set<string>();
+  const usedYears = new Set<string>();
+  let hasDispute = false;
+
+  // Score each candidate with diversity bonuses relative to already-selected facts
+  const scored: { fact: SourceFact; adjustedScore: number }[] = [];
+
+  for (const fact of sorted) {
+    let bonus = 0;
+    if (!usedDocs.has(fact.doc_id)) bonus += config.sourceBonus;
+    const year = extractYear(fact.temporal_bound);
+    if (year && !usedYears.has(year)) bonus += config.temporalBonus;
+    if (fact.doc_position === 'disputes' && !hasDispute) bonus += config.disputeBonus;
+
+    const baseScore = SPECIFICITY_WEIGHT[fact.specificity] ?? 0.1;
+    scored.push({ fact, adjustedScore: baseScore + bonus });
+  }
+
+  // Greedy: pick best adjusted score, update state, re-score remaining
+  while (selected.length < maxFacts && scored.length > 0) {
+    // Find best
+    let bestIdx = 0;
+    for (let i = 1; i < scored.length; i++) {
+      if (scored[i].adjustedScore > scored[bestIdx].adjustedScore) bestIdx = i;
+    }
+
+    const pick = scored[bestIdx];
+    selected.push(pick.fact);
+    usedDocs.add(pick.fact.doc_id);
+    const pickYear = extractYear(pick.fact.temporal_bound);
+    if (pickYear) usedYears.add(pickYear);
+    if (pick.fact.doc_position === 'disputes') hasDispute = true;
+
+    // Remove selected
+    scored.splice(bestIdx, 1);
+
+    // Re-score remaining with updated state
+    for (const entry of scored) {
+      let bonus = 0;
+      if (!usedDocs.has(entry.fact.doc_id)) bonus += config.sourceBonus;
+      const yr = extractYear(entry.fact.temporal_bound);
+      if (yr && !usedYears.has(yr)) bonus += config.temporalBonus;
+      if (entry.fact.doc_position === 'disputes' && !hasDispute) bonus += config.disputeBonus;
+      entry.adjustedScore = (SPECIFICITY_WEIGHT[entry.fact.specificity] ?? 0.1) + bonus;
+    }
+  }
+
+  return selected;
+}
+
 /**
  * Retrieve evidence for a set of taxonomy node IDs from the pre-built index.
+ *
+ * Uses diverse evidence sampling: semantic dedup removes redundant facts,
+ * then greedy selection maximizes source, temporal, and stance diversity.
  *
  * @param targetNodeIds - Node IDs from the plan's target_nodes
  * @param debaterPov - The debater's perspective (accelerationist/safetyist/skeptic)
@@ -79,7 +254,9 @@ export function retrieveSourceEvidence(
   maxFacts: number = 3,
   maxKeyPoints: number = 2,
   docTitles?: DocTitleMap | DocMetaMap,
+  diverseConfig?: Partial<DiverseEvidenceConfig>,
 ): EvidenceBrief {
+  const config = { ...DEFAULT_DIVERSE_CONFIG, ...diverseConfig };
   const nodeSet = new Set(targetNodeIds);
 
   // Collect candidate facts
@@ -89,21 +266,21 @@ export function retrieveSourceEvidence(
     if (entry?.facts) candidateFacts.push(...entry.facts);
   }
 
-  // Deduplicate by claim text
-  const seenClaims = new Set<string>();
-  const uniqueFacts = candidateFacts.filter(f => {
-    const key = f.claim.slice(0, 80).toLowerCase();
-    if (seenClaims.has(key)) return false;
-    seenClaims.add(key);
-    return true;
-  });
+  // Fast path: skip dedup + diversity when pool ≤ budget
+  let selectedFacts: SourceFact[];
+  let deduped: SourceFact[];
+  if (candidateFacts.length <= maxFacts) {
+    deduped = candidateFacts;
+    selectedFacts = [...candidateFacts].sort((a, b) =>
+      (SPECIFICITY_RANK[b.specificity] ?? 0) - (SPECIFICITY_RANK[a.specificity] ?? 0),
+    );
+  } else {
+    // Phase 1: Semantic dedup (replaces prefix dedup)
+    deduped = semanticDedup(candidateFacts, config.dedupOverlapThreshold);
 
-  // Rank: precise > qualified > vague; prefer facts with temporal bounds
-  const rankedFacts = uniqueFacts.sort((a, b) => {
-    const specDiff = (SPECIFICITY_RANK[b.specificity] ?? 0) - (SPECIFICITY_RANK[a.specificity] ?? 0);
-    if (specDiff !== 0) return specDiff;
-    return (b.temporal_bound ? 1 : 0) - (a.temporal_bound ? 1 : 0);
-  });
+    // Phase 2: Diverse greedy select (replaces sort-and-slice)
+    selectedFacts = diverseGreedySelect(deduped, maxFacts, config);
+  }
 
   // Collect candidate key points — prefer matching POV
   const candidateKPs: SourceKeyPoint[] = [];
@@ -131,14 +308,27 @@ export function retrieveSourceEvidence(
     return true;
   });
 
-  const selectedFacts = rankedFacts.slice(0, maxFacts);
   const selectedKPs = uniqueKPs.slice(0, maxKeyPoints);
-  const totalCandidates = uniqueFacts.length + uniqueKPs.length;
+  const totalCandidates = deduped.length + uniqueKPs.length;
   const nodesCovered = [...nodeSet].filter(n => index[n]?.facts?.length || index[n]?.keyPoints?.length);
 
   const formattedBlock = formatEvidenceBrief(selectedFacts, selectedKPs, docTitles);
 
-  return { facts: selectedFacts, keyPoints: selectedKPs, formattedBlock, nodesCovered, totalCandidates };
+  // Phase 3: Diagnostics
+  const years = selectedFacts.map(f => extractYear(f.temporal_bound)).filter(Boolean) as string[];
+  const diversity: EvidenceDiversityDiag = {
+    raw_count: candidateFacts.length,
+    candidate_count: deduped.length,
+    dedup_removed: candidateFacts.length - deduped.length,
+    source_diversity: new Set(selectedFacts.map(f => f.doc_id)).size,
+    has_dispute: selectedFacts.some(f => f.doc_position === 'disputes'),
+    temporal_range: [
+      years.length > 0 ? years.reduce((a, b) => a < b ? a : b) : null,
+      years.length > 0 ? years.reduce((a, b) => a > b ? a : b) : null,
+    ],
+  };
+
+  return { facts: selectedFacts, keyPoints: selectedKPs, formattedBlock, nodesCovered, totalCandidates, diversity };
 }
 
 // ── Formatting ────────────────────────────────────────────

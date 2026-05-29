@@ -104,6 +104,8 @@ const BACKEND_ENV_KEYS: Record<string, string> = {
 };
 
 function resolveApiKey(backend: string, explicitKey?: string): string {
+  // Ollama is local — no API key needed
+  if (backend === 'ollama') return 'ollama-local';
   if (explicitKey) return explicitKey;
   const backendKey = process.env[BACKEND_ENV_KEYS[backend] ?? ''];
   if (backendKey) return backendKey;
