@@ -2545,6 +2545,24 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     )}
                   </div>
                 ))}
+                {/* Prompt Diff tool launcher — always visible */}
+                <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+                  <button
+                    onClick={() => {
+                      const entryId = selectedEntry ?? debate.transcript[0]?.id ?? '';
+                      void api.openPromptDiffWindow(debate.id, entryId);
+                    }}
+                    title="Open Prompt Diff viewer for this debate"
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '4px 8px', fontSize: '0.7rem', fontWeight: 600,
+                      borderRadius: 4, cursor: 'pointer',
+                      border: '1px solid rgba(168,85,247,0.3)',
+                      background: 'rgba(168,85,247,0.1)',
+                      color: '#a855f7',
+                    }}
+                  >Prompt Diff</button>
+                </div>
               </div>
             );
           })()}
