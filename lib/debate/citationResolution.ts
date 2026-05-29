@@ -196,6 +196,102 @@ function classifySourceType(meta: { title: string; provenance_label?: string }):
   return 'report';
 }
 
+// ── Scoped Citation Bank (Path A — prompt injection) ──────
+
+/**
+ * Build a turn-scoped citation bank from the full bank.
+ * Filters to sources relevant to *this* turn: evidence-selected docs,
+ * prior-cited docs, and a frequency-ranked buffer from target nodes.
+ * Saves ~8-9K tokens per turn vs. injecting the full corpus.
+ *
+ * The full bank is still used for scrub/validation (Path A post-draft)
+ * and tool-calling lookup (Path B).
+ */
+export function buildScopedCitationBank(
+  fullBank: CitationBankEntry[],
+  options: {
+    /** Doc IDs from the evidence stage's selected facts + key points. */
+    evidenceDocIds: Set<string>;
+    /** Doc IDs from prior turns (carry-forward). */
+    priorCitedDocIds?: Set<string>;
+    /** Plan's target_nodes — used to find buffer docs. */
+    targetNodeIds?: string[];
+    /** Evidence index — used to rank buffer docs by fact frequency. */
+    evidenceIndex?: SourceEvidenceIndex;
+    /** Max entries in the scoped bank. Default 15. */
+    maxEntries?: number;
+  },
+): CitationBankEntry[] {
+  const maxEntries = options.maxEntries ?? 15;
+  const bankById = new Map(fullBank.map(e => [e.doc_id, e]));
+
+  const result: CitationBankEntry[] = [];
+  const included = new Set<string>();
+
+  // Tier 1: evidence-selected docs (always included — these are what the LLM was told to cite)
+  for (const docId of options.evidenceDocIds) {
+    const entry = bankById.get(docId);
+    if (entry && !included.has(docId)) {
+      result.push(entry);
+      included.add(docId);
+    }
+  }
+
+  // Tier 2: prior-cited docs (carry-forward — debater may reference earlier sources)
+  if (options.priorCitedDocIds) {
+    for (const docId of options.priorCitedDocIds) {
+      if (result.length >= maxEntries) break;
+      const entry = bankById.get(docId);
+      if (entry && !included.has(docId)) {
+        result.push(entry);
+        included.add(docId);
+      }
+    }
+  }
+
+  // Tier 3: buffer from target nodes (ranked by fact count — most-cited docs first)
+  if (result.length < maxEntries && options.targetNodeIds && options.evidenceIndex) {
+    const docFrequency = new Map<string, number>();
+    for (const nodeId of options.targetNodeIds) {
+      const nodeEntry = options.evidenceIndex[nodeId];
+      if (!nodeEntry) continue;
+      for (const fact of nodeEntry.facts ?? []) {
+        if (!included.has(fact.doc_id) && bankById.has(fact.doc_id)) {
+          docFrequency.set(fact.doc_id, (docFrequency.get(fact.doc_id) ?? 0) + 1);
+        }
+      }
+      for (const kp of nodeEntry.keyPoints ?? []) {
+        if (!included.has(kp.doc_id) && bankById.has(kp.doc_id)) {
+          docFrequency.set(kp.doc_id, (docFrequency.get(kp.doc_id) ?? 0) + 1);
+        }
+      }
+    }
+
+    const bufferDocs = [...docFrequency.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, maxEntries - result.length);
+
+    for (const [docId] of bufferDocs) {
+      const entry = bankById.get(docId);
+      if (entry) {
+        result.push(entry);
+        included.add(docId);
+      }
+    }
+  }
+
+  // Tier 4: legislation/policy entries (always small — include if space remains)
+  for (const entry of fullBank) {
+    if (result.length >= maxEntries) break;
+    if (entry.source_type === 'legislation' && !included.has(entry.doc_id)) {
+      result.push(entry);
+      included.add(entry.doc_id);
+    }
+  }
+
+  return result;
+}
+
 // ── Formatting (Path A prompt injection) ──────────────────
 
 /**

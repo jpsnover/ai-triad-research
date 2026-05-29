@@ -52,6 +52,7 @@ import {
 import { resolveBackend } from '../ai-client/registry.js';
 import {
   buildCitationBank,
+  buildScopedCitationBank,
   formatCitationBank,
   scrubCitations,
   validateCitationsAgainstBank,
@@ -545,6 +546,7 @@ export async function runTurnPipeline(
   let draft: DraftWorkProduct | undefined;
   let draftJson = '';
   let evidenceBlock = '';
+  const evidenceDocIds = new Set<string>();
 
   if (input.frozenDraft) {
     draft = input.frozenDraft;
@@ -570,6 +572,9 @@ export async function runTurnPipeline(
         2, // max key points
         input.docTitles,
       );
+      // Collect doc IDs for scoped citation bank
+      for (const f of evidenceBrief.facts) evidenceDocIds.add(f.doc_id);
+      for (const kp of evidenceBrief.keyPoints) evidenceDocIds.add(kp.doc_id);
       console.log(`[pipeline] EVIDENCE retrieved: ${evidenceBrief.facts.length} facts, ${evidenceBrief.keyPoints.length} keyPoints, block=${evidenceBrief.formattedBlock.length} chars`);
       if (evidenceBrief.formattedBlock) {
         evidenceBlock = '\n\n' + evidenceBrief.formattedBlock;
@@ -623,10 +628,27 @@ export async function runTurnPipeline(
         }
       }
       citationBank = buildCitationBank(input.sourceEvidenceIndex, docMeta, input.policyRegistry);
+      // Scope the prompt-injected bank to turn-relevant sources (saves ~8-9K tokens)
+      // Full bank is kept for scrub/validation (catches fabrications from any corpus source)
+      const priorCitedDocIds = new Set<string>();
+      if (input.priorRefs && input.sourceEvidenceIndex) {
+        for (const nodeId of input.priorRefs) {
+          const nodeEntry = input.sourceEvidenceIndex[nodeId];
+          if (!nodeEntry) continue;
+          for (const f of nodeEntry.facts ?? []) priorCitedDocIds.add(f.doc_id);
+          for (const kp of nodeEntry.keyPoints ?? []) priorCitedDocIds.add(kp.doc_id);
+        }
+      }
+      const scopedBank = buildScopedCitationBank(citationBank, {
+        evidenceDocIds,
+        priorCitedDocIds: priorCitedDocIds.size > 0 ? priorCitedDocIds : undefined,
+        targetNodeIds: plan.target_nodes as string[] | undefined,
+        evidenceIndex: input.sourceEvidenceIndex,
+      });
       citationBankBuildTime = Date.now() - bankT0;
-      if (citationBank.length > 0) {
-        citationBankBlock = '\n\n' + formatCitationBank(citationBank);
-        console.log(`[pipeline] Citation bank built: ${citationBank.length} entries, path=${citationPathUsed} (intended=${citationPathIntended}), ${citationBankBuildTime}ms`);
+      if (scopedBank.length > 0) {
+        citationBankBlock = '\n\n' + formatCitationBank(scopedBank);
+        console.log(`[pipeline] Citation bank built: ${scopedBank.length} scoped / ${citationBank.length} full entries, path=${citationPathUsed} (intended=${citationPathIntended}), ${citationBankBuildTime}ms`);
       }
     } catch (err) {
       console.warn(`[pipeline] Citation bank build failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
