@@ -70,6 +70,8 @@ export function formatNodeAttributes(attrs: GraphAttributes | undefined): string
 export interface FormatContextConfig {
   maxNodes?: number;
   primaryCount?: number;
+  /** Max Desires per turn. Desires show 1-15% utilization — capping reduces token waste. Default: 5. */
+  maxDesires?: number;
   vulnMax?: number;
   vulnEnabled?: boolean;
   fallacyConfidence?: 'likely' | 'all';
@@ -83,6 +85,54 @@ export interface FormatContextConfig {
    * nodes only (safety margin). When absent, all nodes injected (existing behavior).
    */
   relevantBranches?: Set<string>;
+}
+
+/** Generate per-node inline guidance lines from metadata.
+ *  Maps epistemic_type → ARGUE, falsifiability → ATTACK VIA, assumes → PREMISES,
+ *  steelman_vulnerability → VULNERABLE, doctrinally_anchored → DO NOT CONCEDE. */
+export function generateNodeGuidance(node: PovNode, category: string): string[] {
+  const lines: string[] = [];
+  const ga = node.graph_attributes;
+
+  // ARGUE line — derived from epistemic_type
+  if (ga?.epistemic_type === 'empirical_claim') {
+    lines.push('  ARGUE: cite specific data, peer-reviewed evidence, documented cases');
+  } else if (ga?.epistemic_type === 'normative_prescription') {
+    lines.push('  ARGUE: coherence with stated principles, precedent, tradeoff acknowledgment');
+  } else if (ga?.epistemic_type === 'strategic_recommendation') {
+    lines.push('  ARGUE: feasibility evidence, implementation precedent, cost-benefit');
+  } else if (ga?.epistemic_type === 'interpretive_lens') {
+    lines.push('  ARGUE: analytical framework coherence, explanatory power, counter-interpretations');
+  }
+
+  // ATTACK VIA — derived from falsifiability
+  if (ga?.falsifiability === 'high') {
+    lines.push('  ATTACK VIA: counter-evidence, methodological critique, replication failure');
+  } else if (ga?.falsifiability === 'medium') {
+    lines.push('  ATTACK VIA: scope limits, competing frameworks, edge cases');
+  } else if (ga?.falsifiability === 'low') {
+    lines.push('  ATTACK VIA: coherence challenge, analogical breakdown, generalization failure');
+  }
+
+  // PREMISES — from assumes (top 2, marked as attackable)
+  if (ga?.assumes?.length) {
+    const top2 = ga.assumes.slice(0, 2).map(a => `"${a}" — attackable`);
+    lines.push('  PREMISES: ' + top2.join('; '));
+  }
+
+  // VULNERABLE — from steelman_vulnerability (merged inline)
+  if (ga?.steelman_vulnerability) {
+    const sv = ga.steelman_vulnerability;
+    const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
+    if (svText) lines.push('  VULNERABLE: ' + svText);
+  }
+
+  // DO NOT CONCEDE — for doctrinally anchored nodes
+  if (node.doctrinally_anchored) {
+    lines.push('  DO NOT CONCEDE — doctrinal boundary');
+  }
+
+  return lines;
 }
 
 /** Compute weighted sort score: Beliefs use relevance×confidence, Desires use relevance×(priority/5), Intentions use relevance×(operationality/5). */
@@ -196,53 +246,23 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       });
     }
 
+    // Cap Desires — lowest BDI utilization (1-15%), capped to reduce token waste
+    if (cat === 'Desires') {
+      const maxDesires = cfg.maxDesires ?? 5;
+      sorted = sorted.slice(0, maxDesires);
+    }
+
     for (let i = 0; i < sorted.length; i++) {
       const n = sorted[i];
       const isPrimary = hasScores && i < PRIMARY_COUNT;
       const prefix = isPrimary ? '★ ' : '  ';
-      const scoreLabel = hasScores ? ` (relevance: ${(ctx.nodeScores!.get(n.id) ?? 0).toFixed(2)})` : '';
       const weightLabel = nodeWeightLabel(n, cat);
-      lines.push(`${prefix}[${n.id}]${scoreLabel}${weightLabel} ${n.label}: ${n.description}`);
-      if (n.graph_attributes?.epistemic_type) {
-        lines.push(`    Epistemic type: ${n.graph_attributes.epistemic_type}`);
-      }
-      if (n.graph_attributes?.rhetorical_strategy) {
-        lines.push(`    Rhetorical strategy: ${n.graph_attributes.rhetorical_strategy}`);
-      }
-      if (n.graph_attributes?.falsifiability) {
-        lines.push(`    Falsifiability: ${n.graph_attributes.falsifiability}`);
-      }
-      if (n.graph_attributes?.node_scope) {
-        lines.push(`    Scope: ${n.graph_attributes.node_scope}`);
-      }
-      if (n.graph_attributes?.assumes && n.graph_attributes.assumes.length > 0) {
-        lines.push(`    Assumes: ${n.graph_attributes.assumes.join('; ')}`);
-      }
-    }
-    lines.push('');
-  }
-
-  // Positional vulnerabilities — steelman_vulnerability entries, scored by relevance, cap at 10
-  const vulnEntries: { nodeId: string; label: string; text: string; score: number }[] = [];
-  for (const n of povSlice) {
-    if (n.graph_attributes?.steelman_vulnerability) {
-      const sv = n.graph_attributes.steelman_vulnerability;
-      const svText = typeof sv === 'string' ? sv : Object.values(sv).filter(Boolean).join(' | ');
-      vulnEntries.push({
-        nodeId: n.id,
-        label: n.label,
-        text: svText,
-        score: ctx.nodeScores?.get(n.id) ?? 0,
-      });
-    }
-  }
-  if (vulnEntries.length > 0 && (cfg.vulnEnabled ?? true)) {
-    const VULN_LIMIT = cfg.vulnMax ?? 10;
-    const sorted = vulnEntries.sort((a, b) => b.score - a.score || a.nodeId.localeCompare(b.nodeId)).slice(0, VULN_LIMIT);
-    lines.push('=== POSITIONAL VULNERABILITIES (where your position is weakest) ===');
-    lines.push('These are pre-filtered for relevance to the current topic. Acknowledge when directly relevant — but do not over-concede or apologize for your core stance.');
-    for (const v of sorted) {
-      lines.push(`- [${v.nodeId}] ${v.label}: ${v.text}`);
+      // Compact node line: ID + weight + label + description (no raw relevance score — ★ marker suffices)
+      lines.push(`${prefix}[${n.id}]${weightLabel}`);
+      lines.push(`  "${n.label}" — ${n.description}`);
+      // Per-node inline guidance replaces raw metadata labels
+      const guidance = generateNodeGuidance(n, cat);
+      lines.push(...guidance);
     }
     lines.push('');
   }
@@ -433,15 +453,15 @@ export function computeInjectionManifest(
     }
   }
 
-  const sitSlice = (ctx.situationNodes ?? []).slice(0, 15);
+  const sitSlice = (ctx.situationNodes ?? []).slice(0, 8);
   const sitIds = sitSlice.map(n => n.id);
 
-  // Rough token estimate: ~80 tokens per POV node, ~150 per primary situation, ~50 per non-primary
-  const tokenEst = povSlice.length * 80
+  // Rough token estimate: ~75 tokens per POV node (inline guidance), ~150 per primary situation, ~50 per non-primary
+  const tokenEst = povSlice.length * 75
     + Math.min(sitSlice.length, SIT_PRIMARY) * 150
     + Math.max(0, sitSlice.length - SIT_PRIMARY) * 50
-    + (ctx.vulnerabilities?.length ?? 0) * 60
     + (ctx.policyRegistry?.length ?? 0) * 40;
+    // Note: vulnerability tokens now included in per-node inline guidance estimate
 
   // Collect relevance scores for injected nodes (for calibration parameter #9 variance analysis)
   const nodeScores = ctx.nodeScores

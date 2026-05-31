@@ -175,6 +175,24 @@ function resetGapInjectionCount(): void { _gapInjectionCount = 0; }
 let _neutralMapping: SpeakerMapping | null = null;
 function resetNeutralMapping(): void { _neutralMapping = null; }
 
+/**
+ * Phase-safe debate state update. Background async tasks (extractClaimsAndUpdateAN,
+ * runNeutralCheckpoint, summarizeTranscriptEntry) read debate state, do work, then
+ * spread the stale snapshot back via set(). If synthesis has set phase='closed' in
+ * the meantime, the spread clobbers it back to 'debate' — a phase regression.
+ *
+ * This helper preserves the current phase when merging background updates.
+ */
+function phaseGuardedSet(
+  get: () => any,
+  set: (partial: any) => void,
+  updates: Partial<DebateSession>,
+): void {
+  const current = get().activeDebate as DebateSession | null;
+  if (!current) return;
+  set({ activeDebate: { ...current, ...updates } });
+}
+
 /** Fire-and-forget neutral evaluation at a checkpoint. Non-blocking, never throws. */
 async function runNeutralCheckpoint(
   checkpoint: 'baseline' | 'midpoint' | 'final',
@@ -208,16 +226,13 @@ async function runNeutralCheckpoint(
       speakerMapping: _neutralMapping,
     });
 
-    // Store on session
+    // Store on session (phase-guarded to prevent clobbering 'closed' phase)
     const freshDebate = get().activeDebate;
     if (!freshDebate) return;
     const existing = freshDebate.neutral_evaluations ?? [];
-    set({
-      activeDebate: {
-        ...freshDebate,
-        neutral_evaluations: [...existing, evaluation],
-        neutral_speaker_mapping: _neutralMapping!,
-      },
+    phaseGuardedSet(get, set, {
+      neutral_evaluations: [...existing, evaluation],
+      neutral_speaker_mapping: _neutralMapping!,
     });
 
     // Add transcript entry for visibility
@@ -352,6 +367,7 @@ async function summarizeTranscriptEntry(
         console.warn(`[debate] summarizeEntry: missing brief/medium (attempt ${attempt + 1}/${MAX_RETRIES}). Parsed:`, parsed);
         continue;
       }
+      // Re-read current state to avoid clobbering phase changes from concurrent tasks
       const debate = get().activeDebate;
       if (!debate) return;
       const entry = debate.transcript.find(e => e.id === entryId);
@@ -638,14 +654,18 @@ function commitAnNodes<N extends { id: string }, E extends { id: string; source:
   assertNoDuplicateAnIds(label, freshAn.nodes, newNodes);
 
   const base = mergeExtras ? mergeExtras(freshState) : { ...freshState };
-  const updated = {
+  const anUpdate = {
     ...base,
     argument_network: {
       nodes: [...freshAn.nodes, ...newNodes],
       edges: [...freshAn.edges, ...newEdges],
     },
   };
-  set({ activeDebate: updated });
+  // Phase-guarded: re-read current phase to prevent background AN commits
+  // from clobbering 'closed' phase set by requestSynthesis (t/301).
+  const currentPhase = (get().activeDebate as DebateSession | null)?.phase;
+  if (currentPhase) anUpdate.phase = currentPhase;
+  set({ activeDebate: anUpdate });
 
   const after = snapshotAnLengths(get);
   console.log(
@@ -1152,7 +1172,7 @@ async function extractClaimsAndUpdateAN(
               const updatedTranscript = currDebate.transcript.map(e =>
                 e.id === entryId ? { ...e, content: bestStatement!, metadata: { ...(e.metadata as Record<string, unknown>), lookahead_regenerated: true, lookahead_regen_attempts: regenAttempts.length } } : e,
               );
-              set({ activeDebate: { ...currDebate, transcript: updatedTranscript } });
+              phaseGuardedSet(get, set, { transcript: updatedTranscript });
             }
           }
         }
@@ -1512,8 +1532,7 @@ async function extractClaimsAndUpdateAN(
           pNode.scoring_method = 'fact_check';
 
           factCheckMutated = true;
-          const currentDebate = get().activeDebate;
-          if (currentDebate) set({ activeDebate: { ...currentDebate } });
+          phaseGuardedSet(get, set, {});  // trigger re-render without clobbering phase
 
           if (verdict === 'disputed' || verdict === 'verified' || verdict === 'supported') {
             const addEntry = get().addTranscriptEntry;
@@ -3068,8 +3087,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       an = { nodes: cleanedNodes, edges: cleanedEdges };
     }
 
+    // Re-read current state to preserve phase (t/301: delete can race with synthesis)
+    const freshDebate = get().activeDebate ?? activeDebate;
     const updated: DebateSession = {
-      ...activeDebate,
+      ...freshDebate,
       updated_at: nowISO(),
       transcript: filtered,
       ...(diagnostics ? { diagnostics } : {}),
@@ -5536,68 +5557,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       }
     }
 
-    // ── Auto-probing (t/179) — fire probing questions at interval after each round ──
-    const PROBING_INTERVAL = 2; // every N rounds, matching CLI default
-    const currentDebate = get().activeDebate;
-    const isTerminated = currentDebate?.adaptive_staging?.phase_state?.current_phase === 'terminated';
-    if (!isTerminated && crossRespondRound > 0 && crossRespondRound % PROBING_INTERVAL === 0) {
-      try {
-        const probDebate = get().activeDebate;
-        if (probDebate && isStillValid()) {
-          const probModel = getConfiguredModel();
-          const probTranscript = formatRecentTranscript(probDebate.transcript, 50);
-
-          const probReferencedNodes = new Set<string>();
-          for (const entry of probDebate.transcript) {
-            for (const ref of entry.taxonomy_refs) probReferencedNodes.add(ref.node_id);
-          }
-          const probAllNodeIds: string[] = [];
-          for (const pov of POV_KEYS) {
-            const ctx = getTaxonomyContext(pov);
-            for (const n of ctx.povNodes) probAllNodeIds.push(`[${n.id}] ${n.label}`);
-          }
-          const probCcCtx = getTaxonomyContext('accelerationist');
-          for (const n of probCcCtx.situationNodes) probAllNodeIds.push(`[${n.id}] ${n.label}`);
-
-          const probUnreferenced = probAllNodeIds.filter((desc) => {
-            const match = desc.match(/^\[([^\]]+)\]/);
-            return match && !probReferencedNodes.has(match[1]);
-          }).slice(0, 20);
-
-          const probHasSourceDoc = probDebate.source_type === 'document' || probDebate.source_type === 'url';
-          const probPrompt = buildProbingQuestionsPrompt(probDebate.topic.final, probTranscript, probUnreferenced, probHasSourceDoc, probDebate.audience);
-
-          const { text: probText } = await generateTextWithProgress(probPrompt, probModel, `Auto-probing questions R${crossRespondRound} (${probModel})`, set);
-          if (isStillValid()) {
-            type ProbingQ = { text: string; targets: string[] };
-            let probQuestions: ProbingQ[] = [];
-            const probParsed = parseAIJson<{ questions?: ProbingQ[] } | ProbingQ[]>(probText);
-            if (probParsed && typeof probParsed === 'object' && 'questions' in probParsed && Array.isArray(probParsed.questions)) {
-              probQuestions = probParsed.questions;
-            } else if (Array.isArray(probParsed)) {
-              probQuestions = probParsed;
-            }
-            if (probQuestions.length === 0) {
-              probQuestions = [{ text: probText.trim(), targets: [] }];
-            }
-
-            addTranscriptEntry({
-              type: 'probing',
-              speaker: 'system',
-              content: probQuestions.map((q, i) => `${i + 1}. ${q.text}`).join('\n'),
-              taxonomy_refs: [],
-              metadata: { probing_questions: probQuestions, round: crossRespondRound, auto_triggered: true },
-            });
-          }
-        }
-      } catch (probErr) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'debate-store', level: 'warn',
-          message: `Auto-probing questions failed at round ${crossRespondRound} (non-fatal)`,
-          error: { name: (probErr as Error).name ?? 'Error', message: String(probErr) },
-        });
-      }
-    }
+    // Auto-probing disabled — probing questions are available on demand via requestProbingQuestions()
 
     set({ debateGenerating: null });
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} end` , data: { round: crossRespondRound } });
@@ -6042,8 +6002,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         pushWarning(get, set, 'Evidence QBAF scoring skipped');
       }
 
-      // Neutral evaluation: final checkpoint (after synthesis)
-      void runNeutralCheckpoint('final', get, set as any, addTranscriptEntry);
+      // Neutral evaluation: final checkpoint (after synthesis) — awaited to prevent
+      // phase regression race (t/301): void-ing this allowed updatePhase('closed')
+      // to run before the checkpoint's set() call, which then clobbered 'closed' back to 'debate'.
+      await runNeutralCheckpoint('final', get, set as any, addTranscriptEntry);
 
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
@@ -7180,6 +7142,30 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
 // Expose store for flight recorder context provider (avoids circular import)
 ((window as unknown as { __ZUSTAND_STORES__?: Record<string, unknown> }).__ZUSTAND_STORES__ ??= {} as Record<string, unknown>).debate = useDebateStore;
+
+// Detect window close during active debate — log abandonment to flight recorder
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    const state = useDebateStore.getState();
+    if (!state.activeDebate) return;
+    const recorder = getGlobalRecorder();
+    if (!recorder) return;
+    recorder.record({
+      type: 'lifecycle',
+      component: 'debate-store',
+      level: 'warn',
+      debate_id: state.activeDebateId ?? undefined,
+      message: 'Window closed with active debate',
+      data: {
+        phase: state.activeDebate.phase,
+        transcript_length: state.activeDebate.transcript?.length ?? 0,
+        is_generating: !!state.debateGenerating,
+        generating_speaker: state.debateGenerating ?? null,
+        an_nodes: state.activeDebate.argument_network?.nodes?.length ?? 0,
+      },
+    });
+  });
+}
 
 /** Helper to get node label for fact check (standalone, no React hooks) */
 function getNodeLabelForFactCheck(nodeId: string): string {

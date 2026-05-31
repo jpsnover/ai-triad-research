@@ -58,7 +58,7 @@ describe('updateCruxTracker', () => {
     expect(updateCruxTracker(existing, [], [], {}, 2)).toEqual(existing);
   });
 
-  it('identifies a new crux from cross-POV attacks', () => {
+  it('identifies a new crux and advances state when cross-POV edges exist', () => {
     const nodes = [
       makeNode({ id: 'AN-1', speaker: 'accelerationist', computed_strength: 0.7 }),
       makeNode({ id: 'AN-2', speaker: 'safetyist', turn_number: 2 }),
@@ -71,7 +71,10 @@ describe('updateCruxTracker', () => {
     const result = updateCruxTracker(undefined, nodes, edges, {}, 2);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('AN-1');
-    expect(result[0].state).toBe('identified');
+    // Crux advances past 'identified' because same-turn cross-POV edges
+    // constitute engagement (t/284 fix). With polarity 0 (all attacks),
+    // it cascades through engaged → resolved.
+    expect(result[0].state).toBe('resolved');
     expect(result[0].speakers_involved).toContain('accelerationist');
     expect(result[0].speakers_involved).toContain('safetyist');
     expect(result[0].speakers_involved).toContain('skeptic');

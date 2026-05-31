@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "jszip": "^3.10.1",
+    "onnxruntime-node": "^1.26.0",
     "zod": "^4.4.2"
   }
 }

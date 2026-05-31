@@ -18,6 +18,7 @@ import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { getLineageInfo } from '../data/lineageLookup';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
+import { FactsPanel, getFactCount, preloadFactsIndex } from './FactsPanel';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
@@ -118,7 +119,7 @@ const POV_LABELS: Record<Pov, string> = {
   skeptic: 'Skeptic',
 };
 
-type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'sources' | 'research';
+type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'sources' | 'facts' | 'research';
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId } = useTaxonomyStore();
@@ -128,6 +129,15 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const [relatedSplitPct, setRelatedSplitPct] = useState(40);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+
+  // Eagerly load facts index so count badge is available
+  const [factCount, setFactCount] = useState(() => getFactCount(node.id));
+  useEffect(() => {
+    preloadFactsIndex();
+    // Re-check count after cache warms (small delay for async load)
+    const t = setTimeout(() => setFactCount(getFactCount(node.id)), 500);
+    return () => clearTimeout(t);
+  }, [node.id]);
 
   const handleSplitMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -321,6 +331,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           Sources
         </button>
         <button
+          className={`node-detail-tab ${activeTab === 'facts' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('facts')}
+        >
+          Facts{factCount > 0 ? ` (${factCount})` : ''}
+        </button>
+        <button
           className={`node-detail-tab ${activeTab === 'research' ? 'node-detail-tab-active' : ''}`}
           onClick={() => setActiveTab('research')}
         >
@@ -508,6 +524,10 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
 
         {activeTab === 'sources' && (
           <SourcesPanel nodeId={node.id} />
+        )}
+
+        {activeTab === 'facts' && (
+          <FactsPanel nodeId={node.id} />
         )}
 
         {activeTab === 'research' && (

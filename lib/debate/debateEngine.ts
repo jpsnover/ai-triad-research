@@ -37,6 +37,7 @@ import type {
   AdaptiveStagingDiagnostics,
   DebatePacing,
   ConvergenceSignals as ConvergenceSignalsType,
+  ProcessRewardEntry,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
@@ -94,6 +95,8 @@ import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyL
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
 import { updateCruxTracker } from './cruxResolution.js';
+import { computeConvergenceSignals } from './convergenceSignals.js';
+import { computeProcessReward } from './processReward.js';
 import { runSynthesisPhases } from './synthesisPhases.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
 import { formatTaxonomyContext, computeInjectionManifest } from './taxonomyContext.js';
@@ -133,9 +136,9 @@ import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis.js';
 import { extractSituationDebateRefs } from './situationRefs.js';
 import { ActionableError } from './errors.js';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis.js';
-import { resolveTurnValidationConfig } from './turnValidator.js';
+import { resolveTurnValidationConfig, classifyHintKey } from './turnValidator.js';
 import type { TurnValidation, ModeratorState, ModeratorIntervention, SelectionResult, InterventionMove } from './types.js';
-import { MOVE_TO_FAMILY, FAMILY_BURDEN_WEIGHT, MOVE_TO_FORCE } from './types.js';
+import { MOVE_TO_FAMILY, FAMILY_BURDEN_WEIGHT, MOVE_TO_FORCE, HINT_SUPPRESSION_THRESHOLD } from './types.js';
 import {
   initModeratorState,
   validateRecommendation,
@@ -148,10 +151,13 @@ import {
   buildInterventionBriefInjection,
   checkInterventionCompliance,
   getConcludingResponder,
+  MOVE_RESPONSE_CONFIG,
+  DIRECT_RESPONSE_PATTERNS,
 } from './moderator.js';
 import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js';
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
 import { pruneSessionData, pruneModeratorState } from './sessionPruning.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { runTurnPipeline, assemblePipelineResult, runOpeningPipeline, assembleOpeningPipelineResult, getOpeningRepairHints } from './turnPipeline.js';
 import type { TurnPipelineInput, OpeningPipelineInput } from './turnPipeline.js';
 import {
@@ -288,6 +294,53 @@ export class DebateEngine {
   private _signalHistory: Map<string, { round: number; value: number }[]> = new Map();
   /** Adaptive staging: peak tracker for engagement ratio and claims per round. */
   private _peakTrackers: Map<string, number> = new Map();
+  /** Debate-wide hint failure streaks for hopeless hint suppression.
+   *  Tracked globally (not per-speaker) because hint suppressibility is a model
+   *  capability — if the model can't produce specific claims for one speaker,
+   *  it can't for any of them. */
+  private _hintStreaks = new Map<string, import('./types').HintStreak>();
+
+  /** Get the set of hint keys currently suppressed for this debate. */
+  private getSuppressedHints(): Set<string> {
+    const suppressed = new Set<string>();
+    for (const [key, streak] of this._hintStreaks) {
+      if (streak.suppressed) suppressed.add(key);
+    }
+    return suppressed;
+  }
+
+  /** Update hint streaks after a turn completes. Hints that fired increment; hints that didn't reset. */
+  private updateHintStreaks(speaker: string, firedHints: string[]): void {
+    const firedKeys = new Set(firedHints.map(h => classifyHintKey(h)));
+
+    // Increment streaks for fired hints
+    for (const key of firedKeys) {
+      if (key === 'other') continue; // don't track unclassified hints
+      const existing = this._hintStreaks.get(key);
+      if (existing) {
+        existing.consecutive_failures++;
+        if (!existing.suppressed && existing.consecutive_failures >= HINT_SUPPRESSION_THRESHOLD) {
+          existing.suppressed = true;
+          getGlobalRecorder()?.record({
+            type: 'turn.hint-suppressed', component: 'debateEngine', level: 'warn',
+            speaker,
+            message: `Suppressed hint "${key}" after ${existing.consecutive_failures} consecutive failures`,
+            data: { hint_key: key, consecutive_failures: existing.consecutive_failures },
+          });
+        }
+      } else {
+        this._hintStreaks.set(key, { hint_key: key, consecutive_failures: 1, suppressed: false });
+      }
+    }
+
+    // Reset streaks for hints that didn't fire this turn
+    for (const [key, streak] of this._hintStreaks) {
+      if (!firedKeys.has(key)) {
+        streak.consecutive_failures = 0;
+        streak.suppressed = false;
+      }
+    }
+  }
 
   private getKnownNodeIds(): Set<string> {
     if (this._knownNodeIds) return this._knownNodeIds;
@@ -1327,7 +1380,7 @@ export class DebateEngine {
       }
     }
 
-    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, sitScores, { ...relevanceOpts, maxTotal: undefined }, 3, 15);
+    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, sitScores, { ...relevanceOpts, maxTotal: undefined }, 3, 8);
     const filteredCtx = {
       povNodes: scoredPov.map(s => s.node),
       situationNodes: filteredSit.map(s => s.node),
@@ -1341,6 +1394,29 @@ export class DebateEngine {
     }));
     this._lastInjectionManifest = computeInjectionManifest(filteredCtx, pov);
     this._lastInjectionManifest.scoring_mode = scoringMode;
+
+    // Flight recorder: taxonomy injection details
+    getGlobalRecorder()?.record({
+      type: 'turn.taxonomy_inject', component: 'debateEngine', level: 'info',
+      message: `Taxonomy inject: ${scoredPov.length} POV nodes selected`,
+      data: {
+        pov_nodes: scoredPov.length,
+        avg_relevance: scoredPov.length > 0 ? +(scoredPov.reduce((s, n) => s + n.score, 0) / scoredPov.length).toFixed(3) : 0,
+        min_relevance: scoredPov.length > 0 ? +Math.min(...scoredPov.map(n => n.score)).toFixed(3) : 0,
+        filtered_out: ctx.povNodes.length - scoredPov.length,
+        scoring_mode: scoringMode,
+      },
+    });
+    getGlobalRecorder()?.record({
+      type: 'turn.situation_inject', component: 'debateEngine', level: 'info',
+      message: `Situation inject: ${filteredSit.length} nodes selected`,
+      data: {
+        injected_ids: filteredSit.map(s => s.node.id),
+        count: filteredSit.length,
+        primary_count: filteredSit.filter(s => s.score > 0.5).length,
+        divergence_adjusted: policyBoostedSitIds.length,
+      },
+    });
 
     // Log lineage boost diagnostics
     const lbResult = (scoredPov as ScoredPovNode[] & { _lineageBoost?: import('./taxonomyRelevance.js').LineageBoostResult })._lineageBoost;
@@ -2629,6 +2705,13 @@ export class DebateEngine {
       console.log(`[strategic-hints] Dropped ${hintsResult.dropped} hint(s) due to char budget`);
     }
 
+    // Read prior turn's ignored evidence so the pipeline can penalise those docs
+    const priorSamePoV = this.session.transcript
+      .filter(e => e.speaker === responder && e.type === 'statement')
+      .slice(-1)[0];
+    const priorIgnoredDocIds = (priorSamePoV?.metadata as Record<string, unknown> | undefined)
+      ?.ignored_evidence_doc_ids as string[] | undefined;
+
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -2655,10 +2738,23 @@ export class DebateEngine {
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
       model: this.config.model,
+      ...(activeIntervention ? {
+        pendingIntervention: {
+          move: activeIntervention.move,
+          family: activeIntervention.family,
+          targetDebater: activeIntervention.target_debater,
+          responseField: MOVE_RESPONSE_CONFIG[activeIntervention.move]?.field ?? undefined,
+          responseSchema: MOVE_RESPONSE_CONFIG[activeIntervention.move]?.schema ?? undefined,
+          directResponsePattern: DIRECT_RESPONSE_PATTERNS[activeIntervention.move] ?? undefined,
+          isTargeted: activeIntervention.target_debater === responder,
+        },
+      } : {}),
       lastOpponentStatement,
       strategicHints: strategicHints?.length ? strategicHints : undefined,
       sourceEvidenceIndex: this.sourceEvidenceIndex,
       docTitles: this.docTitles,
+      ignoredEvidenceDocIds: priorIgnoredDocIds,
+      suppressedHints: this.getSuppressedHints(),
       ...(this.config.temperature != null ? {
         stageTemperatures: {
           brief_temperature: this.config.temperature,
@@ -2755,11 +2851,14 @@ export class DebateEngine {
     const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
     this.enrichTaxonomyRefs(taxonomyRefs);
 
-    // Extract caveats: unresolved judge weaknesses + ungrounded claims.
+    // Update per-speaker hint streaks for hopeless hint suppression.
+    // Uses the final validation's repairHints — these are the hints that persisted
+    // through all retry attempts (i.e., the model couldn't fix them).
+    this.updateHintStreaks(responder, validation.repairHints ?? []);
+
+    // Extract caveats: all validation hints + ungrounded claims.
     // Surfaced to readers as "Caveats" alongside the statement.
-    const caveats = (validation.repairHints ?? []).filter(h =>
-      !/my_claims|taxonomy_refs|move_types|paragraph|hedge|duplication|schema/i.test(h)
-    );
+    const caveats = [...(validation.repairHints ?? [])];
 
     // Add ungrounded claims from the evidence work product
     const evidenceDiagForCaveats = pipelineResult.stage_diagnostics.find(s => s.stage === 'evidence');
@@ -2787,6 +2886,7 @@ export class DebateEngine {
         move_types: meta.move_types,
         disagreement_type: meta.disagreement_type,
         my_claims: meta.my_claims,
+        key_assumptions: meta.key_assumptions?.length ? meta.key_assumptions : undefined,
         turn_symbols: meta.turn_symbols,
         injection_manifest: this._lastInjectionManifest ?? undefined,
         debate_phase: phase,
@@ -2797,6 +2897,9 @@ export class DebateEngine {
         turn_validation_flagged: validation.outcome === 'accept_with_flag' ? true : undefined,
         concession_candidates_offered: concessionCandidateIds.length > 0 ? concessionCandidateIds : undefined,
         concession_considered: (meta as Record<string, unknown>)?.concession_considered as string | undefined,
+        anticipated_responses: pipelineResult.plan.anticipated_responses?.length
+          ? pipelineResult.plan.anticipated_responses : undefined,
+        ignored_evidence_doc_ids: pipelineResult.ignoredEvidenceDocIds,
       },
     });
 
@@ -4441,12 +4544,18 @@ Return ONLY JSON (no markdown, no code fences):
         if (strength !== undefined && Number.isFinite(strength)) node.computed_strength = strength;
       }
 
-      // Update convergence tracker with QBAF strengths
+      // Update convergence tracker with QBAF strengths (t/284: also update
+      // the heuristic `convergence` field so it doesn't stay at default 0.5)
       if (this.session.convergence_tracker) {
         for (const issue of this.session.convergence_tracker.issues) {
           const qbafConv = computeQbafConvergence(issue.claim_ids, result.strengths);
-          if (qbafConv !== undefined) issue.qbaf_strength = qbafConv;
+          if (qbafConv !== undefined) {
+            issue.qbaf_strength = qbafConv;
+            issue.convergence = qbafConv;
+            issue.history.push({ turn: turnNumber, value: qbafConv });
+          }
         }
+        this.session.convergence_tracker.last_updated_turn = turnNumber;
       }
 
       // Snapshot timeline: capture all computed_strengths at this turn
@@ -4477,6 +4586,91 @@ Return ONLY JSON (no markdown, no code fences):
         if (!entry.metadata) entry.metadata = {};
         entry.metadata.qbaf_net_delta = netDelta;
       }
+    }
+
+    // Convergence signals + process rewards (t/282, t/283)
+    try {
+      // Build turn embeddings map from cached session data + current turn
+      let turnEmbeddings: Map<string, number[]> | undefined;
+      const cached = this.session.turn_embeddings ?? {};
+      const adapter = this.adapter as ExtendedAIAdapter;
+      if (adapter.computeQueryEmbedding) {
+        const currentEntry = this.session.transcript.find(e => e.id === entryId);
+        if (currentEntry && !cached[entryId]) {
+          try {
+            const { vector } = await adapter.computeQueryEmbedding(currentEntry.content.slice(0, 1000));
+            if (vector && vector.length > 0) cached[entryId] = vector;
+          } catch { /* non-blocking */ }
+        }
+        // Prune stale entries — keep most recent 30
+        const recentIds = new Set(this.session.transcript.slice(-30).map(e => e.id));
+        for (const key of Object.keys(cached)) {
+          if (!recentIds.has(key)) delete cached[key];
+        }
+        this.session.turn_embeddings = cached;
+        if (Object.keys(cached).length > 0) {
+          turnEmbeddings = new Map(Object.entries(cached));
+        }
+      }
+
+      // Precomputed QBAF strengths map (available from the QBAF block above)
+      const precomputedStrengths = new Map<string, number>();
+      for (const node of an.nodes) {
+        if (node.computed_strength != null) precomputedStrengths.set(node.id, node.computed_strength);
+      }
+
+      const sig = computeConvergenceSignals(
+        entryId,
+        speaker,
+        this.session.transcript,
+        an.nodes,
+        an.edges,
+        this.session.convergence_signals ?? [],
+        turnEmbeddings,
+        precomputedStrengths,
+        this.session.topic?.embedding,
+        this.session.topic?.clause_embeddings,
+      );
+      if (!this.session.convergence_signals) this.session.convergence_signals = [];
+      this.session.convergence_signals.push(sig);
+
+      // Process reward — requires turn validation from this entry
+      const turnTrail = this.session.turn_validations?.[entryId];
+      const turnValidation = turnTrail?.final;
+      if (turnValidation) {
+        const currentEntry = this.session.transcript.find(e => e.id === entryId);
+        const entryMeta = currentEntry?.metadata as Record<string, unknown> | undefined;
+        const moveTypes = (entryMeta?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+        const phase = ((entryMeta?.debate_phase as string) ?? 'argumentation') as DebatePhase;
+
+        const priorSpeakerEntry = this.session.transcript
+          .filter(e => e.speaker === speaker && e.type === 'statement')
+          .slice(-2)[0];
+        const priorMeta = priorSpeakerEntry?.metadata as Record<string, unknown> | undefined;
+        const priorMoves = (priorMeta?.move_types as (string | import('./helpers').MoveAnnotation)[]) ?? [];
+
+        const pr = computeProcessReward({
+          convergenceSignals: sig,
+          turnValidation,
+          phase,
+          moveCount: moveTypes.length,
+          priorMoveCount: priorMoves.length > 0 ? priorMoves.length : undefined,
+          taxonomyRefCount: currentEntry?.taxonomy_refs?.length ?? 0,
+        });
+
+        const prEntry: ProcessRewardEntry = {
+          entry_id: entryId,
+          round: sig.round,
+          speaker,
+          phase,
+          score: pr.score,
+          components: pr.components,
+        };
+        if (!this.session.process_rewards) this.session.process_rewards = [];
+        this.session.process_rewards.push(prEntry);
+      }
+    } catch (convErr) {
+      console.warn('[Convergence] Signal/process-reward computation failed (non-blocking):', convErr);
     }
 
     // Finalize trace

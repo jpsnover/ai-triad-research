@@ -322,16 +322,10 @@ export function citeStageEnvelope(
   let refsHistoryBlock = '';
   if (input.priorRefs && input.priorRefs.length > 0) {
     const recent = Array.from(new Set(input.priorRefs));
-    const uncited = input.availablePovNodeIds
-      ? input.availablePovNodeIds.filter(id => !recent.includes(id)).slice(0, 20)
-      : [];
-    const uncitedLine = uncited.length > 0
-      ? `\nNodes from your POV you have NOT yet cited (sample): ${uncited.join(', ')}.`
-      : '';
     const crossPovLine = input.crossPovNodeIds && input.crossPovNodeIds.length > 0
       ? `\nYou may also cite nodes from other POVs when engaging directly with their claims. Sample cross-POV nodes: ${input.crossPovNodeIds.slice(0, 8).join(', ')}.`
       : '';
-    refsHistoryBlock = `\n=== RECENT CITATIONS ===\nRecently cited: ${recent.join(', ')}.\nREQUIRED: At least 1-2 of this turn's taxonomy_refs must be node_ids NOT in that list.${uncitedLine}${crossPovLine}\n`;
+    refsHistoryBlock = `\n=== RECENT CITATIONS ===\nFor context, these nodes were cited in recent turns: ${recent.join(', ')}.\nThis does NOT mean you should avoid them — cite whatever the statement actually drew from.${crossPovLine}\n`;
   }
 
   return {

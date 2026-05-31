@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
-  "status": "CALIBRATED — 290 data points, 2026-05-03. 3 parameters updated by optimizer.",
+  "status": "CALIBRATED — 290 data points, 2026-05-03. 3 parameters updated by optimizer. Thresholds raised 2026-05-30 for post-compression prompt regime.",
+  "calibrated_with_prompt_version": "2026-05-30-post-compression",
   "argumentative_saturation": {
     "recycling_pressure": 0.01,
     "crux_maturity": 0.28,
@@ -16,7 +17,7 @@
     "concluding_pragmatic_signal": 0.15
   },
   "thresholds": {
-    "argumentation_exit": 0.65,
+    "argumentation_exit": 0.72,
     "concluding_exit": 0.70,
     "confidence_floor": 0.40,
     "crux_semantic_novelty": 0.70
@@ -33,8 +34,8 @@
     "regression_ratchet": 0.10
   },
   "pacing_presets": {
-    "tight": { "maxTotalRounds": 8, "argumentationExit": 0.55, "concludingExit": 0.60 },
-    "moderate": { "maxTotalRounds": 12, "argumentationExit": 0.65, "concludingExit": 0.70 },
+    "tight": { "maxTotalRounds": 8, "argumentationExit": 0.62, "concludingExit": 0.60 },
+    "moderate": { "maxTotalRounds": 12, "argumentationExit": 0.72, "concludingExit": 0.70 },
     "thorough": { "maxTotalRounds": 15, "argumentationExit": 0.80, "concludingExit": 0.80 }
   },
   "network": {
@@ -59,7 +60,8 @@
     "lexical_threshold": 0.22,
     "min_per_category": 3,
     "max_pov_nodes": 35,
-    "max_situations": 15,
+    "max_desires": 5,
+    "max_situations": 8,
     "adaptation_enabled": true,
     "adaptation_history": []
   },
@@ -78,5 +80,11 @@
     "escalation_start": 3,
     "floor_step": 0.10,
     "minimum_floor": 0.20
+  },
+  "transcript_compression": {
+    "aggressive_after_entries": 30,
+    "normal_verbatim_window": 8,
+    "aggressive_verbatim_window": 5,
+    "max_chars": 8000
   }
 }

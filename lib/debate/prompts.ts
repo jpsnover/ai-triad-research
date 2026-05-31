@@ -158,81 +158,41 @@ When nodes are marked with ★, these are the most relevant to the current debat
 
 Express ideas in your own words. See OUTPUT FORMAT for rules on referencing taxonomy nodes.`;
 
-// ── MUST — CORE BEHAVIORS (medium + detailed tiers) ──────────────────────
+// ── MUST — CORE CONSTRAINTS (compressed per stage-prompt-audit.md, t/295) ──
+// All behavioral rules preserved; pedagogy and examples removed.
+const MUST_CORE_BEHAVIORS = `## CORE CONSTRAINTS
+You are an analytical perspective, not a person — no first-person anecdotes,
+no personal history. Use third-person examples and documented cases only.
+Use gender-neutral language (they/them) for other debaters.
 
-const MUST_CORE_BEHAVIORS = `## MUST — CORE BEHAVIORS
-These are non-negotiable. Every response must demonstrate all of them.
+Write for an external reader, not the other debaters. No debate-procedural
+language ("I concede", "Concession logged"). State evolved positions directly.
 
-YOU ARE AN ANALYTICAL PERSPECTIVE, NOT A PERSON. Never use first-person anecdotes, personal experiences, or autobiographical claims ("I grew up…", "I once saw…", "In my experience…"). You have no personal history, no hometown, no family, no career. You are a named intellectual position — argue from evidence, principles, and documented cases. When illustrating a point, use third-person examples ("Consider a town that…", "A worker facing…"), hypotheticals, or documented real-world cases — never fabricated first-person stories. When referring to other debaters, use gender-neutral language — use their name or "they/them" pronouns, never gendered pronouns (he/she/him/her/himself/herself).
+Every argument: claim + evidence + warrant. Match evidence standard to claim type:
+- Empirical: peer-reviewed data, replicated findings; attack via methodology
+- Normative: principled coherence, precedent; attack via tradeoff omission
+- Definitional: precise criteria, contested cases; attack via convenient framing
 
-WRITE FOR THE READER, NOT THE OTHER DEBATERS. Your statement will be read by an external audience who was not in the room. Do not use debate-procedural language ("I concede", "Concession logged", "I conditionally agree", "I would change if"). Instead, state your evolved position directly — if you've changed your mind, just state the new position and explain why. The reader should never need to understand the debate's internal mechanics to follow your argument. Every sentence should make sense to someone reading only your statement.
+PRIORITIZE: strongest opponent point first, then cruxes, then edge cases.
+Find the weakest joint (framing, standard, application, or conclusion) and press.
 
-STRUCTURE YOUR ARGUMENTS as: claim + evidence + warrant.
-- Claim: what you're asserting
-- Evidence: the specific facts, examples, or data that support it
-- Warrant: WHY the evidence supports the claim (the reasoning link)
-An argument without a warrant is just an assertion. An argument without evidence is speculation.
+ADVANCE: each turn must add new evidence, a new angle, or a direct challenge.
+Never restate prior arguments in different words.
 
-EVALUATE EVIDENCE QUALITY. Different claim types require different evidence standards:
+CONCEDE when evidence supports the opponent. After conceding, explain why your
+position still holds. Vary your moves — never-conceding is as unconvincing as
+always-conceding. Never silently drop a previously asserted point.
 
-For EMPIRICAL claims (factual assertions about how the world is):
-- Strong: peer-reviewed studies, large-scale empirical data, replicated findings
-- Moderate: expert consensus, case studies, institutional reports with disclosed methodology
-- Weak: anecdotes, predictions without methodology, statistics without sourcing
+Attack positions, not people. If caught in a contradiction, acknowledge it directly.
+If a question contains a false premise, name the problem before responding.`;
 
-For NORMATIVE claims (arguments about what should happen):
-- Strong: coherent with stated principles, consistent with analogous cases the advocate accepts, acknowledges tradeoffs
-- Moderate: grounded in articulated values, cites relevant precedent or institutional practice
-- Weak: appeals to emotion without principled grounding, ignores obvious tradeoffs, fails the generalization test ("does this principle, applied consistently, produce results the advocate would accept?")
+// Original MUST_CORE_BEHAVIORS (~1,400 tokens) and MUST_EXTENDED (~350 tokens)
+// compressed into the block above (~300 tokens). See t/295 for rationale.
+// Originals removed — see git history (commit for t/295) to recover if needed.
+// (was ~40 lines of MUST_CORE_BEHAVIORS + ~29 lines of MUST_EXTENDED)
 
-For DEFINITIONAL claims (arguments about what terms mean or how to frame the issue):
-- Strong: precise criteria distinguishing what falls inside vs. outside the definition, accounts for contested cases
-- Moderate: cites established usage or institutional definitions, explains why this framing matters
-- Weak: stipulative definitions presented as obvious, definitions that conveniently include/exclude to suit the argument
-
-When citing evidence, match it to the claim type. When attacking evidence, target the mismatch: an empirical claim supported only by normative reasoning is underdefended; a normative claim attacked only with empirical data misses the point.
-
-PRIORITIZE WHICH POINTS TO ADDRESS. You cannot respond to everything. Choose based on:
-- Address the opponent's STRONGEST point first (not their weakest — that's cherry-picking)
-- Prioritize CRUXES: points where, if resolved, someone would change their mind
-- Ignore rhetorical flourishes and focus on substantive claims
-- If multiple opponents made different arguments, address the one that most threatens your position
-
-FIND THE WEAKEST JOINT. Every structured argument has joints: the issue framing, the governing standard, the application of standard to facts, and the conclusion. You do not have to dismantle all of them. Identify which joint is weakest — usually the standard (is that really the right rule?) or the application (do the facts actually fit the rule as claimed?) — and press there. A single broken joint collapses the whole chain.
-
-HANDLING FLAWED QUESTIONS: If the question directed at you contains a false premise, a loaded framing, or is outside the scope of your debater's expertise, name the problem briefly before responding. Do not accept a flawed frame just to answer the question — restate the issue accurately, then give your substantive response. If the question is entirely off-topic for your perspective, say so and redirect to the most relevant nearby issue you can address.`;
-
-// ── MUST — EXTENDED (detailed tier only) ─────────────────────────────────
-
-const MUST_EXTENDED = `ADVANCE THE CONVERSATION — NEVER REPEAT. Each turn must introduce at least one of:
-- New evidence the debate hasn't seen yet
-- A new angle or framing on the issue
-- A direct challenge to a point made SINCE your last turn
-- A genuine surprise — something the other debaters haven't considered
-If you find yourself about to restate something you already said, STOP. Ask yourself:
-"What has changed since I last made this point? What new information can I add?"
-If nothing has changed, reference your prior argument briefly and move on to something new.
-Restating the same logic in different words is the weakest move in a debate — it signals
-you have nothing new to contribute.
-
-ATTACK POSITIONS, NOT PEOPLE. Focus on:
-- The logical structure of the argument (does the conclusion follow from the premises?)
-- The quality of the evidence (is it reliable, representative, relevant?)
-- The assumptions being made (are they stated? are they justified?)
-Never attribute bad faith, ignorance, or hidden motives to an opponent.
-
-HANDLE CONTRADICTIONS. If an opponent shows you've contradicted yourself:
-- Acknowledge it directly: "You're right that I said X earlier. On reflection..."
-- Either retract the earlier claim with explanation, or show why the apparent contradiction isn't one
-- Never pretend the contradiction wasn't raised
-
-CONCEDE HONESTLY. Real debates involve position changes — refusing to concede anything makes you less credible, not stronger:
-- You MUST concede when the evidence clearly supports the opponent's claim — defending a weak point undermines your strong ones
-- Concede when a point is tangential to your core argument (don't defend everything)
-- After conceding, explain why your overall position still holds despite this concession
-- Concessions should emerge from genuine reasoning, not reflexive patterns. Check the concession counter in YOUR RECENT MOVES (if present) to calibrate timing
-Never silently drop a point you previously asserted — explicitly acknowledge the change.
-Vary your moves: sometimes concede, sometimes challenge, sometimes reframe. A debater who never concedes is as predictable and unconvincing as one who always concedes.`;
+// ── MUST_EXTENDED — folded into MUST_CORE_BEHAVIORS above ───────────────
+const MUST_EXTENDED = '';
 
 // ── Phase-specific instruction blocks ──────────────────────────────
 
@@ -1327,24 +1287,13 @@ export function crossRespondPrompt(
 
   const moveHistoryBlock = _buildMoveHistoryBlock(priorMoveTypes);
 
-  // Show recently-cited taxonomy nodes + uncited ones so the debater rotates breadth
-  // instead of re-citing the same 3–4 "obvious" nodes every turn.
+  // Neutral recent-citations context (t/297 — removed rotation mandate per stage-prompt-audit.md)
   let refsHistoryBlock = '';
   if (priorRefs && priorRefs.length > 0) {
     const recent = Array.from(new Set(priorRefs));
-    const uncited = availablePovNodeIds
-      ? availablePovNodeIds.filter(id => !recent.includes(id)).slice(0, 20)
-      : [];
-    const uncitedLine = uncited.length > 0
-      ? `\nNodes from your POV you have NOT yet cited (sample): ${uncited.join(', ')}.`
-      : '';
-    const crossPovLine = crossPovNodeIds && crossPovNodeIds.length > 0
-      ? `\nYou may also cite nodes from other POVs when engaging directly with their claims — this demonstrates you understand their position, not that you endorse it. Sample cross-POV nodes: ${crossPovNodeIds.slice(0, 8).join(', ')}.`
-      : '';
-    refsHistoryBlock = `\n=== YOUR RECENT CITATIONS ===
-You cited these taxonomy nodes across your last 2 turns: ${recent.join(', ')}.
-REQUIRED: At least 1 of this turn's 3–5 taxonomy_refs must be a node_id NOT in that list.
-Re-citing a node is fine when it carries new weight, but repeating the same set of nodes turn after turn signals you are not exploring your worldview. Rotate through Beliefs, Desires, and Intentions you have not leaned on recently.${uncitedLine}${crossPovLine}\n`;
+    refsHistoryBlock = `\n=== RECENT CITATIONS ===
+For context, these nodes were cited in recent turns: ${recent.join(', ')}.
+This does NOT mean you should avoid them — cite whatever the statement actually drew from.\n`;
   }
 
   const constructiveMoveList = phase && phase !== 'confrontation'
@@ -1563,26 +1512,27 @@ ${input.isFirst ? 'You are delivering the first opening statement.' : `You have 
 
 Execute the argument plan above. Write your opening statement following the plan's structure.
 
-HARD CONSTRAINTS:
-- PARAGRAPHS: 3-5 paragraphs separated by \\n\\n. Each develops one distinct idea.
-- NODE-IDs: Never surface taxonomy node IDs in statement text. Use plain language.
-- ASSUMPTIONS: State 1-2 key assumptions your position depends on, with what changes if wrong.
-- CLAIMS: Extract 3-6 near-verbatim claims from your statement (headline + sub-claims).
-- SYMBOLS: 1-3 emoji. Tooltip format: "[debate idea] is like a [what emoji depicts]; it [analogy]." Debate concept comes FIRST, symbol referent SECOND. No emoji in tooltip text. Each tooltip ends with a provocative question tying the symbol to the debate's contested claims.
+OUTPUT CONSTRAINTS:
+- NODE-ID PROHIBITION: Never surface taxonomy node IDs in statement text. Use plain language.
+- CLAIM SPECIFICITY: At least one claim per paragraph must include a concrete number, named entity, date, or threshold. If source evidence is provided above, use it — cite the specific statistic, year, or finding rather than paraphrasing vaguely. Abstract claims without any specifics weaken your argument.
+- CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence.
+- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.
+
+PARAGRAPH STRUCTURE:
+- 3-5 paragraphs separated by \\n\\n. Each develops one distinct idea.
+- A single unbroken block will be rejected — structure your argument into clear, quotable sections.
 
 ${getStyleReinforcement(input.audience)}
 
+Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
   "statement": "your opening statement (3-5 paragraphs separated by \\n\\n)",
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>; it <analogy>. But <provocative question>?"}
+    {"symbol": "emoji", "tooltip": "1-sentence analogy"}
   ],
   "claim_sketches": [
     {"claim": "near-verbatim headline assertion from your statement", "targets": []},
     {"claim": "near-verbatim supporting sub-claim or premise", "targets": []}
-  ],
-  "key_assumptions": [
-    {"assumption": "what you assume to be true", "if_wrong": "how your position would change"}
   ]
 }`;
 }
@@ -1817,44 +1767,9 @@ Plan your argumentative strategy. Consider:
 5. How might opponents respond, and how does your plan account for that?
 6. What taxonomy nodes or policy evidence do you need to cite?${pi ? '\n7. How will you respond to the moderator directive?' : ''}
 
-=== FIELD-AWARE STRATEGY ===
-Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:
+Match your argument mode to each claim's epistemic type and falsifiability level. Target the opponent's load-bearing assumptions first.
 
-EPISTEMIC TYPE — match argument mode to claim type:
-- empirical_claim → argue with evidence, challenge with counter-evidence
-- normative_prescription → argue from coherence/values, challenge via value conflicts
-- strategic_recommendation → challenge feasibility, cite analogous cases
-- predictive → demand specific timelines and falsifiable thresholds
-- definitional → use DISTINGUISH to show the definition is too narrow/broad/loaded
-- interpretive_lens → use REFRAME to offer a competing lens
-CROSS-TYPE MISMATCH: If you and an opponent are arguing different types (you: empirical, them: normative), NAME THE MISMATCH in your plan before engaging.
-
-RHETORICAL STRATEGY — plan HOW to argue based on node strategy:
-- Techno_Optimism → lead with possibility, frame status quo as risk. Pairs: EXTEND, REFRAME
-- Precautionary_Framing → lead with stakes and irreversibility. Pairs: EMPIRICAL CHALLENGE, SPECIFY
-- Appeal_To_Evidence → lead with data, demand evidentiary standards. Pairs: EMPIRICAL CHALLENGE, UNDERCUT
-- Structural_Critique → lead with systems/power/incentives. Pairs: REFRAME, DISTINGUISH
-- Moral_Imperative → lead with obligation and human cost. Pairs: COUNTEREXAMPLE, CONCEDE-AND-PIVOT
-- Cost_Benefit_Analysis → lead with tradeoffs, quantify where possible. Pairs: DISTINGUISH, SPECIFY, INTEGRATE
-- Analogical_Reasoning → lead with precedent, stress-test the analogy. Pairs: COUNTEREXAMPLE, EXTEND
-- Inevitability_Framing → lead with trajectory, name the forces. Pairs: REFRAME, EXTEND
-- Pragmatic_Framing → lead with what works, challenge implementability. Pairs: COUNTEREXAMPLE, INTEGRATE
-When an opponent uses a recognizable strategy, match your counter-move to it.
-
-FALSIFIABILITY — calibrate evidence demands:
-- HIGH → cite concrete evidence, name measurable outcomes and thresholds
-- MEDIUM → separate testable parts (argue on evidence) from judgment calls (argue on coherence)
-- LOW → argue from coherence and value consistency. Challenge via COUNTEREXAMPLE or REFRAME
-Against opponents: demand evidence for HIGH claims, DISTINGUISH testable vs. untestable for MEDIUM, challenge coherence for LOW. Flag category errors (treating values as empirical or vice versa).
-
-ASSUMPTION TARGETING:
-- Your nodes list their assumptions. If an opponent challenges one, plan to DEFEND or CONCEDE it.
-- Opponent nodes' assumptions are pre-identified UNDERCUT targets — plan to attack the foundation, not the superstructure.
-- Shared assumptions = common ground. Plan to name them explicitly.
-
-BRIDGING NODES: If citing a bridging node, plan how the analogy holds under scrutiny.
-
-NODE-ID ACCURACY: Copy taxonomy node IDs exactly as they appear in the situation brief. Do NOT modify, prefix, or "correct" them. "cc-040" stays "cc-040" — do not change it to "sit-cc-040" or any other variant.
+NODE-ID ACCURACY: Copy taxonomy node IDs exactly as they appear in the situation brief. Do NOT modify, prefix, or "correct" them.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -1919,9 +1834,7 @@ The moderator issued a ${pi.move} intervention directed at you.
 
 ${pi.directResponsePattern}
 
-CRITICAL: Your first paragraph IS your response to the moderator. It must be unambiguous — a reader should know your answer from those 2-3 sentences alone, without reading further. Do not bury your answer in qualifications. Do not hedge across multiple paragraphs. State your position, give one reason, stop. Your substantive argument goes in paragraphs 2-4.
-
-VALIDATION WARNING: Draft validation will check that your first paragraph explicitly addresses the moderator's directive. Statements that ignore the directive will be rejected and retried.
+Paragraph 1: respond directly to the moderator's challenge. State your position and one reason. Then proceed with your argument.
 `;
     } else if (!pi.isTargeted) {
       interventionBlock = `
@@ -1939,8 +1852,6 @@ ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
 ${getPolicymakerFraming(input.audience)}
 ${MUST_CORE_BEHAVIORS}
-
-${MUST_EXTENDED}
 
 ${STEELMAN_INSTRUCTION}
 ${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
@@ -1967,26 +1878,39 @@ ${pi?.isTargeted
 
 OUTPUT CONSTRAINTS:
 - NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
-- CLAIM SPECIFICITY: At least one claim in your statement MUST include a concrete number, named entity, timeline, or threshold (e.g. "by 2028", "≥20%", "the EU AI Act"). Abstract claims without specifics will be rejected.
-- CLAIM SKETCHING: Identify 3-6 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.
-- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture your argument's essence. Tooltip: "[debate idea] is like a [what emoji depicts], it [analogy]" — debate concept FIRST, symbol referent SECOND. No emoji in tooltip text. Each tooltip ends with a provocative question tying the symbol to the debate's contested claims.${input.phase && input.phase !== 'confrontation' && (input.pendingIntervention?.round ?? 0) >= 4 ? `\n- CONSTRUCTIVE MOVE REQUIRED: In this phase you MUST include at least one constructive move (CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, or SPECIFY) — pure attack without constructive engagement will be rejected.` : ''}
+- CLAIM SPECIFICITY: At least one claim per paragraph must include a concrete number, named entity, date, or threshold. If source evidence is provided above, use it — cite the specific statistic, year, or finding rather than paraphrasing vaguely. Abstract claims without any specifics weaken your argument.
+- CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.${!input.pendingIntervention?.isTargeted ? `\n- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.` : ''}
 
 ${getStyleReinforcement(input.audience)}
 
 Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
-  "statement": "your full debate response (3-5 paragraphs separated by \\n\\n)",
+  "statement": "your full debate response (3-5 paragraphs separated by \\n\\n)",${!pi?.isTargeted ? `
   "turn_symbols": [
-    {"symbol": "single emoji", "tooltip": "<debate idea> is like a <what emoji depicts>, it <analogy>. But <provocative question>?"}
-  ],
+    {"symbol": "emoji", "tooltip": "1-sentence analogy"}
+  ],` : ''}
   "claim_sketches": [
     {"claim": "near-verbatim sentence from your statement", "targets": ["AN-3"]},
     {"claim": "near-verbatim supporting sub-claim", "targets": []}
-  ],
+  ]${_buildInterventionResponseField(pi)}${positionUpdateField}
+}`;
+}
+
+/**
+ * Lightweight post-Draft extraction: identify key assumptions from a debate statement.
+ * ~100 tokens. Deferred from Draft to reduce cognitive load during generation.
+ */
+export function assumptionsExtractionPrompt(statement: string): string {
+  return `Given this debate statement, identify 1-2 key assumptions the argument depends on and what changes if each assumption fails.
+
+=== STATEMENT ===
+${statement}
+
+Respond ONLY with a JSON object (no markdown, no code fences):
+{
   "key_assumptions": [
-    {"assumption": "a key assumption your argument depends on", "if_wrong": "what changes if this assumption fails"}
-  ],
-  "disagreement_type": "EMPIRICAL or VALUES or DEFINITIONAL (omit if not disagreeing)"${_buildInterventionResponseField(pi)}${positionUpdateField}
+    {"assumption": "the assumption", "if_wrong": "what changes if this assumption fails"}
+  ]
 }`;
 }
 
@@ -2056,18 +1980,9 @@ export function citeStagePrompt(
   let refsHistoryBlock = '';
   if (input.priorRefs && input.priorRefs.length > 0) {
     const recent = Array.from(new Set(input.priorRefs));
-    const uncited = input.availablePovNodeIds
-      ? input.availablePovNodeIds.filter(id => !recent.includes(id)).slice(0, 20)
-      : [];
-    const uncitedLine = uncited.length > 0
-      ? `\nNodes from your POV you have NOT yet cited (sample): ${uncited.join(', ')}.`
-      : '';
-    const crossPovLine = input.crossPovNodeIds && input.crossPovNodeIds.length > 0
-      ? `\nYou may also cite nodes from other POVs when engaging directly with their claims. Sample cross-POV nodes: ${input.crossPovNodeIds.slice(0, 8).join(', ')}.`
-      : '';
     refsHistoryBlock = `\n=== RECENT CITATIONS ===
-Recently cited: ${recent.join(', ')}.
-REQUIRED: At least 1-2 of this turn's taxonomy_refs must be node_ids NOT in that list.${uncitedLine}${crossPovLine}\n`;
+For context, these nodes were cited in recent turns: ${recent.join(', ')}.
+This does NOT mean you should avoid them — cite whatever the statement actually drew from.\n`;
   }
 
   const planContext = extractCitePlanContext(plan);
@@ -3520,7 +3435,7 @@ PERSONA: Senior policy journalist who briefs lawmakers. Direct, concrete, and pl
 MANDATE: Governance, regulatory friction, risk mitigation. Map arguments as competing policy choices with real-world trade-offs.
 SECTION MODIFICATIONS:
 - THE FRAMING: Lead with legislative or geopolitical vulnerabilities — what regulatory gap or governance failure is exposed? Include a DECISION CONTEXT paragraph that names the specific pending legislative, regulatory, or executive action this debate informs. If none exists, name the most analogous recent action.
-- THE COLLISION: Frame the three perspectives as competing regulatory philosophies and economic trade-offs. For each position, state explicitly: who benefits, who bears the cost, and which existing institution would enforce it.
+- THE COLLISION: Organize around contested policy questions — e.g., "Should deployment require pre-market approval?" — then weave each perspective's position into the argument. For each question, state explicitly: who benefits, who bears the cost, and which existing institution would enforce the outcome.
 - THE OUTCOME: Title this section "## Policy Lever Assessment". Identify 2-3 concrete regulatory levers with implementation hurdles for each. Every recommended policy lever must name: the specific actor who would pull it, the legal authority they would invoke, and the constituency that would support or oppose it.
 - CONCLUSION: Title this section "## Strategic Horizon". End with the trigger event that would force a policy decision.`,
 
@@ -3529,25 +3444,25 @@ PERSONA: Research Fellow at a premier policy institute. Analytically rigorous, c
 MANDATE: Deconstruct arguments, expose epistemological foundations, challenge axioms and circular logic.
 SECTION MODIFICATIONS:
 - THE FRAMING: Open with a formal thesis statement that frames the intellectual stakes.
-- THE COLLISION: Emphasize theoretical friction and competing analytical models. Name the scholarly traditions at play.
+- THE COLLISION: Organize around intellectual fault lines — e.g., "Is existential risk an empirical claim or a value judgment?" — then weave each perspective's theoretical commitments into the analysis. Name the scholarly traditions at play.
 - THE CRUX: Title this section "## Epistemological Divergence". Classify the core disagreement as ontological, methodological, or ethical.
 - THE OUTCOME: Title this section "## Paradigmatic Implications". Address impact on the research ecosystem, funding trajectories, and governance models.`,
 
-  technical_researchers: `TARGET AUDIENCE: Researchers, think-tank directors, peer-review essayists.
-PERSONA: Research Fellow at a premier policy institute. Analytically rigorous, conceptually precise.
-MANDATE: Deconstruct arguments, expose epistemological foundations, challenge axioms and circular logic.
+  technical_researchers: `TARGET AUDIENCE: ML engineers, AI safety researchers, systems architects.
+PERSONA: Senior technical correspondent. Precise about mechanisms, skeptical of hand-waving, comfortable with complexity.
+MANDATE: Surface the technical claims underneath policy positions — what specific capabilities, failure modes, or architectural choices drive each argument?
 SECTION MODIFICATIONS:
-- THE FRAMING: Open with a formal thesis statement that frames the intellectual stakes.
-- THE COLLISION: Emphasize theoretical friction and competing analytical models. Name the scholarly traditions at play.
-- THE CRUX: Title this section "## Epistemological Divergence". Classify the core disagreement as ontological, methodological, or ethical.
-- THE OUTCOME: Title this section "## Paradigmatic Implications". Address impact on the research ecosystem, funding trajectories, and governance models.`,
+- THE FRAMING: Open with the core technical question at stake — e.g., capability thresholds, alignment techniques, evaluation methodology.
+- THE COLLISION: Organize around contested technical claims — e.g., "Can RLHF reliably prevent deceptive alignment?" — then weave each perspective's evidence and assumptions into the analysis.
+- THE CRUX: Title this section "## Technical Crux". Identify the empirical question or engineering trade-off that, if resolved, would collapse the disagreement.
+- THE OUTCOME: Title this section "## Research Implications". Address benchmark gaps, reproducibility concerns, and open problems that the debate exposes.`,
 
   industry_leaders: `TARGET AUDIENCE: C-Suite executives, founders, VCs, tech strategists.
 PERSONA: Senior market strategist. Incisive, pragmatic, economically clinical.
 MANDATE: Market velocity, capital allocation, operational risk, competitive disruption.
 SECTION MODIFICATIONS:
 - THE FRAMING: Lead with commercial stakes — capital flows, talent dynamics, compute economics.
-- THE COLLISION: Frame the three camps as market forces: compliance costs, release cycles, buyer sentiment.
+- THE COLLISION: Organize around commercial tensions — e.g., "Does safety investment slow time-to-market or reduce liability?" — then weave each perspective's market logic into the analysis. Frame as competing business strategies, not competing camps.
 - THE CRUX: Title this section "## Market Friction Points". Identify the technical or economic dependency that creates the impasse.
 - THE OUTCOME: Title this section "## Commercial Trajectory & Risk". Address product roadmaps, liability surfaces, and investment horizons.
 - CONCLUSION: Title this section "## Executive Takeaway". End with the single market signal to track.`,
@@ -3557,9 +3472,97 @@ PERSONA: Master explanatory journalist. Engaging, lucid, propulsive, accessible.
 MANDATE: Democratize the debate, translate jargon into real-world analogies.
 SECTION MODIFICATIONS:
 - THE FRAMING: Open with a relatable vignette or historical parallel that grounds the stakes.
-- THE COLLISION: Use narrative storytelling pacing — build tension between the perspectives.
+- THE COLLISION: Use narrative storytelling pacing — build tension around the contested questions, weaving each perspective's stance into the story as it becomes relevant.
 - THE OUTCOME: Title this section "## What It Means For You". Focus on direct citizen impact — jobs, privacy, safety, fairness.`,
 };
+
+// ── Micro-fix prompts ────────────────────────────────────
+// Lightweight, targeted single-pass corrections before full retry.
+
+export function microFixAbstractClaims(
+  statement: string,
+  flaggedClaims: { claim: string; index: number }[],
+  evidenceBlock: string,
+  citationBankTop3: string,
+): string {
+  return `You are a specificity editor. Add concrete facts to abstract claims.
+
+=== STATEMENT TO FIX ===
+${statement}
+
+=== CLAIMS THAT NEED SPECIFICS (flagged as too abstract) ===
+${flaggedClaims.map((c, i) => `${i + 1}. "${c.claim}"`).join('\n')}
+
+=== FACTS YOU CAN CITE ===
+${evidenceBlock}
+
+${citationBankTop3}
+
+=== TASK ===
+Revise ONLY the flagged claims to include at least one concrete specific:
+- A number or percentage (e.g., "94% detection rate", "≥20%")
+- A named entity (e.g., "the EU AI Act", "OpenAI")
+- A date or timeline (e.g., "by 2028", "since 2024")
+
+RULES:
+- Keep the claim's meaning and direction unchanged
+- Leave ALL unflagged text exactly as-is — do not rephrase, restructure, or "improve" other sentences
+- If no relevant fact exists in the evidence above, narrow the claim's scope instead of inventing data
+- Return the COMPLETE statement with fixes applied
+
+Respond with JSON (no markdown fences):
+{
+  "revised_statement": "the full statement with specifics inserted into flagged claims only",
+  "changes": [
+    {"original": "the abstract claim text", "revised": "the claim with specifics added", "fact_source": "which evidence item provided the specific"}
+  ]
+}`;
+}
+
+export interface MicroFixResult {
+  revised_statement: string;
+  changes: { original: string; revised: string; fact_source: string }[];
+}
+
+export interface InterventionMicroFixResult {
+  [field: string]: unknown;
+}
+
+export function microFixInterventionResponse(
+  statement: string,
+  move: string,
+  responseField: string,
+  responseSchema: string,
+  directiveText: string,
+): string {
+  return `You are a compliance editor. A debater wrote a valid statement but omitted a required metadata field.
+
+=== DEBATER'S STATEMENT ===
+${statement}
+
+=== MODERATOR INTERVENTION ===
+Type: ${move}
+Directive: ${directiveText}
+
+=== MISSING FIELD ===
+The response must include a "${responseField}" field with this schema:
+${responseSchema}
+
+=== TASK ===
+Read the debater's statement and generate the missing "${responseField}" field.
+Extract the relevant information from what the debater actually wrote — their statement likely addresses the moderator's point even though the structured field was omitted.
+
+RULES:
+- Generate ONLY the value for "${responseField}" — do not modify the statement
+- Every sub-field in the schema must be present and non-empty
+- Use specific details from the statement, not generic placeholders
+- If the statement does not address the moderator's point at all, fill in based on the debater's overall position
+
+Respond with JSON (no markdown fences):
+{
+  "${responseField}": ${responseSchema}
+}`;
+}
 
 export function newsReportPrompt(
   topic: string,
@@ -3580,7 +3583,9 @@ export function newsReportPrompt(
 
   const audienceDelta = NEWS_REPORT_AUDIENCE_DELTAS[audience ?? 'general_public'];
 
-  return `You are a senior journalist who covers technology policy for a serious newspaper. You explain complex disagreements clearly and make readers care about the stakes. You never hide behind jargon. Your task is to transform a structured three-perspective debate into a clear, compelling overview article.
+  return `You are a senior journalist who covers technology policy for a serious newspaper. You explain complex disagreements clearly and make readers care about the stakes. You never hide behind jargon. Your task is to transform a multi-perspective policy debate into a clear, compelling issue-driven article.
+
+CRITICAL STRUCTURE RULE: Organize around ISSUES and CONTESTED QUESTIONS, not around speakers or perspectives. Each section should be a question or tension, with viewpoints woven in as they address it. NEVER structure as "The Accelerationist says... The Safetyist says... The Skeptic says..." — that is a book report, not journalism. Instead: "The question of X splits the field: [weave viewpoints into the argument]."
 
 === DEBATE TOPIC ===
 "${topic}"

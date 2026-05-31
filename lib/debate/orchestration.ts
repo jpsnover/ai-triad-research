@@ -946,7 +946,7 @@ export async function executeTurnWithRetry(
       const isCiteOnly = draftHints.length === 0;
       // Save diagnostics for frozen stages — the retry pipeline skips them,
       // so their entries would otherwise be lost from stage_diagnostics.
-      const frozenStageIds = new Set<string>(['brief', 'plan', 'evidence']);
+      const frozenStageIds = new Set<string>(['brief', 'plan', 'evidence', 'micro-fix']);
       if (isCiteOnly) frozenStageIds.add('draft');
       const carriedDiags = pipelineResult.stage_diagnostics.filter(
         s => frozenStageIds.has(s.stage),

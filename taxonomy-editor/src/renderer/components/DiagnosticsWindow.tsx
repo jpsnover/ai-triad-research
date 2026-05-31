@@ -249,7 +249,7 @@ function TurnValidationAttemptRow({ a }: { a: TurnAttempt }) {
           )}
           {(v.repairHints?.length ?? 0) > 0 && (
             <>
-              <div style={{ fontWeight: 600, marginTop: 4 }}>Repair hints</div>
+              <div style={{ fontWeight: 600, marginTop: 4 }}>Caveats</div>
               <ul style={{ margin: '2px 0 6px 16px', padding: 0 }}>
                 {v.repairHints.map((h, i) => {
                   const target = classifyHintTarget(h);
@@ -412,7 +412,7 @@ function TurnValidationSection({ trail: rawTrail }: { trail: TurnValidationTrail
       <ScoreBreakdown dims={f.dimensions!} processReward={f.process_reward ?? 0} judgeUsed={f.judge_used} />
       {f.repairHints.length > 0 && (
         <div style={{ fontSize: '0.75rem', marginBottom: 8 }}>
-          <strong>Final repair hints</strong>
+          <strong>Caveats (final)</strong>
           <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
             {f.repairHints.map((h, i) => {
               const target = classifyHintTarget(h);
@@ -2087,6 +2087,26 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
   );
 }
 
+type AgentUtilityLocal = {
+  position_strength: number;
+  attack_effectiveness: number;
+  crux_engagement: number;
+  composite: number;
+};
+
+type UtilitySnapshot = {
+  turn: number;
+  entryId: string;
+  speaker: string;
+  byAgent: Record<string, AgentUtilityLocal>;
+};
+
+const UTILITY_WEIGHTS: Record<string, { position: number; attack: number; crux: number }> = {
+  accelerationist: { position: 0.45, attack: 0.30, crux: 0.25 },
+  safetyist:       { position: 0.30, attack: 0.25, crux: 0.45 },
+  skeptic:         { position: 0.20, attack: 0.25, crux: 0.55 },
+};
+
 export function DiagnosticsWindow({ initialData }: { initialData?: Record<string, unknown> } = {}) {
   const [debate, setDebate] = useState<DebateSession | null>(() => {
     // If opened with initial data (e.g. from CLI file viewer), use it immediately
@@ -2106,7 +2126,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context' | 'prompt-diff';
+  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context' | 'prompt-diff' | 'utility';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
   // Detail pane now takes full height when an entry is selected (no resize needed).
@@ -2311,9 +2331,46 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       'adaptive': !!(debate as unknown as Record<string, unknown>).adaptive_staging_diagnostics,
       'pov-progression': true,
       'prompt-diff': true,
+      'utility': hasAn,
     };
     return tabVisibility[overviewTab] ? overviewTab : 'transcript';
   }, [overviewTab, debate, an, commitments]);
+
+  // ── Per-turn agent utility snapshots (mirrors calibrationLogger.computeAgentUtility) ──
+  const perTurnUtilities: UtilitySnapshot[] = useMemo(() => {
+    if (!an || an.nodes.length === 0 || !debate) return [];
+    const turnNumbers = [...new Set(an.nodes.map(n => n.turn_number))].sort((a, b) => a - b);
+    const speakers = [...new Set(an.nodes.filter(n => n.speaker !== 'system' && n.speaker !== 'document').map(n => n.speaker))];
+    const cruxes = debate.crux_tracker ?? [];
+
+    return turnNumbers.map(turn => {
+      const nodesUpTo = an.nodes.filter(n => n.turn_number <= turn);
+      const turnNode = an.nodes.find(n => n.turn_number === turn);
+
+      const byAgent: Record<string, AgentUtilityLocal> = {};
+      for (const speaker of speakers) {
+        const w = UTILITY_WEIGHTS[speaker] ?? { position: 0.33, attack: 0.34, crux: 0.33 };
+        const agentNodes = nodesUpTo.filter(n => n.speaker === speaker);
+        const undefeated = agentNodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) >= 0.3);
+        const position_strength = undefeated.length > 0
+          ? undefeated.reduce((s, n) => s + (n.computed_strength ?? n.base_strength ?? 0.5), 0) / undefeated.length : 0;
+        const opponentNodes = nodesUpTo.filter(n => n.speaker !== speaker && n.speaker !== 'system' && n.speaker !== 'document');
+        const attack_effectiveness = opponentNodes.length > 0
+          ? opponentNodes.filter(n => (n.computed_strength ?? n.base_strength ?? 0.5) < 0.3).length / opponentNodes.length : 0;
+        let crux_engagement = 0;
+        if (cruxes.length > 0) {
+          const addressed = cruxes.filter(c =>
+            c.speakers_involved.includes(speaker) ||
+            c.attacking_claim_ids.some(id => nodesUpTo.some(n => n.id === id && n.speaker === speaker)),
+          ).length;
+          crux_engagement = addressed / cruxes.length;
+        }
+        const composite = w.position * position_strength + w.attack * attack_effectiveness + w.crux * crux_engagement;
+        byAgent[speaker] = { position_strength, attack_effectiveness, crux_engagement, composite };
+      }
+      return { turn, entryId: turnNode?.source_entry_id ?? '', speaker: turnNode?.speaker ?? '', byAgent };
+    });
+  }, [an, debate]);
 
   const sq = searchQuery.trim();
 
@@ -2384,9 +2441,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff'];
+          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility'];
           const visible = OVERVIEW_TABS.filter(id => {
-            if (id === 'argument-network') return !!(an && an.nodes.length > 0);
+            if (id === 'argument-network' || id === 'utility') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
             if (id === 'convergence') return !!(debate.convergence_signals && debate.convergence_signals.length > 0);
             if (id === 'reflections') return debate.transcript.some(e => e.type === 'reflection');
@@ -2498,6 +2555,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'pov-progression', label: 'Perspective Progression', visible: true },
               { id: 'fr-context', label: 'Flight Recorder', visible: true },
               { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
+              { id: 'utility', label: 'Agent Utility', visible: hasAn },
             ];
             return (
               <div style={{
@@ -3457,17 +3515,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
-          {/* Prompt Diff — embedded in pane 2 */}
-          {effectiveOverviewTab === 'prompt-diff' && (
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
-              <PromptDiffContent
-                debate={debate}
-                focusedEntryId={selectedEntry ?? debate.transcript[0]?.id ?? ''}
-                embedded
-              />
-            </div>
-          )}
-
           {/* Transcript list for selection — hidden when an entry is selected (sidebar handles navigation) */}
           {effectiveOverviewTab === 'transcript' && !selectedEntry && (() => {
             const speakers = Array.from(new Set(debate.transcript.map(e => e.speaker)));
@@ -3559,10 +3606,91 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           })()}
           </>}
 
-          {/* Resize handle — no longer needed; transcript list hides when entry is selected */}
+          {/* Prompt Diff — rendered outside the selectedEntry guard so it works from transcript inline buttons too */}
+          {effectiveOverviewTab === 'prompt-diff' && (
+            <div style={{ flex: 1, minHeight: 0, minWidth: 0, overflow: 'hidden', display: 'flex' }}>
+              <PromptDiffContent
+                debate={debate}
+                focusedEntryId={selectedEntry ?? debate.transcript[0]?.id ?? ''}
+                embedded
+              />
+            </div>
+          )}
 
-          {/* Entry detail — shown when a transcript entry is selected */}
-          {selectedEntry && entry && (() => {
+          {/* Agent Utility — per-speaker composite with sparkline curves */}
+          {effectiveOverviewTab === 'utility' && (() => {
+            if (perTurnUtilities.length === 0) return <div style={{ padding: 16, color: 'var(--text-muted)' }}>No argument network data — utility requires at least one extracted claim.</div>;
+            const latest = perTurnUtilities[perTurnUtilities.length - 1];
+            const speakers = Object.keys(latest.byAgent);
+            const maxComposite = Math.max(...perTurnUtilities.flatMap(s => Object.values(s.byAgent).map(a => a.composite)), 0.01);
+            const speakerColors: Record<string, string> = { accelerationist: '#f97316', safetyist: '#3b82f6', skeptic: '#a855f7' };
+
+            const getTrend = (speaker: string): { icon: string; color: string; label: string } => {
+              if (perTurnUtilities.length < 2) return { icon: '—', color: 'var(--text-muted)', label: 'insufficient data' };
+              const vals = perTurnUtilities.map(s => s.byAgent[speaker]?.composite ?? 0);
+              const recent = vals.slice(-3);
+              const delta = recent[recent.length - 1] - recent[0];
+              if (delta > 0.03) return { icon: '\u2191', color: '#22c55e', label: `rising (+${delta.toFixed(3)})` };
+              if (delta < -0.03) return { icon: '\u2193', color: '#ef4444', label: `falling (${delta.toFixed(3)})` };
+              return { icon: '\u2192', color: '#f59e0b', label: `flat (${delta.toFixed(3)})` };
+            };
+
+            return (
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '8px 12px' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  Per-agent utility across {perTurnUtilities.length} turns. Composite = weighted sum of position strength, attack effectiveness, and crux engagement.
+                </div>
+
+                {/* Per-speaker summary cards */}
+                {speakers.map(speaker => {
+                  const u = latest.byAgent[speaker];
+                  const trend = getTrend(speaker);
+                  const color = speakerColors[speaker] ?? '#6b7280';
+                  const w = UTILITY_WEIGHTS[speaker];
+                  return (
+                    <div key={speaker} style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 6, background: 'var(--bg-primary)', borderLeft: `3px solid ${color}` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <strong style={{ fontSize: '0.8rem', color }}>{speakerLabel(speaker)}</strong>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{u.composite.toFixed(3)}</span>
+                        <span title={trend.label} style={{ fontSize: '0.85rem', fontWeight: 700, color: trend.color }}>{trend.icon}</span>
+                        {w && <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>weights: pos={w.position} atk={w.attack} crux={w.crux}</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 16, fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                        <span title="Mean computed_strength of undefeated nodes (>= 0.3)">pos: <strong>{u.position_strength.toFixed(3)}</strong></span>
+                        <span title="Fraction of opponent nodes weakened below 0.3">atk: <strong>{u.attack_effectiveness.toFixed(3)}</strong></span>
+                        <span title="Fraction of cruxes this agent has addressed">crux: <strong>{u.crux_engagement.toFixed(3)}</strong></span>
+                      </div>
+                      {/* Sparkline — composite utility over turns */}
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 32 }}>
+                        {perTurnUtilities.map((snap, i) => {
+                          const val = snap.byAgent[speaker]?.composite ?? 0;
+                          const pct = maxComposite > 0 ? (val / maxComposite) * 100 : 0;
+                          const isThisSpeaker = snap.speaker === speaker;
+                          return (
+                            <div
+                              key={i}
+                              title={`Turn ${snap.turn}: ${val.toFixed(3)}`}
+                              style={{
+                                flex: 1, minWidth: 3, maxWidth: 12,
+                                height: `${Math.max(pct, 4)}%`,
+                                background: isThisSpeaker ? color : `${color}40`,
+                                borderRadius: '2px 2px 0 0',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => { if (snap.entryId) { setSelectedEntry(snap.entryId); setLocalOverride(true); } }}
+                            />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+
+          {/* Entry detail — shown when a transcript entry is selected (hidden when prompt-diff/utility tabs are active) */}
+          {selectedEntry && entry && effectiveOverviewTab !== 'prompt-diff' && effectiveOverviewTab !== 'utility' && (() => {
             const entryIdx = debate.transcript.findIndex(e => e.id === entry.id);
             const totalEntries = debate.transcript.length;
             const stmtId = entryIdx >= 0 ? `S${entryIdx + 1}` : '';
@@ -3797,6 +3925,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const planAttempts = stages?.filter(s => s.stage === 'plan') ?? [];
             const draftAttempts = stages?.filter(s => s.stage === 'draft') ?? [];
             const citeAttempts = stages?.filter(s => s.stage === 'cite') ?? [];
+            const postDraftStage = stages?.find(s => s.stage === 'postDraft');
             const draftQualityStage = stages?.find(s => s.stage === 'draft_quality');
             const briefStage = briefAttempts.length > 0 ? briefAttempts[briefAttempts.length - 1] : undefined;
             const planStage = planAttempts.length > 0 ? planAttempts[planAttempts.length - 1] : undefined;
@@ -4278,6 +4407,55 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   )}
                   {activeTab === 'details' && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+                      {/* Per-turn utility delta for this speaker */}
+                      {(() => {
+                        const turnSnap = perTurnUtilities.find(s => s.entryId === entry.id);
+                        if (!turnSnap) return null;
+                        const snapIdx = perTurnUtilities.indexOf(turnSnap);
+                        const prevSnap = snapIdx > 0 ? perTurnUtilities[snapIdx - 1] : null;
+                        const curr = turnSnap.byAgent[entry.speaker];
+                        const prev = prevSnap?.byAgent[entry.speaker];
+                        if (!curr) return null;
+                        const delta = prev ? curr.composite - prev.composite : null;
+                        const deltaColor = delta === null ? 'var(--text-muted)' : delta > 0.01 ? '#22c55e' : delta < -0.01 ? '#ef4444' : '#f59e0b';
+                        const speakerColor: Record<string, string> = { accelerationist: '#f97316', safetyist: '#3b82f6', skeptic: '#a855f7' };
+                        const color = speakerColor[entry.speaker] ?? '#6b7280';
+                        const fmtDelta = (v: number | null, label: string, prevV?: number) => {
+                          if (v === null || v === undefined) return null;
+                          const d = prevV !== undefined ? v - prevV : null;
+                          const dStr = d !== null ? (d >= 0 ? `+${d.toFixed(3)}` : d.toFixed(3)) : '';
+                          const dColor = d !== null ? (d > 0.01 ? '#22c55e' : d < -0.01 ? '#ef4444' : 'var(--text-muted)') : 'var(--text-muted)';
+                          return (
+                            <span key={label} style={{ display: 'inline-flex', gap: 3, alignItems: 'baseline' }}>
+                              <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
+                              <strong>{v.toFixed(3)}</strong>
+                              {dStr && <span style={{ fontSize: '0.6rem', color: dColor }}>{dStr}</span>}
+                            </span>
+                          );
+                        };
+                        return (
+                          <div style={{
+                            marginBottom: 10, padding: '8px 10px', borderRadius: 5,
+                            background: `${color}08`, borderLeft: `3px solid ${color}`,
+                            fontSize: '0.72rem',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', color }}>Utility</span>
+                              <span style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{curr.composite.toFixed(3)}</span>
+                              {delta !== null && (
+                                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: deltaColor }}>
+                                  {delta >= 0 ? '+' : ''}{delta.toFixed(3)}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                              {fmtDelta(curr.position_strength, 'pos', prev?.position_strength)}
+                              {fmtDelta(curr.attack_effectiveness, 'atk', prev?.attack_effectiveness)}
+                              {fmtDelta(curr.crux_engagement, 'crux', prev?.crux_engagement)}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {precedingIntervention && (() => {
                         const intMeta = precedingIntervention.intervention_metadata as {
                           family?: string; move?: string; force?: string; target_debater?: string;
@@ -5338,6 +5516,159 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </div>
                         </details>
                       )}
+                      {/* Micro-Fix stages (abstract_claims + intervention_compliance) */}
+                      {(() => {
+                        const microFixStages = diag?.stage_diagnostics?.filter(s => s.stage === 'micro-fix') ?? [];
+                        if (microFixStages.length === 0) return null;
+                        return microFixStages.map((mf, mi) => {
+                          const wp = mf.work_product as Record<string, unknown> | undefined;
+                          const success = wp?.success as boolean | undefined;
+                          const fixType = wp?.type as string | undefined;
+                          const elapsed = mf.response_time_ms ?? 0;
+
+                          if (fixType === 'intervention_compliance') {
+                            const move = wp?.move as string | undefined;
+                            const field = wp?.field as string | undefined;
+                            const generated = wp?.generated_value as Record<string, unknown> | string | undefined;
+                            const recheck = wp?.recheck_result as { compliant?: boolean; repair_hint?: string } | undefined;
+                            const rejected = wp?.rejected_reason as string | undefined;
+                            return (
+                              <div key={mi} style={{
+                                margin: '6px 0', padding: '6px 8px',
+                                background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                                borderLeft: `3px solid ${success ? '#22c55e' : '#ef4444'}`,
+                                borderRadius: 4, fontSize: '0.68rem',
+                              }}>
+                                <div style={{ fontWeight: 600, color: success ? '#22c55e' : '#ef4444', marginBottom: 4 }}>
+                                  Micro-Fix: {move ?? 'Intervention'} Compliance ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheck && !recheck.compliant ? 'Re-validation failed' : 'Failed'}
+                                </div>
+                                {field && (
+                                  <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                                    Field: <code style={{ background: 'rgba(128,128,128,0.15)', padding: '1px 4px', borderRadius: 3 }}>{field}</code>
+                                  </div>
+                                )}
+                                {generated != null && (
+                                  <details style={{ fontSize: '0.62rem' }}>
+                                    <summary style={{ cursor: 'pointer', color: success ? '#22c55e' : '#ef4444' }}>
+                                      {success ? 'Generated value' : 'Attempted value'}
+                                    </summary>
+                                    <pre style={{ margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.6rem', maxHeight: 200, overflow: 'auto' }}>
+                                      {typeof generated === 'string' ? generated : JSON.stringify(generated, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                                {recheck?.repair_hint && !recheck.compliant && (
+                                  <div style={{ fontSize: '0.6rem', color: '#ef4444', marginTop: 4 }}>
+                                    {recheck.repair_hint}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          const diffPassed = wp?.diff_check_passed as boolean | undefined;
+                          const changes = wp?.changes as Array<{ original?: string; revised?: string }> | undefined;
+                          const rejected = wp?.rejected_reason as string | undefined;
+                          return (
+                            <div key={mi} style={{
+                              margin: '6px 0', padding: '6px 8px',
+                              background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                              borderLeft: `3px solid ${success ? '#22c55e' : '#ef4444'}`,
+                              borderRadius: 4, fontSize: '0.68rem',
+                            }}>
+                              <div style={{ fontWeight: 600, color: success ? '#22c55e' : '#ef4444', marginBottom: 4 }}>
+                                Micro-Fix: Abstract Claims ({elapsed}ms) — {success ? 'Applied' : diffPassed === false ? (rejected === 'hallucinated_changes' ? 'Rejected (hallucinated edits)' : 'Rejected (too many changes)') : 'Re-validation failed'}
+                              </div>
+                              {changes && changes.length > 0 && (
+                                <div style={{ fontSize: '0.65rem' }}>
+                                  {changes.map((c, ci) => (
+                                    <div key={ci} style={{ marginBottom: 6, padding: '3px 0', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
+                                      <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 2 }}>
+                                        {c.original ?? ''}
+                                      </div>
+                                      {c.revised && c.original !== c.revised && (
+                                        <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                          &rarr; {c.revised}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
+                      {/* Post-Draft Fixups (t/296/t/311) */}
+                      {postDraftStage && (() => {
+                        const wp = postDraftStage.work_product as Record<string, unknown> | undefined;
+                        if (!wp) return null;
+                        const autoSplit = wp.auto_split as boolean | undefined;
+                        const splitParas = wp.auto_split_paragraphs as number | undefined;
+                        const scrubbed = wp.citations_scrubbed as number | undefined;
+                        const linked = wp.links_added as number | undefined;
+                        const citWarn = wp.citation_warnings as number | undefined;
+                        const ignored = wp.ignored_evidence_docs as number | undefined;
+                        const hasAny = autoSplit || (scrubbed && scrubbed > 0) || (linked && linked > 0) || (citWarn && citWarn > 0);
+                        if (!hasAny) return null;
+                        return (
+                          <div style={{ margin: '6px 0', padding: '6px 8px', background: 'rgba(139,92,246,0.06)', borderLeft: '3px solid #8b5cf6', borderRadius: 4, fontSize: '0.68rem' }}>
+                            <div style={{ fontWeight: 600, color: '#8b5cf6', marginBottom: 4 }}>Post-Draft Fixups ({postDraftStage.response_time_ms}ms)</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {autoSplit && <div style={{ color: '#f59e0b' }}>&#9998; Auto-split → {splitParas} paragraphs</div>}
+                              {scrubbed != null && scrubbed > 0 && (
+                                <div>
+                                  <div style={{ color: '#ef4444' }}>&times; {scrubbed} citation(s) scrubbed</div>
+                                  {(() => {
+                                    const scrubbedList = wp.scrubbed_citations as string[] | undefined;
+                                    if (!scrubbedList || scrubbedList.length === 0) return null;
+                                    return (
+                                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                                        {scrubbedList.map((cit, ci) => (
+                                          <div key={ci} style={{ textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{cit}</div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                              {linked != null && linked > 0 && <div style={{ color: '#22c55e' }}>&#128279; Links added</div>}
+                              {citWarn != null && citWarn > 0 && (
+                                <div>
+                                  <div style={{ color: '#d97706' }}>&#9888; {citWarn} citation warning(s)</div>
+                                  {(() => {
+                                    const warnDetails = wp.citation_warning_details as string[] | undefined;
+                                    if (!warnDetails || warnDetails.length === 0) return null;
+                                    return (
+                                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.62rem', color: '#d97706' }}>
+                                        {warnDetails.map((w, wi) => (
+                                          <div key={wi} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{w}</div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                              {ignored != null && ignored > 0 && (
+                                <div>
+                                  <div style={{ color: 'var(--text-muted)' }}>{ignored} evidence doc(s) not cited</div>
+                                  {(() => {
+                                    const titles = wp.ignored_evidence_titles as string[] | undefined;
+                                    if (!titles || titles.length === 0) return null;
+                                    return (
+                                      <div style={{ marginLeft: 12, marginTop: 2, fontSize: '0.62rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                        {titles.map((t, ti) => (
+                                          <div key={ti}>{t}</div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {/* Vocabulary Disambiguation (t/212) */}
                       {(() => {
                         const entryMeta = entry.metadata as Record<string, unknown> | undefined;
@@ -5587,7 +5918,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                     </div>
                                     {allHints.length > 0 && (
                                       <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
-                                        <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2 }}>Repair Hints</div>
+                                        <div style={{ fontSize: '0.64rem', fontWeight: 600, marginBottom: 2 }}>Caveats</div>
                                         <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
                                           {allHints.map((h, hi) => {
                                             const target = classifyHintTarget(h);
@@ -5702,10 +6033,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                     {valData?.details && valData.details.length > 0 && (
                                       <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2, fontSize: '0.66rem' }}>
                                         {valData.details.map((d, di) => (
-                                          <div key={di} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <span style={{ color: d.pass ? '#16a34a' : '#dc2626', fontSize: '0.7rem' }}>{d.pass ? '✓' : '✗'}</span>
-                                            <span style={{ color: 'var(--text-primary)' }}>{d.rule}</span>
-                                            {d.value && <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.62rem' }}>{d.value}</span>}
+                                          <div key={di}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                              <span style={{ color: d.pass ? '#16a34a' : '#dc2626', fontSize: '0.7rem' }}>{d.pass ? '✓' : '✗'}</span>
+                                              <span style={{ color: 'var(--text-primary)' }}>{d.rule}</span>
+                                              {d.value && <span style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: '0.62rem' }}>{d.value}</span>}
+                                            </div>
+                                            {d.flagged_claims && d.flagged_claims.length > 0 && (
+                                              <div style={{ marginLeft: 20, marginTop: 2, fontSize: '0.6rem', color: '#dc2626' }}>
+                                                {d.flagged_claims.map((claim: string, ci: number) => (
+                                                  <div key={ci} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 1 }}>• {claim}</div>
+                                                ))}
+                                              </div>
+                                            )}
                                           </div>
                                         ))}
                                       </div>

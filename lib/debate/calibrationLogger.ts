@@ -316,6 +316,12 @@ export interface CalibrationDataPoint {
   /** Mean prompt chars across all pipeline stages in this debate */
   mean_prompt_chars: number | null;
 
+  // ── Grounding confidence (t/281) ──
+  /** Average grounding_confidence across all Cite stages in this debate. Null if no Cite data. */
+  avg_grounding_confidence: number | null;
+  /** Minimum grounding_confidence across all Cite stages in this debate. Null if no Cite data. */
+  min_grounding_confidence: number | null;
+
   // ── Per-component prompt breakdown (t/221) ──
   /** Maximum per-component char counts across all stages (null if no data). */
   max_component_chars: {
@@ -798,6 +804,18 @@ export function extractCalibrationData(
     meanPromptChars = Math.round(promptCharSamples.reduce((a, b) => a + b, 0) / promptCharSamples.length);
   }
 
+  // ── Grounding confidence (t/281) ──
+  const groundingConfidences: number[] = [];
+  for (const entryDiag3 of Object.values(diagEntries)) {
+    const stages3 = (entryDiag3 as { stage_diagnostics?: { stage: string; work_product: Record<string, unknown> }[] }).stage_diagnostics;
+    if (!stages3) continue;
+    for (const sd of stages3) {
+      if (sd.stage === 'cite' && typeof sd.work_product?.grounding_confidence === 'number') {
+        groundingConfidences.push(sd.work_product.grounding_confidence);
+      }
+    }
+  }
+
   // ── Per-component prompt breakdown (t/221) ──
   let maxComponentChars: CalibrationDataPoint['max_component_chars'] = null;
   for (const entryDiag2 of Object.values(diagEntries)) {
@@ -889,7 +907,7 @@ export function extractCalibrationData(
     situation_nodes_injected: sitNodesInjected,
     situation_nodes_referenced: sitNodesReferenced,
     situation_crux_alignment: sitCruxAlignment,
-    situation_max_nodes: config.situationMaxNodes ?? 15,
+    situation_max_nodes: config.situationMaxNodes ?? 8,
 
     agent_utilities: agentUtilities,
     low_value_claims_rejected: lowValueRejected,
@@ -1043,6 +1061,13 @@ export function extractCalibrationData(
     max_prompt_chars: maxPromptChars,
     mean_prompt_chars: meanPromptChars,
 
+    avg_grounding_confidence: groundingConfidences.length > 0
+      ? groundingConfidences.reduce((a, b) => a + b, 0) / groundingConfidences.length
+      : null,
+    min_grounding_confidence: groundingConfidences.length > 0
+      ? Math.min(...groundingConfidences)
+      : null,
+
     max_component_chars: maxComponentChars,
   };
 }
@@ -1175,7 +1200,7 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
     cohesion_clear_theme: 0.60,
     kp_divisor: 500,
     budget_hard_multiplier: weights?.budget?.hard_multiplier ?? 15,
-    situation_max_nodes: 15,
+    situation_max_nodes: 8,
   };
 }
 

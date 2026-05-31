@@ -23,7 +23,9 @@ export interface TieredCompressionInput {
   existingSummaries: ContextSummary[];
 }
 
-const RECENT_WINDOW = 8;
+const DEFAULT_RECENT_WINDOW = 8;
+const AGGRESSIVE_RECENT_WINDOW = 5;
+const AGGRESSIVE_AFTER_ENTRIES = 30;
 const MEDIUM_WINDOW = 16;
 
 export function buildMediumTierSummary(
@@ -217,14 +219,19 @@ export function buildTieredContext(input: TieredCompressionInput): {
   const filtered = input.transcript.filter(e => e.type !== 'system');
   const total = filtered.length;
 
-  if (total <= RECENT_WINDOW) {
+  // Dynamic recent window: shrink after ~round 10 to reduce verbatim bulk
+  const recentWindow = total > AGGRESSIVE_AFTER_ENTRIES
+    ? AGGRESSIVE_RECENT_WINDOW
+    : DEFAULT_RECENT_WINDOW;
+
+  if (total <= recentWindow) {
     return { distantSummary: null, mediumSummary: null, mediumEntryIds: [], distantEntryIds: [] };
   }
 
-  const recentStart = total - RECENT_WINDOW;
+  const recentStart = total - recentWindow;
 
   // Medium tier: entries from recentStart - MEDIUM_WINDOW to recentStart
-  const mediumStart = Math.max(0, recentStart - (MEDIUM_WINDOW - RECENT_WINDOW));
+  const mediumStart = Math.max(0, recentStart - (MEDIUM_WINDOW - recentWindow));
   const mediumEntries = filtered.slice(mediumStart, recentStart);
 
   let mediumSummary: string | null = null;
@@ -281,9 +288,12 @@ export function formatTieredTranscript(
     parts.push(`[Earlier debate summary]: ${latest.summary}`);
   }
 
-  // Recent tier: full text of last 8 entries
+  // Recent tier: full text of last N entries (dynamic window)
   const filtered = transcript.filter(e => e.type !== 'system');
-  const recent = filtered.slice(-RECENT_WINDOW);
+  const recentWindow = filtered.length > AGGRESSIVE_AFTER_ENTRIES
+    ? AGGRESSIVE_RECENT_WINDOW
+    : DEFAULT_RECENT_WINDOW;
+  const recent = filtered.slice(-recentWindow);
   for (const e of recent) {
     const label = e.speaker === 'user' ? 'Moderator'
       : e.speaker === 'system' ? 'System'

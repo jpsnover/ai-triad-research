@@ -166,14 +166,36 @@ export function parseAtMention(input: string): { targets: SpeakerId[]; cleanedIn
   return { targets, cleanedInput: remaining };
 }
 
+/** Options for aggressive transcript compression after late-debate turns. */
+export interface TranscriptCompressionOpts {
+  /** Non-system entry count after which aggressive compression activates. Default: 30 (~round 10). */
+  aggressiveAfterEntries?: number;
+  /** Verbatim window when aggressive mode is active. Default: 5. */
+  aggressiveVerbatimWindow?: number;
+  /** Hard character cap on the formatted transcript block. Default: 8000 when aggressive. */
+  maxChars?: number;
+}
+
 /** Format recent transcript entries for inclusion in prompts.
- *  When context summaries exist, prepends the latest summary for compressed history. */
+ *  When context summaries exist, prepends the latest summary for compressed history.
+ *  After ~round 10 (30 non-system entries), automatically reduces the verbatim window
+ *  from 8 to 5 and caps total output at ~8K chars. Only applies for standard windows
+ *  (maxEntries ≤ 8); synthesis and calibration callers passing larger windows are unaffected. */
 export function formatRecentTranscript(
   transcript: TranscriptEntry[],
   maxEntries: number = 8,
   contextSummaries?: { up_to_entry_id: string; summary: string; tier?: string }[],
+  compressionOpts?: TranscriptCompressionOpts,
 ): string {
-  const recent = transcript.slice(-(maxEntries * 2)).filter((e) => e.type !== 'system').slice(-maxEntries);
+  // Aggressive compression for standard windows after ~round 10
+  const nonSystemCount = transcript.filter(e => e.type !== 'system').length;
+  const aggressiveThreshold = compressionOpts?.aggressiveAfterEntries ?? 30;
+  const isAggressive = maxEntries <= 8 && nonSystemCount > aggressiveThreshold;
+  const effectiveMax = isAggressive
+    ? (compressionOpts?.aggressiveVerbatimWindow ?? 5)
+    : maxEntries;
+
+  const recent = transcript.slice(-(effectiveMax * 2)).filter((e) => e.type !== 'system').slice(-effectiveMax);
   if (recent.length === 0) return '(No prior exchanges)';
 
   const parts: string[] = [];
@@ -198,16 +220,67 @@ export function formatRecentTranscript(
     }
   }
 
-  for (const e of recent) {
+  const recentRefThreshold = 3; // annotate the last N entries with metadata insights
+
+  for (let idx = 0; idx < recent.length; idx++) {
+    const e = recent[idx];
     const label = e.speaker === 'user' ? 'Moderator'
       : e.speaker === 'system' ? 'System'
       : POVER_INFO[e.speaker as Exclude<SpeakerId, 'user'>]?.label || e.speaker;
     const typeTag = e.type === 'question' ? ' [question]' : e.type === 'opening' ? ' [opening]' : '';
     const contentStr = typeof e.content === 'string' ? e.content : JSON.stringify(e.content);
-    parts.push(`${label}${typeTag}: ${contentStr}`);
+    let entryText = `${label}${typeTag}: ${contentStr}`;
+
+    // Surface key_assumptions as potential attack vectors for opponents
+    // The Brief naturally uses other speakers' assumptions offensively and own assumptions defensively
+    const assumptions = (e.metadata as Record<string, unknown>)?.key_assumptions as
+      { assumption: string; if_wrong: string }[] | undefined;
+    if (idx >= recent.length - recentRefThreshold && assumptions?.length) {
+      const topAssumptions = assumptions.slice(0, 2);
+      entryText += '\n' + topAssumptions.map(a =>
+        `  [Assumes: "${a.assumption}" — if wrong: ${a.if_wrong}]`,
+      ).join('\n');
+    }
+
+    // For the most recent entries, surface anticipated_responses from the Plan stage
+    // so the Brief can assess whether prior strategic predictions were accurate
+    const priorAnticipated = (e.metadata as Record<string, unknown>)?.anticipated_responses as string[] | undefined;
+    if (idx < recent.length - 1 && priorAnticipated?.length) {
+      const nextEntry = recent[idx + 1];
+      const nextContent = typeof nextEntry.content === 'string' ? nextEntry.content : '';
+      const nextLabel = nextEntry.speaker === 'user' ? 'Moderator'
+        : POVER_INFO[nextEntry.speaker as Exclude<SpeakerId, 'user'>]?.label || nextEntry.speaker;
+      entryText += `\n  [Predicted: ${priorAnticipated.slice(0, 2).join('; ')}]`;
+      if (nextContent) {
+        entryText += `\n  [Actual (${nextLabel}): see next entry — assess prediction accuracy]`;
+      }
+    }
+
+    // For the most recent entries, append top taxonomy ref relevance explanations
+    // so the next turn's Brief can reason about WHY prior turns cited specific nodes
+    if (idx >= recent.length - recentRefThreshold && e.taxonomy_refs?.length) {
+      const topRefs = [...e.taxonomy_refs]
+        .filter(r => r.relevance && r.relevance.length > 10)
+        .sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))
+        .slice(0, 2);
+      if (topRefs.length > 0) {
+        entryText += '\n' + topRefs.map(r =>
+          `  → ${r.node_id}${r.label ? ` (${r.label})` : ''}: ${r.relevance}`,
+        ).join('\n');
+      }
+    }
+
+    parts.push(entryText);
   }
 
-  return parts.join('\n\n');
+  const result = parts.join('\n\n');
+
+  // Apply character cap — preserve recent entries (tail), truncate summaries (head)
+  const maxChars = compressionOpts?.maxChars ?? (isAggressive ? 8000 : undefined);
+  if (maxChars && result.length > maxChars) {
+    return '[... earlier context truncated]\n\n' + result.slice(-(maxChars - 40));
+  }
+  return result;
 }
 
 /** Structured dialectical move annotation */

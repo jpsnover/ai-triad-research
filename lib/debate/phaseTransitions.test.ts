@@ -36,7 +36,7 @@ function makeConfig(overrides: Partial<PhaseTransitionConfig> = {}): PhaseTransi
     maxTotalRounds: 12,
     pacing: 'moderate',
     dialecticalStyle: 'deliberative',
-    argumentationExitThreshold: 0.65,
+    argumentationExitThreshold: 0.72,
     concludingExitThreshold: 0.70,
     allowEarlyTermination: true,
     ...overrides,
@@ -49,7 +49,7 @@ function makePhaseState(overrides: Partial<PhaseState> = {}): PhaseState {
     rounds_in_phase: 7,  // past min_argumentation_rounds (2 × 3 speakers = 6)
     total_rounds_elapsed: 10,
     regression_count: 0,
-    argumentation_exit_threshold: 0.65,
+    argumentation_exit_threshold: 0.72,
     concluding_exit_threshold: 0.70,
     prior_crux_clusters: [],
     veto_history: [],
@@ -102,7 +102,7 @@ function makeSignalContext(overrides: Partial<SignalContext> = {}): SignalContex
       cruxResolution: [],
       priorCruxClusters: [],
       regressionCount: 0,
-      argumentationExitThreshold: 0.65,
+      argumentationExitThreshold: 0.72,
       concludingExitThreshold: 0.70,
     },
     extraction: {
@@ -631,7 +631,7 @@ describe('evaluatePhaseTransition', () => {
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          argumentationExitThreshold: 0.65,
+          argumentationExitThreshold: 0.72,
           concludingExitThreshold: 0.70,
         },
       });
@@ -648,7 +648,7 @@ describe('evaluatePhaseTransition', () => {
   describe('confrontation phase', () => {
     it('stays during cold start (below min rounds)', () => {
       const state = makePhaseState({ current_phase: 'confrontation', rounds_in_phase: 1 });
-      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
+      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.72, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('stay');
@@ -662,7 +662,7 @@ describe('evaluatePhaseTransition', () => {
         current_phase: 'confrontation',
         rounds_in_phase: w.phase_bounds.max_confrontation_rounds * speakers,
       });
-      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
+      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: true, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.72, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('transition');
@@ -677,7 +677,7 @@ describe('evaluatePhaseTransition', () => {
         current_phase: 'confrontation',
         rounds_in_phase: w.phase_bounds.min_confrontation_rounds * speakers,
       });
-      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: false, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.65, concludingExitThreshold: 0.70 } });
+      const ctx = makeSignalContext({ phase: { current: 'confrontation', allPovsResponded: false, cruxNodes: [], cruxResolution: [], priorCruxClusters: [], regressionCount: 0, argumentationExitThreshold: 0.72, concludingExitThreshold: 0.70 } });
       const config = makeConfig();
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('stay');
@@ -699,7 +699,7 @@ describe('evaluatePhaseTransition', () => {
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          argumentationExitThreshold: 0.65,
+          argumentationExitThreshold: 0.72,
           concludingExitThreshold: 0.70,
         },
       });
@@ -826,7 +826,7 @@ describe('evaluatePhaseTransition', () => {
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          argumentationExitThreshold: 0.65,
+          argumentationExitThreshold: 0.72,
           concludingExitThreshold: 0.70,
         },
       });
@@ -851,7 +851,7 @@ describe('evaluatePhaseTransition', () => {
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: 0,
-          argumentationExitThreshold: 0.65,
+          argumentationExitThreshold: 0.72,
           concludingExitThreshold: 0.70,
         },
       });
@@ -882,7 +882,7 @@ describe('evaluatePhaseTransition', () => {
           cruxResolution: [],
           priorCruxClusters: [], // not in prior clusters
           regressionCount: 0,
-          argumentationExitThreshold: 0.65,
+          argumentationExitThreshold: 0.72,
           concludingExitThreshold: 0.70,
         },
         transcript: {
@@ -930,7 +930,7 @@ describe('evaluatePhaseTransition', () => {
           cruxResolution: [],
           priorCruxClusters: [],
           regressionCount: w.phase_bounds.max_regressions,
-          argumentationExitThreshold: 0.65,
+          argumentationExitThreshold: 0.72,
           concludingExitThreshold: 0.70,
         },
         transcript: {
@@ -1028,7 +1028,7 @@ describe('applyTransition', () => {
 
   it('regression increments regression_count and ratchets threshold', () => {
     const w = loadProvisionalWeights();
-    const state = makePhaseState({ regression_count: 0, argumentation_exit_threshold: 0.65 });
+    const state = makePhaseState({ regression_count: 0, argumentation_exit_threshold: 0.72 });
     const result: PredicateResult = {
       action: 'regress', new_phase: 'argumentation', reason: 'Novel crux',
       veto_active: false, force_active: false, confidence_deferred: false, components: { novel_cruxes: 0 },
@@ -1036,7 +1036,7 @@ describe('applyTransition', () => {
     const next = applyTransition(state, result);
     expect(next.current_phase).toBe('argumentation');
     expect(next.regression_count).toBe(1);
-    expect(next.argumentation_exit_threshold).toBeCloseTo(0.65 + w.phase_bounds.regression_ratchet);
+    expect(next.argumentation_exit_threshold).toBeCloseTo(0.72 + w.phase_bounds.regression_ratchet);
     expect(next.rounds_in_phase).toBe(0);
   });
 
@@ -1123,7 +1123,7 @@ describe('buildPhaseContext', () => {
     const state = makePhaseState({
       current_phase: 'argumentation',
       rounds_in_phase: w.phase_bounds.max_argumentation_rounds - 1,
-      argumentation_exit_threshold: 0.65,
+      argumentation_exit_threshold: 0.72,
     });
     const config = makeConfig();
     const pc = buildPhaseContext(state, config, 0.60, 0);
@@ -1202,7 +1202,7 @@ describe('buildSignalTelemetry', () => {
         cruxResolution: [],
         priorCruxClusters: [],
         regressionCount: 0,
-        argumentationExitThreshold: 0.65,
+        argumentationExitThreshold: 0.72,
         concludingExitThreshold: 0.70,
       },
     });
@@ -1280,7 +1280,7 @@ describe('lifecycle integration', () => {
       current_phase: 'concluding',
       rounds_in_phase: 2,
       regression_count: 0,
-      argumentation_exit_threshold: 0.65,
+      argumentation_exit_threshold: 0.72,
     });
 
     const regressResult: PredicateResult = {
@@ -1291,12 +1291,12 @@ describe('lifecycle integration', () => {
     state = applyTransition(state, regressResult);
     expect(state.current_phase).toBe('argumentation');
     expect(state.regression_count).toBe(1);
-    expect(state.argumentation_exit_threshold).toBeCloseTo(0.65 + w.phase_bounds.regression_ratchet);
+    expect(state.argumentation_exit_threshold).toBeCloseTo(0.72 + w.phase_bounds.regression_ratchet);
 
     // Second regression ratchets further
     state = { ...state, current_phase: 'concluding', rounds_in_phase: 2 };
     state = applyTransition(state, regressResult);
     expect(state.regression_count).toBe(2);
-    expect(state.argumentation_exit_threshold).toBeCloseTo(0.65 + 2 * w.phase_bounds.regression_ratchet);
+    expect(state.argumentation_exit_threshold).toBeCloseTo(0.72 + 2 * w.phase_bounds.regression_ratchet);
   });
 });

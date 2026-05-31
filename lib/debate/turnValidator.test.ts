@@ -337,10 +337,10 @@ describe('Stage A Rule 5: relevance text quality', () => {
 // ── Stage A: Rule 6 — paragraph count ───────────────────
 
 describe('Stage A Rule 6: paragraph count', () => {
-  it('errors on single-paragraph statement', async () => {
+  it('does not error on single-paragraph statement (handled by postDraft auto-split)', async () => {
     const p = makeParams({ statement: 'A single paragraph without any double newlines.' });
     const r = await validateTurn(p);
-    expect(r.repairHints.some(h => h.includes('single paragraph'))).toBe(true);
+    expect(r.repairHints.some(h => h.includes('single paragraph'))).toBe(false);
   });
 
   it('warns on 2-paragraph statement', async () => {
@@ -1575,5 +1575,83 @@ describe('parseDraftQualityResult', () => {
     expect(result.grounded).toBe(false);
     expect(result.falsifiable).toBe(false);
     expect(result.engages).toBe(false);
+  });
+});
+
+// ── classifyHintKey ─────────────────────────────────────────
+
+import { classifyHintKey } from './turnValidator.js';
+
+describe('classifyHintKey', () => {
+  it('classifies claim specificity hints', () => {
+    expect(classifyHintKey('my_claims are all abstract — include a number')).toBe('claim_specificity');
+    expect(classifyHintKey('my_claims is empty — add at least one claim')).toBe('claim_specificity');
+  });
+
+  it('classifies hedge density hints', () => {
+    expect(classifyHintKey('Hedge density 42% exceeds 30% threshold')).toBe('hedge_density');
+  });
+
+  it('classifies move repetition hints', () => {
+    expect(classifyHintKey('move_types repeat your previous turn exactly (DISTINGUISH)')).toBe('move_repetition');
+  });
+
+  it('classifies constructive move hints', () => {
+    expect(classifyHintKey('No constructive move found — include at least one of: CONCEDE-AND-PIVOT, INTEGRATE, EXTEND, SPECIFY.')).toBe('constructive_move');
+  });
+
+  it('classifies paragraph count hints', () => {
+    expect(classifyHintKey('Statement has 2 paragraphs — target 3–5.')).toBe('paragraph_count');
+  });
+
+  it('classifies duplication hints', () => {
+    expect(classifyHintKey('Statement contains verbatim repeated text — your response appears to duplicate itself.')).toBe('duplication');
+  });
+
+  it('returns other for unrecognized hints', () => {
+    expect(classifyHintKey('Some random judge weakness about argument quality')).toBe('other');
+  });
+});
+
+// ── suppressedHints in validateDraftStage ────────────────────
+
+describe('validateDraftStage suppressedHints', () => {
+  it('suppresses claim_specificity hints when in suppressedHints set', () => {
+    const result = validateDraftStage({
+      statement: makeParagraphs(3),
+      meta: { my_claims: [{ claim: 'abstract claim without specifics', targets: [] }] } as PoverResponseMeta,
+      phase: 'argumentation' as DebatePhase,
+      round: 5,
+      priorTurns: [],
+      suppressedHints: new Set(['claim_specificity']),
+    });
+    // The hint would normally be an error at round 5, but should be suppressed
+    expect(result.repairHints.some(h => h.includes('my_claims'))).toBe(false);
+    expect(result.errorHints.some(h => h.includes('my_claims'))).toBe(false);
+  });
+
+  it('does not suppress hints not in the set', () => {
+    const result = validateDraftStage({
+      statement: makeParagraphs(3),
+      meta: { my_claims: [{ claim: 'abstract claim without specifics', targets: [] }] } as PoverResponseMeta,
+      phase: 'argumentation' as DebatePhase,
+      round: 5,
+      priorTurns: [],
+      suppressedHints: new Set(['hedge_density']), // different key
+    });
+    // claim_specificity is NOT suppressed — should still appear
+    expect(result.repairHints.some(h => h.includes('my_claims'))).toBe(true);
+  });
+
+  it('passes validation when only suppressed hints would have failed', () => {
+    const result = validateDraftStage({
+      statement: makeParagraphs(3),
+      meta: { my_claims: [{ claim: 'abstract claim without specifics', targets: [] }] } as PoverResponseMeta,
+      phase: 'argumentation' as DebatePhase,
+      round: 5,
+      priorTurns: [],
+      suppressedHints: new Set(['claim_specificity']),
+    });
+    expect(result.pass).toBe(true);
   });
 });

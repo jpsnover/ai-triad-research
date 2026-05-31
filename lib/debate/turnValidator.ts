@@ -367,12 +367,11 @@ function runStageA(p: ValidateTurnParams): StageAResult {
     groundingIssues.push(msg);
   }
 
-  // Rule 6: paragraph count 3–5 (single-paragraph is error; other deviations are warning)
+  // Rule 6: paragraph count 3–5
+  // Single-paragraph is handled by postDraft deterministic auto-split (t/311) — no retry needed.
+  // Only warn on 2 or >5 paragraphs (non-triggering observation).
   const paragraphs = statement.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
-  if (paragraphs.length === 1) {
-    const msg = 'Statement is a single paragraph — split into 3–5 double-newline-separated blocks.';
-    errors.push(msg);
-  } else if (paragraphs.length === 2 || paragraphs.length > 5) {
+  if (paragraphs.length === 2 || paragraphs.length > 5) {
     const msg = `Statement has ${paragraphs.length} paragraphs — target 3–5 double-newline-separated blocks.`;
     warnings.push(msg);
   }
@@ -413,14 +412,14 @@ function runStageA(p: ValidateTurnParams): StageAResult {
   if (round >= 3) {
     const claims = meta.my_claims ?? [];
     const specific = claims.some(c =>
-      /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/.test(c.claim),
+      /\d|[A-Z][a-z]+\s[A-Z][a-z]+|[A-Z]{2,}|within|by\s\d{4}|percent|%|per year|Act\b|Treaty\b|Directive\b|Section\s/.test(c.claim),
     );
     const target = round >= 4 ? errors : warnings;
     if (claims.length === 0) {
-      const msg = 'my_claims is empty — add at least one claim with a number, timeline, or named entity.';
+      const msg = 'my_claims is empty — add at least one claim with a concrete number, percentage, named institution or person, or timeline (e.g. "94% of cases", "European Commission", "by 2028"). Use the source evidence facts if provided.';
       target.push(msg);
     } else if (!specific) {
-      const msg = 'my_claims are all abstract — include a number, named entity, or timeline (e.g. "by 2028", "within 12 months", "≥20%").';
+      const msg = 'my_claims are all abstract — each claim needs at least one of: a number/percentage, a named entity (institution, person, regulation), or a timeline/date. Use the source evidence provided in the prompt — cite the specific statistics and findings rather than paraphrasing vaguely.';
       target.push(msg);
     } else {
       advancementSignals.push('specific_claim');
@@ -1048,6 +1047,7 @@ export interface StageValidationDetail {
   rule: string;
   pass: boolean;
   value?: string;
+  flagged_claims?: string[];
 }
 
 export interface StageValidationResult {
@@ -1063,6 +1063,30 @@ export interface StageValidationResult {
   directive_compliance?: DirectiveComplianceResult;
 }
 
+// ── Hint key classification ─────────────────────────────────
+// Maps free-text repair hints to stable slugs for streak tracking.
+
+const HINT_KEY_PATTERNS: [RegExp, string][] = [
+  [/my_claims.*(empty|abstract)|claim specificity/i, 'claim_specificity'],
+  [/hedge density/i, 'hedge_density'],
+  [/move_types repeat/i, 'move_repetition'],
+  [/constructive move|CONCEDE-AND-PIVOT.*INTEGRATE.*EXTEND/i, 'constructive_move'],
+  [/paragraph/i, 'paragraph_count'],
+  [/duplication|duplicat/i, 'duplication'],
+  [/Unknown move_types/i, 'unknown_move'],
+  [/disagreement_type/i, 'disagreement_type'],
+  [/intervention compliance/i, 'intervention_compliance'],
+  [/directive content/i, 'directive_compliance'],
+];
+
+/** Classify a repair hint string into a stable slug for streak tracking. */
+export function classifyHintKey(hint: string): string {
+  for (const [re, key] of HINT_KEY_PATTERNS) {
+    if (re.test(hint)) return key;
+  }
+  return 'other';
+}
+
 /**
  * Validate the draft stage output. Checks statement content, moves, claims,
  * intervention compliance, and structural rules (Rules 1,2,6,8,9,10,11,12).
@@ -1075,8 +1099,11 @@ export function validateDraftStage(p: {
   priorTurns: readonly TranscriptEntry[];
   audience?: DebateAudience;
   pendingIntervention?: import('./types').ModeratorIntervention;
+  /** Hint keys suppressed due to repeated failures — skip from errors/warnings. */
+  suppressedHints?: ReadonlySet<string>;
 }): StageValidationResult {
   const errors: string[] = [];
+  const suppressed: string[] = [];
   const warnings: string[] = [];
   const details: StageValidationDetail[] = [];
   const { statement, meta, phase, round, priorTurns, audience } = p;
@@ -1106,12 +1133,11 @@ export function validateDraftStage(p: {
   }
 
   // Rule 6: paragraph count
+  // Single-paragraph is handled by postDraft deterministic auto-split (t/311) — no retry needed.
   const paragraphs = statement.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
   const paraPass = paragraphs.length >= 3 && paragraphs.length <= 5;
   details.push({ rule: 'paragraph count 3–5', pass: paraPass, value: `${paragraphs.length}` });
-  if (paragraphs.length === 1) {
-    errors.push('Statement is a single paragraph — split into 3–5 double-newline-separated blocks.');
-  } else if (paragraphs.length === 2 || paragraphs.length > 5) {
+  if (paragraphs.length === 2 || paragraphs.length > 5) {
     warnings.push(`Statement has ${paragraphs.length} paragraphs — target 3–5.`);
   }
 
@@ -1136,18 +1162,19 @@ export function validateDraftStage(p: {
   if (round >= 3) {
     const claims = meta.my_claims ?? [];
     const specific = claims.some(c =>
-      /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/.test(c.claim),
+      /\d|[A-Z][a-z]+\s[A-Z][a-z]+|[A-Z]{2,}|within|by\s\d{4}|percent|%|per year|Act\b|Treaty\b|Directive\b|Section\s/.test(c.claim),
     );
     // Pass = has claims AND (specific OR not yet round 4). But mark as warning if abstract.
     const claimPass = claims.length > 0 && specific;
     const claimWarn = claims.length > 0 && !specific && round < 4;
-    details.push({ rule: 'claim specificity', pass: claimPass || claimWarn, value: `${claims.length} claims${specific ? ', has specifics' : ', abstract only'}${claimWarn ? ' (warn)' : ''}` });
+    const abstractClaims = specific ? [] : claims.map(c => c.claim);
+    details.push({ rule: 'claim specificity', pass: claimPass || claimWarn, value: `${claims.length} claims${specific ? ', has specifics' : ', abstract only'}${claimWarn ? ' (warn)' : ''}`, flagged_claims: abstractClaims.length > 0 ? abstractClaims : undefined });
     if (claims.length === 0) {
-      errors.push('my_claims is empty — add at least one claim with a number, timeline, or named entity.');
+      errors.push('my_claims is empty — add at least one claim with a concrete number, percentage, named institution or person, or timeline. Use the source evidence facts if provided.');
     } else if (!specific && round >= 4) {
-      errors.push('my_claims are all abstract — include a number, named entity, or timeline (e.g. "by 2028", "within 12 months", "≥20%").');
+      errors.push('my_claims are all abstract — each claim needs at least one of: a number/percentage, a named entity (institution, person, regulation), or a timeline/date. Use the source evidence provided — cite specific statistics and findings.');
     } else if (!specific) {
-      warnings.push('my_claims are all abstract — include a number, named entity, or timeline.');
+      warnings.push('my_claims are all abstract — include a number, named entity, or timeline. Use the source evidence if provided.');
     }
   }
 
@@ -1208,12 +1235,26 @@ export function validateDraftStage(p: {
     }
   }
 
+  // Filter out suppressed hints — they still appear in `details` for transparency
+  // but are excluded from repair/error hints so they don't trigger retries.
+  const isSuppressed = (hint: string) => p.suppressedHints?.has(classifyHintKey(hint)) ?? false;
+  const activeErrors = errors.filter(h => !isSuppressed(h));
+  const activeWarnings = warnings.filter(h => !isSuppressed(h));
+  const suppressedCount = (errors.length - activeErrors.length) + (warnings.length - activeWarnings.length);
+  if (suppressedCount > 0) {
+    getGlobalRecorder()?.record({
+      type: 'turn.hint-filtered', component: 'turnValidator', level: 'info',
+      message: `${suppressedCount} hint(s) suppressed due to repeated failures`,
+      data: { suppressed_keys: [...(p.suppressedHints ?? [])], original_errors: errors.length, original_warnings: warnings.length },
+    });
+  }
+
   const draftResult = {
-    pass: errors.length === 0,
-    repairHints: [...errors, ...warnings],
-    errorHints: errors,
+    pass: activeErrors.length === 0,
+    repairHints: [...activeErrors, ...activeWarnings],
+    errorHints: activeErrors,
     details,
-    failedDimension: errors.length > 0
+    failedDimension: activeErrors.length > 0
       ? (directiveResult && !directiveResult.compliant ? 'directive' : 'schema')
       : undefined as 'schema' | 'grounding' | 'plan' | 'directive' | undefined,
     directive_compliance: directiveResult,

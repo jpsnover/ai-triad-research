@@ -391,8 +391,8 @@ describe('crossRespondPrompt', () => {
       ['acc-beliefs-001', 'acc-desires-001'],
       ['acc-beliefs-002', 'acc-desires-003', 'acc-intentions-001'],
     );
-    expectContains(result, 'YOUR RECENT CITATIONS', 'acc-beliefs-001');
-    expectContains(result, 'NOT yet cited');
+    expectContains(result, 'RECENT CITATIONS', 'acc-beliefs-001');
+    expectContains(result, 'actually drew from');
   });
 
   it('includes phase instructions for concluding', () => {
@@ -459,7 +459,7 @@ describe('4-stage opening pipeline', () => {
     it('returns a non-empty string with output schema', () => {
       const result = draftOpeningStagePrompt(input, '{"brief": "test"}', '{"plan": "test"}');
       expectNonEmpty(result);
-      expectContains(result, '"statement"', '"claim_sketches"', '"key_assumptions"', '"turn_symbols"');
+      expectContains(result, '"statement"', '"claim_sketches"', '"turn_symbols"');
     });
 
     it('includes document instructions when document analysis is present', () => {
@@ -581,7 +581,7 @@ describe('4-stage turn pipeline', () => {
         '{}',
         'draft',
       );
-      expectContains(result, 'RECENT CITATIONS', 'acc-beliefs-001', 'NOT yet cited');
+      expectContains(result, 'RECENT CITATIONS', 'acc-beliefs-001', 'actually drew from');
     });
   });
 });

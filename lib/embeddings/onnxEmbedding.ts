@@ -287,8 +287,12 @@ async function ensureModelFiles(): Promise<string> {
 // ── Initialization ────────────────────────────────────
 
 async function init(): Promise<void> {
-  // Load onnxruntime-node dynamically (it's a native module)
+  // Load onnxruntime-node dynamically (it's a native module).
+  // Use createRequire because native addons don't have ESM entry points,
+  // and this file compiles as ESM (module: nodenext).
   try {
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
     _ort = require('onnxruntime-node') as OrtModule;
   } catch (err) {
     throw new Error(

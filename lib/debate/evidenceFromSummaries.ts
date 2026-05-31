@@ -77,6 +77,10 @@ export interface DiverseEvidenceConfig {
   temporalBonus: number;
   /** One-time bonus for the first disputing fact. Default 0.30. */
   disputeBonus: number;
+  /** Penalty for docs that were provided as evidence but not cited in the prior turn. Default -0.10. */
+  ignoredPenalty: number;
+  /** Doc IDs that were provided as evidence but not cited last turn. */
+  ignoredDocIds?: Set<string>;
 }
 
 const DEFAULT_DIVERSE_CONFIG: DiverseEvidenceConfig = {
@@ -84,6 +88,7 @@ const DEFAULT_DIVERSE_CONFIG: DiverseEvidenceConfig = {
   sourceBonus: 0.20,
   temporalBonus: 0.10,
   disputeBonus: 0.30,
+  ignoredPenalty: -0.10,
 };
 
 // ── Evidence retrieval ────────────────────────────────────
@@ -198,6 +203,7 @@ function diverseGreedySelect(
     const year = extractYear(fact.temporal_bound);
     if (year && !usedYears.has(year)) bonus += config.temporalBonus;
     if (fact.doc_position === 'disputes' && !hasDispute) bonus += config.disputeBonus;
+    if (config.ignoredDocIds?.has(fact.doc_id)) bonus += config.ignoredPenalty;
 
     const baseScore = SPECIFICITY_WEIGHT[fact.specificity] ?? 0.1;
     scored.push({ fact, adjustedScore: baseScore + bonus });
@@ -228,6 +234,7 @@ function diverseGreedySelect(
       const yr = extractYear(entry.fact.temporal_bound);
       if (yr && !usedYears.has(yr)) bonus += config.temporalBonus;
       if (entry.fact.doc_position === 'disputes' && !hasDispute) bonus += config.disputeBonus;
+      if (config.ignoredDocIds?.has(entry.fact.doc_id)) bonus += config.ignoredPenalty;
       entry.adjustedScore = (SPECIFICITY_WEIGHT[entry.fact.specificity] ?? 0.1) + bonus;
     }
   }
@@ -353,7 +360,7 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], d
   if (facts.length === 0 && keyPoints.length === 0) return '';
 
   const lines: string[] = ['=== AVAILABLE SOURCE EVIDENCE ==='];
-  lines.push('Cite 1-2 of these in your statement. Reference the source by its title. Do NOT list-cite all — weave the strongest into your argument.');
+  lines.push('Use these facts to ground your claims with specific numbers, named entities, and timelines. Reference the source by its title. Weave the strongest 1-2 into your argument — do not list-cite all.');
   lines.push('');
 
   if (facts.length > 0) {
@@ -361,9 +368,11 @@ function formatEvidenceBrief(facts: SourceFact[], keyPoints: SourceKeyPoint[], d
     for (let i = 0; i < facts.length; i++) {
       const f = facts[i];
       const temporal = f.temporal_bound ? ` (${f.temporal_bound})` : '';
+      const stance = f.doc_position ? ` [${f.doc_position}]` : '';
+      const node = f.label ? ` → ${f.label}` : '';
       const meta = resolveMeta(f.doc_id, docTitles);
       lines.push(`  [${i + 1}] "${f.claim}"`);
-      lines.push(`      — ${formatSourceAttribution(meta)}${temporal}`);
+      lines.push(`      — ${formatSourceAttribution(meta)}${temporal}${stance}${node}`);
     }
     lines.push('');
   }

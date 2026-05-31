@@ -740,6 +740,16 @@ export interface HintEffectiveness {
   score_delta?: number;
 }
 
+/** Per-hint failure streak for hopeless hint suppression. */
+export interface HintStreak {
+  hint_key: string;
+  consecutive_failures: number;
+  suppressed: boolean;
+}
+
+/** Suppression threshold: suppress a hint after this many consecutive turn-level failures. */
+export const HINT_SUPPRESSION_THRESHOLD = 5;
+
 export interface TurnAttempt {
   attempt: number;
   model: string;
@@ -994,7 +1004,7 @@ export interface EntryDiagnostics {
 
 // ── Turn pipeline types ──────────────────────────────
 
-export type TurnStageId = 'brief' | 'plan' | 'draft' | 'draft_quality' | 'evidence' | 'cite';
+export type TurnStageId = 'brief' | 'plan' | 'draft' | 'postDraft' | 'draft_quality' | 'evidence' | 'cite' | 'micro-fix';
 
 export interface TurnStageConfig {
   brief_temperature?: number;
@@ -1119,6 +1129,8 @@ export interface TurnPipelineResult {
   cite: CiteWorkProduct;
   /** Evidence block injected into the DRAFT prompt. Returned so orchestration can freeze it on retry. */
   evidenceBlock?: string;
+  /** Doc IDs from evidence that were supplied but not cited — penalised next turn. */
+  ignoredEvidenceDocIds?: string[];
   stage_diagnostics: StageDiagnostics[];
   total_time_ms: number;
 }

@@ -2,6 +2,7 @@
   "name": "taxonomy-editor",
   "version": "0.8.0",
   "private": true,
+  "type": "module",
   "description": "Visual editor for AI Triad Research taxonomy JSON files",
   "homepage": "https://github.com/jpsnover/ai-triad-research",
   "author": {

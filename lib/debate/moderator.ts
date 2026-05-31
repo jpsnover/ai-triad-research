@@ -112,7 +112,7 @@ interface MoveResponseConfig {
   schema: string;
 }
 
-const MOVE_RESPONSE_CONFIG: Record<InterventionMove, MoveResponseConfig> = {
+export const MOVE_RESPONSE_CONFIG: Record<InterventionMove, MoveResponseConfig> = {
   PIN: {
     field: 'pin_response',
     hardCompliance: true,
@@ -694,7 +694,7 @@ export function buildIntervention(
 
 // ── BRIEF injection for debater ────────────────────────
 
-const DIRECT_RESPONSE_PATTERNS: Record<InterventionMove, string> = {
+export const DIRECT_RESPONSE_PATTERNS: Record<InterventionMove, string> = {
   PIN: 'Your first paragraph MUST begin with "I agree that [restate the specific claim]" OR "I disagree that [restate the specific claim]" OR "I conditionally agree: [specific aspect you accept], but [specific aspect you reject]." Follow with ONE sentence of reasoning. Then a paragraph break before your substantive argument.',
   PROBE: 'Your first paragraph MUST begin with "The evidence is [type]: [specific citation or data point]." Follow with ONE sentence connecting the evidence to the claim. Then a paragraph break before your substantive argument.',
   CHALLENGE: 'Your first paragraph MUST begin with "My position has evolved: I now hold [X] instead of [Y] because [Z]" OR "My position is consistent: [X] and [Y] are compatible because [Z]" OR "I concede [what you concede] because [reason]." Then a paragraph break before your substantive argument.',
@@ -986,4 +986,4 @@ export function shouldFirePolicyChallenge(
 
 // ── Exports ────────────────────────────────────────────
 
-export { ALL_MOVES, DEFAULT_PRIORITY, MOVE_RESPONSE_CONFIG, DIRECT_RESPONSE_PATTERNS, SLI_FLOORS, HEALTH_WEIGHTS };
+export { ALL_MOVES, DEFAULT_PRIORITY, SLI_FLOORS, HEALTH_WEIGHTS };

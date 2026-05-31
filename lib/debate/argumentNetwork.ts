@@ -16,6 +16,7 @@ import { detectAmbiguityCollapse, findSourcePassage } from './ambiguityDetector.
 import { fuzzyCorrectNodeId } from './nodeIdUtils.js';
 import { disambiguateTerms } from './vocabularyDisambiguation.js';
 import type { CampOrigin } from '../dictionary/types.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const SUPPORT_SCHEMES = Object.entries(MOVE_EDGE_MAP)
   .filter(([, v]) => v.edgeType === 'support')
@@ -1192,12 +1193,28 @@ export function processExtractedClaims(
         if (SUPPORT_MOVES.has(normalized) || SUPPORT_MOVES.has(normalized.replace(/-/g, ' '))) {
           const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
           // Only count as concession if supporting an OPPONENT's claim
-          if (targetNode && targetNode.speaker !== speaker && !commitments.conceded.includes(targetNode.text)) commitments.conceded.push(targetNode.text);
+          if (targetNode && targetNode.speaker !== speaker && !commitments.conceded.includes(targetNode.text)) {
+            commitments.conceded.push(targetNode.text);
+            getGlobalRecorder()?.record({
+              type: 'an.commitment_update', component: 'argumentNetwork', level: 'info',
+              speaker,
+              message: `Commitment: conceded "${targetNode.text.slice(0, 80)}"`,
+              data: { type: 'conceded', claim_text: targetNode.text, target_node_id: rel.prior_claim_id, trigger_scheme: rel.scheme, target_speaker: targetNode.speaker },
+            });
+          }
         }
       }
       if (rel.relationship === 'attacks') {
         const targetNode = allNodes.find(n => n.id === rel.prior_claim_id);
-        if (targetNode && !commitments.challenged.includes(targetNode.text)) commitments.challenged.push(targetNode.text);
+        if (targetNode && !commitments.challenged.includes(targetNode.text)) {
+          commitments.challenged.push(targetNode.text);
+          getGlobalRecorder()?.record({
+            type: 'an.commitment_update', component: 'argumentNetwork', level: 'info',
+            speaker,
+            message: `Commitment: challenged "${targetNode.text.slice(0, 80)}"`,
+            data: { type: 'challenged', claim_text: targetNode.text, target_node_id: rel.prior_claim_id, trigger_scheme: rel.scheme, target_speaker: targetNode.speaker },
+          });
+        }
       }
     }
   }

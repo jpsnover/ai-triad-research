@@ -23,7 +23,7 @@ import type { DocumentAnalysis } from './types.js';
 import { POVER_INFO } from './types.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
-import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName } from './turnValidator.js';
+import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName, classifyHintKey } from './turnValidator.js';
 import type { DraftQualityCheckOutput } from './turnValidator.js';
 import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
 import type { GenerateOptions } from './aiAdapter.js';
@@ -39,7 +39,12 @@ import {
   planOpeningStagePrompt,
   draftOpeningStagePrompt,
   citeOpeningStagePrompt,
+  assumptionsExtractionPrompt,
+  microFixAbstractClaims,
+  microFixInterventionResponse,
 } from './prompts.js';
+import type { MicroFixResult, InterventionMicroFixResult } from './prompts.js';
+import { checkInterventionCompliance, MOVE_RESPONSE_CONFIG } from './moderator.js';
 import type { StagePromptInput, OpeningStagePromptInput } from './prompts.js';
 import type { GenerateRequest, GenerateResponse } from './cacheTypes.js';
 import { flattenEnvelope } from './cacheTypes.js';
@@ -184,6 +189,10 @@ export interface TurnPipelineInput {
   avoidClaims?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
   /** Concession claims to preserve — injected into Plan stage as claims to keep. */
   preserveConcessions?: { text: string; reason: string }[];
+  /** Doc IDs from prior turn's evidence that were not cited — deprioritized in next retrieval. */
+  ignoredEvidenceDocIds?: string[];
+  /** Hint keys suppressed due to repeated cross-turn failures — excluded from validation errors/warnings. */
+  suppressedHints?: ReadonlySet<string>;
 }
 
 export type StageGenerateFn = (
@@ -547,6 +556,7 @@ export async function runTurnPipeline(
   let draftJson = '';
   let evidenceBlock = '';
   const evidenceDocIds = new Set<string>();
+  const ignoredEvidenceDocIds: string[] = [];
 
   if (input.frozenDraft) {
     draft = input.frozenDraft;
@@ -571,11 +581,30 @@ export async function runTurnPipeline(
         3, // max facts
         2, // max key points
         input.docTitles,
+        input.ignoredEvidenceDocIds?.length
+          ? { ignoredDocIds: new Set(input.ignoredEvidenceDocIds) }
+          : undefined,
       );
       // Collect doc IDs for scoped citation bank
       for (const f of evidenceBrief.facts) evidenceDocIds.add(f.doc_id);
       for (const kp of evidenceBrief.keyPoints) evidenceDocIds.add(kp.doc_id);
       console.log(`[pipeline] EVIDENCE retrieved: ${evidenceBrief.facts.length} facts, ${evidenceBrief.keyPoints.length} keyPoints, block=${evidenceBrief.formattedBlock.length} chars`);
+      getGlobalRecorder()?.record({
+        type: 'turn.evidence', component: 'turnPipeline', level: 'info',
+        speaker: input.label,
+        message: `Evidence: ${evidenceBrief.facts.length} facts, ${evidenceBrief.keyPoints.length} keyPoints`,
+        data: {
+          facts_count: evidenceBrief.facts.length,
+          keypoints_count: evidenceBrief.keyPoints.length,
+          candidate_pool: evidenceBrief.totalCandidates,
+          ...(evidenceBrief.diversity ? {
+            dedup_removed: evidenceBrief.diversity.dedup_removed,
+            source_diversity: evidenceBrief.diversity.source_diversity,
+            has_dispute: evidenceBrief.diversity.has_dispute,
+            temporal_range: evidenceBrief.diversity.temporal_range,
+          } : {}),
+        },
+      });
       if (evidenceBrief.formattedBlock) {
         evidenceBlock = '\n\n' + evidenceBrief.formattedBlock;
         stageDiags.push({
@@ -649,6 +678,12 @@ export async function runTurnPipeline(
       if (scopedBank.length > 0) {
         citationBankBlock = '\n\n' + formatCitationBank(scopedBank);
         console.log(`[pipeline] Citation bank built: ${scopedBank.length} scoped / ${citationBank.length} full entries, path=${citationPathUsed} (intended=${citationPathIntended}), ${citationBankBuildTime}ms`);
+        getGlobalRecorder()?.record({
+          type: 'turn.citation_bank', component: 'turnPipeline', level: 'info',
+          speaker: input.label,
+          message: `Citation bank: ${scopedBank.length} scoped / ${citationBank.length} full`,
+          data: { scoped_entries: scopedBank.length, full_entries: citationBank.length, tokens_saved_est: Math.round((citationBank.length - scopedBank.length) * 25) },
+        });
       }
     } catch (err) {
       console.warn(`[pipeline] Citation bank build failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
@@ -686,11 +721,11 @@ export async function runTurnPipeline(
 
     if (envelopeGenerate) {
       const env = draftStageEnvelope(stageInput, briefJson, planJson);
-      // Inject repair block first (corrections from prior attempt)
+      // Inject repair block in primacy position (after identity/MUST, before SITUATION BRIEF)
       if (repairBlock) {
         env.layer4_variable = env.layer4_variable.replace(
-          /Respond ONLY with a JSON/,
-          `${repairBlock}\nRespond ONLY with a JSON`,
+          /=== SITUATION BRIEF ===/,
+          `${repairBlock}\n\n=== SITUATION BRIEF ===`,
         );
         if (!env.layer4_variable.includes('CORRECTIONS REQUIRED') && !env.layer4_variable.includes('MANDATORY CORRECTION')) {
           env.layer4_variable += repairBlock;
@@ -723,11 +758,11 @@ export async function runTurnPipeline(
       draftUsage = resp.usage;
     } else {
       draftPromptText = draftStagePrompt(stageInput, briefJson, planJson);
-      // Inject repair block first
+      // Inject repair block in primacy position (after identity/MUST, before SITUATION BRIEF)
       if (repairBlock) {
         draftPromptText = draftPromptText.replace(
-          /Respond ONLY with a JSON/,
-          `${repairBlock}\nRespond ONLY with a JSON`,
+          /=== SITUATION BRIEF ===/,
+          `${repairBlock}\n\n=== SITUATION BRIEF ===`,
         );
         if (!draftPromptText.includes('CORRECTIONS REQUIRED') && !draftPromptText.includes('MANDATORY CORRECTION')) {
           draftPromptText += repairBlock;
@@ -757,6 +792,24 @@ export async function runTurnPipeline(
       draftRaw = await generate(draftPromptText, input.model, { temperature: temps.draft_temperature }, `${input.label} draft`);
     }
     elapsed = Date.now() - t0;
+    // Record prompt size for diagnostics
+    getGlobalRecorder()?.record({
+      type: 'turn.prompt_size', component: 'turnPipeline', level: 'info',
+      speaker: input.label,
+      message: `Draft prompt: ${draftPromptText.length} chars`,
+      data: {
+        stage: 'draft',
+        total_chars: draftPromptText.length,
+        tokens_est: Math.round(draftPromptText.length / 4),
+        components: {
+          taxonomy: stageInput.taxonomyContext?.length ?? 0,
+          transcript: stageInput.recentTranscript?.length ?? 0,
+          evidence: evidenceBlock.length,
+          hints: repairBlock?.length ?? 0,
+          citation_bank: citationBankBlock.length,
+        },
+      },
+    });
     const priorDraft = draft; // save before reassign for field-level merge
     const draftParsed = parseStageResponse<DraftWorkProduct>(draftRaw, 'draft');
 
@@ -826,6 +879,7 @@ export async function runTurnPipeline(
         priorTurns: (input as Record<string, unknown>).priorTurns as import('./types.js').TranscriptEntry[] ?? [],
         audience: stageInput.audience,
         pendingIntervention: stageInput.pendingIntervention as import('./types.js').ModeratorIntervention | undefined,
+        suppressedHints: input.suppressedHints,
       });
       // Record validation result on the stage diagnostic
       const lastDiag = stageDiags[stageDiags.length - 1];
@@ -845,15 +899,270 @@ export async function runTurnPipeline(
         ? draftVal.repairHints.length > 0
         : draftVal.errorHints.length > 0;
       if (draftShouldRetry && draftAttempt < maxDraftRetries) {
+        // ── Micro-fix pass: try targeted fix before full retry ──
+        if (draft?.statement && draft?.claim_sketches) {
+          const claimSpecHints = (draftVal.repairHints ?? []).filter(
+            h => classifyHintKey(h) === 'claim_specificity',
+          );
+          if (claimSpecHints.length > 0) {
+            const SPECIFICITY_RE = /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/;
+            const flaggedClaims = draft.claim_sketches
+              .map((cs, i) => ({ claim: typeof cs === 'string' ? cs : cs.claim, index: i }))
+              .filter(c => !SPECIFICITY_RE.test(c.claim));
+
+            if (flaggedClaims.length > 0) {
+              const microFixT0 = Date.now();
+              let microFixPromptText = '';
+              let microFixRaw = '';
+              try {
+                microFixPromptText = microFixAbstractClaims(
+                  draft.statement,
+                  flaggedClaims,
+                  evidenceBlock,
+                  citationBankBlock?.slice(0, 500) ?? '',
+                );
+                microFixRaw = await generate(
+                  microFixPromptText, input.model,
+                  { temperature: 0.3 },
+                  `${input.label} micro-fix(specificity)`,
+                );
+                const microFixResult = parseJsonRobust(microFixRaw) as MicroFixResult | undefined;
+                const microFixElapsed = Date.now() - microFixT0;
+
+                // Helper to push a proper stage diagnostic for the micro-fix
+                const pushMicroFixDiag = (success: boolean, workProduct: Record<string, unknown>) => {
+                  stageDiags.push({
+                    stage: 'micro-fix',
+                    prompt: microFixPromptText,
+                    raw_response: microFixRaw,
+                    model: input.model,
+                    temperature: 0.3,
+                    response_time_ms: microFixElapsed,
+                    work_product: workProduct,
+                  });
+                };
+
+                if (microFixResult?.revised_statement) {
+                  // Reject hallucinated edits: LLM reports changes but original === revised
+                  const hasRealChange = microFixResult.changes?.some(
+                    c => c.original !== c.revised,
+                  ) ?? false;
+                  if (!hasRealChange) {
+                    pushMicroFixDiag(false, {
+                      type: 'abstract_claims', success: false,
+                      diff_check_passed: false, rejected_reason: 'hallucinated_changes',
+                      changes: microFixResult.changes ?? [],
+                    });
+                    console.log(`[pipeline] Micro-fix(specificity) rejected — all reported changes are identical (hallucinated edits)`);
+                  } else if (validateMicroFix(draft.statement, microFixResult.revised_statement, flaggedClaims.length)) {
+                    // Patch the statement in place
+                    const originalStatement = draft.statement;
+                    draft.statement = microFixResult.revised_statement;
+
+                    // Re-validate specificity on the revised statement text (not
+                    // claim_sketches, which the micro-fixer doesn't update).
+                    // Split into sentences and check that at least one per paragraph
+                    // contains a concrete specific.
+                    const revisedParagraphs = microFixResult.revised_statement.split(/\n\n+/).filter(Boolean);
+                    const recheckSpecific = revisedParagraphs.every(para =>
+                      para.split(/(?<=[.!?])\s+/).some(s => SPECIFICITY_RE.test(s)),
+                    );
+
+                    pushMicroFixDiag(recheckSpecific, {
+                      type: 'abstract_claims', success: recheckSpecific,
+                      diff_check_passed: true,
+                      changes: microFixResult.changes ?? [],
+                      revised_statement: microFixResult.revised_statement,
+                    });
+
+                    if (recheckSpecific) {
+                      // Micro-fix succeeded — skip full retry
+                      getGlobalRecorder()?.record({
+                        type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+                        speaker: input.label,
+                        message: `Micro-fix(specificity) succeeded: ${microFixResult.changes?.length ?? 0} change(s)`,
+                        data: { target: 'specificity', success: true, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: true, elapsed_ms: microFixElapsed },
+                      });
+                      console.log(`[pipeline] Micro-fix(specificity) succeeded in ${microFixElapsed}ms — skipping full retry`);
+                      break; // exit the draft retry loop
+                    } else {
+                      // Re-validation failed — revert and fall through to full retry
+                      draft.statement = originalStatement;
+                      getGlobalRecorder()?.record({
+                        type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+                        speaker: input.label,
+                        message: `Micro-fix(specificity) re-validation failed — falling through to full retry`,
+                        data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, elapsed_ms: microFixElapsed },
+                      });
+                      console.log(`[pipeline] Micro-fix(specificity) re-validation failed — falling through to full retry`);
+                    }
+                  } else {
+                    // Diff-check failed
+                    pushMicroFixDiag(false, {
+                      type: 'abstract_claims', success: false,
+                      diff_check_passed: false,
+                      changes: microFixResult.changes ?? [],
+                    });
+                    getGlobalRecorder()?.record({
+                      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+                      speaker: input.label,
+                      message: `Micro-fix(specificity) diff-check failed — too many sentence changes`,
+                      data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, diff_check_failed: true },
+                    });
+                    console.log(`[pipeline] Micro-fix(specificity) diff-check failed — falling through to full retry`);
+                  }
+                }
+              } catch (err) {
+                // Micro-fix LLM call failed — fall through to full retry
+                stageDiags.push({
+                  stage: 'micro-fix',
+                  prompt: microFixPromptText,
+                  raw_response: microFixRaw,
+                  model: input.model,
+                  temperature: 0.3,
+                  response_time_ms: Date.now() - microFixT0,
+                  work_product: {
+                    type: 'abstract_claims', success: false,
+                    error: err instanceof Error ? err.message : String(err),
+                  },
+                });
+                console.warn(`[pipeline] Micro-fix(specificity) failed: ${err instanceof Error ? err.message : err}`);
+              }
+            }
+          }
+        }
+        // ── End micro-fix pass ──
+
+        // ── Micro-fix pass: intervention compliance ──
+        // When the LLM writes a valid statement but omits the required moderator
+        // response field, generate only the missing field instead of a full retry.
+        const interventionHints = (draftVal.repairHints ?? []).filter(
+          h => classifyHintKey(h) === 'intervention_compliance',
+        );
+        const pi = stageInput.pendingIntervention;
+        if (interventionHints.length > 0 && pi?.isTargeted && draft?.statement) {
+          const moveConfig = MOVE_RESPONSE_CONFIG[pi.move as keyof typeof MOVE_RESPONSE_CONFIG];
+          if (moveConfig?.field && !(draft as Record<string, unknown>)[moveConfig.field]) {
+            const intFixT0 = Date.now();
+            let intFixPromptText = '';
+            let intFixRaw = '';
+            try {
+              intFixPromptText = microFixInterventionResponse(
+                draft.statement,
+                pi.move,
+                moveConfig.field,
+                moveConfig.schema,
+                pi.directResponsePattern ?? `The moderator issued a ${pi.move} intervention directed at you.`,
+              );
+              intFixRaw = await generate(
+                intFixPromptText, input.model,
+                { temperature: 0.2 },
+                `${input.label} micro-fix(intervention)`,
+              );
+              const intFixResult = parseJsonRobust(intFixRaw) as InterventionMicroFixResult | undefined;
+              const intFixElapsed = Date.now() - intFixT0;
+              const fieldValue = intFixResult?.[moveConfig.field];
+
+              const pushIntFixDiag = (success: boolean, workProduct: Record<string, unknown>) => {
+                stageDiags.push({
+                  stage: 'micro-fix',
+                  prompt: intFixPromptText,
+                  raw_response: intFixRaw,
+                  model: input.model,
+                  temperature: 0.2,
+                  response_time_ms: intFixElapsed,
+                  work_product: workProduct,
+                });
+              };
+
+              if (fieldValue != null) {
+                (draft as Record<string, unknown>)[moveConfig.field] = fieldValue;
+                const recheckMeta = extractDraftMeta(draft);
+                const recheckCompliance = checkInterventionCompliance(
+                  pi.move as Parameters<typeof checkInterventionCompliance>[0],
+                  recheckMeta as Record<string, unknown>,
+                );
+
+                pushIntFixDiag(recheckCompliance.compliant, {
+                  type: 'intervention_compliance',
+                  move: pi.move,
+                  field: moveConfig.field,
+                  success: recheckCompliance.compliant,
+                  generated_value: fieldValue,
+                  recheck_result: recheckCompliance,
+                });
+
+                if (recheckCompliance.compliant) {
+                  const remainingErrors = (draftVal.errorHints ?? []).filter(
+                    h => classifyHintKey(h) !== 'intervention_compliance',
+                  );
+                  getGlobalRecorder()?.record({
+                    type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+                    speaker: input.label,
+                    message: `Micro-fix(intervention) succeeded: generated ${moveConfig.field}`,
+                    data: { target: 'intervention_compliance', move: pi.move, field: moveConfig.field, success: true, remaining_errors: remainingErrors.length, elapsed_ms: intFixElapsed },
+                  });
+                  console.log(`[pipeline] Micro-fix(intervention) succeeded in ${intFixElapsed}ms — patched ${moveConfig.field}`);
+                  if (remainingErrors.length === 0) {
+                    break;
+                  }
+                  // Other errors remain — filter intervention hints from validation
+                  // so the full retry focuses on the actual remaining issues.
+                  draftVal.repairHints = draftVal.repairHints.filter(
+                    h => classifyHintKey(h) !== 'intervention_compliance',
+                  );
+                  draftVal.errorHints = draftVal.errorHints.filter(
+                    h => classifyHintKey(h) !== 'intervention_compliance',
+                  );
+                } else {
+                  delete (draft as Record<string, unknown>)[moveConfig.field];
+                  getGlobalRecorder()?.record({
+                    type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+                    speaker: input.label,
+                    message: `Micro-fix(intervention) re-validation failed — falling through to full retry`,
+                    data: { target: 'intervention_compliance', move: pi.move, field: moveConfig.field, success: false, recheck: recheckCompliance, elapsed_ms: intFixElapsed },
+                  });
+                  console.log(`[pipeline] Micro-fix(intervention) re-validation failed — falling through to full retry`);
+                }
+              } else {
+                pushIntFixDiag(false, {
+                  type: 'intervention_compliance',
+                  move: pi.move,
+                  field: moveConfig.field,
+                  success: false,
+                  rejected_reason: 'missing_field_in_response',
+                });
+                console.log(`[pipeline] Micro-fix(intervention) returned no ${moveConfig.field} — falling through to full retry`);
+              }
+            } catch (err) {
+              stageDiags.push({
+                stage: 'micro-fix',
+                prompt: intFixPromptText,
+                raw_response: intFixRaw,
+                model: input.model,
+                temperature: 0.2,
+                response_time_ms: Date.now() - intFixT0,
+                work_product: {
+                  type: 'intervention_compliance', success: false,
+                  error: err instanceof Error ? err.message : String(err),
+                },
+              });
+              console.warn(`[pipeline] Micro-fix(intervention) failed: ${err instanceof Error ? err.message : err}`);
+            }
+          }
+        }
+        // ── End intervention micro-fix pass ──
+
         draftRepairHints = draftAttempt === 0 ? draftVal.repairHints : draftVal.errorHints;
-        const lastDraftDiag = stageDiags[stageDiags.length - 1];
+        // Find the actual draft diagnostic (skip any micro-fix entries that were pushed after it)
+        const lastDraftDiag = [...stageDiags].reverse().find(s => s.stage === 'draft') ?? stageDiags[stageDiags.length - 1];
         (lastDraftDiag as Record<string, unknown>).validation_failed = true;
         (lastDraftDiag as Record<string, unknown>).validation_errors = [...draftRepairHints];
         getGlobalRecorder()?.record({
           type: 'turn.repair', component: 'turnPipeline', level: 'warn',
           speaker: input.label,
           message: `DRAFT repair attempt ${draftAttempt}: ${draftRepairHints.length} hint(s)`,
-          data: { stage: 'draft', attempt: draftAttempt, hints: draftRepairHints },
+          data: { stage: 'draft', attempt: draftAttempt, hints: draftRepairHints, frozen_fields: fieldFreezeBlock ? ALL_DRAFT_FIELDS.filter(f => !targetedFields.has(f)) : [] },
         });
         console.log(`[pipeline] Draft validation feedback (attempt ${draftAttempt}), retrying: ${draftRepairHints.join('; ')}`);
         continue;
@@ -887,6 +1196,48 @@ export async function runTurnPipeline(
     draftRepairHints = [];
     break;
   }
+  // ── Post-Draft assumptions extraction (lightweight LLM call) ──
+  // Deferred from Draft to reduce cognitive load during generation (t/298).
+  // Opening turns already produce key_assumptions — only extract for non-opening turns.
+  if (draft?.statement && !draft.key_assumptions?.length) {
+    try {
+      const assumptionsPrompt = assumptionsExtractionPrompt(draft.statement);
+      const assumptionsRaw = await generate(assumptionsPrompt, input.model, { temperature: 0 }, `${input.label} assumptions`);
+      const assumptionsParsed = parseStageResponse<{ key_assumptions?: { assumption: string; if_wrong: string }[] }>(assumptionsRaw, 'postDraft');
+      if (assumptionsParsed.product?.key_assumptions?.length) {
+        (draft as Record<string, unknown>).key_assumptions = assumptionsParsed.product.key_assumptions;
+      }
+    } catch {
+      // Non-critical — key_assumptions is nice-to-have metadata
+    }
+  }
+
+  // ── Post-Draft deterministic processing (postDraft stage) ──
+  // 6 steps: paragraph split, citation scrub, linkification, evidence utilization, ungrounded claims, citation validation.
+  // Instrumented separately from Draft LLM generation for observability.
+  const postDraftT0 = Date.now();
+
+  // ── Post-draft paragraph auto-split ──
+  // Single-paragraph statements are a formatting issue, not a content issue.
+  // Deterministic splitting saves a full 30K-token LLM retry.
+  let autoSplitApplied = false;
+  let autoSplitParagraphs = 0;
+  if (draft?.statement && !draft.statement.includes('\n\n') && draft.statement.length > 300) {
+    const splitResult = splitIntoParagraphs(draft.statement);
+    if (splitResult !== draft.statement) {
+      autoSplitParagraphs = splitResult.split(/\n\s*\n/).length;
+      draft.statement = splitResult;
+      autoSplitApplied = true;
+      getGlobalRecorder()?.record({
+        type: 'turn.repair', component: 'turnPipeline', level: 'info',
+        speaker: input.label,
+        message: `Auto-split single paragraph into ${autoSplitParagraphs} paragraphs`,
+        data: { original_length: draft.statement.length, paragraph_count: autoSplitParagraphs },
+      });
+      console.log(`[pipeline] Auto-split single paragraph into ${autoSplitParagraphs} paragraphs`);
+    }
+  }
+
   // ── Post-draft citation scrub ──
   // Deterministically remove fabricated citations not in the citation bank.
   let citationScrubResult: import('./citationResolution.js').ScrubResult | undefined;
@@ -1121,8 +1472,39 @@ export async function runTurnPipeline(
       }
 
       (draftDiag as Record<string, unknown>).citation_resolution = diagnostics;
+
+      // Compute ignored evidence: docs we supplied but the draft didn't cite
+      const citedDocIds = new Set(citationMatches.map(m => m.doc_id));
+      for (const docId of evidenceDocIds) {
+        if (!citedDocIds.has(docId)) ignoredEvidenceDocIds.push(docId);
+      }
     }
   }
+
+  // ── Record postDraft diagnostics ──
+  const postDraftElapsed = Date.now() - postDraftT0;
+  stageDiags.push({
+    stage: 'postDraft',
+    prompt: '',
+    raw_response: '',
+    model: input.model,
+    temperature: 0,
+    response_time_ms: postDraftElapsed,
+    work_product: {
+      auto_split: autoSplitApplied,
+      auto_split_paragraphs: autoSplitApplied ? autoSplitParagraphs : 0,
+      citations_scrubbed: citationScrubResult?.removed?.length ?? 0,
+      scrubbed_citations: citationScrubResult?.removed ?? [],
+      links_added: linkificationApplied ? 1 : 0,
+      citation_warnings: citationWarnings.length,
+      citation_warning_details: citationWarnings,
+      ignored_evidence_docs: ignoredEvidenceDocIds.length,
+      ignored_evidence_titles: ignoredEvidenceDocIds.map(id => {
+        const entry = input.docTitles?.[id];
+        return typeof entry === 'string' ? entry : entry?.title ?? id;
+      }),
+    },
+  });
 
   // ── Stage 3.5: DRAFT QUALITY PRE-CHECK ──
   // Lightweight 3-question LLM evaluation: grounded, falsifiable, engages.
@@ -1169,7 +1551,21 @@ export async function runTurnPipeline(
       });
 
       const allPass = preCheckResult.grounded && preCheckResult.falsifiable && preCheckResult.engages;
-      if (!allPass && preCheckResult.weaknesses.length > 0) {
+      const triggeredRegen = !allPass && preCheckResult.weaknesses.length > 0;
+      getGlobalRecorder()?.record({
+        type: 'turn.quality_gate', component: 'turnPipeline', level: allPass ? 'info' : 'warn',
+        speaker: input.label,
+        message: `Draft quality gate ${allPass ? 'passed' : 'failed'}`,
+        data: {
+          grounded: preCheckResult.grounded,
+          falsifiable: preCheckResult.falsifiable,
+          engages: preCheckResult.engages,
+          pass: allPass,
+          weaknesses: preCheckResult.weaknesses,
+          triggered_regen: triggeredRegen,
+        },
+      });
+      if (triggeredRegen) {
         console.log(`[pipeline] Draft quality pre-check failed: ${preCheckResult.weaknesses.join('; ')}`);
         // Re-run just the draft with quality weaknesses as repair hints
         draftRepairHints = preCheckResult.weaknesses;
@@ -1368,12 +1764,31 @@ export async function runTurnPipeline(
     }
   }
 
+  // Record cite quality summary
+  if (cite?.taxonomy_refs) {
+    const refs = cite.taxonomy_refs as import('./types.js').TaxonomyRef[];
+    const novelRefs = refs.filter(r => !(input.priorRefs ?? []).includes(r.node_id));
+    const fillerCount = refs.filter(r => isFillerRelevance((r.relevance ?? '').trim())).length;
+    getGlobalRecorder()?.record({
+      type: 'turn.cite_quality', component: 'turnPipeline', level: 'info',
+      speaker: input.label,
+      message: `Cite quality: ${refs.length} refs, ${novelRefs.length} novel, ${fillerCount} filler`,
+      data: {
+        refs_count: refs.length,
+        novel_refs: novelRefs.length,
+        filler_strengthened: weakRefs?.length ?? 0,
+        filler_dropped: fillerCount,
+      },
+    });
+  }
+
   return {
     brief,
     plan,
     draft,
     cite,
     evidenceBlock,
+    ignoredEvidenceDocIds: ignoredEvidenceDocIds.length > 0 ? ignoredEvidenceDocIds : undefined,
     stage_diagnostics: stageDiags,
     total_time_ms: Date.now() - pipelineStart,
   };
@@ -1432,15 +1847,56 @@ function normalizeSpeakerNames(text: string): string {
   return out;
 }
 
+// ── Deterministic paragraph splitting ────────────────────
+
+/** Split a single-paragraph statement into 3-5 paragraphs.
+ *  Uses transition word boundaries when available, falls back to even splitting. */
+export function splitIntoParagraphs(text: string): string {
+  const sentences = text.match(/[^.!?]+[.!?]+/g) ?? [text];
+  if (sentences.length < 4) return text; // too short to split meaningfully
+
+  // Priority split points (natural topic transitions)
+  const transitionPatterns = /^\s*(However|Moreover|In contrast|Furthermore|Critically|The key|This means|That said|Building on|To be precise|Nevertheless|Ultimately|In practice|The real|Meanwhile|Conversely|Additionally|Importantly|Specifically|Indeed)/i;
+
+  const breakpoints: number[] = [];
+  for (let i = 1; i < sentences.length; i++) {
+    if (transitionPatterns.test(sentences[i])) {
+      breakpoints.push(i);
+    }
+  }
+
+  // If we found good breakpoints, use them (target 3-5 paragraphs)
+  if (breakpoints.length >= 2 && breakpoints.length <= 5) {
+    const paragraphs: string[] = [];
+    let start = 0;
+    for (const bp of breakpoints) {
+      paragraphs.push(sentences.slice(start, bp).join('').trim());
+      start = bp;
+    }
+    paragraphs.push(sentences.slice(start).join('').trim());
+    return paragraphs.filter(p => p.length > 0).join('\n\n');
+  }
+
+  // Fallback: split evenly every ~3-5 sentences
+  const targetParagraphs = Math.min(5, Math.max(3, Math.ceil(sentences.length / 4)));
+  const chunkSize = Math.ceil(sentences.length / targetParagraphs);
+  const paragraphs: string[] = [];
+  for (let i = 0; i < sentences.length; i += chunkSize) {
+    paragraphs.push(sentences.slice(i, i + chunkSize).join('').trim());
+  }
+  return paragraphs.filter(p => p.length > 0).join('\n\n');
+}
+
 // ── Draft field-level freeze for per-stage retries ───────
 
-/** DraftWorkProduct fields that can be individually frozen on retry. */
-type DraftField = 'statement' | 'claim_sketches' | 'key_assumptions' | 'turn_symbols'
-  | 'disagreement_type' | 'commitment' | 'position_update';
+/** DraftWorkProduct fields that can be individually frozen on retry.
+ *  key_assumptions extracted post-Draft (t/298); disagreement_type moved to claim extraction (t/298). */
+type DraftField = 'statement' | 'claim_sketches' | 'turn_symbols'
+  | 'commitment' | 'position_update';
 
 const ALL_DRAFT_FIELDS: DraftField[] = [
-  'statement', 'claim_sketches', 'key_assumptions', 'turn_symbols',
-  'disagreement_type', 'commitment', 'position_update',
+  'statement', 'claim_sketches', 'turn_symbols',
+  'commitment', 'position_update',
 ];
 
 /** Map repair hint patterns to the DraftWorkProduct fields they target.
@@ -1474,12 +1930,6 @@ function classifyDraftHintFields(hints: string[]): Set<DraftField> {
     }
     if (/position_update/i.test(h)) {
       targeted.add('position_update');
-    }
-    if (/disagreement_type/i.test(h)) {
-      targeted.add('disagreement_type');
-    }
-    if (/key_assumptions/i.test(h)) {
-      targeted.add('key_assumptions');
     }
   }
   // If no specific fields matched, assume all fields need regeneration
@@ -1533,6 +1983,31 @@ function mergeFrozenDraftFields(
   return merged;
 }
 
+/** Diff-check safeguard for micro-fix results.
+ *  Compares original and revised text sentence-by-sentence, rejecting
+ *  micro-fixes that change too much unflagged text. */
+export function validateMicroFix(original: string, revised: string, flaggedClaimCount: number): boolean {
+  const splitSentences = (text: string) =>
+    text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+
+  const origSentences = splitSentences(original);
+  const revSentences = splitSentences(revised);
+
+  // Reject if sentence count changed drastically (restructuring)
+  if (Math.abs(origSentences.length - revSentences.length) > 2) return false;
+
+  let changed = 0;
+  for (let i = 0; i < Math.min(origSentences.length, revSentences.length); i++) {
+    if (origSentences[i] !== revSentences[i]) changed++;
+  }
+  // Count added/removed sentences as changes too
+  changed += Math.abs(origSentences.length - revSentences.length);
+
+  // Allow up to flaggedClaimCount * 2 + 3 sentence changes (claims span sentences
+  // and surrounding text often needs flow adjustments)
+  return changed <= flaggedClaimCount * 2 + 3;
+}
+
 /** Harvest concrete data from a prior draft for injection into the retry prompt.
  *  All framing is self-contained — no references to "your prior attempt". */
 function buildDraftHarvestBlock(
@@ -1563,14 +2038,6 @@ function buildDraftHarvestBlock(
       `\nPRIOR DRAFT STATEMENT (rejected for reasons listed above):\n` +
       `"${truncated}"`
     );
-  }
-
-  // Key assumptions (reinforce freeze with semantic framing when not targeted)
-  if (!targetedFields.has('key_assumptions') && priorDraft.key_assumptions?.length > 0) {
-    parts.push('\nKEEP THESE ASSUMPTIONS:');
-    for (const ka of priorDraft.key_assumptions) {
-      parts.push(`- ${ka.assumption} (if wrong: ${ka.if_wrong})`);
-    }
   }
 
   return parts.length > 0 ? parts.join('\n') : '';

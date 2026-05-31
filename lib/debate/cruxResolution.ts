@@ -11,6 +11,7 @@ import type {
   ArgumentationScheme,
 } from './types.js';
 import { detectCruxNodes } from './phaseTransitions.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const POLARITY_RESOLVED_THRESHOLD = 0.85;
 const STRENGTH_CONCESSION_THRESHOLD = 0.3;
@@ -120,6 +121,11 @@ function transitionCrux(
   trigger: string,
 ): TrackedCrux {
   const transition: CruxStateTransition = { from: crux.state, to: newState, turn, trigger };
+  getGlobalRecorder()?.record({
+    type: 'debate.crux_transition', component: 'cruxResolution', level: 'info',
+    message: `Crux ${crux.id}: ${crux.state} → ${newState}`,
+    data: { crux_id: crux.id, from_state: crux.state, to_state: newState, turn, trigger },
+  });
   return { ...crux, state: newState, history: [...crux.history, transition] };
 }
 
@@ -166,12 +172,15 @@ function evaluateCruxState(
 
   switch (updated.state) {
     case 'identified': {
+      // >= (not >) because the cross-POV edges that caused crux detection
+      // are themselves evidence of engagement — requiring strictly later
+      // edges causes cruxes to stall in 'identified' indefinitely (t/284)
       const edgesOnCrux = edges.filter(e =>
         (e.source === crux.id || e.target === crux.id) &&
-        nodes.find(n => n.id === (e.source === crux.id ? e.target : e.source))?.turn_number > crux.identified_turn
+        nodes.find(n => n.id === (e.source === crux.id ? e.target : e.source))?.turn_number >= crux.identified_turn
       );
       if (edgesOnCrux.length > 0) {
-        updated = transitionCrux(updated, 'engaged', currentTurn, `${edgesOnCrux.length} new edge(s) addressing crux`);
+        updated = transitionCrux(updated, 'engaged', currentTurn, `${edgesOnCrux.length} edge(s) engaging with crux`);
         // Fall through to check further transitions
         return evaluateCruxState(updated, nodes, edges, commitments, currentTurn);
       }
@@ -249,7 +258,7 @@ export function updateCruxTracker(
       if (n) speakers.add(n.speaker);
     }
 
-    tracker.push({
+    const newCrux: TrackedCrux = {
       id: crux.id,
       description: cruxNode.text,
       identified_turn: currentTurn,
@@ -260,8 +269,20 @@ export function updateCruxTracker(
       last_computed_strength: crux.computedStrength,
       support_polarity: computeCruxPolarity(crux.id, nodes, edges),
       disagreement_type: inferDisagreementType(crux.id, edges),
-    });
+    };
+    tracker.push(newCrux);
     trackedIds.add(crux.id);
+    getGlobalRecorder()?.record({
+      type: 'debate.crux', component: 'cruxResolution', level: 'info',
+      message: `New crux identified: "${cruxNode.text.slice(0, 80)}"`,
+      data: {
+        crux_id: crux.id,
+        description: cruxNode.text,
+        disagreement_type: newCrux.disagreement_type,
+        speakers_involved: newCrux.speakers_involved,
+        polarity: newCrux.support_polarity,
+      },
+    });
   }
 
   // Evaluate state transitions for all tracked cruxes
