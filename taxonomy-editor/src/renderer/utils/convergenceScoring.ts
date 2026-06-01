@@ -34,24 +34,53 @@ export function extractIssuesFromAN(
   an: ArgumentNetwork,
   getLabelForId: (id: string) => string,
 ): IssueCandidate[] {
-  const groups = new Map<string, string[]>();
+  const groups = new Map<string, Set<string>>();
 
   for (const node of an.nodes) {
     if (node.taxonomy_refs.length === 0) {
-      const existing = groups.get('_general') || [];
-      existing.push(node.id);
+      const existing = groups.get('_general') || new Set();
+      existing.add(node.id);
       groups.set('_general', existing);
     } else {
       for (const ref of node.taxonomy_refs) {
-        const existing = groups.get(ref) || [];
-        existing.push(node.id);
+        const existing = groups.get(ref) || new Set();
+        existing.add(node.id);
         groups.set(ref, existing);
       }
     }
   }
 
+  // Expand each cluster to include cross-speaker claims connected by
+  // attack/support edges. Without this, POV-specific taxonomy refs produce
+  // single-speaker clusters and computeConvergence returns 0.5 permanently.
+  const nodeById = new Map(an.nodes.map(n => [n.id, n]));
+  const adjacency = new Map<string, string[]>();
+  for (const e of an.edges) {
+    if (e.type !== 'attacks' && e.type !== 'supports') continue;
+    let arr = adjacency.get(e.source);
+    if (!arr) { arr = []; adjacency.set(e.source, arr); }
+    arr.push(e.target);
+    arr = adjacency.get(e.target);
+    if (!arr) { arr = []; adjacency.set(e.target, arr); }
+    arr.push(e.source);
+  }
+
+  for (const [, claimSet] of groups) {
+    const seeds = [...claimSet];
+    for (const seed of seeds) {
+      const seedNode = nodeById.get(seed);
+      if (!seedNode) continue;
+      for (const neighbor of adjacency.get(seed) ?? []) {
+        const neighborNode = nodeById.get(neighbor);
+        if (!neighborNode || neighborNode.speaker === seedNode.speaker) continue;
+        claimSet.add(neighbor);
+      }
+    }
+  }
+
   const candidates: IssueCandidate[] = [];
-  for (const [ref, claimIds] of groups) {
+  for (const [ref, claimSet] of groups) {
+    const claimIds = [...claimSet];
     if (claimIds.length < MIN_CLAIMS_PER_ISSUE) continue;
     const label = ref === '_general' ? 'General' : (getLabelForId(ref) || ref);
     candidates.push({
