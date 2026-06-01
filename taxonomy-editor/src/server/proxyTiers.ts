@@ -3,7 +3,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getDataRoot } from './config';
+import { getDataRoot } from './config.js';
 import { log } from './logger.js';
 
 // ── Types ──

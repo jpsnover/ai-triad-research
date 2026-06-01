@@ -15,12 +15,12 @@ import fsSync from 'fs';
 import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
-import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot, STORAGE_MODE } from './config';
-import { ActionableError } from '../../../lib/debate/errors';
-import { POV_KEYS } from '../../../lib/debate/types';
-import type { StorageBackend } from './storageBackend';
+import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot, STORAGE_MODE } from './config.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
+import { POV_KEYS } from '../../../lib/debate/types.js';
+import type { StorageBackend } from './storageBackend.js';
 import { log } from './logger.js';
-import { FilesystemBackend } from './filesystemBackend';
+import { FilesystemBackend } from './filesystemBackend.js';
 // ── Backend injection ──
 
 let backend: StorageBackend = new FilesystemBackend();

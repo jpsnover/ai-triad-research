@@ -12,9 +12,9 @@
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
-import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config';
-import { ActionableError } from '../../../lib/debate/errors';
-import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
+import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
+import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
 import {
   resolveBackend,
   callProvider,
@@ -28,7 +28,7 @@ import {
   type ProviderResult,
   type RateLimitType,
   type GroundingCitation as SharedGroundingCitation,
-} from '../../../lib/ai-client';
+} from '../../../lib/ai-client/index.js';
 
 import { log } from './logger.js';
 
@@ -170,7 +170,7 @@ export async function generateText(
 }
 
 export type { SharedGroundingCitation as GroundingCitation };
-export type { GroundingSegment } from '../../../lib/ai-client/providers/gemini-search';
+export type { GroundingSegment } from '../../../lib/ai-client/providers/gemini-search.js';
 
 export async function generateTextWithSearch(
   prompt: string, model?: string,

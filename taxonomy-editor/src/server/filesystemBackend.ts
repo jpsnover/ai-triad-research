@@ -3,7 +3,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import type { StorageBackend } from './storageBackend';
+import type { StorageBackend } from './storageBackend.js';
 
 /**
  * FilesystemBackend — local disk implementation of StorageBackend.

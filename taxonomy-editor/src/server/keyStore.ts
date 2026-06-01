@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
-import type { AIBackend } from './config';
+import type { AIBackend } from './config.js';
 import { log } from './logger.js';
 
 export interface KeyStore {

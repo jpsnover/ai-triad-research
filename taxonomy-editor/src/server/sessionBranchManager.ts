@@ -16,10 +16,10 @@
  */
 
 import crypto from 'crypto';
-import type { GitHubAPIBackend, FileChange } from './githubAPIBackend';
-import { getTokenExpiryMs, getCredentials } from './githubAppAuth';
-import { ActionableError } from '../../../lib/debate/errors';
-import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index';
+import type { GitHubAPIBackend, FileChange } from './githubAPIBackend.js';
+import { getTokenExpiryMs, getCredentials } from './githubAppAuth.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
+import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index.js';
 
 // ── Constants ────────────────────────────────────────────────────────────
 

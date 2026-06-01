@@ -21,17 +21,17 @@ import {
   PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, resolveDataPath,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
   STORAGE_MODE, CACHE_DIR,
-} from './config';
-import { GitHubAPIBackend } from './githubAPIBackend';
-import { SessionBranchManager } from './sessionBranchManager';
-import { runWithUser, getCurrentUserId, setSessionBranchName } from './userContext';
-import * as fileIO from './fileIO';
-import * as ai from './aiBackends';
-import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth';
-import * as proxyTiers from './proxyTiers';
-import * as rateLimiter from './rateLimiter';
-import * as analytics from './analytics';
-import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder';
+} from './config.js';
+import { GitHubAPIBackend } from './githubAPIBackend.js';
+import { SessionBranchManager } from './sessionBranchManager.js';
+import { runWithUser, getCurrentUserId, setSessionBranchName } from './userContext.js';
+import * as fileIO from './fileIO.js';
+import * as ai from './aiBackends.js';
+import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
+import * as proxyTiers from './proxyTiers.js';
+import * as rateLimiter from './rateLimiter.js';
+import * as analytics from './analytics.js';
+import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder.js';
 import { log, runWithRequestContext, generateRequestId } from './logger.js';
 
 // ── Server-side flight recorder ──

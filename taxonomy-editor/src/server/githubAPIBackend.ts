@@ -20,11 +20,11 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import type { StorageBackend } from './storageBackend';
-import { getCredentials, getRepoSlug, type SyncCredentials } from './githubAppAuth';
-import { ActionableError } from '../../../lib/debate/errors';
-import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index';
-import { getCurrentUserId, getSessionBranchName } from './userContext';
+import type { StorageBackend } from './storageBackend.js';
+import { getCredentials, getRepoSlug, type SyncCredentials } from './githubAppAuth.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
+import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index.js';
+import { getCurrentUserId, getSessionBranchName } from './userContext.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
