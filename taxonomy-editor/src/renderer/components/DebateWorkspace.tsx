@@ -3047,9 +3047,10 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
             if (consecutiveNoStatement >= 3) break;
           }
         }
-        // Auto-trigger synthesis when terminated
+        // Always run synthesis when the adaptive loop exits with enough content
         const final = useDebateStore.getState().activeDebate;
-        if ((final as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated') {
+        const finalStatements = final?.transcript.filter((e: any) => e.type === 'statement').length ?? 0;
+        if (finalStatements >= 3) {
           await requestSynthesis();
         }
       }

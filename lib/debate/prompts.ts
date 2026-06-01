@@ -3269,6 +3269,13 @@ Your recommendation is ADVISORY. The engine will validate it against budget, coo
 Do NOT compose the intervention text — that is a separate stage.
 Do NOT intervene just because you can — only when the debate state warrants it.
 
+AGREEMENT DETECTION:
+Set "agreement_detected" ONLY when ALL of the following are met:
+1. ALL debaters have explicitly converged on the CENTRAL thesis — not just a sub-point or framing detail.
+2. At least TWO debaters have made explicit CONCEDE moves or stated "I agree with [opponent] that..."
+3. No debater has an unaddressed challenge or unanswered claim outstanding.
+A single concession on a sub-point is NOT agreement. A debater acknowledging a valid opposing point while maintaining their core position is NOT agreement — it is good argumentation. Only declare agreement when the debate has genuinely exhausted productive disagreement on the resolution.
+
 Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
   "responder": "debater name who should speak next",

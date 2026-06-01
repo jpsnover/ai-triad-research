@@ -537,6 +537,48 @@ export async function runModeratorSelection(
       addressing = (parsed.addressing as string) ?? 'general';
       agreementDetected = !!parsed.agreement_detected;
 
+      // Deterministic agreement gate: override LLM when structural conditions aren't met.
+      // Concession on a sub-point != full position convergence.
+      if (agreementDetected) {
+        const MIN_ROUNDS_FOR_AGREEMENT = 4;
+        const statementsCount = (transcript as TranscriptEntry[])
+          .filter(e => e.type === 'statement').length;
+        const roundsCompleted = Math.floor(statementsCount / Math.max(1, activePovers.length));
+
+        // Gate 1: too early — positions aren't developed enough for genuine convergence
+        if (roundsCompleted < MIN_ROUNDS_FOR_AGREEMENT) {
+          agreementDetected = false;
+          getGlobalRecorder()?.record({ type: 'debate.moderate', component: 'agreement-gate', level: 'info', message: `Agreement overridden: too early (round ${roundsCompleted} < ${MIN_ROUNDS_FOR_AGREEMENT})` });
+        }
+
+        // Gate 2: phase guard — agreement only valid during concluding phase
+        if (agreementDetected && phase !== 'concluding') {
+          agreementDetected = false;
+          getGlobalRecorder()?.record({ type: 'debate.moderate', component: 'agreement-gate', level: 'info', message: `Agreement overridden: phase is '${phase}', not 'concluding'` });
+        }
+
+        // Gate 3: commitment-store check — require concessions from 2+ debaters
+        if (agreementDetected && commitments) {
+          const poversWithConcessions = activePovers.filter(p => {
+            const c = commitments[p];
+            return c && Array.isArray(c.conceded) && c.conceded.length > 0;
+          });
+          if (poversWithConcessions.length < 2) {
+            agreementDetected = false;
+            getGlobalRecorder()?.record({ type: 'debate.moderate', component: 'agreement-gate', level: 'info', message: `Agreement overridden: only ${poversWithConcessions.length} debater(s) have conceded (need 2+)` });
+          }
+        }
+
+        // Gate 4: unanswered claims — can't agree while questions are outstanding
+        if (agreementDetected && unansweredLedger && unansweredLedger.length > 0) {
+          const outstanding = unansweredLedger.filter(u => u.addressed_round == null);
+          if (outstanding.length > 0) {
+            agreementDetected = false;
+            getGlobalRecorder()?.record({ type: 'debate.moderate', component: 'agreement-gate', level: 'info', message: `Agreement overridden: ${outstanding.length} unanswered claim(s) outstanding` });
+          }
+        }
+      }
+
       selectionResultObj = {
         responder: responder ?? activePovers[0],
         addressing: (addressing as SpeakerId | 'general') ?? 'general',

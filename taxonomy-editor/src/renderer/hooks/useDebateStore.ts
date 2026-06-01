@@ -4347,11 +4347,14 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         const finalDebate = get().activeDebate;
         const finalPhase = finalDebate?.adaptive_staging?.phase_state?.current_phase;
         getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: `Adaptive loop ended: ${loopExitReason}`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, transcript_length: finalDebate?.transcript?.length, an_nodes: finalDebate?.argument_network?.nodes?.length } });
-        // Auto-trigger synthesis when adaptive debate terminates OR loop exhausted
-        if (finalPhase === 'terminated') {
-          await get().requestSynthesis();
-        } else if (finalDebate && loopExitReason === 'maxRounds_exhausted') {
-          getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Forcing synthesis: loop exhausted without phase termination', data: { iterations: loopIterations, maxRounds, final_phase: finalPhase } });
+        // Always run synthesis when the loop exits with enough debater content.
+        // Normal path: phase reached 'terminated'. Abnormal: loop exhausted, consecutive
+        // system-only rounds, errors, etc. — still synthesize what we have.
+        const statementsInTranscript = finalDebate?.transcript.filter(e => e.type === 'statement').length ?? 0;
+        if (finalDebate && statementsInTranscript >= 3) {
+          if (finalPhase !== 'terminated') {
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: `Forcing synthesis: loop exited before termination (${loopExitReason})`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, statements: statementsInTranscript } });
+          }
           await get().requestSynthesis();
         }
       } else if (initialCrossRespondRounds > 0) {
