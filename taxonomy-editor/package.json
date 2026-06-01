@@ -18,7 +18,7 @@
     "dev:container": "concurrently -k \"npm:dev:server\" \"npm:dev:web\"",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build:main": "tsc -p tsconfig.main.json",
-    "licenses": "generate-license-file --input package.json --output THIRD-PARTY-NOTICES.txt --eol lf && node scripts/parse-licenses.js",
+    "licenses": "generate-license-file --input package.json --output THIRD-PARTY-NOTICES.txt --eol lf && node scripts/parse-licenses.cjs",
     "build": "tsc -p tsconfig.main.json && vite build && npm run licenses",
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
