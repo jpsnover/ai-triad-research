@@ -133,15 +133,15 @@ describe('assemblePipelineResult — my_claims grounding (gap 11.4)', () => {
 // ── Gap 11.5: Judge fallback conservative defaults ──
 
 describe('validateTurn — judge fallback (gap 11.5)', () => {
-  it('returns retry when judge returns unparseable response and retry budget available', async () => {
+  it('returns accept_with_flag when judge returns unparseable response', async () => {
     const params = baseValidateParams({
       config: resolveTurnValidationConfig({ deterministicOnly: false }),
       callJudge: async () => 'THIS IS NOT JSON AT ALL {{{',
     });
     const result = await validateTurn(params);
-    // parseJudgeVerdict fallback returns quality_score: 0.6, advances: false.
-    // The composite process_reward falls below scoreThreshold with retry budget > 0 → retry.
-    expect(result.outcome).toBe('retry');
+    // parseJudgeVerdict fallback returns quality_score: 0.6, recommend: 'accept_with_flag'.
+    // Score is above retry threshold — judge failure shouldn't penalize the turn.
+    expect(result.outcome).toBe('accept_with_flag');
   });
 
   it('returns accept_with_flag when both judge calls throw', async () => {

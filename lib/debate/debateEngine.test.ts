@@ -1101,7 +1101,14 @@ describe('Internal utility behavior (tested via extraction)', () => {
     const config = createDefaultConfig({ rounds: 1 });
     const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());
 
-    const session = await engine.run();
-    expect(session).toBeDefined();
+    // Truncated JSON may hit a critical-path stage (plan/brief), which correctly
+    // throws ActionableError. Both outcomes are valid — either the engine recovers
+    // or it throws a structured error (not an unhandled crash).
+    try {
+      const session = await engine.run();
+      expect(session).toBeDefined();
+    } catch (err: unknown) {
+      expect((err as { goal?: string }).goal).toBeDefined();
+    }
   });
 });

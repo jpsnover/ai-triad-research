@@ -138,9 +138,9 @@ describe('formatTaxonomyContext', () => {
     expect(nodeIdx).toBeGreaterThan(intentionsIdx);
   });
 
-  it('contains POSITIONAL VULNERABILITIES section', () => {
+  it('contains inline vulnerability annotation on nodes with steelman_vulnerability', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
-    expect(output).toContain('=== POSITIONAL VULNERABILITIES');
+    expect(output).toContain('VULNERABLE:');
     expect(output).toContain('Assumes benefits are evenly distributed');
   });
 
@@ -183,11 +183,11 @@ describe('formatTaxonomyContext', () => {
     expect(output).not.toContain('YOUR REASONING APPROACH');
   });
 
-  it('omits vulnerabilities section when no vulnerabilities exist', () => {
+  it('omits vulnerability annotation when no steelman_vulnerability exists', () => {
     const cleanNode: PovNode = { ...beliefsNode, graph_attributes: { epistemic_type: 'empirical_claim' } };
     const ctx = buildCtx({ povNodes: [cleanNode] });
     const output = formatTaxonomyContext(ctx, 'accelerationist');
-    expect(output).not.toContain('POSITIONAL VULNERABILITIES');
+    expect(output).not.toContain('VULNERABLE:');
   });
 
   it('omits situations section when no situation nodes', () => {
@@ -204,17 +204,17 @@ describe('formatTaxonomyContext', () => {
     expect(output).not.toContain('[acc-intentions-001]');
   });
 
-  it('section order is Empirical Grounding → Normative Commitments → Reasoning → Vulnerabilities → Situations', () => {
+  it('section order is Empirical Grounding → Normative Commitments → Reasoning → Watchlist → Situations', () => {
     const output = formatTaxonomyContext(buildCtx(), 'accelerationist');
     const beliefsIdx = output.indexOf('YOUR EMPIRICAL GROUNDING');
     const desiresIdx = output.indexOf('YOUR NORMATIVE COMMITMENTS');
     const intentionsIdx = output.indexOf('YOUR REASONING APPROACH');
-    const vulnIdx = output.indexOf('POSITIONAL VULNERABILITIES');
+    const watchlistIdx = output.indexOf('REASONING WATCHLIST');
     const ccIdx = output.indexOf('SITUATIONS');
 
     expect(beliefsIdx).toBeLessThan(desiresIdx);
     expect(desiresIdx).toBeLessThan(intentionsIdx);
-    expect(intentionsIdx).toBeLessThan(vulnIdx);
-    expect(vulnIdx).toBeLessThan(ccIdx);
+    expect(intentionsIdx).toBeLessThan(watchlistIdx);
+    expect(watchlistIdx).toBeLessThan(ccIdx);
   });
 });
