@@ -23,7 +23,10 @@
  */
 
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import { log } from './logger.js';
+
+const require = createRequire(import.meta.url);
 
 const GITHUB_API = 'https://api.github.com';
 const USER_AGENT = 'ai-triad-taxonomy-editor';

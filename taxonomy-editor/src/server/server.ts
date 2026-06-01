@@ -15,7 +15,14 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { spawn, execFile, ChildProcess } from 'child_process';
+
+const require = createRequire(import.meta.url);
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, resolveDataPath,

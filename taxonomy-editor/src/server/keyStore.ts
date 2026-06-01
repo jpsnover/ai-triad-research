@@ -18,7 +18,10 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import os from 'os';
+import { createRequire } from 'module';
 import type { AIBackend } from './config.js';
+
+const require = createRequire(import.meta.url);
 import { log } from './logger.js';
 
 export interface KeyStore {

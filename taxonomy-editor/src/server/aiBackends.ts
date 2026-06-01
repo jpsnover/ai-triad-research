@@ -12,6 +12,9 @@
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
