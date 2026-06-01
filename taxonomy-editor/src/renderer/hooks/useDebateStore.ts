@@ -861,21 +861,16 @@ async function extractClaimsAndUpdateAN(
       });
       throw callErr;
     }
-    let cleaned = text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
-    const fb = cleaned.indexOf('{'), lb = cleaned.lastIndexOf('}');
-    if (fb >= 0 && lb > fb) cleaned = cleaned.slice(fb, lb + 1);
-    cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
-
-    let parsed: { claims?: { text: string; bdi_category?: string; base_strength?: number; bdi_sub_scores?: Record<string, number>; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
-    try {
-      parsed = JSON.parse(cleaned) as typeof parsed;
-    } catch (parseErr) {
+    type ClaimExtractionResult = { claims?: { text: string; bdi_category?: string; base_strength?: number; bdi_sub_scores?: Record<string, number>; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] };
+    const parsed = parseAIJson<ClaimExtractionResult>(text);
+    if (!parsed) {
+      const parseErr = new SyntaxError('Claim extraction JSON recovery failed');
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'debate-store',
         level: 'error',
         message: 'Claim extraction JSON parse failed',
-        error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+        error: { name: parseErr.name, message: `${parseErr.message} (raw length: ${text.length})` },
       });
       extractionTrace.status = extractionTrace.response_truncated ? 'truncated_response' : 'parse_error';
       extractionTrace.error_message = String(parseErr);
@@ -1068,13 +1063,9 @@ async function extractClaimsAndUpdateAN(
             : extractClaimsPrompt(regenResult.statement, speakerLabel, priorClaims);
           try {
             const { text: regenText } = await api.generateText(regenPrompt, model);
-            let regenCleaned = regenText.replace(/```json\s*/g, '').replace(/```/g, '').trim();
-            const rfb = regenCleaned.indexOf('{'), rlb = regenCleaned.lastIndexOf('}');
-            if (rfb >= 0 && rlb > rfb) regenCleaned = regenCleaned.slice(rfb, rlb + 1);
-            regenCleaned = regenCleaned.replace(/,\s*([}\]])/g, '$1');
-            const regenParsed = JSON.parse(regenCleaned) as { claims?: typeof parsed.claims };
+            const regenParsed = parseAIJson<{ claims?: typeof parsed.claims }>(regenText);
 
-            if (!regenParsed.claims || !Array.isArray(regenParsed.claims) || regenParsed.claims.length === 0) {
+            if (!regenParsed?.claims || !Array.isArray(regenParsed.claims) || regenParsed.claims.length === 0) {
               regenAttempts.push({ ...bestResult, pass: false, tentative_claims: [], tentative_network_size: { nodes: 0, edges: 0 } });
               continue;
             }
