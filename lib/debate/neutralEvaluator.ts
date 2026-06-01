@@ -106,9 +106,9 @@ export function buildSpeakerMapping(activePovers: SpeakerId[]): SpeakerMapping {
 
 /** POV labels and persona names to strip from transcript text. */
 const PERSONA_TERMS: Record<string, string[]> = {
-  accelerationist: ['Prometheus', 'accelerationist', 'Accelerationist'],
-  safetyist: ['Sentinel', 'safetyist', 'Safetyist'],
-  skeptic: ['Cassandra', 'skeptic', 'Skeptic'],
+  accelerationist: ['accelerationist', 'Accelerationist'],
+  safetyist: ['safetyist', 'Safetyist'],
+  skeptic: ['skeptic', 'Skeptic'],
 };
 
 /**

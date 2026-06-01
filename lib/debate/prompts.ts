@@ -702,7 +702,7 @@ Structure your response as the following JSON object. Every field must be presen
 
 PARAGRAPH STRUCTURE: Your "statement" MUST contain 3–5 paragraphs separated by \\n\\n. Each paragraph develops one distinct idea. A single unbroken block will be rejected — structure your argument into clear, quotable sections.
 
-NODE-ID PROHIBITION: Node IDs are system metadata, not part of the conversation. Never surface them in your statement text — no "AN-64," no "According to taxonomy node X," no "Cassandra's AN-64 point." Instead, describe the actual argument in plain language. Use the taxonomy_refs field for attribution.
+NODE-ID PROHIBITION: Node IDs are system metadata, not part of the conversation. Never surface them in your statement text — no "AN-64," no "According to taxonomy node X," no "Skeptic's AN-64 point." Instead, describe the actual argument in plain language. Use the taxonomy_refs field for attribution.
 
 CLAIM SKETCHING: As you write your response, identify 3-6 claims — the headline assertion
 AND the supporting sub-claims that carry your argument. For each claim, extract a near-verbatim
@@ -1780,7 +1780,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "target_claims": ["AN-3", "AN-7"],
   "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
-  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"],
+  "anticipated_responses": ["Safetyist will likely counter with precautionary principle", "Skeptic may challenge the evidence base"],
   "target_nodes": ["acc-beliefs-003", "saf-desires-007", "skp-intentions-002"]${directiveField}
 }
 
@@ -2494,7 +2494,7 @@ export function contextCompressionPrompt(
   return `Summarize the following debate segment concisely.
 ${getReadingLevel(audience)}
 Preserve:
-- Key arguments and who made them (Prometheus, Sentinel, Cassandra, Moderator)
+- Key arguments and who made them (Accelerationist, Safetyist, Skeptic, Moderator)
 - Points of agreement and disagreement, including whether disagreements are empirical, values-based, or definitional
 - Any concessions, steelmans, or dialectical moves made
 - Any factual claims or evidence cited
@@ -3042,7 +3042,7 @@ Return ONLY JSON (no markdown, no code fences):
       "proposed_label": "Revised Label Text",
       "current_description": "Copy the current description exactly",
       "proposed_description": "Complete revised description in genus-differentia format. Encompasses: [...]. Excludes: [...].",
-      "rationale": "During turn S13, Sentinel argued X which I could not adequately counter. This reveals that...",
+      "rationale": "During turn S13, Safetyist argued X which I could not adequately counter. This reveals that...",
       "confidence": "high",
       "evidence_entries": ["S13", "S15"]
     },
@@ -3238,7 +3238,7 @@ Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
 
   return `You are a debate moderator analyzing the current state of a structured debate.
 
-ROLE: You are procedurally authoritative but not substantively neutral. You evaluate PROCESS (who is evading, what claims are unaddressed, which arguments lack evidence) but not SUBSTANCE (who is right). Your choices about what to highlight are inherently selective — be transparent about WHY you are directing attention to a particular point. When describing the debate state, use observable facts ("Sentinel has not responded to AN-5") rather than evaluative judgments ("Sentinel's argument is weak").
+ROLE: You are procedurally authoritative but not substantively neutral. You evaluate PROCESS (who is evading, what claims are unaddressed, which arguments lack evidence) but not SUBSTANCE (who is right). Your choices about what to highlight are inherently selective — be transparent about WHY you are directing attention to a particular point. When describing the debate state, use observable facts ("Safetyist has not responded to AN-5") rather than evaluative judgments ("Safetyist's argument is weak").
 ${audienceLine}${phaseObjective}${sourceAnchorSection}${topicAnchoringBlock ?? ''}${driftDetectionBlock}
 === RECENT DEBATE EXCHANGE ===
 ${recentTranscript}
@@ -3292,10 +3292,10 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
 }
 
 Example (no intervention):
-{"responder":"Sentinel","addressing":"Prometheus","focus_point":"Prometheus claimed market incentives alone produce safe AI (AN-7) but has not addressed the regulatory capture evidence Cassandra raised in round 3","agreement_detected":false,"metaphor_reframe":false,"drift_detected":false,"intervene":false,"suggested_move":null,"target_debater":null,"trigger_reasoning":null,"trigger_evidence":null}
+{"responder":"Safetyist","addressing":"Accelerationist","focus_point":"Accelerationist claimed market incentives alone produce safe AI (AN-7) but has not addressed the regulatory capture evidence Skeptic raised in round 3","agreement_detected":false,"metaphor_reframe":false,"drift_detected":false,"intervene":false,"suggested_move":null,"target_debater":null,"trigger_reasoning":null,"trigger_evidence":null}
 
 Example (with intervention):
-{"responder":"Prometheus","addressing":"general","focus_point":"All three debaters have used 'alignment' with different definitions for 4 rounds","agreement_detected":false,"metaphor_reframe":false,"drift_detected":false,"intervene":true,"suggested_move":"CLARIFY","target_debater":"Prometheus","trigger_reasoning":"'Alignment' has been used to mean technical value alignment (Sentinel), market alignment (Prometheus), and social alignment (Cassandra) without acknowledgment. This definitional divergence prevents substantive engagement.","trigger_evidence":{"signal_name":"term_ambiguity","observed_behavior":"Three distinct uses of 'alignment' across rounds 2-5 with no disambiguation","source_claim":"alignment","source_round":2}}`;
+{"responder":"Accelerationist","addressing":"general","focus_point":"All three debaters have used 'alignment' with different definitions for 4 rounds","agreement_detected":false,"metaphor_reframe":false,"drift_detected":false,"intervene":true,"suggested_move":"CLARIFY","target_debater":"Accelerationist","trigger_reasoning":"'Alignment' has been used to mean technical value alignment (Safetyist), market alignment (Accelerationist), and social alignment (Skeptic) without acknowledgment. This definitional divergence prevents substantive engagement.","trigger_evidence":{"signal_name":"term_ambiguity","observed_behavior":"Three distinct uses of 'alignment' across rounds 2-5 with no disambiguation","source_claim":"alignment","source_round":2}}`;
 }
 
 /**

@@ -210,7 +210,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   ],
   "target_claims": ["AN-3", "AN-7"],
   "argument_sketch": "2-4 sentences outlining the argument structure: opening move, main thrust, closing",
-  "anticipated_responses": ["Sentinel will likely counter with precautionary principle", "Cassandra may challenge the evidence base"]${directiveField}
+  "anticipated_responses": ["Safetyist will likely counter with precautionary principle", "Skeptic may challenge the evidence base"]${directiveField}
 }`,
     ].filter(s => s.length > 0).join('\n\n'),
 
