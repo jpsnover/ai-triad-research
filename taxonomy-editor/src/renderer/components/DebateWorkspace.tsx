@@ -3030,11 +3030,22 @@ function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, 
         // (skips moderator, picks missing debaters, runs full pipeline with stage_diagnostics)
         await crossRespond();
       } else {
+        let consecutiveNoStatement = 0;
         for (let i = 0; i < maxSafetyRounds; i++) {
           const d = useDebateStore.getState().activeDebate;
           if (!d) break;
           if ((d as any).adaptive_staging?.phase_state?.current_phase === 'terminated') break;
+          const preLen = d.transcript.length;
           await crossRespond();
+          const post = useDebateStore.getState().activeDebate;
+          if (!post) break;
+          const hasStatement = post.transcript.slice(preLen).some((e: any) => e.type === 'statement');
+          if (hasStatement) {
+            consecutiveNoStatement = 0;
+          } else {
+            consecutiveNoStatement++;
+            if (consecutiveNoStatement >= 3) break;
+          }
         }
         // Auto-trigger synthesis when terminated
         const final = useDebateStore.getState().activeDebate;

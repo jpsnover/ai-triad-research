@@ -27,7 +27,7 @@ import {
   loadSummary,
   loadSnapshot,
   getSummariesDir,
-} from './fileIO';
+} from './fileIO.js';
 import {
   listDebateSessions,
   loadDebateSession,
@@ -35,23 +35,23 @@ import {
   deleteDebateSession,
   loadDebateComments,
   saveDebateComments,
-} from './debateIO';
+} from './debateIO.js';
 import {
   listChatSessions,
   loadChatSession,
   saveChatSession,
   deleteChatSession,
-} from './chatIO';
-import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport';
-import { storeApiKey, hasApiKey } from './apiKeyStore';
-import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir } from './fileIO';
-import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings';
-import type { ChatMessage } from './embeddings';
-import { refreshAIModels } from './modelDiscovery';
-import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker';
-import { diagnosePythonEmbeddings } from './diagnosePython';
-import type { NodeEmbeddingInput, NliPair } from './embeddings';
-import { ActionableError } from '../../../lib/debate/errors';
+} from './chatIO.js';
+import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
+import { storeApiKey, hasApiKey } from './apiKeyStore.js';
+import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir } from './fileIO.js';
+import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings.js';
+import type { ChatMessage } from './embeddings.js';
+import { refreshAIModels } from './modelDiscovery.js';
+import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker.js';
+import { diagnosePythonEmbeddings } from './diagnosePython.js';
+import type { NodeEmbeddingInput, NliPair } from './embeddings.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 import { z } from 'zod';
 import path from 'path';
 
@@ -331,7 +331,7 @@ export function registerIpcHandlers(): void {
     const fullText = await generateChatStream(
       systemInstruction,
       messages,
-      (chunk) => send('chat-stream-chunk', chunk),
+      (chunk: string) => send('chat-stream-chunk', chunk),
       model,
       temperature,
     );

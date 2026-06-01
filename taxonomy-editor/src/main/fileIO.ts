@@ -3,9 +3,13 @@
 
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 import { app } from 'electron';
-import { ActionableError } from '../../../lib/debate/errors';
+import { ActionableError } from '../../../lib/debate/errors.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /** Walk up from __dirname to find the repo root (where .aitriad.json or scripts/ lives). */
 function findRepoRoot(): string {

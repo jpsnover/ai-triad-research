@@ -787,6 +787,9 @@ export function PromptDiffPane({ pane, paneIndex, isReference, isFocused, onClos
         <span style={{ color: 'var(--text-muted)' }}>
           S{node.entryIndex + 1} {speakerLabel(node.speaker)}
         </span>
+        <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>
+          ({pane.lines.filter(l => l.type !== 'ghost').length} lines)
+        </span>
         {/* Pre-scrub toggle: Path A drafts in Responses mode with fabrications */}
         {!node.kind && node.stage === 'draft' && viewMode === 'responses'
           && node.citationResolution?.path === 'bank-scrub'

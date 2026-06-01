@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { validateMicroFix, splitIntoParagraphs } from './turnPipeline.js';
-import { microFixAbstractClaims } from './prompts.js';
+import { microFixAbstractClaims, microFixDirectiveCompliance } from './prompts.js';
 
 // ── validateMicroFix ──────────────────────────────────────
 
@@ -148,5 +148,52 @@ describe('splitIntoParagraphs', () => {
     // All sentences should appear in the result
     expect(result).toContain('The EU AI Act requires compliance.');
     expect(result).toContain('Standards must converge.');
+  });
+});
+
+// ── microFixDirectiveCompliance prompt (t/318) ──────────
+
+describe('microFixDirectiveCompliance', () => {
+  const statement = 'AI governance is a complex topic requiring careful analysis.\n\nThe regulatory landscape includes the EU AI Act and various national frameworks.';
+  const move = 'SEQUENCE';
+  const directiveText = 'Address governance and innovation as separate sub-topics.';
+  const responsePattern = 'Your response MUST use explicit numbered sections.';
+
+  it('includes the moderator directive text', () => {
+    const prompt = microFixDirectiveCompliance(statement, move, directiveText, responsePattern);
+    expect(prompt).toContain(directiveText);
+  });
+
+  it('includes the move type', () => {
+    const prompt = microFixDirectiveCompliance(statement, move, directiveText, responsePattern);
+    expect(prompt).toContain('SEQUENCE');
+  });
+
+  it('includes the response pattern', () => {
+    const prompt = microFixDirectiveCompliance(statement, move, directiveText, responsePattern);
+    expect(prompt).toContain(responsePattern);
+  });
+
+  it('includes only the first paragraph as non-compliant', () => {
+    const prompt = microFixDirectiveCompliance(statement, move, directiveText, responsePattern);
+    expect(prompt).toContain('AI governance is a complex topic');
+    expect(prompt).toContain('non-compliant');
+  });
+
+  it('includes a transition hint from the second paragraph', () => {
+    const prompt = microFixDirectiveCompliance(statement, move, directiveText, responsePattern);
+    expect(prompt).toContain('The regulatory landscape');
+  });
+
+  it('requests JSON output with revised_first_paragraph', () => {
+    const prompt = microFixDirectiveCompliance(statement, move, directiveText, responsePattern);
+    expect(prompt).toContain('"revised_first_paragraph"');
+  });
+
+  it('handles single-paragraph statements', () => {
+    const singlePara = 'Just one paragraph with no line breaks.';
+    const prompt = microFixDirectiveCompliance(singlePara, 'BALANCE', 'Engage with the other perspective.', 'Acknowledge the opposing view.');
+    expect(prompt).toContain('Just one paragraph');
+    expect(prompt).toContain('"revised_first_paragraph"');
   });
 });

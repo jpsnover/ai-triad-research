@@ -5516,16 +5516,19 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           </div>
                         </details>
                       )}
-                      {/* Micro-Fix stages (abstract_claims + intervention_compliance) */}
+                      {/* Micro-Fix stages (abstract_claims, intervention_compliance, directive_compliance) */}
                       {(() => {
                         const microFixStages = diag?.stage_diagnostics?.filter(s => s.stage === 'micro-fix') ?? [];
                         if (microFixStages.length === 0) return null;
+                        const microFixPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: '0.6rem', maxHeight: 200, overflow: 'auto' as const };
                         return microFixStages.map((mf, mi) => {
                           const wp = mf.work_product as Record<string, unknown> | undefined;
                           const success = wp?.success as boolean | undefined;
                           const fixType = wp?.type as string | undefined;
                           const elapsed = mf.response_time_ms ?? 0;
+                          const statusColor = success ? '#22c55e' : '#ef4444';
 
+                          // ── Intervention compliance ──
                           if (fixType === 'intervention_compliance') {
                             const move = wp?.move as string | undefined;
                             const field = wp?.field as string | undefined;
@@ -5536,23 +5539,24 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <div key={mi} style={{
                                 margin: '6px 0', padding: '6px 8px',
                                 background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
-                                borderLeft: `3px solid ${success ? '#22c55e' : '#ef4444'}`,
+                                borderLeft: `3px solid ${statusColor}`,
                                 borderRadius: 4, fontSize: '0.68rem',
                               }}>
-                                <div style={{ fontWeight: 600, color: success ? '#22c55e' : '#ef4444', marginBottom: 4 }}>
+                                <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                                   Micro-Fix: {move ?? 'Intervention'} Compliance ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheck && !recheck.compliant ? 'Re-validation failed' : 'Failed'}
                                 </div>
                                 {field && (
                                   <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                                     Field: <code style={{ background: 'rgba(128,128,128,0.15)', padding: '1px 4px', borderRadius: 3 }}>{field}</code>
+                                    {!success && <span style={{ marginLeft: 6 }}>Before: <em>missing</em></span>}
                                   </div>
                                 )}
                                 {generated != null && (
-                                  <details style={{ fontSize: '0.62rem' }}>
-                                    <summary style={{ cursor: 'pointer', color: success ? '#22c55e' : '#ef4444' }}>
-                                      {success ? 'Generated value' : 'Attempted value'}
+                                  <details open={success} style={{ fontSize: '0.62rem' }}>
+                                    <summary style={{ cursor: 'pointer', color: statusColor }}>
+                                      {success ? 'After — Generated value' : 'Attempted value (rejected)'}
                                     </summary>
-                                    <pre style={{ margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.6rem', maxHeight: 200, overflow: 'auto' }}>
+                                    <pre style={microFixPreStyle}>
                                       {typeof generated === 'string' ? generated : JSON.stringify(generated, null, 2)}
                                     </pre>
                                   </details>
@@ -5566,34 +5570,96 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             );
                           }
 
+                          // ── Directive compliance ──
+                          if (fixType === 'directive_compliance') {
+                            const move = wp?.move as string | undefined;
+                            const revisedPara = wp?.revised_first_paragraph as string | undefined;
+                            const recheckCompliant = wp?.recheck_compliant as boolean | undefined;
+                            const rejected = wp?.rejected_reason as string | undefined;
+                            return (
+                              <div key={mi} style={{
+                                margin: '6px 0', padding: '6px 8px',
+                                background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                                borderLeft: `3px solid ${statusColor}`,
+                                borderRadius: 4, fontSize: '0.68rem',
+                              }}>
+                                <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
+                                  Micro-Fix: Directive Compliance — {move ?? '?'} ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheckCompliant === false ? 'Re-validation failed' : 'Failed'}
+                                </div>
+                                {revisedPara && (
+                                  <details open={success} style={{ fontSize: '0.62rem' }}>
+                                    <summary style={{ cursor: 'pointer', color: statusColor }}>
+                                      {success ? 'After — Revised first paragraph' : 'Attempted revision (rejected)'}
+                                    </summary>
+                                    <pre style={microFixPreStyle}>{revisedPara}</pre>
+                                  </details>
+                                )}
+                                {mf.prompt && (
+                                  <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                                    <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Micro-fix prompt</summary>
+                                    <pre style={microFixPreStyle}>{mf.prompt}</pre>
+                                  </details>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          // ── Abstract claims (default) ──
                           const diffPassed = wp?.diff_check_passed as boolean | undefined;
-                          const changes = wp?.changes as Array<{ original?: string; revised?: string }> | undefined;
+                          const changes = wp?.changes as Array<{ original?: string; revised?: string; fact_source?: string }> | undefined;
                           const rejected = wp?.rejected_reason as string | undefined;
+                          const revisedStatement = wp?.revised_statement as string | undefined;
                           return (
                             <div key={mi} style={{
                               margin: '6px 0', padding: '6px 8px',
                               background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
-                              borderLeft: `3px solid ${success ? '#22c55e' : '#ef4444'}`,
+                              borderLeft: `3px solid ${statusColor}`,
                               borderRadius: 4, fontSize: '0.68rem',
                             }}>
-                              <div style={{ fontWeight: 600, color: success ? '#22c55e' : '#ef4444', marginBottom: 4 }}>
+                              <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
                                 Micro-Fix: Abstract Claims ({elapsed}ms) — {success ? 'Applied' : diffPassed === false ? (rejected === 'hallucinated_changes' ? 'Rejected (hallucinated edits)' : 'Rejected (too many changes)') : 'Re-validation failed'}
+                                {changes && <span style={{ fontWeight: 400, fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
                               </div>
                               {changes && changes.length > 0 && (
                                 <div style={{ fontSize: '0.65rem' }}>
                                   {changes.map((c, ci) => (
                                     <div key={ci} style={{ marginBottom: 6, padding: '3px 0', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
-                                      <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 2 }}>
-                                        {c.original ?? ''}
+                                      <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+                                        <span style={{ fontSize: '0.55rem', color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
+                                        <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                          {c.original ?? ''}
+                                        </div>
                                       </div>
                                       {c.revised && c.original !== c.revised && (
-                                        <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                          &rarr; {c.revised}
+                                        <div style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginTop: 2 }}>
+                                          <span style={{ fontSize: '0.55rem', color: '#22c55e', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
+                                          <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                            {c.revised}
+                                          </div>
+                                        </div>
+                                      )}
+                                      {c.fact_source && (
+                                        <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>
+                                          source: {c.fact_source}
                                         </div>
                                       )}
                                     </div>
                                   ))}
                                 </div>
+                              )}
+                              {revisedStatement && (
+                                <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                                  <summary style={{ cursor: 'pointer', color: statusColor }}>
+                                    {success ? 'After — Full revised statement' : 'Attempted revision (rejected)'}
+                                  </summary>
+                                  <pre style={microFixPreStyle}>{revisedStatement}</pre>
+                                </details>
+                              )}
+                              {mf.prompt && (
+                                <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                                  <summary style={{ cursor: 'pointer', color: 'var(--text-muted)' }}>Micro-fix prompt</summary>
+                                  <pre style={microFixPreStyle}>{mf.prompt}</pre>
+                                </details>
                               )}
                             </div>
                           );
@@ -6075,6 +6141,136 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                   </ul>
                               </details>
                             )}
+                              {/* Per-attempt Micro-Fix stages */}
+                              {(() => {
+                                const attemptMicroFixes = orchAttemptData?.stage_diagnostics?.filter(
+                                  (s: { stage: string }) => s.stage === 'micro-fix',
+                                ) ?? [];
+                                if (attemptMicroFixes.length === 0) return null;
+                                const mfPreStyle = { margin: '4px 0', padding: 6, background: 'rgba(0,0,0,0.15)', borderRadius: 4, whiteSpace: 'pre-wrap' as const, wordBreak: 'break-word' as const, fontSize: '0.6rem', maxHeight: 200, overflow: 'auto' as const };
+                                return attemptMicroFixes.map((mf: { stage: string; prompt?: string; raw_response?: string; response_time_ms?: number; work_product?: Record<string, unknown> }, mi: number) => {
+                                  const wp = mf.work_product;
+                                  const success = wp?.success as boolean | undefined;
+                                  const fixType = wp?.type as string | undefined;
+                                  const elapsed = mf.response_time_ms ?? 0;
+                                  const statusColor = success ? '#22c55e' : '#ef4444';
+
+                                  if (fixType === 'intervention_compliance') {
+                                    const move = wp?.move as string | undefined;
+                                    const field = wp?.field as string | undefined;
+                                    const generated = wp?.generated_value as Record<string, unknown> | string | undefined;
+                                    const recheck = wp?.recheck_result as { compliant?: boolean; repair_hint?: string } | undefined;
+                                    const rejected = wp?.rejected_reason as string | undefined;
+                                    return (
+                                      <div key={`mf-${mi}`} style={{
+                                        margin: '6px 0', padding: '6px 8px',
+                                        background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                                        borderLeft: `3px solid ${statusColor}`,
+                                        borderRadius: 4, fontSize: '0.68rem',
+                                      }}>
+                                        <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
+                                          Micro-Fix: {move ?? 'Intervention'} Compliance ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheck && !recheck.compliant ? 'Re-validation failed' : 'Failed'}
+                                        </div>
+                                        {field && (
+                                          <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                                            Field: <code style={{ background: 'rgba(128,128,128,0.15)', padding: '1px 4px', borderRadius: 3 }}>{field}</code>
+                                            {!success && <span style={{ marginLeft: 6 }}>Before: <em>missing</em></span>}
+                                          </div>
+                                        )}
+                                        {generated != null && (
+                                          <details open={success} style={{ fontSize: '0.62rem' }}>
+                                            <summary style={{ cursor: 'pointer', color: statusColor }}>
+                                              {success ? 'After — Generated value' : 'Attempted value (rejected)'}
+                                            </summary>
+                                            <pre style={mfPreStyle}>
+                                              {typeof generated === 'string' ? generated : JSON.stringify(generated, null, 2)}
+                                            </pre>
+                                          </details>
+                                        )}
+                                        {recheck?.repair_hint && !recheck.compliant && (
+                                          <div style={{ fontSize: '0.6rem', color: '#ef4444', marginTop: 4 }}>
+                                            {recheck.repair_hint}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+
+                                  if (fixType === 'directive_compliance') {
+                                    const move = wp?.move as string | undefined;
+                                    const revisedPara = wp?.revised_first_paragraph as string | undefined;
+                                    const recheckCompliant = wp?.recheck_compliant as boolean | undefined;
+                                    const rejected = wp?.rejected_reason as string | undefined;
+                                    return (
+                                      <div key={`mf-${mi}`} style={{
+                                        margin: '6px 0', padding: '6px 8px',
+                                        background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                                        borderLeft: `3px solid ${statusColor}`,
+                                        borderRadius: 4, fontSize: '0.68rem',
+                                      }}>
+                                        <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
+                                          Micro-Fix: Directive Compliance — {move ?? '?'} ({elapsed}ms) — {success ? 'Applied' : rejected ? `Rejected (${rejected})` : recheckCompliant === false ? 'Re-validation failed' : 'Failed'}
+                                        </div>
+                                        {revisedPara && (
+                                          <details open={success} style={{ fontSize: '0.62rem' }}>
+                                            <summary style={{ cursor: 'pointer', color: statusColor }}>
+                                              {success ? 'After — Revised first paragraph' : 'Attempted revision (rejected)'}
+                                            </summary>
+                                            <pre style={mfPreStyle}>{revisedPara}</pre>
+                                          </details>
+                                        )}
+                                      </div>
+                                    );
+                                  }
+
+                                  const changes = wp?.changes as Array<{ original?: string; revised?: string; fact_source?: string }> | undefined;
+                                  const diffPassed = wp?.diff_check_passed as boolean | undefined;
+                                  const rejected = wp?.rejected_reason as string | undefined;
+                                  const revisedStatement = wp?.revised_statement as string | undefined;
+                                  return (
+                                    <div key={`mf-${mi}`} style={{
+                                      margin: '6px 0', padding: '6px 8px',
+                                      background: success ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)',
+                                      borderLeft: `3px solid ${statusColor}`,
+                                      borderRadius: 4, fontSize: '0.68rem',
+                                    }}>
+                                      <div style={{ fontWeight: 600, color: statusColor, marginBottom: 4 }}>
+                                        Micro-Fix: Abstract Claims ({elapsed}ms) — {success ? 'Applied' : diffPassed === false ? (rejected === 'hallucinated_changes' ? 'Rejected (hallucinated edits)' : 'Rejected (too many changes)') : 'Re-validation failed'}
+                                        {changes && <span style={{ fontWeight: 400, fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 6 }}>{changes.length} change{changes.length !== 1 ? 's' : ''}</span>}
+                                      </div>
+                                      {changes && changes.length > 0 && (
+                                        <div style={{ fontSize: '0.65rem' }}>
+                                          {changes.map((c, ci) => (
+                                            <div key={ci} style={{ marginBottom: 6, padding: '3px 0', borderBottom: '1px solid rgba(128,128,128,0.1)' }}>
+                                              <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+                                                <span style={{ fontSize: '0.55rem', color: '#ef4444', fontWeight: 600, flexShrink: 0 }}>BEFORE</span>
+                                                <div style={{ color: 'var(--text-muted)', textDecoration: 'line-through', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.original ?? ''}</div>
+                                              </div>
+                                              {c.revised && c.original !== c.revised && (
+                                                <div style={{ display: 'flex', gap: 4, alignItems: 'baseline', marginTop: 2 }}>
+                                                  <span style={{ fontSize: '0.55rem', color: '#22c55e', fontWeight: 600, flexShrink: 0 }}>AFTER</span>
+                                                  <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.revised}</div>
+                                                </div>
+                                              )}
+                                              {c.fact_source && (
+                                                <div style={{ fontSize: '0.55rem', color: 'var(--text-muted)', marginTop: 2, marginLeft: 48 }}>source: {c.fact_source}</div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                      {revisedStatement && (
+                                        <details style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                                          <summary style={{ cursor: 'pointer', color: statusColor }}>
+                                            {success ? 'After — Full revised statement' : 'Attempted revision (rejected)'}
+                                          </summary>
+                                          <pre style={mfPreStyle}>{revisedStatement}</pre>
+                                        </details>
+                                      )}
+                                    </div>
+                                  );
+                                });
+                              })()}
                           </div>
                         );
                       });

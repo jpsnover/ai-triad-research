@@ -230,7 +230,7 @@ export function resolveTurnValidationConfig(
   c: TurnValidationConfig | undefined,
 ): Required<TurnValidationConfig> {
   const src = c ?? {};
-  const rawRetries = src.maxRetries ?? 1;
+  const rawRetries = src.maxRetries ?? 0;
   const clamped = Math.max(0, Math.min(4, rawRetries));
   return {
     enabled: src.enabled ?? true,
@@ -242,7 +242,7 @@ export function resolveTurnValidationConfig(
       argumentation: src.sampleRate?.argumentation ?? 1,
       concluding: src.sampleRate?.concluding ?? 1,
     },
-    scoreThreshold: Math.max(0, Math.min(1, src.scoreThreshold ?? 0.75)),
+    scoreThreshold: Math.max(0, Math.min(1, src.scoreThreshold ?? 0.65)),
     preCheckModel: src.preCheckModel ?? 'gemini-2.0-flash-lite',
     skipPreCheck: src.skipPreCheck ?? false,
   };
@@ -786,6 +786,27 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     outcome = 'pass';
   }
 
+  const retry_trigger: TurnValidation['retry_trigger'] =
+    hasStageAError ? 'stageA_error'
+    : (judge && judge.recommend === 'retry') ? 'judge_retry'
+    : judgeQualityLow ? 'judge_quality_low'
+    : scoreBelowThreshold ? 'score_below_threshold'
+    : 'none';
+
+  getGlobalRecorder()?.record({
+    type: 'turn.validate.outcome', component: 'turn-pipeline', level: 'info',
+    message: `Validation outcome: ${outcome} (trigger=${retry_trigger}, score=${process_reward.toFixed(3)}, threshold=${p.config.scoreThreshold})`,
+    data: {
+      outcome, retry_trigger, process_reward,
+      stageA_score: stageAScore,
+      judge_quality_score: judge?.quality_score,
+      judge_recommend: judge?.recommend,
+      score_threshold: p.config.scoreThreshold,
+      max_retries: p.config.maxRetries,
+      hint_count: repairHints.length,
+    },
+  });
+
   return {
     outcome,
     process_reward,
@@ -794,6 +815,11 @@ export async function validateTurn(p: ValidateTurnParams): Promise<TurnValidatio
     clarifies_taxonomy: judge?.clarifies_taxonomy ?? [],
     judge_used: judgeUsed,
     judge_model: judgeUsed ? judgeModel : undefined,
+    retry_trigger,
+    stageA_score: stageAScore,
+    judge_quality_score: judge?.quality_score,
+    judge_recommend: judge?.recommend,
+    score_threshold: p.config.scoreThreshold,
   };
 }
 
@@ -969,6 +995,30 @@ export function checkDirectiveContentCompliance(
     return hasEvidence
       ? { compliant: true, repair_hint: '', directive_terms: ['evidence', 'data', 'citation'], matched_terms: 1 }
       : { compliant: false, repair_hint: 'Your first paragraph must present specific evidence — cite a data point, study, or concrete example. Begin with "The evidence is..." or lead with your citation.', directive_terms: ['evidence', 'data'], matched_terms: 0 };
+  }
+
+  // Procedural family: structural checks instead of keyword overlap (t/315)
+  if (intervention.move === 'SEQUENCE') {
+    const fullText = statement.toLowerCase();
+    const hasNumberedSections = /(?:^|\n)\s*(?:1[\.\):]|first[,:])/m.test(fullText) && /(?:^|\n)\s*(?:2[\.\):]|second[,:])/m.test(fullText);
+    const hasOnPattern = /\bon\s+(?:the\s+)?(?:sub-?topic|point|question|issue|matter|topic)\b/i.test(fullText) || /\bon\s+[a-z].*?:\s/im.test(statement);
+    return (hasNumberedSections || hasOnPattern)
+      ? { compliant: true, repair_hint: '', directive_terms: ['numbered', 'sections', 'sequence'], matched_terms: 1 }
+      : { compliant: false, repair_hint: 'Your response must use explicit numbered sections (1. On [sub-topic]: ... 2. On [sub-topic]: ...) to address the sub-topics the moderator identified. Do not write a single undifferentiated block.', directive_terms: ['numbered', 'sections'], matched_terms: 0 };
+  }
+
+  if (intervention.move === 'BALANCE') {
+    const hasBalanceSignal = /\bgranting\b|\backnowledg(?:e|ing)\b|\bhowever\b|\bon the other hand\b|\bvalid point\b|\bfair\s+(?:point|critique|objection)\b|\bother\s+(?:side|perspective|view)\b|\bconcede\b|\blegitimate\b/i.test(firstParagraph);
+    return hasBalanceSignal
+      ? { compliant: true, repair_hint: '', directive_terms: ['acknowledge', 'perspective', 'balance'], matched_terms: 1 }
+      : { compliant: false, repair_hint: 'Your first paragraph must acknowledge the underrepresented perspective the moderator identified. Begin with "Granting the force of..." or "Acknowledging [opposing view]:" and genuinely engage with the perspective you have been neglecting.', directive_terms: ['acknowledge', 'perspective'], matched_terms: 0 };
+  }
+
+  if (intervention.move === 'REDIRECT') {
+    const hasRedirectSignal = /\bturning to\b|\baddressing\b|\bredirect\b|\bnew direction\b|\bshift(?:ing)?\s+(?:to|focus)\b|\bmoving\s+to\b|\bas\s+the\s+moderator\b|\bper\s+the\s+moderator\b|\bmoderator'?s?\s+(?:redirect|request|point)\b/i.test(firstParagraph);
+    return hasRedirectSignal
+      ? { compliant: true, repair_hint: '', directive_terms: ['redirect', 'turning', 'addressing'], matched_terms: 1 }
+      : { compliant: false, repair_hint: 'Your first paragraph must acknowledge the moderator\'s redirect. Begin with "Turning to the moderator\'s redirect:" or "Addressing the new direction:" and signal that you are shifting to the requested topic.', directive_terms: ['redirect', 'turning'], matched_terms: 0 };
   }
 
   // Fallback: keyword overlap for other intervention types

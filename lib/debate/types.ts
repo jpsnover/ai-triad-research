@@ -668,7 +668,7 @@ export interface ProcessRewardEntry {
 export interface TurnValidationConfig {
   /** Master switch. Default: true. */
   enabled?: boolean;
-  /** Max retries per turn. Hard-capped at 4 (higher values clamped). Default: 4. */
+  /** Max retries per turn. Hard-capped at 4 (higher values clamped). Default: 0 (retries disabled). */
   maxRetries?: 0 | 1 | 2 | 3 | 4;
   /** Minimum orchestration score to accept a turn without retry. Default: 0.75. */
   scoreThreshold?: number;
@@ -716,6 +716,16 @@ export interface TurnValidation {
   clarifies_taxonomy: TaxonomyClarificationHint[];
   judge_used: boolean;
   judge_model?: string;
+  /** Which condition would have triggered a retry (informational when retries disabled). */
+  retry_trigger?: 'stageA_error' | 'judge_retry' | 'judge_quality_low' | 'score_below_threshold' | 'none';
+  /** Stage A deterministic score (0-1). */
+  stageA_score?: number;
+  /** LLM judge quality_score (0-1), undefined if judge not used. */
+  judge_quality_score?: number;
+  /** LLM judge recommendation, undefined if judge not used. */
+  judge_recommend?: 'pass' | 'accept_with_flag' | 'retry';
+  /** The configured scoreThreshold used for this validation. */
+  score_threshold?: number;
 }
 
 /** Classification of how actionable a repair hint is. */

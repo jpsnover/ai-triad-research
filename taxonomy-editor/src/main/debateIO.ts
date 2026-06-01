@@ -4,7 +4,8 @@
 import fs from 'fs';
 import path from 'path';
 
-import { resolveDataPath } from './fileIO';
+import { resolveDataPath } from './fileIO.js';
+import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
 
 const DEBATES_DIR = resolveDataPath('debates');
 
@@ -89,9 +90,8 @@ export function saveDebateSession(session: unknown): void {
   try {
     const s = session as { transcript?: { type: string }[] };
     if (s?.transcript?.some(e => e.type === 'concluding')) {
-      const { extractCalibrationData, appendCalibrationLog } = require('../../../lib/debate/calibrationLogger');
       const dataRoot = path.dirname(DEBATES_DIR); // data root is parent of debates/
-      const dataPoint = extractCalibrationData(session, 'local' as const);
+      const dataPoint = extractCalibrationData(session as Parameters<typeof extractCalibrationData>[0], 'local' as const);
       appendCalibrationLog(dataPoint, dataRoot);
     }
   } catch { /* calibration logging never blocks save */ }

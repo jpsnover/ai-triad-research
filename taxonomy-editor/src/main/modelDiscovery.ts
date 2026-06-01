@@ -3,9 +3,9 @@
 
 import fs from 'fs';
 import path from 'path';
-import { loadApiKey } from './apiKeyStore';
-import { PROJECT_ROOT } from './fileIO';
-import { ActionableError } from '../../../lib/debate/errors';
+import { loadApiKey } from './apiKeyStore.js';
+import { PROJECT_ROOT } from './fileIO.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 
 const CONFIG_PATH = path.join(PROJECT_ROOT, 'ai-models.json');
 

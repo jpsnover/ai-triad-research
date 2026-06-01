@@ -3564,6 +3564,46 @@ Respond with JSON (no markdown fences):
 }`;
 }
 
+export interface DirectiveMicroFixResult {
+  revised_first_paragraph: string;
+}
+
+export function microFixDirectiveCompliance(
+  statement: string,
+  move: string,
+  directiveText: string,
+  responsePattern: string,
+): string {
+  const paragraphs = statement.split(/\n\s*\n/).filter(Boolean);
+  const firstParagraph = paragraphs[0] ?? '';
+  return `You are a compliance editor. A debater's first paragraph fails to address a moderator directive.
+
+=== MODERATOR DIRECTIVE ===
+Type: ${move}
+Directive: "${directiveText}"
+
+=== REQUIRED RESPONSE FORMAT ===
+${responsePattern}
+
+=== CURRENT FIRST PARAGRAPH (non-compliant) ===
+${firstParagraph}
+
+=== TASK ===
+Rewrite ONLY the first paragraph so it directly addresses the moderator's ${move} directive.
+
+RULES:
+- The rewritten paragraph must clearly signal compliance with the directive
+- Keep it to 2-3 sentences — state your response to the directive, give one reason
+- Preserve the debater's position and tone from the original
+- Do NOT rewrite or include any other paragraphs — only the first one
+- The rewritten paragraph must flow naturally into the second paragraph (which starts: "${(paragraphs[1] ?? '').slice(0, 80)}...")
+
+Respond with JSON (no markdown fences):
+{
+  "revised_first_paragraph": "the rewritten first paragraph"
+}`;
+}
+
 export function newsReportPrompt(
   topic: string,
   synthesisJson: string,

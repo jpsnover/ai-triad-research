@@ -92,20 +92,20 @@ describe('resolveTurnValidationConfig', () => {
   it('fills defaults when given undefined', () => {
     const c = resolveTurnValidationConfig(undefined);
     expect(c.enabled).toBe(true);
-    expect(c.maxRetries).toBe(1);
+    expect(c.maxRetries).toBe(0);
     expect(c.deterministicOnly).toBe(false);
     expect(c.judgeModel).toBe('claude-haiku-4-5-20251001');
     expect(c.sampleRate['confrontation']).toBe(1);
     expect(c.sampleRate.argumentation).toBe(1);
     expect(c.sampleRate.concluding).toBe(1);
-    expect(c.scoreThreshold).toBe(0.75);
+    expect(c.scoreThreshold).toBe(0.65);
   });
 
   it('fills defaults when given empty object', () => {
     const c = resolveTurnValidationConfig({});
     expect(c.enabled).toBe(true);
-    expect(c.maxRetries).toBe(1);
-    expect(c.scoreThreshold).toBe(0.75);
+    expect(c.maxRetries).toBe(0);
+    expect(c.scoreThreshold).toBe(0.65);
   });
 
   it('clamps maxRetries above 4 down to 4', () => {
@@ -837,7 +837,8 @@ describe('validateTurn orchestrator', () => {
       },
     });
     const r = await validateTurn(p);
-    expect(r.outcome).toBe('retry');
+    // maxRetries=0 by default → stageA error becomes accept_with_flag
+    expect(r.outcome).toBe('accept_with_flag');
     expect(judgeCalled).toBe(false);
     expect(r.judge_used).toBe(false);
   });
@@ -956,9 +957,9 @@ describe('judge parse failures', () => {
     });
     const r = await validateTurn(p);
     // parseJudgeVerdict fallback has recommend='accept_with_flag', advances=false
-    // Composite score (0.64) falls below scoreThreshold (0.75) → retry when budget > 0
+    // Composite score (0.64) falls below scoreThreshold (0.65) — with maxRetries=0, outcome is accept_with_flag
     expect(r.judge_used).toBe(true);
-    expect(r.outcome).toBe('retry');
+    expect(r.outcome).toBe('accept_with_flag');
   });
 
   it('uses fallback judge when primary throws', async () => {
@@ -1102,7 +1103,7 @@ describe('score calculation', () => {
   it('caps inflated quality_score based on weakness count', async () => {
     // Judge returns 0.80 with 3 weaknesses — calibration cap should enforce max 0.55
     const p = makeParams({
-      config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false }),
+      config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false, maxRetries: 2 }),
       callJudge: async () =>
         JSON.stringify({
           advances: true,
@@ -1124,7 +1125,7 @@ describe('score calculation', () => {
   it('applies evidence-gap penalty on top of weakness cap', async () => {
     // 2 weaknesses including "lacks evidence" — cap 0.65, then -0.10 → 0.55
     const p = makeParams({
-      config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false }),
+      config: resolveTurnValidationConfig({ enabled: true, deterministicOnly: false, maxRetries: 2 }),
       callJudge: async () =>
         JSON.stringify({
           advances: true,
@@ -1137,8 +1138,10 @@ describe('score calculation', () => {
     });
     const r = await validateTurn(p);
     // 2 weaknesses → cap 0.65, "lacks evidence" → -0.10 → 0.55
-    // Composite score (0.69) falls below scoreThreshold (0.75) → retry when budget > 0
-    expect(r.outcome).toBe('retry');
+    // process_reward = 0.4*1.0 + 0.6*0.55 = 0.73 — above 0.65 threshold
+    // judge recommend reconciled to 'accept_with_flag' (quality 0.55 < 0.7)
+    // Not below scoreThreshold, not judgeQualityLow (0.55 is NOT < 0.55)
+    expect(r.outcome).toBe('accept_with_flag');
   });
 });
 
@@ -1358,10 +1361,10 @@ describe('validateCiteStage target_nodes', () => {
 // ── Directive content compliance ─────────────────────────────
 
 describe('checkDirectiveContentCompliance', () => {
-  it('passes when first paragraph addresses the directive terms', () => {
-    const statement = 'I acknowledge the moderator\'s challenge about evidence quality and empirical grounding.\n\nMy substantive argument follows here with additional detail.';
+  it('passes when first paragraph addresses the directive terms (keyword fallback)', () => {
+    const statement = 'I acknowledge the challenge about evidence quality and empirical grounding.\n\nMy substantive argument follows here with additional detail.';
     const result = checkDirectiveContentCompliance(statement, {
-      move: 'REDIRECT',
+      move: 'CLARIFY',
       text: 'Present evidence for your empirical claims about evidence quality.',
       isTargeted: true,
     });
@@ -1369,31 +1372,31 @@ describe('checkDirectiveContentCompliance', () => {
     expect(result.matched_terms).toBeGreaterThanOrEqual(2);
   });
 
-  it('fails when first paragraph ignores directive content', () => {
+  it('fails when first paragraph ignores directive content (keyword fallback)', () => {
     const statement = 'Let me continue my argument about governance frameworks.\n\nThe regulatory landscape requires careful analysis of institutional design.';
     const result = checkDirectiveContentCompliance(statement, {
-      move: 'REDIRECT',
+      move: 'CLARIFY',
       text: 'State whether you agree or disagree with the precautionary principle.',
       isTargeted: true,
     });
     expect(result.compliant).toBe(false);
-    expect(result.repair_hint).toContain('REDIRECT');
+    expect(result.repair_hint).toContain('CLARIFY');
     expect(result.repair_hint).toContain('first paragraph');
   });
 
   it('requires only 1 matching term for non-targeted directives', () => {
     const statement = 'The precautionary framing raised by the moderator touches on my view.\n\nMoving on to the substance...';
     const result = checkDirectiveContentCompliance(statement, {
-      move: 'REDIRECT',
+      move: 'CLARIFY',
       text: 'Explain the precautionary principle in more detail.',
       isTargeted: false,
     });
     expect(result.compliant).toBe(true);
   });
 
-  it('passes when directive text is empty', () => {
+  it('passes when directive text is empty (keyword fallback)', () => {
     const result = checkDirectiveContentCompliance('Some statement.', {
-      move: 'REDIRECT',
+      move: 'CLARIFY',
     });
     expect(result.compliant).toBe(true);
   });
@@ -1422,7 +1425,7 @@ describe('checkDirectiveContentCompliance', () => {
   it('prefers text over directResponsePattern for keyword overlap', () => {
     const statement = 'The general moderator text deserves a direct response.\n\nHere is my reasoning.';
     const result = checkDirectiveContentCompliance(statement, {
-      move: 'REDIRECT',
+      move: 'CLARIFY',
       text: 'General moderator text.',
       directResponsePattern: 'State whether the safety threshold is too conservative.',
       isTargeted: true,
@@ -1435,13 +1438,112 @@ describe('checkDirectiveContentCompliance', () => {
   it('falls back to directResponsePattern when text is absent', () => {
     const statement = 'The safety threshold debate requires careful consideration of conservative approaches.\n\nHere is my reasoning.';
     const result = checkDirectiveContentCompliance(statement, {
-      move: 'REDIRECT',
+      move: 'CLARIFY',
       directResponsePattern: 'State whether the safety threshold is too conservative.',
       isTargeted: true,
     });
     expect(result.compliant).toBe(true);
     expect(result.directive_terms).toContain('safety');
     expect(result.directive_terms).toContain('threshold');
+  });
+
+  // ── SEQUENCE structural checks (t/315) ──
+
+  it('SEQUENCE passes with numbered sections', () => {
+    const statement = '1. On governance: International coordination is essential for effective AI regulation.\n\n2. On innovation: Safety measures need not impede progress if designed thoughtfully.\n\nIn conclusion, both goals are achievable.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'SEQUENCE',
+      text: 'Address governance and innovation as separate sub-topics.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('SEQUENCE passes with "On [topic]:" pattern', () => {
+    const statement = 'On the question of liability: Current frameworks are inadequate.\n\nOn enforcement mechanisms: We need binding international treaties.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'SEQUENCE',
+      text: 'Separate liability from enforcement.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('SEQUENCE fails with undifferentiated block', () => {
+    const statement = 'AI governance is complex and touches on many issues including safety and innovation.\n\nWe should consider all perspectives carefully.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'SEQUENCE',
+      text: 'Address governance and innovation as separate sub-topics.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.repair_hint).toContain('numbered sections');
+  });
+
+  // ── BALANCE structural checks (t/315) ──
+
+  it('BALANCE passes when acknowledging opposing perspective', () => {
+    const statement = 'Granting the force of the safety-first perspective, the precautionary principle does protect against catastrophic risk.\n\nHowever, my core argument remains that overly cautious approaches carry their own risks.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'BALANCE',
+      text: 'You have been neglecting the safety-first perspective.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('BALANCE passes with "however" pivot', () => {
+    const statement = 'The accelerationist view has merit in many domains; however, the risks in frontier AI require special caution.\n\nLet me elaborate on why this domain is different.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'BALANCE',
+      text: 'Engage with the accelerationist position you have been dismissing.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('BALANCE fails when first paragraph ignores opposing perspective', () => {
+    const statement = 'My position on AI safety remains firm and well-supported by evidence.\n\nThe data clearly shows that current systems pose unacceptable risks.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'BALANCE',
+      text: 'Engage with the accelerationist position.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.repair_hint).toContain('acknowledge');
+  });
+
+  // ── REDIRECT structural checks (t/315) ──
+
+  it('REDIRECT passes when acknowledging the redirect', () => {
+    const statement = 'Turning to the moderator\'s redirect, the question of compute governance is indeed underexplored.\n\nI believe we should focus on hardware-level controls as the most tractable intervention point.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      text: 'Shift focus to compute governance.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('REDIRECT passes with "addressing" signal', () => {
+    const statement = 'Addressing the new direction raised by the moderator, international coordination mechanisms deserve scrutiny.\n\nThe current patchwork of national regulations creates gaps.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      text: 'Move to international coordination.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('REDIRECT fails when first paragraph ignores the redirect', () => {
+    const statement = 'Continuing with my analysis of domestic regulation, the U.S. framework is most promising.\n\nThe executive order provides a foundation.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'REDIRECT',
+      text: 'Shift to international coordination.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.repair_hint).toContain('redirect');
   });
 });
 

@@ -6,7 +6,7 @@
 
 import { ipcMain, BrowserWindow } from 'electron';
 import path from 'path';
-import { PROJECT_ROOT } from './fileIO';
+import { PROJECT_ROOT } from './fileIO.js';
 
 type IPty = import('node-pty').IPty;
 

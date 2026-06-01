@@ -6,14 +6,18 @@ import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 console.log('[main] Core imports OK');
-import { registerIpcHandlers } from './ipcHandlers';
+import { registerIpcHandlers } from './ipcHandlers.js';
 console.log('[main] ipcHandlers import OK');
-import { registerTerminalHandlers, cleanupTerminal } from './terminal';
+import { registerTerminalHandlers, cleanupTerminal } from './terminal.js';
 console.log('[main] terminal import OK');
-import { warmupEmbeddingModel } from './embeddings';
+import { warmupEmbeddingModel } from './embeddings.js';
 console.log('[main] embeddings import OK');
-import { PROJECT_ROOT } from './fileIO';
+import { PROJECT_ROOT } from './fileIO.js';
 console.log('[main] fileIO import OK');
 
 let mainWindow: BrowserWindow | null = null;
@@ -118,7 +122,7 @@ function hardenWindow(win: BrowserWindow): void {
 }
 
 function createWindow(): void {
-  const preloadPath = path.join(__dirname, 'preload.js');
+  const preloadPath = path.join(__dirname, 'preload.cjs');
   console.log('[main] preload path:', preloadPath);
   console.log('[main] app.isPackaged:', app.isPackaged);
 
@@ -324,7 +328,7 @@ void app.whenReady().then(() => {
       diagWindow.focus();
       return;
     }
-    const preloadPath = path.join(__dirname, 'preload.js');
+    const preloadPath = path.join(__dirname, 'preload.cjs');
     diagWindow = new BrowserWindow({
       width: 700,
       height: 600,
@@ -371,7 +375,7 @@ void app.whenReady().then(() => {
       promptDiffWindow.focus();
       return;
     }
-    const preloadPath = path.join(__dirname, 'preload.js');
+    const preloadPath = path.join(__dirname, 'preload.cjs');
     promptDiffWindow = new BrowserWindow({
       width: 1200,
       height: 700,
@@ -415,7 +419,7 @@ void app.whenReady().then(() => {
       povProgWindow.focus();
       return;
     }
-    const preloadPath = path.join(__dirname, 'preload.js');
+    const preloadPath = path.join(__dirname, 'preload.cjs');
     povProgWindow = new BrowserWindow({
       width: 1100,
       height: 720,
@@ -452,7 +456,7 @@ void app.whenReady().then(() => {
       debateWindow.focus();
       return;
     }
-    const preloadPath = path.join(__dirname, 'preload.js');
+    const preloadPath = path.join(__dirname, 'preload.cjs');
     debateWindow = new BrowserWindow({
       width: 1100,
       height: 800,

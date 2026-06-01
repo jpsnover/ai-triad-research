@@ -4,7 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { resolveDataPath } from './fileIO';
+import { resolveDataPath } from './fileIO.js';
 
 const CHATS_DIR = resolveDataPath('chats');
 

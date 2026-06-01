@@ -11,11 +11,11 @@ import {
   debateToHtml,
   type DebateExportOptions,
   type ExportableDebateSession,
-} from '../../../lib/debate/debateExport';
+} from '../../../lib/debate/debateExport.js';
 
 // Re-export shared converters so existing imports keep working
-export { debateToText, debateToMarkdown, debateToPackage, debateExportFilename } from '../../../lib/debate/debateExport';
-export type { DebateExportOptions, ExportableDebateSession, DebateExportFormat } from '../../../lib/debate/debateExport';
+export { debateToText, debateToMarkdown, debateToPackage, debateExportFilename } from '../../../lib/debate/debateExport.js';
+export type { DebateExportOptions, ExportableDebateSession, DebateExportFormat } from '../../../lib/debate/debateExport.js';
 
 export async function debateToPdf(session: ExportableDebateSession, options?: DebateExportOptions): Promise<Buffer> {
   const fullHtml = debateToHtml(session, options);

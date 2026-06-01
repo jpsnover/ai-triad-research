@@ -705,9 +705,9 @@ export const DIRECT_RESPONSE_PATTERNS: Record<InterventionMove, string> = {
   POLICY_CHALLENGE: 'Your first paragraph MUST begin with "The mechanism I propose is [specific enforcement/regulatory mechanism]." Follow with: who implements it, under what legal authority, and what the primary obstacle to implementation is. Then a paragraph break before your substantive argument.',
   COMPRESS: 'Your ENTIRE statement must be a single sentence of 40 words or fewer. No preamble, no qualification, no additional paragraphs. Just the core thesis.',
   COMMIT: 'Your first paragraph MUST state three things in three sentences: "I concede [X]." "I still hold [Y]." "I would change if [Z]." Then a paragraph break before elaboration.',
-  REDIRECT: '',
-  BALANCE: '',
-  SEQUENCE: 'Structure your response with explicit numbered sections: "On [sub-topic 1]: [argument]. On [sub-topic 2]: [argument]."',
+  REDIRECT: 'Your first paragraph MUST begin with "Turning to the moderator\'s redirect:" OR "Addressing the new direction:" followed by a 1-2 sentence response to the moderator\'s requested topic shift. Then a paragraph break before your substantive argument on the redirected topic.',
+  BALANCE: 'Your first paragraph MUST acknowledge the underrepresented perspective identified by the moderator. Begin with "The [other side/perspective] raises a valid point:" OR "Granting the force of [opposing view]:" followed by a genuine engagement with the perspective you have been neglecting. Then a paragraph break before your substantive argument.',
+  SEQUENCE: 'Your response MUST use explicit numbered sections to address the sub-topics the moderator identified. Format: "1. On [sub-topic]: [argument]\\n\\n2. On [sub-topic]: [argument]". Each numbered section should be its own paragraph. Do NOT write a single undifferentiated block.',
   ACKNOWLEDGE: '',
   SUMMARIZE: '',
 };

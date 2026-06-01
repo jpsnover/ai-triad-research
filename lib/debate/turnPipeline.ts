@@ -23,7 +23,7 @@ import type { DocumentAnalysis } from './types.js';
 import { POVER_INFO } from './types.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
-import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName, classifyHintKey } from './turnValidator.js';
+import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName, classifyHintKey, checkDirectiveContentCompliance } from './turnValidator.js';
 import type { DraftQualityCheckOutput } from './turnValidator.js';
 import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
 import type { GenerateOptions } from './aiAdapter.js';
@@ -42,9 +42,10 @@ import {
   assumptionsExtractionPrompt,
   microFixAbstractClaims,
   microFixInterventionResponse,
+  microFixDirectiveCompliance,
 } from './prompts.js';
-import type { MicroFixResult, InterventionMicroFixResult } from './prompts.js';
-import { checkInterventionCompliance, MOVE_RESPONSE_CONFIG } from './moderator.js';
+import type { MicroFixResult, InterventionMicroFixResult, DirectiveMicroFixResult } from './prompts.js';
+import { checkInterventionCompliance, MOVE_RESPONSE_CONFIG, DIRECT_RESPONSE_PATTERNS } from './moderator.js';
 import type { StagePromptInput, OpeningStagePromptInput } from './prompts.js';
 import type { GenerateRequest, GenerateResponse } from './cacheTypes.js';
 import { flattenEnvelope } from './cacheTypes.js';
@@ -304,6 +305,10 @@ export async function runTurnPipeline(
   envelopeGenerate?: EnvelopeGenerateFn,
   preCheckGenerate?: StageGenerateFn,
 ): Promise<TurnPipelineResult> {
+  // Default pre-check to the main generate callback so callers that don't
+  // explicitly pass it still get the quality gate (t/317).
+  const effectivePreCheckGenerate = preCheckGenerate ?? generate;
+
   const temps = {
     ...DEFAULT_STAGE_TEMPERATURES,
     ...input.stageTemperatures,
@@ -695,7 +700,7 @@ export async function runTurnPipeline(
     !/taxonomy_refs.*(?:filler|too-short|relevance)|No new taxonomy_refs|Unknown taxonomy node|Unknown policy_refs|grounding_confidence/i.test(h)
   ) ?? [];
 
-  const MAX_DRAFT_RETRIES = isOuterRetry ? 0 : 2; // directive failures get up to 2 retries (3 attempts)
+  const MAX_DRAFT_RETRIES = isOuterRetry ? 1 : 2; // outer retry gets 1 inner retry; normal gets up to 2
   for (let draftAttempt = 0; draftAttempt <= MAX_DRAFT_RETRIES; draftAttempt++) {
     onProgress?.('draft', `${input.label} is drafting${draftAttempt > 0 ? ` (retry ${draftAttempt})` : ''}...`);
     getGlobalRecorder()?.record({
@@ -1153,6 +1158,115 @@ export async function runTurnPipeline(
         }
         // ── End intervention micro-fix pass ──
 
+        // ── Micro-fix pass: directive content compliance (t/318) ──
+        // When the first paragraph fails to address the moderator's directive,
+        // rewrite only the first paragraph instead of a full draft retry.
+        const directiveHints = (draftVal.repairHints ?? []).filter(
+          h => classifyHintKey(h) === 'directive_compliance',
+        );
+        if (directiveHints.length > 0 && pi && draft?.statement) {
+          const move = pi.move as keyof typeof DIRECT_RESPONSE_PATTERNS;
+          const responsePattern = DIRECT_RESPONSE_PATTERNS[move] || '';
+          const directiveText = pi.directResponsePattern ?? `The moderator issued a ${pi.move} intervention.`;
+          const dirFixT0 = Date.now();
+          let dirFixPromptText = '';
+          let dirFixRaw = '';
+          try {
+            dirFixPromptText = microFixDirectiveCompliance(
+              draft.statement, pi.move, directiveText, responsePattern,
+            );
+            dirFixRaw = await generate(
+              dirFixPromptText, input.model,
+              { temperature: 0.3 },
+              `${input.label} micro-fix(directive)`,
+            );
+            const dirFixResult = parseJsonRobust(dirFixRaw) as DirectiveMicroFixResult | undefined;
+            const dirFixElapsed = Date.now() - dirFixT0;
+
+            const pushDirFixDiag = (success: boolean, workProduct: Record<string, unknown>) => {
+              stageDiags.push({
+                stage: 'micro-fix',
+                prompt: dirFixPromptText,
+                raw_response: dirFixRaw,
+                model: input.model,
+                temperature: 0.3,
+                response_time_ms: dirFixElapsed,
+                work_product: workProduct,
+              });
+            };
+
+            if (dirFixResult?.revised_first_paragraph) {
+              const paragraphs = draft.statement.split(/\n\s*\n/);
+              const originalStatement = draft.statement;
+              paragraphs[0] = dirFixResult.revised_first_paragraph;
+              draft.statement = paragraphs.join('\n\n');
+
+              const recheck = checkDirectiveContentCompliance(
+                draft.statement,
+                { move: pi.move, directResponsePattern: pi.directResponsePattern, isTargeted: pi.isTargeted },
+              );
+
+              pushDirFixDiag(recheck.compliant, {
+                type: 'directive_compliance', success: recheck.compliant,
+                move: pi.move, recheck_compliant: recheck.compliant,
+                revised_first_paragraph: dirFixResult.revised_first_paragraph,
+              });
+
+              if (recheck.compliant) {
+                const remainingErrors = (draftVal.errorHints ?? []).filter(
+                  h => classifyHintKey(h) !== 'directive_compliance',
+                );
+                getGlobalRecorder()?.record({
+                  type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+                  speaker: input.label,
+                  message: `Micro-fix(directive) succeeded: first paragraph rewritten for ${pi.move} compliance`,
+                  data: { target: 'directive_compliance', move: pi.move, success: true, recheck_compliant: true, elapsed_ms: dirFixElapsed },
+                });
+                console.log(`[pipeline] Micro-fix(directive) succeeded in ${dirFixElapsed}ms — first paragraph rewritten`);
+                if (remainingErrors.length === 0) {
+                  break;
+                }
+                draftVal.repairHints = draftVal.repairHints.filter(
+                  h => classifyHintKey(h) !== 'directive_compliance',
+                );
+                draftVal.errorHints = draftVal.errorHints.filter(
+                  h => classifyHintKey(h) !== 'directive_compliance',
+                );
+              } else {
+                draft.statement = originalStatement;
+                getGlobalRecorder()?.record({
+                  type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+                  speaker: input.label,
+                  message: `Micro-fix(directive) re-validation failed — falling through to full retry`,
+                  data: { target: 'directive_compliance', move: pi.move, success: false, recheck_compliant: false, elapsed_ms: dirFixElapsed },
+                });
+                console.log(`[pipeline] Micro-fix(directive) re-validation failed — falling through to full retry`);
+              }
+            } else {
+              pushDirFixDiag(false, {
+                type: 'directive_compliance', success: false,
+                move: pi.move, rejected_reason: 'missing_revised_first_paragraph',
+              });
+              console.log(`[pipeline] Micro-fix(directive) returned no revised_first_paragraph — falling through to full retry`);
+            }
+          } catch (err) {
+            stageDiags.push({
+              stage: 'micro-fix',
+              prompt: dirFixPromptText,
+              raw_response: dirFixRaw,
+              model: input.model,
+              temperature: 0.3,
+              response_time_ms: Date.now() - dirFixT0,
+              work_product: {
+                type: 'directive_compliance', success: false,
+                error: err instanceof Error ? err.message : String(err),
+              },
+            });
+            console.warn(`[pipeline] Micro-fix(directive) failed: ${err instanceof Error ? err.message : err}`);
+          }
+        }
+        // ── End directive micro-fix pass ──
+
         draftRepairHints = draftAttempt === 0 ? draftVal.repairHints : draftVal.errorHints;
         // Find the actual draft diagnostic (skip any micro-fix entries that were pushed after it)
         const lastDraftDiag = [...stageDiags].reverse().find(s => s.stage === 'draft') ?? stageDiags[stageDiags.length - 1];
@@ -1512,7 +1626,7 @@ export async function runTurnPipeline(
   if (
     !isOuterRetry &&
     !input.skipPreCheck &&
-    preCheckGenerate &&
+    effectivePreCheckGenerate &&
     input.preCheckModel &&
     input.lastOpponentStatement &&
     draft?.statement
@@ -1531,7 +1645,7 @@ export async function runTurnPipeline(
     );
     const preCheckT0 = Date.now();
     try {
-      const preCheckRaw = await preCheckGenerate(
+      const preCheckRaw = await effectivePreCheckGenerate(
         preCheckPromptText,
         input.preCheckModel,
         { temperature: 0.1 },

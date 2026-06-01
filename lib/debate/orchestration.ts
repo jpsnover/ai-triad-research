@@ -69,6 +69,7 @@ import { parseJsonRobust, formatRecentTranscript, getMoveName } from './helpers.
 import type { PoverResponseMeta } from './helpers.js';
 import type { GenerateOptions } from './aiAdapter.js';
 import { validateTurn, resolveTurnValidationConfig } from './turnValidator.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Callback Interfaces ─────────────────────────────────
 
@@ -929,7 +930,26 @@ export async function executeTurnWithRetry(
     // caused 35 wasted pipeline runs in a single debate.
     const shouldRetry = validation.outcome === 'retry' && hasActionableFeedback;
 
-    console.log(`[orchestration] *** RETRY CHECK: attempt=${attemptIdx}, score=${currentScore.toFixed(2)}, bestScore=${bestScore.toFixed(2)}, totalHints=${validation.repairHints?.length ?? 0}, actionableHints=${actionableHints.length}, outcome=${validation.outcome}, retry=${shouldRetry}, max=${vConfig.maxRetries} ***`);
+    getGlobalRecorder()?.record({
+      type: 'turn.orchestration.retry_decision', component: 'orchestration', level: 'info',
+      message: `Retry decision: ${shouldRetry ? 'RETRY' : 'ACCEPT'} (attempt=${attemptIdx}, score=${currentScore.toFixed(3)}, judge=${validation.judge_quality_score?.toFixed(2) ?? 'n/a'}, trigger=${validation.retry_trigger})`,
+      data: {
+        attempt: attemptIdx,
+        process_reward: currentScore,
+        best_score: bestScore,
+        stageA_score: validation.stageA_score,
+        judge_quality_score: validation.judge_quality_score,
+        judge_recommend: validation.judge_recommend,
+        score_threshold: validation.score_threshold,
+        retry_trigger: validation.retry_trigger,
+        outcome: validation.outcome,
+        should_retry: shouldRetry,
+        max_retries: vConfig.maxRetries,
+        total_hints: validation.repairHints?.length ?? 0,
+        actionable_hints: actionableHints.length,
+        hint_texts: actionableHints.slice(0, 3),
+      },
+    });
 
     if (!shouldRetry || attemptIdx >= vConfig.maxRetries) break;
 
@@ -944,19 +964,38 @@ export async function executeTurnWithRetry(
       const citeHints = actionableHints.filter(h => classifyHintTarget(h) === 'cite');
       const draftHints = actionableHints.filter(h => classifyHintTarget(h) !== 'cite');
       const isCiteOnly = draftHints.length === 0;
+
+      // Preserve micro-fixed drafts across retries (t/316): when a micro-fix
+      // succeeded and the retry is NOT triggered by draft-structural hints,
+      // freeze the draft so the retry only re-runs cite.
+      const hadSuccessfulMicroFix = pipelineResult.stage_diagnostics.some(
+        d => d.stage === 'micro-fix' && (d.work_product as Record<string, unknown>)?.success === true,
+      );
+      const hasRealDraftHints = actionableHints.some(h => classifyHintTarget(h) === 'draft');
+      const preserveMicroFix = hadSuccessfulMicroFix && !hasRealDraftHints;
+      const freezeDraft = isCiteOnly || preserveMicroFix;
+
+      if (preserveMicroFix) {
+        getGlobalRecorder()?.record({
+          type: 'turn.micro-fix-preserved', component: 'orchestration', level: 'info',
+          message: 'Preserving micro-fixed draft across outer retry — retry trigger is not draft-structural',
+          data: { attempt: attemptIdx, hint_targets: actionableHints.map(h => classifyHintTarget(h)) },
+        });
+      }
+
       // Save diagnostics for frozen stages — the retry pipeline skips them,
       // so their entries would otherwise be lost from stage_diagnostics.
       const frozenStageIds = new Set<string>(['brief', 'plan', 'evidence', 'micro-fix']);
-      if (isCiteOnly) frozenStageIds.add('draft');
+      if (freezeDraft) frozenStageIds.add('draft');
       const carriedDiags = pipelineResult.stage_diagnostics.filter(
         s => frozenStageIds.has(s.stage),
       );
       pipelineResult = await callbacks.runPipeline({
         ...input.pipelineInput,
-        repairHints: isCiteOnly ? citeHints : actionableHints,
+        repairHints: freezeDraft ? citeHints : actionableHints,
         frozenBrief: pipelineResult.brief,
         frozenPlan: pipelineResult.plan,
-        frozenDraft: isCiteOnly ? pipelineResult.draft : undefined,
+        frozenDraft: freezeDraft ? pipelineResult.draft : undefined,
         frozenEvidenceBlock: pipelineResult.evidenceBlock,
       });
       // Carry forward frozen stage diagnostics so the full pipeline trace is preserved

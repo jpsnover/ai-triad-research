@@ -4,10 +4,10 @@
 import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
-import { loadApiKey } from './apiKeyStore';
+import { loadApiKey } from './apiKeyStore.js';
 import { net } from 'electron';
-import { PROJECT_ROOT } from './fileIO';
-import { ActionableError } from '../../../lib/debate/errors';
+import { PROJECT_ROOT, resolveDataPath } from './fileIO.js';
+import { ActionableError } from '../../../lib/debate/errors.js';
 import {
   tryWarmup as onnxTryWarmup,
   computeEmbedding as onnxComputeEmbedding,
@@ -16,7 +16,7 @@ import {
   dispose as onnxDispose,
 } from '../../../lib/embeddings/onnxEmbedding.js';
 console.log('[embeddings] About to import tavily...');
-import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily';
+import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
 console.log('[embeddings] Tavily import OK');
 
 const EXPECTED_DIMENSION = 384;
@@ -32,9 +32,9 @@ import {
   callProvider,
   withRetry,
   SERVER_RETRY_CONFIG,
-} from '../../../lib/ai-client';
-import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client';
-import type { ModelRegistry } from '../../../lib/ai-client';
+} from '../../../lib/ai-client/index.js';
+import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client/index.js';
+import type { ModelRegistry } from '../../../lib/ai-client/index.js';
 
 // ── Electron net.fetch wrapper ──
 // Electron's net.fetch requires Buffer.from for string bodies in some cases.
@@ -115,7 +115,6 @@ let embeddingsCache: EmbeddingsFile | null = null;
 let embeddingsCachePath: string | null = null;
 
 function getEmbeddingsPath(): string {
-  const { resolveDataPath } = require('./fileIO');
   return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
 }
 
@@ -805,7 +804,7 @@ async function generateWithTavily(
 
   const text = await generateText(augmentedPrompt, model);
 
-  const citations: GroundingCitation[] = searchCitations.map(c => ({
+  const citations: GroundingCitation[] = searchCitations.map((c: any) => ({
     uri: c.uri,
     title: c.title,
     segments: [],

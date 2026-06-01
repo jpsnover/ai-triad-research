@@ -7,7 +7,7 @@
  */
 
 import { execFile } from 'child_process';
-import { resolveDataPath } from './fileIO';
+import { resolveDataPath } from './fileIO.js';
 import fs from 'fs';
 import path from 'path';
 import { net } from 'electron';

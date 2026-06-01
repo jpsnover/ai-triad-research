@@ -4302,6 +4302,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: 'Adaptive loop started', data: { pacing: pacingPresetName, maxTotalRounds: maxRounds, argumentationExit: pacingPreset?.argumentationExit, concludingExit: pacingPreset?.concludingExit } });
         let loopExitReason = 'maxRounds_exhausted';
         let loopIterations = 0;
+        let consecutiveNoStatement = 0;
         for (let i = 0; i < maxRounds; i++) {
           loopIterations = i + 1;
           const d = get().activeDebate;
@@ -4318,8 +4319,6 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             loopExitReason = 'crossRespond_error';
             break;
           }
-          // If crossRespond returned without adding a debater statement (e.g. agreement
-          // detected), break to avoid re-running moderator selection in a loop.
           const post = get().activeDebate;
           if (!post) { loopExitReason = 'post_debate_null'; break; }
           if (post.transcript.length === preLen) {
@@ -4327,12 +4326,22 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
             getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: no transcript growth', data: { iteration: i, preLen, postLen: post.transcript.length, phase: post.adaptive_staging?.phase_state?.current_phase } });
             break;
           }
+          // If only system entries were added (moderator deliberation, phase transitions,
+          // compression markers), continue — the debater didn't speak this iteration but
+          // the loop should not exit prematurely. Break only after 3 consecutive rounds
+          // without a debater statement to catch genuine stalls.
           if (!post.transcript.slice(preLen).some(e => e.type === 'statement')) {
+            consecutiveNoStatement++;
             const newEntryTypes = post.transcript.slice(preLen).map(e => e.type);
-            loopExitReason = `no_statement_in_new_entries(types=${newEntryTypes.join(',')})`;
-            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: no statement in new entries', data: { iteration: i, preLen, postLen: post.transcript.length, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
-            break;
+            if (consecutiveNoStatement >= 3) {
+              loopExitReason = `consecutive_no_statement(count=${consecutiveNoStatement},types=${newEntryTypes.join(',')})`;
+              getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'warn', debate_id: loopDebateId, message: 'Loop break: 3 consecutive rounds without debater statement', data: { iteration: i, consecutiveNoStatement, preLen, postLen: post.transcript.length, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
+              break;
+            }
+            getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'debug', debate_id: loopDebateId, message: 'No statement in new entries — continuing', data: { iteration: i, consecutiveNoStatement, newEntryTypes, phase: post.adaptive_staging?.phase_state?.current_phase } });
+            continue;
           }
+          consecutiveNoStatement = 0;
         }
         // Log loop completion with full context
         const finalDebate = get().activeDebate;
@@ -4352,7 +4361,10 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           const preLen = d.transcript.length;
           await get().crossRespond();
           const post = get().activeDebate;
-          if (!post || post.transcript.length === preLen || !post.transcript.slice(preLen).some(e => e.type === 'statement')) break;
+          if (!post || post.transcript.length === preLen) break;
+          const hasStatement = post.transcript.slice(preLen).some(e => e.type === 'statement');
+          const onlySystemEntries = post.transcript.slice(preLen).every(e => e.type === 'system');
+          if (!hasStatement && !onlySystemEntries) break;
         }
       }
     }
@@ -4777,6 +4789,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
     if (modResult.earlyReturn && modResult.agreementDetected) {
       // Persist moderator state and stop — agreement detected
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Agreement detected — skipping debater turn', data: { round: crossRespondRound, phase, focus: modResult.focusPoint } });
       const freshDebate = get().activeDebate;
       if (freshDebate) {
         set({ activeDebate: { ...freshDebate, moderator_state: modResult.modState } });
