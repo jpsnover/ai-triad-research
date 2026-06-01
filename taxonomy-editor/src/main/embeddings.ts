@@ -74,7 +74,7 @@ export function warmupEmbeddingModel(): void {
   console.log('[embeddings] Warming up embedding model (trying ONNX native first)...');
   const t0 = Date.now();
 
-  onnxTryWarmup().then((ready: boolean) => {
+  void onnxTryWarmup().then((ready: boolean) => {
     if (ready) {
       _onnxReady = true;
       const ep = onnxGetEP();
