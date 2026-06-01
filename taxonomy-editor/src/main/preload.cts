@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   osRelease: process.getSystemVersion?.() ?? process.platform,
   osPlatform: process.platform,
   osArch: process.arch,
+  getEmbeddingInfo: (): Promise<{ backend: string; execution_provider?: string; calibration_version?: number }> =>
+    ipcRenderer.invoke('get-embedding-info'),
+
   getTaxonomyDirs: (): Promise<string[]> =>
     ipcRenderer.invoke('get-taxonomy-dirs'),
 

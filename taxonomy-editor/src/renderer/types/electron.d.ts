@@ -4,6 +4,7 @@
 export interface ElectronAPI {
   processVersions: Record<string, string | undefined>;
   osRelease: string;
+  getEmbeddingInfo: () => Promise<{ backend: string; execution_provider?: string; calibration_version?: number }>;
   getTaxonomyDirs: () => Promise<string[]>;
   getActiveTaxonomyDir: () => Promise<string>;
   setTaxonomyDir: (dirName: string) => Promise<void>;

@@ -102,6 +102,12 @@ export async function disposeEmbeddingModel(): Promise<void> {
   if (_onnxReady) await onnxDispose();
 }
 
+export function getEmbeddingInfo(): { backend: string; execution_provider?: string } {
+  if (_onnxReady) return { backend: 'onnx', execution_provider: onnxGetEP() };
+  if (_warmupDone) return { backend: 'python' };
+  return { backend: 'unknown' };
+}
+
 // ---------- Local embeddings from embeddings.json ----------
 
 interface EmbeddingsFile {

@@ -45,7 +45,7 @@ import {
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
 import { storeApiKey, hasApiKey } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir } from './fileIO.js';
-import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature } from './embeddings.js';
+import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
 import type { ChatMessage } from './embeddings.js';
 import { refreshAIModels } from './modelDiscovery.js';
 import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker.js';
@@ -230,6 +230,16 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
     return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | undefined);
+  });
+
+  ipcMain.handle('get-embedding-info', () => {
+    const info: Record<string, unknown> = getEmbeddingInfo();
+    try {
+      const cfgPath = require('path').resolve(__dirname, '../../../lib/debate/calibration-config.json');
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+      info.calibration_version = cfg.schema_version;
+    } catch { /* calibration config not found — leave undefined */ }
+    return info;
   });
 
   ipcMain.handle('compute-embeddings', async (_event, texts: string[], ids?: string[]) => {

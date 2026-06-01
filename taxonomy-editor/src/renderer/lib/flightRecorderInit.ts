@@ -26,9 +26,19 @@ function getDeploymentMode(): string {
   return 'electron-prod';
 }
 
-function getElectronAPI(): { processVersions?: Record<string, string | undefined>; osRelease?: string } | undefined {
-  return (window as unknown as { electronAPI?: { processVersions?: Record<string, string | undefined>; osRelease?: string } }).electronAPI;
+function getElectronAPI(): {
+  processVersions?: Record<string, string | undefined>;
+  osRelease?: string;
+  osPlatform?: string;
+  osArch?: string;
+  getEmbeddingInfo?: () => Promise<{ backend: string; execution_provider?: string; calibration_version?: number }>;
+} | undefined {
+  return (window as unknown as { electronAPI?: ReturnType<typeof getElectronAPI> }).electronAPI;
 }
+
+// ── Cached embedding info (fetched once, used synchronously in context) ──
+let _embeddingInfo: { backend: string; execution_provider?: string; calibration_version?: number } | null = null;
+void getElectronAPI()?.getEmbeddingInfo?.().then(info => { _embeddingInfo = info; }).catch(() => {});
 
 // ── Dump throttle state ──────────────────────────────────────────────────
 
@@ -322,6 +332,7 @@ export function initFlightRecorder(): FlightRecorder {
           is_generating: !!debateState.debateGenerating,
           convergence_signals_count: debate.convergence_signals?.length ?? 0,
           protocol: debate.protocol ?? null,
+          calibration_version: _embeddingInfo?.calibration_version ?? undefined,
         } : null,
         taxonomy: {
           loaded: {
@@ -338,6 +349,10 @@ export function initFlightRecorder(): FlightRecorder {
           backend: taxState.aiBackend,
           model: taxState.geminiModel,
         },
+        embeddings: _embeddingInfo ? {
+          backend: _embeddingInfo.backend,
+          execution_provider: _embeddingInfo.execution_provider,
+        } : undefined,
         diagnostics: {
           enabled: !!debateState.diagnosticsEnabled,
           selected_entry: debateState.selectedDiagEntry ?? null,
