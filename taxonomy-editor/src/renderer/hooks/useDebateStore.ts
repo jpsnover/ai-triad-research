@@ -2528,7 +2528,7 @@ interface DebateStore {
   setDiagPopoutOpen: (open: boolean) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number } }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -2770,7 +2770,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       protocol_id: protocolId || 'structured',
       debate_temperature: debateTemperature ?? undefined,
       adaptive_staging: options?.useAdaptiveStaging
-        ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate' }
+        ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate', phase_bounds_override: options.phaseBoundsOverride }
         : undefined,
       origin: { mode: 'gui' },
     };
@@ -4720,6 +4720,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           argumentationExitThreshold: pacingPreset.argumentationExit,
           concludingExitThreshold: pacingPreset.concludingExit,
           allowEarlyTermination: true,
+          phaseBoundsOverride: adaptiveStaging.phase_bounds_override,
         };
         adaptiveStaging.phase_state = initPhaseState(config);
         set({ activeDebate: { ...activeDebate } });
@@ -5342,6 +5343,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           argumentationExitThreshold: asState.argumentation_exit_threshold,
           concludingExitThreshold: asState.concluding_exit_threshold,
           allowEarlyTermination: true,
+          phaseBoundsOverride: postDebate.adaptive_staging.phase_bounds_override,
         };
 
         // Advance round counter

@@ -525,17 +525,22 @@ export function evaluatePhaseTransition(
   healthScore?: { value: number; consecutive_decline: number },
 ): PredicateResult {
   const w = loadProvisionalWeights();
-  const rawPb = w.phase_bounds;
+  const rawPb = { ...w.phase_bounds };
+  // Apply per-session overrides from user config
+  const ov = config.phaseBoundsOverride;
+  if (ov?.maxConfrontationRounds != null) rawPb.max_confrontation_rounds = ov.maxConfrontationRounds;
+  if (ov?.maxArgumentationRounds != null) rawPb.max_argumentation_rounds = ov.maxArgumentationRounds;
+  if (ov?.maxConcludingRounds != null) rawPb.max_concluding_rounds = ov.maxConcludingRounds;
   // Phase bounds are expressed in "rounds" (all speakers get one turn).
   // Scale by active debater count so each speaker gets a full turn per round.
   const s = Math.max(1, ctx.transcript.activePovsCount);
   const pb = {
     ...rawPb,
-    min_confrontation_rounds: rawPb.min_confrontation_rounds * s,
+    min_confrontation_rounds: Math.min(rawPb.min_confrontation_rounds, rawPb.max_confrontation_rounds) * s,
     max_confrontation_rounds: rawPb.max_confrontation_rounds * s,
-    min_argumentation_rounds: rawPb.min_argumentation_rounds * s,
+    min_argumentation_rounds: Math.min(rawPb.min_argumentation_rounds, rawPb.max_argumentation_rounds) * s,
     max_argumentation_rounds: rawPb.max_argumentation_rounds * s,
-    min_concluding_rounds: rawPb.min_concluding_rounds * s,
+    min_concluding_rounds: Math.min(rawPb.min_concluding_rounds, rawPb.max_concluding_rounds) * s,
     max_concluding_rounds: rawPb.max_concluding_rounds * s,
   };
   const coldStart = state.rounds_in_phase < (
@@ -883,7 +888,11 @@ export function advanceRound(state: PhaseState): PhaseState {
 
 export function buildPhaseContext(state: PhaseState, config: PhaseTransitionConfig, satScore: number, convScore: number): PhaseContext {
   const w = loadProvisionalWeights();
-  const pb = w.phase_bounds;
+  const pb = { ...w.phase_bounds };
+  const ov = config.phaseBoundsOverride;
+  if (ov?.maxConfrontationRounds != null) pb.max_confrontation_rounds = ov.maxConfrontationRounds;
+  if (ov?.maxArgumentationRounds != null) pb.max_argumentation_rounds = ov.maxArgumentationRounds;
+  if (ov?.maxConcludingRounds != null) pb.max_concluding_rounds = ov.maxConcludingRounds;
 
   let timeProgress: number;
   let scoreProgress: number;

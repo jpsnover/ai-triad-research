@@ -97,12 +97,19 @@ function EditCard({ edit, pover, editIndex }: {
   pover: string;
   editIndex: number;
 }) {
-  const { applyReflectionEdit, dismissReflectionEdit } = useDebateStore(
-    useShallow(s => ({ applyReflectionEdit: s.applyReflectionEdit, dismissReflectionEdit: s.dismissReflectionEdit }))
+  const { applyReflectionEdit, dismissReflectionEdit, anNodes } = useDebateStore(
+    useShallow(s => ({
+      applyReflectionEdit: s.applyReflectionEdit,
+      dismissReflectionEdit: s.dismissReflectionEdit,
+      anNodes: (s.activeDebate as Record<string, unknown> | null)?.argument_network
+        ? ((s.activeDebate as Record<string, unknown>).argument_network as { nodes: { id: string; text: string; speaker: string }[] }).nodes
+        : [],
+    }))
   );
   const typeInfo = EDIT_TYPE_LABELS[edit.edit_type] || EDIT_TYPE_LABELS.revise;
   const resolved = edit.status !== 'pending';
 
+  const [expandedEvidence, setExpandedEvidence] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(edit.proposed_label);
   const [editedDescription, setEditedDescription] = useState(edit.proposed_description);
@@ -338,20 +345,44 @@ function EditCard({ edit, pover, editIndex }: {
       {/* Evidence entries */}
       {edit.evidence_entries && edit.evidence_entries.length > 0 && (
         <div style={{ fontSize: '0.63rem', color: 'var(--text-muted)', marginBottom: 8 }}>
-          Evidence: {edit.evidence_entries.map((e, i) => (
+          <div>Evidence: {edit.evidence_entries.map((e, i) => (
             <button
               key={i}
               className="btn btn-sm btn-ghost"
               style={{
                 padding: '0 4px', marginRight: 3, borderRadius: 3,
-                background: 'var(--bg-secondary)', fontSize: '0.63rem',
+                background: expandedEvidence.has(e) ? 'var(--color-acc, #3b82f6)' : 'var(--bg-secondary)',
+                color: expandedEvidence.has(e) ? '#fff' : 'var(--color-acc, #3b82f6)',
+                fontSize: '0.63rem',
                 fontFamily: 'monospace', cursor: 'pointer',
-                textDecoration: 'underline', color: 'var(--color-acc, #3b82f6)',
+                textDecoration: expandedEvidence.has(e) ? 'none' : 'underline',
               }}
-              title={`Scroll to ${e} in transcript`}
-              onClick={() => scrollToEvidence(e)}
+              title={expandedEvidence.has(e) ? `Hide ${e} text` : `Show ${e} text (Shift+click to scroll)`}
+              onClick={(ev) => {
+                if (ev.shiftKey) { scrollToEvidence(e); return; }
+                setExpandedEvidence(prev => {
+                  const next = new Set(prev);
+                  if (next.has(e)) next.delete(e); else next.add(e);
+                  return next;
+                });
+              }}
             >{e}</button>
-          ))}
+          ))}</div>
+          {edit.evidence_entries.filter(e => expandedEvidence.has(e)).map(e => {
+            const node = anNodes.find(n => n.id === e);
+            if (!node) return null;
+            return (
+              <div key={e} style={{
+                marginTop: 4, padding: '4px 8px', borderRadius: 4,
+                background: 'var(--bg-secondary)', borderLeft: '3px solid var(--color-acc, #3b82f6)',
+                fontSize: '0.62rem', lineHeight: 1.4, color: 'var(--text-primary)',
+              }}>
+                <span style={{ fontWeight: 700, fontFamily: 'monospace', marginRight: 4 }}>{e}</span>
+                <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>({node.speaker})</span>
+                {node.text}
+              </div>
+            );
+          })}
         </div>
       )}
 

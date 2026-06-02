@@ -76,7 +76,12 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [temperature, setTemperature] = useState(0.7);
   const [audience, setAudience] = useState<DebateAudience>('policymakers');
   const [dialecticalStyle, setDialecticalStyle] = useState<DialecticalStyle>('adversarial');
-  const [useAdaptiveStaging, setUseAdaptiveStaging] = useState(false);
+  const defaultBounds = useMemo(() => {
+    try { const w = loadProvisionalWeights(); return w.phase_bounds; } catch { return null; }
+  }, []);
+  const [confrontationRounds, setConfrontationRounds] = useState(defaultBounds?.max_confrontation_rounds ?? 2);
+  const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? 4);
+  const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? 2);
   const [evaluatorModel, setEvaluatorModel] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showModelModal, setShowModelModal] = useState(false);
@@ -236,12 +241,17 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       audience,
       {
         evaluatorModel: evaluatorModel || undefined,
-        useAdaptiveStaging: useAdaptiveStaging || undefined,
+        useAdaptiveStaging: true,
+        phaseBoundsOverride: {
+          maxConfrontationRounds: confrontationRounds,
+          maxArgumentationRounds: argumentationRounds,
+          maxConcludingRounds: concludingRounds,
+        },
       },
     );
     await loadDebate(id);
-    const _creationWeights = useAdaptiveStaging ? (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds }; } catch { return null; } })() : null;
-    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: useAdaptiveStaging, ..._creationWeights && { adaptive_config: _creationWeights } } });
+    const _creationWeights = (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds, overrides: { confrontation: confrontationRounds, argumentation: argumentationRounds, concluding: concludingRounds } }; } catch { return null; } })();
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, ..._creationWeights && { adaptive_config: _creationWeights } } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();
@@ -471,19 +481,27 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               ))}
             </div>
 
-            {/* Adaptive Staging toggle */}
-            <label className="ndd-adaptive-toggle">
-              <input
-                type="checkbox"
-                checked={useAdaptiveStaging}
-                onChange={(e) => setUseAdaptiveStaging(e.target.checked)}
-              />
-              <span className="ndd-adaptive-label">
-                Adaptive staging
-                <span className="ndd-adaptive-desc">Signal-driven phase transitions instead of fixed rounds</span>
-              </span>
-              {useAdaptiveStaging && <span className="ndd-adaptive-badge">Experimental</span>}
-            </label>
+            {/* Phase rounds */}
+            <div className="ndd-phase-rounds">
+              <span className="ndd-phase-rounds-label">Max rounds per phase</span>
+              <div className="ndd-phase-rounds-row">
+                <label className="ndd-phase-round-input">
+                  <span>Confrontation</span>
+                  <input type="number" min={1} max={6} value={confrontationRounds}
+                    onChange={(e) => setConfrontationRounds(Math.max(1, Math.min(6, parseInt(e.target.value) || 1)))} />
+                </label>
+                <label className="ndd-phase-round-input">
+                  <span>Argumentation</span>
+                  <input type="number" min={1} max={12} value={argumentationRounds}
+                    onChange={(e) => setArgumentationRounds(Math.max(1, Math.min(12, parseInt(e.target.value) || 1)))} />
+                </label>
+                <label className="ndd-phase-round-input">
+                  <span>Concluding</span>
+                  <input type="number" min={1} max={6} value={concludingRounds}
+                    onChange={(e) => setConcludingRounds(Math.max(1, Math.min(6, parseInt(e.target.value) || 1)))} />
+                </label>
+              </div>
+            </div>
 
             {/* Advanced toggle */}
             <button className="ndd-advanced-toggle" onClick={() => setShowAdvanced(!showAdvanced)}>

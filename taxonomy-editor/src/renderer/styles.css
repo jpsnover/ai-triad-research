@@ -9441,33 +9441,36 @@ a.vocab-term,
 }
 
 /* ── Adaptive staging toggle ── */
-.ndd-adaptive-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.ndd-phase-rounds {
   padding: 8px 0;
-  cursor: pointer;
   font-size: 0.82rem;
 }
-.ndd-adaptive-label {
+.ndd-phase-rounds-label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+.ndd-phase-rounds-row {
+  display: flex;
+  gap: 12px;
+}
+.ndd-phase-round-input {
   display: flex;
   flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
-.ndd-adaptive-desc {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  margin-top: 1px;
-}
-.ndd-adaptive-badge {
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  margin-left: auto;
+.ndd-phase-round-input input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  text-align: center;
 }
 
 /* ── Advanced toggle ── */

@@ -741,7 +741,7 @@ describe('evaluatePhaseTransition', () => {
       const softBudget = 12 * w.budget.soft_multiplier;
       const state = makePhaseState({
         current_phase: 'argumentation',
-        rounds_in_phase: 7, // past min_argumentation (2×3=6)
+        rounds_in_phase: 4, // past min (1×3=3), below max (2×3=6)
         api_calls_used: softBudget,
       });
       const ctx = makeSignalContext();
@@ -753,7 +753,7 @@ describe('evaluatePhaseTransition', () => {
     });
 
     it('force-transitions when debate is dead (recycling > 0.8 AND fatigue > 0.8)', () => {
-      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 7 });
+      const state = makePhaseState({ current_phase: 'argumentation', rounds_in_phase: 4 });
       const ctx = makeSignalContext({
         convergenceSignals: {
           argument_redundancy: { avg_self_overlap: 0.85, semantic_max_similarity: 0.9 },
@@ -776,7 +776,7 @@ describe('evaluatePhaseTransition', () => {
     it('fires fresh-crux veto when saturation above threshold but crux just discovered', () => {
       const state = makePhaseState({
         current_phase: 'argumentation',
-        rounds_in_phase: 7, // past min_argumentation (2×3=6)
+        rounds_in_phase: 4, // past min (1×3=3), below max (2×3=6)
         argumentation_exit_threshold: 0.01, // very low so saturation exceeds it
       });
       // Need a crux node that was added at the current round
@@ -866,7 +866,7 @@ describe('evaluatePhaseTransition', () => {
       const cruxNode = makeNode('novel-crux', 'accelerationist', 5, 0.8);
       const state = makePhaseState({
         current_phase: 'concluding',
-        rounds_in_phase: 4, // past min_concluding (1×3=3) but below max (2×3=6)
+        rounds_in_phase: 4, // past min (1×3=3), below overridden max (3×3=9)
         regression_count: 0,
       });
       const ctx = makeSignalContext({
@@ -906,7 +906,7 @@ describe('evaluatePhaseTransition', () => {
           concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
         },
       });
-      const config = makeConfig();
+      const config = makeConfig({ phaseBoundsOverride: { maxConcludingRounds: 3 } });
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('regress');
       expect(result.new_phase).toBe('argumentation');
