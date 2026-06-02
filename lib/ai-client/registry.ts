@@ -21,6 +21,7 @@ export function resolveBackend(model: string): BackendId {
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
   if (model.startsWith('openai')) return 'openai';
+  if (model.startsWith('ollama')) return 'ollama';
   return 'gemini';
 }
 
@@ -31,6 +32,7 @@ export function resolveModel(registry: ModelRegistry, friendlyId: string): { api
   if (friendlyId.startsWith('claude')) return { apiModelId: friendlyId, backend: 'claude' };
   if (friendlyId.startsWith('groq')) return { apiModelId: friendlyId, backend: 'groq' };
   if (friendlyId.startsWith('openai')) return { apiModelId: friendlyId, backend: 'openai' };
+  if (friendlyId.startsWith('ollama')) return { apiModelId: friendlyId, backend: 'ollama' };
   return { apiModelId: friendlyId, backend: 'gemini' };
 }
 
