@@ -23,12 +23,12 @@
     "crux_semantic_novelty": 0.70
   },
   "phase_bounds": {
-    "min_confrontation_rounds": 2,
-    "max_confrontation_rounds": 4,
-    "min_argumentation_rounds": 2,
-    "max_argumentation_rounds": 8,
-    "min_concluding_rounds": 2,
-    "max_concluding_rounds": 3,
+    "min_confrontation_rounds": 1,
+    "max_confrontation_rounds": 2,
+    "min_argumentation_rounds": 1,
+    "max_argumentation_rounds": 4,
+    "min_concluding_rounds": 1,
+    "max_concluding_rounds": 2,
     "max_total_rounds_default": 12,
     "max_regressions": 2,
     "regression_ratchet": 0.10

@@ -866,7 +866,7 @@ describe('evaluatePhaseTransition', () => {
       const cruxNode = makeNode('novel-crux', 'accelerationist', 5, 0.8);
       const state = makePhaseState({
         current_phase: 'concluding',
-        rounds_in_phase: 7, // past min_concluding (2×3=6)
+        rounds_in_phase: 4, // past min_concluding (1×3=3) but below max (2×3=6)
         regression_count: 0,
       });
       const ctx = makeSignalContext({
@@ -1122,7 +1122,7 @@ describe('buildPhaseContext', () => {
     const w = loadProvisionalWeights();
     const state = makePhaseState({
       current_phase: 'argumentation',
-      rounds_in_phase: w.phase_bounds.max_argumentation_rounds - 1,
+      rounds_in_phase: w.phase_bounds.max_argumentation_rounds,
       argumentation_exit_threshold: 0.72,
     });
     const config = makeConfig();
