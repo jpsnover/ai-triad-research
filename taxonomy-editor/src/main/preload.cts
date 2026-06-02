@@ -96,6 +96,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   pullDataUpdates: (): Promise<unknown> =>
     ipcRenderer.invoke('pull-data-updates'),
 
+  getChangedFiles: (): Promise<{ path: string; status: string }[]> =>
+    ipcRenderer.invoke('get-changed-files'),
+
+  getFileDiff: (filePath: string): Promise<string> =>
+    ipcRenderer.invoke('get-file-diff', filePath),
+
   loadAIModels: (): Promise<unknown> =>
     ipcRenderer.invoke('load-ai-models'),
 

@@ -65,6 +65,8 @@ export interface AppAPI {
   pickDirectory: (defaultPath?: string) => Promise<{ cancelled: boolean; path?: string }>;
   checkDataUpdates: () => Promise<unknown>;
   pullDataUpdates: () => Promise<unknown>;
+  getChangedFiles: () => Promise<{ path: string; status: string }[]>;
+  getFileDiff: (filePath: string) => Promise<string>;
 
   // --- AI models & keys ---
   loadAIModels: () => Promise<unknown>;

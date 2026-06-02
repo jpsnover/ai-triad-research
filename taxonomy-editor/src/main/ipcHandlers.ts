@@ -48,7 +48,7 @@ import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJ
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
 import type { ChatMessage } from './embeddings.js';
 import { refreshAIModels } from './modelDiscovery.js';
-import { checkForDataUpdates, pullDataUpdates } from './dataUpdateChecker.js';
+import { checkForDataUpdates, pullDataUpdates, getChangedFiles, getFileDiff } from './dataUpdateChecker.js';
 import { diagnosePythonEmbeddings } from './diagnosePython.js';
 import type { NodeEmbeddingInput, NliPair } from './embeddings.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
@@ -220,6 +220,14 @@ export function registerIpcHandlers(): void {
     return pullDataUpdates();
   });
 
+  ipcMain.handle('get-changed-files', async () => {
+    return getChangedFiles();
+  });
+
+  ipcMain.handle('get-file-diff', async (_event, filePath: string) => {
+    return getFileDiff(filePath);
+  });
+
   ipcMain.handle('refresh-ai-models', async () => {
     return refreshAIModels();
   });
@@ -229,6 +237,7 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
+    if (backend === 'ollama') return true;
     return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | undefined);
   });
 

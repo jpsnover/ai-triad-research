@@ -151,6 +151,9 @@ function MainApp() {
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<string | null>(null);
+  const [changedFiles, setChangedFiles] = useState<{ path: string; status: string }[] | null>(null);
+  const [showFiles, setShowFiles] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState(false);
   const [showFirstRun, setShowFirstRun] = useState(false);
   const [dataRoot, setDataRoot] = useState('');
   const [copyStatus, setCopyStatus] = useState<{ state: string; dir?: string; copied?: number; total?: number } | null>(null);
@@ -244,7 +247,52 @@ function MainApp() {
     }
   };
 
-  const dismissUpdate = () => setDataUpdate(null);
+  const handleShowFiles = async () => {
+    if (showFiles) { setShowFiles(false); return; }
+    setLoadingFiles(true);
+    try {
+      const files = await api.getChangedFiles();
+      setChangedFiles(files);
+      setShowFiles(true);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'app', level: 'error',
+        message: 'failed to fetch changed files',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  const handleViewDiff = async (filePath: string) => {
+    try {
+      const diff = await api.getFileDiff(filePath);
+      const popup = window.open('', '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+      if (!popup) return;
+      const escaped = diff
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .split('\n').map(line => {
+          if (line.startsWith('+') && !line.startsWith('+++')) return `<span style="color:#22863a;background:#f0fff4">${line}</span>`;
+          if (line.startsWith('-') && !line.startsWith('---')) return `<span style="color:#cb2431;background:#ffeef0">${line}</span>`;
+          if (line.startsWith('@@')) return `<span style="color:#6f42c1">${line}</span>`;
+          return line;
+        }).join('\n');
+      popup.document.write(`<!DOCTYPE html><html><head><title>Diff: ${filePath}</title>
+        <style>body{margin:0;padding:16px;font-family:Consolas,'SF Mono',monospace;font-size:12px;background:#fff;color:#24292e}
+        pre{white-space:pre-wrap;word-break:break-all;line-height:1.5}</style></head>
+        <body><h3 style="margin-top:0;font-family:system-ui">Changes: ${filePath}</h3><pre>${escaped}</pre></body></html>`);
+      popup.document.close();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'app', level: 'error',
+        message: `failed to fetch diff for ${filePath}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
+  };
+
+  const dismissUpdate = () => { setDataUpdate(null); setShowFiles(false); setChangedFiles(null); };
 
   // Listen for menu-triggered taxonomy reload
   useEffect(() => {
@@ -396,6 +444,14 @@ function MainApp() {
           </span>
           <button
             className="btn btn-sm data-update-btn"
+            onClick={handleShowFiles}
+            disabled={loadingFiles}
+            title="Show which files have been changed in the available updates"
+          >
+            {loadingFiles ? 'Loading...' : showFiles ? 'Hide Files' : 'Show Files'}
+          </button>
+          <button
+            className="btn btn-sm data-update-btn"
             onClick={handlePullUpdates}
             disabled={pulling}
             title={pulling
@@ -420,6 +476,30 @@ function MainApp() {
             >
               {pullResult}
             </span>
+          )}
+          {showFiles && changedFiles && (
+            <div className="data-update-files">
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>
+                {changedFiles.length} file{changedFiles.length !== 1 ? 's' : ''} changed:
+              </div>
+              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                {changedFiles.map(f => (
+                  <div key={f.path} className="data-update-file-row">
+                    <span className={`data-update-file-status data-update-file-status-${f.status}`}>
+                      {f.status === 'M' ? 'MOD' : f.status === 'A' ? 'ADD' : f.status === 'D' ? 'DEL' : f.status}
+                    </span>
+                    <span className="data-update-file-path">{f.path}</span>
+                    <button
+                      className="data-update-file-diff-btn"
+                      onClick={() => void handleViewDiff(f.path)}
+                      title={`View changes in ${f.path} (opens in a new window)`}
+                    >
+                      View Diff
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}

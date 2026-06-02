@@ -251,6 +251,9 @@ const rawApi: AppAPI = {
     return JSON.parse(lines[lines.length - 1]);
   },
 
+  getChangedFiles: () => post<{ path: string; status: string }[]>('/api/data/changed-files').catch(() => []),
+  getFileDiff: (filePath) => post<string>('/api/data/file-diff', { filePath }).catch(() => ''),
+
   // AI models & keys
   loadAIModels: () => get('/api/models'),
   refreshAIModels: () => post('/api/models/refresh'),

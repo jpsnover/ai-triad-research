@@ -62,6 +62,8 @@ export const api: AppAPI = {
   pickDirectory: (defaultPath) => window.electronAPI.pickDirectory(defaultPath),
   checkDataUpdates: () => window.electronAPI.checkDataUpdates(),
   pullDataUpdates: () => window.electronAPI.pullDataUpdates(),
+  getChangedFiles: () => window.electronAPI.getChangedFiles(),
+  getFileDiff: (filePath) => window.electronAPI.getFileDiff(filePath),
 
   // AI models & keys
   loadAIModels: () => window.electronAPI.loadAIModels(),

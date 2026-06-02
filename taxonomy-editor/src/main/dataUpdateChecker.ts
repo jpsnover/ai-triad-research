@@ -77,6 +77,31 @@ export async function checkForDataUpdates(): Promise<DataUpdateStatus> {
   }
 }
 
+export interface ChangedFileInfo {
+  path: string;
+  status: string; // 'M' | 'A' | 'D' | 'R' etc.
+}
+
+export async function getChangedFiles(): Promise<ChangedFileInfo[]> {
+  const dataRoot = resolveDataPath('.');
+  try {
+    const output = await runGit(['diff', '--name-status', 'HEAD..origin/main'], dataRoot);
+    if (!output) return [];
+    return output.split('\n').filter(Boolean).map(line => {
+      const [status, ...pathParts] = line.split('\t');
+      return { path: pathParts.join('\t'), status: status.charAt(0) };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getFileDiff(filePath: string): Promise<string> {
+  const dataRoot = resolveDataPath('.');
+  const safePath = filePath.replace(/[^\w./ -]/g, '');
+  return runGit(['diff', 'HEAD..origin/main', '--', safePath], dataRoot);
+}
+
 export async function pullDataUpdates(): Promise<{ success: boolean; message: string }> {
   const dataRoot = resolveDataPath('.');
   try {

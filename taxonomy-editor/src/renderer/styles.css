@@ -574,6 +574,74 @@ body {
   color: #ef4444;
 }
 
+.data-update-files {
+  padding: 6px 16px 8px;
+  background: rgba(37, 99, 235, 0.06);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.15);
+  font-size: 0.78rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.data-update-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.data-update-file-status {
+  display: inline-block;
+  min-width: 36px;
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.data-update-file-status-M {
+  background: rgba(234, 179, 8, 0.18);
+  color: #b45309;
+}
+
+.data-update-file-status-A {
+  background: rgba(34, 197, 94, 0.18);
+  color: #15803d;
+}
+
+.data-update-file-status-D {
+  background: rgba(239, 68, 68, 0.18);
+  color: #dc2626;
+}
+
+.data-update-file-path {
+  flex: 1;
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.data-update-file-diff-btn {
+  background: none;
+  border: 1px solid var(--border-color, #ddd);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.72rem;
+  padding: 1px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.data-update-file-diff-btn:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--focus-ring, #2563eb);
+  border-color: var(--focus-ring, #2563eb);
+}
+
 /* ─── Git Progress Banner ─────────────────────────────── */
 
 .git-progress-banner {
