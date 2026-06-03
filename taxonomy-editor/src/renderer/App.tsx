@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import ErrorBoundary from '../../../lib/electron-shared/components/ErrorBoundary';
@@ -35,6 +35,17 @@ import { HamburgerMenu } from './components/HamburgerMenu';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { GitProgressBanner } from './components/GitProgressBanner';
 import { pullDataTracked } from './utils/syncApi';
+
+const UpdatePrompt = import.meta.env.VITE_TARGET === 'web'
+  ? lazy(() => import('./components/UpdatePrompt').then(m => ({ default: m.UpdatePrompt })))
+  : null;
+
+const THEME_COLORS: Record<string, string> = {
+  light: '#ffffff',
+  dark: '#111827',
+  bkc: '#1f1f1f',
+  harvard: '#A51C30',
+};
 
 // Build fingerprint — changes every build to verify deployment
 const BUILD_FINGERPRINT = `build-${Date.now()}`;
@@ -162,6 +173,8 @@ function MainApp() {
   const [changedFiles, setChangedFiles] = useState<{ path: string; status: string }[] | null>(null);
   const [showFiles, setShowFiles] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
+  const [diffContent, setDiffContent] = useState<string | null>(null);
+  const [diffFilePath, setDiffFilePath] = useState<string | null>(null);
   const [showFirstRun, setShowFirstRun] = useState(false);
   const [dataRoot, setDataRoot] = useState('');
   const [copyStatus, setCopyStatus] = useState<{ state: string; dir?: string; copied?: number; total?: number } | null>(null);
@@ -274,23 +287,11 @@ function MainApp() {
   };
 
   const handleViewDiff = async (filePath: string) => {
+    if (diffFilePath === filePath) { setDiffContent(null); setDiffFilePath(null); return; }
     try {
       const diff = await api.getFileDiff(filePath);
-      const popup = window.open('', '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
-      if (!popup) return;
-      const escaped = diff
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .split('\n').map(line => {
-          if (line.startsWith('+') && !line.startsWith('+++')) return `<span style="color:#22863a;background:#f0fff4">${line}</span>`;
-          if (line.startsWith('-') && !line.startsWith('---')) return `<span style="color:#cb2431;background:#ffeef0">${line}</span>`;
-          if (line.startsWith('@@')) return `<span style="color:#6f42c1">${line}</span>`;
-          return line;
-        }).join('\n');
-      popup.document.write(`<!DOCTYPE html><html><head><title>Diff: ${filePath}</title>
-        <style>body{margin:0;padding:16px;font-family:Consolas,'SF Mono',monospace;font-size:12px;background:#fff;color:#24292e}
-        pre{white-space:pre-wrap;word-break:break-all;line-height:1.5}</style></head>
-        <body><h3 style="margin-top:0;font-family:system-ui">Changes: ${filePath}</h3><pre>${escaped}</pre></body></html>`);
-      popup.document.close();
+      setDiffContent(diff);
+      setDiffFilePath(filePath);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'app', level: 'error',
@@ -335,12 +336,17 @@ function MainApp() {
   useEffect(() => {
     const root = document.documentElement;
     const apply = () => {
+      let resolved: string;
       if (colorScheme === 'system') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+        resolved = prefersDark ? 'dark' : 'light';
       } else {
-        root.setAttribute('data-theme', colorScheme);
+        resolved = colorScheme;
       }
+      root.setAttribute('data-theme', resolved);
+      document.querySelector('meta[name="theme-color"]')?.setAttribute(
+        'content', THEME_COLORS[resolved] || '#ffffff',
+      );
     };
     apply();
 
@@ -511,15 +517,32 @@ function MainApp() {
                     </span>
                     <span className="data-update-file-path">{f.path}</span>
                     <button
-                      className="data-update-file-diff-btn"
+                      className={`data-update-file-diff-btn${diffFilePath === f.path ? ' active' : ''}`}
                       onClick={() => void handleViewDiff(f.path)}
-                      title={`View changes in ${f.path} (opens in a new window)`}
+                      title={`View changes in ${f.path}`}
                     >
-                      View Diff
+                      {diffFilePath === f.path ? 'Hide Diff' : 'View Diff'}
                     </button>
                   </div>
                 ))}
               </div>
+              {diffContent && diffFilePath && (
+                <div className="data-update-diff-panel">
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Changes: {diffFilePath}</span>
+                    <button className="data-update-file-diff-btn" onClick={() => { setDiffContent(null); setDiffFilePath(null); }}>Close</button>
+                  </div>
+                  <pre className="data-update-diff-content">
+                    {diffContent.split('\n').map((line, i) => {
+                      let cls = '';
+                      if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
+                      else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-del';
+                      else if (line.startsWith('@@')) cls = 'diff-hunk';
+                      return <span key={i} className={cls}>{line}{'\n'}</span>;
+                    })}
+                  </pre>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -551,6 +574,7 @@ function MainApp() {
       <SaveBar />
       <BottomNav />
       {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
+      {UpdatePrompt && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
     </div>
   );
 }

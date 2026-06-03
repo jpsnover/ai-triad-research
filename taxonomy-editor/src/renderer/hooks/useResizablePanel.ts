@@ -35,10 +35,23 @@ export function useResizablePanel() {
     document.body.style.userSelect = 'none';
   }, [width]);
 
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    dragging.current = true;
+    startX.current = e.touches[0].clientX;
+    startWidth.current = width;
+  }, [width]);
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragging.current) return;
       const delta = e.clientX - startX.current;
+      const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth.current + delta));
+      setWidth(newWidth);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragging.current) return;
+      const delta = e.touches[0].clientX - startX.current;
       const newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth.current + delta));
       setWidth(newWidth);
     };
@@ -52,15 +65,26 @@ export function useResizablePanel() {
       }
     };
 
+    const onTouchEnd = () => {
+      if (dragging.current) {
+        dragging.current = false;
+        try { localStorage.setItem(STORAGE_KEY, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+      }
+    };
+
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd);
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
     };
   }, [width]);
 
-  return { width, onMouseDown };
+  return { width, onMouseDown, onTouchStart };
 }
 
 /* ─── Configurable variant for right-side panels ──────── */
@@ -98,11 +122,24 @@ export function useResizableRightPanel(opts: RightPanelOptions) {
     document.body.style.userSelect = 'none';
   }, [width]);
 
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    dragging.current = true;
+    startX.current = e.touches[0].clientX;
+    startWidth.current = width;
+  }, [width]);
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragging.current) return;
       // Dragging left = wider (opposite of left panel)
       const delta = startX.current - e.clientX;
+      const newWidth = Math.max(opts.minWidth, Math.min(opts.maxWidth, startWidth.current + delta));
+      setWidth(newWidth);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragging.current) return;
+      const delta = startX.current - e.touches[0].clientX;
       const newWidth = Math.max(opts.minWidth, Math.min(opts.maxWidth, startWidth.current + delta));
       setWidth(newWidth);
     };
@@ -116,15 +153,26 @@ export function useResizableRightPanel(opts: RightPanelOptions) {
       }
     };
 
+    const onTouchEnd = () => {
+      if (dragging.current) {
+        dragging.current = false;
+        try { localStorage.setItem(opts.storageKey, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save right panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+      }
+    };
+
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd);
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
     };
   }, [width, opts.storageKey, opts.minWidth, opts.maxWidth]);
 
-  return { width, onMouseDown };
+  return { width, onMouseDown, onTouchStart };
 }
 
 /* ─── Vertical (row-resize) split panel ─────────────── */
@@ -162,10 +210,23 @@ export function useResizableVerticalSplit(opts: VerticalSplitOptions) {
     document.body.style.userSelect = 'none';
   }, [height]);
 
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    dragging.current = true;
+    startY.current = e.touches[0].clientY;
+    startHeight.current = height;
+  }, [height]);
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragging.current) return;
       const delta = e.clientY - startY.current;
+      const newHeight = Math.max(opts.minHeight, Math.min(opts.maxHeight, startHeight.current + delta));
+      setHeight(newHeight);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragging.current) return;
+      const delta = e.touches[0].clientY - startY.current;
       const newHeight = Math.max(opts.minHeight, Math.min(opts.maxHeight, startHeight.current + delta));
       setHeight(newHeight);
     };
@@ -179,13 +240,24 @@ export function useResizableVerticalSplit(opts: VerticalSplitOptions) {
       }
     };
 
+    const onTouchEnd = () => {
+      if (dragging.current) {
+        dragging.current = false;
+        try { localStorage.setItem(opts.storageKey, String(height)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel height', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+      }
+    };
+
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd);
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
     };
   }, [height, opts.storageKey, opts.minHeight, opts.maxHeight]);
 
-  return { height, onMouseDown };
+  return { height, onMouseDown, onTouchStart };
 }

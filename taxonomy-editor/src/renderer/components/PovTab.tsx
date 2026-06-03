@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import type { Pov, Category, PovNode } from '../types/taxonomy';
 import { PROMPT_CATALOG, type PromptCatalogEntry } from '../data/promptCatalog';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -168,7 +169,11 @@ export function PovTab({ pov }: PovTabProps) {
       setTimeout(() => setSelectedNodeId(nodeId), 50);
     }
   }, [setActiveTab, setSelectedNodeId]);
-  const { width, onMouseDown } = useResizablePanel();
+  const breakpoint = useBreakpoint();
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
+  const [mobileListOpen, setMobileListOpen] = useState(false);
+  const listPanelRef = useRef<HTMLDivElement>(null);
+  const { width, onMouseDown, onTouchStart } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-analysis-panel-width',
     defaultWidth: 420,
@@ -206,6 +211,28 @@ export function PovTab({ pov }: PovTabProps) {
     }
   }, [sortMode, pov]);
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
+
+  // Close phone list overlay when a node is selected
+  useEffect(() => {
+    if (isPhone && selectedNodeId) setMobileListOpen(false);
+  }, [selectedNodeId]);
+
+  // Swipe-to-dismiss on phone list overlay
+  useEffect(() => {
+    if (!isPhone || !mobileListOpen) return;
+    const el = listPanelRef.current;
+    if (!el) return;
+    let sx = 0, sy = 0;
+    const onStart = (e: TouchEvent) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; };
+    const onEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - sy);
+      if (dx < -80 && dy < 100) setMobileListOpen(false);
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchend', onEnd); };
+  }, [isPhone, mobileListOpen]);
 
   // Auto-select first node when tab loads and nothing is selected
   useEffect(() => {
@@ -596,7 +623,7 @@ export function PovTab({ pov }: PovTabProps) {
   }
 
   return (
-    <div className="two-column">
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNode ? ' has-selection' : ''}${mobileListOpen ? ' phone-list-open' : ''}`}>
       {/* Pane 1: Node list OR promoted toolbar panel */}
       {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? (
         <div className="list-panel list-panel-full">
@@ -622,12 +649,12 @@ export function PovTab({ pov }: PovTabProps) {
             onInspectorToggle={setPromptInspectorActive}
           />
         </div>
-      ) : listCollapsed ? (
+      ) : listCollapsed && !isPhone ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
           <span className="pane-collapsed-label">{pov}</span>
         </div>
       ) : (
-        <div className="list-panel" style={{ width }}>
+        <div className="list-panel" ref={listPanelRef} style={{ width }}>
           <div className="list-panel-header">
             <h2>{pov}</h2>
             <div className="list-panel-header-actions">
@@ -665,7 +692,7 @@ export function PovTab({ pov }: PovTabProps) {
         </div>
       )}
       {!isFullWidthPanel(toolbarPanel, promptInspectorActive) && (
-        <div className="resize-handle" onMouseDown={onMouseDown} />
+        <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
       )}
       {/* Pane 2: Detail (search preview, lineage, or normal detail) */}
       {toolbarPanel === 'search' ? (
@@ -711,15 +738,27 @@ export function PovTab({ pov }: PovTabProps) {
         </>
       ) : (
         <>
-          {detailCollapsed ? (
+          {detailCollapsed && !isPhone ? (
             <div className="pane-collapsed pane-collapsed-detail" onClick={() => setDetailCollapsed(false)} title="Expand detail">
               <span className="pane-collapsed-label">Detail</span>
             </div>
           ) : (
             <div className="detail-panel" data-cat={selectedNode?.category}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 0, lineHeight: 1 }}>
-                <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
-              </div>
+              {isPhone && selectedNode ? (
+                <div className="phone-detail-header">
+                  <button className="phone-detail-back" onClick={() => setSelectedNodeId(null)} title="Back to list">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+                    Back
+                  </button>
+                  <button className="phone-detail-list-toggle" onClick={() => setMobileListOpen(true)} title="Show node list">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 0, lineHeight: 1 }}>
+                  <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+                </div>
+              )}
               {selectedNode ? (
                 <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} />
               ) : (
@@ -740,6 +779,12 @@ export function PovTab({ pov }: PovTabProps) {
         <NewNodeDialog
           onConfirm={handleCreate}
           onCancel={() => setShowNewDialog(false)}
+        />
+      )}
+      {isPhone && (
+        <div
+          className={`phone-list-backdrop${mobileListOpen ? ' open' : ''}`}
+          onClick={() => setMobileListOpen(false)}
         />
       )}
     </div>

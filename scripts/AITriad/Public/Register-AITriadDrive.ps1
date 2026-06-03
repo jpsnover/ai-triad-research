@@ -68,8 +68,6 @@ function Register-AITriadDrive {
     $ProviderDir = Join-Path $script:ModuleRoot 'Provider'
     $CsprojPath  = Join-Path $ProviderDir 'AITriadProvider.csproj'
     $CsPath      = Join-Path $ProviderDir 'AITriadProvider.cs'
-    $OutputDir    = Join-Path ([System.IO.Path]::GetTempPath()) 'AITriad-Provider'
-    $DllPath      = Join-Path $OutputDir 'AITriadProvider.dll'
 
     foreach ($Required in @($CsprojPath, $CsPath)) {
         if (-not (Test-Path $Required)) {
@@ -82,14 +80,13 @@ function Register-AITriadDrive {
         }
     }
 
-    # Determine if recompilation is needed
-    $NeedCompile = $Force -or -not (Test-Path $DllPath)
-    if (-not $NeedCompile) {
-        $CsTime  = (Get-Item $CsPath).LastWriteTimeUtc
-        $DllTime = (Get-Item $DllPath).LastWriteTimeUtc
-        if ($CsTime -gt $DllTime) { $NeedCompile = $true }
-    }
+    # Version the output dir by source hash to avoid DLL-locking on recompile.
+    # A new CS file produces a new hash → fresh output dir → no lock conflict.
+    $CsHash   = (Get-FileHash -Path $CsPath -Algorithm SHA256).Hash.Substring(0, 12)
+    $OutputDir = Join-Path ([System.IO.Path]::GetTempPath()) "AITriad-Provider-$CsHash"
+    $DllPath   = Join-Path $OutputDir 'AITriadProvider.dll'
 
+    $NeedCompile = -not (Test-Path $DllPath)
     if ($NeedCompile) {
         $DotnetCmd = Get-Command dotnet -ErrorAction SilentlyContinue
         if (-not $DotnetCmd) {
@@ -129,6 +126,12 @@ function Register-AITriadDrive {
             -Location $DllPath `
             -NextSteps 'Try Register-AITriadDrive -Force to recompile, or restart PowerShell if the DLL is locked' `
             -PassThru)
+    }
+
+    # Load format views AFTER the provider DLL so they take precedence
+    $FormatFile = Join-Path $script:ModuleRoot 'Formats' 'Taxonomy.Format.ps1xml'
+    if (Test-Path $FormatFile) {
+        Update-FormatData -PrependPath $FormatFile -ErrorAction SilentlyContinue
     }
 
     # Create the PSDrive (empty Root to avoid filesystem path resolution;

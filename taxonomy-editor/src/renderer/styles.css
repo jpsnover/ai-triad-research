@@ -636,11 +636,35 @@ body {
   white-space: nowrap;
 }
 
-.data-update-file-diff-btn:hover {
+.data-update-file-diff-btn:hover,
+.data-update-file-diff-btn.active {
   background: rgba(37, 99, 235, 0.1);
   color: var(--focus-ring, #2563eb);
   border-color: var(--focus-ring, #2563eb);
 }
+
+.data-update-diff-panel {
+  margin-top: 8px;
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 4px;
+  padding: 8px;
+  background: var(--bg-secondary, #fafafa);
+}
+
+.data-update-diff-content {
+  margin: 0;
+  font-family: Consolas, 'SF Mono', monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.data-update-diff-content .diff-add { color: #22863a; background: #f0fff4; }
+.data-update-diff-content .diff-del { color: #cb2431; background: #ffeef0; }
+.data-update-diff-content .diff-hunk { color: #6f42c1; }
 
 /* ─── Git Progress Banner ─────────────────────────────── */
 
@@ -15035,4 +15059,244 @@ th[data-tooltip]::after {
   .app {
     padding-bottom: calc(48px + env(safe-area-inset-bottom));
   }
+}
+
+/* ─── Phone: collapsible list pane (t/364) ────────────── */
+
+@media (max-width: 767px) {
+  .two-column.phone-mode .resize-handle {
+    display: none;
+  }
+
+  /* No selection: list full-width, detail hidden */
+  .two-column.phone-mode:not(.has-selection) .list-panel {
+    width: 100% !important;
+    max-width: none;
+  }
+  .two-column.phone-mode:not(.has-selection) .detail-panel,
+  .two-column.phone-mode:not(.has-selection) .pane-collapsed-detail {
+    display: none;
+  }
+
+  /* Has selection: list becomes slide-in overlay, detail takes full width */
+  .two-column.phone-mode.has-selection .list-panel,
+  .two-column.phone-mode.has-selection .pane-collapsed-list {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px !important;
+    max-width: 85vw;
+    z-index: 501;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+  }
+
+  .two-column.phone-mode.has-selection.phone-list-open .list-panel,
+  .two-column.phone-mode.has-selection.phone-list-open .pane-collapsed-list {
+    transform: translateX(0);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .two-column.phone-mode.has-selection .detail-panel {
+    flex: 1;
+    width: 100%;
+  }
+
+  /* Hide desktop collapse controls on phone */
+  .two-column.phone-mode .pane-collapse-btn {
+    display: none;
+  }
+}
+
+/* Phone list overlay backdrop */
+.phone-list-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.phone-list-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Phone detail header (back + list toggle) */
+.phone-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.phone-detail-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  min-height: 44px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.phone-detail-back:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.phone-detail-list-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.phone-detail-list-toggle:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+/* ─── Touch-friendly resize handle (t/364) ────────────── */
+
+[data-touch="true"] .resize-handle {
+  width: 20px;
+  position: relative;
+  background: transparent;
+}
+
+[data-touch="true"] .resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--border-color);
+  transition: background 0.15s;
+}
+
+[data-touch="true"] .resize-handle::after {
+  content: '···';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(90deg);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+[data-touch="true"] .resize-handle:hover::before,
+[data-touch="true"] .resize-handle:active::before {
+  background: var(--focus-ring);
+}
+
+/* Hide resize handle on phone (overlay mode, no resizing) */
+@media (max-width: 767px) {
+  .resize-handle {
+    display: none;
+  }
+}
+
+/* ─── Auto-rotation: phone landscape (t/364) ──────────── */
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .tab-bar {
+    display: none;
+  }
+
+  .bottom-nav {
+    display: none !important;
+  }
+
+  .app {
+    padding-bottom: 0;
+  }
+
+  .mobile-header {
+    height: 36px;
+  }
+
+  .mobile-header-hamburger {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* Phone landscape enters tablet-like two-column layout */
+@media (orientation: landscape) and (min-width: 568px) and (max-width: 1023px) {
+  .two-column.phone-mode .list-panel {
+    transition: width 0.2s ease;
+  }
+
+  .two-column.phone-mode .resize-handle {
+    display: flex;
+  }
+
+  .two-column.phone-mode:not(.has-selection) .list-panel {
+    width: 280px !important;
+    max-width: 40vw;
+  }
+
+  .two-column.phone-mode:not(.has-selection) .detail-panel,
+  .two-column.phone-mode:not(.has-selection) .pane-collapsed-detail {
+    display: flex;
+  }
+
+  .two-column.phone-mode.has-selection .list-panel {
+    position: static;
+    width: 280px !important;
+    max-width: 40vw;
+    transform: none;
+    box-shadow: none;
+    z-index: auto;
+  }
+
+  .two-column.phone-mode.has-selection .detail-panel {
+    flex: 1;
+  }
+}
+
+/* ─── PWA Update Toast (t/365) ────────────────────────── */
+
+.pwa-update-toast {
+  position: fixed;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  animation: pwa-toast-in 0.3s ease;
+}
+
+@keyframes pwa-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }

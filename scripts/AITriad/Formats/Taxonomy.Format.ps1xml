@@ -74,9 +74,34 @@
       </ListControl>
     </View>
     <View>
-      <Name>AITriad.TaxonomyNode.Default</Name>
+      <Name>AITriad.TaxonomyNode.Beliefs</Name>
       <ViewSelectedBy>
-        <TypeName>AITriad.TaxonomyNode</TypeName>
+        <TypeName>AITriad.TaxonomyNode.Beliefs</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Id</Label><Width>20</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Conf</Label><Width>5</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Label</Label><Width>46</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Description</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <Wrap/>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Id</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:P0}' -f $_.Confidence</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>Label</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Description</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
+      <Name>AITriad.TaxonomyNode.Desires</Name>
+      <ViewSelectedBy>
+        <TypeName>AITriad.TaxonomyNode.Desires</TypeName>
       </ViewSelectedBy>
       <TableControl>
         <TableHeaders>
@@ -91,6 +116,31 @@
             <TableColumnItems>
               <TableColumnItem><PropertyName>Id</PropertyName></TableColumnItem>
               <TableColumnItem><PropertyName>Priority</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Label</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Description</PropertyName></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+    <View>
+      <Name>AITriad.TaxonomyNode.Intentions</Name>
+      <ViewSelectedBy>
+        <TypeName>AITriad.TaxonomyNode.Intentions</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Id</Label><Width>20</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Oper</Label><Width>5</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Label</Label><Width>46</Width></TableColumnHeader>
+          <TableColumnHeader><Label>Description</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <Wrap/>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Id</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Operationality</PropertyName></TableColumnItem>
               <TableColumnItem><PropertyName>Label</PropertyName></TableColumnItem>
               <TableColumnItem><PropertyName>Description</PropertyName></TableColumnItem>
             </TableColumnItems>

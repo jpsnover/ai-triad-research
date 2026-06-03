@@ -23,6 +23,8 @@ namespace AITriad.Provider
         public string Description { get; set; }
         public string ParentId { get; set; }
         public int Priority { get; set; }
+        public double Confidence { get; set; }
+        public int Operationality { get; set; }
         public string Pov { get; set; }
         public string ParentRelationship { get; set; }
         public string ParentRationale { get; set; }
@@ -215,6 +217,8 @@ namespace AITriad.Provider
                             Description = GetString(el, "description"),
                             ParentId = GetString(el, "parent_id"),
                             Priority = el.TryGetProperty("priority", out var pri) && pri.ValueKind == JsonValueKind.Number ? pri.GetInt32() : 0,
+                            Confidence = el.TryGetProperty("confidence", out var conf) && conf.ValueKind == JsonValueKind.Number ? conf.GetDouble() : 0,
+                            Operationality = el.TryGetProperty("operationality", out var oper) && oper.ValueKind == JsonValueKind.Number ? oper.GetInt32() : 0,
                             Pov = povKey,
                             ParentRelationship = GetString(el, "parent_relationship"),
                             ParentRationale = GetString(el, "parent_rationale"),
@@ -432,11 +436,6 @@ namespace AITriad.Provider
             return string.Join("\\", parts.Take(parts.Length - 1));
         }
 
-        protected override string NormalizeRelativePath(string path, string basePath)
-        {
-            return path;
-        }
-
         #endregion
 
         #region IContentCmdletProvider
@@ -486,6 +485,8 @@ namespace AITriad.Provider
             obj.Properties.Add(new PSNoteProperty("Description", node.Description));
             obj.Properties.Add(new PSNoteProperty("ParentId", node.ParentId));
             obj.Properties.Add(new PSNoteProperty("Priority", node.Priority));
+            obj.Properties.Add(new PSNoteProperty("Confidence", node.Confidence));
+            obj.Properties.Add(new PSNoteProperty("Operationality", node.Operationality));
             obj.Properties.Add(new PSNoteProperty("ParentRelationship", node.ParentRelationship));
             obj.Properties.Add(new PSNoteProperty("ParentRationale", node.ParentRationale));
             obj.Properties.Add(new PSNoteProperty("Children", node.Children));
@@ -496,9 +497,9 @@ namespace AITriad.Provider
                 obj.Properties.Add(new PSNoteProperty("GraphAttributes",
                     JsonElementToObject(node.GraphAttributes.Value)));
 
-            obj.TypeNames.Insert(0, "AITriad.TaxonomyNode");
-            // Also add TaxonomyNode so the existing format file applies
-            obj.TypeNames.Insert(1, "TaxonomyNode");
+            obj.TypeNames.Insert(0, "AITriad.TaxonomyNode." + node.Category);
+            obj.TypeNames.Insert(1, "AITriad.TaxonomyNode");
+            obj.TypeNames.Insert(2, "TaxonomyNode");
             return obj;
         }
 
