@@ -30,6 +30,8 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { initAnalytics } from './lib/analyticsEmitter';
 import { useBreakpoint } from './hooks/useBreakpoint';
 import { useIsTouchDevice } from './hooks/useIsTouchDevice';
+import { BottomNav } from './components/BottomNav';
+import { HamburgerMenu } from './components/HamburgerMenu';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { GitProgressBanner } from './components/GitProgressBanner';
 import { pullDataTracked } from './utils/syncApi';
@@ -152,6 +154,8 @@ function MainApp() {
   const { activeTab, loading, backgroundLoading, loadingProgress, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
   const breakpoint = useBreakpoint();
   const isTouch = useIsTouchDevice();
+  const isMobile = breakpoint === 'phone' || breakpoint === 'phone-lg' || breakpoint === 'tablet';
+  const [hamburgerOpen, setHamburgerOpen] = useState(false);
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<string | null>(null);
@@ -356,6 +360,11 @@ function MainApp() {
     document.documentElement.setAttribute('data-pane-spacing', paneSpacing);
   }, [paneSpacing]);
 
+  // Close hamburger when leaving mobile breakpoints
+  useEffect(() => {
+    if (!isMobile) setHamburgerOpen(false);
+  }, [isMobile]);
+
   // Apply responsive breakpoint and touch attributes
   useEffect(() => {
     document.documentElement.setAttribute('data-breakpoint', breakpoint);
@@ -516,6 +525,14 @@ function MainApp() {
         </div>
       )}
 
+      <div className="mobile-header">
+        <button className="mobile-header-hamburger" onClick={() => setHamburgerOpen(true)} aria-label="Open menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <span className="mobile-header-title">Taxonomy Editor</span>
+      </div>
       {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
@@ -532,6 +549,8 @@ function MainApp() {
         </div>
       </div>
       <SaveBar />
+      <BottomNav />
+      {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
     </div>
   );
 }

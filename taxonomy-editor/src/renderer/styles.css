@@ -14812,3 +14812,227 @@ th[data-tooltip]::after {
 .debate-reasoning-section-body .markdown-body {
   font-size: 0.75rem;
 }
+
+/* ─── Mobile Header ───────────────────────────────────── */
+
+.mobile-header {
+  display: none;
+  height: 48px;
+  align-items: center;
+  padding: 0 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.mobile-header-hamburger {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.mobile-header-hamburger:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.mobile-header-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+/* ─── Bottom Navigation Bar ───────────────────────────── */
+
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  align-items: center;
+  justify-content: space-around;
+  z-index: 100;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  gap: 2px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.bottom-nav-item:hover {
+  background: var(--bg-hover, var(--hover-bg));
+  color: var(--text-primary);
+}
+
+.bottom-nav-item.active {
+  color: var(--focus-ring);
+}
+
+.bottom-nav-label {
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* ─── Hamburger Menu ──────────────────────────────────── */
+
+.hamburger-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.hamburger-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hamburger-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 85vw;
+  background: var(--bg-primary);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  overflow: hidden;
+}
+
+.hamburger-drawer.open {
+  transform: translateX(0);
+}
+
+.hamburger-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 48px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.hamburger-close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.hamburger-close:hover {
+  background: var(--bg-hover, var(--hover-bg));
+  color: var(--text-primary);
+}
+
+.hamburger-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.hamburger-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.hamburger-section {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 12px 10px 4px;
+}
+
+.hamburger-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 6px 0;
+}
+
+.hamburger-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-align: left;
+  min-height: 44px;
+  transition: background 0.15s;
+}
+
+.hamburger-item:hover {
+  background: var(--bg-hover, var(--hover-bg));
+}
+
+.hamburger-item.active {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+/* ─── Responsive: phone/tablet layout ─────────────────── */
+
+@media (max-width: 1023px) {
+  .mobile-header {
+    display: flex;
+  }
+
+  .bottom-nav {
+    display: flex;
+  }
+
+  .toolbar {
+    display: none;
+  }
+
+  .app {
+    padding-bottom: calc(48px + env(safe-area-inset-bottom));
+  }
+}
