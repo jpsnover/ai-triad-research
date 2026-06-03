@@ -78,11 +78,11 @@ describe('assignDesirePriorities', () => {
     expect(node.priority_history![0].reason).toContain('root-level');
   });
 
-  it('doctrinal boundary history says so', () => {
+  it('hardcoded boundary history says so', () => {
     const node = makeDesireNode('d-001', null);
     assignDesirePriorities([node], new Set(['d-001']), '2026-05-24');
 
-    expect(node.priority_history![0].reason).toContain('doctrinal boundary');
+    expect(node.priority_history![0].reason).toContain('hardcoded boundary');
   });
 
   it('skips non-Desire nodes', () => {
@@ -142,5 +142,45 @@ describe('assignDesirePriorities', () => {
   it('handles empty nodes array', () => {
     const results = assignDesirePriorities([], new Set(), '2026-05-24');
     expect(results).toHaveLength(0);
+  });
+
+  it('softcoded boundary maps to priority 4', () => {
+    const leaf = makeDesireNode('d-003', 'd-002', []);
+    const results = assignDesirePriorities(
+      [leaf], new Set(), '2026-05-24', new Set(['d-003']),
+    );
+
+    expect(results[0].priority).toBe(4);
+    expect(results[0].boundaryType).toBe('softcoded');
+    expect(results[0].isDoctrinalBoundary).toBe(true);
+    expect(leaf.priority).toBe(4);
+    expect(leaf.priority_history![0].reason).toContain('softcoded boundary');
+  });
+
+  it('hardcoded takes precedence over softcoded when both match', () => {
+    const node = makeDesireNode('d-001', null);
+    const results = assignDesirePriorities(
+      [node], new Set(['d-001']), '2026-05-24', new Set(['d-001']),
+    );
+
+    expect(results[0].priority).toBe(5);
+    expect(results[0].boundaryType).toBe('hardcoded');
+  });
+
+  it('non-boundary node has no boundaryType', () => {
+    const node = makeDesireNode('d-001', null);
+    const results = assignDesirePriorities([node], new Set(), '2026-05-24');
+
+    expect(results[0].boundaryType).toBeUndefined();
+    expect(results[0].isDoctrinalBoundary).toBe(false);
+  });
+
+  it('softcoded boundary overrides tree position to 4', () => {
+    const leaf = makeDesireNode('d-003', 'd-002', []);
+    expect(leaf.children).toHaveLength(0);
+    const results = assignDesirePriorities(
+      [leaf], new Set(), '2026-05-24', new Set(['d-003']),
+    );
+    expect(results[0].priority).toBe(4);
   });
 });

@@ -100,6 +100,7 @@
         'Get-PovLineage'
         'Get-IntellectualLineage'
         'Invoke-BDIWeightAssignment'
+        'Register-AITriadDrive'
     )
 
     # Aliases exported from this module

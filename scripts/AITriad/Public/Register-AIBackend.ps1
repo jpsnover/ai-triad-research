@@ -16,6 +16,7 @@ function Register-AIBackend {
           ANTHROPIC_API_KEY  — Anthropic Claude
           GROQ_API_KEY       — Groq
           OPENAI_API_KEY     — OpenAI
+          OLLAMA_BASE_URL    — Ollama local server (default: http://localhost:11434)
           AI_MODEL           — Default model for all AI commands
 
         On save, values are written to ~/.aitriad-env (sourced from shell profile).
@@ -45,6 +46,7 @@ function Register-AIBackend {
         ANTHROPIC_API_KEY = ''
         GROQ_API_KEY      = ''
         OPENAI_API_KEY    = ''
+        OLLAMA_BASE_URL   = ''
         AI_MODEL          = ''
     }
 
@@ -65,7 +67,7 @@ function Register-AIBackend {
     }
 
     # Env vars override file
-    foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'AI_MODEL')) {
+    foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'AI_MODEL')) {
         $EnvVal = [Environment]::GetEnvironmentVariable($Key)
         if (-not [string]::IsNullOrWhiteSpace($EnvVal)) { $Persisted[$Key] = $EnvVal }
     }
@@ -83,6 +85,7 @@ function Register-AIBackend {
         @{ id = 'groq-llama-4-scout';             label = 'Groq Llama 4 Scout';              backend = 'groq' }
         @{ id = 'openai-gpt-5.5';                 label = 'OpenAI GPT-5.5';                  backend = 'openai' }
         @{ id = 'openai-gpt-5.5-pro';             label = 'OpenAI GPT-5.5 Pro';              backend = 'openai' }
+        @{ id = 'ollama-gemma4-e4b-it-q4-k-m';    label = 'Ollama Gemma 4 E4B';              backend = 'ollama' }
     )
 
     $ModelsJson = $Models | ConvertTo-Json -Compress
@@ -99,6 +102,7 @@ function Register-AIBackend {
         anthropic_key = $Persisted['ANTHROPIC_API_KEY']
         groq_key      = $Persisted['GROQ_API_KEY']
         openai_key    = $Persisted['OPENAI_API_KEY']
+        ollama_url    = $Persisted['OLLAMA_BASE_URL']
         ai_model      = $Persisted['AI_MODEL']
         gemini_masked    = Get-MaskedKey $Persisted['GEMINI_API_KEY']
         anthropic_masked = Get-MaskedKey $Persisted['ANTHROPIC_API_KEY']
@@ -289,6 +293,33 @@ function Register-AIBackend {
   </div>
 </div>
 
+<div class="card">
+  <h2>Ollama (Local) <span class="badge optional">Optional</span>
+    <button class="btn-getkey" onclick="toggleHelp('ollama-help')">Setup</button></h2>
+  <div class="field">
+    <label>Base URL</label>
+    <div class="key-row">
+      <input id="ollama-url" type="text" placeholder="http://localhost:11434" autocomplete="off">
+      <button class="btn-test" onclick="testKey('ollama')">Test</button>
+    </div>
+    <div class="env-hint">OLLAMA_BASE_URL (leave blank for http://localhost:11434)</div>
+    <div id="ollama-status" class="status"></div>
+  </div>
+  <div id="ollama-help" class="help-panel">
+    <h3>How to set up Ollama <span class="tier free">Free / Local</span></h3>
+    <ol>
+      <li>Download and install <a href="https://ollama.com" target="_blank">Ollama</a></li>
+      <li>Run <code>ollama serve</code> to start the server (default: port 11434)</li>
+      <li>Pull a model: <code>ollama pull gemma4:e4b-it-q4_K_M</code></li>
+      <li>Click <strong>Test</strong> above to verify the connection</li>
+    </ol>
+    <p>Ollama runs models locally on your machine &mdash; no API key or cloud account needed.
+       Leave the URL blank to use the default (<code>http://localhost:11434</code>).</p>
+    <p><strong>Models available:</strong> Any model pulled into Ollama. The default for AI Triad
+       is <code>gemma4:e4b-it-q4_K_M</code> (8B parameters, quantized).</p>
+  </div>
+</div>
+
 <div class="card model-section">
   <h2>Default Model</h2>
   <div class="field">
@@ -311,14 +342,16 @@ function init() {
   document.getElementById('anthropic-key').value = state.anthropic_masked || '';
   document.getElementById('groq-key').value = state.groq_masked || '';
   document.getElementById('openai-key').value = state.openai_masked || '';
+  document.getElementById('ollama-url').value = state.ollama_url || '';
 
   // Track whether field has been edited (vs showing mask)
   document.getElementById('gemini-key').dataset.dirty = 'false';
   document.getElementById('anthropic-key').dataset.dirty = 'false';
   document.getElementById('groq-key').dataset.dirty = 'false';
   document.getElementById('openai-key').dataset.dirty = 'false';
+  document.getElementById('ollama-url').dataset.dirty = 'false';
 
-  ['gemini-key','anthropic-key','groq-key','openai-key'].forEach(id => {
+  ['gemini-key','anthropic-key','groq-key','openai-key','ollama-url'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
       document.getElementById(id).dataset.dirty = 'true';
     });
@@ -371,7 +404,7 @@ function setStatus(id, cls, msg) {
 }
 
 function testKey(backend) {
-  const inputMap = { gemini: 'gemini-key', anthropic: 'anthropic-key', groq: 'groq-key', openai: 'openai-key' };
+  const inputMap = { gemini: 'gemini-key', anthropic: 'anthropic-key', groq: 'groq-key', openai: 'openai-key', ollama: 'ollama-url' };
   const inp = document.getElementById(inputMap[backend]);
   const key = inp.dataset.dirty === 'true' ? inp.value : '';
 
@@ -399,6 +432,8 @@ function save() {
       ? document.getElementById('groq-key').value : null,
     openai_key: document.getElementById('openai-key').dataset.dirty === 'true'
       ? document.getElementById('openai-key').value : null,
+    ollama_url: document.getElementById('ollama-url').dataset.dirty === 'true'
+      ? document.getElementById('ollama-url').value : null,
     ai_model: document.getElementById('ai-model').value
   };
 
@@ -492,7 +527,7 @@ init();
                     'GET /api/reveal' {
                         $Query   = $Request.Url.Query
                         if ($Query -match 'backend=(\w+)') { $Backend = $Matches[1] } else { $Backend = '' }
-                        $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY' }
+                        $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'; ollama = 'OLLAMA_BASE_URL' }
                         $RealKey = ''
                         if ($KeyMap.ContainsKey($Backend)) {
                             $RealKey = $Persisted[$KeyMap[$Backend]]
@@ -513,7 +548,7 @@ init();
                         $TestKey     = $Body.key
                         # If no key provided (not dirty), use persisted
                         if ([string]::IsNullOrWhiteSpace($TestKey)) {
-                            $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY' }
+                            $KeyMap  = @{ gemini = 'GEMINI_API_KEY'; anthropic = 'ANTHROPIC_API_KEY'; groq = 'GROQ_API_KEY'; openai = 'OPENAI_API_KEY'; ollama = 'OLLAMA_BASE_URL' }
                             if ($KeyMap.ContainsKey($TestBackend)) {
                                 $TestKey = $Persisted[$KeyMap[$TestBackend]]
                             }
@@ -521,7 +556,19 @@ init();
 
                         $TestResult = @{ ok = $false; message = 'No key provided' }
 
-                        if (-not [string]::IsNullOrWhiteSpace($TestKey)) {
+                        # Ollama uses a base URL, not an API key — default to localhost
+                        if ($TestBackend -eq 'ollama') {
+                            $OllamaUrl = if ([string]::IsNullOrWhiteSpace($TestKey)) { 'http://localhost:11434' } else { $TestKey.TrimEnd('/') }
+                            try {
+                                $R = Invoke-RestMethod -Uri "$OllamaUrl/api/tags" -Method Get -TimeoutSec 10 -ErrorAction Stop
+                                $ModelCount = @($R.models).Count
+                                $TestResult = @{ ok = $true; message = "Connected — $ModelCount model(s) available" }
+                            }
+                            catch {
+                                $TestResult = @{ ok = $false; message = "Cannot reach Ollama at $OllamaUrl — $($_.Exception.Message)" }
+                            }
+                        }
+                        elseif (-not [string]::IsNullOrWhiteSpace($TestKey)) {
                             try {
                                 switch ($TestBackend) {
                                     'gemini' {
@@ -600,6 +647,7 @@ init();
                                 anthropic_key = 'ANTHROPIC_API_KEY'
                                 groq_key      = 'GROQ_API_KEY'
                                 openai_key    = 'OPENAI_API_KEY'
+                                ollama_url    = 'OLLAMA_BASE_URL'
                             }
 
                             foreach ($Field in $KeyMap.Keys) {
@@ -641,7 +689,7 @@ init();
 
                             # bash/zsh section
                             $EnvLines.Add('# bash/zsh — source this file from ~/.bashrc or ~/.zshrc')
-                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'AI_MODEL')) {
+                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'AI_MODEL')) {
                                 $Val = $Persisted[$Key]
                                 if (-not [string]::IsNullOrWhiteSpace($Val)) {
                                     $EnvLines.Add("export $Key=`"$Val`"")
@@ -651,7 +699,7 @@ init();
                             $EnvLines.Add('')
                             $EnvLines.Add('# PowerShell — dot-source this file from `$PROFILE')
                             $EnvLines.Add('# powershell_section_start')
-                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'AI_MODEL')) {
+                            foreach ($Key in @('GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'OPENAI_API_KEY', 'OLLAMA_BASE_URL', 'AI_MODEL')) {
                                 $Val = $Persisted[$Key]
                                 if (-not [string]::IsNullOrWhiteSpace($Val)) {
                                     $EscapedVal = $Val -replace "'", "''"

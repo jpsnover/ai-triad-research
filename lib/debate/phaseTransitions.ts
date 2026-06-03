@@ -570,9 +570,13 @@ export function evaluatePhaseTransition(
     return { action: 'force_transition', new_phase: 'concluding', reason: `Network hard cap (${ctx.network.nodeCount} >= ${w.network.hard_cap})`, veto_active: false, force_active: true, confidence_deferred: false, components: { network_size: ctx.network.nodeCount } };
   }
 
-  // Note: round-count-based termination (maxTotalRounds hard cap) removed —
-  // debates now run until signal-based exits (convergence, saturation, health,
-  // per-phase max rounds, or API budget) trigger natural termination.
+  // Global: maxTotalRounds hard cap — safety net when per-phase signals don't converge
+  if (state.total_rounds_elapsed >= config.maxTotalRounds) {
+    if (state.current_phase === 'concluding') {
+      return { action: 'terminate', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
+    }
+    return { action: 'force_transition', new_phase: 'concluding', reason: `Max total rounds (${state.total_rounds_elapsed} >= ${config.maxTotalRounds})`, veto_active: false, force_active: true, confidence_deferred: false, components: { total_rounds: state.total_rounds_elapsed, max: config.maxTotalRounds } };
+  }
 
   // Confidence gating (with escalation)
   const extractionConf = computeExtractionConfidence(
@@ -644,13 +648,13 @@ function evaluateThesisExit(
 ): PredicateResult {
   const components: Record<string, number> = { rounds_in_phase: state.rounds_in_phase };
 
-  if (coldStart) {
-    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_confrontation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
-  }
-
-  // Hard cap
+  // Hard cap (unconditional — overrides cold start)
   if (state.rounds_in_phase >= pb.max_confrontation_rounds) {
     return { action: 'transition', new_phase: 'argumentation', reason: `Max thesis turns (${pb.max_confrontation_rounds / s} rounds × ${s} speakers)`, veto_active: false, force_active: true, confidence_deferred: false, components };
+  }
+
+  if (coldStart) {
+    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_confrontation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Must have all POVs responded
@@ -702,13 +706,13 @@ function evaluateExplorationExit(
     threshold: state.argumentation_exit_threshold,
   };
 
-  if (coldStart) {
-    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_argumentation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
-  }
-
-  // Force exits
+  // Hard cap (unconditional — overrides cold start)
   if (state.rounds_in_phase >= pb.max_argumentation_rounds) {
     return { action: 'transition', new_phase: 'concluding', reason: `Max exploration turns (${pb.max_argumentation_rounds / s} rounds × ${s} speakers)`, veto_active: false, force_active: true, confidence_deferred: false, components };
+  }
+
+  if (coldStart) {
+    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_argumentation_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   const softBudget = config.maxTotalRounds * w.budget.soft_multiplier;
@@ -768,13 +772,13 @@ function evaluateConcludingExit(
     regression_count: state.regression_count,
   };
 
-  if (coldStart) {
-    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_concluding_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
-  }
-
-  // Force exits
+  // Hard cap (unconditional — overrides cold start)
   if (state.rounds_in_phase >= pb.max_concluding_rounds) {
     return { action: 'terminate', reason: `Max synthesis turns (${pb.max_concluding_rounds / s} rounds × ${s} speakers)`, veto_active: false, force_active: true, confidence_deferred: false, components };
+  }
+
+  if (coldStart) {
+    return { action: 'stay', reason: `Cold start (turn ${state.rounds_in_phase} < min ${pb.min_concluding_rounds})`, veto_active: false, force_active: false, confidence_deferred: false, components };
   }
 
   // Synthesis stall
@@ -793,7 +797,15 @@ function evaluateConcludingExit(
   }
 
   // Regression check (must be round >= 2 in synthesis)
-  if (state.rounds_in_phase >= 2 && state.regression_count < w.phase_bounds.max_regressions) {
+  // Suppress regression when user capped argumentation rounds — regression returns to
+  // argumentation, so it would violate the user's round budget for that phase
+  const hasUserOverrides = config.phaseBoundsOverride?.maxArgumentationRounds != null;
+  const remainingBudget = config.maxTotalRounds - state.total_rounds_elapsed;
+  const minNeededForRegression = pb.min_argumentation_rounds + pb.min_concluding_rounds;
+  if (!hasUserOverrides &&
+      remainingBudget > minNeededForRegression &&
+      state.rounds_in_phase >= 2 &&
+      state.regression_count < w.phase_bounds.max_regressions) {
     // Convergence drop
     const convDrop2 = priorConv !== null ? (priorConv - convScore) : 0;
     components.convergence_drop_2r = convDrop2;
@@ -859,9 +871,12 @@ export function applyTransition(state: PhaseState, result: PredicateResult): Pha
       return next;
     case 'regress':
       next.current_phase = 'argumentation';
-      next.rounds_in_phase = 0;
+      // Skip most cold start: debate already has rich context after regression
+      next.rounds_in_phase = 1;
       next.regression_count = state.regression_count + 1;
-      next.argumentation_exit_threshold = state.argumentation_exit_threshold + w.phase_bounds.regression_ratchet;
+      const baseThreshold = w.thresholds.argumentation_exit;
+      const maxRatcheted = baseThreshold + w.phase_bounds.max_regressions * w.phase_bounds.regression_ratchet;
+      next.argumentation_exit_threshold = Math.min(state.argumentation_exit_threshold + w.phase_bounds.regression_ratchet, maxRatcheted);
       next.gc_ran_this_phase = false;
       // Record crux cluster
       const cruxIds = (result.components.novel_cruxes ?? 0) > 0

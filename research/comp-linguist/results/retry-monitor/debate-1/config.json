@@ -1,0 +1,9 @@
+{
+  "topic": "Should open-source AI models be subject to the same safety requirements as proprietary ones, or does openness itself provide a safety benefit through transparency?",
+  "name": "retry-monitor-1",
+  "model": "gemini-2.5-flash",
+  "useAdaptiveStaging": true,
+  "pacing": "tight",
+  "outputDir": "C:\\Users\\jsnov\\repos\\ai-triad-research\\research\\comp-linguist\\results\\retry-monitor\\debate-1",
+  "outputFormat": "json"
+}

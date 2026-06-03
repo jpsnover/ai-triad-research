@@ -83,12 +83,14 @@ export interface AnchoringResult {
  * @param nodes - Belief nodes from a single POV
  * @param boundaryVectors - Boundary embeddings for this POV
  * @param nodeEmbeddings - Taxonomy node embeddings (keyed by node ID)
+ * @param boundaryWeights - Per-boundary weight (hardcoded=1.0, softcoded=0.7). Scales similarity.
  * @param config - Threshold and floor configuration
  */
 export function computeDoctrinalAnchoring(
   nodes: PovNode[],
   boundaryVectors: number[][],
   nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
+  boundaryWeights?: number[],
   config: DoctrinalAnchoringConfig = DEFAULT_ANCHORING_CONFIG,
 ): AnchoringResult[] {
   const results: AnchoringResult[] = [];
@@ -107,11 +109,13 @@ export function computeDoctrinalAnchoring(
       continue;
     }
 
-    // Find max cosine similarity against all boundary embeddings
+    // Find max weighted cosine similarity against all boundary embeddings
     let maxSim = -1;
     let bestIdx = -1;
     for (let i = 0; i < boundaryVectors.length; i++) {
-      const sim = cosineSimilarity(nodeEmb.vector, boundaryVectors[i]);
+      const raw = cosineSimilarity(nodeEmb.vector, boundaryVectors[i]);
+      const weight = boundaryWeights?.[i] ?? 1.0;
+      const sim = raw * weight;
       if (sim > maxSim) {
         maxSim = sim;
         bestIdx = i;

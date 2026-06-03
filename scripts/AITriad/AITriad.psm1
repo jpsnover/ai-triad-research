@@ -386,6 +386,7 @@ Export-ModuleMember -Function @(
     'Get-PovLineage'
     'Get-IntellectualLineage'
     'Invoke-BDIWeightAssignment'
+    'Register-AITriadDrive'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

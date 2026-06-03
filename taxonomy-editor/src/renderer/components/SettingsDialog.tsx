@@ -17,6 +17,8 @@ interface RefreshResult {
   gemini: { ok: boolean; count: number; error?: string };
   claude: { ok: boolean; count: number; error?: string };
   groq:   { ok: boolean; count: number; error?: string };
+  openai: { ok: boolean; count: number; error?: string };
+  ollama: { ok: boolean; count: number; error?: string };
   totalModels: number;
 }
 
@@ -164,10 +166,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     }
   };
 
-  const keyPlaceholder: Record<AIBackend, string> = {
+  const isLocalBackend = aiBackend === 'ollama';
+  const keyPlaceholder: Partial<Record<AIBackend, string>> = {
     gemini: 'AIza...',
     claude: 'sk-ant-...',
     groq: 'gsk_...',
+    openai: 'sk-...',
   };
 
   return (
@@ -215,7 +219,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         {refreshResult && (
           <div className="settings-refresh-result">
-            {(['gemini', 'claude', 'groq', 'openai'] as const).map((b) => {
+            {(['gemini', 'claude', 'groq', 'openai', 'ollama'] as const).map((b) => {
               const r = refreshResult[b];
               return (
                 <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
@@ -233,30 +237,38 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         <div className="settings-divider" />
 
-        <div className="settings-key-section">
-          <label className="settings-label">
-            {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API Key
-            {hasKey[aiBackend] && <span className="settings-key-status"> (set)</span>}
-          </label>
-          <div className="settings-key-row">
-            <input
-              type="password"
-              className="settings-key-input"
-              value={keyInput}
-              onChange={(e) => setKeyInput(e.target.value)}
-              placeholder={keyPlaceholder[aiBackend]}
-            />
-            <button
-              className="btn btn-sm"
-              onClick={handleSaveKey}
-              disabled={!keyInput.trim() || savingKey}
-            >
-              {savingKey ? '...' : 'Save'}
-            </button>
+        {isLocalBackend ? (
+          <div className="settings-key-section">
+            <span className="settings-label" style={{ fontStyle: 'italic', opacity: 0.7 }}>
+              {AI_BACKENDS.find(b => b.value === aiBackend)?.label} runs locally — no API key needed
+            </span>
           </div>
-          {keyError && <div className="settings-key-error">{keyError}</div>}
-          {keySuccess && <div className="settings-key-success">{keySuccess}</div>}
-        </div>
+        ) : (
+          <div className="settings-key-section">
+            <label className="settings-label">
+              {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API Key
+              {hasKey[aiBackend] && <span className="settings-key-status"> (set)</span>}
+            </label>
+            <div className="settings-key-row">
+              <input
+                type="password"
+                className="settings-key-input"
+                value={keyInput}
+                onChange={(e) => setKeyInput(e.target.value)}
+                placeholder={keyPlaceholder[aiBackend] ?? ''}
+              />
+              <button
+                className="btn btn-sm"
+                onClick={handleSaveKey}
+                disabled={!keyInput.trim() || savingKey}
+              >
+                {savingKey ? '...' : 'Save'}
+              </button>
+            </div>
+            {keyError && <div className="settings-key-error">{keyError}</div>}
+            {keySuccess && <div className="settings-key-success">{keySuccess}</div>}
+          </div>
+        )}
 
         <div className="settings-divider" />
 

@@ -39,13 +39,16 @@ Structured AI policy discourse analysis requires three layers that existing syst
 | Experiment | What it measures | Data needed | Status |
 |------------|-----------------|-------------|--------|
 | **E1: FIRE vs single-shot extraction quality** | Precision/recall of factual claim extraction with and without iterative refinement | 20-30 documents with gold-standard annotated claims | Gold-standard set needed (PP-1) |
-| **E2: QBAF calibration (Q-0 results)** | Correlation between AI-scored and human-scored argument strength, per BDI layer | 41 calibration claims + 8 hold-out claims (already scored) | Complete — r=0.65 Desires, r=0.71 Intentions, Beliefs=human-assigned |
+| **E2: QBAF calibration (Q-0 results)** | Correlation between AI-scored and human-scored argument strength, per BDI layer | 41 calibration claims + 8 hold-out claims (already scored) | Complete — r=0.65 Desires, r=0.71 Intentions, Beliefs=human-assigned. Calibration data now spans 100+ debates across local and cloud environments. |
 | **E3: BDI context vs flat context for debate quality** | Does BDI-structured taxonomy injection improve debate agent reasoning vs unstructured injection? | A/B test: 10 debates with BDI context vs 10 with flat node list, human evaluation of argument quality | Needs design + execution |
 | **E4: Concession harvesting accuracy** | Do classified concessions (full/conditional/tactical) correctly predict taxonomy evolution needs? | Concession accumulator data from 20+ debates | Needs Phase 1 data accumulation |
 | **E5: Cross-POV disagreement typing** | Agreement between AI-assigned and human-assigned disagreement types (definitional/interpretive/structural) | 50 disagreement instances from debate synthesis, human-annotated | Needs annotation |
 | **E6: FIRE sniff precision** | Does the two-stage sniff correctly identify documents that benefit from FIRE? | 50 documents: run both single-shot and FIRE, compare quality delta vs sniff prediction | Needs execution after sniff implementation |
 | **E7: Genus-differentia description compliance** | Before/after comparison of description quality with ontological grounding enforcement | Taxonomy audit data (t/91 baseline: 65.6% compliance) | Partial — baseline exists |
 | **E8: Move diversity post-PQ-9** | Does the dialectical move diversity fix (PQ-9) produce more varied debate exchanges? | 10 debates pre-fix vs 10 debates post-fix, measure move_types distribution | Pre-fix data exists (Debate.json), post-fix needs collection |
+
+| **E11: Topic-alignment enforcement** | Does the 5-mechanism TopicScope pipeline reduce off-topic drift and improve debate focus? | 10 debates with scope enforcement vs 10 without, measuring off-topic rate and topic_alignment_rate | Mechanisms implemented (M1-M5), evaluation design pending |
+| **E12: Voice differentiation (de-artifacting)** | Does per-character voice specification reduce AI voice tells and improve character distinctness? | 10 debates pre-de-artifacting vs 10 post, measuring AI voice tell frequency across 9 categories | Partial — 80-93% reduction on Opus 4.6, 0% on Gemini Flash Lite (model-dependent) |
 
 **Minimum viable evaluation for ArgMining:** E1 + E2 + E3 (extraction quality, QBAF calibration, BDI context impact)
 
@@ -55,10 +58,10 @@ Structured AI policy discourse analysis requires three layers that existing syst
 
 | Dataset | Size | Availability | Sensitivity |
 |---------|------|-------------|-------------|
-| Taxonomy (4 POVs) | ~500 nodes | Can release (no PII) | Low — ontological structure, not personal data |
+| Taxonomy (4 POVs) | ~565 nodes | Can release (no PII) | Low — ontological structure, not personal data |
 | Source documents | ~80 documents | Mixed — some are copyrighted PDFs | Release metadata + snapshots where permitted; cite originals otherwise |
 | Summaries | ~80 JSON files | Can release (derived analysis) | Low |
-| Debates | ~25 sessions | Can release (AI-generated, no PII) | Low |
+| Debates | ~100 sessions | Can release (AI-generated, no PII) | Low |
 | QBAF calibration data | 49 claims with human scores | Can release | Low |
 | Conflict instances | ~1,500 entries | Can release | Low |
 
@@ -173,6 +176,15 @@ Present the three disagreement types (EMPIRICAL/VALUES/DEFINITIONAL) and their m
 
 #### 6.6 Evaluation (E3, E5, E8)
 E3: BDI-structured vs flat context — human evaluation of argument quality, taxonomy reference accuracy, disagreement identification. E5: Disagreement typing accuracy — inter-annotator agreement. E8: Move diversity pre/post PQ-9.
+
+#### 6.24 Topic-Alignment Enforcement
+Present the 5-mechanism TopicScope pipeline as a contribution to debate scope management. M1: TopicScope extraction (14-field schema with explicit/inferred confidence). M2: prompt boundary placement (primacy + recency positioning). M3: draft quality gate topic_aligned check. M4: taxonomy constraint-aware filter (catastrophic signal demotion, excluded scenario demotion, off-scope demotion, discipline relevance boost). M5: moderator drift detection (risk-level mismatch, domain mismatch).
+
+#### 6.25 Voice Differentiation (De-Artifacting)
+Present the 9-category AI voice tell taxonomy and per-character voice specification as contributions to multi-agent debate authenticity. Categories: hedge stacking, false balance, formulaic transitions, bullet-point reasoning, sycophantic framing, meta-commentary, synonym chains, theatrical emphasis, passive voice. Per-character prose_style, rhetorical_arsenal, and voice_hygiene directives. Shared VOICE AUTHENTICITY block. Evaluation: 80-93% reduction on Opus 4.6, 0% on Gemini Flash Lite — model-dependent finding.
+
+#### 6.26 Epistemic Type Integration
+Present the integration of 6 epistemic types (strategic_recommendation, empirical_claim, interpretive_lens, predictive, normative_prescription, definitional) into debate engine prompts. Integration points: debater taxonomy context (match argument mode to claim type), moderator drift detection (cross-type talking-past-each-other), plan stage strategy, audience-weighted prioritization, draft quality gate calibration.
 
 ### 7. Cross-POV Conflict Detection and Resolution
 Present the conflict detection pipeline as a contribution to automated discourse analysis.

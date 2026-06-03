@@ -11,6 +11,7 @@ import {
   _STEELMAN_INSTRUCTION,
   _PHASE_INSTRUCTIONS,
   _otherDebaters,
+  _getCharacterBlock,
   _getReadingLevel,
   _getDetailInstruction,
   _sourceReminder,
@@ -143,7 +144,7 @@ export function planStageEnvelope(input: StagePromptInput, brief: string): Promp
   return {
     layer1_static: '',
 
-    layer2_persona: `You are ${input.label}, planning your argumentative strategy for your next debate turn.\nYour personality: ${input.personality}.\nYour perspective: ${input.pov}.`,
+    layer2_persona: `You are ${input.label}, planning your argumentative strategy for your next debate turn.\n${_getCharacterBlock(input.pov)}\nYour perspective: ${input.pov}.`,
 
     layer3_turn: input.taxonomyContext,
 
@@ -262,7 +263,7 @@ Your first sentence should briefly acknowledge the moderator's point as it relat
 
     layer2_persona: [
       `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.`,
-      `Your personality: ${input.personality}.`,
+      _getCharacterBlock(input.pov),
       _otherDebaters(input.label),
     ].join('\n'),
 

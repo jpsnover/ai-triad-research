@@ -867,6 +867,7 @@ describe('evaluatePhaseTransition', () => {
       const state = makePhaseState({
         current_phase: 'concluding',
         rounds_in_phase: 4, // past min (1×3=3), below overridden max (3×3=9)
+        total_rounds_elapsed: 4, // enough remaining budget for regression
         regression_count: 0,
       });
       const ctx = makeSignalContext({
@@ -906,11 +907,57 @@ describe('evaluatePhaseTransition', () => {
           concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
         },
       });
+      // maxConcludingRounds override widens concluding window; no maxArgumentationRounds → regression allowed
       const config = makeConfig({ phaseBoundsOverride: { maxConcludingRounds: 3 } });
       const result = evaluatePhaseTransition(state, ctx, signals, config);
       expect(result.action).toBe('regress');
       expect(result.new_phase).toBe('argumentation');
       expect(result.reason).toContain('Novel crux');
+    });
+
+    it('suppresses regression when user capped argumentation rounds', () => {
+      const w = loadProvisionalWeights();
+      const cruxNode = makeNode('novel-crux', 'accelerationist', 5, 0.8);
+      const state = makePhaseState({
+        current_phase: 'concluding',
+        rounds_in_phase: 4,
+        regression_count: 0,
+      });
+      const ctx = makeSignalContext({
+        network: { nodes: [cruxNode], edges: [], nodeCount: 1 },
+        phase: {
+          current: 'concluding',
+          allPovsResponded: true,
+          cruxNodes: [{ id: 'novel-crux', crossPovAttackCount: 2, computedStrength: 0.8 }],
+          cruxResolution: [],
+          priorCruxClusters: [],
+          regressionCount: 0,
+          argumentationExitThreshold: 0.72,
+          concludingExitThreshold: 0.70,
+        },
+        transcript: {
+          currentRound: 5,
+          roundsInPhase: 2,
+          activePovsCount: 3,
+          lastNRounds: () => [
+            { round: 4, speaker: 'accelerationist', text: 'X', extraction_status: 'ok', claims_accepted: 3, claims_rejected: 0, category_validity_ratio: 1.0 },
+            { round: 5, speaker: 'safetyist', text: 'Y', extraction_status: 'ok', claims_accepted: 2, claims_rejected: 0, category_validity_ratio: 1.0 },
+          ],
+        },
+        priorSignals: {
+          get: (id: string, _rb: number) => id === '_convergence_score' ? 0.50 : 0.5,
+          movingAverage: () => null,
+        },
+        convergenceSignals: {
+          argument_redundancy: { avg_self_overlap: 0.1, semantic_max_similarity: 0.1 },
+          dialectical_engagement: { ratio: 0.8 },
+          position_drift: { drift: 0.2 },
+          concession_opportunity: { outcome: 'none', strong_attacks_faced: 0 },
+        },
+      });
+      const config = makeConfig({ phaseBoundsOverride: { maxArgumentationRounds: 4, maxConcludingRounds: 3 } });
+      const result = evaluatePhaseTransition(state, ctx, signals, config);
+      expect(result.action).not.toBe('regress');
     });
 
     it('does not regress when max regressions exhausted', () => {
@@ -1037,7 +1084,7 @@ describe('applyTransition', () => {
     expect(next.current_phase).toBe('argumentation');
     expect(next.regression_count).toBe(1);
     expect(next.argumentation_exit_threshold).toBeCloseTo(0.72 + w.phase_bounds.regression_ratchet);
-    expect(next.rounds_in_phase).toBe(0);
+    expect(next.rounds_in_phase).toBe(1);
   });
 
   it('terminate returns state unchanged', () => {

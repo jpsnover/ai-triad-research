@@ -79,10 +79,12 @@ function embedBoundariesLocal(repoRoot: string): BoundaryEmbeddings {
   const result: BoundaryEmbeddings = {};
   const speakerIds = ['accelerationist', 'safetyist', 'skeptic'] as const;
   for (const speakerId of speakerIds) {
-    const pov = POVER_INFO[speakerId].pov;
-    const strings = POVER_INFO[speakerId].doctrinal_boundaries;
-    console.log(`  Embedding ${strings.length} boundary strings for ${pov}...`);
-    result[pov] = strings.map(s => embedTextLocal(script, s.replace(/^REJECT:\s*/i, '')));
+    const info = POVER_INFO[speakerId];
+    const pov = info.pov;
+    const { hardcoded, softcoded } = info.boundaries;
+    const allBoundaries = [...hardcoded, ...softcoded];
+    console.log(`  Embedding ${allBoundaries.length} boundary strings for ${pov} (${hardcoded.length} hardcoded, ${softcoded.length} softcoded)...`);
+    result[pov] = allBoundaries.map(s => embedTextLocal(script, s.replace(/^REJECT:\s*/i, '')));
   }
   return result;
 }

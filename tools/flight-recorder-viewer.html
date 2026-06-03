@@ -27,6 +27,7 @@
   .toolbar h1 { font-size: 14px; font-weight: 600; }
   .toolbar button, .toolbar select, .toolbar input { font-family: inherit; font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
   .toolbar button:hover { background: var(--bg3); }
+  .toolbar button.active { background: var(--red); color: white; border-color: var(--red); }
   .toolbar input[type="text"] { width: 200px; }
   .toolbar .spacer { flex: 1; }
   .toolbar .file-name { color: var(--muted); font-size: 11px; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -122,6 +123,7 @@
       <option value="error">Error</option>
       <option value="fatal">Fatal</option>
     </select>
+    <button id="errorContextBtn" onclick="toggleErrorContext()" title="Show only errors with 10 preceding events for context">Errors + Context</button>
     <div class="spacer"></div>
     <span class="file-name" id="fileName">No file loaded</span>
   </div>
@@ -167,6 +169,7 @@ let contextRecord = null;
 let filteredEvents = [];
 let selectedSeq = null;
 let activeTypes = new Set();
+let errorContextMode = false;
 
 const LEVEL_COLORS = { debug: '#666', info: '#22c55e', warn: '#f59e0b', error: '#ef4444', fatal: '#dc2626' };
 const TYPE_CATEGORIES = {
@@ -368,11 +371,33 @@ function toggleType(cb) {
   applyFilters();
 }
 
+function toggleErrorContext() {
+  errorContextMode = !errorContextMode;
+  document.getElementById('errorContextBtn').classList.toggle('active', errorContextMode);
+  applyFilters();
+}
+
+function computeErrorContextSet() {
+  const keep = new Set();
+  for (let i = 0; i < allEvents.length; i++) {
+    const e = allEvents[i];
+    if (e.level === 'error' || e.level === 'fatal') {
+      keep.add(e._seq);
+      for (let j = Math.max(0, i - 10); j < i; j++) {
+        keep.add(allEvents[j]._seq);
+      }
+    }
+  }
+  return keep;
+}
+
 function applyFilters() {
   const search = document.getElementById('searchBox').value.toLowerCase();
   const level = document.getElementById('levelFilter').value;
+  const errorContextSeqs = errorContextMode ? computeErrorContextSet() : null;
 
   filteredEvents = allEvents.filter(e => {
+    if (errorContextSeqs && !errorContextSeqs.has(e._seq)) return false;
     if (!activeTypes.has(e.type)) return false;
     if (level && e.level !== level) return false;
     if (search) {
@@ -387,11 +412,15 @@ function applyFilters() {
 
 function renderEventList() {
   const container = document.getElementById('eventList');
-  // Virtualized: render in chunks for large lists
-  const rows = filteredEvents.map(e => {
+  const rows = [];
+  for (let i = 0; i < filteredEvents.length; i++) {
+    const e = filteredEvents[i];
+    if (errorContextMode && i > 0 && e._seq > filteredEvents[i - 1]._seq + 1) {
+      rows.push('<div style="border-top:2px solid var(--red);margin:8px 16px;opacity:0.4"></div>');
+    }
     const wallStr = e._wall ? new Date(e._wall).toISOString().slice(11, 23) : '';
     const dur = e.duration_ms != null ? `${e.duration_ms}ms` : '';
-    return `<div class="event-row level-${e.level} ${e._seq === selectedSeq ? 'selected' : ''}" data-seq="${e._seq}" onclick="selectEvent(${e._seq})">
+    rows.push(`<div class="event-row level-${e.level} ${e._seq === selectedSeq ? 'selected' : ''}" data-seq="${e._seq}" onclick="selectEvent(${e._seq})">
       <span class="event-seq">${e._seq}</span>
       <span class="event-time">${wallStr}</span>
       <span class="event-level"><span class="dot" style="background:${LEVEL_COLORS[e.level] || '#666'}"></span></span>
@@ -399,8 +428,8 @@ function renderEventList() {
       <span class="event-component">${e.component}</span>
       <span class="event-message">${escHtml(e.message || '')}</span>
       <span class="event-duration">${dur}</span>
-    </div>`;
-  });
+    </div>`);
+  }
   container.innerHTML = rows.join('');
 }
 

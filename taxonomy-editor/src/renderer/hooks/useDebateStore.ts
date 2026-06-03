@@ -106,7 +106,8 @@ import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import { evaluateLookaheadPerClaim, buildClaimAnalysis } from '@lib/debate/lookaheadGate';
 import type { LookaheadDiagnostics, LookaheadGateResult, ClaimAnalysis, PerClaimResult } from '@lib/debate/lookaheadGate';
 import { computeStructuralScore, critiqueTopicPrompt, parseTopicCritique, formatCritiqueForRefinement, formatStructuralContext, computeLineageDistribution, formatLineageContext } from '@lib/debate/topicCritique';
-import { decomposeResolutionPrompt } from '@lib/debate/prompts';
+import { decomposeResolutionPrompt, topicScopeExtractionPrompt, setTopicScope } from '@lib/debate/prompts';
+import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
 import type { TopicCritique, LineageFrameEntry } from '@lib/debate/topicCritique';
 import { shouldRunGapCheck, findUnengagedHighRelevanceNodes, collectEngagedNodeIds, MAX_GAP_INJECTIONS } from '@lib/debate/gapCheck';
 import { runNeutralEvaluation, buildSpeakerMapping } from '@lib/debate/neutralEvaluator';
@@ -4017,6 +4018,56 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     const model = getConfiguredModel();
     const topic = activeDebate.topic.final;
 
+    // Topic scope extraction (t/336) — extract before openings so scope constraints are active
+    if (!activeDebate.topic.scope) {
+      try {
+        set({ debateActivity: 'Extracting topic scope...' });
+        const scopePrompt = topicScopeExtractionPrompt(topic);
+        const { text: scopeText } = await api.generateText(scopePrompt, model, 30_000);
+        const scopeParsed = parseAIJson<Record<string, unknown>>(scopeText);
+        if (scopeParsed && typeof scopeParsed === 'object') {
+          const validRiskLevels: TopicScopeRiskLevel[] = ['low', 'medium', 'high', 'catastrophic', 'unspecified'];
+          const toArr = (v: unknown): string[] => Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
+          const scope: TopicScope = {
+            core_proposition: typeof scopeParsed.core_proposition === 'string' ? scopeParsed.core_proposition : topic,
+            relevant_disciplines: toArr(scopeParsed.relevant_disciplines),
+            on_scope_evidence: toArr(scopeParsed.on_scope_evidence),
+            key_tensions: toArr(scopeParsed.key_tensions),
+            off_scope_topics: toArr(scopeParsed.off_scope_topics),
+            drift_signatures: toArr(scopeParsed.drift_signatures),
+            example_ceiling: typeof scopeParsed.example_ceiling === 'string' ? scopeParsed.example_ceiling : '',
+            risk_level: validRiskLevels.includes(scopeParsed.risk_level as TopicScopeRiskLevel) ? scopeParsed.risk_level as TopicScopeRiskLevel : 'unspecified',
+            domain: typeof scopeParsed.domain === 'string' ? scopeParsed.domain : '',
+            product_type: typeof scopeParsed.product_type === 'string' ? scopeParsed.product_type : null,
+            time_horizon: typeof scopeParsed.time_horizon === 'string' ? scopeParsed.time_horizon : null,
+            excluded_scenarios: toArr(scopeParsed.excluded_scenarios),
+            explicit_qualifiers: toArr(scopeParsed.explicit_qualifiers),
+            constraint_confidence: scopeParsed.constraint_confidence === 'explicit' ? 'explicit' : 'inferred',
+          };
+          setTopicScope(scope);
+          const fresh = get().activeDebate;
+          if (fresh) {
+            set({ activeDebate: { ...fresh, topic: { ...fresh.topic, scope } } });
+            await get().saveDebate('extractTopicScope');
+          }
+          getGlobalRecorder()?.record({
+            type: 'topic_scope_extracted', component: 'debate-store', level: 'info',
+            message: `Topic scope extracted (${scope.constraint_confidence})`,
+            data: { core_proposition: scope.core_proposition, risk_level: scope.risk_level, off_scope_count: scope.off_scope_topics.length },
+          });
+        }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'debate-store', level: 'warn',
+          message: 'Topic scope extraction failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+      }
+      set({ debateActivity: null });
+    } else {
+      setTopicScope(activeDebate.topic.scope);
+    }
+
     // Use the user-configurable opening order (randomized at proceedToOpening).
     // Priority: Zustand state > persisted on debate object > default order.
     const { openingOrder } = get();
@@ -4957,6 +5008,13 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     // Load source evidence index and document titles (cached after first call)
     const [evidenceIndex, docTitles] = await Promise.all([getSourceEvidenceIndex(), getDocTitles()]);
 
+    const lastOpponentEntry = (activeDebate.transcript ?? [])
+      .filter(e => e.speaker !== responderPover && e.speaker !== 'system' && e.speaker !== 'user' && e.type !== 'opening')
+      .slice(-1)[0];
+    const lastOpponentStatement = lastOpponentEntry
+      ? (typeof lastOpponentEntry.content === 'string' ? lastOpponentEntry.content : JSON.stringify(lastOpponentEntry.content))
+      : undefined;
+
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -4982,6 +5040,9 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
       docTitles: docTitles as TurnPipelineInput['docTitles'],
       doctrinalBoundaries: info.doctrinal_boundaries,
+      topicScope: activeDebate.topic?.scope ?? undefined,
+      preCheckModel: resolveTurnValidationConfig(undefined).preCheckModel,
+      lastOpponentStatement,
     };
 
     const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
@@ -5099,6 +5160,15 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
       if (lastEntry) {
+        const topicAlignDiag = pipelineResult.topicAlignmentResult
+          ? {
+            topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
+            repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+            off_scope_items: get().activeDebate?.topic?.scope?.off_scope_topics,
+            drift_signals: get().activeDebate?.topic?.scope?.drift_signatures,
+            scope_used: get().activeDebate?.topic?.scope ?? null,
+          }
+          : undefined;
         recordDiagnostic(get, set, lastEntry.id, {
           prompt: draftDiag?.prompt ?? '',
           raw_response: draftDiag?.raw_response ?? '',
@@ -5107,6 +5177,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           taxonomy_context: taxonomyBlock,
           commitment_context: commitBlock || undefined,
           stage_diagnostics: pipelineResult.stage_diagnostics,
+          topic_alignment: topicAlignDiag,
         });
         void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims,
           // Lookahead regen callback: regenerate with per-claim guidance, frozen Brief

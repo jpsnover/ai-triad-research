@@ -5,8 +5,8 @@
  * Desire priority assignment based on hierarchy + doctrinal boundaries.
  *
  * Priority levels:
- *   5 — Core: non-negotiable value (doctrinal boundary)
- *   4 — High: root-level Desires (no parent)
+ *   5 — Core: hardcoded boundary (identity-defining, never concede)
+ *   4 — High: softcoded boundary OR root-level Desires (no parent)
  *   3 — Important: mid-tree Desires (has parent and children)
  *   2 — Preferred: leaf Desires (has parent, no children)
  *   1 — Nice-to-have: (not assigned by initial formula — reserved for future demotion)
@@ -30,6 +30,7 @@ export interface DesirePriorityResult {
   nodeId: string;
   priority: number;
   isDoctrinalBoundary: boolean;
+  boundaryType?: 'hardcoded' | 'softcoded';
 }
 
 /**
@@ -37,34 +38,46 @@ export interface DesirePriorityResult {
  * Filters to Desires only. Mutates nodes in place.
  *
  * @param nodes - All POV nodes (Desires will be filtered)
- * @param doctrinalBoundaryIds - Set of Desire node IDs that correspond to doctrinal boundaries (priority 5)
+ * @param doctrinalBoundaryIds - Set of Desire node IDs that correspond to hardcoded doctrinal boundaries (priority 5)
  * @param date - ISO date string for history entry
+ * @param softcodedBoundaryIds - Set of Desire node IDs that correspond to softcoded boundaries (priority 4)
  */
 export function assignDesirePriorities(
   nodes: PovNode[],
   doctrinalBoundaryIds: Set<string>,
   date: string,
+  softcodedBoundaryIds?: Set<string>,
 ): DesirePriorityResult[] {
   const results: DesirePriorityResult[] = [];
+  const softcoded = softcodedBoundaryIds ?? new Set<string>();
 
   for (const node of nodes) {
     if (node.category !== 'Desires') continue;
 
-    const isDoctrinal = doctrinalBoundaryIds.has(node.id);
-    const priority = isDoctrinal ? 5 : computeTreePriority(node);
+    const isHardcoded = doctrinalBoundaryIds.has(node.id);
+    const isSoftcoded = softcoded.has(node.id);
+    const isDoctrinal = isHardcoded || isSoftcoded;
+    const priority = isHardcoded ? 5 : isSoftcoded ? 4 : computeTreePriority(node);
 
     node.priority = priority;
     const historyEntry: WeightHistoryEntry = {
       date,
       value: priority,
       delta: 0,
-      reason: isDoctrinal
-        ? 'Initial assignment: doctrinal boundary'
-        : `Initial assignment: ${!node.parent_id ? 'root-level' : node.children.length > 0 ? 'mid-tree' : 'leaf'} Desire`,
+      reason: isHardcoded
+        ? 'Initial assignment: hardcoded boundary'
+        : isSoftcoded
+          ? 'Initial assignment: softcoded boundary'
+          : `Initial assignment: ${!node.parent_id ? 'root-level' : node.children.length > 0 ? 'mid-tree' : 'leaf'} Desire`,
     };
     node.priority_history = [historyEntry];
 
-    results.push({ nodeId: node.id, priority, isDoctrinalBoundary: isDoctrinal });
+    results.push({
+      nodeId: node.id,
+      priority,
+      isDoctrinalBoundary: isDoctrinal,
+      boundaryType: isHardcoded ? 'hardcoded' : isSoftcoded ? 'softcoded' : undefined,
+    });
   }
 
   return results;

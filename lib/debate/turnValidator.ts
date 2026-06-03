@@ -29,10 +29,11 @@ import type {
   TurnValidationDimensions,
   TaxonomyClarificationHint,
 } from './types.js';
-import type { PoverResponseMeta } from './helpers.js';
+import type { PoverResponseMeta, MoveAnnotation } from './helpers.js';
 import { parseJsonRobust, getMoveName, SUPPORT_MOVES } from './helpers.js';
 import { checkInterventionCompliance } from './moderator.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { POVER_INFO } from './types.js';
 
 // ── Canonical move catalog — 10 well-differentiated dialectical moves ──
 const MOVE_CATALOG_RAW = [
@@ -1062,6 +1063,7 @@ export interface DraftQualityResult {
   grounded: boolean;
   falsifiable: boolean;
   engages: boolean;
+  topic_aligned?: boolean;
   weaknesses: string[];
 }
 
@@ -1076,7 +1078,7 @@ export function parseDraftQualityResult(raw: string): DraftQualityResult {
   const fallback: DraftQualityResult = { grounded: false, falsifiable: false, engages: false, weaknesses: ['Draft quality check parse failure — treating as failed'] };
   try {
     const parsed = parseJsonRobust(raw) as Record<string, unknown>;
-    return {
+    const result: DraftQualityResult = {
       grounded: parsed.grounded === true,
       falsifiable: parsed.falsifiable === true,
       engages: parsed.engages === true,
@@ -1084,6 +1086,10 @@ export function parseDraftQualityResult(raw: string): DraftQualityResult {
         ? (parsed.weaknesses as unknown[]).filter(w => typeof w === 'string').map(w => w as string).slice(0, 3)
         : [],
     };
+    if ('topic_aligned' in parsed) {
+      result.topic_aligned = parsed.topic_aligned === true;
+    }
+    return result;
   } catch {
     return fallback;
   }
@@ -1113,6 +1119,93 @@ export interface StageValidationResult {
   directive_compliance?: DirectiveComplianceResult;
 }
 
+// ── Hardcoded boundary concession detection ─────────────────
+// AC #3/4: detect when a CONCEDE move targets a hardcoded boundary
+
+export interface BoundaryConcessionResult {
+  hasConcession: boolean;
+  boundaryType: 'hardcoded' | 'softcoded' | 'none';
+  matchedBoundary?: string;
+  moveDetail?: string;
+  hasEvidence?: boolean;
+}
+
+const BOUNDARY_STOP_WORDS = new Set([
+  'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+  'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'can', 'shall', 'to', 'of', 'in', 'for',
+  'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about', 'between',
+  'through', 'and', 'but', 'or', 'nor', 'not', 'so', 'that', 'this',
+  'these', 'those', 'their', 'there', 'than', 'then', 'both', 'either',
+  'any', 'all', 'each', 'every', 'some', 'such', 'very', 'just',
+]);
+
+function extractContentWords(text: string): Set<string> {
+  return new Set(
+    text.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+      .filter(w => w.length > 3 && !BOUNDARY_STOP_WORDS.has(w)),
+  );
+}
+
+function boundaryOverlap(detail: string, boundary: string): number {
+  const detailWords = extractContentWords(detail);
+  const boundaryWords = extractContentWords(boundary);
+  if (boundaryWords.size === 0) return 0;
+  const matched = [...boundaryWords].filter(w => detailWords.has(w)).length;
+  return matched / boundaryWords.size;
+}
+
+const EVIDENCE_PATTERN = /\bevidence\b|\bdata\b|\bstud(?:y|ies)\b|\bresearch\b|\b\d{4}\b|\bfinding/i;
+
+export function checkBoundaryConcession(
+  speaker: SpeakerId,
+  moveTypes: (string | MoveAnnotation)[],
+  statement: string,
+): BoundaryConcessionResult {
+  const info = POVER_INFO[speaker as keyof typeof POVER_INFO];
+  if (!info?.boundaries) return { hasConcession: false, boundaryType: 'none' };
+
+  const concedeMoves = moveTypes
+    .filter(m => resolveMoveName(getMoveName(m)).includes('CONCEDE'))
+    .filter((m): m is MoveAnnotation => typeof m === 'object' && 'detail' in m);
+
+  if (concedeMoves.length === 0) return { hasConcession: false, boundaryType: 'none' };
+
+  const OVERLAP_THRESHOLD = 0.3;
+
+  for (const move of concedeMoves) {
+    const detail = move.detail ?? '';
+    const target = move.target ?? '';
+    const textToCheck = `${detail} ${target}`;
+
+    for (const boundary of info.boundaries.hardcoded) {
+      if (boundaryOverlap(textToCheck, boundary) >= OVERLAP_THRESHOLD) {
+        return {
+          hasConcession: true,
+          boundaryType: 'hardcoded',
+          matchedBoundary: boundary,
+          moveDetail: detail,
+        };
+      }
+    }
+
+    for (const boundary of info.boundaries.softcoded) {
+      if (boundaryOverlap(textToCheck, boundary) >= OVERLAP_THRESHOLD) {
+        const hasEvidence = EVIDENCE_PATTERN.test(detail) || EVIDENCE_PATTERN.test(statement);
+        return {
+          hasConcession: true,
+          boundaryType: 'softcoded',
+          matchedBoundary: boundary,
+          moveDetail: detail,
+          hasEvidence,
+        };
+      }
+    }
+  }
+
+  return { hasConcession: false, boundaryType: 'none' };
+}
+
 // ── Hint key classification ─────────────────────────────────
 // Maps free-text repair hints to stable slugs for streak tracking.
 
@@ -1127,6 +1220,8 @@ const HINT_KEY_PATTERNS: [RegExp, string][] = [
   [/disagreement_type/i, 'disagreement_type'],
   [/intervention compliance/i, 'intervention_compliance'],
   [/directive content/i, 'directive_compliance'],
+  [/hardcoded boundary concession/i, 'hardcoded_boundary_concession'],
+  [/softcoded.*evidence/i, 'softcoded_evidence_missing'],
 ];
 
 /** Classify a repair hint string into a stable slug for streak tracking. */
@@ -1151,6 +1246,7 @@ export function validateDraftStage(p: {
   pendingIntervention?: import('./types').ModeratorIntervention;
   /** Hint keys suppressed due to repeated failures — skip from errors/warnings. */
   suppressedHints?: ReadonlySet<string>;
+  speaker?: SpeakerId;
 }): StageValidationResult {
   const errors: string[] = [];
   const suppressed: string[] = [];
@@ -1282,6 +1378,23 @@ export function validateDraftStage(p: {
     details.push({ rule: 'directive content compliance', pass: directiveResult.compliant, value: `${directiveResult.matched_terms}/${directiveResult.directive_terms.length} terms` });
     if (!directiveResult.compliant) {
       errors.push(directiveResult.repair_hint);
+    }
+  }
+
+  // Rule 13: hardcoded/softcoded boundary concession check (AC #3/4/5)
+  let boundaryConcession: BoundaryConcessionResult | undefined;
+  if (p.speaker && meta.move_types && meta.move_types.length > 0) {
+    boundaryConcession = checkBoundaryConcession(p.speaker, meta.move_types, statement);
+    if (boundaryConcession.boundaryType === 'hardcoded') {
+      const msg = `Hardcoded boundary concession detected — you conceded a position that is identity-defining and non-negotiable: "${boundaryConcession.matchedBoundary}". Retract this concession in your next turn and reaffirm your hardcoded position.`;
+      warnings.push(msg);
+      details.push({ rule: 'no hardcoded boundary concession', pass: false, value: boundaryConcession.matchedBoundary ?? '' });
+    } else if (boundaryConcession.boundaryType === 'softcoded' && !boundaryConcession.hasEvidence) {
+      const msg = `Softcoded boundary concession without evidence — you updated a default position but did not cite the evidence that moved you. Name the specific evidence per the "name the evidence that moved you" instruction.`;
+      warnings.push(msg);
+      details.push({ rule: 'softcoded concession cites evidence', pass: false, value: boundaryConcession.matchedBoundary ?? '' });
+    } else if (boundaryConcession.boundaryType === 'softcoded') {
+      details.push({ rule: 'softcoded concession cites evidence', pass: true, value: boundaryConcession.matchedBoundary ?? '' });
     }
   }
 

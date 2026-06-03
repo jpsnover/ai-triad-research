@@ -161,7 +161,6 @@ export interface TurnPipelineInput {
   model: string;
   stageTemperatures?: TurnStageConfig;
   repairHints?: string[];
-  doctrinalBoundaries?: string[];
   /** Last opponent's statement text — used by the draft quality pre-check "engages" question. */
   lastOpponentStatement?: string;
   /** Model for the draft quality pre-check. Resolved from TurnValidationConfig. */
@@ -194,6 +193,8 @@ export interface TurnPipelineInput {
   ignoredEvidenceDocIds?: string[];
   /** Hint keys suppressed due to repeated cross-turn failures — excluded from validation errors/warnings. */
   suppressedHints?: ReadonlySet<string>;
+  vocabularyExclusion?: string;
+  topicScope?: import('./types.js').TopicScope;
 }
 
 export type StageGenerateFn = (
@@ -262,11 +263,11 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     audience: input.audience,
     pendingIntervention: input.pendingIntervention,
     phaseContext: input.phaseContext,
-    doctrinalBoundaries: input.doctrinalBoundaries,
     strategicHints: input.strategicHints,
     strongFoundations: input.strongFoundations,
     avoidClaims: input.avoidClaims,
     preserveConcessions: input.preserveConcessions,
+    vocabularyExclusion: input.vocabularyExclusion,
   };
 }
 
@@ -562,6 +563,8 @@ export async function runTurnPipeline(
   let evidenceBlock = '';
   const evidenceDocIds = new Set<string>();
   const ignoredEvidenceDocIds: string[] = [];
+
+  let topicAlignmentResult: { topic_aligned: boolean; repaired: boolean } | undefined;
 
   if (input.frozenDraft) {
     draft = input.frozenDraft;
@@ -885,6 +888,7 @@ export async function runTurnPipeline(
         audience: stageInput.audience,
         pendingIntervention: stageInput.pendingIntervention as import('./types.js').ModeratorIntervention | undefined,
         suppressedHints: input.suppressedHints,
+        speaker: input.pov as import('./types.js').SpeakerId,
       });
       // Record validation result on the stage diagnostic
       const lastDiag = stageDiags[stageDiags.length - 1];
@@ -1664,8 +1668,16 @@ export async function runTurnPipeline(
         prompt_component_chars: promptComponentChars,
       });
 
-      const allPass = preCheckResult.grounded && preCheckResult.falsifiable && preCheckResult.engages;
-      const triggeredRegen = !allPass && preCheckResult.weaknesses.length > 0;
+      const topicAligned = preCheckResult.topic_aligned !== false;
+      const allPass = preCheckResult.grounded && preCheckResult.falsifiable && preCheckResult.engages && topicAligned;
+      const topicRepairHint = !topicAligned && input.topicScope
+        ? `REPAIR: Your statement uses examples from a different risk/domain category than the debate topic. The topic specifies: ${input.topicScope.example_ceiling}. Rewrite using examples at that severity level. Keep your argument structure — just change the evidence.`
+        : undefined;
+      const allWeaknesses = topicRepairHint
+        ? [...preCheckResult.weaknesses, topicRepairHint]
+        : preCheckResult.weaknesses;
+      const triggeredRegen = !allPass && allWeaknesses.length > 0;
+      topicAlignmentResult = { topic_aligned: topicAligned, repaired: !topicAligned && triggeredRegen };
       getGlobalRecorder()?.record({
         type: 'turn.quality_gate', component: 'turnPipeline', level: allPass ? 'info' : 'warn',
         speaker: input.label,
@@ -1674,15 +1686,16 @@ export async function runTurnPipeline(
           grounded: preCheckResult.grounded,
           falsifiable: preCheckResult.falsifiable,
           engages: preCheckResult.engages,
+          topic_aligned: topicAligned,
           pass: allPass,
-          weaknesses: preCheckResult.weaknesses,
+          weaknesses: allWeaknesses,
           triggered_regen: triggeredRegen,
         },
       });
       if (triggeredRegen) {
-        console.log(`[pipeline] Draft quality pre-check failed: ${preCheckResult.weaknesses.join('; ')}`);
+        console.log(`[pipeline] Draft quality pre-check failed: ${allWeaknesses.join('; ')}`);
         // Re-run just the draft with quality weaknesses as repair hints
-        draftRepairHints = preCheckResult.weaknesses;
+        draftRepairHints = allWeaknesses;
         const repairBlock = buildRepairBlock(draftRepairHints, draft.statement);
         let retryDraftPrompt: string;
         let retryDraftRaw: string;
@@ -1905,6 +1918,7 @@ export async function runTurnPipeline(
     ignoredEvidenceDocIds: ignoredEvidenceDocIds.length > 0 ? ignoredEvidenceDocIds : undefined,
     stage_diagnostics: stageDiags,
     total_time_ms: Date.now() - pipelineStart,
+    topicAlignmentResult,
   };
 }
 
@@ -2413,7 +2427,6 @@ export interface OpeningPipelineInput {
   model: string;
   stageTemperatures?: TurnStageConfig;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
-  doctrinalBoundaries?: string[];
   /** Repair hints from a prior failed attempt — injected into the DRAFT stage prompt. */
   repairHints?: string[];
   /** Available POV node IDs for CITE validation (unknown node detection). */
@@ -2441,7 +2454,6 @@ export async function runOpeningPipeline(
     documentAnalysis: input.documentAnalysis,
     audience: input.audience,
     userSeedClaims: input.userSeedClaims,
-    doctrinalBoundaries: input.doctrinalBoundaries,
   };
   const stageDiags: StageDiagnostics[] = [];
   const pipelineStart = Date.now();
@@ -2551,6 +2563,7 @@ export async function runOpeningPipeline(
       phase: 'confrontation' as import('./types.js').DebatePhase,
       round: 0,
       priorTurns: [],
+      speaker: input.pov as import('./types.js').SpeakerId,
     });
     const lastDiag = stageDiags[stageDiags.length - 1];
     (lastDiag as Record<string, unknown>).stage_validation = {

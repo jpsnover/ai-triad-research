@@ -300,6 +300,30 @@ export interface CalibrationDataPoint {
     baseline_reference_rate: number;
   } | null;
 
+  // ── Topic alignment (t/336, t/341) ──
+  /** Whether TopicScope was extracted for this debate. */
+  topic_scope_extracted: boolean;
+  /** constraint_confidence from TopicScope. Null if scope not extracted. */
+  topic_scope_confidence: 'explicit' | 'inferred' | null;
+  /** Number of relevant_disciplines in the extracted scope. Null if no scope. */
+  topic_scope_disciplines: number | null;
+  /** Number of off_scope_topics identified. Null if no scope. */
+  topic_scope_off_topics: number | null;
+  /** Number of drift_signatures identified. Null if no scope. */
+  topic_scope_drift_sigs: number | null;
+  /** Fraction of turns where topic_aligned was true in draft quality gate. Null if no scope or no quality gate data. */
+  topic_alignment_rate: number | null;
+  /** Fraction of TopicScope fields that are non-empty/non-default. Null if scope not extracted. */
+  scope_extraction_populated: number | null;
+  /** Fraction of entries where topic alignment required repair retry. Null if no quality gate data. */
+  draft_repair_rate: number | null;
+  /** Fraction of injected taxonomy nodes demoted by scope filter. Null if no scope filter data. */
+  taxonomy_demotion_rate: number | null;
+  /** Fraction of demoted nodes that debaters referenced anyway. Null if no demoted nodes. */
+  demoted_node_reference_rate: number | null;
+  /** Fraction of moderator turns where a drift pattern was triggered. Null if no moderator data. */
+  moderator_drift_intervention_rate: number | null;
+
   // ── Process reward (PRM-adjacent signal) ──
   /** Per-turn process reward scores for correlation with convergence signals */
   process_reward_series: { round: number; speaker: string; score: number; components: Record<string, number> }[] | null;
@@ -1056,6 +1080,84 @@ export function extractCalibrationData(
       const prs = session.process_rewards;
       if (!prs || prs.length === 0) return null;
       return Math.min(...prs.map(pr => pr.score));
+    })(),
+
+    topic_scope_extracted: !!session.topic.scope,
+    topic_scope_confidence: session.topic.scope?.constraint_confidence ?? null,
+    topic_scope_disciplines: session.topic.scope?.relevant_disciplines.length ?? null,
+    topic_scope_off_topics: session.topic.scope?.off_scope_topics.length ?? null,
+    topic_scope_drift_sigs: session.topic.scope?.drift_signatures.length ?? null,
+    topic_alignment_rate: (() => {
+      const diagEntries = session.diagnostics?.entries ?? {};
+      const entries = session.transcript?.filter(e => diagEntries[e.id]?.topic_alignment) ?? [];
+      if (entries.length === 0) return null;
+      const aligned = entries.filter(e => diagEntries[e.id]!.topic_alignment!.topic_aligned).length;
+      return Math.round((aligned / entries.length) * 1000) / 1000;
+    })(),
+    scope_extraction_populated: (() => {
+      const s = session.topic?.scope;
+      if (!s) return null;
+      const fields = [
+        s.core_proposition,
+        s.relevant_disciplines?.length,
+        s.key_tensions?.length,
+        s.off_scope_topics?.length,
+        s.drift_signatures?.length,
+        s.example_ceiling,
+      ];
+      return Math.round((fields.filter(v => v != null && v !== '' && v !== 0).length / fields.length) * 1000) / 1000;
+    })(),
+    draft_repair_rate: (() => {
+      const diagEntries = session.diagnostics?.entries ?? {};
+      const entries = session.transcript?.filter(e => diagEntries[e.id]?.topic_alignment) ?? [];
+      if (entries.length === 0) return null;
+      const repaired = entries.filter(e => diagEntries[e.id]!.topic_alignment!.repaired).length;
+      return Math.round((repaired / entries.length) * 1000) / 1000;
+    })(),
+    taxonomy_demotion_rate: (() => {
+      const diagEntries = session.diagnostics?.entries ?? {};
+      let totalInjected = 0;
+      let totalDemoted = 0;
+      for (const e of session.transcript ?? []) {
+        const sft = (diagEntries[e.id]?.stage_diagnostics ?? [])
+          .find((sd: { stage: string }) => sd.stage === 'brief')
+          ?.work_product as Record<string, unknown> | undefined;
+        const manifest = (e.metadata as Record<string, unknown>)?.injection_manifest as Record<string, unknown> | undefined;
+        const filterTrace = manifest?.scope_filter_trace as { demoted?: unknown[] } | undefined;
+        const povNodes = manifest?.povNodeIds as string[] | undefined;
+        if (povNodes?.length) totalInjected += povNodes.length;
+        if (filterTrace?.demoted?.length) totalDemoted += filterTrace.demoted.length;
+      }
+      return totalInjected > 0 ? Math.round((totalDemoted / totalInjected) * 1000) / 1000 : null;
+    })(),
+    demoted_node_reference_rate: (() => {
+      const diagEntries = session.diagnostics?.entries ?? {};
+      const allDemoted = new Set<string>();
+      const referencedDemoted = new Set<string>();
+      for (const e of session.transcript ?? []) {
+        const manifest = (e.metadata as Record<string, unknown>)?.injection_manifest as Record<string, unknown> | undefined;
+        const filterTrace = manifest?.scope_filter_trace as { demoted?: { nodeId: string }[] } | undefined;
+        if (filterTrace?.demoted) {
+          for (const d of filterTrace.demoted) allDemoted.add(d.nodeId);
+          const refs = new Set((e.taxonomy_refs ?? []).map((r: { node_id: string }) => r.node_id));
+          for (const d of filterTrace.demoted) {
+            if (refs.has(d.nodeId)) referencedDemoted.add(d.nodeId);
+          }
+        }
+      }
+      return allDemoted.size > 0 ? Math.round((referencedDemoted.size / allDemoted.size) * 1000) / 1000 : null;
+    })(),
+    moderator_drift_intervention_rate: (() => {
+      const interventionEntries = (session.transcript ?? []).filter(e => e.type === 'intervention');
+      if (interventionEntries.length === 0) return null;
+      const signals = session.convergence_signals ?? [];
+      let driftCount = 0;
+      for (const ie of interventionEntries) {
+        const round = (ie.metadata as Record<string, unknown>)?.round as number | undefined;
+        const signal = round != null ? signals.find(s => s.round === round) : undefined;
+        if (signal?.arco?.drift_warning) driftCount++;
+      }
+      return Math.round((driftCount / interventionEntries.length) * 1000) / 1000;
     })(),
 
     max_prompt_chars: maxPromptChars,

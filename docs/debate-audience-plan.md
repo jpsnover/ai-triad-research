@@ -1,5 +1,31 @@
 # Debate Audience Parameter — Implementation Plan
 
+**Last updated:** 2026-06-02  
+**Status:** Implemented (95%). All 7 parts complete except full audience-weighted taxonomy node prioritization for non-policymaker audiences.
+
+## Implementation Status (as of 2026-06-02)
+
+| Part | Description | Status |
+|---|---|---|
+| 1. Prompt Changes | AUDIENCE_DIRECTIVES, moderator bias, synthesis, taxonomy | Done (1.4 partial) |
+| 2. Type & Config | DebateAudience type, DebateConfig, DebateSession, CLIConfig | Done |
+| 3. UI Changes | Dropdown, store state, session display, transcript badge | Done |
+| 4. Engine Changes | debateEngine, cli.ts, Show-TriadDialogue.ps1 | Done (4.1 partial) |
+| 5. Files Modified | All 8 files from the plan | Done |
+| 6. Migration | Optional field, backwards-compatible default | Done |
+| 7. Testing | Unit tests across prompts, engine, moderator, argument network | Done |
+
+**Remaining gap:** Taxonomy node prioritization (Part 1.4 / Part 4.1) only implements policymaker-specific boosting via `computePolicymakerRelevanceBoost()`. The other four audiences do not get audience-specific node filtering. The `graph_attributes.audience` field on taxonomy nodes is not yet used for non-policymaker selection.
+
+### Recent enhancements (2026-05-29 to 2026-06-02)
+
+- **Topic-alignment enforcement:** 5-mechanism pipeline (TopicScope extraction, prompt boundary placement, draft quality gate, taxonomy constraint filter, moderator drift detection) now enforces debate scope for all audiences. See `research/comp-linguist/docs/topic-alignment-design.md`.
+- **De-artifacting:** Per-character voice specs with prose_style, voice_hygiene, and shared VOICE AUTHENTICITY block. 80-93% reduction in AI voice tells on Opus 4.6. See `research/comp-linguist/docs/de-artifacting-proposal.md`.
+- **Soul document analysis:** Character value hierarchies (REC-1) and epistemic identity blocks (REC-2) proposed for deeper character grounding. See `research/comp-linguist/docs/soul-documents-analysis.md`.
+- **Adaptive staging refinement:** Phase min bounds lowered to restore adaptive exit window; per-phase round controls added to UI.
+
+---
+
 ## Goal
 
 Allow users to specify a target audience when launching a debate. The audience selection shapes tone, language, concerns, evidence standards, and POV node prioritization so that debate output is directly useful to the intended readers.

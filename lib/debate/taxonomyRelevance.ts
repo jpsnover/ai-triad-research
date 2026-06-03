@@ -475,3 +475,133 @@ export function reScoreSituationsForCruxesDetailed(input: SituationReScoreInput)
 
   return { adjustments, components };
 }
+
+// ── Constraint-aware post-selection filter (t/339) ─────────────────
+
+import type { TopicScope } from './types.js';
+
+const CATASTROPHIC_SIGNALS = new Set([
+  'fatal', 'death', 'deaths', 'killed', 'killing', 'catastrophic', 'catastrophe',
+  'existential', 'collapse', 'extinction', 'casualty', 'casualties',
+  'devastating', 'destroyed', 'destruction',
+]);
+
+export interface TopicConstraintFilterConfig {
+  mode: 'demote' | 'exclude';
+  penaltyFactor: number;
+  boostFactor: number;
+  minPerCategory: number;
+}
+
+export interface TopicConstraintFilterResult {
+  nodes: ScoredPovNode[];
+  demoted: { nodeId: string; reason: string; originalScore: number; newScore: number }[];
+  boosted: { nodeId: string; matchedTerms: string[]; originalScore: number; newScore: number }[];
+  restorations: string[];
+}
+
+export function filterByTopicConstraints(
+  nodes: ScoredPovNode[],
+  scope: TopicScope | null | undefined,
+  config?: Partial<TopicConstraintFilterConfig>,
+): TopicConstraintFilterResult {
+  if (!scope) return { nodes, demoted: [], boosted: [], restorations: [] };
+
+  const penalty = config?.penaltyFactor ?? 0.7;
+  const boost = config?.boostFactor ?? 1.2;
+  const minPerCat = config?.minPerCategory ?? 3;
+
+  const isLowRisk = scope.risk_level === 'low' || scope.risk_level === 'medium';
+  const excludedTerms = scope.excluded_scenarios
+    .flatMap(s => s.toLowerCase().split(/\s+/).filter(w => w.length >= 4));
+  const offScopeTerms = scope.off_scope_topics
+    .flatMap(t => t.toLowerCase().split(/\s+/).filter(w => w.length >= 4));
+  const disciplineTerms = scope.relevant_disciplines
+    .flatMap(d => d.toLowerCase().split(/\s+/).filter(w => w.length >= 4));
+
+  const demoted: TopicConstraintFilterResult['demoted'] = [];
+  const boosted: TopicConstraintFilterResult['boosted'] = [];
+  const result: (ScoredPovNode & { _demoted?: boolean })[] = [];
+
+  for (const entry of nodes) {
+    const desc = `${entry.node.label} ${entry.node.description}`.toLowerCase();
+    let reason: string | null = null;
+
+    if (isLowRisk) {
+      let catSignals = 0;
+      for (const signal of CATASTROPHIC_SIGNALS) {
+        if (desc.includes(signal)) catSignals++;
+      }
+      if (catSignals >= 2) {
+        reason = 'risk-level: catastrophic framing in low/medium-risk debate';
+      }
+    }
+
+    if (!reason && excludedTerms.length > 0) {
+      let matches = 0;
+      for (const term of excludedTerms) {
+        if (desc.includes(term)) matches++;
+      }
+      if (matches >= 2) {
+        reason = `excluded-scenario: matches ${matches} exclusion terms`;
+      }
+    }
+
+    if (!reason && offScopeTerms.length > 0) {
+      let matches = 0;
+      for (const term of offScopeTerms) {
+        if (desc.includes(term)) matches++;
+      }
+      if (matches >= 3) {
+        reason = `off-scope: matches ${matches} off-scope topic terms`;
+      }
+    }
+
+    if (reason) {
+      const newScore = entry.score * penalty;
+      demoted.push({ nodeId: entry.node.id, reason, originalScore: entry.score, newScore });
+      result.push({ node: entry.node, score: newScore, _demoted: true });
+    } else if (disciplineTerms.length > 0) {
+      const matchedTerms: string[] = [];
+      for (const term of disciplineTerms) {
+        if (desc.includes(term)) matchedTerms.push(term);
+      }
+      if (matchedTerms.length >= 2) {
+        const newScore = entry.score * boost;
+        boosted.push({ nodeId: entry.node.id, matchedTerms, originalScore: entry.score, newScore });
+        result.push({ node: entry.node, score: newScore });
+      } else {
+        result.push({ ...entry });
+      }
+    } else {
+      result.push({ ...entry });
+    }
+  }
+
+  const restorations: string[] = [];
+  const categories = ['Beliefs', 'Desires', 'Intentions'] as const;
+  for (const cat of categories) {
+    const catNodes = result.filter(n => (n.node.category || 'Intentions') === cat);
+    const nonDemoted = catNodes.filter(n => !n._demoted);
+    if (nonDemoted.length < minPerCat) {
+      const deficit = minPerCat - nonDemoted.length;
+      const demotedInCat = catNodes
+        .filter(n => n._demoted)
+        .sort((a, b) => b.score - a.score);
+      for (let i = 0; i < Math.min(deficit, demotedInCat.length); i++) {
+        const restored = demotedInCat[i];
+        const orig = demoted.find(d => d.nodeId === restored.node.id);
+        if (orig) {
+          restored.score = orig.originalScore;
+          delete restored._demoted;
+          restorations.push(restored.node.id);
+        }
+      }
+    }
+  }
+
+  const cleaned = result.map(({ _demoted, ...rest }) => rest) as ScoredPovNode[];
+  cleaned.sort((a, b) => b.score - a.score);
+
+  return { nodes: cleaned, demoted, boosted, restorations };
+}

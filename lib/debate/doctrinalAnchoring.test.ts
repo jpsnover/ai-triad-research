@@ -105,7 +105,7 @@ describe('computeDoctrinalAnchoring', () => {
 
     // With threshold 0.45: should anchor (0.50 > 0.45)
     const config: DoctrinalAnchoringConfig = { threshold: 0.45, confidenceFloor: 0.70 };
-    const results = computeDoctrinalAnchoring([node], [base], nodeEmbs, config);
+    const results = computeDoctrinalAnchoring([node], [base], nodeEmbs, undefined, config);
 
     expect(results[0].anchored).toBe(true);
     expect(node.confidence).toBe(0.70); // custom floor
@@ -165,6 +165,36 @@ describe('computeDoctrinalAnchoring', () => {
     expect(results[0].anchored).toBe(true);
     expect(results[0].floorApplied).toBe(false);
     expect(node.confidence).toBeUndefined(); // can't apply floor without confidence
+  });
+
+  it('boundaryWeights scale similarity — lower weight can prevent anchoring', () => {
+    const base = makeEmbedding(0);
+    const similar = makeSimilarEmbedding(base, 0.60);
+    const node = makeBeliefNode('b-001', 0.40);
+    const nodeEmbs = { 'b-001': { pov: 'accelerationist', vector: similar } };
+
+    const withoutWeights = computeDoctrinalAnchoring([node], [base], nodeEmbs);
+    expect(withoutWeights[0].anchored).toBe(true);
+
+    const node2 = makeBeliefNode('b-002', 0.40);
+    const nodeEmbs2 = { 'b-002': { pov: 'accelerationist', vector: similar } };
+    const withLowWeight = computeDoctrinalAnchoring([node2], [base], nodeEmbs2, [0.5]);
+    expect(withLowWeight[0].maxSimilarity).toBeLessThan(withoutWeights[0].maxSimilarity);
+  });
+
+  it('hardcoded weight 1.0 preserves full similarity, softcoded 0.7 reduces it', () => {
+    const base = makeEmbedding(0);
+    const node = makeBeliefNode('b-001', 0.40);
+    const nodeEmbs = { 'b-001': { pov: 'accelerationist', vector: base } };
+
+    const hardcoded = computeDoctrinalAnchoring([node], [base], nodeEmbs, [1.0]);
+    const node2 = makeBeliefNode('b-002', 0.40);
+    const nodeEmbs2 = { 'b-002': { pov: 'accelerationist', vector: base } };
+    const softcoded = computeDoctrinalAnchoring([node2], [base], nodeEmbs2, [0.7]);
+
+    expect(hardcoded[0].maxSimilarity).toBeGreaterThan(softcoded[0].maxSimilarity);
+    expect(hardcoded[0].maxSimilarity).toBeCloseTo(1.0, 2);
+    expect(softcoded[0].maxSimilarity).toBeCloseTo(0.7, 2);
   });
 });
 

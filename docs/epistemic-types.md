@@ -1,5 +1,7 @@
 # Epistemic Types
 
+**Last updated:** 2026-06-02
+
 The `epistemic_type` field in a taxonomy node's `GraphAttributes` classifies what
 kind of knowledge claim the position makes. Each node has exactly one epistemic
 type, assigned by an LLM during attribute extraction (`Invoke-AttributeExtraction`).
@@ -116,3 +118,62 @@ safetyist (2) contexts, where boundary-drawing is most important.
 | Predictive                 |    17 | Accelerationist, Safetyist        |
 | Normative Prescription     |    16 | Accelerationist, Skeptic          |
 | Definitional               |     5 | Cross-cutting, Safetyist          |
+
+---
+
+## Debate Engine Integration (as of 2026-06-02)
+
+Epistemic types are now used in four places across the debate engine:
+
+### 1. Debater taxonomy context (`prompts.ts`)
+
+Each debater's taxonomy context includes the `epistemic_type` field for every
+injected node. The prompt instructs debaters to match argument mode to claim type:
+
+- **Empirical Claim** nodes: argue from evidence, cite data, acknowledge
+  measurement limitations
+- **Normative Prescription** nodes: argue from values, name the ethical framework,
+  distinguish "is" from "ought"
+- **Predictive** nodes: specify timeframes, state confidence intervals, identify
+  leading indicators that would confirm or falsify the prediction
+- **Strategic Recommendation** nodes: address feasibility, implementation cost,
+  and unintended consequences
+- **Definitional** nodes: flag when the disagreement is about the meaning of terms
+  rather than facts or values
+- **Interpretive Lens** nodes: signal that the framing shapes which evidence
+  counts, and engage the framing itself rather than only the evidence within it
+
+### 2. Moderator drift detection (`prompts.ts`)
+
+The moderator's `EPISTEMIC TYPE & ASSUMPTION AWARENESS` block detects cross-type
+talking-past-each-other: when one debater makes an empirical claim and the other
+responds with a normative prescription, the moderator intervenes to name the
+type mismatch and redirect the exchange to address both dimensions.
+
+### 3. Plan stage argument strategy (`prompts.ts`)
+
+The plan stage receives epistemic_type metadata and instructs debaters to plan
+argument mode based on the types of their strongest nodes — e.g., building an
+argument on a Predictive node requires specifying a timeline, while building on a
+Definitional node requires establishing terms before engaging substance.
+
+### 4. Audience-weighted prioritization
+
+Different audiences weight epistemic types differently during taxonomy node
+selection:
+
+| Audience | Prioritized types | Rationale |
+|---|---|---|
+| Policymakers | Intentions (Strategic Recommendations) | Actionable policy outputs |
+| Technical Researchers | Beliefs (Empirical Claims) | Evidence-grounded analysis |
+| Industry Leaders | Desires + Intentions equally | Goals and strategic actions |
+| Academic Community | Beliefs (esp. with `intellectual_lineage`) | Theoretical rigor |
+| General Public | Desires (Normative Prescriptions) | Value-driven accessibility |
+
+### 5. Draft quality gate calibration
+
+The `CALIBRATED` dimension in the draft quality gate checks whether a debater's
+rhetoric matches the evidential strength of the Beliefs they cite. A low-confidence
+Empirical Claim cited as "established fact" fails; the same claim with appropriate
+hedging passes. This check is only active when Belief confidence scores are
+available in the taxonomy context.

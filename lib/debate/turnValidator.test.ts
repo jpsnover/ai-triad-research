@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { resolveTurnValidationConfig, validateTurn, validatePlanStage, validateCiteStage, validateDraftStage, checkDirectiveContentCompliance, isFillerRelevance, parseDraftQualityResult } from './turnValidator.js';
+import { resolveTurnValidationConfig, validateTurn, validatePlanStage, validateCiteStage, validateDraftStage, checkDirectiveContentCompliance, isFillerRelevance, parseDraftQualityResult, checkBoundaryConcession } from './turnValidator.js';
 import type { ValidateTurnParams } from './turnValidator.js';
 import type {
   TaxonomyRef,
@@ -1755,5 +1755,92 @@ describe('validateDraftStage suppressedHints', () => {
       suppressedHints: new Set(['claim_specificity']),
     });
     expect(result.pass).toBe(true);
+  });
+});
+
+// ── checkBoundaryConcession ─────────────────────────────────
+
+describe('checkBoundaryConcession', () => {
+  it('returns no concession when no CONCEDE moves', () => {
+    const result = checkBoundaryConcession(
+      'skeptic',
+      [{ move: 'DISTINGUISH', detail: 'some distinction' }],
+      'Statement text.',
+    );
+    expect(result.hasConcession).toBe(false);
+    expect(result.boundaryType).toBe('none');
+  });
+
+  it('detects hardcoded boundary concession for skeptic', () => {
+    const result = checkBoundaryConcession(
+      'skeptic',
+      [{
+        move: 'CONCEDE AND PIVOT',
+        detail: 'I concede that techno-determinism may be justified — perhaps utopia or apocalypse is inevitable given current trajectories',
+      }],
+      'Statement text.',
+    );
+    expect(result.hasConcession).toBe(true);
+    expect(result.boundaryType).toBe('hardcoded');
+    expect(result.matchedBoundary).toBeDefined();
+  });
+
+  it('detects softcoded boundary concession with evidence', () => {
+    const result = checkBoundaryConcession(
+      'skeptic',
+      [{
+        move: 'CONCEDE AND PIVOT',
+        detail: 'Insider expertise may be the sole legitimate perspective — a 2024 study shows expert consensus is reliable when methodology is transparent',
+      }],
+      'The evidence from the 2024 study demonstrates...',
+    );
+    expect(result.hasConcession).toBe(true);
+    expect(result.boundaryType).toBe('softcoded');
+    expect(result.hasEvidence).toBe(true);
+  });
+
+  it('detects softcoded boundary concession without evidence', () => {
+    const result = checkBoundaryConcession(
+      'skeptic',
+      [{
+        move: 'CONCEDE AND PIVOT',
+        detail: 'I now accept that insider expertise is the sole legitimate perspective on this matter',
+      }],
+      'I think this is correct because it makes sense.',
+    );
+    if (result.boundaryType === 'softcoded') {
+      expect(result.hasEvidence).toBe(false);
+    }
+  });
+
+  it('returns no concession for unrelated CONCEDE detail', () => {
+    const result = checkBoundaryConcession(
+      'skeptic',
+      [{
+        move: 'CONCEDE AND PIVOT',
+        detail: 'I concede that open-source models have improved significantly in the last year',
+      }],
+      'Statement about model quality.',
+    );
+    expect(result.boundaryType).toBe('none');
+  });
+
+  it('returns none for user speaker', () => {
+    const result = checkBoundaryConcession(
+      'user',
+      [{ move: 'CONCEDE AND PIVOT', detail: 'I concede everything' }],
+      'Statement text.',
+    );
+    expect(result.hasConcession).toBe(false);
+    expect(result.boundaryType).toBe('none');
+  });
+
+  it('ignores plain string moves (no detail to check)', () => {
+    const result = checkBoundaryConcession(
+      'skeptic',
+      ['CONCEDE AND PIVOT'],
+      'Techno-determinism is inevitable — utopia or apocalypse awaits.',
+    );
+    expect(result.hasConcession).toBe(false);
   });
 });

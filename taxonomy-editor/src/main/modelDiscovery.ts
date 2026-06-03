@@ -272,6 +272,49 @@ function getKnownClaudeModels(): ModelEntry[] {
   ];
 }
 
+// ── Ollama: GET /api/tags ───────────────────────────────────────────────────
+
+interface OllamaModelInfo {
+  name: string;           // "gemma4:e4b-it-q4_K_M"
+  model: string;
+  size: number;
+  details: {
+    family: string;
+    parameter_size: string;
+    quantization_level: string;
+  };
+}
+
+async function discoverOllamaModels(): Promise<ModelEntry[]> {
+  const resp = await fetch('http://localhost:11434/api/tags', {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!resp.ok) {
+    throw new ActionableError({
+      goal: 'Discover available Ollama models',
+      problem: `Ollama /api/tags returned HTTP ${resp.status}`,
+      location: 'modelDiscovery.discoverOllamaModels',
+      nextSteps: ['Verify Ollama is running: ollama serve', 'Check Ollama version'],
+    });
+  }
+  const json = await resp.json() as { models: OllamaModelInfo[] };
+
+  return (json.models ?? []).map(m => {
+    const friendlyId = 'ollama-' + m.name
+      .replace(/:/g, '-')
+      .replace(/[^a-z0-9.-]/gi, '-')
+      .toLowerCase();
+    const sizeInfo = m.details?.parameter_size ? ` (${m.details.parameter_size})` : '';
+    const quantInfo = m.details?.quantization_level ? ` ${m.details.quantization_level}` : '';
+    return {
+      id: friendlyId,
+      apiModelId: m.name,
+      label: `${m.name}${sizeInfo}${quantInfo}`,
+      backend: 'ollama',
+    };
+  });
+}
+
 // ── Main refresh function ───────────────────────────────────────────────────
 
 export interface RefreshResult {
@@ -279,6 +322,7 @@ export interface RefreshResult {
   claude: { ok: boolean; count: number; error?: string };
   groq:   { ok: boolean; count: number; error?: string };
   openai: { ok: boolean; count: number; error?: string };
+  ollama: { ok: boolean; count: number; error?: string };
   totalModels: number;
 }
 
@@ -289,6 +333,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
     claude: { ok: false, count: 0 },
     groq:   { ok: false, count: 0 },
     openai: { ok: false, count: 0 },
+    ollama: { ok: false, count: 0 },
     totalModels: 0,
   };
 
@@ -379,6 +424,19 @@ export async function refreshAIModels(): Promise<RefreshResult> {
   } else {
     newModels.push(...config.models.filter(m => m.backend === 'openai'));
     result.openai = { ok: false, count: 0, error: 'No API key configured' };
+  }
+
+  // ── Ollama (local, no API key needed) ──
+  try {
+    const models = await discoverOllamaModels();
+    newModels.push(...models);
+    result.ollama = { ok: true, count: models.length };
+    console.log(`[ModelDiscovery] Ollama: discovered ${models.length} local models`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    result.ollama = { ok: false, count: 0, error: msg };
+    console.log(`[ModelDiscovery] Ollama not available: ${msg}`);
+    newModels.push(...config.models.filter(m => m.backend === 'ollama'));
   }
 
   // ── Update config ──

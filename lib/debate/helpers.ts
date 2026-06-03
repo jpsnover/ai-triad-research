@@ -174,6 +174,9 @@ export interface TranscriptCompressionOpts {
   aggressiveVerbatimWindow?: number;
   /** Hard character cap on the formatted transcript block. Default: 8000 when aggressive. */
   maxChars?: number;
+  /** Include taxonomy_ref relevance annotations on recent entries. Default: true.
+   *  Set false for moderator-facing transcripts to prevent refs leaking as debater claims. */
+  includeTaxonomyRefs?: boolean;
 }
 
 /** Format recent transcript entries for inclusion in prompts.
@@ -258,7 +261,7 @@ export function formatRecentTranscript(
 
     // For the most recent entries, append top taxonomy ref relevance explanations
     // so the next turn's Brief can reason about WHY prior turns cited specific nodes
-    if (idx >= recent.length - recentRefThreshold && e.taxonomy_refs?.length) {
+    if (compressionOpts?.includeTaxonomyRefs !== false && idx >= recent.length - recentRefThreshold && e.taxonomy_refs?.length) {
       const topRefs = [...e.taxonomy_refs]
         .filter(r => r.relevance && r.relevance.length > 10)
         .sort((a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0))

@@ -6,27 +6,233 @@
  * Prompts are separated from logic per project convention.
  */
 
-import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily } from './types.js';
+import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, InterventionFamily, VoiceSpec, TopicScope } from './types.js';
 import { POVER_INFO } from './types.js';
 import { documentAnalysisContext } from './documentAnalysis.js';
 import { interpretationText } from './taxonomyTypes.js';
+
+// ── Model-tier prompt routing (t/331) ────────────────────────────
+// Flash/lite models can't process full prose_style + voice_hygiene blocks.
+// Set compact mode before generating prompts for weaker backends.
+let _promptCompact = false;
+
+export function setPromptCompact(compact: boolean): void {
+  _promptCompact = compact;
+}
+
+export function isCompactModel(model: string): boolean {
+  const m = model.toLowerCase();
+  return m.includes('flash-lite') || m.includes('flash-8b') || m.includes('llama') || m.includes('gemma');
+}
+
+// ── Topic scope prompt placement (t/337) ─────────────────────────
+// Place TopicScope constraints at high-attention prompt positions
+// (primacy + recency) to mitigate Lost-in-the-Middle degradation.
+let _topicScope: TopicScope | null = null;
+
+export function setTopicScope(scope: TopicScope | null): void {
+  _topicScope = scope;
+}
+
+function hasMeaningfulScope(scope: TopicScope | null): scope is TopicScope {
+  if (!scope) return false;
+  return scope.core_proposition.length > 0
+    && scope.off_scope_topics.length > 0;
+}
+
+function formatDebateScopeBlock(scope: TopicScope): string {
+  const lines = ['=== DEBATE SCOPE ==='];
+  lines.push(`This debate is about: ${scope.core_proposition}`);
+  if (scope.relevant_disciplines.length > 0) {
+    lines.push(`Draw evidence from: ${scope.relevant_disciplines.join(', ')}`);
+  }
+  if (scope.off_scope_topics.length > 0) {
+    lines.push(`Off-scope (do not build arguments around): ${scope.off_scope_topics.join(', ')}`);
+  }
+  if (scope.example_ceiling) {
+    lines.push(`Example ceiling: ${scope.example_ceiling}`);
+  }
+  if (scope.excluded_scenarios.length > 0) {
+    lines.push(`Explicitly excluded: ${scope.excluded_scenarios.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+function formatScopeReminder(scope: TopicScope): string {
+  const offScope = scope.off_scope_topics.slice(0, 2).join(', ');
+  return `Scope reminder: ${scope.core_proposition}. Do not build arguments around: ${offScope}.`;
+}
+
+/** Format a voice spec into prompt text. Uses short directives in compact mode. */
+function formatVoiceSpec(voice: VoiceSpec): string {
+  const lines = ['VOICE:'];
+  lines.push(`- Disposition: ${voice.disposition}`);
+  lines.push(`- Style: ${voice.style}`);
+  lines.push(`- Reasoning: ${voice.reasoning}`);
+  lines.push(`- Evidence: ${voice.evidence}`);
+  lines.push(`- Signature move: ${voice.signature}`);
+  lines.push('');
+  if (_promptCompact) {
+    lines.push(voice.prose_style_short);
+    lines.push('');
+    lines.push(voice.voice_hygiene_short);
+  } else {
+    lines.push(voice.prose_style);
+    lines.push('');
+    lines.push(voice.voice_hygiene);
+  }
+  return lines.join('\n');
+}
+
+function formatEpistemicStance(stance: string[]): string {
+  if (!stance || stance.length === 0) return '';
+  return `\nEPISTEMIC STANCE (how you reason under uncertainty):\n${stance.map(s => `- ${s}`).join('\n')}\n`;
+}
+
+/** Get the full character block for a debater by POV key. Falls back to personality string for unknown POVs. */
+function formatValueHierarchy(hierarchy: string[]): string {
+  if (!hierarchy || hierarchy.length === 0) return '';
+  const tiers = hierarchy.map((v, i) => `${i + 1}. ${v}`).join('\n');
+  return `\nVALUE HIERARCHY (resolve internal conflicts top-down):\n${tiers}\nWhen your values conflict, higher tiers override lower tiers. Tier 1 is non-negotiable.\n`;
+}
+
+function getCharacterBlock(pov: string): string {
+  const info = POVER_INFO[pov as keyof typeof POVER_INFO];
+  if (!info?.voice) return '';
+  const scopeBlock = hasMeaningfulScope(_topicScope) ? `\n${formatDebateScopeBlock(_topicScope)}\n` : '';
+  const valueBlock = formatValueHierarchy(info.value_hierarchy);
+  const epistemicBlock = formatEpistemicStance(info.epistemic_stance);
+  return `=== YOUR CHARACTER ===${scopeBlock}
+${formatVoiceSpec(info.voice)}
+${valueBlock}${epistemicBlock}
+${info.anti_patterns.length > 0 ? `DO NOT sound like the other debaters:\n${info.anti_patterns.map(a => `- ${a}`).join('\n')}` : ''}`;
+}
+
+// ── Vocabulary decontamination (t/332) ───────────────────────────
+// Extracts distinctive terms used by other speakers and formats an exclusion
+// list so each debater uses their own vocabulary for shared concepts.
+
+const STOPWORDS = new Set([
+  'a','an','the','and','or','but','in','on','at','to','for','of','with','by',
+  'from','is','are','was','were','be','been','being','have','has','had','do',
+  'does','did','will','would','could','should','may','might','shall','can',
+  'not','no','nor','so','if','then','than','that','this','these','those',
+  'it','its','they','them','their','we','our','he','she','his','her',
+  'you','your','who','what','which','when','where','how','why','all',
+  'each','every','both','few','more','most','other','some','such','only',
+  'also','just','about','into','over','after','before','between','under',
+  'again','further','once','here','there','very','too','quite','rather',
+  'still','already','even','much','many','well','back','now','then',
+  'up','out','down','off','away','through','during','while','because',
+  'since','until','although','though','however','therefore','thus',
+  'yet','still','already','always','never','often','sometimes','usually',
+  'really','actually','certainly','clearly','simply','perhaps','indeed',
+  'rather','quite','enough','else','whether','either','neither','per',
+  'around','across','along','among','above','below','within','without',
+  'against','toward','towards','beyond','upon','make','makes','made',
+  'take','takes','took','taken','give','gives','gave','given','get',
+  'gets','got','come','comes','came','say','says','said','go','goes',
+  'went','see','sees','saw','seen','know','knows','knew','known',
+  'think','thinks','thought','want','wants','wanted','need','needs',
+  'use','uses','used','find','finds','found','become','becomes','became',
+  'like','way','point','case','work','part','must','first','new',
+  'long','great','little','right','good','old','big','high','different',
+  'small','large','next','early','important','same','able','last',
+  'thing','things','time','times','year','years','people','system',
+  'systems','world','state','states','may','might','should','would',
+  'could','question','argument','debate','position','claim','evidence',
+]);
+
+export function extractSpeakerVocabulary(
+  entries: ReadonlyArray<{ type: string; speaker: string; content?: string }>,
+  currentSpeaker: string,
+  windowSize = 6,
+): string[] {
+  const otherStatements = entries
+    .filter(e => e.type === 'statement' && e.speaker !== currentSpeaker && e.content)
+    .slice(-windowSize);
+
+  if (otherStatements.length === 0) return [];
+
+  const termCounts = new Map<string, number>();
+  const bigramCounts = new Map<string, number>();
+
+  for (const entry of otherStatements) {
+    const words = (entry.content ?? '')
+      .toLowerCase()
+      .replace(/[^a-z\s'-]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length >= 4 && !STOPWORDS.has(w));
+
+    const seen = new Set<string>();
+    for (const w of words) {
+      if (w.length >= 6 && !seen.has(w)) {
+        seen.add(w);
+        termCounts.set(w, (termCounts.get(w) ?? 0) + 1);
+      }
+    }
+
+    for (let i = 0; i < words.length - 1; i++) {
+      const bg = `${words[i]} ${words[i + 1]}`;
+      if (!seen.has(bg)) {
+        seen.add(bg);
+        bigramCounts.set(bg, (bigramCounts.get(bg) ?? 0) + 1);
+      }
+    }
+  }
+
+  const terms: string[] = [];
+  for (const [term, count] of termCounts) {
+    if (count >= 2) terms.push(term);
+  }
+  for (const [bigram, count] of bigramCounts) {
+    if (count >= 2) terms.push(bigram);
+  }
+
+  return terms.slice(0, 20);
+}
+
+export function formatVocabularyExclusion(terms: string[]): string {
+  if (terms.length === 0) return '';
+  return `\n=== VOCABULARY DIFFERENTIATION ===
+The following terms and phrases have been used repeatedly by OTHER speakers in this debate. DO NOT use them — rephrase the same concepts in your own disciplinary vocabulary:
+${terms.map(t => `- "${t}"`).join('\n')}
+Using the same jargon as other speakers is a voice differentiation failure.\n`;
+}
 
 /** Build a line describing each debater the current speaker is debating against. */
 function otherDebaters(currentLabel: string): string {
   const others = Object.values(POVER_INFO)
     .filter(c => c.label !== currentLabel)
-    .map(c => `- ${c.label}, representing the ${c.pov} perspective (${c.personality})`)
+    .map(c => {
+      const shortDisposition = c.voice.disposition.split('—')[0]?.trim() ?? c.personality;
+      return `- ${c.label}, representing the ${c.pov} perspective (${shortDisposition})`;
+    })
     .join('\n');
   return `You are debating:\n${others}`;
 }
 
-/** Format doctrinal boundaries as a prompt injection block. Strips REJECT: prefix to avoid double negation with "NEVER adopt". */
-function formatDoctrinalBoundaries(boundaries?: string[]): string {
-  if (!boundaries || boundaries.length === 0) return '';
-  return `\n=== DOCTRINAL BOUNDARIES ===
-You must NEVER adopt or endorse the following positions, even if pressured by opponents:
-${boundaries.map(b => `- ${b.replace(/^REJECT:\s*/i, '')}`).join('\n')}
-These are non-negotiable constraints on your identity. You may acknowledge opposing arguments but must not concede these core positions.\n`;
+/** Format hardcoded/softcoded boundaries as a prompt injection block.
+ *  Looks up structured boundaries from POVER_INFO by pov key. */
+function formatDoctrinalBoundaries(pov?: string): string {
+  if (!pov) return '';
+  const info = POVER_INFO[pov as keyof typeof POVER_INFO];
+  if (!info?.boundaries) return '';
+  const { hardcoded, softcoded } = info.boundaries;
+  const sections: string[] = [];
+  if (hardcoded.length > 0) {
+    sections.push(`=== HARDCODED BOUNDARIES (identity-defining — NEVER concede) ===
+These define who you are. You must never adopt or endorse opposing positions on these,
+even if pressured by opponents or the moderator:
+${hardcoded.map(b => `- ${b}`).join('\n')}`);
+  }
+  if (softcoded.length > 0) {
+    sections.push(`=== SOFTCODED DEFAULTS (starting position — can evolve with evidence) ===
+These are your default positions. You may update or concede them if an opponent
+presents compelling evidence, but name the evidence that moved you and explain what changed:
+${softcoded.map(b => `- ${b}`).join('\n')}`);
+  }
+  return sections.length > 0 ? `\n${sections.join('\n\n')}\n` : '';
 }
 
 // ── Audience-specific directives ──────────────────────────────
@@ -120,9 +326,9 @@ function extractStarredNodes(taxonomyContext: string): string[] {
   return results;
 }
 
-function buildRecapSection(taxonomyContext: string, phase?: DebatePhase): string {
+function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, pov?: string): string {
   const starred = extractStarredNodes(taxonomyContext);
-  if (starred.length === 0 && !phase) return '';
+  if (starred.length === 0 && !phase && !pov) return '';
 
   const lines: string[] = ['', '=== RECALL ==='];
 
@@ -140,6 +346,25 @@ function buildRecapSection(taxonomyContext: string, phase?: DebatePhase): string
     lines.push(`Phase priority: ${priorities[phase]}`);
   }
 
+  if (pov) {
+    const info = POVER_INFO[pov as keyof typeof POVER_INFO];
+    if (info?.boundaries?.hardcoded?.length > 0) {
+      lines.push(`Hardcoded boundaries (NEVER concede): ${info.boundaries.hardcoded.join('; ')}`);
+    }
+    if (info?.value_hierarchy?.length > 0) {
+      lines.push(`Value hierarchy: ${info.value_hierarchy.map((v, i) => `(${i + 1}) ${v}`).join(' > ')}`);
+    }
+    if (info?.epistemic_stance?.length > 0) {
+      lines.push(`Epistemic stance: ${info.epistemic_stance[0]}. Falsification: ${info.epistemic_stance[info.epistemic_stance.length - 1].replace(/^Falsification challenge: /, '')}`);
+    }
+  }
+
+  lines.push('Write as a human — no academic transitions, no meta-announcements, no shared jargon.');
+
+  if (hasMeaningfulScope(_topicScope)) {
+    lines.push(formatScopeReminder(_topicScope));
+  }
+
   return lines.join('\n');
 }
 
@@ -155,6 +380,8 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning, anchored in the specific contested concepts (situations) under discussion.
 
 When nodes are marked with ★, these are the most relevant to the current debate topic. Prioritize them — build your core argument around starred nodes before drawing on supporting context. Unstarred nodes provide broader perspective but should not dominate your response. If no nodes are starred, or if starred nodes are not relevant to the question being asked, select the 3–6 most pertinent nodes from any section and build your argument around those. Note in your taxonomy_refs why you chose them over other candidates.
+
+Your taxonomy is your doctrinal foundation, not a script. When the debate topic presents a case your taxonomy does not address, reason from your core commitments (your hardcoded boundaries and normative values) to extend your position. You may update softcoded boundaries and non-boundary BDI nodes when an opponent presents compelling evidence — but hardcoded boundaries are non-negotiable. For any update, state what changed and why, citing the evidence that moved you. Ignoring counter-evidence to preserve taxonomy alignment is a reasoning failure, not loyalty.
 
 Express ideas in your own words. See OUTPUT FORMAT for rules on referencing taxonomy nodes.`;
 
@@ -184,7 +411,25 @@ position still holds. Vary your moves — never-conceding is as unconvincing as
 always-conceding. Never silently drop a previously asserted point.
 
 Attack positions, not people. If caught in a contradiction, acknowledge it directly.
-If a question contains a false premise, name the problem before responding.`;
+If a question contains a false premise, name the problem before responding.
+
+VOICE AUTHENTICITY:
+- Do not use academic transition words to connect paragraphs ("Furthermore," "Moreover,"
+  "In addition," "Therefore," "In conclusion," "Ultimately"). Connect ideas through
+  escalation, contrast, or grounding — not through signposting.
+- Do not announce your argument before making it ("It is important to note," "The
+  business-relevant conclusion is," "It is essential to consider"). Just make the argument.
+- Do not repeat statistics or claims verbatim from your prior turns. Build on them,
+  reframe them, or drop them.
+- Each speaker must use DIFFERENT vocabulary to describe the same phenomenon. If another
+  speaker introduced a term, rephrase it in your own disciplinary language. Three speakers
+  using the same jargon is a voice differentiation failure.
+- Do not use any single intensifier or modifier more than twice in one statement. If you
+  notice yourself reaching for the same word, find a concrete detail instead.
+- Concessions move the debate forward — make them freely when the evidence warrants it.
+  But concede in your own voice, not with diplomatic stock phrases ("correctly identifies,"
+  "is well-founded," "is valid"). Show what accepting the point costs you and where it
+  leads next.`;
 
 // Original MUST_CORE_BEHAVIORS (~1,400 tokens) and MUST_EXTENDED (~350 tokens)
 // compressed into the block above (~300 tokens). See t/295 for rationale.
@@ -907,7 +1152,7 @@ export function openingStatementPrompt(
     : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-Your personality: ${personality}.
+${getCharacterBlock(pov)}
 ${otherDebaters(label)}
 ${getReadingLevel(audience)}
 ${getDetailInstruction(audience)}
@@ -926,7 +1171,7 @@ ${hasDocument ? documentInstructions : ''}
 ${isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
 
 State 1-2 key assumptions your position depends on. For each, briefly note how your position would change if that assumption were wrong. This demonstrates intellectual honesty and helps the audience evaluate your argument.
-${buildRecapSection(taxonomyContext)}
+${buildRecapSection(taxonomyContext, undefined, pov)}
 TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Each tooltip ends with a provocative question connecting the symbol to the debate's core tension. Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -980,7 +1225,7 @@ export function debateResponsePrompt(
     : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-Your personality: ${personality}.
+${getCharacterBlock(pov)}
 ${otherDebaters(label)}
 ${getReadingLevel(audience)}
 ${getDetailInstruction(audience)}
@@ -999,7 +1244,7 @@ ${recentTranscript}
 ${question}
 ${documentBlock}
 Respond from your perspective. Be specific, substantive, and engage with the debate history. Reference points made by other debaters when relevant.
-${buildRecapSection(taxonomyContext)}
+${buildRecapSection(taxonomyContext, undefined, pov)}
 TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that visually capture the essence of your argument this turn. Each symbol must be relevant to both your argument and the target audience. Each symbol gets a tooltip — use ONLY plain words, NO emoji or Unicode symbols in the tooltip text. The tooltip MUST follow this direction: "[your argument's idea] is like a [what the emoji depicts], it [explains the analogy]" — the debate concept comes FIRST, the symbol's real-world referent comes SECOND. Example: for 🚀, write "rapid market adoption is like a rocket launch, it accelerates beyond the point of return" — NOT "a rocket is like market adoption". Each tooltip ends with a provocative question connecting the symbol to the debate's core tension. Make it vivid and memorable.
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -1278,7 +1523,7 @@ export function crossRespondPrompt(
   priorFlaggedHints?: string[],
   crossPovNodeIds?: string[],
   audience?: DebateAudience,
-  doctrinalBoundaries?: string[],
+  vocabularyExclusion?: string,
 ): string {
   // Use structured analysis when available, fall back to lightweight source reminder
   const documentBlock = documentAnalysis
@@ -1309,11 +1554,11 @@ This does NOT mean you should avoid them — cite whatever the statement actuall
     : 'Engage directly with what was said. If you disagree, explain why with specifics and classify your disagreement type. Challenge the strongest point first, not the weakest.';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-Your personality: ${personality}.
+${getCharacterBlock(pov)}
 ${otherDebaters(label)}
 ${getReadingLevel(audience)}
 ${getDetailInstruction(audience)}
-${formatDoctrinalBoundaries(doctrinalBoundaries)}
+${formatDoctrinalBoundaries(pov)}
 ${allInstructions(phase)}
 
 ${taxonomyContext}
@@ -1323,12 +1568,12 @@ ${taxonomyContext}
 
 === RECENT DEBATE HISTORY ===
 ${recentTranscript}
-${moveHistoryBlock}${refsHistoryBlock}${priorFlaggedHints && priorFlaggedHints.length > 0 ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your current response.\n` : ''}${documentBlock}
+${moveHistoryBlock}${refsHistoryBlock}${priorFlaggedHints && priorFlaggedHints.length > 0 ? `\n=== PRIOR TURN FEEDBACK ===\nYour last response was accepted but flagged with these issues:\n${priorFlaggedHints.map(h => '- ' + h).join('\n')}\nAddress at least one of these weaknesses in your current response.\n` : ''}${vocabularyExclusion ?? ''}${documentBlock}
 === YOUR ASSIGNMENT ===
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
 Respond substantively. ${phaseDirective}
-${buildRecapSection(taxonomyContext, phase)}
+${buildRecapSection(taxonomyContext, phase, pov)}
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "statement": "your response text",
@@ -1371,7 +1616,6 @@ export interface OpeningStagePromptInput {
   documentAnalysis?: DocumentAnalysis;
   audience?: DebateAudience;
   userSeedClaims?: { id: string; text: string; bdi_category?: string }[];
-  doctrinalBoundaries?: string[];
   edgeContext?: string;
 }
 
@@ -1421,9 +1665,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
 
 export function planOpeningStagePrompt(input: OpeningStagePromptInput, brief: string): string {
   return `You are ${input.label}, planning the structure of your opening statement.
-Your personality: ${input.personality}.
+${getCharacterBlock(input.pov)}
 Your perspective: ${input.pov}.
-${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
+${formatDoctrinalBoundaries(input.pov)}
 === SITUATION BRIEF ===
 ${brief}
 
@@ -1488,7 +1732,7 @@ export function draftOpeningStagePrompt(input: OpeningStagePromptInput, brief: s
       : '';
 
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
-Your personality: ${input.personality}.
+${getCharacterBlock(input.pov)}
 ${otherDebaters(input.label)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
@@ -1498,7 +1742,7 @@ OUTPUT: Respond ONLY with a JSON object (no markdown, no code fences, no preambl
 ${MUST_CORE_BEHAVIORS}
 
 ${STEELMAN_INSTRUCTION}
-${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
+${formatDoctrinalBoundaries(input.pov)}
 === SITUATION BRIEF ===
 ${brief}
 
@@ -1506,7 +1750,7 @@ ${brief}
 ${plan}
 
 ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Engage with these directly — state which you agree with, which you challenge, and why. Reference their IDs in your claim_sketches targets.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n\n` : ''}=== YOUR ASSIGNMENT ===
-Deliver your opening statement as ${input.label} — stay in character (${input.personality.split('.')[0]}). Frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
+Deliver your opening statement as ${input.label} — stay in character. Frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
 ${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
 
@@ -1629,7 +1873,6 @@ export interface StagePromptInput {
     phase_progress: number;
     approaching_transition: boolean;
   };
-  doctrinalBoundaries?: string[];
   edgeContext?: string;
   strategicHints?: string[];
   /** Strong claims to base the argument on — injected into Plan stage as foundations. */
@@ -1638,6 +1881,7 @@ export interface StagePromptInput {
   avoidClaims?: { text: string; marginal_delta: number; base_strength: number; reason: string }[];
   /** Concession claims to preserve — injected into Plan stage as claims to keep. */
   preserveConcessions?: { text: string; reason: string }[];
+  vocabularyExclusion?: string;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1748,9 +1992,9 @@ Consider how the moderator's point relates to your own position and plan a brief
     : '';
 
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
-Your personality: ${input.personality}.
+${getCharacterBlock(input.pov)}
 Your perspective: ${input.pov}.
-${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
+${formatDoctrinalBoundaries(input.pov)}
 === SITUATION BRIEF ===
 ${brief}
 ${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}
@@ -1846,7 +2090,7 @@ Your first sentence should briefly acknowledge the moderator's point as it relat
   }
 
   return `You are ${input.label}, an AI debater representing the ${input.pov} perspective on AI policy.
-Your personality: ${input.personality}.
+${getCharacterBlock(input.pov)}
 ${otherDebaters(input.label)}
 ${getReadingLevel(input.audience)}
 ${getDetailInstruction(input.audience)}
@@ -1854,13 +2098,13 @@ ${getPolicymakerFraming(input.audience)}
 ${MUST_CORE_BEHAVIORS}
 
 ${STEELMAN_INSTRUCTION}
-${formatDoctrinalBoundaries(input.doctrinalBoundaries)}
+${formatDoctrinalBoundaries(input.pov)}
 === SITUATION BRIEF ===
 ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}
+${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}
 === YOUR ASSIGNMENT ===
 Address ${input.addressing === 'general' ? 'the panel' : input.addressing} on this point: ${input.focusPoint}
 
@@ -2089,17 +2333,30 @@ Assess whether the debater's rhetoric matches the evidential basis:
     : '';
 
   const hasConfidence = beliefConfidences && beliefConfidences.length > 0;
+  const hasScope = hasMeaningfulScope(_topicScope);
+
+  let qNum = 3;
   const confidenceQuestion = hasConfidence
-    ? `\n4. CALIBRATED — Does the draft's rhetoric match the evidential strength of the Beliefs it cites? (Treating speculative claims as settled fact = no; hedging uncertain claims = yes)`
+    ? `\n${++qNum}. CALIBRATED — Does the draft's rhetoric match the evidential strength of the Beliefs it cites? (Treating speculative claims as settled fact = no; hedging uncertain claims = yes)`
     : '';
   const confidenceField = hasConfidence ? `,\n  "calibrated": true` : '';
 
-  return `You are a debate-draft quality gate. Answer ${hasConfidence ? '4' : '3'} yes/no questions about this draft statement. Do NOT judge overall quality — only flag structural defects that the debater should fix before grounding citations.
+  const topicAlignedQuestion = hasScope
+    ? `\n${++qNum}. TOPIC_ALIGNED — Does the draft stay within the debate's stated scope? Specifically: are the examples, analogies, and evidence drawn from the same risk level and domain as stated below? A brief illustrative analogy from a higher-risk domain is acceptable if clearly marked as illustrative and the argument returns to on-scope evidence. Sustained off-domain framing (multiple paragraphs of mismatched examples) is NOT aligned.
+  Scope: ${_topicScope!.example_ceiling}${_topicScope!.excluded_scenarios.length > 0 ? `\n  Excluded: ${_topicScope!.excluded_scenarios.join(', ')}` : ''}${_topicScope!.explicit_qualifiers.length > 0 ? `\n  User qualifiers: ${_topicScope!.explicit_qualifiers.join(', ')}` : ''}`
+    : '';
+  const topicAlignedField = hasScope ? `,\n  "topic_aligned": true` : '';
+
+  const scopeContextBlock = hasScope
+    ? `\nDebate scope: ${_topicScope!.core_proposition}\nExample ceiling: ${_topicScope!.example_ceiling}\n`
+    : '';
+
+  return `You are a debate-draft quality gate. Answer ${qNum} yes/no questions about this draft statement. Do NOT judge overall quality — only flag structural defects that the debater should fix before grounding citations.
 
 Phase: ${phase}
 Speaker: ${speaker} (${pov})
 Round: ${round}
-${plannedMovesBlock}${confidenceBlock}
+${plannedMovesBlock}${confidenceBlock}${scopeContextBlock}
 Prior turn (last opponent):
 ${lastOpponentStatement.slice(0, 600)}
 
@@ -2109,14 +2366,14 @@ ${statement}
 Questions:
 1. GROUNDED — Does the draft make at least one claim backed by a specific fact, number, named entity, or data point? (Not: "AI could be dangerous" — Yes: "GPT-4 scores 86th percentile on the bar exam")
 2. FALSIFIABLE — Does the draft contain at least one prediction or claim that could be proven wrong with evidence? (Not: "AI might cause problems someday" — Yes: "By 2028, ≥3 major democracies will have mandatory AI audit requirements")
-3. ENGAGES — Does the draft's first paragraph respond to the opponent's most recent core argument, rather than introducing an unrelated point?${confidenceQuestion}
+3. ENGAGES — Does the draft's first paragraph respond to the opponent's most recent core argument, rather than introducing an unrelated point?${confidenceQuestion}${topicAlignedQuestion}
 
 Return ONLY JSON, no prose:
 {
   "grounded": true,
   "falsifiable": true,
-  "engages": true${confidenceField},
-  "weaknesses": ["≤15 words each, only for failed questions, max 3"]
+  "engages": true${confidenceField}${topicAlignedField},
+  "weaknesses": ["≤15 words each, only for failed questions, max ${qNum}"]
 }`;
 }
 
@@ -2922,7 +3179,6 @@ export function reflectionPrompt(
   commitments?: string,
   convergenceSignals?: string,
   audience?: DebateAudience,
-  doctrinalBoundaries?: string[],
   priorReflections?: Array<{ pov: string; edits: Array<{ edit_type: string; proposed_label: string; category: string }> }>,
 ): string {
   const nodesBlock = taxonomyNodes.map(n => {
@@ -2970,9 +3226,9 @@ not convergence.\n`
     : '';
 
   return `You are ${label}, an AI debater representing the ${pov} perspective on AI policy.
-Your personality: ${personality}.
+${getCharacterBlock(pov)}
 ${getReadingLevel(audience)}
-${formatDoctrinalBoundaries(doctrinalBoundaries)}
+${formatDoctrinalBoundaries(pov)}
 You have just finished a structured debate on:
 "${topic}"
 
@@ -3228,6 +3484,15 @@ If you detect any of these patterns, you MUST recommend an intervention:
 - For metaphor literalization: use CLARIFY to anchor the term back to its source-document meaning
 - For implementation spiral: use REDIRECT to return focus to the policy-level question
 - For scope creep: use CHECK to verify whether the introduced concept appears in the source material
+${hasMeaningfulScope(_topicScope) ? `
+4. RISK-LEVEL MISMATCH: A debater cites examples, statistics, or case studies from a fundamentally different risk category than stated in the topic. The debate topic specifies: ${_topicScope.example_ceiling}. If a debater repeatedly uses examples at a severity level that contradicts this — e.g., citing fatal accidents or billion-dollar losses in a debate about consumer product UX — that is a risk-level mismatch.
+Response: Use REDIRECT. Instruct the debater to find evidence at the appropriate severity level. Do NOT ban analogies entirely — if the debater clearly marks a high-risk example as illustrative ("To see the principle at a larger scale, consider...") and then returns to on-scope evidence, that is acceptable rhetorical technique, not drift.
+
+5. DOMAIN MISMATCH: The discussion shifts to a domain the topic does not cover.${_topicScope.excluded_scenarios.length > 0 ? ` The topic explicitly excludes: ${_topicScope.excluded_scenarios.join(', ')}.` : ''} Arguments that assume, depend on, or are primarily supported by excluded scenarios represent domain drift.${_topicScope.drift_signatures.length > 0 ? `\nTopic-specific drift signatures to watch for:\n${_topicScope.drift_signatures.map(s => `- ${s}`).join('\n')}` : ''}
+Response: Use CHALLENGE to ask the debater to re-ground their argument in the stated domain.
+
+- For risk-level mismatch: use REDIRECT to return to appropriate severity level
+- For domain mismatch: use CHALLENGE to re-ground in the stated domain` : ''}
 
 Set "drift_detected" to true and describe the pattern in "trigger_reasoning".
 
@@ -3268,6 +3533,11 @@ Your recommendation is ADVISORY. The engine will validate it against budget, coo
 
 Do NOT compose the intervention text — that is a separate stage.
 Do NOT intervene just because you can — only when the debate state warrants it.
+
+INTERVENTION COST TEST: Before recommending any intervention, apply both checks:
+- Would FAILING to intervene here be reported as negligent moderation? (a real issue going unaddressed)
+- Would THIS intervention be reported as heavy-handed? (disrupting a productive exchange, misattributing claims, or overcorrecting a minor drift)
+If the second risk outweighs the first, do not intervene — let the debaters self-correct.
 
 AGREEMENT DETECTION:
 Set "agreement_detected" ONLY when ALL of the following are met:
@@ -3671,6 +3941,93 @@ ${audienceDelta}
 * No robotic meta-commentary, no placeholders, no markdown code blocks enclosing the final output. Begin directly with the headline.`;
 }
 
+// ── Topic Scope Extraction (t/336) ──────────────────────────────
+export function topicScopeExtractionPrompt(topic: string): string {
+  return `You are a debate scope analyst. Extract the structured scope of the following debate topic.
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== TASK ===
+Parse this topic into a TopicScope object. Populate ALL fields — no field should be empty or generic.
+
+For the 7 universal fields:
+- core_proposition: The specific claim or question being debated. One sentence.
+- relevant_disciplines: Academic/professional disciplines from which evidence should be drawn. Be specific — "semiconductor physics, thermodynamics" not "technology."
+- on_scope_evidence: Types of facts, data, metrics, or examples that are relevant to this specific topic.
+- key_tensions: The 2-4 central disagreements this topic will generate between accelerationist, safetyist, and skeptic perspectives.
+- off_scope_topics: Adjacent subjects debaters will predictably drift toward. Be specific.
+- drift_signatures: Specific argument patterns that signal a debater has left the topic's scope. These must be actionable — "shifting from physics to ethics without infrastructure connection" not "going off topic."
+- example_ceiling: The maximum severity or type of examples that are proportionate to this topic's scope.
+
+For user-constraint fields:
+- Does the topic state or imply excluded scenarios? List them in excluded_scenarios.
+- What risk level does the topic specify or imply? (low/medium/high/catastrophic/unspecified)
+- What domain and product_type (if any) does the topic specify?
+- What time_horizon (if any) does the topic specify or imply?
+- What verbatim qualifiers did the user include? Preserve exact text in explicit_qualifiers.
+- Are these constraints explicit (user stated them) or inferred (you deduced them)? Set constraint_confidence accordingly.
+
+=== EXAMPLES ===
+
+Topic: "Should AI development be regulated by international treaty, similar to nuclear weapons?"
+{
+  "core_proposition": "Whether AI development warrants international treaty-level regulation analogous to nuclear non-proliferation frameworks",
+  "relevant_disciplines": ["international law", "arms control policy", "AI governance", "game theory", "geopolitical strategy"],
+  "on_scope_evidence": ["precedents from nuclear/chemical/biological treaties", "AI capability benchmarks", "international coordination mechanisms", "verification and compliance regimes", "sovereign technology policy"],
+  "key_tensions": ["national competitiveness vs global coordination", "speed of AI progress vs treaty negotiation timelines", "verification feasibility for software vs hardware", "democratic vs authoritarian governance models"],
+  "off_scope_topics": ["specific AI product design", "individual company practices", "technical alignment research methods", "consumer AI applications", "AI consciousness or sentience"],
+  "drift_signatures": ["pivoting to specific model architectures instead of governance frameworks", "discussing startup culture or VC funding instead of international coordination", "debating consciousness or AGI timelines instead of treaty mechanisms"],
+  "example_ceiling": "Nation-state level policy decisions and international agreements; catastrophic-scale examples are proportionate given the nuclear analogy",
+  "risk_level": "unspecified",
+  "domain": "international AI governance",
+  "product_type": null,
+  "time_horizon": null,
+  "excluded_scenarios": [],
+  "explicit_qualifiers": [],
+  "constraint_confidence": "inferred"
+}
+
+Topic: "How should a startup build a low-risk AI-powered consumer product for home energy management with no agentic or other AI features?"
+{
+  "core_proposition": "Design and deployment strategy for a non-agentic AI consumer product in the home energy management space at low risk level",
+  "relevant_disciplines": ["product management", "UX design", "energy systems engineering", "consumer electronics regulation", "machine learning for time-series forecasting"],
+  "on_scope_evidence": ["smart thermostat market data", "consumer adoption curves", "home energy API standards", "utility rate structures", "UL/FCC compliance requirements", "recommendation system accuracy metrics"],
+  "key_tensions": ["feature simplicity vs user value", "data collection vs privacy", "prediction accuracy vs computational cost", "regulatory compliance vs time-to-market"],
+  "off_scope_topics": ["autonomous AI agents", "existential AI risk", "military AI applications", "large language models", "AI consciousness", "enterprise or industrial energy systems"],
+  "drift_signatures": ["citing catastrophic infrastructure failures or loss-of-life incidents", "discussing autonomous decision-making or agentic behavior", "invoking existential risk or civilizational-scale consequences", "comparing to high-risk domains like aviation or nuclear power"],
+  "example_ceiling": "Consumer product failures, minor financial losses, usability issues — nothing involving injury, death, or systemic infrastructure failure",
+  "risk_level": "low",
+  "domain": "consumer technology, home energy",
+  "product_type": "AI-powered home energy management product",
+  "time_horizon": null,
+  "excluded_scenarios": ["agentic AI features", "autonomous decision-making"],
+  "explicit_qualifiers": ["low-risk", "consumer product", "home energy management", "no agentic or other AI features"],
+  "constraint_confidence": "explicit"
+}
+
+Topic: "Are physical limits on computation — energy, heat, materials — the real bottleneck that will halt AI scaling before we reach transformative capabilities?"
+{
+  "core_proposition": "Whether physical computational constraints will prevent AI from reaching transformative capability thresholds before algorithmic or economic factors",
+  "relevant_disciplines": ["semiconductor physics", "thermodynamics", "materials science", "computational complexity theory", "energy systems engineering", "supply chain economics"],
+  "on_scope_evidence": ["transistor density trends and physical limits", "data center energy consumption data", "chip fabrication yield rates", "cooling technology constraints", "rare earth mineral supply data", "compute cost curves"],
+  "key_tensions": ["physical limits vs algorithmic efficiency gains", "current scaling trends vs theoretical ceilings", "centralized compute vs distributed approaches", "near-term bottlenecks vs long-term workarounds"],
+  "off_scope_topics": ["AI alignment and safety techniques", "AI consciousness or sentience", "labor displacement from AI", "AI regulation and policy", "specific AI model architectures unrelated to compute"],
+  "drift_signatures": ["shifting from physics to ethics without infrastructure connection", "discussing AI safety or alignment without linking to physical constraints", "debating what AI should do rather than what physics allows it to do", "invoking labor market impacts without connecting to scaling limits"],
+  "example_ceiling": "Industrial and scientific scale — data center operations, chip fabrication economics, energy grid capacity",
+  "risk_level": "unspecified",
+  "domain": "computational physics, AI infrastructure",
+  "product_type": null,
+  "time_horizon": null,
+  "excluded_scenarios": [],
+  "explicit_qualifiers": ["physical limits", "energy, heat, materials"],
+  "constraint_confidence": "inferred"
+}
+
+=== OUTPUT FORMAT ===
+Return a single JSON object matching the TopicScope schema above. No markdown fences. No commentary.`;
+}
+
 // Exported for envelope builders (lib/debate/envelopes.ts)
 export {
   MUST_CORE_BEHAVIORS as _MUST_CORE_BEHAVIORS,
@@ -3679,6 +4036,7 @@ export {
   PHASE_INSTRUCTIONS as _PHASE_INSTRUCTIONS,
   CONSTRUCTIVE_MOVES as _CONSTRUCTIVE_MOVES,
   otherDebaters as _otherDebaters,
+  getCharacterBlock as _getCharacterBlock,
   getReadingLevel as _getReadingLevel,
   getDetailInstruction as _getDetailInstruction,
   sourceReminder as _sourceReminder,

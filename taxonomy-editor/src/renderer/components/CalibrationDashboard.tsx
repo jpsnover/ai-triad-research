@@ -27,6 +27,15 @@ interface CalibrationEntry {
   taxonomy_mapped_ratio: number | null;
   an_nodes_at_synthesis: number | null;
   gc_runs: number | null;
+  topic_alignment_rate: number | null;
+  topic_scope_extracted: boolean | null;
+  topic_scope_off_topics: number | null;
+  topic_scope_drift_sigs: number | null;
+  scope_extraction_populated: number | null;
+  draft_repair_rate: number | null;
+  taxonomy_demotion_rate: number | null;
+  demoted_node_reference_rate: number | null;
+  moderator_drift_intervention_rate: number | null;
 }
 
 interface ValidationMetric {
@@ -47,13 +56,19 @@ interface ValidationReport {
 
 // ── Chart helpers ──
 
-const METRIC_CONFIG: { key: string; label: string; color: string; higherBetter: boolean }[] = [
+const METRIC_CONFIG: { key: string; label: string; color: string; higherBetter: boolean; section?: string }[] = [
   { key: 'crux_addressed_ratio', label: 'Crux Addressed', color: '#22c55e', higherBetter: true },
   { key: 'avg_utilization_rate', label: 'Utilization Rate', color: '#3b82f6', higherBetter: true },
   { key: 'taxonomy_mapped_ratio', label: 'Taxonomy Mapped', color: '#8b5cf6', higherBetter: true },
   { key: 'claims_forgotten_rate', label: 'Claims Forgotten', color: '#f59e0b', higherBetter: false },
   { key: 'repetition_rate', label: 'Repetition Rate', color: '#ef4444', higherBetter: false },
   { key: 'structural_error_rate', label: 'Structural Errors', color: '#6b7280', higherBetter: false },
+  { key: 'topic_alignment_rate', label: 'Alignment Pass Rate', color: '#06b6d4', higherBetter: true, section: 'Topic Alignment' },
+  { key: 'scope_extraction_populated', label: 'Scope Populated', color: '#14b8a6', higherBetter: true },
+  { key: 'draft_repair_rate', label: 'Draft Repair Rate', color: '#f97316', higherBetter: false },
+  { key: 'taxonomy_demotion_rate', label: 'Demotion Rate', color: '#a855f7', higherBetter: false },
+  { key: 'demoted_node_reference_rate', label: 'Demoted Ref Rate', color: '#ec4899', higherBetter: false },
+  { key: 'moderator_drift_intervention_rate', label: 'Drift Interventions', color: '#ef5350', higherBetter: false },
 ];
 
 /** SVG time-series chart for a metric. */
@@ -205,7 +220,12 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
     const timespan = total > 1
       ? `${new Date(filtered[0].timestamp).toLocaleDateString()} – ${new Date(filtered[total - 1].timestamp).toLocaleDateString()}`
       : '—';
-    return { total, avgRounds, models, timespan };
+    const withScope = filtered.filter(e => e.topic_scope_extracted).length;
+    const alignedVals = filtered.map(e => e.topic_alignment_rate).filter((v): v is number => v != null);
+    const avgAlignment = alignedVals.length > 0
+      ? (alignedVals.reduce((s, v) => s + v, 0) / alignedVals.length * 100).toFixed(0) + '%'
+      : '—';
+    return { total, avgRounds, models, timespan, withScope, avgAlignment };
   }, [filtered]);
 
   if (loading) {
@@ -266,6 +286,14 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
           <span className="cal-dash-stat-value">{stats.models}</span>
           <span className="cal-dash-stat-label">Models</span>
         </div>
+        <div className="cal-dash-stat">
+          <span className="cal-dash-stat-value">{stats.withScope}</span>
+          <span className="cal-dash-stat-label">Scoped</span>
+        </div>
+        <div className="cal-dash-stat">
+          <span className="cal-dash-stat-value">{stats.avgAlignment}</span>
+          <span className="cal-dash-stat-label">Avg Alignment</span>
+        </div>
         <div className="cal-dash-stat cal-dash-stat-wide">
           <span className="cal-dash-stat-value">{stats.timespan}</span>
           <span className="cal-dash-stat-label">Period</span>
@@ -280,15 +308,18 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
         <h4>Quality Metrics Over Time</h4>
         <div className="cal-dash-charts-grid">
           {METRIC_CONFIG.map(mc => (
-            <MetricChart
-              key={mc.key}
-              entries={filtered}
-              metricKey={mc.key}
-              label={mc.label}
-              color={mc.color}
-            />
+            <React.Fragment key={mc.key}>
+              {mc.section && <h4 style={{ gridColumn: '1 / -1', margin: '12px 0 4px', fontSize: '0.8rem', borderTop: '1px solid var(--border)', paddingTop: 8 }}>{mc.section}</h4>}
+              <MetricChart
+                entries={filtered}
+                metricKey={mc.key}
+                label={mc.label}
+                color={mc.color}
+              />
+            </React.Fragment>
           ))}
         </div>
+        <TopicHealthScore entries={filtered} />
       </div>
 
       {/* Rounds distribution */}
@@ -296,6 +327,55 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
         <h4>Debate Length Distribution</h4>
         <RoundsHistogram entries={filtered} />
       </div>
+    </div>
+  );
+}
+
+/** Topic Health Score — weighted composite of topic alignment metrics. */
+function TopicHealthScore({ entries }: { entries: CalibrationEntry[] }) {
+  const scores = useMemo(() => {
+    return entries.map((e, i) => {
+      const alignment = e.topic_alignment_rate;
+      const repair = e.draft_repair_rate;
+      const drift = e.moderator_drift_intervention_rate;
+      const scope = e.scope_extraction_populated;
+      if (alignment == null && repair == null && drift == null && scope == null) return null;
+      const score =
+        (alignment ?? 1) * 0.4 +
+        (1 - (repair ?? 0)) * 0.2 +
+        (1 - (drift ?? 0)) * 0.2 +
+        (scope ?? 1) * 0.2;
+      return { idx: i, value: Math.round(score * 1000) / 1000 };
+    }).filter((d): d is { idx: number; value: number } => d !== null);
+  }, [entries]);
+
+  if (scores.length < 2) return null;
+
+  const w = 600, h = 50, pad = 4;
+  const min = Math.min(...scores.map(d => d.value));
+  const max = Math.max(...scores.map(d => d.value));
+  const range = max - min || 0.01;
+  const points = scores.map(d => ({
+    x: pad + (d.idx / (entries.length - 1)) * (w - 2 * pad),
+    y: h - pad - ((d.value - min) / range) * (h - 2 * pad),
+    value: d.value,
+  }));
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const latest = scores[scores.length - 1].value;
+  const mean = scores.reduce((s, d) => s + d.value, 0) / scores.length;
+  const color = latest >= 0.8 ? '#22c55e' : latest >= 0.6 ? '#f59e0b' : '#ef4444';
+
+  return (
+    <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 6, background: `${color}08`, border: `1px solid ${color}30` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+        <span style={{ fontWeight: 700, fontSize: '0.75rem', color }}>Topic Health Score</span>
+        <span style={{ fontSize: '0.7rem' }}>{latest.toFixed(3)} <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>(avg {mean.toFixed(3)})</span></span>
+        <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>40% alignment + 20% (1-repair) + 20% (1-drift) + 20% scope</span>
+      </div>
+      <svg width={w} height={h} style={{ display: 'block', width: '100%', height: h }}>
+        <path d={pathD} fill="none" stroke={color} strokeWidth="2" />
+        <circle cx={points[points.length - 1].x} cy={points[points.length - 1].y} r="3" fill={color} />
+      </svg>
     </div>
   );
 }

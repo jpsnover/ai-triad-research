@@ -17,6 +17,7 @@ import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { explainNodeStrength } from '../utils/qbafExplain';
 import { getMoveName, MOVE_EDGE_MAP } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
+import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
 import { ConvergenceSignalsPanel } from './ConvergenceSignalsPanel';
 import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from './TaxonomyRefDetail';
@@ -2126,7 +2127,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
-  type OverviewTab = 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context' | 'prompt-diff' | 'utility';
+  type OverviewTab = 'topic-scope' | 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context' | 'prompt-diff' | 'utility';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
   // Detail pane now takes full height when an entry is selected (no resize needed).
@@ -2319,6 +2320,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     const hasAn = !!(an && an.nodes.length > 0);
     const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
     const tabVisibility: Record<OverviewTab, boolean> = {
+      'topic-scope': !!debate.topic?.scope,
       'argument-network': hasAn,
       'commitments': hasCommitments,
       'transcript': true,
@@ -2542,6 +2544,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
             const plateau = debate.extraction_summary?.plateau_detected === true;
             const tabs: { id: OverviewTab; label: string; badge?: string; visible: boolean }[] = [
+              { id: 'topic-scope', label: 'Topic Scope', visible: !!debate.topic?.scope },
               { id: 'argument-network', label: 'Arg Net', visible: hasAn },
               { id: 'commitments', label: 'Commitments', visible: hasCommitments },
               { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
@@ -2615,6 +2618,109 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
 
           {/* Overview content — shown when no entry is selected (or always for transcript tab) */}
           {(!selectedEntry || effectiveOverviewTab === 'transcript') && <>
+
+          {/* Topic Scope (10.2) */}
+          {effectiveOverviewTab === 'topic-scope' && debate.topic?.scope && (() => {
+            const scope = debate.topic.scope as TopicScope;
+            const RISK_COLORS: Record<TopicScopeRiskLevel, string> = {
+              low: '#22c55e', medium: '#f59e0b', high: '#ef4444', catastrophic: '#dc2626', unspecified: '#6b7280',
+            };
+            return (
+              <div style={{ padding: 16, overflowY: 'auto', flex: 1, fontSize: '0.75rem' }}>
+                <h4 style={{ margin: '0 0 8px', fontSize: '0.85rem' }}>Topic Scope</h4>
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{scope.core_proposition}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {scope.domain && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.domain}</span>}
+                  {scope.product_type && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.product_type}</span>}
+                  {scope.time_horizon && <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontSize: '0.7rem' }}>{scope.time_horizon}</span>}
+                  <span style={{ padding: '2px 8px', borderRadius: 4, background: `${RISK_COLORS[scope.risk_level]}20`, color: RISK_COLORS[scope.risk_level], fontWeight: 600, fontSize: '0.7rem' }}>
+                    risk: {scope.risk_level}
+                  </span>
+                  <span style={{ padding: '2px 8px', borderRadius: 4, background: scope.constraint_confidence === 'explicit' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)', color: scope.constraint_confidence === 'explicit' ? '#22c55e' : '#f59e0b', fontSize: '0.7rem' }}>
+                    {scope.constraint_confidence}
+                  </span>
+                </div>
+
+                {scope.relevant_disciplines.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Relevant Disciplines</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {scope.relevant_disciplines.map(d => (
+                        <span key={d} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: '0.65rem' }}>{d}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {scope.key_tensions.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Key Tensions</div>
+                    <ol style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem' }}>
+                      {scope.key_tensions.map((t, i) => <li key={i} style={{ marginBottom: 2 }}>{t}</li>)}
+                    </ol>
+                  </div>
+                )}
+
+                {scope.off_scope_topics.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: '#ef4444' }}>Off-Scope Topics</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {scope.off_scope_topics.map(t => (
+                        <span key={t} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444', fontSize: '0.65rem' }}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {scope.drift_signatures.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4, color: '#f59e0b' }}>Drift Signatures</div>
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem', listStyle: 'disc' }}>
+                      {scope.drift_signatures.map((d, i) => <li key={i} style={{ color: '#f59e0b', marginBottom: 2 }}>{d}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {scope.example_ceiling && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 2 }}>Example Ceiling</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{scope.example_ceiling}</div>
+                  </div>
+                )}
+
+                {scope.explicit_qualifiers.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Qualifiers</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {scope.explicit_qualifiers.map(q => (
+                        <span key={q} style={{ padding: '2px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.15)', color: '#6366f1', fontSize: '0.65rem' }}>{q}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {scope.excluded_scenarios.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>Excluded Scenarios</div>
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem', listStyle: 'disc' }}>
+                      {scope.excluded_scenarios.map((s, i) => <li key={i} style={{ marginBottom: 2 }}>{s}</li>)}
+                    </ul>
+                  </div>
+                )}
+
+                {scope.on_scope_evidence.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.7rem', marginBottom: 4 }}>On-Scope Evidence</div>
+                    <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.7rem', listStyle: 'disc' }}>
+                      {scope.on_scope_evidence.map((e, i) => <li key={i} style={{ marginBottom: 2 }}>{e}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Extraction Timeline — diagnoses AN-plateau failures */}
           {effectiveOverviewTab === 'extraction' && (
@@ -3722,6 +3828,34 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             )}
             <strong style={{ fontSize: '0.85rem' }}>{speakerLabel(entry.speaker)}</strong>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{entry.type}</span>
+            {diag?.topic_alignment && (() => {
+              const ta = diag.topic_alignment;
+              const sft = (meta?.injection_manifest as Record<string, unknown> | undefined)?.scope_filter_trace as
+                { demoted?: { nodeId: string }[] } | undefined;
+              const demotedIds = new Set((sft?.demoted ?? []).map(d => d.nodeId));
+              const hasDemotedRef = (entry.taxonomy_refs ?? []).some(r => demotedIds.has(r.node_id));
+              const modDrift = entry.type === 'intervention' || (meta?.moderator_trace as Record<string, unknown> | undefined)?.drift_detected;
+              let state: 'green' | 'amber' | 'red';
+              let label: string;
+              let tip: string;
+              if (!ta.topic_aligned && !ta.repaired) {
+                state = 'red'; label = 'off-scope'; tip = 'Topic alignment failed after all retries';
+              } else if (ta.repaired) {
+                state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
+              } else if (modDrift || hasDemotedRef) {
+                state = 'amber'; label = 'drift noted'; tip = modDrift ? 'Moderator flagged drift concern' : 'References demoted taxonomy node';
+              } else {
+                state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
+              }
+              const colors = { green: '#16a34a', amber: '#d97706', red: '#dc2626' };
+              const bgs = { green: 'rgba(22,163,74,0.15)', amber: 'rgba(245,158,11,0.15)', red: 'rgba(220,38,38,0.15)' };
+              return (
+                <span title={tip} style={{
+                  padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+                  background: bgs[state], color: colors[state], cursor: 'help',
+                }}>{label}</span>
+              );
+            })()}
             {!diag && !proxiedModeratorTrace && entry.type !== 'intervention' && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
             <span style={{ flex: 1 }} />
             {effectiveOverviewTab === 'transcript' && (
@@ -6278,12 +6412,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     {/* ── Quality Pre-Check (draft_quality stage) ── */}
                     {draftQualityStage && (() => {
                       const wp = draftQualityStage.work_product as {
-                        grounded?: boolean; falsifiable?: boolean; engages?: boolean; weaknesses?: string[];
+                        grounded?: boolean; falsifiable?: boolean; engages?: boolean; topic_aligned?: boolean; weaknesses?: string[];
                       };
                       const indicators: [string, boolean | undefined][] = [
                         ['Grounded', wp.grounded],
                         ['Falsifiable', wp.falsifiable],
                         ['Engages', wp.engages],
+                        ['Topic Aligned', wp.topic_aligned],
                       ];
                       const allPass = indicators.every(([, v]) => v === true);
                       return (
@@ -6318,6 +6453,48 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           {draftQualityStage.parse_error && (
                             <div style={{ padding: '4px 6px', marginTop: 4, background: 'rgba(220,38,38,0.1)', borderLeft: '3px solid #dc2626', borderRadius: 3, fontSize: '0.66rem', color: '#dc2626' }}>
                               <strong>Parse error:</strong> {draftQualityStage.parse_error}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {/* ── Topic Alignment Detail ── */}
+                    {diag?.topic_alignment && (() => {
+                      const ta = diag.topic_alignment;
+                      const aligned = ta.topic_aligned;
+                      return (
+                        <div style={{
+                          margin: '10px 0 4px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
+                          background: aligned ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
+                          border: `1px solid ${aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.66rem' }}>Topic Alignment</span>
+                            <span style={{
+                              padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
+                              background: aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
+                              color: aligned ? '#16a34a' : '#dc2626',
+                            }}>{aligned ? 'ON-SCOPE' : 'OFF-SCOPE'}</span>
+                          </div>
+                          {ta.off_scope_items && ta.off_scope_items.length > 0 && (
+                            <div style={{ marginTop: 4 }}>
+                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Off-Scope Items</div>
+                              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
+                                {ta.off_scope_items.map((item: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{item}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {ta.drift_signals && ta.drift_signals.length > 0 && (
+                            <div style={{ marginTop: 4 }}>
+                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Drift Signals</div>
+                              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
+                                {ta.drift_signals.map((sig: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{sig}</li>)}
+                              </ul>
+                            </div>
+                          )}
+                          {ta.scope_used && (
+                            <div style={{ marginTop: 4, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
+                              Scope: {ta.scope_used.core_proposition?.slice(0, 80)}{(ta.scope_used.core_proposition?.length ?? 0) > 80 ? '…' : ''}
                             </div>
                           )}
                         </div>

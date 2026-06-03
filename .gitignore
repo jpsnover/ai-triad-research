@@ -33,6 +33,8 @@ secrets.json
 # Build output
 /build/
 taxonomy-editor/release/
+scripts/AITriad/Provider/bin/
+scripts/AITriad/Provider/obj/
 
 # Data — lives in ai-triad-data repo (see .aitriad.json)
 /taxonomy/Origin/

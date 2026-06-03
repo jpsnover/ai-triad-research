@@ -83,6 +83,9 @@ export type EventType =
   | 'lock.ttl_eviction'
   // Lineage
   | 'lineage.distribution'
+  // Topic scope
+  | 'topic_scope_extracted'
+  | 'topic_scope_extraction_failed'
   // System
   | 'system.error'
   | 'system.scaling_warning';

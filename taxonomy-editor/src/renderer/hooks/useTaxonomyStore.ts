@@ -56,7 +56,7 @@ export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama';
 
 export type GeminiModel =
   | 'gemini-flash-lite-latest'
@@ -79,7 +79,10 @@ export type OpenAIModel =
   | 'openai-gpt-5.5'
   | 'openai-gpt-5.5-pro';
 
-export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel;
+export type OllamaModel =
+  | 'ollama-gemma4-e4b-it-q4-k-m';
+
+export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | OllamaModel;
 
 export interface AIModelEntry { value: AIModel; label: string }
 
@@ -88,6 +91,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'claude', label: 'Anthropic Claude' },
   { value: 'groq', label: 'Groq' },
   { value: 'openai', label: 'OpenAI' },
+  { value: 'ollama', label: 'Ollama (Local)' },
 ];
 
 export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
@@ -113,6 +117,9 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'openai-gpt-5.5', label: 'GPT-5.5' },
     { value: 'openai-gpt-5.5-pro', label: 'GPT-5.5 Pro' },
   ],
+  ollama: [
+    { value: 'ollama-gemma4-e4b-it-q4-k-m', label: 'Gemma 4 E4B (default)' },
+  ],
 };
 
 /** @deprecated Use MODELS_BY_BACKEND.gemini instead */
@@ -127,12 +134,13 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   claude: 'claude-sonnet-4-6',
   groq: 'groq-llama-4-scout-17b-16e',
   openai: 'openai-gpt-5.5',
+  ollama: 'ollama-gemma4-e4b-it-q4-k-m',
 };
 
 function getStoredBackend(): AIBackend {
   try {
     const stored = localStorage.getItem('taxonomy-editor-ai-backend');
-    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai') return stored;
+    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai' || stored === 'ollama') return stored;
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI backend from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
   }
@@ -198,6 +206,7 @@ export function backendForModel(model: string): AIBackend {
   if (model.startsWith('gemini')) return 'gemini';
   if (model.startsWith('claude')) return 'claude';
   if (model.startsWith('groq')) return 'groq';
+  if (model.startsWith('ollama')) return 'ollama';
   return 'gemini';
 }
 

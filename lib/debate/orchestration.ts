@@ -269,6 +269,7 @@ export async function runModeratorSelection(
   const activeLabels = activePovers.map(p => poverInfo[p].label);
   const recentTranscript = formatRecentTranscript(
     transcript as TranscriptEntry[], 8, contextSummaries,
+    { includeTaxonomyRefs: false },
   );
 
   // Initialize or restore moderator state
@@ -367,7 +368,7 @@ export async function runModeratorSelection(
           poverInfo[validation.validated_target]?.label ?? validation.validated_target,
           'Automatic synthesis-phase COMMIT',
           undefined,
-          formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries),
+          formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries, { includeTaxonomyRefs: false }),
           audience,
           sourceDocSummary,
           resolution,
@@ -452,7 +453,7 @@ export async function runModeratorSelection(
             poverInfo[validation.validated_target]?.label ?? validation.validated_target,
             'Automatic policymaker POLICY_CHALLENGE — debaters converging on principles without addressing implementation',
             undefined,
-            formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries),
+            formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries, { includeTaxonomyRefs: false }),
             audience,
             sourceDocSummary,
             resolution,
@@ -637,7 +638,7 @@ export async function runModeratorSelection(
               poverInfo[validation.validated_target]?.label ?? validation.validated_target,
               selectionResultObj.trigger_reasoning ?? '',
               selectionResultObj.trigger_evidence?.source_claim,
-              formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries),
+              formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries, { includeTaxonomyRefs: false }),
               audience,
               sourceDocSummary,
               resolution,

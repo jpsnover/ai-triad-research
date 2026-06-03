@@ -16,6 +16,7 @@ import { getMoveName } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, CoverageMapEntry, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
+import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
 
 const AIF_TOOLTIPS = {
   'I-node': 'I-node (Information node) — a claim, proposition, or data point. These are the passive content of arguments: what is being asserted.',
@@ -185,6 +186,27 @@ function EntryView({ entryId }: { entryId: string }) {
       <div className="diag-entry-header">
         <span className="diag-entry-speaker">{speakerLabel(entry.speaker)}</span>
         <span className="diag-entry-type">{entry.type}</span>
+        {diag?.topic_alignment && (() => {
+          const ta = diag.topic_alignment;
+          let state: 'green' | 'amber' | 'red';
+          let label: string;
+          let tip: string;
+          if (!ta.topic_aligned && !ta.repaired) {
+            state = 'red'; label = 'off-scope'; tip = 'Topic alignment failed after all retries';
+          } else if (ta.repaired) {
+            state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
+          } else {
+            state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
+          }
+          const colors = { green: '#22c55e', amber: '#f59e0b', red: '#ef4444' };
+          const bgs = { green: 'rgba(34,197,94,0.15)', amber: 'rgba(245,158,11,0.15)', red: 'rgba(239,68,68,0.15)' };
+          return (
+            <span className="diag-badge" title={tip} style={{
+              fontSize: '0.5rem', cursor: 'help',
+              background: bgs[state], color: colors[state],
+            }}>{label}</span>
+          );
+        })()}
       </div>
 
       {/* Model & Timing */}
@@ -464,6 +486,40 @@ function EntryView({ entryId }: { entryId: string }) {
                     <span className="diag-badge diag-badge-type">{String((s.work_product as Record<string, unknown>).disagreement_type)}</span>
                   </div>
                 )}
+                {s.stage === 'draft' && diag?.topic_alignment && (
+                  <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid ${diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444'}40`, fontSize: '0.65rem' }}>
+                    <div className="diag-kv">
+                      <span className="diag-k">Topic aligned:</span>
+                      <span className="diag-badge" style={{
+                        fontSize: '0.5rem',
+                        background: diag.topic_alignment.topic_aligned ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444',
+                      }}>
+                        {diag.topic_alignment.topic_aligned ? 'yes' : 'no'}
+                      </span>
+                    </div>
+                    {(diag.topic_alignment.off_scope_items?.length ?? 0) > 0 && (
+                      <div style={{ marginTop: 2 }}>
+                        <span className="diag-k">Off-scope items:</span>
+                        <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                          {diag.topic_alignment.off_scope_items!.map((item, i) => (
+                            <li key={i} style={{ color: '#ef4444' }}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(diag.topic_alignment.drift_signals?.length ?? 0) > 0 && (
+                      <div style={{ marginTop: 2 }}>
+                        <span className="diag-k">Drift signals:</span>
+                        <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                          {diag.topic_alignment.drift_signals!.map((sig, i) => (
+                            <li key={i} style={{ color: '#f59e0b' }}>{sig}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {s.stage === 'cite' && typeof (s.work_product as Record<string, unknown>).grounding_confidence === 'number' && (
                   <div className="diag-kv" style={{ marginBottom: 4 }}>
                     <span className="diag-k">Grounding confidence:</span>
@@ -622,6 +678,34 @@ function EntryView({ entryId }: { entryId: string }) {
                           <div className="diag-v">{psb.keywords_matched.join(', ')}</div>
                         </div>
                       )}
+                    </div>
+                  );
+                })()}
+                {/* Scope Filter Trace (10.5) */}
+                {(manifest as Record<string, unknown>).scope_filter_trace && (() => {
+                  const sft = (manifest as Record<string, unknown>).scope_filter_trace as {
+                    demoted: { nodeId: string; reason: string; originalScore: number; newScore: number }[];
+                    restorations: string[];
+                  };
+                  const restoredSet = new Set(sft.restorations);
+                  return (
+                    <div style={{ marginBottom: 8 }}>
+                      <div className="diag-k" style={{ marginBottom: 4 }}>
+                        Scope Filter — {sft.demoted.length} demoted, {sft.restorations.length} restored
+                      </div>
+                      {sft.demoted.map(d => {
+                        const restored = restoredSet.has(d.nodeId);
+                        return (
+                          <div key={d.nodeId} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.65rem' }}>
+                            <span style={{ fontFamily: 'monospace', minWidth: 52, color: restored ? '#f59e0b' : '#ef4444' }}>{d.nodeId}</span>
+                            <span style={{ flex: 1, color: 'var(--text-muted)' }}>{d.reason}</span>
+                            <span style={{ minWidth: 60, textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.55rem' }}>
+                              {d.originalScore.toFixed(2)} → {d.newScore.toFixed(2)}
+                            </span>
+                            {restored && <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>restored</span>}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })()}
@@ -784,6 +868,15 @@ function EntryView({ entryId }: { entryId: string }) {
       {/* Full Prompt */}
       {diag?.prompt && (
         <CollapsibleSection title="Full Prompt Sent to AI">
+          {diag.prompt.includes('Scope reminder:') && (() => {
+            const match = diag.prompt.match(/Scope reminder:[^\n]*/);
+            if (!match) return null;
+            return (
+              <div style={{ marginBottom: 6, padding: '4px 8px', background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 4, fontSize: '0.65rem', color: '#06b6d4' }}>
+                <span className="diag-k" style={{ fontSize: '0.55rem' }}>Scope block:</span> {match[0]}
+              </div>
+            );
+          })()}
           <textarea readOnly className="diag-textarea" value={diag.prompt} />
         </CollapsibleSection>
       )}
@@ -1156,6 +1249,115 @@ function DocumentCoverageSection({ coverageMap, strengthWeighted, onSteerToClaim
   );
 }
 
+const RISK_COLORS: Record<TopicScopeRiskLevel, string> = {
+  low: '#22c55e', medium: '#f59e0b', high: '#ef4444', catastrophic: '#dc2626', unspecified: '#6b7280',
+};
+
+function TopicScopePanel({ scope }: { scope: TopicScope }) {
+  return (
+    <CollapsibleSection title="Topic Scope" defaultOpen>
+      <div className="diag-kv">
+        <span className="diag-k">Core proposition:</span>
+        <span className="diag-v">{scope.core_proposition}</span>
+      </div>
+
+      {scope.domain && (
+        <div className="diag-kv">
+          <span className="diag-k">Domain:</span>
+          <span className="diag-v">{scope.domain}</span>
+          {scope.product_type && <span className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem', marginLeft: 4 }}>{scope.product_type}</span>}
+          {scope.time_horizon && <span className="diag-muted" style={{ fontSize: '0.55rem', marginLeft: 4 }}>({scope.time_horizon})</span>}
+        </div>
+      )}
+
+      <div className="diag-kv" style={{ gap: 6 }}>
+        <span className="diag-badge" style={{ fontSize: '0.5rem', background: `${RISK_COLORS[scope.risk_level]}20`, color: RISK_COLORS[scope.risk_level] }}>
+          risk: {scope.risk_level}
+        </span>
+        <span className="diag-badge" style={{ fontSize: '0.5rem', background: scope.constraint_confidence === 'explicit' ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)', color: scope.constraint_confidence === 'explicit' ? '#22c55e' : '#f59e0b' }}>
+          {scope.constraint_confidence}
+        </span>
+      </div>
+
+      {scope.relevant_disciplines.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Disciplines:</span>
+          <div className="diag-badges">
+            {scope.relevant_disciplines.map(d => (
+              <span key={d} className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{d}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {scope.key_tensions.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Key tensions:</span>
+          <ol style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.65rem' }}>
+            {scope.key_tensions.map((t, i) => <li key={i}>{t}</li>)}
+          </ol>
+        </div>
+      )}
+
+      {scope.off_scope_topics.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Off-scope:</span>
+          <div className="diag-badges">
+            {scope.off_scope_topics.map(t => (
+              <span key={t} className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>{t}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {scope.drift_signatures.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Drift signatures:</span>
+          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.6rem', listStyle: 'disc' }}>
+            {scope.drift_signatures.map((d, i) => <li key={i} style={{ color: '#f59e0b' }}>{d}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {scope.example_ceiling && (
+        <div className="diag-kv" style={{ marginTop: 4 }}>
+          <span className="diag-k">Example ceiling:</span>
+          <span className="diag-v" style={{ fontSize: '0.65rem' }}>{scope.example_ceiling}</span>
+        </div>
+      )}
+
+      {scope.explicit_qualifiers.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Qualifiers:</span>
+          <div className="diag-badges">
+            {scope.explicit_qualifiers.map(q => (
+              <span key={q} className="diag-badge diag-badge-move" style={{ fontSize: '0.5rem' }}>{q}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {scope.excluded_scenarios.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span className="diag-k" style={{ fontSize: '0.6rem' }}>Excluded scenarios:</span>
+          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.6rem', listStyle: 'disc' }}>
+            {scope.excluded_scenarios.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {scope.on_scope_evidence.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span className="diag-k" style={{ fontSize: '0.6rem' }}>On-scope evidence:</span>
+          <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.6rem', listStyle: 'disc' }}>
+            {scope.on_scope_evidence.map((e, i) => <li key={i}>{e}</li>)}
+          </ul>
+        </div>
+      )}
+    </CollapsibleSection>
+  );
+}
+
 function OverviewView() {
   const { activeDebate, askQuestion, debateGenerating } = useDebateStore(
     useShallow(s => ({ activeDebate: s.activeDebate, askQuestion: s.askQuestion, debateGenerating: s.debateGenerating }))
@@ -1203,8 +1405,13 @@ function OverviewView() {
     }
   }, [coverageMap, an]);
 
+  const topicScope = activeDebate.topic?.scope as TopicScope | undefined;
+
   return (
     <div className="diag-overview">
+      {/* Topic Scope (10.2) */}
+      {topicScope && <TopicScopePanel scope={topicScope} />}
+
       {/* Strength Timeline (D-Q5) */}
       {timeline && timeline.length > 0 && an && (
         <StrengthTimeline timeline={timeline} nodes={an.nodes} />
@@ -1468,6 +1675,85 @@ function OverviewView() {
                 </div>
               ))}
             </div>
+          </CollapsibleSection>
+        );
+      })()}
+
+      {/* Drift Detection Trace (10.6) */}
+      {activeDebate.convergence_signals && activeDebate.convergence_signals.length > 0 && (() => {
+        const signals = activeDebate.convergence_signals!;
+        const arcoWarnings = signals.filter(s => s.arco?.drift_warning);
+        const highDrift = signals.filter(s => s.position_drift.drift > 0.3);
+        const recycled = signals.filter(s => s.argument_redundancy.semantically_recycled);
+        const offClause = signals.filter(s => s.clause_coverage?.no_clause_engaged);
+        const totalClauses = activeDebate.topic?.clauses?.length ?? 0;
+        const coveredSet = new Set<number>();
+        for (const s of signals) {
+          if (s.clause_coverage?.best_clause_id != null && !s.clause_coverage.no_clause_engaged) {
+            coveredSet.add(s.clause_coverage.best_clause_id);
+          }
+        }
+        const uncoveredCount = totalClauses > 0 ? totalClauses - coveredSet.size : 0;
+        const hasAny = arcoWarnings.length > 0 || highDrift.length > 0 || recycled.length > 0 || offClause.length > 0 || uncoveredCount > 0;
+        if (!hasAny) return null;
+
+        return (
+          <CollapsibleSection title={`Drift Detection — ${arcoWarnings.length + highDrift.length + recycled.length + offClause.length} signals`}>
+            {arcoWarnings.length > 0 && (
+              <div style={{ marginBottom: 6 }}>
+                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#ef4444' }}>ArCo Drift ({arcoWarnings.length} turns)</div>
+                {arcoWarnings.slice(-5).map(s => (
+                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
+                    <span className="diag-muted">R{s.round}</span>
+                    <span>{speakerLabel(s.speaker)}</span>
+                    <span style={{ color: '#ef4444' }}>ArCo={s.arco!.turn_similarity.toFixed(2)} (phase mean {s.arco!.phase_mean.toFixed(2)})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {highDrift.length > 0 && (
+              <div style={{ marginBottom: 6 }}>
+                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#f59e0b' }}>Position Drift ({highDrift.length} turns &gt; 0.30)</div>
+                {highDrift.slice(-5).map(s => (
+                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
+                    <span className="diag-muted">R{s.round}</span>
+                    <span>{speakerLabel(s.speaker)}</span>
+                    <span style={{ color: '#f59e0b' }}>drift={s.position_drift.drift.toFixed(2)} (overlap {s.position_drift.overlap_with_opening.toFixed(2)})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {recycled.length > 0 && (
+              <div style={{ marginBottom: 6 }}>
+                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#a855f7' }}>Argument Recycling ({recycled.length} turns)</div>
+                {recycled.slice(-5).map(s => (
+                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
+                    <span className="diag-muted">R{s.round}</span>
+                    <span>{speakerLabel(s.speaker)}</span>
+                    <span style={{ color: '#a855f7' }}>max sim={s.argument_redundancy.semantic_max_similarity?.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {offClause.length > 0 && (
+              <div style={{ marginBottom: 6 }}>
+                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#f59e0b' }}>Off-Clause Turns ({offClause.length})</div>
+                {offClause.slice(-5).map(s => (
+                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
+                    <span className="diag-muted">R{s.round}</span>
+                    <span>{speakerLabel(s.speaker)}</span>
+                    <span style={{ color: '#f59e0b' }}>no clause engaged (best sim {s.clause_coverage!.best_similarity.toFixed(2)})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {uncoveredCount > 0 && totalClauses > 0 && (
+              <div style={{ fontSize: '0.6rem' }}>
+                <span className="diag-k">Clause Coverage:</span>
+                <span className="diag-v" style={{ marginLeft: 4 }}>{coveredSet.size}/{totalClauses} covered</span>
+                <span style={{ color: '#f59e0b', marginLeft: 4 }}>({uncoveredCount} uncovered)</span>
+              </div>
+            )}
           </CollapsibleSection>
         );
       })()}

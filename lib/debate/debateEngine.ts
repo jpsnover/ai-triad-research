@@ -38,6 +38,8 @@ import type {
   DebatePacing,
   ConvergenceSignals as ConvergenceSignalsType,
   ProcessRewardEntry,
+  TopicScope,
+  TopicScopeRiskLevel,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
@@ -77,6 +79,12 @@ import {
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
   decomposeResolutionPrompt,
+  topicScopeExtractionPrompt,
+  setPromptCompact,
+  isCompactModel,
+  setTopicScope,
+  extractSpeakerVocabulary,
+  formatVocabularyExclusion,
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength, computeClaimTaxonomyAttribution } from './argumentNetwork.js';
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from './doctrinalAnchoring.js';
@@ -120,6 +128,7 @@ import {
   type RelevanceOptions,
   type ANClaimEmbedding,
   reScoreSituationsForCruxes,
+  filterByTopicConstraints,
 } from './taxonomyRelevance.js';
 import {
   generateId,
@@ -397,6 +406,9 @@ export class DebateEngine {
     }
     this.initSession();
 
+    // Route prompt directives based on model capability (t/331)
+    setPromptCompact(isCompactModel(this.config.model));
+
     // Embed doctrinal boundaries + compute anchoring (t/114)
     await this.setupDoctrinalAnchoring();
 
@@ -406,6 +418,10 @@ export class DebateEngine {
           this.config.sourceType !== 'document' && this.config.sourceType !== 'url' && this.config.sourceType !== 'situations') {
         await this.runTopicCritique();
       }
+
+      // Phase 0.75: Topic scope extraction (t/336 — foundation for topic-alignment enforcement)
+      await this.extractTopicScope();
+      setTopicScope(this.session.topic.scope ?? null);
 
       // Phase 1: Clarification (optional)
       if (this.config.enableClarification) {
@@ -607,13 +623,22 @@ export class DebateEngine {
     const adapter = this.adapter as ExtendedAIAdapter;
     if (!adapter.computeQueryEmbedding) return;
 
-    // Collect boundary strings per active POV
+    // Collect boundary strings per active POV, separated by type
     const boundaries: Record<string, string[]> = {};
+    const boundaryWeights: Record<string, number[]> = {};
+    const HARDCODED_WEIGHT = 1.0;
+    const SOFTCODED_WEIGHT = 0.7;
     for (const pover of this.config.activePovers) {
       const info = POVER_INFO[pover];
-      if (info?.doctrinal_boundaries?.length > 0) {
-        boundaries[info.pov] = info.doctrinal_boundaries;
-      }
+      if (!info?.boundaries) continue;
+      const { hardcoded, softcoded } = info.boundaries;
+      const allBoundaries = [...hardcoded, ...softcoded];
+      if (allBoundaries.length === 0) continue;
+      boundaries[info.pov] = allBoundaries;
+      boundaryWeights[info.pov] = [
+        ...hardcoded.map(() => HARDCODED_WEIGHT),
+        ...softcoded.map(() => SOFTCODED_WEIGHT),
+      ];
     }
     if (Object.keys(boundaries).length === 0) return;
 
@@ -636,8 +661,9 @@ export class DebateEngine {
       const beliefs = povNodes.filter(n => n.category === 'Beliefs');
       if (beliefs.length === 0) continue;
 
+      const weights = boundaryWeights[pov];
       const results = computeDoctrinalAnchoring(
-        beliefs, vectors, this.taxonomy.embeddings,
+        beliefs, vectors, this.taxonomy.embeddings, weights,
       );
 
       // Check for threshold anomalies
@@ -1365,7 +1391,21 @@ export class DebateEngine {
       };
     }
 
-    const scoredPov = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
+    const scoredPovRaw = selectRelevantNodes(ctx.povNodes, scores, relevanceOpts);
+    const constraintFilter = filterByTopicConstraints(scoredPovRaw, this.session.topic.scope);
+    const scoredPov = constraintFilter.nodes;
+
+    if (constraintFilter.demoted.length > 0 || constraintFilter.boosted.length > 0) {
+      getGlobalRecorder()?.record({
+        type: 'turn.taxonomy_inject', component: 'debateEngine', level: 'info',
+        message: `Topic constraint filter: ${constraintFilter.demoted.length} demoted, ${constraintFilter.boosted.length} boosted, ${constraintFilter.restorations.length} restored`,
+        data: {
+          demoted: constraintFilter.demoted,
+          boosted: constraintFilter.boosted,
+          restorations: constraintFilter.restorations,
+        },
+      });
+    }
 
     // Apply policymaker situation relevance boost before selection
     const sitScores = new Map(scores);
@@ -1426,6 +1466,15 @@ export class DebateEngine {
         promoted: lbResult.promotedCount,
         boostedNodeIds: lbResult.boostedNodeIds.slice(0, 20),
         promotedNodeIds: lbResult.promotedNodeIds.slice(0, 20),
+      };
+    }
+
+    // Log scope filter trace for diagnostics UI (10.5)
+    if (constraintFilter.demoted.length > 0 || constraintFilter.boosted.length > 0 || constraintFilter.restorations.length > 0) {
+      (this._lastInjectionManifest as Record<string, unknown>).scope_filter_trace = {
+        demoted: constraintFilter.demoted,
+        boosted: constraintFilter.boosted,
+        restorations: constraintFilter.restorations,
       };
     }
 
@@ -1716,6 +1765,72 @@ export class DebateEngine {
       }
     } catch (err) {
       this.warn('Topic critique', err, 'Topic quality evaluation skipped — does not affect debate flow');
+    }
+  }
+
+  // ── Phase: Topic Scope Extraction (t/336) ──────────────────
+  private async extractTopicScope(): Promise<void> {
+    if (this.session.topic.scope) return;
+
+    this.progress('setup', undefined, 'Extracting topic scope');
+
+    try {
+      const prompt = topicScopeExtractionPrompt(this.session.topic.final);
+      const text = await this.generate(prompt, 'Topic scope extraction');
+      const parsed = parseJsonRobust(text) as Record<string, unknown> | null;
+      if (!parsed || typeof parsed !== 'object') {
+        this.warn('Topic scope extraction', 'LLM returned unparseable response', 'Scope extraction skipped — debate continues without scope enforcement');
+        return;
+      }
+
+      const validRiskLevels: TopicScopeRiskLevel[] = ['low', 'medium', 'high', 'catastrophic', 'unspecified'];
+      const riskLevel = validRiskLevels.includes(parsed.risk_level as TopicScopeRiskLevel)
+        ? parsed.risk_level as TopicScopeRiskLevel
+        : 'unspecified';
+
+      const toStringArray = (v: unknown): string[] =>
+        Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : [];
+
+      const scope: TopicScope = {
+        core_proposition: typeof parsed.core_proposition === 'string' ? parsed.core_proposition : this.session.topic.final,
+        relevant_disciplines: toStringArray(parsed.relevant_disciplines),
+        on_scope_evidence: toStringArray(parsed.on_scope_evidence),
+        key_tensions: toStringArray(parsed.key_tensions),
+        off_scope_topics: toStringArray(parsed.off_scope_topics),
+        drift_signatures: toStringArray(parsed.drift_signatures),
+        example_ceiling: typeof parsed.example_ceiling === 'string' ? parsed.example_ceiling : '',
+        risk_level: riskLevel,
+        domain: typeof parsed.domain === 'string' ? parsed.domain : '',
+        product_type: typeof parsed.product_type === 'string' ? parsed.product_type : null,
+        time_horizon: typeof parsed.time_horizon === 'string' ? parsed.time_horizon : null,
+        excluded_scenarios: toStringArray(parsed.excluded_scenarios),
+        explicit_qualifiers: toStringArray(parsed.explicit_qualifiers),
+        constraint_confidence: parsed.constraint_confidence === 'explicit' ? 'explicit' : 'inferred',
+      };
+
+      if (scope.off_scope_topics.length < 3 || scope.drift_signatures.length < 2) {
+        this.warn('Topic scope extraction', `Sparse output: ${scope.off_scope_topics.length} off_scope_topics, ${scope.drift_signatures.length} drift_signatures`, 'Scope stored but enforcement may be weak');
+      }
+
+      this.session.topic.scope = scope;
+      this.progress('setup', undefined, `Topic scope extracted (${scope.constraint_confidence}, ${scope.off_scope_topics.length} off-scope, ${scope.drift_signatures.length} drift sigs)`);
+      getGlobalRecorder()?.record({
+        type: 'topic_scope_extracted', component: 'debateEngine', level: 'info',
+        message: `Topic scope extracted (${scope.constraint_confidence})`,
+        data: {
+          core_proposition: scope.core_proposition,
+          risk_level: scope.risk_level,
+          off_scope_count: scope.off_scope_topics.length,
+          drift_sig_count: scope.drift_signatures.length,
+          constraint_confidence: scope.constraint_confidence,
+        },
+      });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'topic_scope_extraction_failed', component: 'debateEngine', level: 'warn',
+        message: `Topic scope extraction failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      this.warn('Topic scope extraction', err, 'Scope extraction skipped — debate continues without scope enforcement');
     }
   }
 
@@ -2097,7 +2212,6 @@ export class DebateEngine {
         audience: this.config.audience,
         model: this.config.model,
         userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
-        doctrinalBoundaries: info.doctrinal_boundaries,
         availablePovNodeIds: [...this.getKnownNodeIds()],
         ...(this.config.temperature != null ? {
           stageTemperatures: {
@@ -2712,6 +2826,9 @@ export class DebateEngine {
     const priorIgnoredDocIds = (priorSamePoV?.metadata as Record<string, unknown> | undefined)
       ?.ignored_evidence_doc_ids as string[] | undefined;
 
+    const vocabTerms = extractSpeakerVocabulary(this.session.transcript, responder);
+    const vocabularyExclusion = formatVocabularyExclusion(vocabTerms);
+
     const pipelineInput: TurnPipelineInput = {
       label: info.label,
       pov: info.pov,
@@ -2733,7 +2850,8 @@ export class DebateEngine {
       availablePolicyIds: [...this.getPolicyIds()],
       crossPovNodeIds,
       priorFlaggedHints,
-      doctrinalBoundaries: info.doctrinal_boundaries,
+      vocabularyExclusion,
+      topicScope: this.session.topic.scope ?? undefined,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
@@ -2923,6 +3041,14 @@ export class DebateEngine {
       commitment_context: commitmentContext,
       stage_diagnostics: pipelineResult.stage_diagnostics,
       edges_used: responderEdgesUsed,
+      topic_alignment: pipelineResult.topicAlignmentResult
+        ? {
+            topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
+            off_scope_items: this.session.topic.scope?.off_scope_topics,
+            drift_signals: this.session.topic.scope?.drift_signatures,
+            scope_used: this.session.topic.scope ?? null,
+          }
+        : undefined,
     });
 
     // Track move types and disagreement types

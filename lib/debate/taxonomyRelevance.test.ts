@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { selectRelevantNodes, selectRelevantSituationNodes, computePolicymakerRelevanceBoost } from './taxonomyRelevance.js';
-import type { LineageBoostConfig, LineageBoostResult, RelevanceOptions } from './taxonomyRelevance.js';
+import { selectRelevantNodes, selectRelevantSituationNodes, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
+import type { LineageBoostConfig, LineageBoostResult, RelevanceOptions, ScoredPovNode } from './taxonomyRelevance.js';
+import type { TopicScope } from './types.js';
 import type { PovNode, Category, SituationNode } from './taxonomyTypes.js';
 
 // ── Helpers ──────────────────────────────────────────────
@@ -342,5 +343,102 @@ describe('selectRelevantSituationNodes — divergence penalty', () => {
     const scores = new Map([['sit-001', 0.55]]);
     const result = selectRelevantSituationNodes(nodes, scores, 0.48, 0, 10);
     expect(result[0].score).toBe(0.55); // backward compatible
+  });
+});
+
+// ── filterByTopicConstraints — discipline boost ─────────────────
+
+describe('filterByTopicConstraints — discipline boost', () => {
+  function makeScoredNode(id: string, label: string, description: string, score: number, category: Category = 'Beliefs'): ScoredPovNode {
+    return { node: { ...makeNode(id, category), label, description }, score };
+  }
+
+  function makeScope(overrides: Partial<TopicScope> = {}): TopicScope {
+    return {
+      core_proposition: 'AI hiring tools in low-risk consumer products',
+      relevant_disciplines: ['labor economics', 'employment law'],
+      on_scope_evidence: [],
+      key_tensions: [],
+      off_scope_topics: [],
+      drift_signatures: [],
+      example_ceiling: 'job application rejection',
+      risk_level: 'low',
+      domain: 'employment',
+      product_type: null,
+      time_horizon: null,
+      excluded_scenarios: [],
+      explicit_qualifiers: [],
+      constraint_confidence: 'inferred',
+      ...overrides,
+    };
+  }
+
+  it('boosts nodes matching 2+ discipline terms', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Labor market dynamics', 'Labor economics and employment patterns in automated hiring', 0.6),
+      makeScoredNode('acc-beliefs-002', 'General AI progress', 'Advances in transformer architecture and compute scaling', 0.5),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope());
+    expect(result.boosted).toHaveLength(1);
+    expect(result.boosted[0].nodeId).toBe('acc-beliefs-001');
+    expect(result.boosted[0].originalScore).toBe(0.6);
+    expect(result.boosted[0].newScore).toBeCloseTo(0.72);
+    expect(result.boosted[0].matchedTerms).toContain('labor');
+    const boostedNode = result.nodes.find(n => n.node.id === 'acc-beliefs-001');
+    expect(boostedNode!.score).toBeCloseTo(0.72);
+  });
+
+  it('does not boost with fewer than 2 matching terms', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Market trends', 'General economics overview of tech markets', 0.6),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope());
+    expect(result.boosted).toHaveLength(0);
+    expect(result.nodes[0].score).toBe(0.6);
+  });
+
+  it('respects custom boostFactor config', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Labor market dynamics', 'Labor economics and employment law compliance', 0.5),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope(), { boostFactor: 1.5 });
+    expect(result.boosted[0].newScore).toBeCloseTo(0.75);
+  });
+
+  it('demotion takes priority over boost', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Fatal labor catastrophe', 'Catastrophic death toll in labor economics employment markets', 0.6),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope({ risk_level: 'low' }));
+    expect(result.demoted).toHaveLength(1);
+    expect(result.boosted).toHaveLength(0);
+  });
+
+  it('returns empty boosted when scope is null', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Labor trends', 'Labor economics patterns', 0.6),
+    ];
+    const result = filterByTopicConstraints(nodes, null);
+    expect(result.boosted).toHaveLength(0);
+    expect(result.nodes[0].score).toBe(0.6);
+  });
+
+  it('returns empty boosted when relevant_disciplines is empty', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Labor trends', 'Labor economics patterns', 0.6),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope({ relevant_disciplines: [] }));
+    expect(result.boosted).toHaveLength(0);
+  });
+
+  it('sorts results by score descending after boost', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'General AI', 'Transformer architecture', 0.7),
+      makeScoredNode('acc-beliefs-002', 'Hiring law', 'Employment law and labor economics compliance', 0.5),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope());
+    expect(result.nodes[0].node.id).toBe('acc-beliefs-001');
+    expect(result.nodes[1].node.id).toBe('acc-beliefs-002');
+    expect(result.nodes[1].score).toBeCloseTo(0.6);
   });
 });
