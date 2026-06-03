@@ -1,15 +1,15 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { SoulDocumentSchema, type SoulDocument } from './soulDocSchema.js';
+import type { SoulDocument } from './soulDocSchema.js';
 import type { SpeakerId, PovInfo } from './types.js';
 import accSoulDoc from './soul-docs/accelerationist.soul.json' with { type: 'json' };
 import safSoulDoc from './soul-docs/safetyist.soul.json' with { type: 'json' };
 import skpSoulDoc from './soul-docs/skeptic.soul.json' with { type: 'json' };
 
-const _accSoul = SoulDocumentSchema.parse(accSoulDoc);
-const _safSoul = SoulDocumentSchema.parse(safSoulDoc);
-const _skpSoul = SoulDocumentSchema.parse(skpSoulDoc);
+const _accSoul = accSoulDoc as unknown as SoulDocument;
+const _safSoul = safSoulDoc as unknown as SoulDocument;
+const _skpSoul = skpSoulDoc as unknown as SoulDocument;
 
 function soulDocToPovInfo(doc: SoulDocument): PovInfo {
   return {
