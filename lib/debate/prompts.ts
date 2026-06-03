@@ -3693,6 +3693,8 @@ function getMoveSpecificInstructions(move: InterventionMove, target: string, sou
       return `Ask ${target} for their single most important reason in one sentence (max 40 words).`;
     case 'COMMIT':
       return `Ask ${target} for their final position. They must state: (1) what they conceded during the debate, (2) what conditions would change their remaining position, (3) their sharpest remaining disagreement with each opponent.`;
+    case 'CRUX_FOCUS':
+      return `Focus ${target} on the core disagreement that neither side has been able to resolve. Ask them to name the specific evidence or value commitment that would change their position.`;
   }
 }
 

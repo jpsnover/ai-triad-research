@@ -12,6 +12,7 @@ import { SearchPreview } from './SearchPreview';
 import { FallacyDetailPanel } from './FallacyPanel';
 import { PromptDetailPanel } from './PromptsPanel';
 import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
 import { POV_KEYS } from '@lib/debate/types';
@@ -64,6 +65,8 @@ export function ConflictsTab() {
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
+  const breakpoint = useBreakpoint();
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
   const [collapsedClusters, setCollapsedClusters] = useState<Set<string>>(() => loadCollapsedClusters());
   const initialCollapseApplied = useRef(false);
 
@@ -234,7 +237,7 @@ export function ConflictsTab() {
   };
 
   return (
-    <div className="two-column">
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId ? ' has-selection' : ''}`}>
       {fullWidth ? (
         <div className="list-panel list-panel-full">
           <ToolbarPaneRenderer
@@ -330,9 +333,17 @@ export function ConflictsTab() {
         </div>
       ) : (
         <div className="detail-panel">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-            <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
-          </div>
+          {isPhone && selectedNodeId ? (
+            <div className="phone-detail-header">
+              <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
+                &larr; Conflicts
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+            </div>
+          )}
           {selectedConflict ? (
             <ConflictDetail conflict={selectedConflict} onPin={handlePin} />
           ) : (

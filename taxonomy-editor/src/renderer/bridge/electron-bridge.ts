@@ -172,7 +172,13 @@ export const api: AppAPI = {
   openFlightRecorderViewer: (dumpPath) => window.electronAPI.openFlightRecorderViewer(dumpPath),
 
   // Diagnostics
-  openDiagnosticsWindow: () => window.electronAPI.openDiagnosticsWindow(),
+  openDiagnosticsWindow: () => {
+    if (window.innerWidth <= 1023) {
+      window.dispatchEvent(new CustomEvent('open-diagnostics-drawer'));
+      return Promise.resolve();
+    }
+    return window.electronAPI.openDiagnosticsWindow();
+  },
   openPovProgressionWindow: () => window.electronAPI.openPovProgressionWindow(),
   closeDiagnosticsWindow: () => window.electronAPI.closeDiagnosticsWindow(),
   sendDiagnosticsState: (s) => window.electronAPI.sendDiagnosticsState(s),

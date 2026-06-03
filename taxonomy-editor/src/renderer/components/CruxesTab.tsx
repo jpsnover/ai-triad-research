@@ -10,6 +10,7 @@ import { SearchPreview } from './SearchPreview';
 import { FallacyDetailPanel } from './FallacyPanel';
 import { PromptDetailPanel } from './PromptsPanel';
 import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
 
@@ -42,6 +43,8 @@ export function CruxesTab() {
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
+  const breakpoint = useBreakpoint();
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
 
   const cruxes = aggregatedCruxes ?? [];
 
@@ -105,7 +108,7 @@ export function CruxesTab() {
   }, [cruxes]);
 
   return (
-    <div className="two-column">
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId ? ' has-selection' : ''}`}>
       {fullWidth ? (
         <div className="list-panel list-panel-full">
           <ToolbarPaneRenderer
@@ -209,9 +212,17 @@ export function CruxesTab() {
         </div>
       ) : (
         <div className="detail-panel">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-            <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
-          </div>
+          {isPhone && selectedNodeId ? (
+            <div className="phone-detail-header">
+              <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
+                &larr; Cruxes
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+              <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+            </div>
+          )}
           {selectedCrux ? (
             <CruxDetail crux={selectedCrux} onDebateClick={handleDebateClick} onNodeClick={handleNodeClick} />
           ) : (

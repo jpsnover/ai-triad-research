@@ -14,6 +14,7 @@ import { PinnedPanel } from './PinnedPanel';
 import { SearchPreview } from './SearchPreview';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
 import { POV_KEYS } from '@lib/debate/types';
@@ -88,6 +89,8 @@ export function SituationsTab() {
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { width, onMouseDown } = useResizablePanel();
+  const breakpoint = useBreakpoint();
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
   const { width: edgeDetailWidth, onMouseDown: onEdgeDetailResize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-edge-detail-width',
     defaultWidth: 480,
@@ -345,7 +348,7 @@ export function SituationsTab() {
   };
 
   return (
-    <div className="two-column">
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId ? ' has-selection' : ''}`}>
       {/* Pane 1: Node list OR promoted toolbar panel */}
       {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? (
         <div className="list-panel list-panel-full">
@@ -517,9 +520,17 @@ export function SituationsTab() {
             </div>
           ) : (
             <div className="detail-panel">
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
-                <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
-              </div>
+              {isPhone && selectedNodeId ? (
+                <div className="phone-detail-header">
+                  <button className="phone-detail-back" onClick={() => setSelectedNodeId('')}>
+                    &larr; Situations
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+                  <button className="pane-collapse-btn" onClick={() => setDetailCollapsed(true)} title="Collapse">&lsaquo;</button>
+                </div>
+              )}
               {selectedNode ? (
                 <SituationDetail node={selectedNode} onPin={handlePin} onRelated={handleRelated} onDebate={handleDebate} />
               ) : (

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useChatStore } from '../hooks/useChatStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../hooks/useResizablePanel';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { NewChatDialog } from './NewChatDialog';
 import { ChatWorkspace } from './ChatWorkspace';
 import { SearchPreview } from './SearchPreview';
@@ -33,6 +34,8 @@ export function ChatTab() {
   } = useChatStore();
   const { toolbarPanel } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
+  const breakpoint = useBreakpoint();
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
@@ -58,7 +61,7 @@ export function ChatTab() {
   };
 
   return (
-    <div className="two-column">
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${(isPhone && activeChatId) ? ' has-selection' : ''}`}>
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
         <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
@@ -191,6 +194,13 @@ export function ChatTab() {
         <>
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel chat-workspace-container">
+            {isPhone && activeChatId && (
+              <div className="phone-detail-header">
+                <button className="phone-detail-back" onClick={() => useChatStore.setState({ activeChatId: null, activeChat: null, chatModel: null })}>
+                  &larr; Chats
+                </button>
+              </div>
+            )}
             <ChatWorkspace />
           </div>
         </>

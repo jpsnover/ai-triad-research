@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../hooks/useResizablePanel';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 import { api } from '@bridge';
 import type { Pov, Category } from '../types/taxonomy';
 
@@ -105,6 +106,8 @@ const CATEGORY_MAP: Record<string, Category> = {
 export function SummariesTab() {
   const { getLabelForId, navigateToNode, setActiveTab, createPovNode, updatePovNode } = useTaxonomyStore();
   const { width: listWidth, onMouseDown } = useResizablePanel();
+  const breakpoint = useBreakpoint();
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
 
   // Sources
   const [sources, setSources] = useState<SourceInfo[]>([]);
@@ -225,7 +228,7 @@ export function SummariesTab() {
   }, [setActiveTab, navigateToNode]);
 
   return (
-    <div className="two-column">
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedSourceId ? ' has-selection' : ''}`}>
       {/* ── Pane 1: Source List ── */}
       <div className="list-panel" style={{ width: listWidth, minWidth: 200 }}>
         <div className="panel-header">
@@ -307,6 +310,13 @@ export function SummariesTab() {
 
       {/* ── Pane 2: Summary Detail ── */}
       <div className="detail-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {isPhone && selectedSourceId && (
+          <div className="phone-detail-header">
+            <button className="phone-detail-back" onClick={() => setSelectedSourceId(null)}>
+              &larr; Sources
+            </button>
+          </div>
+        )}
         {!selectedSourceId ? (
           <div className="panel-empty" style={{ padding: 20 }}>Select a source document to view its summary.</div>
         ) : summaryLoading ? (
