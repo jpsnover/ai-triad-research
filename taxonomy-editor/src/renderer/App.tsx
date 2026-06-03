@@ -28,6 +28,8 @@ import { CruxesTab } from './components/CruxesTab';
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { initAnalytics } from './lib/analyticsEmitter';
+import { useBreakpoint } from './hooks/useBreakpoint';
+import { useIsTouchDevice } from './hooks/useIsTouchDevice';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { GitProgressBanner } from './components/GitProgressBanner';
 import { pullDataTracked } from './utils/syncApi';
@@ -148,6 +150,8 @@ function AppRouter() {
 /** Main taxonomy editor application */
 function MainApp() {
   const { activeTab, loading, backgroundLoading, loadingProgress, loadAll, colorScheme, paneSpacing, zoomLevel, zoomIn, zoomOut, zoomReset, toolbarPanel } = useTaxonomyStore();
+  const breakpoint = useBreakpoint();
+  const isTouch = useIsTouchDevice();
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<string | null>(null);
@@ -351,6 +355,14 @@ function MainApp() {
   useEffect(() => {
     document.documentElement.setAttribute('data-pane-spacing', paneSpacing);
   }, [paneSpacing]);
+
+  // Apply responsive breakpoint and touch attributes
+  useEffect(() => {
+    document.documentElement.setAttribute('data-breakpoint', breakpoint);
+  }, [breakpoint]);
+  useEffect(() => {
+    document.documentElement.setAttribute('data-touch', String(isTouch));
+  }, [isTouch]);
 
   // Zoom keyboard shortcuts: Ctrl+= / Ctrl+- / Ctrl+0
   useEffect(() => {
