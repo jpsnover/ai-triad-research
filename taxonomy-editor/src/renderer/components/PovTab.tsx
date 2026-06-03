@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useMobileNav } from '../hooks/useMobileNav';
 import type { Pov, Category, PovNode } from '../types/taxonomy';
 import { PROMPT_CATALOG, type PromptCatalogEntry } from '../data/promptCatalog';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -83,21 +84,24 @@ function computeSeeAlso(
 /** Extracted from PovTab IIFE to avoid conditional hook calls (React Rules of Hooks). */
 function DoctrinalBoundariesSection({ pov }: { pov: string }) {
   const speakerKey = POV_TO_SPEAKER[pov.toLowerCase()];
-  const boundaries = speakerKey ? POVER_INFO[speakerKey]?.doctrinal_boundaries : undefined;
+  const info = speakerKey ? POVER_INFO[speakerKey] : undefined;
+  const hardcoded = info?.boundaries?.hardcoded ?? [];
+  const softcoded = info?.boundaries?.softcoded ?? [];
+  const total = hardcoded.length + softcoded.length;
   const storageKey = `doctrinal-boundaries-collapsed-${pov}`;
   const [collapsed, setCollapsed] = useState(() => {
     const stored = localStorage.getItem(storageKey);
     return stored !== null ? stored === 'true' : true;
   });
 
-  if (!boundaries || boundaries.length === 0) return null;
+  if (total === 0) return null;
 
   const toggleCollapsed = () => {
     const next = !collapsed;
     setCollapsed(next);
     localStorage.setItem(storageKey, String(next));
   };
-  const accentColor = POVER_INFO[speakerKey!].color;
+  const countLabel = `${hardcoded.length} hardcoded, ${softcoded.length} softcoded`;
   return (
     <div className="doctrinal-boundaries">
       <button
@@ -106,16 +110,32 @@ function DoctrinalBoundariesSection({ pov }: { pov: string }) {
         aria-expanded={!collapsed}
       >
         <span className="doctrinal-boundaries-arrow">{collapsed ? '\u25B8' : '\u25BE'}</span>
-        <span className="doctrinal-boundaries-label">Doctrinal Boundaries ({boundaries.length})</span>
+        <span className="doctrinal-boundaries-label">Doctrinal Boundaries ({countLabel})</span>
       </button>
       {!collapsed && (
         <div className="doctrinal-boundaries-items">
-          {boundaries.map((b, i) => (
-            <div key={i} className="doctrinal-boundaries-item">
-              <span aria-hidden="true" style={{ color: accentColor }}>✕</span>
-              <span>{b}</span>
+          {hardcoded.length > 0 && (
+            <div className="doctrinal-boundaries-group">
+              <div className="doctrinal-boundaries-group-label hardcoded">Identity (never concede)</div>
+              {hardcoded.map((b, i) => (
+                <div key={`h-${i}`} className="doctrinal-boundaries-item hardcoded">
+                  <span aria-hidden="true" className="boundary-icon hardcoded">{'✕'}</span>
+                  <span>{b}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+          {softcoded.length > 0 && (
+            <div className="doctrinal-boundaries-group">
+              <div className="doctrinal-boundaries-group-label softcoded">Default (can evolve)</div>
+              {softcoded.map((b, i) => (
+                <div key={`s-${i}`} className="doctrinal-boundaries-item softcoded">
+                  <span aria-hidden="true" className="boundary-icon softcoded">~</span>
+                  <span>{b}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -173,6 +193,8 @@ export function PovTab({ pov }: PovTabProps) {
   const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
   const [mobileListOpen, setMobileListOpen] = useState(false);
   const listPanelRef = useRef<HTMLDivElement>(null);
+  const detailPanelRef = useRef<HTMLDivElement>(null);
+  const nav = useMobileNav();
   const { width, onMouseDown, onTouchStart } = useResizablePanel();
   const { width: pane3Width, onMouseDown: onPane3Resize } = useResizableRightPanel({
     storageKey: 'taxonomy-editor-analysis-panel-width',
@@ -212,10 +234,63 @@ export function PovTab({ pov }: PovTabProps) {
   }, [sortMode, pov]);
   useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
 
+  // Sync nav stack with external selectedNodeId changes
+  useEffect(() => {
+    if (!nav.isActive) return;
+    if (selectedNodeId && nav.current.view !== 'detail') {
+      nav.push({ view: 'detail', id: selectedNodeId });
+    }
+  }, [selectedNodeId]);
+
   // Close phone list overlay when a node is selected
   useEffect(() => {
     if (isPhone && selectedNodeId) setMobileListOpen(false);
   }, [selectedNodeId]);
+
+  // Swipe-right on detail panel → pop back to list
+  useEffect(() => {
+    if (!nav.isActive || !selectedNodeId) return;
+    const el = detailPanelRef.current;
+    if (!el) return;
+    let sx = 0, sy = 0;
+    const onStart = (e: TouchEvent) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; };
+    const onEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - sy);
+      if (dx > 50 && dy < 30) {
+        const entry = nav.pop();
+        setSelectedNodeId(entry.view === 'detail' && entry.id ? entry.id : null);
+      }
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchend', onEnd); };
+  }, [nav.isActive, selectedNodeId, nav.pop, setSelectedNodeId]);
+
+  // Swipe left/right on list view → switch POV tab
+  useEffect(() => {
+    if (!isPhone || selectedNodeId) return;
+    const el = listPanelRef.current;
+    if (!el) return;
+    const povOrder = ['accelerationist', 'safetyist', 'skeptic'] as const;
+    const idx = povOrder.indexOf(pov as typeof povOrder[number]);
+    if (idx < 0) return;
+    let sx = 0, sy = 0;
+    const onStart = (e: TouchEvent) => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; };
+    const onEnd = (e: TouchEvent) => {
+      const dx = e.changedTouches[0].clientX - sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - sy);
+      if (Math.abs(dx) < 50 || dy > 30) return;
+      if (dx < -50 && idx < povOrder.length - 1) {
+        setActiveTab(povOrder[idx + 1]);
+      } else if (dx > 50 && idx > 0) {
+        setActiveTab(povOrder[idx - 1]);
+      }
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchend', onEnd, { passive: true });
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchend', onEnd); };
+  }, [isPhone, selectedNodeId, pov, setActiveTab]);
 
   // Swipe-to-dismiss on phone list overlay
   useEffect(() => {
@@ -681,7 +756,7 @@ export function PovTab({ pov }: PovTabProps) {
             <NodeTree
               nodes={file.nodes}
               selectedNodeId={selectedNodeId}
-              onSelect={setSelectedNodeId}
+              onSelect={(id: string) => { nav.push({ view: 'detail', id }); setSelectedNodeId(id); }}
               sortMode={sortMode}
               similarScores={similarScoresMap}
               clusters={clusterGroups}
@@ -743,10 +818,10 @@ export function PovTab({ pov }: PovTabProps) {
               <span className="pane-collapsed-label">Detail</span>
             </div>
           ) : (
-            <div className="detail-panel" data-cat={selectedNode?.category}>
+            <div className="detail-panel" ref={detailPanelRef} data-cat={selectedNode?.category}>
               {isPhone && selectedNode ? (
                 <div className="phone-detail-header">
-                  <button className="phone-detail-back" onClick={() => setSelectedNodeId(null)} title="Back to list">
+                  <button className="phone-detail-back" onClick={() => { const entry = nav.pop(); setSelectedNodeId(entry.view === 'detail' && entry.id ? entry.id : null); }} title="Back to list">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                     Back
                   </button>

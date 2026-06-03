@@ -1844,7 +1844,7 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
         ) : (
           <span style={{ width: 10, flexShrink: 0 }} />
         )}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
+        <div className="diag-claim-row" style={{ flex: 1, display: 'grid', gridTemplateColumns: '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
           {/* Col 1: AN ID + Statement ID */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <strong title={`Argument Network node ${node.id.replace('AN-', '')}${statementId ? `, extracted from debate statement ${statementId}` : ''}`} style={{ color: 'var(--accent)' }}><Highlight text={node.id} /></strong>
@@ -1982,7 +1982,7 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
             const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
               <div key={a.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
+                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>CA-node</span>
                   <span>← {a.source}</span>
                   <strong>{a.attack_type}</strong>
@@ -2025,7 +2025,7 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
             const contributionS = srcStrS != null ? srcStrS * edgeWeightS : undefined;
             return (
               <div key={s.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
+                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>RA-node</span>
                   <span>← {s.source}</span>
                   <strong>supports</strong>

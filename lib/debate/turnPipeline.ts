@@ -195,6 +195,8 @@ export interface TurnPipelineInput {
   suppressedHints?: ReadonlySet<string>;
   vocabularyExclusion?: string;
   topicScope?: import('./types.js').TopicScope;
+  /** Prior crux context from cross-debate registry — injected into Brief stage. */
+  priorCruxContext?: string;
 }
 
 export type StageGenerateFn = (
@@ -268,6 +270,7 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     avoidClaims: input.avoidClaims,
     preserveConcessions: input.preserveConcessions,
     vocabularyExclusion: input.vocabularyExclusion,
+    priorCruxContext: input.priorCruxContext,
   };
 }
 

@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { triggerManualDump } from '../lib/flightRecorderInit';
 import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
 import { SyncDiagnosticsDialog } from './SyncDiagnosticsDialog';
@@ -17,6 +18,7 @@ function formatFileKey(key: string): string {
 
 export function SaveBar() {
   const { dirty, save, saveError, dismissSaveError, validationErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
+  const isOnline = useOnlineStatus();
   const isDirty = dirty.size > 0;
   const [showErrors, setShowErrors] = useState(false);
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
@@ -69,6 +71,7 @@ export function SaveBar() {
 
   return (
     <div className="save-bar">
+      {!isOnline && <span className="save-bar-offline">Offline</span>}
       <span className={`save-bar-status ${isDirty ? 'dirty' : ''}`}>
         {isDirty
           ? `Unsaved: ${dirtyList}`

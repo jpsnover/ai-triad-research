@@ -985,6 +985,38 @@ export interface TrackedCrux {
   support_polarity: number;
 }
 
+// ── Cross-debate crux registry types (Area 2) ───────
+
+export interface CruxOccurrence {
+  debate_id: string;
+  debate_topic: string;
+  date: string;
+  an_id: string;
+  final_state: CruxResolutionState;
+  turns_engaged: number;
+  intervention_issued: boolean;
+  resolved_post_intervention: boolean;
+  model: string;
+}
+
+export interface CruxRegistryEntry {
+  id: string;
+  description: string;
+  embedding: number[];
+  disagreement_type: 'empirical' | 'values' | 'definitional';
+  first_seen_debate: string;
+  first_seen_date: string;
+  occurrences: CruxOccurrence[];
+  related_taxonomy_nodes: string[];
+  promoted_to_situation: string | null;
+}
+
+export interface CruxRegistry {
+  version: 1;
+  entries: CruxRegistryEntry[];
+  last_updated: string;
+}
+
 // ── Convergence radar types ──────────────────────────
 
 export interface ConvergenceIssue {
@@ -1644,7 +1676,7 @@ export type InterventionMove =
   | 'PIN' | 'PROBE' | 'CHALLENGE'
   | 'CLARIFY' | 'CHECK' | 'SUMMARIZE'
   | 'ACKNOWLEDGE' | 'REVOICE'
-  | 'POLICY_CHALLENGE'
+  | 'POLICY_CHALLENGE' | 'CRUX_FOCUS'
   | 'META-REFLECT'
   | 'COMPRESS' | 'COMMIT';
 
@@ -1656,7 +1688,7 @@ export type InteractionalForce =
 
 export const MOVE_TO_FAMILY: Record<InterventionMove, InterventionFamily> = {
   REDIRECT: 'procedural', BALANCE: 'procedural', SEQUENCE: 'procedural',
-  PIN: 'elicitation', PROBE: 'elicitation', CHALLENGE: 'elicitation',
+  PIN: 'elicitation', PROBE: 'elicitation', CHALLENGE: 'elicitation', CRUX_FOCUS: 'elicitation',
   CLARIFY: 'repair', CHECK: 'repair', SUMMARIZE: 'repair',
   ACKNOWLEDGE: 'reconciliation', REVOICE: 'reconciliation',
   POLICY_CHALLENGE: 'elicitation',
@@ -1666,7 +1698,7 @@ export const MOVE_TO_FAMILY: Record<InterventionMove, InterventionFamily> = {
 
 export const MOVE_TO_FORCE: Record<InterventionMove, InteractionalForce> = {
   REDIRECT: 'directive', BALANCE: 'directive', SEQUENCE: 'directive',
-  PIN: 'interrogative', PROBE: 'interrogative', CHALLENGE: 'interrogative',
+  PIN: 'interrogative', PROBE: 'interrogative', CHALLENGE: 'interrogative', CRUX_FOCUS: 'interrogative',
   CLARIFY: 'interrogative', CHECK: 'reflective', SUMMARIZE: 'declarative',
   ACKNOWLEDGE: 'declarative', REVOICE: 'reflective',
   POLICY_CHALLENGE: 'interrogative',
@@ -1801,6 +1833,9 @@ export interface ModeratorState {
   budget_epoch: number;
   /** Cooldown gap required after each budget refill — increases with epoch. */
   refill_gap: number;
+
+  /** Crux IDs that have already received a CRUX_FOCUS intervention (fires at most once per crux). */
+  crux_focused_ids?: Set<string>;
 }
 
 export interface InterventionResponseFields {
@@ -1849,6 +1884,12 @@ export interface InterventionResponseFields {
     actor: string;
     feasibility: string;
     obstacle: string;
+  };
+  crux_focus_response?: {
+    type: 'empirical' | 'values' | 'definitional';
+    evidence_or_tradeoff: string;
+    conditional_agreement?: string;
+    contested_term_definition?: string;
   };
 }
 

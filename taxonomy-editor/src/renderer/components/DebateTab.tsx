@@ -7,6 +7,8 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../hooks/useResizablePanel';
+import { useBreakpoint } from '../hooks/useBreakpoint';
+import { useMobileNav } from '../hooks/useMobileNav';
 import { NewDebateDialog } from './NewDebateDialog';
 import { SearchPreview } from './SearchPreview';
 import { PromptDetailPanel } from './PromptsPanel';
@@ -70,7 +72,11 @@ export function DebateTab() {
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const { toolbarPanel } = useTaxonomyStore();
-  const { width, onMouseDown } = useResizablePanel();
+  const { width, onMouseDown, onTouchStart } = useResizablePanel();
+  const breakpoint = useBreakpoint();
+  const isPhone = breakpoint === 'phone' || breakpoint === 'phone-lg';
+  const isTablet = breakpoint === 'tablet' || breakpoint === 'tablet-lg';
+  const nav = useMobileNav();
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -152,6 +158,9 @@ export function DebateTab() {
     if (session.id !== activeDebateId) {
       void loadDebate(session.id);
     }
+    if (nav.isActive) {
+      nav.push({ view: 'debate', id: session.id });
+    }
   };
 
   const runExport = useCallback(async (
@@ -192,7 +201,7 @@ export function DebateTab() {
   };
 
   return (
-    <div className="two-column">
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isTablet ? ' tablet-mode' : ''}${(isPhone ? nav.current.view !== 'list' : !!activeDebateId) ? ' has-selection' : ''}`}>
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
         <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
@@ -204,7 +213,7 @@ export function DebateTab() {
             onInspectorToggle={setPromptInspectorActive}
           />
         </div>
-      ) : listCollapsed ? (
+      ) : (listCollapsed && !isPhone) ? (
         <div className="pane-collapsed pane-collapsed-list" onClick={() => setListCollapsed(false)} title="Expand list">
           <span className="pane-collapsed-label">Debates</span>
         </div>
@@ -399,29 +408,36 @@ export function DebateTab() {
       {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? null
         : toolbarPanel === 'search' ? (
         <>
-          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
           <div className="detail-panel">
             <SearchPreview searchPreviewId={searchPreviewId} onClear={() => setSearchPreviewId(null)} />
           </div>
         </>
       ) : (toolbarPanel === 'prompts' && !promptInspectorActive) ? (
         <>
-          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
           <div className="detail-panel">
             <PromptDetailPanel entry={selectedPromptEntry} />
           </div>
         </>
       ) : toolbarPanel ? (
         <>
-          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
           <div className="detail-panel">
             <div className="detail-panel-empty">Select an item in the {toolbarPanel} panel</div>
           </div>
         </>
       ) : (
         <>
-          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
           <div className="detail-panel">
+            {isPhone && activeDebate && (
+              <div className="phone-detail-header">
+                <button className="phone-detail-back" onClick={() => nav.pop()}>
+                  &larr; Debates
+                </button>
+              </div>
+            )}
             {activeDebate ? (
               <DebateDetailSummary
                 debate={activeDebate}

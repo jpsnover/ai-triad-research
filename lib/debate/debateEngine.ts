@@ -103,6 +103,7 @@ import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyL
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
 import { updateCruxTracker } from './cruxResolution.js';
+import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
 import { computeConvergenceSignals } from './convergenceSignals.js';
 import { computeProcessReward } from './processReward.js';
 import { runSynthesisPhases } from './synthesisPhases.js';
@@ -238,6 +239,8 @@ export interface DebateConfig {
   wisdomReframeThreshold?: number;
   /** Auto-apply rewritten topic when below threshold. Default: true. When false, score is computed but topic is not reframed. */
   wisdomAutoReframe?: boolean;
+  /** Embedding callback for crux registry dedup and seeding. When provided, enables cross-debate crux persistence. */
+  embedFn?: (text: string) => Promise<number[]>;
 }
 
 export interface DebateProgress {
@@ -308,6 +311,8 @@ export class DebateEngine {
    *  capability — if the model can't produce specific claims for one speaker,
    *  it can't for any of them. */
   private _hintStreaks = new Map<string, import('./types').HintStreak>();
+  /** Cached prior crux context string — seeded from registry at debate start, injected into Brief stage. */
+  private _priorCruxContext: string = '';
 
   /** Get the set of hint keys currently suppressed for this debate. */
   private getSuppressedHints(): Set<string> {
@@ -423,6 +428,23 @@ export class DebateEngine {
       await this.extractTopicScope();
       setTopicScope(this.session.topic.scope ?? null);
 
+      // Phase 0.8: Seed prior crux context from registry (t/367)
+      if (this.config.embedFn) {
+        try {
+          const __engineDir = path.dirname(fileURLToPath(import.meta.url));
+          const repoRoot = resolveRepoRoot(__engineDir);
+          const dataRoot = resolveDataRoot(repoRoot);
+          const registry = loadRegistry(dataRoot);
+          if (registry.entries.length > 0) {
+            const topicEmbedding = await this.config.embedFn(this.session.topic.final);
+            const relevant = findRelevantPriorCruxes(topicEmbedding, registry);
+            this._priorCruxContext = formatPriorCruxContext(relevant);
+          }
+        } catch {
+          // Registry seeding failure never blocks debate
+        }
+      }
+
       // Phase 1: Clarification (optional)
       if (this.config.enableClarification) {
         await this.runClarification();
@@ -525,6 +547,15 @@ export class DebateEngine {
 
       // Post-debate adaptive threshold write-back
       this.runPostDebateCalibration(dataRoot);
+
+      // Persist unresolved cruxes to cross-debate registry (t/367)
+      if (this.config.embedFn && this.session.crux_tracker?.length) {
+        try {
+          await persistDebateCruxes(this.session, dataRoot, this.config.embedFn);
+        } catch {
+          // Registry persistence failure never blocks debate completion
+        }
+      }
     } catch (calErr) {
       // Calibration logging failure never blocks debate completion
       this.warn('Calibration logging', calErr, 'Non-critical — debate results unaffected');
@@ -2644,6 +2675,10 @@ export class DebateEngine {
       commitments: this.session.commitments,
       existingModState: this._moderatorState,
       poverInfo: POVER_INFO as Record<string, { label: string; pov: string; personality?: string }>,
+      cruxTracker: this.session.crux_tracker,
+      claimTexts: this.session.argument_network
+        ? Object.fromEntries(this.session.argument_network.nodes.map(n => [n.id, n.text]))
+        : undefined,
     };
 
     const modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
@@ -2851,6 +2886,7 @@ export class DebateEngine {
       crossPovNodeIds,
       priorFlaggedHints,
       vocabularyExclusion,
+      priorCruxContext: this._priorCruxContext || undefined,
       topicScope: this.session.topic.scope ?? undefined,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,

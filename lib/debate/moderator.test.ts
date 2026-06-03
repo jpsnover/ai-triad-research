@@ -24,6 +24,9 @@ import {
   getMoveResponseConfig,
   getConcludingResponder,
   shouldFirePolicyChallenge,
+  extractContestedTerm,
+  detectCruxFocusTrigger,
+  buildCruxFocusInterventionText,
 } from './moderator.js';
 import type {
   ModeratorState,
@@ -815,6 +818,19 @@ describe('buildInterventionBriefInjection', () => {
     expect(injection).toContain('Pin text');
   });
 
+  it('includes recency field reminder for targeted hard-compliance moves', () => {
+    const int = buildIntervention(
+      { proceed: true, validated_move: 'COMMIT', validated_family: 'accountability', validated_target: 'skeptic' },
+      'Commit text',
+      'reason',
+      'evidence',
+    );
+    const injection = buildInterventionBriefInjection(int, 'Skeptic');
+    expect(injection).toContain('REMINDER');
+    expect(injection).toContain('"commitment"');
+    expect(injection).toContain('trigger a retry');
+  });
+
   it('includes guidance for non-compliance moves', () => {
     const int = buildIntervention(
       { proceed: true, validated_move: 'ACKNOWLEDGE', validated_family: 'reconciliation', validated_target: 'safetyist' },
@@ -1210,5 +1226,227 @@ describe('shouldFirePolicyChallenge (t/249)', () => {
       ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[],
     );
     expect(result).toBeNull();
+  });
+});
+
+// ── CRUX_FOCUS ──────────────────────────────────────────
+
+describe('extractContestedTerm', () => {
+  it('finds the most-frequent shared content word (>5 chars)', () => {
+    const crux = 'Whether alignment research can keep pace with capability scaling';
+    const attacks = [
+      'Alignment research has historically lagged capability development by years',
+      'The alignment gap grows with each capability jump',
+    ];
+    const term = extractContestedTerm(crux, attacks);
+    expect(term).toBe('alignment');
+  });
+
+  it('returns undefined when no shared content words exist', () => {
+    const term = extractContestedTerm('Short text', ['Other words here']);
+    expect(term).toBeUndefined();
+  });
+
+  it('ignores stop words', () => {
+    const crux = 'Whether the between should really matter however';
+    const attacks = ['However between should really does matter'];
+    const term = extractContestedTerm(crux, attacks);
+    expect(term).toBe('matter');
+  });
+});
+
+describe('detectCruxFocusTrigger', () => {
+  const activePovers = ['accelerationist', 'safetyist', 'skeptic'] as SpeakerId[];
+
+  const makeCrux = (overrides: Partial<{ id: string; description: string; identified_turn: number; state: string; disagreement_type: string; attacking_claim_ids: string[]; speakers_involved: SpeakerId[] }> = {}) => ({
+    id: 'crux-1',
+    description: 'Whether AI alignment can scale',
+    identified_turn: 3,
+    state: 'engaged',
+    disagreement_type: 'empirical',
+    attacking_claim_ids: [],
+    speakers_involved: ['accelerationist', 'safetyist'] as SpeakerId[],
+    ...overrides,
+  });
+
+  const makeFocusState = (overrides: Partial<ModeratorState> = {}): ModeratorState => ({
+    ...initModeratorState(10, activePovers),
+    phase: 'argumentation' as DebatePhase,
+    rounds_since_last_intervention: 3,
+    ...overrides,
+  });
+
+  it('fires for an engaged crux that has been unresolved for 2+ rounds', () => {
+    const result = detectCruxFocusTrigger(
+      [makeCrux()], 5, makeFocusState(), activePovers,
+    );
+    expect(result).not.toBeNull();
+    expect(result!.cruxId).toBe('crux-1');
+    expect(result!.disagreementType).toBe('empirical');
+    expect(result!.roundsEngaged).toBe(2);
+  });
+
+  it('does not fire during confrontation phase', () => {
+    const result = detectCruxFocusTrigger(
+      [makeCrux()], 5,
+      makeFocusState({ phase: 'confrontation' as DebatePhase }),
+      activePovers,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire if crux is not in engaged state', () => {
+    const result = detectCruxFocusTrigger(
+      [makeCrux({ state: 'one_side_conceded' })], 5,
+      makeFocusState(), activePovers,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire if crux engaged for less than 2 rounds', () => {
+    const result = detectCruxFocusTrigger(
+      [makeCrux({ identified_turn: 4 })], 5,
+      makeFocusState(), activePovers,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire again for an already-focused crux', () => {
+    const state = makeFocusState({ crux_focused_ids: new Set(['crux-1']) });
+    const result = detectCruxFocusTrigger(
+      [makeCrux()], 5, state, activePovers,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire when budget is exhausted', () => {
+    const result = detectCruxFocusTrigger(
+      [makeCrux()], 5,
+      makeFocusState({ budget_remaining: 0 }),
+      activePovers,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not fire during cooldown', () => {
+    const result = detectCruxFocusTrigger(
+      [makeCrux()], 5,
+      makeFocusState({ rounds_since_last_intervention: 0 }),
+      activePovers,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('picks the crux with the most rounds engaged', () => {
+    const cruxes = [
+      makeCrux({ id: 'crux-1', identified_turn: 4 }),
+      makeCrux({ id: 'crux-2', identified_turn: 1, description: 'Older crux' }),
+    ];
+    const result = detectCruxFocusTrigger(cruxes, 5, makeFocusState(), activePovers);
+    expect(result!.cruxId).toBe('crux-2');
+    expect(result!.roundsEngaged).toBe(4);
+  });
+
+  it('extracts contested term for definitional cruxes', () => {
+    const crux = makeCrux({
+      disagreement_type: 'definitional',
+      description: 'Whether artificial intelligence includes symbolic reasoning',
+      attacking_claim_ids: ['c1', 'c2'],
+    });
+    const claimTexts = {
+      c1: 'Artificial intelligence by the connectionist definition excludes symbolic reasoning',
+      c2: 'The intelligence framing matters for policy — symbolic intelligence should count',
+    };
+    const result = detectCruxFocusTrigger([crux], 5, makeFocusState(), activePovers, claimTexts);
+    expect(result).not.toBeNull();
+    expect(result!.contestedTerm).toBeDefined();
+  });
+});
+
+describe('buildCruxFocusInterventionText', () => {
+  it('produces empirical template with evidence demand', () => {
+    const text = buildCruxFocusInterventionText({
+      cruxId: 'crux-1',
+      description: 'Whether AI can self-improve',
+      disagreementType: 'empirical',
+      roundsEngaged: 3,
+      speakersInvolved: ['accelerationist'] as SpeakerId[],
+    }, 'Accelerationist');
+    expect(text).toContain('factual question');
+    expect(text).toContain('Accelerationist');
+    expect(text).toContain('Whether AI can self-improve');
+    expect(text).toContain('falsifiable');
+  });
+
+  it('produces values template with tradeoff demand', () => {
+    const text = buildCruxFocusInterventionText({
+      cruxId: 'crux-2',
+      description: 'Speed vs safety priority',
+      disagreementType: 'values',
+      roundsEngaged: 3,
+      speakersInvolved: ['safetyist'] as SpeakerId[],
+    }, 'Safetyist');
+    expect(text).toContain('competing priorities');
+    expect(text).toContain('Safetyist');
+    expect(text).toContain('conditional agreement');
+  });
+
+  it('produces definitional template with contested term', () => {
+    const text = buildCruxFocusInterventionText({
+      cruxId: 'crux-3',
+      description: 'What counts as alignment',
+      disagreementType: 'definitional',
+      roundsEngaged: 2,
+      speakersInvolved: ['skeptic'] as SpeakerId[],
+      contestedTerm: 'alignment',
+    }, 'Skeptic');
+    expect(text).toContain('"alignment"');
+    expect(text).toContain('Skeptic');
+    expect(text).toContain('Define your key term');
+  });
+
+  it('uses fallback when no contested term extracted', () => {
+    const text = buildCruxFocusInterventionText({
+      cruxId: 'crux-4',
+      description: 'Definition dispute',
+      disagreementType: 'definitional',
+      roundsEngaged: 2,
+      speakersInvolved: ['skeptic'] as SpeakerId[],
+    }, 'Skeptic');
+    expect(text).toContain('a key term');
+  });
+});
+
+describe('checkInterventionCompliance — CRUX_FOCUS', () => {
+  it('passes when crux_focus_response has type and evidence_or_tradeoff', () => {
+    const result = checkInterventionCompliance('CRUX_FOCUS' as InterventionMove, {
+      crux_focus_response: {
+        type: 'empirical',
+        evidence_or_tradeoff: 'Study by Smith 2025 shows alignment scales sublinearly',
+      },
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('fails when crux_focus_response is missing', () => {
+    const result = checkInterventionCompliance('CRUX_FOCUS' as InterventionMove, {});
+    expect(result.compliant).toBe(false);
+    expect(result.missing_field).toBe('crux_focus_response');
+  });
+
+  it('fails when type is invalid', () => {
+    const result = checkInterventionCompliance('CRUX_FOCUS' as InterventionMove, {
+      crux_focus_response: { type: 'unknown', evidence_or_tradeoff: 'something' },
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.missing_field).toContain('type');
+  });
+
+  it('fails when evidence_or_tradeoff is empty', () => {
+    const result = checkInterventionCompliance('CRUX_FOCUS' as InterventionMove, {
+      crux_focus_response: { type: 'values', evidence_or_tradeoff: '   ' },
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.missing_field).toContain('evidence_or_tradeoff');
   });
 });

@@ -49,6 +49,8 @@ import {
   buildInterventionBriefInjection,
   getConcludingResponder,
   shouldFirePolicyChallenge,
+  detectCruxFocusTrigger,
+  buildCruxFocusInterventionText,
 } from './moderator.js';
 
 import {
@@ -131,6 +133,10 @@ export interface ModeratorSelectionInput {
   existingModState?: ModeratorState | null;
   /** POV info lookup: poverId → { label, pov } */
   poverInfo: Record<string, { label: string; pov: string; personality?: string }>;
+  /** Crux tracker from session — used by CRUX_FOCUS trigger detection. */
+  cruxTracker?: ReadonlyArray<{ id: string; description: string; identified_turn: number; state: string; disagreement_type?: string; attacking_claim_ids: string[]; speakers_involved: SpeakerId[] }>;
+  /** Claim text lookup for contested term extraction (AN node id → text). */
+  claimTexts?: Record<string, string>;
 }
 
 export interface ModeratorSelectionResult {
@@ -501,6 +507,65 @@ export async function runModeratorSelection(
     return false;
   })()) {
     // POLICY_CHALLENGE handled above via IIFE
+  } else if (await (async () => {
+    // ── CRUX_FOCUS automation ──
+    const cruxCandidate = input.cruxTracker
+      ? detectCruxFocusTrigger(input.cruxTracker, round, modState, activePovers, input.claimTexts)
+      : null;
+    if (cruxCandidate) {
+      const targetPov = cruxCandidate.speakersInvolved[0] as Exclude<SpeakerId, 'user'>;
+      responder = targetPov;
+      focusPoint = `Address this unresolved crux directly: ${cruxCandidate.description}`;
+      addressing = targetPov;
+      selectionResultObj = {
+        responder: targetPov,
+        addressing: targetPov as SpeakerId,
+        focus_point: focusPoint,
+        agreement_detected: false,
+        intervene: true,
+        suggested_move: 'CRUX_FOCUS' as InterventionMove,
+        target_debater: targetPov,
+        trigger_reasoning: `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux "${cruxCandidate.description}" engaged for ${cruxCandidate.roundsEngaged} rounds without resolution`,
+      };
+      const validation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+      if (validation.proceed) {
+        const interventionText = buildCruxFocusInterventionText(
+          cruxCandidate, poverInfo[targetPov]?.label ?? targetPov,
+        );
+        activeIntervention = buildIntervention(
+          validation, interventionText,
+          `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux engaged ${cruxCandidate.roundsEngaged} rounds`,
+          { signal: 'crux_focus_trigger', node_id: cruxCandidate.cruxId, round },
+        );
+        interventionBriefInjection = buildInterventionBriefInjection(
+          activeIntervention, poverInfo[responder]?.label ?? responder,
+        );
+        callbacks.addEntry({
+          type: 'intervention',
+          speaker: 'moderator',
+          content: interventionText,
+          taxonomy_refs: [],
+          addressing: validation.validated_target,
+          intervention_metadata: {
+            family: activeIntervention.family,
+            move: activeIntervention.move,
+            force: activeIntervention.force,
+            burden: activeIntervention.burden,
+            target_debater: activeIntervention.target_debater,
+            trigger_reason: activeIntervention.trigger_reason,
+            source_evidence: activeIntervention.source_evidence,
+          },
+        });
+        // Track this crux as focused — fires at most once per crux
+        modState.crux_focused_ids ??= new Set<string>();
+        modState.crux_focused_ids.add(cruxCandidate.cruxId);
+        callbacks.progress('debate', undefined, `Moderator: CRUX_FOCUS (${cruxCandidate.disagreementType}) → ${poverInfo[targetPov]?.label}`);
+      }
+      return true;
+    }
+    return false;
+  })()) {
+    // CRUX_FOCUS handled above via IIFE
   } else {
     // ── Stage 1: Enhanced moderator selection ──
     const topicAnchoringBlock = buildTopicAnchoringBlock(resolution, resolutionClauses, topicDriftState);

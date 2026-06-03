@@ -1545,6 +1545,49 @@ describe('checkDirectiveContentCompliance', () => {
     expect(result.compliant).toBe(false);
     expect(result.repair_hint).toContain('redirect');
   });
+
+  // ── CRUX_FOCUS structural checks ──
+
+  it('CRUX_FOCUS passes when first paragraph engages the crux with evidence language', () => {
+    const statement = 'The evidence would need to show that alignment scales linearly with capability to resolve this crux.\n\nMy substantive argument continues.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'CRUX_FOCUS',
+      text: 'This debate hinges on a factual question.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('CRUX_FOCUS passes with tradeoff language for values crux', () => {
+    const statement = 'The tradeoff here is between innovation speed and safety guarantees — I prioritize the latter.\n\nHere is why.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'CRUX_FOCUS',
+      text: 'This disagreement is about competing priorities.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('CRUX_FOCUS passes with definition language for definitional crux', () => {
+    const statement = 'My definition of alignment includes both behavioral and intent-based criteria.\n\nThis matters because.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'CRUX_FOCUS',
+      text: 'The debaters may be using "alignment" to mean different things.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(true);
+  });
+
+  it('CRUX_FOCUS fails when first paragraph does not engage the crux', () => {
+    const statement = 'Let me continue my argument about governance frameworks and institutional design.\n\nThe regulatory landscape is complex.';
+    const result = checkDirectiveContentCompliance(statement, {
+      move: 'CRUX_FOCUS',
+      text: 'This debate hinges on a factual question.',
+      isTargeted: true,
+    });
+    expect(result.compliant).toBe(false);
+    expect(result.repair_hint).toContain('crux');
+  });
 });
 
 describe('validateDraftStage directive compliance', () => {

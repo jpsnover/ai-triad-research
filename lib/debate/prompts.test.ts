@@ -551,6 +551,41 @@ describe('4-stage turn pipeline', () => {
       expectContains(result, 'MODERATOR DIRECTIVE', 'YOU MUST RESPOND DIRECTLY', 'Do you agree with X?');
     });
 
+    it('includes recency field reminder when targeted intervention has responseField', () => {
+      const result = draftStagePrompt(
+        makeStageInput({
+          pendingIntervention: {
+            move: 'COMMIT',
+            family: 'Accountability',
+            targetDebater: 'Prometheus',
+            responseField: 'commitment',
+            directResponsePattern: 'Commit to your position.',
+            isTargeted: true,
+          },
+        }),
+        '{}',
+        '{}',
+      );
+      expectContains(result, 'ACTIVE INTERVENTION', '"commitment"', 'trigger a retry');
+    });
+
+    it('omits recency field reminder when not targeted', () => {
+      const result = draftStagePrompt(
+        makeStageInput({
+          pendingIntervention: {
+            move: 'PIN',
+            family: 'Elicitation',
+            targetDebater: 'Sentinel',
+            responseField: 'pin_response',
+            isTargeted: false,
+          },
+        }),
+        '{}',
+        '{}',
+      );
+      expect(result).not.toContain('ACTIVE INTERVENTION');
+    });
+
     it('includes non-targeted intervention block when intervention targets another debater', () => {
       const result = draftStagePrompt(
         makeStageInput({

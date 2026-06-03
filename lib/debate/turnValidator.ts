@@ -1022,6 +1022,13 @@ export function checkDirectiveContentCompliance(
       : { compliant: false, repair_hint: 'Your first paragraph must acknowledge the moderator\'s redirect. Begin with "Turning to the moderator\'s redirect:" or "Addressing the new direction:" and signal that you are shifting to the requested topic.', directive_terms: ['redirect', 'turning'], matched_terms: 0 };
   }
 
+  if (intervention.move === 'CRUX_FOCUS') {
+    const hasCruxEngagement = /\bcrux\b|\bkey disagreement\b|\bcore disagreement\b|\bhinges on\b|\bdepends on\b|\bturns on\b|\bevidence would\b|\btradeoff\b|\btrade-off\b|\bdefine\b|\bdefinition\b|\bconditional\b|\bfalsifiable\b/i.test(firstParagraph);
+    return hasCruxEngagement
+      ? { compliant: true, repair_hint: '', directive_terms: ['crux', 'evidence', 'tradeoff', 'definition'], matched_terms: 1 }
+      : { compliant: false, repair_hint: 'Your first paragraph must directly engage the crux — cite evidence (empirical), name the tradeoff (values), or define the contested term (definitional). Do not sidestep the moderator\'s question.', directive_terms: ['crux', 'evidence', 'tradeoff'], matched_terms: 0 };
+  }
+
   // Fallback: keyword overlap for other intervention types
   // Prefer the moderator's actual question (text) over the response format instruction
   const directiveText = intervention.text

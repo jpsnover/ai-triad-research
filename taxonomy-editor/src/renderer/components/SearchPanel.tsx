@@ -9,6 +9,7 @@ import type { TabId, Category, PovNode, SituationNode, ConflictFile } from '../t
 import { interpretationText } from '../types/taxonomy';
 import { buildSearchRegex } from '../utils/searchRegex';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 type SearchPanelMode =
   | 'taxonomy'
@@ -167,6 +168,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     pendingSearchRelatedId,
   } = useTaxonomyStore();
 
+  const isOnline = useOnlineStatus();
   const [mode, setMode] = useState<SearchPanelMode>(_lastSearchMode);
   const [attrValue, setAttrValue] = useState<string>('');
   const [attrQuery, setAttrQuery] = useState('');
@@ -181,6 +183,10 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSemantic = findMode === 'semantic';
+
+  useEffect(() => {
+    if (!isOnline && findMode === 'semantic') setFindMode('raw');
+  }, [isOnline, findMode, setFindMode]);
 
   useEffect(() => { void checkApiKey(); }, [checkApiKey]);
 
@@ -589,14 +595,21 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
               <select
                 className="search-panel-search-mode"
                 value={findMode}
-                onChange={(e) => setFindMode(e.target.value as SearchMode)}
+                onChange={(e) => {
+                  const val = e.target.value as SearchMode;
+                  if (val === 'semantic' && !isOnline) return;
+                  setFindMode(val);
+                }}
               >
                 <option value="raw">Raw</option>
                 <option value="wildcard">Wildcard</option>
                 <option value="regex">Regex</option>
-                <option value="semantic">Semantic</option>
+                <option value="semantic" disabled={!isOnline}>Semantic{!isOnline ? ' (offline)' : ''}</option>
               </select>
             </div>
+            {!isOnline && mode === 'taxonomy' && (
+              <div className="search-panel-offline-msg">Searching offline — semantic search unavailable</div>
+            )}
             {!isSemantic && (
               <label className="search-panel-option">
                 <input

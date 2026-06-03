@@ -35,6 +35,9 @@ import { HamburgerMenu } from './components/HamburgerMenu';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { GitProgressBanner } from './components/GitProgressBanner';
 import { pullDataTracked } from './utils/syncApi';
+import { PrecacheToast } from './components/PrecacheToast';
+import { usePrecache } from './hooks/usePrecache';
+import { DiagnosticsDrawer } from './components/DiagnosticsDrawer';
 
 const UpdatePrompt = import.meta.env.VITE_TARGET === 'web'
   ? lazy(() => import('./components/UpdatePrompt').then(m => ({ default: m.UpdatePrompt })))
@@ -170,6 +173,8 @@ function MainApp() {
   const [dataUpdate, setDataUpdate] = useState<DataUpdateInfo | null>(null);
   const [pulling, setPulling] = useState(false);
   const [pullResult, setPullResult] = useState<string | null>(null);
+  const activePov = ['accelerationist', 'safetyist', 'skeptic'].includes(activeTab) ? activeTab : undefined;
+  const { progress: precacheProgress, cancel: cancelPrecache, dismiss: dismissPrecache } = usePrecache(activePov);
   const [changedFiles, setChangedFiles] = useState<{ path: string; status: string }[] | null>(null);
   const [showFiles, setShowFiles] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -575,6 +580,8 @@ function MainApp() {
       <BottomNav />
       {isMobile && <HamburgerMenu isOpen={hamburgerOpen} onClose={() => setHamburgerOpen(false)} />}
       {UpdatePrompt && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
+      <PrecacheToast progress={precacheProgress} onCancel={cancelPrecache} onDismiss={dismissPrecache} />
+      {isMobile && <DiagnosticsDrawer />}
     </div>
   );
 }

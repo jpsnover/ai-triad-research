@@ -326,7 +326,7 @@ function extractStarredNodes(taxonomyContext: string): string[] {
   return results;
 }
 
-function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, pov?: string): string {
+function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, pov?: string, pendingInterventionField?: string): string {
   const starred = extractStarredNodes(taxonomyContext);
   if (starred.length === 0 && !phase && !pov) return '';
 
@@ -363,6 +363,10 @@ function buildRecapSection(taxonomyContext: string, phase?: DebatePhase, pov?: s
 
   if (hasMeaningfulScope(_topicScope)) {
     lines.push(formatScopeReminder(_topicScope));
+  }
+
+  if (pendingInterventionField) {
+    lines.push(`⚠ ACTIVE INTERVENTION: Your response JSON MUST include a "${pendingInterventionField}" field. Omitting it will trigger a retry.`);
   }
 
   return lines.join('\n');
@@ -1882,6 +1886,8 @@ export interface StagePromptInput {
   /** Concession claims to preserve — injected into Plan stage as claims to keep. */
   preserveConcessions?: { text: string; reason: string }[];
   vocabularyExclusion?: string;
+  /** Prior crux context from cross-debate registry — injected into Brief stage. */
+  priorCruxContext?: string;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1894,7 +1900,7 @@ export function briefStagePrompt(input: StagePromptInput): string {
 Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
 ${input.taxonomyContext}
-${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}
+${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}
 === DEBATE TOPIC ===
 "${input.topic}"
 
@@ -2126,7 +2132,7 @@ OUTPUT CONSTRAINTS:
 - CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.${!input.pendingIntervention?.isTargeted ? `\n- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.` : ''}
 
 ${getStyleReinforcement(input.audience)}
-
+${pi?.isTargeted && pi.responseField ? `\n⚠ ACTIVE INTERVENTION: Your response JSON MUST include a "${pi.responseField}" field. Omitting it will trigger a retry.\n` : ''}
 Respond ONLY with a JSON object matching this exact schema (no markdown, no code fences):
 {
   "statement": "your full debate response (3-5 paragraphs separated by \\n\\n)",${!pi?.isTargeted ? `
@@ -2171,6 +2177,7 @@ export function _buildInterventionResponseField(pi?: StagePromptInput['pendingIn
     'META-REFLECT': ',\n  "reflection": {"reasoning_pattern": "the pattern you identified in your own reasoning", "assessment": "whether this pattern strengthens or weakens your argument", "adjustment": "how you will adjust going forward"}',
     COMPRESS:       ',\n  "compressed_thesis": "your core position in 1-2 sentences — no hedging, no qualifiers, just the claim"',
     COMMIT:         ',\n  "commitment": {"position": "the specific position you are committing to", "conditions": "under what conditions this commitment holds", "falsifiable": "what evidence would make you abandon this position"}',
+    CRUX_FOCUS:       ',\n  "crux_focus_response": {"type": "empirical | values | definitional", "evidence_or_tradeoff": "the specific evidence you cite (empirical), tradeoff you name (values), or definition you propose (definitional)", "conditional_agreement": "I would accept [X] if [Y] (optional)", "contested_term_definition": "your precise definition of the contested term (definitional only, optional)"}',
     POLICY_CHALLENGE: ',\n  "policy_challenge_response": {"mechanism": "the specific enforcement/regulatory mechanism you propose", "actor": "who would implement and enforce it", "feasibility": "assessment of political feasibility — what coalition supports this", "obstacle": "primary implementation obstacle"}',
   };
   return RESPONSE_FIELDS[pi.move] ?? '';

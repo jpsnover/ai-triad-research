@@ -59,6 +59,7 @@ const MOVE_BUDGET_COST: Record<InterventionMove, number> = {
   REVOICE: 1.0,
   'META-REFLECT': 0.34,
   POLICY_CHALLENGE: 0.34,
+  CRUX_FOCUS: 0.34,
   COMPRESS: 1.0,
   COMMIT: 0,
 };
@@ -77,7 +78,7 @@ const PHASE_SECONDARY_FAMILIES: Record<DebatePhase, Set<InterventionFamily>> = {
 
 const DEFAULT_PRIORITY: InterventionMove[] = [
   'COMMIT', 'PIN', 'CHALLENGE', 'CHECK', 'ACKNOWLEDGE', 'REVOICE',
-  'REDIRECT', 'PROBE', 'META-REFLECT', 'CLARIFY', 'BALANCE',
+  'REDIRECT', 'CRUX_FOCUS', 'PROBE', 'META-REFLECT', 'CLARIFY', 'BALANCE',
   'COMPRESS', 'SEQUENCE', 'SUMMARIZE',
 ];
 
@@ -162,6 +163,11 @@ export const MOVE_RESPONSE_CONFIG: Record<InterventionMove, MoveResponseConfig> 
     field: 'policy_challenge_response',
     hardCompliance: true,
     schema: '{ "mechanism": "the specific enforcement mechanism addressed", "actor": "who would implement/enforce", "feasibility": "assessment of political feasibility", "obstacle": "primary implementation obstacle" }',
+  },
+  CRUX_FOCUS: {
+    field: 'crux_focus_response',
+    hardCompliance: true,
+    schema: '{ "type": "empirical | values | definitional", "evidence_or_tradeoff": "the specific evidence cited (empirical) or tradeoff named (values) or definition proposed (definitional)", "conditional_agreement": "I would accept [X] if [Y] (optional for empirical/values)", "contested_term_definition": "your precise definition of the contested term (definitional only)" }',
   },
   ACKNOWLEDGE: { field: null, hardCompliance: false, schema: '' },
   BALANCE: { field: null, hardCompliance: false, schema: '' },
@@ -702,6 +708,7 @@ export const DIRECT_RESPONSE_PATTERNS: Record<InterventionMove, string> = {
   CHECK: 'Your first paragraph MUST begin with "I was responding to [opponent]\'s point about [specific claim]" OR "I was not responding to that point — the point I was addressing was [X]." Then a paragraph break before your substantive argument.',
   REVOICE: 'Your first paragraph MUST begin with "That restates my point accurately" OR "That restates my point inaccurately — what I actually meant was [correction]." Then a paragraph break before your substantive argument.',
   'META-REFLECT': 'Your first paragraph MUST begin with "I would change my position if [specific, falsifiable condition]" OR "The assumption we are all relying on without examining it is [X]." Then a paragraph break before your substantive argument.',
+  CRUX_FOCUS: 'Your first paragraph MUST directly name the crux and engage it. For empirical cruxes: cite specific evidence or state what evidence would change your mind ("If [X metric] exceeded [Y threshold], I would accept [Z]"). For values cruxes: name the value you prioritize, the value you sacrifice, and propose a conditional agreement ("I would accept [position] if [safeguard] were guaranteed"). For definitional cruxes: define the contested term precisely — what is included and excluded.',
   POLICY_CHALLENGE: 'Your first paragraph MUST begin with "The mechanism I propose is [specific enforcement/regulatory mechanism]." Follow with: who implements it, under what legal authority, and what the primary obstacle to implementation is. Then a paragraph break before your substantive argument.',
   COMPRESS: 'Your ENTIRE statement must be a single sentence of 40 words or fewer. No preamble, no qualification, no additional paragraphs. Just the core thesis.',
   COMMIT: 'Your first paragraph MUST state three things in three sentences: "I concede [X]." "I still hold [Y]." "I would change if [Z]." Then a paragraph break before elaboration.',
@@ -750,7 +757,9 @@ ${responsePattern}
 BREVITY RULE: The response paragraph must be SHORT — 2-3 sentences maximum. Do not hedge, qualify, or dilute your answer across multiple paragraphs. State your position, give one reason, then move on. The reader must know your answer from the first paragraph alone.
 
 You MUST also include a \`${config.field}\` field in your response JSON.
-Schema: ${config.schema}`}
+Schema: ${config.schema}
+
+⚠ REMINDER: Your response MUST include a "${config.field}" field. Omitting it will trigger a retry.`}
 
 After the response paragraph, continue with your substantive argument in separate paragraphs.
 `;
@@ -836,6 +845,24 @@ export function checkInterventionCompliance(
         compliant: false,
         missing_field: field,
         repair_hint: `Your compressed_thesis is ${words} words — it must be 50 words or fewer.`,
+      };
+    }
+  }
+
+  if (move === 'CRUX_FOCUS' && typeof value === 'object') {
+    const cf = value as Record<string, unknown>;
+    if (!cf.type || !['empirical', 'values', 'definitional'].includes(cf.type as string)) {
+      return {
+        compliant: false,
+        missing_field: `${field}.type`,
+        repair_hint: 'Your crux_focus_response must include a "type" field: "empirical", "values", or "definitional".',
+      };
+    }
+    if (!cf.evidence_or_tradeoff || (typeof cf.evidence_or_tradeoff === 'string' && cf.evidence_or_tradeoff.trim().length === 0)) {
+      return {
+        compliant: false,
+        missing_field: `${field}.evidence_or_tradeoff`,
+        repair_hint: 'Your crux_focus_response must include "evidence_or_tradeoff" — cite specific evidence (empirical), name the tradeoff (values), or propose a definition (definitional).',
       };
     }
   }
@@ -982,6 +1009,137 @@ export function shouldFirePolicyChallenge(
   });
 
   return target;
+}
+
+// ── CRUX_FOCUS trigger detection ──────────────────────
+
+export interface CruxFocusCandidate {
+  cruxId: string;
+  description: string;
+  disagreementType: 'empirical' | 'values' | 'definitional';
+  roundsEngaged: number;
+  speakersInvolved: SpeakerId[];
+  contestedTerm?: string;
+}
+
+export function extractContestedTerm(
+  cruxDescription: string,
+  attackingClaimTexts: string[],
+): string | undefined {
+  const stopWords = new Set([
+    'about', 'after', 'being', 'between', 'could', 'doing', 'during',
+    'every', 'first', 'given', 'however', 'issue', 'means', 'might',
+    'never', 'other', 'point', 'rather', 'really', 'should', 'since',
+    'their', 'there', 'these', 'thing', 'think', 'those', 'through',
+    'under', 'using', 'where', 'which', 'while', 'would',
+  ]);
+
+  function contentWords(text: string): Map<string, number> {
+    const counts = new Map<string, number>();
+    const words = text.toLowerCase().match(/\b[a-z]{6,}\b/g) ?? [];
+    for (const w of words) {
+      if (!stopWords.has(w)) counts.set(w, (counts.get(w) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  const cruxWords = contentWords(cruxDescription);
+  const attackText = attackingClaimTexts.join(' ');
+  const attackWords = contentWords(attackText);
+
+  let bestWord: string | undefined;
+  let bestScore = 0;
+  for (const [word, cruxCount] of cruxWords) {
+    const attackCount = attackWords.get(word) ?? 0;
+    if (attackCount > 0) {
+      const score = cruxCount + attackCount;
+      if (score > bestScore) {
+        bestScore = score;
+        bestWord = word;
+      }
+    }
+  }
+
+  return bestWord;
+}
+
+export function detectCruxFocusTrigger(
+  cruxTracker: ReadonlyArray<{ id: string; description: string; identified_turn: number; state: string; disagreement_type?: string; attacking_claim_ids: string[]; speakers_involved: SpeakerId[] }>,
+  currentRound: number,
+  state: ModeratorState,
+  activePovers: SpeakerId[],
+  claimTexts?: Record<string, string>,
+): CruxFocusCandidate | null {
+  if (state.phase !== 'argumentation') return null;
+  if (state.rounds_since_last_intervention < state.required_gap) return null;
+  if (state.budget_remaining <= 0) return null;
+
+  const focusedIds = state.crux_focused_ids ?? new Set<string>();
+
+  let best: CruxFocusCandidate | null = null;
+  let bestRoundsEngaged = 0;
+
+  for (const crux of cruxTracker) {
+    if (crux.state !== 'engaged') continue;
+    if (focusedIds.has(crux.id)) continue;
+
+    const roundsSinceIdentified = currentRound - crux.identified_turn;
+    if (roundsSinceIdentified < 2) continue;
+
+    const type = (crux.disagreement_type as 'empirical' | 'values' | 'definitional') ?? 'empirical';
+
+    let contestedTerm: string | undefined;
+    if (type === 'definitional' && claimTexts) {
+      const attackTexts = crux.attacking_claim_ids
+        .map(id => claimTexts[id])
+        .filter((t): t is string => !!t);
+      contestedTerm = extractContestedTerm(crux.description, attackTexts);
+    }
+
+    if (roundsSinceIdentified > bestRoundsEngaged) {
+      bestRoundsEngaged = roundsSinceIdentified;
+      best = {
+        cruxId: crux.id,
+        description: crux.description,
+        disagreementType: type,
+        roundsEngaged: roundsSinceIdentified,
+        speakersInvolved: crux.speakers_involved,
+        contestedTerm,
+      };
+    }
+  }
+
+  if (!best) return null;
+
+  // Pick target: speaker involved in the crux with least burden
+  const involved = best.speakersInvolved.filter(s => activePovers.includes(s as Exclude<SpeakerId, 'user'>));
+  let target: SpeakerId = involved[0] ?? activePovers[0];
+  let minBurden = Infinity;
+  for (const p of involved) {
+    const burden = state.burden_per_debater[p] ?? 0;
+    if (burden < minBurden) {
+      minBurden = burden;
+      target = p;
+    }
+  }
+  best.speakersInvolved = [target];
+
+  return best;
+}
+
+export function buildCruxFocusInterventionText(candidate: CruxFocusCandidate, nextSpeakerLabel: string): string {
+  const { description, disagreementType, contestedTerm } = candidate;
+
+  if (disagreementType === 'empirical') {
+    return `MODERATOR: This debate hinges on a factual question that neither side has resolved: "${description}"\n\n${nextSpeakerLabel}, you have two options:\n1. Cite specific evidence — a study, dataset, or documented case — that would settle this question.\n2. State precisely what evidence would change your mind. Be falsifiable: "If [X metric] exceeded [Y threshold], I would accept [Z conclusion]."\n\nIf neither side can produce evidence, acknowledge this as an empirical gap and state what research would be needed to resolve it.`;
+  }
+
+  if (disagreementType === 'values') {
+    return `MODERATOR: This disagreement is about competing priorities, not competing facts: "${description}"\n\nMore evidence will not resolve this. ${nextSpeakerLabel}, acknowledge the tradeoff directly:\n1. Name the value you're prioritizing and the value you're sacrificing.\n2. Propose a conditional agreement: "I would accept [opponent's position] if [specific safeguard] were guaranteed."\n\nIf no conditional agreement is possible, state why — what makes this value non-negotiable for your perspective?`;
+  }
+
+  const term = contestedTerm ? `"${contestedTerm}"` : 'a key term';
+  return `MODERATOR: The debaters may be using ${term} to mean different things: "${description}"\n\n${nextSpeakerLabel}, before continuing this thread:\n1. Define your key term precisely — what is included and excluded.\n2. Ask the opponent whether they accept your definition or use a different one.\n\nYou may discover you agree more than you think once terms are aligned.`;
 }
 
 // ── Exports ────────────────────────────────────────────
