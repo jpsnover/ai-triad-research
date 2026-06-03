@@ -3,9 +3,9 @@
 
 import { SoulDocumentSchema, type SoulDocument } from './soulDocSchema.js';
 import type { SpeakerId, PovInfo } from './types.js';
-import accSoulDoc from './soul-docs/accelerationist.soul.json';
-import safSoulDoc from './soul-docs/safetyist.soul.json';
-import skpSoulDoc from './soul-docs/skeptic.soul.json';
+import accSoulDoc from './soul-docs/accelerationist.soul.json' with { type: 'json' };
+import safSoulDoc from './soul-docs/safetyist.soul.json' with { type: 'json' };
+import skpSoulDoc from './soul-docs/skeptic.soul.json' with { type: 'json' };
 
 const _accSoul = SoulDocumentSchema.parse(accSoulDoc);
 const _safSoul = SoulDocumentSchema.parse(safSoulDoc);
