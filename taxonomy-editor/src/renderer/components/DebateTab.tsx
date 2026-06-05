@@ -529,7 +529,7 @@ function DebateDetailSummary({
 }) {
   const [showCalibration, setShowCalibration] = useState(false);
   const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
-  const turnCount = debate.transcript?.length ?? 0;
+  const turnCount = debate.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
   const anNodeCount = debate.argument_network?.nodes?.length ?? 0;
   const anEdgeCount = debate.argument_network?.edges?.length ?? 0;
 

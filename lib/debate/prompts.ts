@@ -2317,7 +2317,7 @@ Only include refs you can genuinely strengthen. Drop any ref where the connectio
 
 export function draftQualityCheckPrompt(
   statement: string,
-  lastOpponentStatement: string,
+  lastOpponentStatement: string | undefined,
   speaker: string,
   pov: string,
   phase: DebatePhase,
@@ -2350,7 +2350,13 @@ Assess whether the debater's rhetoric matches the evidential basis:
   const hasConfidence = beliefConfidences && beliefConfidences.length > 0;
   const hasScope = hasMeaningfulScope(_topicScope);
 
-  let qNum = 3;
+  const hasOpponent = !!lastOpponentStatement;
+  let qNum = 2;
+  const engagesQuestion = hasOpponent
+    ? `\n${++qNum}. ENGAGES — Does the draft's first paragraph respond to the opponent's most recent core argument, rather than introducing an unrelated point?`
+    : '';
+  const engagesField = hasOpponent ? `,\n  "engages": true` : '';
+
   const confidenceQuestion = hasConfidence
     ? `\n${++qNum}. CALIBRATED — Does the draft's rhetoric match the evidential strength of the Beliefs it cites? (Treating speculative claims as settled fact = no; hedging uncertain claims = yes)`
     : '';
@@ -2366,28 +2372,29 @@ Assess whether the debater's rhetoric matches the evidential basis:
     ? `\nDebate scope: ${_topicScope!.core_proposition}\nExample ceiling: ${_topicScope!.example_ceiling}\n`
     : '';
 
+  const opponentBlock = hasOpponent
+    ? `Prior turn (last opponent):\n${lastOpponentStatement!.slice(0, 600)}`
+    : 'This is the opening turn — no prior opponent statement.';
+
   return `You are a debate-draft quality gate. Answer ${qNum} yes/no questions about this draft statement. Do NOT judge overall quality — only flag structural defects that the debater should fix before grounding citations.
 
 Phase: ${phase}
 Speaker: ${speaker} (${pov})
 Round: ${round}
 ${plannedMovesBlock}${confidenceBlock}${scopeContextBlock}
-Prior turn (last opponent):
-${lastOpponentStatement.slice(0, 600)}
+${opponentBlock}
 
 Draft statement:
 ${statement}
 
 Questions:
 1. GROUNDED — Does the draft make at least one claim backed by a specific fact, number, named entity, or data point? (Not: "AI could be dangerous" — Yes: "GPT-4 scores 86th percentile on the bar exam")
-2. FALSIFIABLE — Does the draft contain at least one prediction or claim that could be proven wrong with evidence? (Not: "AI might cause problems someday" — Yes: "By 2028, ≥3 major democracies will have mandatory AI audit requirements")
-3. ENGAGES — Does the draft's first paragraph respond to the opponent's most recent core argument, rather than introducing an unrelated point?${confidenceQuestion}${topicAlignedQuestion}
+2. FALSIFIABLE — Does the draft contain at least one prediction or claim that could be proven wrong with evidence? (Not: "AI might cause problems someday" — Yes: "By 2028, ≥3 major democracies will have mandatory AI audit requirements")${engagesQuestion}${confidenceQuestion}${topicAlignedQuestion}
 
 Return ONLY JSON, no prose:
 {
   "grounded": true,
-  "falsifiable": true,
-  "engages": true${confidenceField}${topicAlignedField},
+  "falsifiable": true${engagesField}${confidenceField}${topicAlignedField},
   "weaknesses": ["≤15 words each, only for failed questions, max ${qNum}"]
 }`;
 }

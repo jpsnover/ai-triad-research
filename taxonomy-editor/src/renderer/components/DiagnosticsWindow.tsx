@@ -2142,7 +2142,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [localOverride, setLocalOverride] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  type EntryTab = 'tax-refs' | 'tax-context' | 'response' | 'details' | 'claims' | 'evidence' | 'citations' | 'brief' | 'plan' | 'draft' | 'lookahead' | 'cite' | 'moderator';
+  type EntryTab = 'tax-refs' | 'details' | 'claims' | 'evidence' | 'citations' | 'brief' | 'plan' | 'draft' | 'lookahead' | 'cite' | 'moderator';
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -2210,8 +2210,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
     if (cmd.overviewTab) setOverviewTab(cmd.overviewTab as OverviewTab);
   }, []);
 
-  // Load POV/situations taxonomy files once so we can resolve taxonomy_refs by id
+  // Load POV/situations taxonomy files once so we can resolve taxonomy_refs by id.
+  // Ref guard prevents duplicate IPC calls from StrictMode double-firing.
+  const taxLoadedRef = useRef(false);
   useEffect(() => {
+    if (taxLoadedRef.current) return;
+    taxLoadedRef.current = true;
     let cancelled = false;
     void (async () => {
       try {
@@ -2464,7 +2468,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
         e.preventDefault();
         const dir = e.key === 'ArrowRight' ? 1 : -1;
         if (entry) {
-          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'lookahead', 'cite', 'claims', 'tax-refs', 'tax-context', 'response'];
+          const ENTRY_TABS: EntryTab[] = ['moderator', 'details', 'brief', 'plan', 'evidence', 'citations', 'draft', 'lookahead', 'cite', 'claims', 'tax-refs'];
           const idx = ENTRY_TABS.indexOf(entryTab);
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
@@ -4022,11 +4026,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
-          {/* ── Tabbed view: Taxonomy Refs | Taxonomy Context | Raw Response ── */}
+          {/* ── Tabbed view ── */}
           {(() => {
             const taxRefCount = entry.taxonomy_refs?.length ?? 0;
-            const taxContext = diag?.taxonomy_context ?? '';
-            const response = diag?.raw_response ?? '';
             const hasClaims = !!(
               diag?.extracted_claims ||
               (meta?.my_claims && (meta.my_claims as unknown[]).length > 0)
@@ -4206,8 +4208,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
               { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
               { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
-              { id: 'tax-context', label: 'Taxonomy Context', has: taxContext.length > 0, copy: taxContext },
-              { id: 'response', label: 'Raw AI Response', has: response.length > 0, copy: response },
             ];
             // If the current tab has no data, auto-select the first tab that does.
             const activeTab = tabs.find(t => t.id === entryTab)?.has
@@ -4520,61 +4520,6 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '8px 10px' }}>No taxonomy refs for this entry.</div>
                     );
                   })()}
-                  {activeTab === 'tax-context' && (() => {
-                    const lbManifest = (meta?.injection_manifest as Record<string, unknown> | undefined)?.lineage_boost as {
-                      boosted?: number; promoted?: number;
-                      boostedNodeIds?: string[]; promotedNodeIds?: string[];
-                    } | undefined;
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                        {lbManifest && (
-                          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', fontSize: '0.7rem' }}>
-                            <div style={{ fontWeight: 700, marginBottom: 4, color: '#f59e0b' }}>Lineage Boost</div>
-                            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
-                              <span>Nodes boosted: <strong>{lbManifest.boosted ?? 0}</strong></span>
-                              <span>Nodes promoted: <strong style={{ color: lbManifest.promoted ? '#22c55e' : 'inherit' }}>{lbManifest.promoted ?? 0}</strong></span>
-                            </div>
-                            {lbManifest.promotedNodeIds && lbManifest.promotedNodeIds.length > 0 && (
-                              <div style={{ marginTop: 2 }}>
-                                <span style={{ color: 'var(--text-muted)' }}>Promoted: </span>
-                                {lbManifest.promotedNodeIds.map(id => (
-                                  <span key={id} style={{
-                                    display: 'inline-block', padding: '1px 5px', borderRadius: 3, marginRight: 4, marginBottom: 2,
-                                    background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontSize: '0.65rem', fontWeight: 600,
-                                  }}>{id}</span>
-                                ))}
-                              </div>
-                            )}
-                            {lbManifest.boostedNodeIds && lbManifest.boostedNodeIds.length > 0 && (
-                              <details style={{ marginTop: 4 }}>
-                                <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.65rem' }}>All boosted node IDs ({lbManifest.boostedNodeIds.length})</summary>
-                                <div style={{ marginTop: 2, lineHeight: 1.8 }}>
-                                  {lbManifest.boostedNodeIds.map(id => (
-                                    <span key={id} style={{
-                                      display: 'inline-block', padding: '1px 5px', borderRadius: 3, marginRight: 4, marginBottom: 2,
-                                      background: 'rgba(249,115,22,0.1)', color: '#f97316', fontSize: '0.6rem',
-                                    }}>{id}</span>
-                                  ))}
-                                </div>
-                              </details>
-                            )}
-                          </div>
-                        )}
-                        {taxContext ? (
-                          <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0, flex: 1 }}><Highlight text={taxContext} /></pre>
-                        ) : (
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No taxonomy context captured for this entry.</div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  {activeTab === 'response' && (
-                    response ? (
-                      <pre style={{ ...textAreaStyle, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-word', padding: '8px 10px', margin: 0 }}><Highlight text={response} /></pre>
-                    ) : (
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', padding: '12px' }}>No raw response captured for this entry.</div>
-                    )
-                  )}
                   {activeTab === 'details' && (
                     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
                       {/* Per-turn utility delta for this speaker */}
@@ -4805,27 +4750,71 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                       )}
                       {meta?.move_types && (
                         <Section title={`Dialectical Moves — ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}`} defaultOpen copyText={`Moves: ${(meta.move_types as (string | MoveAnnotation)[]).map(m => getMoveName(m)).join(', ')}${meta.disagreement_type ? `\nType: ${meta.disagreement_type}` : ''}`}>
-                          {(meta.move_types as (string | MoveAnnotation)[]).map((m, i) => {
-                            const name = getMoveName(m);
-                            const ann = typeof m === 'object' ? m as MoveAnnotation : null;
-                            const edgeInfo = MOVE_EDGE_MAP[name.toUpperCase()] || MOVE_EDGE_MAP[name];
-                            const cat = edgeInfo?.edgeType || 'neutral';
-                            const catColor = cat === 'attack' ? '#ef4444' : cat === 'support' ? '#22c55e' : '#888';
-                            return (
-                              <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${catColor}44` }}>
-                                <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
-                                <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: '0.6rem', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
-                                {ann?.target && (() => {
-                                  const targetNode = an?.nodes.find(n => n.id === ann.target);
-                                  return (<>
-                                    <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>
-                                    {targetNode && <span style={{ marginLeft: 4, fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>"{targetNode.text.length > 100 ? targetNode.text.slice(0, 100) + '…' : targetNode.text}"</span>}
-                                  </>);
-                                })()}
-                                {ann?.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{ann.detail}</div>}
-                              </div>
-                            );
-                          })}
+                          {(() => {
+                            const acceptedIds = new Set(diag?.extracted_claims?.accepted.map(c => c.id) ?? []);
+                            const claimTargets = (meta.my_claims as { claim: string; targets: string[] }[] | undefined) ?? [];
+                            const allClaimTargetIds = [...new Set(claimTargets.flatMap(c => c.targets ?? []))];
+                            return (meta.move_types as (string | MoveAnnotation)[]).map((m, i) => {
+                              const name = getMoveName(m);
+                              const ann = typeof m === 'object' ? m as MoveAnnotation : null;
+                              const edgeInfo = MOVE_EDGE_MAP[name.toUpperCase()] || MOVE_EDGE_MAP[name];
+                              const cat = edgeInfo?.edgeType || 'neutral';
+                              const catColor = cat === 'attack' ? '#ef4444' : cat === 'support' ? '#22c55e' : '#888';
+                              const matchEdgeType = cat === 'attack' ? 'attacks' : cat === 'support' ? 'supports' : null;
+                              const inferredTargets: { id: string; type: 'supports' | 'attacks'; text?: string }[] = [];
+                              if (!ann?.target && an?.edges) {
+                                const turnEdges = an.edges.filter(e =>
+                                  acceptedIds.has(e.source) && (matchEdgeType ? e.type === matchEdgeType : true)
+                                );
+                                const seen = new Set<string>();
+                                for (const e of turnEdges) {
+                                  if (!seen.has(e.target)) {
+                                    seen.add(e.target);
+                                    const tNode = an.nodes.find(n => n.id === e.target);
+                                    inferredTargets.push({ id: e.target, type: e.type, text: tNode?.text });
+                                  }
+                                }
+                                if (inferredTargets.length === 0) {
+                                  for (const tid of allClaimTargetIds) {
+                                    if (!seen.has(tid)) {
+                                      seen.add(tid);
+                                      const tNode = an.nodes.find(n => n.id === tid);
+                                      inferredTargets.push({ id: tid, type: matchEdgeType ?? 'supports', text: tNode?.text });
+                                    }
+                                  }
+                                }
+                              }
+                              return (
+                                <div key={i} style={{ margin: '4px 0', paddingLeft: 8, borderLeft: `2px solid ${catColor}44` }}>
+                                  <span style={{ display: 'inline-block', padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.2)', color: '#3b82f6', fontSize: '0.7rem', fontWeight: 600 }}>{name}</span>
+                                  <span style={{ marginLeft: 6, padding: '1px 5px', borderRadius: 3, background: `${catColor}18`, color: catColor, fontSize: '0.6rem', fontWeight: 600, textTransform: 'capitalize' }}>{cat}</span>
+                                  {ann?.target && (() => {
+                                    const targetNode = an?.nodes.find(n => n.id === ann.target);
+                                    return (<>
+                                      <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'var(--text-muted)' }}>→ {ann.target}</span>
+                                      {targetNode && <span style={{ marginLeft: 4, fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>"{targetNode.text.length > 100 ? targetNode.text.slice(0, 100) + '…' : targetNode.text}"</span>}
+                                    </>);
+                                  })()}
+                                  {!ann?.target && inferredTargets.length > 0 && (
+                                    <div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                                      <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>→</span>
+                                      {inferredTargets.map(t => (
+                                        <span key={t.id} data-tooltip={t.text} style={{
+                                          padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600, cursor: 'default',
+                                          background: `${t.type === 'attacks' ? '#ef4444' : '#22c55e'}15`,
+                                          color: t.type === 'attacks' ? '#ef4444' : '#22c55e',
+                                        }}>{t.id}</span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {!ann?.target && inferredTargets.length === 0 && (
+                                    <span style={{ marginLeft: 6, fontSize: '0.6rem', color: 'var(--text-muted)', opacity: 0.6 }}>no AN target</span>
+                                  )}
+                                  {ann?.detail && <div style={{ fontSize: '0.7rem', color: 'var(--text-primary)', marginTop: 2 }}>{ann.detail}</div>}
+                                </div>
+                              );
+                            });
+                          })()}
                           {meta.disagreement_type && <div style={{ marginTop: 4 }}>Type: <strong>{meta.disagreement_type as string}</strong></div>}
                         </Section>
                       )}
@@ -6515,7 +6504,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               background: aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
                               color: aligned ? '#16a34a' : '#dc2626',
                             }}>{aligned ? 'ON-SCOPE' : 'OFF-SCOPE'}</span>
-                            <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontWeight: 600 }}>Draft Attempt 1</span>
+                            <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontWeight: 600 }}>Draft Attempt {(ta as Record<string, unknown>).draft_attempt ?? 1}</span>
                             {ta.repaired && (
                               <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#d97706', fontWeight: 600 }}>repaired via regen</span>
                             )}
@@ -7828,10 +7817,11 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               const addedEdges = an?.edges.filter(e =>
                                 extTrace.an_nodes_added_ids.includes(e.source) || extTrace.an_nodes_added_ids.includes(e.target)
                               ) ?? [];
-                              const attackEdges = addedEdges.filter(e => (e as { type?: string }).type === 'attacks').length;
+                              const attackEdges = addedEdges.filter(e => e.type === 'attacks').length;
                               const supportEdges = addedEdges.length - attackEdges;
-                              return (
-                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.68rem' }}>
+                              const sColors: Record<string, string> = { decisive: '#22c55e', substantial: '#3b82f6', tangential: '#6b7280' };
+                              return (<>
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.68rem', marginBottom: 8 }}>
                                   <div style={{ flex: '1 1 120px', padding: '5px 8px', borderRadius: 4, background: 'var(--bg-subtle)', border: '1px solid var(--border)' }}>
                                     <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>Nodes Added</div>
                                     <div style={{ fontFamily: 'monospace', fontWeight: 700 }}>{extTrace.an_nodes_added_ids.length}</div>
@@ -7856,7 +7846,53 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                     </div>
                                   </div>
                                 </div>
-                              );
+                                {addedEdges.length > 0 && (
+                                  <div style={{ fontSize: '0.65rem' }}>
+                                    {addedEdges.map((edge, ei) => {
+                                      const sourceNode = an?.nodes.find(n => n.id === edge.source);
+                                      const targetNode = an?.nodes.find(n => n.id === edge.target);
+                                      const edgeColor = edge.type === 'attacks' ? '#ef4444' : '#22c55e';
+                                      const edgeLabel = edge.type === 'attacks'
+                                        ? (edge.attack_type ? `attacks (${edge.attack_type})` : 'attacks')
+                                        : 'supports';
+                                      return (
+                                        <div key={ei} style={{ margin: '3px 0', paddingLeft: 10, borderLeft: `2px solid ${edgeColor}` }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                                            <span style={{ fontWeight: 700, color: '#3b82f6' }}>{edge.source}</span>
+                                            <span style={{ color: edgeColor, fontWeight: 600 }}>{edgeLabel}</span>
+                                            <span style={{ fontWeight: 700, color: '#3b82f6' }}>{edge.target}</span>
+                                            {edge.strength && (
+                                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', fontWeight: 600, background: `${sColors[edge.strength] ?? '#6b7280'}18`, color: sColors[edge.strength] ?? '#6b7280' }}>
+                                                {edge.strength}
+                                              </span>
+                                            )}
+                                            {edge.argumentation_scheme && (
+                                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>
+                                                {edge.argumentation_scheme}
+                                              </span>
+                                            )}
+                                          </div>
+                                          {(sourceNode || targetNode) && (
+                                            <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 1 }}>
+                                              {sourceNode && <span>{sourceNode.text.length > 60 ? sourceNode.text.slice(0, 60) + '…' : sourceNode.text}</span>}
+                                              {sourceNode && targetNode && <span> → </span>}
+                                              {targetNode && <span>{targetNode.text.length > 60 ? targetNode.text.slice(0, 60) + '…' : targetNode.text}</span>}
+                                            </div>
+                                          )}
+                                          {edge.warrant && (
+                                            <details style={{ marginTop: 2 }}>
+                                              <summary style={{ cursor: 'pointer', fontSize: '0.58rem', color: 'var(--text-muted)' }}>Warrant</summary>
+                                              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 1, paddingLeft: 4, borderLeft: '1px solid var(--border)' }}>
+                                                {edge.warrant}
+                                              </div>
+                                            </details>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </>);
                             })()}
                           </details>
                         )}

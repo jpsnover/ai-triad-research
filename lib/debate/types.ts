@@ -1080,6 +1080,7 @@ export interface EntryDiagnostics {
   topic_alignment?: {
     topic_aligned: boolean;
     repaired?: boolean;
+    draft_attempt?: number;
     scope_used: TopicScope | null;
   };
   quality_gate?: {

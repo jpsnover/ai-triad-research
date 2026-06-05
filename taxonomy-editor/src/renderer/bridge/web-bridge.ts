@@ -405,10 +405,15 @@ const rawApi: AppAPI = {
 
   // Diagnostics — in web mode, communicate cross-tab via BroadcastChannel
   openDiagnosticsWindow: async () => {
-    if (window.innerWidth <= 1023) {
+    const isPopout = window.location.hash.includes('debate-window');
+    const width = window.innerWidth;
+    console.log(`[diagnostics] openDiagnosticsWindow: width=${width}, isPopout=${isPopout}, hash=${window.location.hash}`);
+    if (!isPopout && width <= 1023) {
+      console.log('[diagnostics] Using drawer path (narrow main window)');
       window.dispatchEvent(new CustomEvent('open-diagnostics-drawer'));
       return;
     }
+    console.log('[diagnostics] Using new-tab path (popout or wide window)');
     window.open(`${location.origin}/#diagnostics-window`, '_blank');
   },
   openPovProgressionWindow: async () => {

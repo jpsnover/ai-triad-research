@@ -1710,16 +1710,22 @@ describe('parseDraftQualityResult', () => {
     const result = parseDraftQualityResult('not json at all');
     expect(result.grounded).toBe(false);
     expect(result.falsifiable).toBe(false);
-    expect(result.engages).toBe(false);
+    expect(result.engages).toBeUndefined();
     expect(result.weaknesses.length).toBeGreaterThan(0);
   });
 
-  it('treats missing boolean fields as false', () => {
+  it('treats missing boolean fields as false or undefined', () => {
     const raw = JSON.stringify({ weaknesses: [] });
     const result = parseDraftQualityResult(raw);
     expect(result.grounded).toBe(false);
     expect(result.falsifiable).toBe(false);
-    expect(result.engages).toBe(false);
+    expect(result.engages).toBeUndefined();
+  });
+
+  it('sets engages when present in response', () => {
+    const raw = JSON.stringify({ grounded: true, falsifiable: true, engages: true, weaknesses: [] });
+    const result = parseDraftQualityResult(raw);
+    expect(result.engages).toBe(true);
   });
 });
 

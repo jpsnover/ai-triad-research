@@ -506,7 +506,7 @@ function EntryView({ entryId }: { entryId: string }) {
                   <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid ${diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444'}40`, fontSize: '0.65rem' }}>
                     <div className="diag-kv" style={{ marginBottom: 2 }}>
                       <span className="diag-k">Topic aligned</span>
-                      <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>Attempt 1</span>
+                      <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>Attempt {(diag.topic_alignment as Record<string, unknown>).draft_attempt ?? 1}</span>
                       {diag.topic_alignment.repaired && (
                         <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(245,158,11,0.15)', color: '#d97706' }}>triggered regen</span>
                       )}

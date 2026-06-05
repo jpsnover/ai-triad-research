@@ -569,7 +569,7 @@ export async function runTurnPipeline(
   const evidenceDocIds = new Set<string>();
   const ignoredEvidenceDocIds: string[] = [];
 
-  let topicAlignmentResult: { topic_aligned: boolean; repaired: boolean } | undefined;
+  let topicAlignmentResult: { topic_aligned: boolean; repaired: boolean; draft_attempt: number } | undefined;
   let qualityGateResult: { pre_repair: DraftQualityGateResult; post_repair?: DraftQualityGateResult; repair_outcome?: 'fixed' | 'partial' | 'unchanged' } | undefined;
 
   if (input.frozenDraft) {
@@ -1638,7 +1638,6 @@ export async function runTurnPipeline(
     !input.skipPreCheck &&
     effectivePreCheckGenerate &&
     input.preCheckModel &&
-    input.lastOpponentStatement &&
     draft?.statement
   ) {
     onProgress?.('draft_quality', `${input.label} is quality-checking draft...`);
@@ -1675,7 +1674,8 @@ export async function runTurnPipeline(
       });
 
       const topicAligned = preCheckResult.topic_aligned !== false;
-      const allPass = preCheckResult.grounded && preCheckResult.falsifiable && preCheckResult.engages && topicAligned;
+      const engages = preCheckResult.engages ?? true; // No opponent on opening turn — auto-pass
+      const allPass = preCheckResult.grounded && preCheckResult.falsifiable && engages && topicAligned;
       const topicRepairHint = !topicAligned && input.topicScope
         ? offScopeRepairHint(classifyOffScopeDrift(preCheckResult.weaknesses, input.topicScope), input.topicScope)
         : undefined;
@@ -1683,11 +1683,11 @@ export async function runTurnPipeline(
         ? [...preCheckResult.weaknesses, topicRepairHint]
         : preCheckResult.weaknesses;
       const triggeredRegen = !allPass && allWeaknesses.length > 0;
-      topicAlignmentResult = { topic_aligned: topicAligned, repaired: triggeredRegen };
+      topicAlignmentResult = { topic_aligned: topicAligned, repaired: triggeredRegen, draft_attempt: 1 };
       const preRepairGate: DraftQualityGateResult = {
         grounded: preCheckResult.grounded,
         falsifiable: preCheckResult.falsifiable,
-        engages: preCheckResult.engages,
+        engages,
         topic_aligned: topicAligned,
         pass: allPass,
         weaknesses: allWeaknesses,
@@ -1810,18 +1810,19 @@ export async function runTurnPipeline(
             });
 
             const postTopicAligned = postCheckParsed.topic_aligned !== false;
-            const postAllPass = postCheckParsed.grounded && postCheckParsed.falsifiable && postCheckParsed.engages && postTopicAligned;
+            const postEngages = postCheckParsed.engages ?? true;
+            const postAllPass = postCheckParsed.grounded && postCheckParsed.falsifiable && postEngages && postTopicAligned;
             const postRepairGate: DraftQualityGateResult = {
               grounded: postCheckParsed.grounded,
               falsifiable: postCheckParsed.falsifiable,
-              engages: postCheckParsed.engages,
+              engages: postEngages,
               topic_aligned: postTopicAligned,
               pass: postAllPass,
               weaknesses: postCheckParsed.weaknesses,
             };
 
             const prePassCount = [preRepairGate.grounded, preRepairGate.falsifiable, preRepairGate.engages, preRepairGate.topic_aligned].filter(Boolean).length;
-            const postPassCount = [postAllPass ? 4 : [postCheckParsed.grounded, postCheckParsed.falsifiable, postCheckParsed.engages, postTopicAligned].filter(Boolean).length][0];
+            const postPassCount = [postAllPass ? 4 : [postCheckParsed.grounded, postCheckParsed.falsifiable, postEngages, postTopicAligned].filter(Boolean).length][0];
             const repairOutcome: 'fixed' | 'partial' | 'unchanged' =
               postAllPass ? 'fixed' :
               postPassCount > prePassCount ? 'partial' :
@@ -1829,7 +1830,7 @@ export async function runTurnPipeline(
 
             qualityGateResult = { pre_repair: preRepairGate, post_repair: postRepairGate, repair_outcome: repairOutcome };
             if (postTopicAligned) {
-              topicAlignmentResult = { topic_aligned: true, repaired: true };
+              topicAlignmentResult = { topic_aligned: true, repaired: true, draft_attempt: 2 };
             }
 
             getGlobalRecorder()?.record({

@@ -61,8 +61,12 @@ RUN pip install --no-cache-dir \
 COPY scripts/requirements-lock.txt /tmp/requirements-lock.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-lock.txt && rm /tmp/requirements-lock.txt
 
-# Pre-download embedding model (~90 MB) so first app start is fast
-RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# Pre-download embedding model (~90 MB) so first app start is fast.
+# Skip in CI smoke tests where embeddings aren't needed and HuggingFace may be unreachable.
+ARG PRELOAD_MODEL=true
+RUN if [ "$PRELOAD_MODEL" = "true" ]; then \
+      python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"; \
+    fi
 
 # Non-root user
 RUN groupadd -r aitriad && useradd -r -g aitriad -d /home/aitriad -m aitriad

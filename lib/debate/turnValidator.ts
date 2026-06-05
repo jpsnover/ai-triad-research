@@ -1069,7 +1069,7 @@ export function checkDirectiveContentCompliance(
 export interface DraftQualityResult {
   grounded: boolean;
   falsifiable: boolean;
-  engages: boolean;
+  engages?: boolean;
   topic_aligned?: boolean;
   weaknesses: string[];
 }
@@ -1082,17 +1082,19 @@ export interface DraftQualityCheckOutput {
 }
 
 export function parseDraftQualityResult(raw: string): DraftQualityResult {
-  const fallback: DraftQualityResult = { grounded: false, falsifiable: false, engages: false, weaknesses: ['Draft quality check parse failure — treating as failed'] };
+  const fallback: DraftQualityResult = { grounded: false, falsifiable: false, weaknesses: ['Draft quality check parse failure — treating as failed'] };
   try {
     const parsed = parseJsonRobust(raw) as Record<string, unknown>;
     const result: DraftQualityResult = {
       grounded: parsed.grounded === true,
       falsifiable: parsed.falsifiable === true,
-      engages: parsed.engages === true,
       weaknesses: Array.isArray(parsed.weaknesses)
         ? (parsed.weaknesses as unknown[]).filter(w => typeof w === 'string').map(w => w as string).slice(0, 3)
         : [],
     };
+    if ('engages' in parsed) {
+      result.engages = parsed.engages === true;
+    }
     if ('topic_aligned' in parsed) {
       result.topic_aligned = parsed.topic_aligned === true;
     }

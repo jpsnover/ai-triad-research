@@ -3128,6 +3128,7 @@ export class DebateEngine {
         ? {
             topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
             repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+            draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
             scope_used: this.session.topic.scope ?? null,
           }
         : undefined,

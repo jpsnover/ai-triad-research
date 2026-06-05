@@ -17,6 +17,11 @@ import {
 // Fire-and-forget: start local embedding init on module load
 void tryInitLocalEmbedding();
 
+// Same-window diagnostics callbacks for the in-app drawer (mobile/narrow).
+// When a popout BrowserWindow is open, IPC delivers state to it directly.
+// When the drawer is used instead, we also deliver to local callbacks.
+const localDiagCallbacks = new Set<(state: unknown) => void>();
+
 export const api: AppAPI = {
   // Taxonomy directories
   getTaxonomyDirs: () => window.electronAPI.getTaxonomyDirs(),
@@ -173,15 +178,23 @@ export const api: AppAPI = {
 
   // Diagnostics
   openDiagnosticsWindow: () => {
-    if (window.innerWidth <= 1023) {
+    const isPopout = window.location.hash.includes('debate-window');
+    const width = window.innerWidth;
+    console.log(`[diagnostics] openDiagnosticsWindow: width=${width}, isPopout=${isPopout}, hash=${window.location.hash}`);
+    if (!isPopout && width <= 1023) {
+      console.log('[diagnostics] Using drawer path (narrow main window)');
       window.dispatchEvent(new CustomEvent('open-diagnostics-drawer'));
       return Promise.resolve();
     }
+    console.log('[diagnostics] Using IPC path (popout or wide window)');
     return window.electronAPI.openDiagnosticsWindow();
   },
   openPovProgressionWindow: () => window.electronAPI.openPovProgressionWindow(),
   closeDiagnosticsWindow: () => window.electronAPI.closeDiagnosticsWindow(),
-  sendDiagnosticsState: (s) => window.electronAPI.sendDiagnosticsState(s),
+  sendDiagnosticsState: (s) => {
+    for (const cb of localDiagCallbacks) cb(s);
+    window.electronAPI.sendDiagnosticsState(s);
+  },
 
   // Prompt Diff popout
   openPromptDiffWindow: (debateId, entryId) => window.electronAPI.openPromptDiffWindow(debateId, entryId),
@@ -209,7 +222,11 @@ export const api: AppAPI = {
   openExternal: (url) => window.electronAPI.openExternal(url),
 
   // Event listeners
-  onDiagnosticsStateUpdate: (cb) => window.electronAPI.onDiagnosticsStateUpdate(cb),
+  onDiagnosticsStateUpdate: (cb) => {
+    localDiagCallbacks.add(cb);
+    const unsub = window.electronAPI.onDiagnosticsStateUpdate(cb);
+    return () => { localDiagCallbacks.delete(cb); unsub(); };
+  },
   onDiagnosticsPopoutClosed: (cb) => window.electronAPI.onDiagnosticsPopoutClosed(cb),
   requestReExtractClaims: (entryId) => window.electronAPI.requestReExtractClaims(entryId),
   onReExtractClaims: (cb) => window.electronAPI.onReExtractClaims(cb),

@@ -160,6 +160,7 @@ jobs:
           push: false
           load: true
           tags: ghcr.io/jpsnover/ai-triad-base:${{ steps.base_tag.outputs.tag }}
+          build-args: PRELOAD_MODEL=false
           cache-from: type=gha,scope=base-image
           cache-to: type=gha,scope=base-image,mode=max
 
