@@ -16,6 +16,9 @@ export type EventType =
   | 'an.qbaf'
   | 'an.gc'
   | 'an.commitment_update'
+  | 'an.extraction_confidence_missing'
+  | 'an.extraction_coverage_low'
+  | 'an.extraction_coverage_error'
   // Turn pipeline
   | 'turn.stage'
   | 'turn.validate'
@@ -30,6 +33,7 @@ export type EventType =
   | 'turn.citation_bank'
   | 'turn.cite_quality'
   | 'turn.quality_gate'
+  | 'turn.quality_gate_repair'
   // Debate flow
   | 'debate.phase'
   | 'debate.round'

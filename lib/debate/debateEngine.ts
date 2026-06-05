@@ -40,6 +40,7 @@ import type {
   ProcessRewardEntry,
   TopicScope,
   TopicScopeRiskLevel,
+  EntailmentRepairEvent,
 } from './types.js';
 import { POVER_INFO, getDebatePhase, POV_KEYS, type PovKey } from './types.js';
 import {
@@ -85,11 +86,12 @@ import {
   setTopicScope,
   extractSpeakerVocabulary,
   formatVocabularyExclusion,
+  entailmentRepairPrompt,
 } from './prompts.js';
-import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength, computeClaimTaxonomyAttribution } from './argumentNetwork.js';
+import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength, computeClaimTaxonomyAttribution, sampleNodesForEntailment, type RawExtractedClaim } from './argumentNetwork.js';
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from './doctrinalAnchoring.js';
 import type { BoundaryEmbeddings, DoctrinalAnchoringConfig } from './doctrinalAnchoring.js';
-import { extractCalibrationData, appendCalibrationLog, readCalibrationLog } from './calibrationLogger.js';
+import { extractCalibrationData, appendCalibrationLog, readCalibrationLog, computeExtractionCoverage } from './calibrationLogger.js';
 import { computeStrategicHints } from './strategicHints.js';
 import { evaluateLookahead } from './lookaheadGate.js';
 import type { LookaheadDiagnostics } from './lookaheadGate.js';
@@ -138,6 +140,7 @@ import {
   formatRecentTranscript,
   parsePoverResponse,
   getMoveName,
+  wordOverlap,
 } from './helpers.js';
 import { computeQbafStrengths, computeQbafConvergence } from './qbaf.js';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageTracker.js';
@@ -529,6 +532,49 @@ export class DebateEngine {
       this.session.context_rot.cumulative_retention = Math.round(this.session.context_rot.cumulative_retention * 10000) / 10000;
     }
 
+    // Compute extraction coverage on sampled turns (t/391)
+    try {
+      const coverageGenFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Extraction coverage', 30_000);
+      await computeExtractionCoverage(this.session, coverageGenFn);
+
+      const recorder = getGlobalRecorder();
+      if (recorder && this.session.diagnostics?.entries) {
+        for (const [entryId, entryDiag] of Object.entries(this.session.diagnostics.entries)) {
+          const ec = (entryDiag as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined;
+          if (ec && ec.coverage_rate < 0.70) {
+            recorder.record({
+              type: 'an.extraction_coverage_low',
+              component: 'calibration',
+              level: 'warn',
+              debate_id: this.session.id,
+              turn_id: entryId,
+              message: `Extraction coverage ${Math.round(ec.coverage_rate * 100)}% < 70% threshold`,
+              data: { coverage_rate: ec.coverage_rate },
+            });
+          }
+        }
+        const coverageSamples = Object.values(this.session.diagnostics.entries)
+          .map(d => (d as Record<string, unknown>).extraction_coverage as { coverage_rate: number } | undefined)
+          .filter((c): c is { coverage_rate: number } => c != null)
+          .map(c => c.coverage_rate);
+        if (coverageSamples.length > 0) {
+          const aggCoverage = coverageSamples.reduce((a, b) => a + b, 0) / coverageSamples.length;
+          if (aggCoverage < 0.70) {
+            recorder.record({
+              type: 'an.extraction_coverage_error',
+              component: 'calibration',
+              level: 'error',
+              debate_id: this.session.id,
+              message: `Debate-level extraction coverage ${Math.round(aggCoverage * 100)}% < 70% threshold`,
+              data: { aggregate_coverage_rate: aggCoverage, samples: coverageSamples.length },
+            });
+          }
+        }
+      }
+    } catch {
+      // Coverage computation failure never blocks debate completion
+    }
+
     // Log calibration data point (non-blocking, never fails the debate)
     try {
       const weights = loadProvisionalWeights();
@@ -551,7 +597,8 @@ export class DebateEngine {
       // Persist unresolved cruxes to cross-debate registry (t/367)
       if (this.config.embedFn && this.session.crux_tracker?.length) {
         try {
-          await persistDebateCruxes(this.session, dataRoot, this.config.embedFn);
+          const generateFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Crux decontextualization', 30_000);
+          await persistDebateCruxes(this.session, dataRoot, this.config.embedFn, generateFn);
         } catch {
           // Registry persistence failure never blocks debate completion
         }
@@ -3080,11 +3127,11 @@ export class DebateEngine {
       topic_alignment: pipelineResult.topicAlignmentResult
         ? {
             topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
-            off_scope_items: this.session.topic.scope?.off_scope_topics,
-            drift_signals: this.session.topic.scope?.drift_signatures,
+            repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
             scope_used: this.session.topic.scope ?? null,
           }
         : undefined,
+      quality_gate: pipelineResult.qualityGateResult,
     });
 
     // Track move types and disagreement types
@@ -4533,7 +4580,7 @@ Return ONLY JSON (no markdown, no code fences):
     if (debaterClaims && debaterClaims.length > 0) {
       prompt = classifyClaimsPrompt(statement, POVER_INFO[speaker].label, debaterClaims, priorClaims, this.session.audience);
     } else {
-      prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims, this.session.audience);
+      prompt = extractClaimsPrompt(statement, POVER_INFO[speaker].label, priorClaims, this.session.audience, this.session.topic.final);
     }
 
     const anNodeCountBefore = an.nodes.length;
@@ -4583,9 +4630,9 @@ Return ONLY JSON (no markdown, no code fences):
     trace.response_chars = text.length;
     trace.response_truncated = this.looksTruncated(text);
 
-    let claims: { text: string; bdi_category?: string; base_strength?: number; specificity?: string; steelman_of?: string | null; responds_to?: { prior_claim_id: string; relationship: string; attack_type?: string; weight?: number; scheme?: string; argumentation_scheme?: string; warrant?: string }[] }[] = [];
+    let claims: RawExtractedClaim[] = [];
     try {
-      const parsed = parseJsonRobust(text) as { claims?: typeof claims };
+      const parsed = parseJsonRobust(text) as { claims?: RawExtractedClaim[] };
       claims = parsed.claims ?? [];
     } catch (err) {
       trace.status = 'parse_error';
@@ -4633,6 +4680,41 @@ Return ONLY JSON (no markdown, no code fences):
 
     an.nodes.push(...claimsResult.newNodes);
     an.edges.push(...claimsResult.newEdges);
+
+    // Entailment post-pass: BDI-category-aware sampling, detect-and-repair
+    const entailmentRepairs: EntailmentRepairEvent[] = [];
+    if (claimsResult.newNodes.length > 0) {
+      const sampled = sampleNodesForEntailment(claimsResult.newNodes);
+      for (const node of sampled) {
+        try {
+          const eprompt = entailmentRepairPrompt(statement, node.text);
+          const eText = await this.generateWithEvaluator(eprompt, 'Entailment check', 30_000);
+          const eResult = parseJsonRobust(eText) as {
+            verdict?: string;
+            explanation?: string;
+            repaired_claim?: string | null;
+          };
+          const verdict = eResult.verdict as EntailmentRepairEvent['verdict'] ?? 'entailed';
+          const overlap = wordOverlap(node.text, statement);
+          const event: EntailmentRepairEvent = {
+            node_id: node.id,
+            bdi_category: node.bdi_category ?? 'unknown',
+            verdict,
+            explanation: eResult.explanation ?? '',
+            original_text: node.text,
+            repaired_text: eResult.repaired_claim ?? null,
+            overlap_pct: Math.round(overlap * 100),
+          };
+          entailmentRepairs.push(event);
+
+          if ((verdict === 'partial' || verdict === 'not_entailed') && eResult.repaired_claim) {
+            node.text = eResult.repaired_claim;
+          }
+        } catch (eErr) {
+          this.warn(`Entailment check for ${node.id}`, eErr, 'Skipping — claim text unchanged');
+        }
+      }
+    }
 
     // Embed new AN nodes for AN-based taxonomy relevance scoring (non-blocking)
     const adapter = this.adapter as ExtendedAIAdapter;
@@ -4856,6 +4938,7 @@ Return ONLY JSON (no markdown, no code fences):
           .map(r => r.argumentation_scheme!),
       },
       extraction_trace: trace,
+      entailment_repairs: entailmentRepairs.length > 0 ? entailmentRepairs : undefined,
     });
 
     this.updateExtractionSummary(trace);

@@ -15,6 +15,7 @@ import { nodePovFromId } from './nodeIdUtils.js';
 export interface HarvestConflictItem {
   id: string;
   point: string;
+  verbatim?: string;
   bdiLayer?: string;
   resolvability?: string;
   positions: { pover: string; stance: string }[];
@@ -96,6 +97,7 @@ export function extractConflictCandidates(debate: DebateSession): HarvestConflic
   const synthesis = synthEntry.metadata.synthesis as {
     areas_of_disagreement?: {
       point: string;
+      verbatim?: string;
       bdi_layer?: string;
       resolvability?: string;
       positions?: { pover: string; stance: string }[];
@@ -119,6 +121,7 @@ export function extractConflictCandidates(debate: DebateSession): HarvestConflic
     return {
       id: `hc-${i}`,
       point: d.point,
+      verbatim: d.verbatim || undefined,
       bdiLayer: d.bdi_layer,
       resolvability: d.resolvability,
       positions: d.positions || [],

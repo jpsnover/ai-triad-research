@@ -948,6 +948,8 @@ export interface ArgumentNetworkEdge {
   argumentation_scheme?: ArgumentationScheme;
   /** Which critical questions (1-indexed) of the scheme were addressed by this edge. */
   critical_questions_addressed?: number[];
+  /** Engagement strength: how directly this edge rebuts/supports its target. */
+  strength?: 'decisive' | 'substantial' | 'tangential';
 }
 
 export interface CommitmentStore {
@@ -1078,10 +1080,45 @@ export interface EntryDiagnostics {
   topic_alignment?: {
     topic_aligned: boolean;
     repaired?: boolean;
-    off_scope_items?: string[];
-    drift_signals?: string[];
     scope_used: TopicScope | null;
   };
+  quality_gate?: {
+    pre_repair: DraftQualityGateResult;
+    post_repair?: DraftQualityGateResult;
+    repair_outcome?: 'fixed' | 'partial' | 'unchanged';
+  };
+  entailment_repairs?: EntailmentRepairEvent[];
+  extraction_coverage?: {
+    total_elements: number;
+    verifiable_elements: number;
+    normative_elements: number;
+    covered_verifiable: number;
+    covered_normative: number;
+    coverage_rate: number;
+    uncovered_elements?: Array<{
+      text: string;
+      element_type: 'verifiable' | 'normative';
+    }>;
+  };
+}
+
+export interface DraftQualityGateResult {
+  grounded: boolean;
+  falsifiable: boolean;
+  engages: boolean;
+  topic_aligned: boolean;
+  pass: boolean;
+  weaknesses: string[];
+}
+
+export interface EntailmentRepairEvent {
+  node_id: string;
+  bdi_category: string;
+  verdict: 'entailed' | 'partial' | 'not_entailed';
+  explanation: string;
+  original_text: string;
+  repaired_text: string | null;
+  overlap_pct: number;
 }
 
 // ── Turn pipeline types ──────────────────────────────
@@ -1219,6 +1256,11 @@ export interface TurnPipelineResult {
   topicAlignmentResult?: {
     topic_aligned: boolean;
     repaired: boolean;
+  };
+  qualityGateResult?: {
+    pre_repair: DraftQualityGateResult;
+    post_repair?: DraftQualityGateResult;
+    repair_outcome?: 'fixed' | 'partial' | 'unchanged';
   };
 }
 
@@ -1400,6 +1442,10 @@ export interface DebateSessionSummary {
   phase: DebateSession['phase'];
   /** The effective topic text (topic.final ?? topic.original) for search/display. */
   topic_text?: string;
+  /** AI model used for this debate (debate_model field). */
+  model?: string;
+  /** Number of statement/opening turns in the transcript. */
+  turn_count?: number;
 }
 
 export interface FactCheckResult {

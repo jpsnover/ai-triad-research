@@ -361,6 +361,10 @@ export function DebateTab() {
                   <span className={`debate-phase-badge phase-${s.phase}`}>
                     {PHASE_LABELS[s.phase] || s.phase}
                   </span>
+                  {s.model && <span className="debate-session-item-model">{s.model}</span>}
+                </div>
+                <div className="debate-session-item-meta">
+                  {s.turn_count != null && <span className="debate-session-item-turns">{s.turn_count} turn{s.turn_count !== 1 ? 's' : ''}</span>}
                   <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
                 </div>
                 {editMode ? (

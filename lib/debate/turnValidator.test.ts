@@ -1723,6 +1723,50 @@ describe('parseDraftQualityResult', () => {
   });
 });
 
+// ── Quality gate repair outcome classification (t/393) ─────
+
+import type { DraftQualityGateResult } from './types.js';
+
+describe('quality gate repair outcome classification', () => {
+  function classifyRepairOutcome(pre: DraftQualityGateResult, post: DraftQualityGateResult): 'fixed' | 'partial' | 'unchanged' {
+    const prePassCount = [pre.grounded, pre.falsifiable, pre.engages, pre.topic_aligned].filter(Boolean).length;
+    const postPassCount = [post.grounded, post.falsifiable, post.engages, post.topic_aligned].filter(Boolean).length;
+    if (post.pass) return 'fixed';
+    if (postPassCount > prePassCount) return 'partial';
+    return 'unchanged';
+  }
+
+  it('classifies as "fixed" when post-repair passes all checks', () => {
+    const pre: DraftQualityGateResult = { grounded: false, falsifiable: true, engages: false, topic_aligned: true, pass: false, weaknesses: ['not grounded', 'does not engage'] };
+    const post: DraftQualityGateResult = { grounded: true, falsifiable: true, engages: true, topic_aligned: true, pass: true, weaknesses: [] };
+    expect(classifyRepairOutcome(pre, post)).toBe('fixed');
+  });
+
+  it('classifies as "partial" when more checks pass after repair', () => {
+    const pre: DraftQualityGateResult = { grounded: false, falsifiable: false, engages: false, topic_aligned: true, pass: false, weaknesses: ['a', 'b', 'c'] };
+    const post: DraftQualityGateResult = { grounded: true, falsifiable: true, engages: false, topic_aligned: true, pass: false, weaknesses: ['still not engaging'] };
+    expect(classifyRepairOutcome(pre, post)).toBe('partial');
+  });
+
+  it('classifies as "unchanged" when same checks fail after repair', () => {
+    const pre: DraftQualityGateResult = { grounded: false, falsifiable: true, engages: false, topic_aligned: true, pass: false, weaknesses: ['not grounded', 'does not engage'] };
+    const post: DraftQualityGateResult = { grounded: false, falsifiable: true, engages: false, topic_aligned: true, pass: false, weaknesses: ['still not grounded', 'still not engaging'] };
+    expect(classifyRepairOutcome(pre, post)).toBe('unchanged');
+  });
+
+  it('classifies as "unchanged" when different checks fail but count is same', () => {
+    const pre: DraftQualityGateResult = { grounded: false, falsifiable: true, engages: true, topic_aligned: true, pass: false, weaknesses: ['not grounded'] };
+    const post: DraftQualityGateResult = { grounded: true, falsifiable: true, engages: false, topic_aligned: true, pass: false, weaknesses: ['not engaging'] };
+    expect(classifyRepairOutcome(pre, post)).toBe('unchanged');
+  });
+
+  it('classifies as "partial" when topic alignment is fixed but other checks still fail', () => {
+    const pre: DraftQualityGateResult = { grounded: false, falsifiable: true, engages: false, topic_aligned: false, pass: false, weaknesses: ['off-topic', 'not grounded'] };
+    const post: DraftQualityGateResult = { grounded: false, falsifiable: true, engages: false, topic_aligned: true, pass: false, weaknesses: ['not grounded'] };
+    expect(classifyRepairOutcome(pre, post)).toBe('partial');
+  });
+});
+
 // ── classifyHintKey ─────────────────────────────────────────
 
 import { classifyHintKey } from './turnValidator.js';

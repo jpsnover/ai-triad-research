@@ -38,8 +38,14 @@ import {
   reflectionPrompt,
   moderatorSelectionPrompt,
   moderatorInterventionPrompt,
+  entailmentRepairPrompt,
+  elementDecompositionPrompt,
+  coverageCheckPrompt,
+  classifyOffScopeDrift,
+  offScopeRepairHint,
 } from './prompts.js';
 import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts.js';
+import type { TopicScope } from './types.js';
 
 // ── Shared test fixtures ──────────────────────────────────────
 
@@ -946,5 +952,178 @@ describe('moderatorInterventionPrompt', () => {
       const result = moderatorInterventionPrompt(move, 'Procedural', 'Prometheus', 'reason', undefined, TRANSCRIPT);
       expectNonEmpty(result);
     }
+  });
+});
+
+// ── entailmentRepairPrompt ──────────────────────────────────
+
+describe('entailmentRepairPrompt', () => {
+  it('includes STATEMENT and CLAIM in prompt', () => {
+    const result = entailmentRepairPrompt('The sky is blue on clear days.', 'The sky is always blue.');
+    expect(result).toContain('The sky is blue on clear days.');
+    expect(result).toContain('The sky is always blue.');
+  });
+
+  it('includes verdict categories', () => {
+    const result = entailmentRepairPrompt('stmt', 'claim');
+    expect(result).toContain('"entailed"');
+    expect(result).toContain('"partial"');
+    expect(result).toContain('"not_entailed"');
+  });
+
+  it('requests minimal repair for non-entailed claims', () => {
+    const result = entailmentRepairPrompt('stmt', 'claim');
+    expect(result).toContain('MINIMAL repair');
+    expect(result).toContain('repaired_claim');
+  });
+
+  it('requests JSON output format', () => {
+    const result = entailmentRepairPrompt('stmt', 'claim');
+    expect(result).toContain('JSON');
+    expect(result).toContain('verdict');
+    expect(result).toContain('explanation');
+  });
+});
+
+// ── elementDecompositionPrompt ──────────────────────────────
+
+describe('elementDecompositionPrompt', () => {
+  it('includes statement and granularity guide', () => {
+    const result = elementDecompositionPrompt('AI will transform education through personalized learning.');
+    expect(result).toContain('AI will transform education through personalized learning.');
+    expect(result).toContain('GRANULARITY GUIDE');
+  });
+
+  it('classifies into verifiable and normative', () => {
+    const result = elementDecompositionPrompt('test');
+    expect(result).toContain('"verifiable"');
+    expect(result).toContain('"normative"');
+  });
+
+  it('requests JSON elements array', () => {
+    const result = elementDecompositionPrompt('test');
+    expect(result).toContain('"elements"');
+    expect(result).toContain('"element_type"');
+  });
+});
+
+// ── coverageCheckPrompt ─────────────────────────────────────
+
+describe('coverageCheckPrompt', () => {
+  it('formats elements with type labels and 1-indexed numbers', () => {
+    const elements = [
+      { text: 'AI improves efficiency', element_type: 'verifiable' },
+      { text: 'We should regulate AI', element_type: 'normative' },
+    ];
+    const result = coverageCheckPrompt(elements, ['claim 1']);
+    expect(result).toContain('1. [verifiable] AI improves efficiency');
+    expect(result).toContain('2. [normative] We should regulate AI');
+  });
+
+  it('formats claims with 1-indexed numbers', () => {
+    const result = coverageCheckPrompt([], ['First claim', 'Second claim']);
+    expect(result).toContain('1. First claim');
+    expect(result).toContain('2. Second claim');
+  });
+
+  it('requests JSON coverage array', () => {
+    const result = coverageCheckPrompt([], []);
+    expect(result).toContain('"coverage"');
+    expect(result).toContain('"element_index"');
+    expect(result).toContain('"covered"');
+    expect(result).toContain('"covering_claim_index"');
+  });
+});
+
+// ── classifyOffScopeDrift (t/394) ────────────────────────
+
+function makeScope(overrides: Partial<TopicScope> = {}): TopicScope {
+  return {
+    core_proposition: 'US Congressional AI regulation',
+    relevant_disciplines: ['policy', 'law'],
+    on_scope_evidence: ['US legislative history'],
+    key_tensions: ['innovation vs safety'],
+    off_scope_topics: ['autonomous weapons', 'superintelligence'],
+    drift_signatures: [],
+    example_ceiling: 'Sector-specific regulatory failures (e.g., FDA device recalls, FAA certification gaps)',
+    risk_level: 'medium',
+    domain: 'US technology policy',
+    product_type: null,
+    time_horizon: '5 years',
+    excluded_scenarios: ['AGI takeover'],
+    explicit_qualifiers: [],
+    constraint_confidence: 'explicit',
+    ...overrides,
+  };
+}
+
+describe('classifyOffScopeDrift', () => {
+  it('classifies severity-level drift from catastrophic language', () => {
+    const result = classifyOffScopeDrift(
+      ['Statement frames consequences as civilizational collapse'],
+      makeScope(),
+    );
+    expect(result).toBe('severity');
+  });
+
+  it('classifies severity-level drift from disproportionate/escalation language', () => {
+    const result = classifyOffScopeDrift(
+      ['Severity of claimed impacts is disproportionate to scope'],
+      makeScope(),
+    );
+    expect(result).toBe('severity');
+  });
+
+  it('classifies domain drift from explicit domain language', () => {
+    const result = classifyOffScopeDrift(
+      ['Examples drawn from a different domain than the debate topic'],
+      makeScope(),
+    );
+    expect(result).toBe('domain');
+  });
+
+  it('classifies domain drift when weakness matches off_scope_topics', () => {
+    const result = classifyOffScopeDrift(
+      ['Argument relies on autonomous weapons scenarios'],
+      makeScope(),
+    );
+    expect(result).toBe('domain');
+  });
+
+  it('defaults to evidence drift when no severity or domain patterns match', () => {
+    const result = classifyOffScopeDrift(
+      ['Uses examples from healthcare instead of technology policy'],
+      makeScope(),
+    );
+    expect(result).toBe('evidence');
+  });
+
+  it('does not classify as severity drift when risk_level is catastrophic', () => {
+    const result = classifyOffScopeDrift(
+      ['Magnitude of claimed impacts seems overstated'],
+      makeScope({ risk_level: 'catastrophic' }),
+    );
+    expect(result).toBe('evidence');
+  });
+});
+
+describe('offScopeRepairHint', () => {
+  it('generates severity hint mentioning example_ceiling and proportionality', () => {
+    const hint = offScopeRepairHint('severity', makeScope());
+    expect(hint).toContain('severity level exceeding');
+    expect(hint).toContain('Sector-specific regulatory failures');
+    expect(hint).toContain('proportionate');
+  });
+
+  it('generates domain hint mentioning the debate domain', () => {
+    const hint = offScopeRepairHint('domain', makeScope());
+    expect(hint).toContain('US technology policy');
+    expect(hint).toContain('autonomous weapons');
+  });
+
+  it('generates evidence hint with example_ceiling', () => {
+    const hint = offScopeRepairHint('evidence', makeScope());
+    expect(hint).toContain('Sector-specific regulatory failures');
+    expect(hint).toContain('Keep your argument structure');
   });
 });

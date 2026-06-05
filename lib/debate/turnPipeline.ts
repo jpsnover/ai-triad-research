@@ -19,7 +19,7 @@ import type {
   StageProvenance,
   PromptComponentChars,
 } from './types.js';
-import type { DocumentAnalysis } from './types.js';
+import type { DocumentAnalysis, DraftQualityGateResult } from './types.js';
 import { POVER_INFO } from './types.js';
 import { ActionableError } from './errors.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
@@ -43,6 +43,8 @@ import {
   microFixAbstractClaims,
   microFixInterventionResponse,
   microFixDirectiveCompliance,
+  classifyOffScopeDrift,
+  offScopeRepairHint,
 } from './prompts.js';
 import type { MicroFixResult, InterventionMicroFixResult, DirectiveMicroFixResult } from './prompts.js';
 import { checkInterventionCompliance, MOVE_RESPONSE_CONFIG, DIRECT_RESPONSE_PATTERNS } from './moderator.js';
@@ -568,6 +570,7 @@ export async function runTurnPipeline(
   const ignoredEvidenceDocIds: string[] = [];
 
   let topicAlignmentResult: { topic_aligned: boolean; repaired: boolean } | undefined;
+  let qualityGateResult: { pre_repair: DraftQualityGateResult; post_repair?: DraftQualityGateResult; repair_outcome?: 'fixed' | 'partial' | 'unchanged' } | undefined;
 
   if (input.frozenDraft) {
     draft = input.frozenDraft;
@@ -1674,24 +1677,28 @@ export async function runTurnPipeline(
       const topicAligned = preCheckResult.topic_aligned !== false;
       const allPass = preCheckResult.grounded && preCheckResult.falsifiable && preCheckResult.engages && topicAligned;
       const topicRepairHint = !topicAligned && input.topicScope
-        ? `REPAIR: Your statement uses examples from a different risk/domain category than the debate topic. The topic specifies: ${input.topicScope.example_ceiling}. Rewrite using examples at that severity level. Keep your argument structure — just change the evidence.`
+        ? offScopeRepairHint(classifyOffScopeDrift(preCheckResult.weaknesses, input.topicScope), input.topicScope)
         : undefined;
       const allWeaknesses = topicRepairHint
         ? [...preCheckResult.weaknesses, topicRepairHint]
         : preCheckResult.weaknesses;
       const triggeredRegen = !allPass && allWeaknesses.length > 0;
-      topicAlignmentResult = { topic_aligned: topicAligned, repaired: !topicAligned && triggeredRegen };
+      topicAlignmentResult = { topic_aligned: topicAligned, repaired: triggeredRegen };
+      const preRepairGate: DraftQualityGateResult = {
+        grounded: preCheckResult.grounded,
+        falsifiable: preCheckResult.falsifiable,
+        engages: preCheckResult.engages,
+        topic_aligned: topicAligned,
+        pass: allPass,
+        weaknesses: allWeaknesses,
+      };
+      qualityGateResult = { pre_repair: preRepairGate };
       getGlobalRecorder()?.record({
         type: 'turn.quality_gate', component: 'turnPipeline', level: allPass ? 'info' : 'warn',
         speaker: input.label,
         message: `Draft quality gate ${allPass ? 'passed' : 'failed'}`,
         data: {
-          grounded: preCheckResult.grounded,
-          falsifiable: preCheckResult.falsifiable,
-          engages: preCheckResult.engages,
-          topic_aligned: topicAligned,
-          pass: allPass,
-          weaknesses: allWeaknesses,
+          ...preRepairGate,
           triggered_regen: triggeredRegen,
         },
       });
@@ -1765,6 +1772,80 @@ export async function runTurnPipeline(
           });
           draftJson = toPromptJson(draft);
           console.log(`[pipeline] Draft quality retry produced new draft`);
+        }
+
+        // ── Post-repair quality re-check (t/393) ──
+        // Re-run quality gate on the regenerated draft to verify repair effectiveness.
+        if (draft?.statement) {
+          const postCheckPrompt = draftQualityCheckPrompt(
+            draft.statement,
+            input.lastOpponentStatement!,
+            input.label,
+            input.pov,
+            input.phase,
+            typeof (stageInput as Record<string, unknown>).round === 'number'
+              ? (stageInput as Record<string, unknown>).round as number
+              : 3,
+            plan?.planned_moves,
+          );
+          const postCheckT0 = Date.now();
+          try {
+            const postCheckRaw = await effectivePreCheckGenerate(
+              postCheckPrompt,
+              input.preCheckModel!,
+              { temperature: 0.1 },
+              `${input.label} draft-quality-recheck`,
+            );
+            const postCheckElapsed = Date.now() - postCheckT0;
+            const postCheckParsed = parseDraftQualityResult(postCheckRaw);
+            stageDiags.push({
+              stage: 'draft_quality',
+              prompt: postCheckPrompt,
+              raw_response: postCheckRaw,
+              model: input.preCheckModel!,
+              temperature: 0.1,
+              response_time_ms: postCheckElapsed,
+              work_product: postCheckParsed as unknown as Record<string, unknown>,
+              prompt_component_chars: promptComponentChars,
+            });
+
+            const postTopicAligned = postCheckParsed.topic_aligned !== false;
+            const postAllPass = postCheckParsed.grounded && postCheckParsed.falsifiable && postCheckParsed.engages && postTopicAligned;
+            const postRepairGate: DraftQualityGateResult = {
+              grounded: postCheckParsed.grounded,
+              falsifiable: postCheckParsed.falsifiable,
+              engages: postCheckParsed.engages,
+              topic_aligned: postTopicAligned,
+              pass: postAllPass,
+              weaknesses: postCheckParsed.weaknesses,
+            };
+
+            const prePassCount = [preRepairGate.grounded, preRepairGate.falsifiable, preRepairGate.engages, preRepairGate.topic_aligned].filter(Boolean).length;
+            const postPassCount = [postAllPass ? 4 : [postCheckParsed.grounded, postCheckParsed.falsifiable, postCheckParsed.engages, postTopicAligned].filter(Boolean).length][0];
+            const repairOutcome: 'fixed' | 'partial' | 'unchanged' =
+              postAllPass ? 'fixed' :
+              postPassCount > prePassCount ? 'partial' :
+              'unchanged';
+
+            qualityGateResult = { pre_repair: preRepairGate, post_repair: postRepairGate, repair_outcome: repairOutcome };
+            if (postTopicAligned) {
+              topicAlignmentResult = { topic_aligned: true, repaired: true };
+            }
+
+            getGlobalRecorder()?.record({
+              type: 'turn.quality_gate_repair', component: 'turnPipeline',
+              level: postAllPass ? 'info' : 'warn',
+              speaker: input.label,
+              message: `Post-repair quality gate: ${repairOutcome}`,
+              data: {
+                repair_outcome: repairOutcome,
+                pre: preRepairGate,
+                post: postRepairGate,
+              },
+            });
+          } catch {
+            // Post-repair check failure is non-fatal — we still have the regenerated draft
+          }
         }
       }
     } catch (err) {
@@ -1922,6 +2003,7 @@ export async function runTurnPipeline(
     stage_diagnostics: stageDiags,
     total_time_ms: Date.now() - pipelineStart,
     topicAlignmentResult,
+    qualityGateResult,
   };
 }
 

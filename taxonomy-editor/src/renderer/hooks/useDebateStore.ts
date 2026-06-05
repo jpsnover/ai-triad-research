@@ -2529,7 +2529,7 @@ interface DebateStore {
   setDiagPopoutOpen: (open: boolean) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number } }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number } }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -2744,7 +2744,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
     resetGapInjectionCount();
     const id = generateId();
     const now = nowISO();
-    const title = topic.length > 60 ? topic.slice(0, 57) + '...' : topic;
+    const title = options?.title?.trim() || (topic.length > 60 ? topic.slice(0, 57) + '...' : topic);
     const session: DebateSession = {
       id,
       title,
@@ -5164,8 +5164,6 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
           ? {
             topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
             repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
-            off_scope_items: get().activeDebate?.topic?.scope?.off_scope_topics,
-            drift_signals: get().activeDebate?.topic?.scope?.drift_signatures,
             scope_used: get().activeDebate?.topic?.scope ?? null,
           }
           : undefined;

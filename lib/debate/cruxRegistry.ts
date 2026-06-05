@@ -14,9 +14,11 @@ import type {
   ArgumentNetworkNode,
 } from './types.js';
 import { cosineSimilarity } from './taxonomyRelevance.js';
-import { nowISO } from './helpers.js';
+import { nowISO, parseJsonRobust } from './helpers.js';
+import { decontextualizeCruxPrompt } from './prompts.js';
 
 export type EmbedFn = (text: string) => Promise<number[]>;
+export type GenerateFn = (prompt: string) => Promise<string>;
 
 const REGISTRY_FILE = 'crux-registry.json';
 const DEDUP_THRESHOLD = 0.80;
@@ -100,6 +102,7 @@ export async function persistDebateCruxes(
   session: DebateSession,
   dataRoot: string,
   embedFn: EmbedFn,
+  generateFn?: GenerateFn,
 ): Promise<{ merged: number; created: number }> {
   const cruxes = (session.crux_tracker ?? []).filter(
     c => c.state === 'irreducible' || c.state === 'engaged',
@@ -110,12 +113,43 @@ export async function persistDebateCruxes(
   let merged = 0;
   let created = 0;
   const model = session.debate_model ?? 'unknown';
+  const debateTopic = (session.title ?? session.id).slice(0, 200);
+  const transcript = session.transcript ?? [];
 
   const anNodes = session.argument_network?.nodes ?? [];
   const anNodeMap = new Map(anNodes.map(n => [n.id, n]));
 
   for (const crux of cruxes) {
-    const embedding = await embedFn(crux.description);
+    let description = crux.description;
+
+    if (generateFn) {
+      try {
+        const surroundingTurns = transcript
+          .filter(e => e.type === 'statement')
+          .filter(e => {
+            const turn = (e.metadata as Record<string, unknown>)?.turn_number as number | undefined;
+            return turn != null && Math.abs(turn - crux.identified_turn) <= 1;
+          })
+          .slice(-3)
+          .map(e => `${e.speaker}: ${e.content.slice(0, 300)}`);
+
+        const prompt = decontextualizeCruxPrompt(
+          crux.description,
+          debateTopic,
+          crux.speakers_involved,
+          surroundingTurns,
+        );
+        const raw = await generateFn(prompt);
+        const result = parseJsonRobust(raw) as { decontextualized?: string };
+        if (result.decontextualized && result.decontextualized.length > 0) {
+          description = result.decontextualized;
+        }
+      } catch {
+        // Decontextualization failure is non-blocking — use original description
+      }
+    }
+
+    const embedding = await embedFn(description);
     const occurrence: CruxOccurrence = {
       debate_id: session.id,
       debate_topic: (session.title ?? session.id).slice(0, 100),
@@ -150,8 +184,8 @@ export async function persistDebateCruxes(
       merged++;
     } else {
       const entry: CruxRegistryEntry = {
-        id: hashDescription(crux.description),
-        description: crux.description,
+        id: hashDescription(description),
+        description,
         embedding,
         disagreement_type: crux.disagreement_type ?? 'empirical',
         first_seen_debate: session.id,

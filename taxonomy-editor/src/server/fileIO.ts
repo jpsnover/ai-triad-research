@@ -609,14 +609,14 @@ export async function listDebateSessionsMeta(): Promise<unknown[]> {
 /** Full-scan rebuild of the debate index. */
 async function rebuildDebateIndex(): Promise<unknown[]> {
   const summaries = await listDebateSessions();
-  const typed = summaries as { id: string; title: string; created_at: string; updated_at: string; phase: string }[];
+  const typed = summaries as { id: string; title: string; created_at: string; updated_at: string; phase: string; model?: string; turn_count?: number }[];
   await writeDebateIndex(typed).catch(() => {}); // best-effort
   return typed;
 }
 
 export async function listDebateSessions(): Promise<unknown[]> {
   const dir = getDebatesDir();
-  const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[] = [];
+  const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string; model?: string; turn_count?: number }[] = [];
 
   // Scan root debates dir + cli-runs subdirectory
   const scanDirs = [dir, path.join(dir, 'cli-runs')];
@@ -638,12 +638,15 @@ export async function listDebateSessions(): Promise<unknown[]> {
           await backend.writeFile(canonicalPath, rawContent);
           await backend.deleteFile(currentPath);
         }
+        const transcript = Array.isArray(raw.transcript) ? raw.transcript : [];
         summaries.push({
           id: raw.id,
           title: raw.title || raw.topic || 'Untitled',
           created_at: raw.created_at || '',
           updated_at: raw.updated_at || raw.created_at || '',
           phase: raw.phase || 'unknown',
+          model: raw.debate_model,
+          turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
         });
       } catch { /* skip */ }
     }

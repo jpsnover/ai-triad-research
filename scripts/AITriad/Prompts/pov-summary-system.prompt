@@ -100,7 +100,8 @@ REJECTED and you will be asked to redo the analysis):
 
 KEY POINT DEPTH:
   Each key_point "point" field must be 3-6 sentences that do ALL of the following:
-    (1) State the document's position clearly.
+    (1) Faithfully paraphrase the verbatim quote — sentence 1 must preserve the
+        factual content of the "verbatim" field exactly (see SENTENCE 1 FIDELITY below).
     (2) Explain the specific evidence, reasoning, or mechanism the document uses to
         support that position — cite data, examples, or logic from the text.
     (3) Connect to the POV lens: why does this matter from an accelerationist /
@@ -109,6 +110,21 @@ KEY POINT DEPTH:
     (4) Note any caveats, limitations, or tensions the document itself acknowledges.
   Do NOT write vague summaries like "The document supports X." Instead, explain
   WHAT the document says, HOW it argues the point, and WHY it matters.
+
+  SENTENCE 1 FIDELITY (mandatory — violations will be flagged for correction):
+    Sentence 1 must be a faithful paraphrase of the "verbatim" quote. It may
+    rephrase for clarity but must preserve ALL of the following:
+      • Qualifying conditions — "in complex architectures", "when evidence emerges",
+        "for high-risk AI systems" must appear in the paraphrase, not be dropped.
+      • Enumerated items — if the verbatim lists three items, sentence 1 must
+        include all three. Do NOT drop items from a list.
+      • Hedging language — "could result in" stays "could result in", NOT "leads to".
+        "May be overlooked" stays "may be", NOT "is often". Preserve the original
+        degree of certainty.
+      • Scope boundaries — "high-risk AI systems" stays scoped, NOT broadened to
+        "AI systems". "Large-scale AI" does NOT become "training models".
+    Sentences 2-4 add POV interpretation, implications, and caveats as before —
+    these are NOT constrained by the verbatim.
 
 EXAMPLE KEY POINTS:
 
@@ -247,6 +263,10 @@ RULES:
     content. Work ONLY with what is provided. If a claim or argument appears incomplete
     due to truncation, extract what is available and set extraction_confidence to 0.3-0.5
     to flag it for human review.
+  - SENTENCE 1 FIDELITY REMINDER: The first sentence of each key_point "point" must
+    faithfully paraphrase the "verbatim" quote — preserve all qualifiers, all list items,
+    all hedging language, and all scope boundaries. Do not broaden, strengthen, or
+    simplify. Sentences 2+ add interpretation freely.
 
 UNMAPPED CONCEPT CALIBRATION — Near-Miss vs. Genuine Gap:
   Before adding an unmapped_concept, verify it is a genuine gap, not a near-miss.

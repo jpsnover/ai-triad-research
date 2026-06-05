@@ -264,6 +264,44 @@ describe('persistDebateCruxes', () => {
     const result = await persistDebateCruxes(session, TMP_DIR, mockEmbed);
     expect(result).toEqual({ merged: 0, created: 0 });
   });
+
+  it('decontextualizes description when generateFn is provided', async () => {
+    const mockGenerate = vi.fn().mockResolvedValue(
+      JSON.stringify({ decontextualized: '[The EU AI Act] would reduce innovation in [European] markets', changes_made: ['expanded "it"', 'expanded "those markets"'] }),
+    );
+    mockEmbed.mockResolvedValueOnce(makeEmbedding(99));
+
+    const session = makeSession([makeCrux({ description: 'It would reduce innovation in those markets' })]);
+    await persistDebateCruxes(session, TMP_DIR, mockEmbed, mockGenerate);
+
+    const reg = loadRegistry(TMP_DIR);
+    expect(reg.entries).toHaveLength(1);
+    expect(reg.entries[0].description).toBe('[The EU AI Act] would reduce innovation in [European] markets');
+    expect(mockGenerate).toHaveBeenCalledOnce();
+  });
+
+  it('falls back to original description when generateFn fails', async () => {
+    const mockGenerate = vi.fn().mockRejectedValue(new Error('LLM error'));
+    mockEmbed.mockResolvedValueOnce(makeEmbedding(99));
+
+    const session = makeSession([makeCrux()]);
+    await persistDebateCruxes(session, TMP_DIR, mockEmbed, mockGenerate);
+
+    const reg = loadRegistry(TMP_DIR);
+    expect(reg.entries).toHaveLength(1);
+    expect(reg.entries[0].description).toBe('Whether current AI capabilities pose existential risk');
+  });
+
+  it('uses original description when generateFn is not provided', async () => {
+    mockEmbed.mockResolvedValueOnce(makeEmbedding(99));
+
+    const session = makeSession([makeCrux()]);
+    await persistDebateCruxes(session, TMP_DIR, mockEmbed);
+
+    const reg = loadRegistry(TMP_DIR);
+    expect(reg.entries).toHaveLength(1);
+    expect(reg.entries[0].description).toBe('Whether current AI capabilities pose existential risk');
+  });
 });
 
 describe('evictStaleEntries', () => {

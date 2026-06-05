@@ -12,9 +12,11 @@
  * lives in the data directory alongside debate sessions.
  */
 
-import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge, SpeakerId, TrackedCrux } from './types.js';
+import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge, SpeakerId, TrackedCrux, EntryDiagnostics, EntailmentRepairEvent } from './types.js';
 import type { NeutralEvaluation } from './neutralEvaluator.js';
 import { classifyClaimOutcomes, summarizeOutcomes } from './claimOutcomes.js';
+import { elementDecompositionPrompt, coverageCheckPrompt } from './prompts.js';
+import { parseJsonRobust } from './helpers.js';
 // ── Agent utility (game theory Layer 4) ────────────────────
 
 export interface AgentUtility {
@@ -356,6 +358,24 @@ export interface CalibrationDataPoint {
     commitment_chars: number;
     an_summary_chars: number;
   } | null;
+
+  // ── Extraction coverage (t/391) ──
+  /** Mean coverage_rate across sampled turns (covered_verifiable / verifiable_elements). */
+  extraction_coverage_rate: number | null;
+  /** Number of turns sampled for extraction coverage measurement. */
+  extraction_coverage_samples: number;
+
+  // ── Extraction quality (t/379, t/380) ──
+  /** Mean extraction_confidence across all AN nodes. */
+  mean_extraction_confidence: number | null;
+  /** Fraction of AN nodes with extraction_confidence < 0.6. */
+  low_confidence_claims_rate: number | null;
+  /** Fraction of entailment checks with verdict 'entailed'. */
+  entailment_pass_rate: number | null;
+  /** Fraction of entailment checks that resulted in text repair (partial or not_entailed with repaired_text). */
+  entailment_repair_rate: number | null;
+  /** Fraction of AN nodes that were sampled for entailment checking. */
+  entailment_sampling_coverage: number | null;
 }
 
 // ── Extraction logic ────────────────────────────────────────
@@ -1107,6 +1127,7 @@ export function extractCalibrationData(
       ];
       return Math.round((fields.filter(v => v != null && v !== '' && v !== 0).length / fields.length) * 1000) / 1000;
     })(),
+    // Fraction of turns that triggered a regen (repaired=true). Higher means more drafts needed repair — does NOT penalize successful repairs vs never-needed ones for TopicHealthScore purposes.
     draft_repair_rate: (() => {
       const diagEntries = session.diagnostics?.entries ?? {};
       const entries = session.transcript?.filter(e => diagEntries[e.id]?.topic_alignment) ?? [];
@@ -1171,6 +1192,62 @@ export function extractCalibrationData(
       : null,
 
     max_component_chars: maxComponentChars,
+
+    // ── Extraction coverage (t/391) ──
+    ...(() => {
+      const coverageSamples: number[] = [];
+      let sampleCount = 0;
+      for (const entryDiag of Object.values(diagEntries)) {
+        const ec = (entryDiag as EntryDiagnostics).extraction_coverage;
+        if (ec) {
+          coverageSamples.push(ec.coverage_rate);
+          sampleCount++;
+        }
+      }
+      return {
+        extraction_coverage_rate: coverageSamples.length > 0
+          ? Math.round((coverageSamples.reduce((a, b) => a + b, 0) / coverageSamples.length) * 1000) / 1000
+          : null,
+        extraction_coverage_samples: sampleCount,
+      };
+    })(),
+
+    // ── Extraction quality (t/379, t/380) ──
+    ...(() => {
+      const confidences = (an?.nodes ?? [])
+        .map((n: ArgumentNetworkNode) => n.extraction_confidence)
+        .filter((c): c is number => c != null);
+      const meanConf = confidences.length > 0
+        ? confidences.reduce((a, b) => a + b, 0) / confidences.length
+        : null;
+      const lowConfRate = confidences.length > 0
+        ? confidences.filter(c => c < 0.6).length / confidences.length
+        : null;
+
+      const allRepairs: EntailmentRepairEvent[] = [];
+      let totalAnNodes = an?.nodes.length ?? 0;
+      for (const entryDiag of Object.values(diagEntries)) {
+        const repairs = (entryDiag as EntryDiagnostics).entailment_repairs;
+        if (repairs) allRepairs.push(...repairs);
+      }
+      const entailPassRate = allRepairs.length > 0
+        ? allRepairs.filter(r => r.verdict === 'entailed').length / allRepairs.length
+        : null;
+      const entailRepairRate = allRepairs.length > 0
+        ? allRepairs.filter(r => r.repaired_text != null).length / allRepairs.length
+        : null;
+      const entailSamplingCoverage = totalAnNodes > 0
+        ? Math.round((allRepairs.length / totalAnNodes) * 1000) / 1000
+        : null;
+
+      return {
+        mean_extraction_confidence: meanConf != null ? Math.round(meanConf * 1000) / 1000 : null,
+        low_confidence_claims_rate: lowConfRate != null ? Math.round(lowConfRate * 1000) / 1000 : null,
+        entailment_pass_rate: entailPassRate != null ? Math.round(entailPassRate * 1000) / 1000 : null,
+        entailment_repair_rate: entailRepairRate != null ? Math.round(entailRepairRate * 1000) / 1000 : null,
+        entailment_sampling_coverage: entailSamplingCoverage,
+      };
+    })(),
   };
 }
 
@@ -1223,6 +1300,96 @@ export function readCalibrationLog(dataRoot: string): CalibrationDataPoint[] {
     return JSON.parse(fs.readFileSync(logPath, 'utf-8'));
   } catch {
     return [];
+  }
+}
+
+// ── Extraction coverage (t/391) ────────────────────────────
+
+export type GenerateFn = (prompt: string) => Promise<string>;
+
+const COVERAGE_SAMPLING_RATE = 0.20;
+
+interface InformationElement {
+  text: string;
+  element_type: 'verifiable' | 'normative';
+}
+
+interface CoverageResult {
+  coverage: { element_index: number; covered: boolean; covering_claim_index: number | null }[];
+}
+
+export async function computeExtractionCoverage(
+  session: DebateSession,
+  generateFn: GenerateFn,
+  rng: () => number = Math.random,
+): Promise<void> {
+  const diagEntries = session.diagnostics?.entries;
+  if (!diagEntries) return;
+
+  const an = session.argument_network;
+  if (!an || an.nodes.length === 0) return;
+
+  const statementEntries = session.transcript.filter(
+    e => e.type === 'statement' || e.type === 'opening',
+  );
+  if (statementEntries.length === 0) return;
+
+  const sampled = statementEntries.filter(() => rng() < COVERAGE_SAMPLING_RATE);
+  if (sampled.length === 0) return;
+
+  for (const entry of sampled) {
+    const entryDiag = diagEntries[entry.id];
+    if (!entryDiag || entryDiag.extraction_coverage) continue;
+
+    const myClaims = an.nodes
+      .filter(n => n.source_entry_id === entry.id)
+      .map(n => n.text);
+
+    if (myClaims.length === 0) continue;
+
+    try {
+      const decompRaw = await generateFn(elementDecompositionPrompt(entry.content));
+      const decompResult = parseJsonRobust(decompRaw) as { elements?: InformationElement[] };
+      const elements = decompResult.elements ?? [];
+      if (elements.length === 0) continue;
+
+      const coverRaw = await generateFn(coverageCheckPrompt(elements, myClaims));
+      const coverResult = parseJsonRobust(coverRaw) as CoverageResult;
+      const coverageItems = coverResult.coverage ?? [];
+
+      const verifiable = elements.filter(e => e.element_type === 'verifiable');
+      const normative = elements.filter(e => e.element_type === 'normative');
+
+      const coveredVerifiable = verifiable.filter((_, i) => {
+        const globalIdx = elements.indexOf(verifiable[i]);
+        return coverageItems.some(c => c.element_index === globalIdx + 1 && c.covered);
+      }).length;
+
+      const coveredNormative = normative.filter((_, i) => {
+        const globalIdx = elements.indexOf(normative[i]);
+        return coverageItems.some(c => c.element_index === globalIdx + 1 && c.covered);
+      }).length;
+
+      const coverageRate = verifiable.length > 0
+        ? coveredVerifiable / verifiable.length
+        : 1.0;
+
+      const uncoveredElements = elements
+        .filter((e, i) => !coverageItems.some(c => c.element_index === i + 1 && c.covered))
+        .map(e => ({ text: e.text, element_type: e.element_type as 'verifiable' | 'normative' }));
+
+      entryDiag.extraction_coverage = {
+        total_elements: elements.length,
+        verifiable_elements: verifiable.length,
+        normative_elements: normative.length,
+        covered_verifiable: coveredVerifiable,
+        covered_normative: coveredNormative,
+        coverage_rate: Math.round(coverageRate * 1000) / 1000,
+        uncovered_elements: uncoveredElements.length > 0 ? uncoveredElements : undefined,
+      };
+    } catch {
+      // Coverage computation failure is non-blocking
+    }
   }
 }
 

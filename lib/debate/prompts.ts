@@ -1643,7 +1643,9 @@ Analyze the topic${input.isFirst ? '' : ' and prior opening statements'} and pro
 2. What are the strongest angles ${input.label} can take? For each angle, identify which taxonomy nodes ground it.
 3. What are the strongest claims ${input.label} can make from their perspective?
 ${input.isFirst ? '4. What framing will best establish this perspective for the audience?' : `4. What positions from prior speakers should ${input.label} acknowledge or contrast with?
-5. What framing gaps or unchallenged assumptions can ${input.label} exploit?`}
+5. What important dimensions of this topic have prior speakers not yet addressed? What assumptions are shared across perspectives that deserve examination?`}
+
+For each strongest angle, assess evidence depth: what specific data, cases, or precedents ground it? Rate depth (deep/moderate/shallow). Shallow-depth angles should be narrowed to a specific claim your evidence can support, or reframed as questions the debate should explore.
 
 GROUNDING DEPTH: Each angle and claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
 
@@ -1654,6 +1656,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "situation_assessment": "2-4 sentences: the key dimensions of the topic and what matters most for this perspective",
   "strongest_angles": [
     {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "confidence": 0.72, "why": "primary anchor — empirical basis"}, {"node_id": "acc-desires-007", "label": "Node Label Here", "priority": 4, "why": "supporting normative commitment"}]}
+  ],
+  "evidence_depth": [
+    {"angle": "strongest angle text", "grounding_evidence": "specific data, case, or precedent", "depth": "deep|moderate|shallow", "if_shallow": "how to narrow or reframe as an exploratory question"}
   ],
   "key_tensions": [
     {"tension": "a key tension or tradeoff in the topic", "opportunity": "how ${input.label} can use this"}
@@ -1679,7 +1684,7 @@ Plan your opening statement strategy. This is your first appearance — you need
 1. Establish your core position clearly and memorably
 2. Choose which 2-4 taxonomy nodes to build your argument around
 3. Decide on the argumentative structure (claim + evidence + warrant for each main point)
-${input.isFirst ? '4. Set the terms of debate from your perspective' : '4. Decide how to position yourself relative to prior speakers — acknowledge their strongest points before diverging'}
+${input.isFirst ? '4. Set the terms of debate from your perspective' : `4. Identify 1-2 specific claims from prior speakers to build on — name the claim and whether you EXTEND it (add supporting evidence), INTEGRATE it with your perspective, or use CONCEDE AND PIVOT (acknowledge its strength, then show where your evidence diverges). Strong openings advance the conversation, not just add to it. Rank your own claims by evidence depth — lead with your most grounded claim.`}
 
 === FIELD-AWARE STRATEGY ===
 Your taxonomy nodes have epistemic_type, rhetorical_strategy, falsifiability, and assumes fields. Use them in planning:
@@ -1722,7 +1727,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"frame": "how you will frame the issue", "why": "why this framing favors your perspective"},
     {"frame": "alternative or complementary framing", "why": "what this framing reveals that the first doesn't"}
   ],
-  "anticipated_challenges": ["what opponents will likely attack", "what assumptions you're exposing"]
+  "anticipated_challenges": ["what opponents will likely challenge", "what assumptions you're exposing"]
 }`;
 }
 
@@ -1756,7 +1761,7 @@ ${plan}
 ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Engage with these directly — state which you agree with, which you challenge, and why. Reference their IDs in your claim_sketches targets.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n\n` : ''}=== YOUR ASSIGNMENT ===
 Deliver your opening statement as ${input.label} — stay in character. Frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
-${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before critiquing any prior position, briefly acknowledge the strongest version of that position. You may reference or contrast with them, but focus on your own position.`}
+${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before introducing your own position, show that you understand the strongest version of each prior speaker's argument — not just acknowledge it, but articulate why it's compelling. Then identify where your evidence leads in a different direction. Name the specific tension: what would have to be true for both positions to hold? Strong openings surface the real disagreement, not just assert the opposite.`}
 
 Execute the argument plan above. Write your opening statement following the plan's structure.
 
@@ -1765,6 +1770,7 @@ OUTPUT CONSTRAINTS:
 - CLAIM SPECIFICITY: At least one claim per paragraph must include a concrete number, named entity, date, or threshold. If source evidence is provided above, use it — cite the specific statistic, year, or finding rather than paraphrasing vaguely. Abstract claims without any specifics weaken your argument.
 - CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence.
 - TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.
+- EPISTEMIC DEPTH: Prefer narrow, evidence-grounded claims over broad assertions. A claim backed by a specific statistic, case, or precedent generates more productive engagement than a sweeping generalization. Ask: 'Does this claim invite a substantive response, or just a dismissal?' If the latter, narrow it until a thoughtful opponent would need to bring counter-evidence rather than just disagree.
 
 PARAGRAPH STRUCTURE:
 - 3-5 paragraphs separated by \\n\\n. Each develops one distinct idea.
@@ -1779,10 +1785,12 @@ Respond ONLY with a JSON object matching this exact schema (no markdown, no code
     {"symbol": "emoji", "tooltip": "1-sentence analogy"}
   ],
   "claim_sketches": [
-    {"claim": "near-verbatim headline assertion from your statement", "targets": []},
-    {"claim": "near-verbatim supporting sub-claim or premise", "targets": []}
+    {"claim": "near-verbatim headline assertion from your statement", "targets": [${input.isFirst ? '' : '"AN-3"'}], "relationship": "${input.isFirst ? '' : 'extends'}"},
+    {"claim": "near-verbatim supporting sub-claim or premise", "targets": [], "relationship": ""}
   ]
-}`;
+}${input.isFirst ? '' : `
+
+NOTE: At least one claim_sketch MUST have a non-empty "targets" array referencing a prior speaker's AN node, with a support/neutral relationship. Allowed opening relationships: "extends", "integrates", "concedes_and_pivots", "specifies".`}`;
 }
 
 export function citeOpeningStagePrompt(
@@ -4035,6 +4043,163 @@ Topic: "Are physical limits on computation — energy, heat, materials — the r
 
 === OUTPUT FORMAT ===
 Return a single JSON object matching the TopicScope schema above. No markdown fences. No commentary.`;
+}
+
+export function entailmentRepairPrompt(statement: string, claim: string): string {
+  return `You are an entailment judge for a debate system. Given a debater's STATEMENT and an extracted CLAIM, determine whether the claim is faithfully entailed by the statement.
+
+STATEMENT:
+"""
+${statement}
+"""
+
+CLAIM:
+"""
+${claim}
+"""
+
+Instructions:
+1. Judge whether the CLAIM is entailed by the STATEMENT:
+   - "entailed": The claim accurately captures information present in the statement. Paraphrasing is fine if meaning is preserved.
+   - "partial": The claim captures some information from the statement but adds, omits, or distorts key details (e.g., invents specifics not stated, drops important qualifiers, changes scope).
+   - "not_entailed": The claim asserts something not present in or contradicted by the statement.
+
+2. If the verdict is "partial" or "not_entailed", provide a MINIMAL repair — the smallest edit to the claim text that makes it faithfully entailed. Preserve the original wording as much as possible. If the claim is entirely fabricated, write a new claim that captures the closest idea actually present in the statement.
+
+3. Write a one-sentence explanation of what specifically is wrong (for partial/not_entailed) or right (for entailed).
+
+Respond in JSON only (no markdown): {"verdict": "entailed" | "partial" | "not_entailed", "explanation": "...", "repaired_claim": "..." or null}`;
+}
+
+export function decontextualizeCruxPrompt(
+  claim: string,
+  debateTopic: string,
+  speakers: string[],
+  surroundingTurns: string[],
+): string {
+  const turnBlock = surroundingTurns.length > 0
+    ? `SURROUNDING DEBATE TURNS:\n${surroundingTurns.map((t, i) => `[${i + 1}] ${t}`).join('\n')}\n`
+    : '';
+
+  return `You are a claim editor preparing debate claims for a cross-debate registry. Claims in the registry must be self-contained — a reader with no knowledge of this specific debate should understand what the claim asserts.
+
+DEBATE TOPIC: "${debateTopic}"
+SPEAKERS: ${speakers.join(', ')}
+
+${turnBlock}
+ORIGINAL CLAIM:
+"${claim}"
+
+Instructions:
+1. Expand all context-dependent references: pronouns ("it", "they", "this"), demonstratives ("this policy", "that approach"), relative dates ("recently", "last year"), and implicit subjects.
+2. Use bracketed notation [like this] to mark inferred context that was not explicitly stated in the claim. For example: "It would reduce innovation" → "[The EU AI Act] would reduce innovation"
+3. Preserve the original meaning exactly — do not add, soften, or strengthen the claim.
+4. If the claim is already self-contained with no context-dependent references, return it unchanged.
+
+Respond in JSON only (no markdown): {"decontextualized": "the self-contained claim text", "changes_made": ["list of specific expansions, or empty if unchanged"]}`;
+}
+
+// ── Off-scope drift classification (t/394) ────────────────────────
+
+export type OffScopeDriftType = 'evidence' | 'severity' | 'domain';
+
+const SEVERITY_PATTERNS = /\b(catastroph|existential|extinction|civiliz|apocalyp|doomsday|breakdown.*soci|soci.*breakdown|collapse.*soci|soci.*collapse|end.of.humanity|human.extinction|superintelligen|x-risk|existen.*risk)/i;
+const DOMAIN_PATTERNS = /\b(different.*(domain|field|sector|industry)|wrong.*(area|domain|field)|unrelated.*(domain|topic)|adjacent.*domain|outside.*scope)/i;
+
+export function classifyOffScopeDrift(
+  weaknesses: string[],
+  scope: TopicScope,
+): OffScopeDriftType {
+  const joined = weaknesses.join(' ');
+
+  if (DOMAIN_PATTERNS.test(joined) || scope.off_scope_topics.some(t => joined.toLowerCase().includes(t.toLowerCase()))) {
+    return 'domain';
+  }
+
+  if (SEVERITY_PATTERNS.test(joined) ||
+      (scope.risk_level !== 'catastrophic' && scope.risk_level !== 'unspecified' &&
+       /\b(severity|magnitude|scale|disproportionate|escalat|overstat)\b/i.test(joined))) {
+    return 'severity';
+  }
+
+  return 'evidence';
+}
+
+export function offScopeRepairHint(driftType: OffScopeDriftType, scope: TopicScope): string {
+  switch (driftType) {
+    case 'severity':
+      return `REPAIR: Your argument frames consequences at a severity level exceeding the debate scope. The topic's example ceiling is: ${scope.example_ceiling}. Rewrite your concluding argument to frame consequences proportionate to this scope. You may keep your core thesis but must adjust the magnitude of claimed impacts. Do not invoke civilizational collapse, existential risk, or catastrophic scenarios unless the debate topic explicitly concerns those scales.`;
+    case 'domain':
+      return `REPAIR: Your argument draws evidence or framing from a domain outside this debate's scope. The debate domain is: ${scope.domain}. Redirect your argument to use evidence, examples, and analogies from within this domain. ${scope.off_scope_topics.length > 0 ? `Specifically excluded topics: ${scope.off_scope_topics.join(', ')}. ` : ''}Keep your core thesis but ground it in on-scope evidence.`;
+    case 'evidence':
+      return `REPAIR: Your statement uses examples from a different risk/domain category than the debate topic. The topic specifies: ${scope.example_ceiling}. Rewrite using examples at that severity level. Keep your argument structure — just change the evidence.`;
+  }
+}
+
+export function elementDecompositionPrompt(statement: string): string {
+  return `Decompose the following debate statement into its distinct INFORMATION ELEMENTS at CLAIM level — each element should be a complete argumentative point, not a sub-component.
+
+STATEMENT:
+"""
+${statement}
+"""
+
+Instructions:
+1. Extract the major claims, positions, and arguments from the statement. Target the level of granularity at which a claim extractor would produce output — one element per ARGUMENTATIVE POINT, not per sentence or sub-assertion.
+
+2. GRANULARITY GUIDE:
+   - CORRECT: "Strict liability creates a market-based audit mechanism that scales automatically and replaces bureaucratic gatekeeping" (one argumentative point with supporting details bundled)
+   - TOO FINE: Splitting the above into "Strict liability creates a market-based audit mechanism", "This mechanism scales automatically", "This mechanism replaces bureaucratic gatekeeping" (three sub-assertions of one point)
+   - A 300-word statement typically contains 5-12 major information elements, not 20-30.
+
+3. Classify each element:
+   - "verifiable": Factual claims, empirical assertions, causal arguments, historical references, statistics, mechanistic claims, analytical arguments about how systems work. These can in principle be assessed for accuracy or internal consistency.
+   - "normative": Value judgments, prescriptive claims ("should", "must"), expressions of desire or intention, moral evaluations, policy recommendations. These express what the speaker wants rather than what is the case.
+
+4. Write each element as a self-contained sentence preserving specific qualifiers and conditions.
+
+5. Do NOT include:
+   - Rhetorical transitions or meta-commentary about the debate
+   - Attributions without content ("Skeptic disagrees")
+   - Restatements of the same point in different words
+
+Respond in JSON:
+{
+  "elements": [
+    { "text": "...", "element_type": "verifiable" },
+    { "text": "...", "element_type": "normative" }
+  ]
+}`;
+}
+
+export function coverageCheckPrompt(
+  elements: { text: string; element_type: string }[],
+  claims: string[],
+): string {
+  const elementList = elements.map((e, i) => `  ${i + 1}. [${e.element_type}] ${e.text}`).join('\n');
+  const claimList = claims.map((c, i) => `  ${i + 1}. ${c}`).join('\n');
+
+  return `Given a list of INFORMATION ELEMENTS from a debate statement and a list of EXTRACTED CLAIMS, determine which elements are covered by the claims.
+
+INFORMATION ELEMENTS:
+${elementList}
+
+EXTRACTED CLAIMS:
+${claimList}
+
+Instructions:
+1. For each information element, check if ANY extracted claim captures its core content (explicitly or by implication).
+2. A claim "covers" an element if reading the claim would tell you the same factual or normative content as the element, even if worded differently.
+3. Partial coverage counts as covered — if the claim captures the main idea but drops minor qualifiers, mark it as covered.
+4. An element is "not covered" only if NO claim addresses its content at all.
+
+Respond in JSON:
+{
+  "coverage": [
+    { "element_index": 1, "covered": true, "covering_claim_index": 2 },
+    { "element_index": 2, "covered": false, "covering_claim_index": null }
+  ]
+}`;
 }
 
 // Exported for envelope builders (lib/debate/envelopes.ts)

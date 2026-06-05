@@ -258,8 +258,8 @@ IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxono
 
         // Use the original linkedNodes from transcript refs — don't let AI override
         const generated = {
-          claim_label: parsed.claim_label || item.point.slice(0, 60),
-          description: parsed.description || item.point,
+          claim_label: parsed.claim_label || (item.verbatim || item.point).slice(0, 60),
+          description: parsed.description || item.verbatim || item.point,
           linked_taxonomy_nodes: item.linkedNodes, // Always use real IDs, not AI-generated
         };
         const warnings = validateConflictDescription(generated, allNodeIds);
@@ -281,8 +281,8 @@ IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxono
         });
         setConflicts(prev => prev.map(c => c.id === item.id ? {
           ...c,
-          generatedLabel: item.point.slice(0, 60),
-          generatedDescription: item.point,
+          generatedLabel: (item.verbatim || item.point).slice(0, 60),
+          generatedDescription: item.verbatim || item.point,
           warnings: ['AI generation failed — using fallback text'],
         } : c));
       }
@@ -406,12 +406,13 @@ Return ONLY JSON (no markdown):
         manifest.push({ type: 'conflict', action: 'created', id: item.id, status: 'rejected' });
         continue;
       }
-      const conflictId = generateConflictSlug(item.generatedLabel || item.point, activeDebate.id);
+      const faithfulText = item.verbatim || item.point;
+      const conflictId = generateConflictSlug(item.generatedLabel || faithfulText, activeDebate.id);
       try {
         await api.harvestCreateConflict({
           claim_id: conflictId,
-          claim_label: item.generatedLabel || item.point.slice(0, 60),
-          description: item.generatedDescription || item.point,
+          claim_label: item.generatedLabel || faithfulText.slice(0, 60),
+          description: item.generatedDescription || faithfulText,
           status: 'open',
           linked_taxonomy_nodes: item.linkedNodes,
           instances: item.positions.map(p => ({

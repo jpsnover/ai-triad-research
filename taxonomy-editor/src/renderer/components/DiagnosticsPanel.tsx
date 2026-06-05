@@ -188,13 +188,20 @@ function EntryView({ entryId }: { entryId: string }) {
         <span className="diag-entry-type">{entry.type}</span>
         {diag?.topic_alignment && (() => {
           const ta = diag.topic_alignment;
+          const sft = (meta?.injection_manifest as Record<string, unknown> | undefined)?.scope_filter_trace as
+            { demoted?: { nodeId: string }[] } | undefined;
+          const demotedIds = new Set((sft?.demoted ?? []).map(d => d.nodeId));
+          const hasDemotedRef = (entry.taxonomy_refs ?? []).some(r => demotedIds.has(r.node_id));
+          const modDrift = entry.type === 'intervention' || (meta?.moderator_trace as Record<string, unknown> | undefined)?.drift_detected;
           let state: 'green' | 'amber' | 'red';
           let label: string;
           let tip: string;
-          if (!ta.topic_aligned && !ta.repaired) {
+          if (!ta.topic_aligned) {
             state = 'red'; label = 'off-scope'; tip = 'Topic alignment failed after all retries';
           } else if (ta.repaired) {
             state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
+          } else if (modDrift || hasDemotedRef) {
+            state = 'amber'; label = 'drift noted'; tip = modDrift ? 'Moderator flagged drift concern' : 'References demoted taxonomy node';
           } else {
             state = 'green'; label = 'on-scope'; tip = 'All topic alignment checks passed';
           }
@@ -205,6 +212,15 @@ function EntryView({ entryId }: { entryId: string }) {
               fontSize: '0.5rem', cursor: 'help',
               background: bgs[state], color: colors[state],
             }}>{label}</span>
+          );
+        })()}
+        {diag?.entailment_repairs && diag.entailment_repairs.some(r => r.verdict !== 'entailed') && (() => {
+          const repaired = diag.entailment_repairs!.filter(r => r.verdict !== 'entailed');
+          return (
+            <span className="diag-badge" title={`${repaired.length} claim${repaired.length !== 1 ? 's' : ''} repaired by entailment verification`} style={{
+              fontSize: '0.5rem', cursor: 'help',
+              background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
+            }}>{repaired.length} repaired</span>
           );
         })()}
       </div>
@@ -488,8 +504,15 @@ function EntryView({ entryId }: { entryId: string }) {
                 )}
                 {s.stage === 'draft' && diag?.topic_alignment && (
                   <div style={{ marginBottom: 6, padding: '4px 8px', borderLeft: `3px solid ${diag.topic_alignment.topic_aligned ? '#22c55e' : '#ef4444'}40`, fontSize: '0.65rem' }}>
+                    <div className="diag-kv" style={{ marginBottom: 2 }}>
+                      <span className="diag-k">Topic aligned</span>
+                      <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>Attempt 1</span>
+                      {diag.topic_alignment.repaired && (
+                        <span className="diag-badge" style={{ fontSize: '0.45rem', background: 'rgba(245,158,11,0.15)', color: '#d97706' }}>triggered regen</span>
+                      )}
+                    </div>
                     <div className="diag-kv">
-                      <span className="diag-k">Topic aligned:</span>
+                      <span className="diag-k">Result:</span>
                       <span className="diag-badge" style={{
                         fontSize: '0.5rem',
                         background: diag.topic_alignment.topic_aligned ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
@@ -498,21 +521,21 @@ function EntryView({ entryId }: { entryId: string }) {
                         {diag.topic_alignment.topic_aligned ? 'yes' : 'no'}
                       </span>
                     </div>
-                    {(diag.topic_alignment.off_scope_items?.length ?? 0) > 0 && (
+                    {(diag.topic_alignment.scope_used?.off_scope_topics?.length ?? 0) > 0 && (
                       <div style={{ marginTop: 2 }}>
-                        <span className="diag-k">Off-scope items:</span>
+                        <span className="diag-k">Off-scope topics (static):</span>
                         <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
-                          {diag.topic_alignment.off_scope_items!.map((item, i) => (
+                          {diag.topic_alignment.scope_used!.off_scope_topics!.map((item: string, i: number) => (
                             <li key={i} style={{ color: '#ef4444' }}>{item}</li>
                           ))}
                         </ul>
                       </div>
                     )}
-                    {(diag.topic_alignment.drift_signals?.length ?? 0) > 0 && (
+                    {(diag.topic_alignment.scope_used?.drift_signatures?.length ?? 0) > 0 && (
                       <div style={{ marginTop: 2 }}>
-                        <span className="diag-k">Drift signals:</span>
+                        <span className="diag-k">Drift signatures (static):</span>
                         <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyle: 'disc' }}>
-                          {diag.topic_alignment.drift_signals!.map((sig, i) => (
+                          {diag.topic_alignment.scope_used!.drift_signatures!.map((sig: string, i: number) => (
                             <li key={i} style={{ color: '#f59e0b' }}>{sig}</li>
                           ))}
                         </ul>
@@ -574,13 +597,57 @@ function EntryView({ entryId }: { entryId: string }) {
       {/* Extracted Claims */}
       {diag?.extracted_claims && (
         <CollapsibleSection title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen>
-          {diag.extracted_claims.accepted.map((c, i) => (
-            <div key={i} className="diag-claim diag-claim-accepted">
-              <span className="diag-claim-status">✓ {c.id}</span>
-              <span className="diag-claim-overlap">{c.overlap_pct}%</span>
-              <span className="diag-claim-text">{c.text}</span>
-            </div>
-          ))}
+          {diag.extracted_claims.accepted.map((c, i) => {
+            const anNode = activeDebate?.argument_network?.nodes.find(n => n.id === c.id);
+            const ec = anNode?.extraction_confidence;
+            const ecBand = ec != null ? (ec >= 1.0 ? 'near-verbatim' : ec >= 0.8 ? 'faithful' : ec >= 0.6 ? 'implicit' : 'minimum') : null;
+            const ecColor = ec != null ? (ec >= 0.8 ? '#22c55e' : ec >= 0.6 ? '#f59e0b' : '#ef4444') : '#6b7280';
+            const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
+            const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
+            const verdictColor = repair ? (repair.verdict === 'entailed' ? '#22c55e' : repair.verdict === 'partial' ? '#f59e0b' : '#ef4444') : null;
+            return (
+              <div key={i} className="diag-claim diag-claim-accepted">
+                <span className="diag-claim-status">✓ {c.id}</span>
+                <span className="diag-claim-overlap">{c.overlap_pct}%</span>
+                {ec != null && (
+                  <span title={`FIRE ${ec.toFixed(2)} — ${ecBand}`} style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.5rem', fontWeight: 600, background: `${ecColor}18`, color: ecColor }}>
+                    {ec.toFixed(1)}
+                  </span>
+                )}
+                {repair && (
+                  <span title={`Entailment: ${repair.verdict} — ${repair.explanation}`} style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.5rem', fontWeight: 600, background: `${verdictColor}18`, color: verdictColor! }}>
+                    {repair.verdict === 'entailed' ? '✓' : repair.verdict === 'partial' ? '~' : '✗'}
+                  </span>
+                )}
+                {!repair && hasEntailmentData && (
+                  <span style={{ fontSize: '0.45rem', color: 'var(--text-muted)', opacity: 0.5 }}>ns</span>
+                )}
+                {anNode?.bdi_category && (
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.5rem', fontWeight: 600, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
+                    {anNode.bdi_category[0].toUpperCase()}
+                  </span>
+                )}
+                {anNode?.specificity && (
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.45rem', fontWeight: 600, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
+                    {anNode.specificity}
+                  </span>
+                )}
+                {anNode?.steelman_of && (
+                  <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.45rem', fontWeight: 600, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
+                    ⬆
+                  </span>
+                )}
+                <span className="diag-claim-text">{c.text}</span>
+                {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
+                  <div style={{ fontSize: '0.6rem', marginTop: 2, paddingLeft: 12 }}>
+                    <span style={{ textDecoration: 'line-through', color: '#ef4444', opacity: 0.6 }}>{repair.original_text.slice(0, 80)}{repair.original_text.length > 80 ? '…' : ''}</span>
+                    {' → '}
+                    <span style={{ color: '#22c55e' }}>{repair.repaired_text.slice(0, 80)}{repair.repaired_text.length > 80 ? '…' : ''}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {diag.extracted_claims.rejected.map((c, i) => (
             <div key={i} className="diag-claim diag-claim-rejected">
               <span className="diag-claim-status">✗</span>
@@ -596,7 +663,7 @@ function EntryView({ entryId }: { entryId: string }) {
       {diag?.claim_extraction && (() => {
         const ce = diag.claim_extraction;
         return (
-          <CollapsibleSection title={`Claim Extraction — ${ce.claims_parsed} claims, ${ce.schemes_classified.length} schemes (${ce.response_time_ms}ms)`}>
+          <CollapsibleSection title={`Claim Extraction — ${ce.claims_parsed} claims, ${ce.schemes_classified.length} schemes (${ce.response_time_ms}ms)`} defaultOpen>
             {ce.schemes_classified.length > 0 && (
               <div style={{ marginBottom: 6 }}>
                 <span className="diag-k">Argumentation Schemes Classified:</span>
@@ -839,7 +906,7 @@ function EntryView({ entryId }: { entryId: string }) {
 
       {/* Claim Sketches */}
       {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
-        <CollapsibleSection title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`}>
+        <CollapsibleSection title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen>
           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
             <div key={i} style={{ margin: '2px 0', fontSize: '0.7rem' }}>
               <span style={{ color: '#3b82f6' }}>{i + 1}.</span> {c.claim}

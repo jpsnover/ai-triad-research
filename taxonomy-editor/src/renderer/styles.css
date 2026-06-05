@@ -6948,6 +6948,20 @@ body {
   color: var(--text-muted);
 }
 
+.debate-session-item-model {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
+.debate-session-item-turns {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
 .debate-phase-badge {
   display: inline-block;
   padding: 1px 6px;
@@ -9135,6 +9149,23 @@ a.vocab-term,
   box-sizing: border-box;
 }
 .ndd-topic-input:focus {
+  border-color: var(--focus-ring);
+}
+
+.ndd-title-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-input, var(--bg-primary));
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+  margin-bottom: 4px;
+}
+.ndd-title-input:focus {
   border-color: var(--focus-ring);
 }
 

@@ -79,13 +79,18 @@ export function extractClaimsPrompt(
   speaker: string,
   priorClaims: PriorClaim[],
   audience?: string,
+  topic?: string,
 ): string {
   const priorBlock = priorClaims.length > 0
     ? priorClaims.map(c => `  ${c.id} (${c.speaker}): ${c.text}`).join('\n')
     : '  (none yet — this is the first statement)';
 
-  return `Extract the key claims from this debate statement and map their relationships to prior claims.
+  const topicBlock = topic
+    ? `\nDEBATE TOPIC:\n"${topic}"\n\nTOPIC RELEVANCE: When classifying claims, evaluate whether each claim's examples, analogies, and evidence are proportionate to the topic's stated scope. If the topic specifies a risk level, domain, or product type, flag claims whose examples come from a materially different risk/domain category. Set "topic_relevance" to "on_topic" when the claim directly engages the stated scope, "adjacent" when it's related but requires inferential steps to connect, or "off_topic" when the claim's framing or examples contradict explicit topic constraints (e.g., citing catastrophic infrastructure failures for a low-risk consumer product).\n`
+    : '';
 
+  return `Extract the key claims from this debate statement and map their relationships to prior claims.
+${topicBlock}
 STATEMENT by ${speaker}:
 "${statement}"
 
@@ -148,7 +153,8 @@ For each claim, also classify:
    "ambiguity_resolved": "none" (the source makes a clear, unambiguous claim) | "acknowledged" (the source hedges or presents multiple readings, and this extraction preserves that uncertainty) | "collapsed" (the source hedges or presents multiple readings, but this extraction picks one and states it as settled)}
 - "specificity": "precise" (contains specific numbers, dates, named entities, or directly verifiable facts), "general" (broad empirical claim without specific verifiable details), or "abstract" (theoretical/normative, not empirically testable)
 - "steelman_of": null normally. Set to the opponent's name (e.g. "Accelerationist") ONLY when this claim deliberately presents the STRONGEST version of an opponent's position before critiquing it. A steelman means restating someone else's argument charitably — not attacking it.
-${audience === 'policymakers' ? `
+${topic ? `- "topic_relevance": "on_topic" (directly engages the stated scope), "adjacent" (related but requires inference to connect), or "off_topic" (examples or framing contradict explicit topic constraints)
+` : ''}${audience === 'policymakers' ? `
 - "political_salience": classify each claim's relevance to political decision-making:
   "high" = Names a specific bill, agency, budget line, executive order, identifiable constituency, or references a specific court ruling or legal standard (e.g., Chevron deference, Section 230, strict liability standard). The claim could appear in a committee hearing or regulatory comment letter.
   "medium" = Relevant to governance but requires translation to connect to a pending decision. Discusses institutional structures, regulatory frameworks, or enforcement in general terms.
@@ -158,10 +164,10 @@ ${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown). Two example claim shapes:
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
-{"text": "...", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
+{"text": "...", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "on_topic"' : ''}${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
 
 Example 2 — Desire claim (includes bdi_sub_scores; NO base_strength):
-{"text": "...", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
+{"text": "...", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "adjacent"' : ''}${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
 
 Full responds_to shape (same for all BDI categories):
 {
@@ -764,6 +770,30 @@ function isDiscreteBdi(v: unknown): v is string {
   return typeof v === 'string' && v.toLowerCase() in BDI_TERNARY_MAP;
 }
 
+export function overlapToExtractionConfidence(overlap: number): number {
+  if (overlap >= 0.7) return 1.0;
+  if (overlap >= 0.5) return 0.8;
+  if (overlap >= 0.3) return 0.6;
+  return 0.5;
+}
+
+const ENTAILMENT_SAMPLING_RATES: Record<string, number> = {
+  intention: 0.50,
+  belief: 0.30,
+  desire: 0.15,
+};
+const DEFAULT_SAMPLING_RATE = 0.30;
+
+export function sampleNodesForEntailment(
+  nodes: ArgumentNetworkNode[],
+  rng: () => number = Math.random,
+): ArgumentNetworkNode[] {
+  return nodes.filter(n => {
+    const rate = ENTAILMENT_SAMPLING_RATES[n.bdi_category ?? ''] ?? DEFAULT_SAMPLING_RATE;
+    return rng() < rate;
+  });
+}
+
 /**
  * Normalize a raw extracted claim from discrete categorical outputs to numeric floats.
  * Accepts both legacy float format (passthrough) and NLI-style discrete categories.
@@ -993,21 +1023,16 @@ export function processExtractedClaims(
       bdi_category: claim.bdi_category as ArgumentNetworkNode['bdi_category'],
       specificity: claim.specificity as ArgumentNetworkNode['specificity'],
       steelman_of: claim.steelman_of || undefined,
-      extraction_confidence: typeof claim.extraction_confidence === 'number'
-        ? claim.extraction_confidence : undefined,
+      extraction_confidence: overlapToExtractionConfidence(overlap),
     };
 
-    // FIRE cross-check: cap self-reported extraction_confidence at overlap-derived maximum.
-    // The LLM may overestimate how faithfully it extracted a claim. Word overlap with
-    // the source statement provides a structural sanity check.
-    if (node.extraction_confidence != null) {
-      const overlapCap = overlap >= 0.7 ? 1.0
-        : overlap >= 0.5 ? 0.8
-        : overlap >= 0.3 ? 0.6
-        : 0.5;
-      if (node.extraction_confidence > overlapCap) {
-        node.extraction_confidence = overlapCap;
-      }
+    if (typeof claim.extraction_confidence !== 'number') {
+      getGlobalRecorder()?.record({
+        type: 'an.extraction_confidence_missing', component: 'argumentNetwork', level: 'warn',
+        speaker,
+        message: `LLM output missing extraction_confidence for claim "${claim.text.slice(0, 80)}" — computed server-side from wordOverlap (${Math.round(overlap * 100)}%)`,
+        data: { node_id: nodeId, overlap, computed_confidence: node.extraction_confidence },
+      });
     }
 
     // BDI composite scoring: for Desires and Intentions with sub-scores,

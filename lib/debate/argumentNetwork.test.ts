@@ -2,8 +2,9 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { processExtractedClaims, normalizeExtractedClaim, beliefVerificationToStrength } from './argumentNetwork.js';
+import { processExtractedClaims, normalizeExtractedClaim, beliefVerificationToStrength, overlapToExtractionConfidence, sampleNodesForEntailment } from './argumentNetwork.js';
 import type { BeliefVerification } from './argumentNetwork.js';
+import type { ArgumentNetworkNode } from './types.js';
 
 describe('BDI composite scoring', () => {
   const baseInput = {
@@ -641,5 +642,142 @@ describe('situation grounding (t/243)', () => {
 
     expect(result.newNodes).toHaveLength(1);
     expect(result.newNodes[0].taxonomy_refs).toEqual(['saf-beliefs-001']);
+  });
+});
+
+// ── overlapToExtractionConfidence ──────────────────────────
+
+describe('overlapToExtractionConfidence', () => {
+  it('returns 1.0 for high overlap (>= 0.7)', () => {
+    expect(overlapToExtractionConfidence(0.7)).toBe(1.0);
+    expect(overlapToExtractionConfidence(0.9)).toBe(1.0);
+  });
+
+  it('returns 0.8 for moderate overlap (0.5–0.69)', () => {
+    expect(overlapToExtractionConfidence(0.5)).toBe(0.8);
+    expect(overlapToExtractionConfidence(0.65)).toBe(0.8);
+  });
+
+  it('returns 0.6 for low overlap (0.3–0.49)', () => {
+    expect(overlapToExtractionConfidence(0.3)).toBe(0.6);
+    expect(overlapToExtractionConfidence(0.45)).toBe(0.6);
+  });
+
+  it('returns 0.5 for very low overlap (< 0.3)', () => {
+    expect(overlapToExtractionConfidence(0.1)).toBe(0.5);
+    expect(overlapToExtractionConfidence(0.0)).toBe(0.5);
+  });
+});
+
+// ── extraction_confidence server-side computation ──────────
+
+describe('extraction_confidence server-side computation', () => {
+  const ecBaseInput = {
+    statement: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
+    speaker: 'safetyist',
+    entryId: 'entry-ec',
+    taxonomyRefIds: [],
+    turnNumber: 1,
+    existingNodes: [],
+    existingEdgeCount: 0,
+    startNodeId: 1,
+  };
+  const ecOptions = { groundingOverlapThreshold: 0.1, isClassifyPath: false };
+
+  it('computes extraction_confidence from wordOverlap, ignoring LLM value', () => {
+    const result = processExtractedClaims({
+      ...ecBaseInput,
+      claims: [{
+        text: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
+        extraction_confidence: 0.95,
+      }],
+    }, ecOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    expect(result.newNodes[0].extraction_confidence).toBeDefined();
+    expect(result.newNodes[0].extraction_confidence).toBe(1.0);
+  });
+
+  it('computes extraction_confidence even when LLM omits the field', () => {
+    const result = processExtractedClaims({
+      ...ecBaseInput,
+      claims: [{
+        text: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
+      }],
+    }, ecOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    expect(result.newNodes[0].extraction_confidence).toBeDefined();
+    expect(typeof result.newNodes[0].extraction_confidence).toBe('number');
+  });
+
+  it('assigns lower confidence for loosely overlapping claims', () => {
+    const result = processExtractedClaims({
+      ...ecBaseInput,
+      claims: [{
+        text: 'Governance safety mechanisms tradeoff acknowledgment policy debate considerations',
+      }],
+    }, ecOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    const conf = result.newNodes[0].extraction_confidence!;
+    expect(conf).toBeLessThanOrEqual(0.8);
+    expect(conf).toBeGreaterThanOrEqual(0.5);
+  });
+});
+
+// ── sampleNodesForEntailment ───────────────────────────
+
+describe('sampleNodesForEntailment', () => {
+  function makeNode(bdi_category: string): ArgumentNetworkNode {
+    return {
+      id: `AN-${Math.random().toString(36).slice(2, 6)}`,
+      text: 'test claim',
+      speaker: 'safetyist',
+      source_entry_id: 'entry-1',
+      taxonomy_refs: [],
+      turn_number: 1,
+      bdi_category: bdi_category as ArgumentNetworkNode['bdi_category'],
+    } as ArgumentNetworkNode;
+  }
+
+  it('samples Intentions at 50% rate', () => {
+    const nodes = Array.from({ length: 100 }, () => makeNode('intention'));
+    const rngAlwaysLow = () => 0.49;
+    expect(sampleNodesForEntailment(nodes, rngAlwaysLow)).toHaveLength(100);
+    const rngAbove = () => 0.51;
+    expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
+  });
+
+  it('samples Beliefs at 30% rate', () => {
+    const nodes = Array.from({ length: 100 }, () => makeNode('belief'));
+    const rngBelow = () => 0.29;
+    expect(sampleNodesForEntailment(nodes, rngBelow)).toHaveLength(100);
+    const rngAbove = () => 0.31;
+    expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
+  });
+
+  it('samples Desires at 15% rate', () => {
+    const nodes = Array.from({ length: 100 }, () => makeNode('desire'));
+    const rngBelow = () => 0.14;
+    expect(sampleNodesForEntailment(nodes, rngBelow)).toHaveLength(100);
+    const rngAbove = () => 0.16;
+    expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
+  });
+
+  it('uses 30% default rate for unknown BDI category', () => {
+    const nodes = Array.from({ length: 100 }, () => makeNode(''));
+    const rngBelow = () => 0.29;
+    expect(sampleNodesForEntailment(nodes, rngBelow)).toHaveLength(100);
+    const rngAbove = () => 0.31;
+    expect(sampleNodesForEntailment(nodes, rngAbove)).toHaveLength(0);
+  });
+
+  it('produces mixed results with varying rng', () => {
+    let callCount = 0;
+    const alternating = () => (callCount++ % 2 === 0 ? 0.0 : 1.0);
+    const nodes = Array.from({ length: 10 }, () => makeNode('belief'));
+    const sampled = sampleNodesForEntailment(nodes, alternating);
+    expect(sampled).toHaveLength(5);
   });
 });

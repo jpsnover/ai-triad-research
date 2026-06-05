@@ -9,34 +9,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import type { CalibrationDataPoint } from '@lib/debate/calibrationLogger';
 
-// ── Types ──
-
-interface CalibrationEntry {
-  debate_id: string;
-  timestamp: string;
-  model: string;
-  rounds: number;
-  engaging_real_disagreement: boolean | null;
-  crux_addressed_ratio: number | null;
-  avg_utilization_rate: number | null;
-  avg_primary_utilization: number | null;
-  structural_error_rate: number | null;
-  repetition_rate: number | null;
-  claims_forgotten_rate: number | null;
-  taxonomy_mapped_ratio: number | null;
-  an_nodes_at_synthesis: number | null;
-  gc_runs: number | null;
-  topic_alignment_rate: number | null;
-  topic_scope_extracted: boolean | null;
-  topic_scope_off_topics: number | null;
-  topic_scope_drift_sigs: number | null;
-  scope_extraction_populated: number | null;
-  draft_repair_rate: number | null;
-  taxonomy_demotion_rate: number | null;
-  demoted_node_reference_rate: number | null;
-  moderator_drift_intervention_rate: number | null;
-}
+type CalibrationEntry = CalibrationDataPoint;
 
 interface ValidationMetric {
   label: string;
@@ -69,6 +44,12 @@ const METRIC_CONFIG: { key: string; label: string; color: string; higherBetter: 
   { key: 'taxonomy_demotion_rate', label: 'Demotion Rate', color: '#a855f7', higherBetter: false },
   { key: 'demoted_node_reference_rate', label: 'Demoted Ref Rate', color: '#ec4899', higherBetter: false },
   { key: 'moderator_drift_intervention_rate', label: 'Drift Interventions', color: '#ef5350', higherBetter: false },
+  { key: 'mean_extraction_confidence', label: 'Mean FIRE Confidence', color: '#0ea5e9', higherBetter: true, section: 'Extraction Quality' },
+  { key: 'low_confidence_claims_rate', label: 'Low-Confidence Claims', color: '#f43f5e', higherBetter: false },
+  { key: 'entailment_pass_rate', label: 'Entailment Pass Rate', color: '#10b981', higherBetter: true },
+  { key: 'entailment_repair_rate', label: 'Repair Rate', color: '#f59e0b', higherBetter: false },
+  { key: 'entailment_sampling_coverage', label: 'Sampling Coverage', color: '#8b5cf6', higherBetter: true },
+  { key: 'extraction_coverage_rate', label: 'Extraction Coverage', color: '#06b6d4', higherBetter: true },
 ];
 
 /** SVG time-series chart for a metric. */

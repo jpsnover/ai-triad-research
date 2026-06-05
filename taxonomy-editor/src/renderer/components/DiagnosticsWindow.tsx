@@ -1804,6 +1804,20 @@ function SubScoreRow({ node, onUpdateSubScore }: { node: ArgumentNetworkNode; on
 /** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text */
 const ATTACK_TYPE_WEIGHTS: Record<string, number> = { rebut: 1.0, undercut: 1.1, undermine: 1.2 };
 
+const STRENGTH_STYLES: Record<string, { label: string; color: string; bg: string }> = {
+  decisive:    { label: 'decisive',    color: '#16a34a', bg: 'rgba(22,163,74,0.12)' },
+  substantial: { label: 'substantial', color: '#2563eb', bg: 'rgba(37,99,235,0.12)' },
+  tangential:  { label: 'tangential',  color: '#9ca3af', bg: 'rgba(156,163,175,0.12)' },
+};
+
+function deriveStrength(edge: { strength?: string; weight?: number }): string {
+  if (edge.strength) return edge.strength;
+  if (edge.weight == null) return 'substantial';
+  if (edge.weight >= 0.7) return 'decisive';
+  if (edge.weight >= 0.4) return 'substantial';
+  return 'tangential';
+}
+
 function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
@@ -1819,7 +1833,7 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
   focused?: boolean;
   onUpdateSubScore: (nodeId: string, key: string, value: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const responded = attacks.length > 0 || supports.length > 0;
   const hasChildren = attacks.length > 0 || supports.length > 0;
   const rowRef = useRef<HTMLDivElement>(null);
@@ -1982,10 +1996,13 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
             const contribution = srcStr != null ? srcStr * edgeWeight * atkMult : undefined;
             return (
               <div key={a.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid rgba(239,68,68,0.3)' }}>
-                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
+                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 76px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>CA-node</span>
                   <span>← {a.source}</span>
                   <strong>{a.attack_type}</strong>
+                  {(() => { const s = deriveStrength(a); const st = STRENGTH_STYLES[s] ?? STRENGTH_STYLES.substantial; return (
+                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
+                  ); })()}
                   <span style={{ color: 'var(--text-muted)' }}>{a.scheme ? `via ${a.scheme}` : ''}</span>
                   {contribution != null ? (
                     <span title={`Attack contribution = (source strength (${(srcStr ?? 0).toFixed(2)}) × edge weight (${edgeWeight.toFixed(1)}${hasWeight ? '' : ' — default, no AI weight'})) × attack type multiplier (${a.attack_type}: ${atkMult.toFixed(1)}).\nRebut=1.0, Undercut=1.1 (denies inference), Undermine=1.2 (attacks premise).`} style={{ color: '#ef4444', cursor: 'default', opacity: hasWeight ? 1 : 0.5 }}>
@@ -2025,10 +2042,13 @@ function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, compu
             const contributionS = srcStrS != null ? srcStrS * edgeWeightS : undefined;
             return (
               <div key={s.id} style={{ marginTop: 4, paddingLeft: 8, borderLeft: '2px solid rgba(34,197,94,0.3)' }}>
-                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
+                <div className="diag-edge-row" style={{ display: 'grid', gridTemplateColumns: '72px 60px 80px 76px 140px 180px 40px', gap: '4px', alignItems: 'center' }}>
                   <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>RA-node</span>
                   <span>← {s.source}</span>
                   <strong>supports</strong>
+                  {(() => { const str = deriveStrength(s); const st = STRENGTH_STYLES[str] ?? STRENGTH_STYLES.substantial; return (
+                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600, background: st.bg, color: st.color }}>{st.label}</span>
+                  ); })()}
                   <span style={{ color: 'var(--text-muted)' }}>{s.scheme ? `via ${s.scheme}` : ''}</span>
                   {contributionS != null ? (
                     <span title={`Support contribution = source strength (${(srcStrS ?? 0).toFixed(2)}) × edge weight (${edgeWeightS.toFixed(1)}${hasWeightS ? '' : ' — default, no AI weight'}). No type multiplier for supports — all support relationships are weighted equally.`} style={{ color: '#22c55e', cursor: 'default', opacity: hasWeightS ? 1 : 0.5 }}>
@@ -2126,7 +2146,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
   const [entryTab, setEntryTab] = useState<EntryTab>('details');
   const tabContentRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const sidebarTranscriptRef = useRef<HTMLDivElement>(null);
   useEffect(() => { tabContentRef.current?.focus(); }, [entryTab]);
+  useEffect(() => {
+    if (!selectedEntry || !sidebarTranscriptRef.current) return;
+    const el = sidebarTranscriptRef.current.querySelector(`[data-entry-id="${selectedEntry}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedEntry]);
   type OverviewTab = 'topic-scope' | 'extraction' | 'argument-network' | 'commitments' | 'transcript' | 'convergence' | 'reflections' | 'gaps' | 'grounding' | 'lineage' | 'adaptive' | 'pov-progression' | 'fr-context' | 'prompt-diff' | 'utility';
   const [overviewTab, setOverviewTab] = useState<OverviewTab>('argument-network');
   const [transcriptSpeakerFilter, setTranscriptSpeakerFilter] = useState<string | null>(null);
@@ -2583,12 +2609,13 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     </button>
                     {/* Transcript child items — nested entries when Transcript tab is active */}
                     {t.id === 'transcript' && effectiveOverviewTab === 'transcript' && (
-                      <div style={{ marginLeft: 8, marginTop: 2, maxHeight: 300, overflowY: 'auto' }}>
+                      <div ref={sidebarTranscriptRef} style={{ marginLeft: 8, marginTop: 2, maxHeight: 300, overflowY: 'auto' }}>
                         {debate.transcript.map((e, i) => {
                           const stmtId = `S${i + 1}`;
                           return (
                             <button
                               key={e.id}
+                              data-entry-id={e.id}
                               onClick={() => { setSelectedEntry(e.id); setLocalOverride(true); }}
                               style={{
                                 display: 'block', width: '100%', textAlign: 'left',
@@ -3838,7 +3865,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               let state: 'green' | 'amber' | 'red';
               let label: string;
               let tip: string;
-              if (!ta.topic_aligned && !ta.repaired) {
+              if (!ta.topic_aligned) {
                 state = 'red'; label = 'off-scope'; tip = 'Topic alignment failed after all retries';
               } else if (ta.repaired) {
                 state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
@@ -3854,6 +3881,15 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                   padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
                   background: bgs[state], color: colors[state], cursor: 'help',
                 }}>{label}</span>
+              );
+            })()}
+            {diag?.entailment_repairs && diag.entailment_repairs.some(r => r.verdict !== 'entailed') && (() => {
+              const repaired = diag.entailment_repairs!.filter(r => r.verdict !== 'entailed');
+              return (
+                <span title={`${repaired.length} claim${repaired.length !== 1 ? 's' : ''} repaired by entailment verification`} style={{
+                  padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+                  background: 'rgba(245,158,11,0.15)', color: '#d97706', cursor: 'help',
+                }}>{repaired.length} repaired</span>
               );
             })()}
             {!diag && !proxiedModeratorTrace && entry.type !== 'intervention' && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture — turn was generated before diagnostics was always-on)</span>}
@@ -6427,8 +6463,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           background: allPass ? 'rgba(22,163,74,0.06)' : 'rgba(245,158,11,0.06)',
                           border: `1px solid ${allPass ? 'rgba(22,163,74,0.2)' : 'rgba(245,158,11,0.2)'}`,
                         }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, fontSize: '0.66rem' }}>Quality Pre-Check</span>
+                            <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontWeight: 600 }}>Draft Attempt 1</span>
+                            {diag?.topic_alignment?.repaired && (
+                              <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#d97706', fontWeight: 600 }}>triggered regen</span>
+                            )}
                             <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{draftQualityStage.model}</span>
                             <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{(draftQualityStage.response_time_ms / 1000).toFixed(1)}s</span>
                           </div>
@@ -6468,27 +6508,31 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                           background: aligned ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
                           border: `1px solid ${aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
                         }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, fontSize: '0.66rem' }}>Topic Alignment</span>
                             <span style={{
                               padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
                               background: aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
                               color: aligned ? '#16a34a' : '#dc2626',
                             }}>{aligned ? 'ON-SCOPE' : 'OFF-SCOPE'}</span>
+                            <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontWeight: 600 }}>Draft Attempt 1</span>
+                            {ta.repaired && (
+                              <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#d97706', fontWeight: 600 }}>repaired via regen</span>
+                            )}
                           </div>
-                          {ta.off_scope_items && ta.off_scope_items.length > 0 && (
+                          {ta.scope_used?.off_scope_topics && ta.scope_used.off_scope_topics.length > 0 && (
                             <div style={{ marginTop: 4 }}>
-                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Off-Scope Items</div>
+                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Off-Scope Topics (static)</div>
                               <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
-                                {ta.off_scope_items.map((item: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{item}</li>)}
+                                {ta.scope_used.off_scope_topics.map((item: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{item}</li>)}
                               </ul>
                             </div>
                           )}
-                          {ta.drift_signals && ta.drift_signals.length > 0 && (
+                          {ta.scope_used?.drift_signatures && ta.scope_used.drift_signatures.length > 0 && (
                             <div style={{ marginTop: 4 }}>
-                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Drift Signals</div>
+                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Drift Signatures (static)</div>
                               <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
-                                {ta.drift_signals.map((sig: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{sig}</li>)}
+                                {ta.scope_used.drift_signatures.map((sig: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{sig}</li>)}
                               </ul>
                             </div>
                           )}
@@ -7186,7 +7230,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         );
                       })()}
                       {meta?.my_claims && (meta.my_claims as { claim: string; targets: string[] }[]).length > 0 && (
-                        <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
+                        <Section title={`Claim Sketches (${(meta.my_claims as unknown[]).length})`} defaultOpen copyText={(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => `${i + 1}. ${c.claim}${c.targets?.length > 0 ? ` → ${c.targets.join(', ')}` : ''}`).join('\n')}>
                           {(meta.my_claims as { claim: string; targets: string[] }[]).map((c, i) => (
                             <div key={i} style={{ margin: '3px 0', fontSize: '0.7rem' }}>
                               <span style={{ color: '#3b82f6' }}>{i + 1}.</span> <Highlight text={c.claim} />
@@ -7238,18 +7282,64 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                 : 'supports';
                               return `${label} ${edge.target}`;
                             }).join(', ');
+                            const anNode = an?.nodes.find(n => n.id === c.id);
+                            const ec = anNode?.extraction_confidence;
+                            const ecBand = ec != null ? (ec >= 1.0 ? 'near-verbatim' : ec >= 0.8 ? 'faithful compression' : ec >= 0.6 ? 'implicit premise' : 'minimum') : null;
+                            const ecColor = ec != null ? (ec >= 0.8 ? '#22c55e' : ec >= 0.6 ? '#f59e0b' : '#ef4444') : '#6b7280';
+                            const repair = diag.entailment_repairs?.find(r => r.node_id === c.id);
+                            const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
+                            const verdictColor = repair ? (repair.verdict === 'entailed' ? '#22c55e' : repair.verdict === 'partial' ? '#f59e0b' : '#ef4444') : null;
                             return (
                               <details key={i} style={{ margin: '4px 0' }}>
                                 <summary style={{ cursor: 'pointer' }}>
-                                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span> <Highlight text={c.text} />
+                                  <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span>{' '}
+                                  {ec != null && (
+                                    <span data-tooltip={`Extraction Confidence: ${ec.toFixed(2)}\nBand: ${ecBand}\n\nFIRE metric — how faithfully this claim was extracted from the speaker's statement.\n1.0 = near-verbatim (overlap ≥70%)\n0.8 = faithful compression (≥50%)\n0.6 = implicit premise (≥30%)\n0.5 = minimum (below 30%)`} style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, background: `${ecColor}18`, color: ecColor, cursor: 'default', marginRight: 4 }}>
+                                      FIRE {ec.toFixed(1)} {ecBand}
+                                    </span>
+                                  )}
+                                  {repair && (
+                                    <span data-tooltip={`Entailment: ${repair.verdict}\n${repair.explanation}`} style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, background: `${verdictColor}18`, color: verdictColor!, cursor: 'default', marginRight: 4 }}>
+                                      {repair.verdict === 'entailed' ? '✓' : repair.verdict === 'partial' ? '~' : '✗'} {repair.verdict}
+                                    </span>
+                                  )}
+                                  {!repair && hasEntailmentData && (
+                                    <span style={{ fontSize: '0.5rem', color: 'var(--text-muted)', opacity: 0.6, marginRight: 4 }}>not sampled</span>
+                                  )}
+                                  {anNode?.bdi_category && (
+                                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, marginRight: 3, background: anNode.bdi_category === 'belief' ? 'rgba(59,130,246,0.15)' : anNode.bdi_category === 'desire' ? 'rgba(168,85,247,0.15)' : 'rgba(249,115,22,0.15)', color: anNode.bdi_category === 'belief' ? '#3b82f6' : anNode.bdi_category === 'desire' ? '#a855f7' : '#f97316' }}>
+                                      {anNode.bdi_category}
+                                    </span>
+                                  )}
+                                  {anNode?.specificity && (
+                                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, marginRight: 3, background: 'rgba(107,114,128,0.12)', color: '#6b7280' }}>
+                                      {anNode.specificity}
+                                    </span>
+                                  )}
+                                  {anNode?.steelman_of && (
+                                    <span style={{ padding: '0 4px', borderRadius: 3, fontSize: '0.55rem', fontWeight: 600, marginRight: 3, background: 'rgba(20,184,166,0.15)', color: '#14b8a6' }}>
+                                      steelman of {POVER_INFO[anNode.steelman_of as keyof typeof POVER_INFO]?.label ?? anNode.steelman_of}
+                                    </span>
+                                  )}
+                                  <Highlight text={c.text} />
                                   {outEdges.length > 0 && (
                                     <span style={{ fontSize: '0.6rem', marginLeft: 6, color: 'var(--text-muted)' }}>
                                       [{edgeSummary}]
                                     </span>
                                   )}
                                 </summary>
-                                {outEdges.length > 0 && (
+                                {outEdges.length > 0 && (() => {
+                                  const hasSupports = outEdges.some(e => e.type === 'supports');
+                                  const hasAttacks = outEdges.some(e => e.type === 'attacks');
+                                  const concedeAndPivot = hasSupports && hasAttacks;
+                                  const strengthColors = { decisive: '#22c55e', substantial: '#3b82f6', tangential: '#6b7280' } as Record<string, string>;
+                                  return (
                                   <div style={{ paddingLeft: 20, marginTop: 4, marginBottom: 4 }}>
+                                    {concedeAndPivot && (
+                                      <div style={{ fontSize: '0.58rem', fontWeight: 600, padding: '2px 6px', marginBottom: 4, borderRadius: 3, background: 'rgba(168,85,247,0.1)', color: '#a855f7' }}>
+                                        Concede-and-pivot: supports + attacks edges from the same claim
+                                      </div>
+                                    )}
                                     {outEdges.map((edge, ei) => {
                                       const targetNode = an?.nodes.find(n => n.id === edge.target);
                                       const edgeLabel = edge.type === 'attacks'
@@ -7257,23 +7347,79 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                         : 'supports';
                                       return (
                                         <div key={ei} style={{ fontSize: '0.65rem', margin: '3px 0', paddingLeft: 10, borderLeft: `2px solid ${edge.type === 'attacks' ? '#ef4444' : '#22c55e'}` }}>
-                                          <div>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
                                             <span style={{ color: edge.type === 'attacks' ? '#ef4444' : '#22c55e', fontWeight: 600 }}>{edgeLabel}</span>
-                                            {edge.argumentation_scheme && <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>[{edge.argumentation_scheme}]</span>}
+                                            {edge.strength && (
+                                              <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', fontWeight: 600, background: `${strengthColors[edge.strength] ?? '#6b7280'}18`, color: strengthColors[edge.strength] ?? '#6b7280' }}>
+                                                {edge.strength}
+                                              </span>
+                                            )}
+                                            {edge.argumentation_scheme && <span style={{ padding: '0 3px', borderRadius: 3, fontSize: '0.52rem', background: 'rgba(99,102,241,0.12)', color: '#6366f1' }}>{edge.argumentation_scheme}</span>}
                                           </div>
                                           {targetNode && (
                                             <div style={{ color: 'var(--text-muted)', marginTop: 1 }}>
                                               <span style={{ fontWeight: 600 }}>{targetNode.id}</span> ({POVER_INFO[targetNode.speaker as keyof typeof POVER_INFO]?.label ?? targetNode.speaker}): {targetNode.text}
                                             </div>
                                           )}
+                                          {edge.warrant && (
+                                            <div style={{ color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic', fontSize: '0.6rem', paddingLeft: 4, borderLeft: '1px solid var(--border)' }}>
+                                              {edge.warrant}
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
                                   </div>
+                                  );
+                                })()}
+                                {repair && repair.verdict !== 'entailed' && repair.repaired_text && (
+                                  <div style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4, padding: '6px 8px', borderRadius: 4, background: `${verdictColor}08`, border: `1px solid ${verdictColor}20` }}>
+                                    <div style={{ fontSize: '0.62rem', fontWeight: 700, color: verdictColor!, marginBottom: 4 }}>
+                                      Entailment Repair ({repair.verdict})
+                                    </div>
+                                    <div style={{ fontSize: '0.65rem', marginBottom: 3 }}>
+                                      <span style={{ textDecoration: 'line-through', color: '#ef4444', opacity: 0.7 }}>{repair.original_text}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.65rem', marginBottom: 3, color: '#22c55e' }}>
+                                      {repair.repaired_text}
+                                    </div>
+                                    <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                      {repair.explanation}
+                                    </div>
+                                  </div>
+                                )}
+                                {anNode && (anNode.base_strength != null || anNode.bdi_sub_scores) && (
+                                  <details style={{ paddingLeft: 20, marginTop: 6, marginBottom: 4 }}>
+                                    <summary style={{ cursor: 'pointer', fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                      Scores{anNode.base_strength != null ? ` — base: ${anNode.base_strength.toFixed(2)}` : ''}{anNode.computed_strength != null ? ` → computed: ${anNode.computed_strength.toFixed(2)}` : ''}{anNode.scoring_method ? ` (${anNode.scoring_method.replace(/_/g, ' ')})` : ''}
+                                    </summary>
+                                    <div style={{ fontSize: '0.62rem', marginTop: 4 }}>
+                                      {anNode.base_strength != null && (
+                                        <div style={{ display: 'flex', gap: 8, marginBottom: 3 }}>
+                                          <span><strong>Base:</strong> {anNode.base_strength.toFixed(2)}</span>
+                                          {anNode.computed_strength != null && <span><strong>Computed:</strong> {anNode.computed_strength.toFixed(2)}</span>}
+                                          {anNode.scoring_method && <span style={{ color: 'var(--text-muted)' }}>via {anNode.scoring_method.replace(/_/g, ' ')}</span>}
+                                        </div>
+                                      )}
+                                      {anNode.bdi_sub_scores && (
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
+                                          {Object.entries(anNode.bdi_sub_scores).filter(([, v]) => v != null).map(([k, v]) => {
+                                            const label = k.replace(/_/g, ' ');
+                                            const strVal = typeof v === 'number' ? (v >= 0.7 ? 'yes' : v >= 0.4 ? 'partial' : 'no') : String(v);
+                                            const color = strVal === 'yes' ? '#22c55e' : strVal === 'partial' ? '#f59e0b' : '#ef4444';
+                                            return (
+                                              <span key={k} style={{ padding: '1px 4px', borderRadius: 3, fontSize: '0.55rem', background: `${color}15`, color }}>
+                                                {label}: {strVal}
+                                              </span>
+                                            );
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </details>
                                 )}
                                 {/* Evidence graph inline (t/495) */}
                                 {(() => {
-                                  const anNode = an?.nodes.find(n => n.id === c.id);
                                   const eg = anNode?.evidence_graph as { evidence_items: { id: string; source_doc_id: string; text: string; relation: 'support' | 'contradict'; similarity: number }[]; computed_strength: number; qbaf_iterations: number } | undefined;
                                   if (!eg || eg.evidence_items.length === 0) return null;
                                   const barPct = Math.round(eg.computed_strength * 100);
@@ -7334,6 +7480,25 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
                             </div>
                           ))}
+                          {diag.claim_extraction && (
+                            <div style={{ marginTop: 10, borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
+                              <details>
+                                <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  Raw Prompt <CopyButton text={diag.claim_extraction.prompt} />
+                                </summary>
+                                <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', marginTop: 4, padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)' }}>{diag.claim_extraction.prompt}</pre>
+                              </details>
+                              <details style={{ marginTop: 6 }}>
+                                <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  Raw Response <CopyButton text={diag.claim_extraction.raw_response} />
+                                  <span style={{ fontWeight: 400, fontSize: '0.6rem', marginLeft: 8, color: 'var(--text-muted)' }}>
+                                    {diag.claim_extraction.claims_parsed} claims parsed, {(diag.claim_extraction.response_time_ms / 1000).toFixed(1)}s
+                                  </span>
+                                </summary>
+                                <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', marginTop: 4, padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)' }}>{diag.claim_extraction.raw_response}</pre>
+                              </details>
+                            </div>
+                          )}
                         </Section>
                       )}
                     </div>
@@ -7663,7 +7828,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               const addedEdges = an?.edges.filter(e =>
                                 extTrace.an_nodes_added_ids.includes(e.source) || extTrace.an_nodes_added_ids.includes(e.target)
                               ) ?? [];
-                              const attackEdges = addedEdges.filter(e => (e as { type?: string }).type === 'attack').length;
+                              const attackEdges = addedEdges.filter(e => (e as { type?: string }).type === 'attacks').length;
                               const supportEdges = addedEdges.length - attackEdges;
                               return (
                                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.68rem' }}>

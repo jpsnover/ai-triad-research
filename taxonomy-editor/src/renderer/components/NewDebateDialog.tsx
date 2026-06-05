@@ -51,6 +51,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const { createDebate, loadDebate } = useDebateStore(
     useShallow(s => ({ createDebate: s.createDebate, loadDebate: s.loadDebate }))
   );
+  const [debateTitle, setDebateTitle] = useState('');
   const [topic, setTopic] = useState('');
   const [sourceType, setSourceType] = useState<DebateSourceType>('topic');
   const [sourceRef, setSourceRef] = useState('');
@@ -240,6 +241,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       temperature,
       audience,
       {
+        title: debateTitle || undefined,
         evaluatorModel: evaluatorModel || undefined,
         useAdaptiveStaging: true,
         phaseBoundsOverride: {
@@ -277,6 +279,17 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           {/* ─── Left Column: Debate Details ─── */}
           <div className="ndd-col-left">
             <h3 className="ndd-section-heading">Debate Details</h3>
+
+            {/* Title (optional) */}
+            <label className="ndd-field-label">Title</label>
+            <input
+              className="ndd-title-input"
+              type="text"
+              placeholder="e.g. Strict Liability in AI Deployment"
+              value={debateTitle}
+              onChange={(e) => setDebateTitle(e.target.value.slice(0, 120))}
+              maxLength={120}
+            />
 
             {/* Source type radios */}
             <label className="ndd-field-label">Source</label>

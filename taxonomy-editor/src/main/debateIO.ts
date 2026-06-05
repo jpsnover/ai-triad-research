@@ -16,6 +16,8 @@ export interface DebateSessionSummary {
   updated_at: string;
   phase: string;
   topic_text?: string;
+  model?: string;
+  turn_count?: number;
 }
 
 function ensureDebatesDir(): void {
@@ -51,6 +53,7 @@ export function listDebateSessions(): DebateSessionSummary[] {
         if (currentPath !== canonicalPath) {
           fs.renameSync(currentPath, canonicalPath);
         }
+        const transcript = Array.isArray(data.transcript) ? data.transcript : [];
         summaries.push({
           id: data.id,
           title: data.title || data.topic || 'Untitled',
@@ -58,6 +61,8 @@ export function listDebateSessions(): DebateSessionSummary[] {
           updated_at: data.updated_at,
           phase: data.phase,
           topic_text: data.topic?.final ?? data.topic?.original ?? '',
+          model: data.debate_model,
+          turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
         });
       } catch {
         // Skip corrupt files
