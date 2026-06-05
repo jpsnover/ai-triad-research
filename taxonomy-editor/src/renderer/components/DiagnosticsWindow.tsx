@@ -16,6 +16,7 @@ import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { explainNodeStrength } from '../utils/qbafExplain';
 import { getMoveName, MOVE_EDGE_MAP } from '@lib/debate/helpers';
+import { classifyOffScopeDrift, offScopeRepairHint } from '@lib/debate/prompts';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';
 import { ExtractionTimelinePanel } from './ExtractionTimelinePanel';
@@ -2577,7 +2578,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'topic-scope', label: 'Topic Scope', visible: !!debate.topic?.scope },
               { id: 'argument-network', label: 'Arg Net', visible: hasAn },
               { id: 'commitments', label: 'Commitments', visible: hasCommitments },
-              { id: 'transcript', label: `Transcript (${debate.transcript.length})`, visible: true },
+              { id: 'transcript', label: `Transcript (${debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / ${debate.transcript.length} total)`, visible: true },
               { id: 'extraction', label: 'Extraction', badge: plateau ? '⚠' : undefined, visible: true },
               { id: 'convergence', label: `Convergence (${debate.convergence_signals?.length ?? 0})`, visible: !!(debate.convergence_signals && debate.convergence_signals.length > 0) },
               { id: 'reflections', label: 'Post-Debate Reflections', visible: debate.transcript.some(e => e.type === 'reflection') },
@@ -3669,7 +3670,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                     background: !transcriptSpeakerFilter ? '#f59e0b' : 'transparent',
                     color: !transcriptSpeakerFilter ? '#000' : 'var(--text-secondary)',
                   }}
-                >All ({debate.transcript.length})</button>
+                >All ({debate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} stmts / {debate.transcript.length})</button>
                 {speakers.map(s => {
                   const count = debate.transcript.filter(e => e.speaker === s).length;
                   const active = transcriptSpeakerFilter === s;
@@ -6487,48 +6488,117 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                         </div>
                       );
                     })()}
-                    {/* ── Topic Alignment Detail ── */}
+                    {/* ── Topic Alignment Detail (per-attempt) ── */}
                     {diag?.topic_alignment && (() => {
                       const ta = diag.topic_alignment;
-                      const aligned = ta.topic_aligned;
+                      const qg = diag.quality_gate as {
+                        pre_repair: { grounded: boolean; falsifiable: boolean; engages: boolean; topic_aligned: boolean; pass: boolean; weaknesses: string[] };
+                        post_repair?: { grounded: boolean; falsifiable: boolean; engages: boolean; topic_aligned: boolean; pass: boolean; weaknesses: string[] };
+                        repair_outcome?: 'fixed' | 'partial' | 'unchanged';
+                      } | undefined;
+                      const scope = ta.scope_used;
+                      const attempts: { label: string; aligned: boolean; weaknesses: string[] }[] = [];
+                      if (qg) {
+                        attempts.push({ label: 'Draft 1', aligned: qg.pre_repair.topic_aligned, weaknesses: qg.pre_repair.weaknesses });
+                        if (qg.post_repair) {
+                          attempts.push({ label: 'Draft 2 (regen)', aligned: qg.post_repair.topic_aligned, weaknesses: qg.post_repair.weaknesses });
+                        }
+                      } else {
+                        attempts.push({ label: 'Draft 1', aligned: ta.topic_aligned, weaknesses: [] });
+                      }
+                      const finalAligned = ta.topic_aligned;
                       return (
                         <div style={{
                           margin: '10px 0 4px', borderRadius: 4, padding: '6px 8px', fontSize: '0.7rem',
-                          background: aligned ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
-                          border: `1px solid ${aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
+                          background: finalAligned ? 'rgba(22,163,74,0.06)' : 'rgba(220,38,38,0.06)',
+                          border: `1px solid ${finalAligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
                         }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.66rem' }}>Topic Alignment</span>
-                            <span style={{
-                              padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.62rem',
-                              background: aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
-                              color: aligned ? '#16a34a' : '#dc2626',
-                            }}>{aligned ? 'ON-SCOPE' : 'OFF-SCOPE'}</span>
-                            <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', fontWeight: 600 }}>Draft Attempt {(ta as Record<string, unknown>).draft_attempt ?? 1}</span>
-                            {ta.repaired && (
-                              <span style={{ fontSize: '0.58rem', padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#d97706', fontWeight: 600 }}>repaired via regen</span>
-                            )}
-                          </div>
-                          {ta.scope_used?.off_scope_topics && ta.scope_used.off_scope_topics.length > 0 && (
-                            <div style={{ marginTop: 4 }}>
-                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Off-Scope Topics (static)</div>
-                              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
-                                {ta.scope_used.off_scope_topics.map((item: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{item}</li>)}
-                              </ul>
-                            </div>
-                          )}
-                          {ta.scope_used?.drift_signatures && ta.scope_used.drift_signatures.length > 0 && (
-                            <div style={{ marginTop: 4 }}>
-                              <div style={{ fontSize: '0.64rem', fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Drift Signatures (static)</div>
-                              <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: '0.64rem' }}>
-                                {ta.scope_used.drift_signatures.map((sig: string, i: number) => <li key={i} style={{ marginBottom: 1 }}>{sig}</li>)}
-                              </ul>
-                            </div>
-                          )}
-                          {ta.scope_used && (
-                            <div style={{ marginTop: 4, fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-                              Scope: {ta.scope_used.core_proposition?.slice(0, 80)}{(ta.scope_used.core_proposition?.length ?? 0) > 80 ? '…' : ''}
-                            </div>
+                          <div style={{ fontWeight: 700, fontSize: '0.66rem', marginBottom: 6 }}>Topic Alignment</div>
+                          {attempts.map((att, ai) => {
+                            const topicWeaknesses = att.weaknesses.filter(w =>
+                              /\b(off.?scope|off.?topic|drift|outside.*scope|beyond.*scope|scope|domain|severity|magnitude|escalat|disproportionate|catastroph|existential|extinction|civiliz)\b/i.test(w)
+                            );
+                            const driftType = !att.aligned && scope && topicWeaknesses.length > 0
+                              ? classifyOffScopeDrift(topicWeaknesses, scope)
+                              : null;
+                            const repairHint = driftType && scope ? offScopeRepairHint(driftType, scope) : null;
+                            return (
+                              <div key={ai} style={{ marginBottom: ai < attempts.length - 1 ? 8 : 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: '0.64rem', fontWeight: 600 }}>{att.label}</span>
+                                  <span style={{
+                                    padding: '1px 6px', borderRadius: 3, fontWeight: 600, fontSize: '0.6rem',
+                                    background: att.aligned ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)',
+                                    color: att.aligned ? '#16a34a' : '#dc2626',
+                                  }}>{att.aligned ? 'ON-SCOPE' : 'OFF-SCOPE'}</span>
+                                  {driftType && (
+                                    <span style={{ padding: '1px 5px', borderRadius: 3, fontSize: '0.56rem', fontWeight: 600, background: 'rgba(220,38,38,0.1)', color: '#dc2626' }}>
+                                      {driftType} drift
+                                    </span>
+                                  )}
+                                  {ai === attempts.length - 1 && qg?.repair_outcome && (
+                                    <span style={{
+                                      padding: '1px 5px', borderRadius: 3, fontSize: '0.56rem', fontWeight: 600,
+                                      background: qg.repair_outcome === 'fixed' ? 'rgba(22,163,74,0.15)' : qg.repair_outcome === 'partial' ? 'rgba(245,158,11,0.15)' : 'rgba(220,38,38,0.1)',
+                                      color: qg.repair_outcome === 'fixed' ? '#16a34a' : qg.repair_outcome === 'partial' ? '#d97706' : '#dc2626',
+                                    }}>repair: {qg.repair_outcome}</span>
+                                  )}
+                                </div>
+                                {!att.aligned && topicWeaknesses.length > 0 && (
+                                  <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid #dc262644' }}>
+                                    <div style={{ fontSize: '0.62rem', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>Why off-scope:</div>
+                                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: '0.62rem' }}>
+                                      {topicWeaknesses.map((w, wi) => <li key={wi} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>)}
+                                    </ul>
+                                    {repairHint && (
+                                      <div style={{ marginTop: 3, fontSize: '0.6rem', color: '#d97706', fontStyle: 'italic', paddingLeft: 4 }}>
+                                        <strong>Repair instruction:</strong> {repairHint}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {!att.aligned && topicWeaknesses.length === 0 && att.weaknesses.length > 0 && (
+                                  <div style={{ marginTop: 3, paddingLeft: 8, borderLeft: '2px solid #dc262644' }}>
+                                    <div style={{ fontSize: '0.62rem', fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>Why off-scope:</div>
+                                    <ul style={{ margin: '2px 0 0 12px', padding: 0, fontSize: '0.62rem' }}>
+                                      {att.weaknesses.map((w, wi) => <li key={wi} style={{ marginBottom: 1 }}>{humanizeSpeakerIds(w)}</li>)}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {scope && (
+                            <details style={{ marginTop: 6, fontSize: '0.62rem' }}>
+                              <summary style={{ cursor: 'pointer', color: 'var(--text-muted)', fontWeight: 600 }}>Scope Definition</summary>
+                              <div style={{ marginTop: 3, paddingLeft: 8 }}>
+                                {scope.core_proposition && (
+                                  <div style={{ marginBottom: 3 }}><strong>Core proposition:</strong> {scope.core_proposition}</div>
+                                )}
+                                {scope.domain && (
+                                  <div style={{ marginBottom: 3 }}><strong>Domain:</strong> {scope.domain}</div>
+                                )}
+                                {scope.example_ceiling && (
+                                  <div style={{ marginBottom: 3 }}><strong>Example ceiling:</strong> {scope.example_ceiling}</div>
+                                )}
+                                {scope.off_scope_topics && scope.off_scope_topics.length > 0 && (
+                                  <div style={{ marginBottom: 3 }}>
+                                    <strong>Off-scope topics:</strong>
+                                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                                      {scope.off_scope_topics.map((t: string, i: number) => <li key={i}>{t}</li>)}
+                                    </ul>
+                                  </div>
+                                )}
+                                {scope.drift_signatures && scope.drift_signatures.length > 0 && (
+                                  <div>
+                                    <strong>Drift signatures:</strong>
+                                    <ul style={{ margin: '2px 0 0 12px', padding: 0 }}>
+                                      {scope.drift_signatures.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </details>
                           )}
                         </div>
                       );
@@ -7279,7 +7349,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                             const hasEntailmentData = (diag.entailment_repairs?.length ?? 0) > 0;
                             const verdictColor = repair ? (repair.verdict === 'entailed' ? '#22c55e' : repair.verdict === 'partial' ? '#f59e0b' : '#ef4444') : null;
                             return (
-                              <details key={i} style={{ margin: '4px 0' }}>
+                              <details key={i} open style={{ margin: '4px 0' }}>
                                 <summary style={{ cursor: 'pointer' }}>
                                   <span style={{ color: '#22c55e' }}>✓ {c.id}</span> <span data-tooltip={`Word Overlap: ${c.overlap_pct}%\n\nMeasures grounding of claim in the debater's statement.\nFormula: shared words ≥4 chars / total claim words ≥4 chars × 100.\n\nThreshold: < 10-15% = rejected as not grounded.\n${c.overlap_pct}% = ${c.overlap_pct < 50 ? 'moderate' : 'strong'} lexical grounding.`} style={{ color: 'var(--text-muted)', fontSize: '0.65rem', cursor: 'default' }}>{c.overlap_pct}%</span>{' '}
                                   {ec != null && (
@@ -7469,7 +7539,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                               <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
                             </div>
                           ))}
-                          {diag.claim_extraction && (
+                          {diag.claim_extraction ? (
                             <div style={{ marginTop: 10, borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
                               <details>
                                 <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
@@ -7486,6 +7556,10 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                                 </summary>
                                 <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', marginTop: 4, padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)' }}>{diag.claim_extraction.raw_response}</pre>
                               </details>
+                            </div>
+                          ) : (
+                            <div style={{ marginTop: 10, borderTop: '1px solid var(--border-color)', paddingTop: 8, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                              No claim extraction diagnostics — claims were extracted inline during the draft stage. Check the Draft tab for raw prompt/response.
                             </div>
                           )}
                         </Section>

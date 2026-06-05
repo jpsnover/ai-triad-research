@@ -610,9 +610,10 @@ export async function generateText(
     _lastLoggedModel = friendlyModel;
   }
 
+  const defaultTimeout = backend === 'deepseek' ? 180_000 : undefined;
   const opts: GenerateOptions = {
     temperature: temperature ?? _debateTemperature ?? 0.7,
-    timeoutMs: timeoutMs,
+    timeoutMs: timeoutMs ?? defaultTimeout,
   };
 
   const result = await withRetry(

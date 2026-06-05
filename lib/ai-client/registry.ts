@@ -15,6 +15,7 @@ export interface ModelRegistry {
   models: ModelEntry[];
   fallbackChains?: Record<string, string[]>;
   contextWindows?: Record<string, number>;
+  debateTiers?: Record<string, Record<string, string>>;
 }
 
 export function resolveBackend(model: string): BackendId {
@@ -22,6 +23,7 @@ export function resolveBackend(model: string): BackendId {
   if (model.startsWith('groq')) return 'groq';
   if (model.startsWith('openai')) return 'openai';
   if (model.startsWith('ollama')) return 'ollama';
+  if (model.startsWith('deepseek')) return 'deepseek';
   return 'gemini';
 }
 
@@ -33,6 +35,7 @@ export function resolveModel(registry: ModelRegistry, friendlyId: string): { api
   if (friendlyId.startsWith('groq')) return { apiModelId: friendlyId, backend: 'groq' };
   if (friendlyId.startsWith('openai')) return { apiModelId: friendlyId, backend: 'openai' };
   if (friendlyId.startsWith('ollama')) return { apiModelId: friendlyId, backend: 'ollama' };
+  if (friendlyId.startsWith('deepseek')) return { apiModelId: friendlyId, backend: 'deepseek' };
   return { apiModelId: friendlyId, backend: 'gemini' };
 }
 

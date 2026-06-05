@@ -18,6 +18,7 @@ interface RefreshResult {
   claude: { ok: boolean; count: number; error?: string };
   groq:   { ok: boolean; count: number; error?: string };
   openai: { ok: boolean; count: number; error?: string };
+  deepseek: { ok: boolean; count: number; error?: string };
   ollama: { ok: boolean; count: number; error?: string };
   totalModels: number;
 }
@@ -172,6 +173,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     claude: 'sk-ant-...',
     groq: 'gsk_...',
     openai: 'sk-...',
+    deepseek: 'sk-...',
   };
 
   return (
@@ -219,8 +221,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         {refreshResult && (
           <div className="settings-refresh-result">
-            {(['gemini', 'claude', 'groq', 'openai', 'ollama'] as const).map((b) => {
+            {(['gemini', 'claude', 'groq', 'openai', 'deepseek', 'ollama'] as const).map((b) => {
               const r = refreshResult[b];
+              if (!r) return null;
               return (
                 <div key={b} className={`settings-refresh-line ${r.ok ? '' : 'settings-refresh-warn'}`}>
                   <span className="settings-refresh-backend">{b}</span>

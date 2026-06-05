@@ -77,6 +77,7 @@ export default defineConfig({
       '@lib/translation': path.resolve(__dirname, '../lib/translation'),
       '@lib/flight-recorder': path.resolve(__dirname, '../lib/flight-recorder'),
       '@lib/diff': path.resolve(__dirname, '../lib/diff'),
+      '@lib/ai-client': path.resolve(__dirname, '../lib/ai-client'),
       // Allow lib/ files to resolve packages from taxonomy-editor's node_modules
       'zod': path.resolve(__dirname, 'node_modules/zod'),
       'jszip': path.resolve(__dirname, 'node_modules/jszip'),

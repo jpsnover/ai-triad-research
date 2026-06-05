@@ -1934,6 +1934,7 @@ function OverviewView() {
       {/* Overview Stats */}
       {diag && (
         <CollapsibleSection title="Session Statistics" defaultOpen>
+          <div className="diag-kv"><span className="diag-k">Statements:</span> <span className="diag-v">{activeDebate.transcript.filter(e => e.type === 'statement' || e.type === 'opening').length} ({activeDebate.transcript.length} total entries)</span></div>
           <div className="diag-kv"><span className="diag-k">AI calls:</span> <span className="diag-v">{diag.overview.total_ai_calls}</span></div>
           <div className="diag-kv"><span className="diag-k">Total response time:</span> <span className="diag-v">{((diag.overview.total_response_time_ms ?? 0) / 1000).toFixed(1)}s</span></div>
           <div className="diag-kv"><span className="diag-k">Claims accepted:</span> <span className="diag-v">{diag.overview.claims_accepted}</span></div>

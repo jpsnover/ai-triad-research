@@ -100,6 +100,7 @@ const BACKEND_ENV_KEYS: Record<string, string> = {
   claude: 'ANTHROPIC_API_KEY',
   groq: 'GROQ_API_KEY',
   openai: 'OPENAI_API_KEY',
+  deepseek: 'DEEPSEEK_API_KEY',
   tavily: 'TAVILY_API_KEY',
 };
 

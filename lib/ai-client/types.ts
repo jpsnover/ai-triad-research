@@ -53,6 +53,6 @@ export interface RetryProgress {
   limitMessage: string;
 }
 
-export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama';
+export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama' | 'deepseek';
 
 export type FetchFn = typeof globalThis.fetch;

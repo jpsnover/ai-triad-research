@@ -195,6 +195,8 @@ export interface DebateConfig {
   model: string;
   /** Separate model for claim extraction/classification (evaluator role). Cross-vendor recommended. Defaults to `model` if unset. */
   evaluatorModel?: string;
+  modelTier?: import('./types').ModelTier;
+  speakerModels?: Record<string, string>;
   rounds: number;
   responseLength: 'brief' | 'medium' | 'detailed';
   enableClarification?: boolean;
@@ -642,6 +644,8 @@ export class DebateEngine {
       generated_with_prompt_version: 'cli-l2',
       debate_model: this.config.model,
       evaluator_model: this.config.evaluatorModel,
+      speaker_models: this.config.speakerModels,
+      model_tier: this.config.modelTier,
       protocol_id: this.config.protocolId ?? 'structured',
       diagnostics: {
         enabled: true,
@@ -671,6 +675,15 @@ export class DebateEngine {
     if (!this.config.evaluatorModel || this.config.evaluatorModel === this.config.model) {
       this.recordDiagnostic('session_init', {
         evaluator_warning: 'Evaluator model matches debate model — self-preference bias is unmitigated. Cross-vendor split recommended.',
+      });
+    }
+
+    if (this.config.speakerModels) {
+      getGlobalRecorder()?.record({
+        type: 'debate.config', component: 'debateEngine', level: 'info',
+        debate_id: id,
+        message: 'Multi-provider mode enabled',
+        data: { tier: this.config.modelTier, speakerModels: this.config.speakerModels },
       });
     }
 
@@ -782,6 +795,10 @@ export class DebateEngine {
     this.apiCallCount++;
     this.totalResponseTimeMs += elapsed;
     return text;
+  }
+
+  private resolveModelForSpeaker(speaker: string): string {
+    return this.config.speakerModels?.[speaker] ?? this.config.model;
   }
 
   private async generateWithEvaluator(prompt: string, label: string, timeoutMs?: number): Promise<string> {
@@ -2288,7 +2305,7 @@ export class DebateEngine {
         sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
         documentAnalysis: this.session.document_analysis,
         audience: this.config.audience,
-        model: this.config.model,
+        model: this.resolveModelForSpeaker(poverId),
         userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
         availablePovNodeIds: [...this.getKnownNodeIds()],
         ...(this.config.temperature != null ? {
@@ -2325,12 +2342,14 @@ export class DebateEngine {
       const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, this.getKnownNodeIds());
       this.enrichTaxonomyRefs(taxonomyRefs);
 
+      const speakerModel = this.resolveModelForSpeaker(poverId);
       const entry = this.addEntry({
         type: 'opening',
         speaker: poverId,
         content: statement,
         taxonomy_refs: taxonomyRefs,
         policy_refs: meta.policy_refs,
+        model: this.config.speakerModels ? speakerModel : undefined,
         metadata: {
           key_assumptions: meta.key_assumptions,
           my_claims: meta.my_claims,
@@ -2346,7 +2365,7 @@ export class DebateEngine {
       this.recordDiagnostic(entry.id, {
         prompt: draftDiag?.prompt ?? '',
         raw_response: draftDiag?.raw_response ?? '',
-        model: this.config.model,
+        model: speakerModel,
         response_time_ms: pipelineResult.total_time_ms,
         taxonomy_context: taxonomyContext,
         commitment_context: commitmentContext,
@@ -2938,7 +2957,7 @@ export class DebateEngine {
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,
       audience: this.config.audience,
-      model: this.config.model,
+      model: this.resolveModelForSpeaker(responder),
       ...(activeIntervention ? {
         pendingIntervention: {
           move: activeIntervention.move,
@@ -3032,7 +3051,7 @@ export class DebateEngine {
     const retryInput: TurnRetryInput = {
       pipelineInput,
       validationConfig: this.config.turnValidation,
-      model: this.config.model,
+      model: this.resolveModelForSpeaker(responder),
       speaker: responder,
       round,
       priorTurns: this.session.transcript
@@ -3079,6 +3098,7 @@ export class DebateEngine {
       policy_refs: meta.policy_refs,
       addressing: addressing as SpeakerId | 'all',
       caveats: caveats.length > 0 ? caveats : undefined,
+      model: this.config.speakerModels ? this.resolveModelForSpeaker(responder) : undefined,
       metadata: {
         cross_respond: true,
         round,
@@ -3118,7 +3138,7 @@ export class DebateEngine {
     this.recordDiagnostic(entry.id, {
       prompt: draftDiag?.prompt ?? '',
       raw_response: draftDiag?.raw_response ?? '',
-      model: this.config.model,
+      model: this.resolveModelForSpeaker(responder),
       response_time_ms: pipelineResult.total_time_ms,
       taxonomy_context: taxonomyContext,
       commitment_context: commitmentContext,

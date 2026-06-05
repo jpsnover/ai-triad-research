@@ -56,7 +56,7 @@ export type SearchMode = 'raw' | 'wildcard' | 'regex' | 'semantic';
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'ollama';
 
 export type GeminiModel =
   | 'gemini-flash-lite-latest'
@@ -79,10 +79,14 @@ export type OpenAIModel =
   | 'openai-gpt-5.5'
   | 'openai-gpt-5.5-pro';
 
+export type DeepSeekModel =
+  | 'deepseek-chat'
+  | 'deepseek-reasoner';
+
 export type OllamaModel =
   | 'ollama-gemma4-e4b-it-q4-k-m';
 
-export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | OllamaModel;
+export type AIModel = GeminiModel | ClaudeModel | GroqModel | OpenAIModel | DeepSeekModel | OllamaModel;
 
 export interface AIModelEntry { value: AIModel; label: string }
 
@@ -91,6 +95,7 @@ export const AI_BACKENDS: { value: AIBackend; label: string }[] = [
   { value: 'claude', label: 'Anthropic Claude' },
   { value: 'groq', label: 'Groq' },
   { value: 'openai', label: 'OpenAI' },
+  { value: 'deepseek', label: 'DeepSeek' },
   { value: 'ollama', label: 'Ollama (Local)' },
 ];
 
@@ -117,6 +122,10 @@ export const MODELS_BY_BACKEND: Record<AIBackend, AIModelEntry[]> = {
     { value: 'openai-gpt-5.5', label: 'GPT-5.5' },
     { value: 'openai-gpt-5.5-pro', label: 'GPT-5.5 Pro' },
   ],
+  deepseek: [
+    { value: 'deepseek-chat', label: 'DeepSeek V3 (default)' },
+    { value: 'deepseek-reasoner', label: 'DeepSeek R1 (reasoning)' },
+  ],
   ollama: [
     { value: 'ollama-gemma4-e4b-it-q4-k-m', label: 'Gemma 4 E4B (default)' },
   ],
@@ -134,13 +143,14 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
   claude: 'claude-sonnet-4-6',
   groq: 'groq-llama-4-scout-17b-16e',
   openai: 'openai-gpt-5.5',
+  deepseek: 'deepseek-chat',
   ollama: 'ollama-gemma4-e4b-it-q4-k-m',
 };
 
 function getStoredBackend(): AIBackend {
   try {
     const stored = localStorage.getItem('taxonomy-editor-ai-backend');
-    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai' || stored === 'ollama') return stored;
+    if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai' || stored === 'deepseek' || stored === 'ollama') return stored;
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI backend from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
   }
@@ -162,7 +172,10 @@ interface AIModelsConfig {
   backends: { id: string; label: string }[];
   models: { id: string; label: string; backend: string }[];
   defaults: Record<string, string>;
+  debateTiers?: Record<string, Record<string, string>>;
 }
+
+export let DEBATE_TIERS: Record<string, Record<string, string>> = {};
 
 /** Load ai-models.json from main process and update the in-memory catalogs */
 export async function initAIModels(): Promise<void> {
@@ -194,6 +207,11 @@ export async function initAIModels(): Promise<void> {
     // Rebuild lookup set
     ALL_MODEL_IDS.clear();
     for (const m of config.models) ALL_MODEL_IDS.add(m.id);
+
+    // Cache debate tiers for multi-provider mode
+    if (config.debateTiers) {
+      DEBATE_TIERS = config.debateTiers;
+    }
 
     console.log(`[AI Models] Loaded ${config.models.length} models from ai-models.json`);
   } catch (err) {

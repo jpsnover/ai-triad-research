@@ -233,12 +233,12 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('set-api-key', (_event, key: string, backend?: string) => {
-    storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | 'openai' | undefined);
+    storeApiKey(key, backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);
   });
 
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
     if (backend === 'ollama') return true;
-    return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | undefined);
+    return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);
   });
 
   ipcMain.handle('get-embedding-info', () => {
@@ -709,7 +709,7 @@ export function registerIpcHandlers(): void {
 
     const audience = (session.audience as string | undefined) ?? undefined;
     const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../lib/debate/types.js').DebateAudience | undefined);
-    const text = await generateText(prompt);
+    const text = await generateText(prompt, undefined, undefined, 120_000);
     return { article: text };
   });
 
@@ -797,8 +797,8 @@ export function registerIpcHandlers(): void {
       if (evidenceItems.length === 0) return null;
 
       const adapter: AIAdapter = {
-        generateText: async (prompt: string, mdl: string, opts?: { temperature?: number; maxTokens?: number }) => {
-          return generateText(prompt, mdl, undefined, undefined, opts?.temperature);
+        generateText: async (prompt: string, mdl: string, opts?: { temperature?: number; maxTokens?: number; timeoutMs?: number }) => {
+          return generateText(prompt, mdl, undefined, opts?.timeoutMs, opts?.temperature);
         },
       };
 

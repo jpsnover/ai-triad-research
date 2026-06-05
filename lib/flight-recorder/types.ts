@@ -35,6 +35,7 @@ export type EventType =
   | 'turn.quality_gate'
   | 'turn.quality_gate_repair'
   // Debate flow
+  | 'debate.config'
   | 'debate.phase'
   | 'debate.round'
   | 'debate.signal'

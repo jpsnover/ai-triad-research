@@ -294,7 +294,10 @@ export interface TranscriptEntry {
    *  of the argument that couldn't be fixed without changing the debater's position.
    *  Surfaced to readers as "Caveats" alongside the statement. */
   caveats?: string[];
+  model?: string;
 }
+
+export type ModelTier = 'basic' | 'advanced';
 
 export interface ContextSummary {
   up_to_entry_id: string;
@@ -486,6 +489,8 @@ export interface DebateSession {
   debate_model?: string;
   /** Evaluator model for claim extraction/classification. Cross-vendor split recommended. */
   evaluator_model?: string;
+  speaker_models?: Record<string, string>;
+  model_tier?: ModelTier;
   /** Debate protocol format. Absent in older debates (defaults to 'structured'). */
   protocol_id?: string;
   /** AI temperature for this debate (0.0-1.0). Absent uses system default. */

@@ -1417,6 +1417,20 @@ function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, fi
         <span className="debate-statement-speaker" style={color ? { color } : undefined}>
           {speakerLabel(entry.speaker)}
         </span>
+        {(() => {
+          const modelId = entry.model ?? activeDebate?.speaker_models?.[entry.speaker];
+          if (!modelId) return null;
+          const short = modelId.replace(/^(gemini-|claude-|groq-|openai-|deepseek-|ollama-)/, '');
+          return (
+            <span className="debate-model-badge" title={modelId} style={{
+              fontSize: '0.65rem', padding: '1px 5px', borderRadius: 3, marginLeft: 4,
+              background: 'var(--bg-tertiary)', color: 'var(--text-muted)',
+              border: '1px solid var(--border)', fontFamily: 'monospace',
+            }}>
+              {short}
+            </span>
+          );
+        })()}
         <span className="debate-statement-type">
           {entry.type}
           {anNodeId && <span className="debate-an-id"> · {anNodeId}</span>}

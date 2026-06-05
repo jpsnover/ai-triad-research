@@ -264,6 +264,42 @@ async function discoverOpenAIModels(apiKey: string): Promise<ModelEntry[]> {
     });
 }
 
+// ── DeepSeek: OpenAI-compatible GET /models ────────────────────────────────
+
+async function discoverDeepSeekModels(apiKey: string): Promise<ModelEntry[]> {
+  const resp = await fetch('https://api.deepseek.com/models', {
+    headers: { 'Authorization': `Bearer ${apiKey}` },
+  });
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new ActionableError({
+      goal: 'Discover available DeepSeek models',
+      problem: `DeepSeek models API returned HTTP ${resp.status}: ${body.slice(0, 200)}`,
+      location: 'modelDiscovery.discoverDeepSeekModels',
+      nextSteps: ['Check your API key is valid', 'Verify network connectivity', 'The API may be temporarily unavailable'],
+    });
+  }
+  const json = await resp.json() as { data: { id: string; owned_by: string }[] };
+
+  return (json.data ?? [])
+    .filter(m => {
+      const id = m.id.toLowerCase();
+      return !id.includes('embed') && !id.includes('whisper');
+    })
+    .map(m => {
+      const friendlyId = 'deepseek-' + m.id.replace(/[^a-z0-9.-]/gi, '-').toLowerCase();
+      const label = m.id
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+      return {
+        id: friendlyId,
+        apiModelId: m.id,
+        label,
+        backend: 'deepseek',
+      };
+    });
+}
+
 function getKnownClaudeModels(): ModelEntry[] {
   return [
     { id: 'claude-opus-4',     apiModelId: 'claude-opus-4-20250514',     label: 'Opus 4',              backend: 'claude' },
@@ -318,22 +354,24 @@ async function discoverOllamaModels(): Promise<ModelEntry[]> {
 // ── Main refresh function ───────────────────────────────────────────────────
 
 export interface RefreshResult {
-  gemini: { ok: boolean; count: number; error?: string };
-  claude: { ok: boolean; count: number; error?: string };
-  groq:   { ok: boolean; count: number; error?: string };
-  openai: { ok: boolean; count: number; error?: string };
-  ollama: { ok: boolean; count: number; error?: string };
+  gemini:   { ok: boolean; count: number; error?: string };
+  claude:   { ok: boolean; count: number; error?: string };
+  groq:     { ok: boolean; count: number; error?: string };
+  openai:   { ok: boolean; count: number; error?: string };
+  deepseek: { ok: boolean; count: number; error?: string };
+  ollama:   { ok: boolean; count: number; error?: string };
   totalModels: number;
 }
 
 export async function refreshAIModels(): Promise<RefreshResult> {
   const config = loadConfig();
   const result: RefreshResult = {
-    gemini: { ok: false, count: 0 },
-    claude: { ok: false, count: 0 },
-    groq:   { ok: false, count: 0 },
-    openai: { ok: false, count: 0 },
-    ollama: { ok: false, count: 0 },
+    gemini:   { ok: false, count: 0 },
+    claude:   { ok: false, count: 0 },
+    groq:     { ok: false, count: 0 },
+    openai:   { ok: false, count: 0 },
+    deepseek: { ok: false, count: 0 },
+    ollama:   { ok: false, count: 0 },
     totalModels: 0,
   };
 
@@ -424,6 +462,25 @@ export async function refreshAIModels(): Promise<RefreshResult> {
   } else {
     newModels.push(...config.models.filter(m => m.backend === 'openai'));
     result.openai = { ok: false, count: 0, error: 'No API key configured' };
+  }
+
+  // ── DeepSeek ──
+  const deepseekKey = loadApiKey('deepseek');
+  if (deepseekKey) {
+    try {
+      const models = await discoverDeepSeekModels(deepseekKey);
+      newModels.push(...models);
+      result.deepseek = { ok: true, count: models.length };
+      console.log(`[ModelDiscovery] DeepSeek: discovered ${models.length} models`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      result.deepseek = { ok: false, count: 0, error: msg };
+      console.error(`[ModelDiscovery] DeepSeek error:`, msg);
+      newModels.push(...config.models.filter(m => m.backend === 'deepseek'));
+    }
+  } else {
+    newModels.push(...config.models.filter(m => m.backend === 'deepseek'));
+    result.deepseek = { ok: false, count: 0, error: 'No API key configured' };
   }
 
   // ── Ollama (local, no API key needed) ──

@@ -675,6 +675,33 @@ function DebateDetailSummary({
                 <span>{debate.protocol_id}</span>
               </div>
             )}
+            {debate.model_tier && (
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Model Tier:</span>
+                <span>{debate.model_tier}</span>
+              </div>
+            )}
+            {debate.speaker_models && Object.keys(debate.speaker_models).length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <span className="debate-detail-label" style={{ display: 'block', marginBottom: 4 }}>Speaker Models:</span>
+                <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ textAlign: 'left', padding: '3px 6px', fontWeight: 500 }}>Speaker</th>
+                      <th style={{ textAlign: 'left', padding: '3px 6px', fontWeight: 500 }}>Model</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(debate.speaker_models).map(([speaker, model]) => (
+                      <tr key={speaker} style={{ borderBottom: '1px solid var(--border-light, var(--border))' }}>
+                        <td style={{ padding: '3px 6px', textTransform: 'capitalize' }}>{speaker}</td>
+                        <td style={{ padding: '3px 6px', fontFamily: 'monospace', fontSize: '0.72rem' }}>{model}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

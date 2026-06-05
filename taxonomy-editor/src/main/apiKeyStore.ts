@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
 
-type Backend = 'gemini' | 'claude' | 'groq' | 'openai' | 'tavily' | 'ollama';
+type Backend = 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | 'tavily' | 'ollama';
 
 function keyFilePath(backend?: Backend): string {
   const suffix = backend && backend !== 'gemini' ? `-${backend}` : '';

@@ -24,6 +24,7 @@
       "@lib/search/*": ["../lib/search/*"],
       "@lib/flight-recorder/*": ["../lib/flight-recorder/*"],
       "@lib/flight-recorder/index": ["../lib/flight-recorder/index.ts"],
+      "@lib/ai-client/*": ["../lib/ai-client/*"],
       "zod": ["node_modules/zod"]
     }
   },

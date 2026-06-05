@@ -10,6 +10,7 @@
 import type { FetchFn } from './types.js';
 import type { ModelRegistry } from './registry.js';
 import { isOllamaAvailable } from './providers/ollama.js';
+import { ActionableError } from '../debate/errors.js';
 
 // ── Task tiers ───────────────────────────────────────────
 
@@ -192,4 +193,52 @@ export async function resolveModelForPurpose(
  */
 export function getTierForPurpose(purpose: TaskPurpose): TaskTier {
   return PURPOSE_TIER_MAP[purpose] ?? TaskTier.CLOUD_FAST;
+}
+
+// ── Multi-provider debate model resolution ──────────────
+
+export type ModelTier = 'basic' | 'advanced';
+
+function fisherYatesShuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export function resolveMultiProviderModels(
+  tier: ModelTier,
+  availableBackends: string[],
+  speakers: string[],
+  registry: ModelRegistry,
+): Record<string, string> {
+  const tierMap = registry.debateTiers?.[tier];
+  if (!tierMap) {
+    throw new ActionableError({
+      goal: 'Resolve multi-provider debate models',
+      problem: `Unknown debate tier "${tier}" — registry has no debateTiers entry for it`,
+      location: 'modelRouter.resolveMultiProviderModels',
+      nextSteps: ['Use "basic" or "advanced" as tier', 'Check ai-models.json debateTiers config'],
+    });
+  }
+
+  const eligible = availableBackends.filter(b => tierMap[b] != null);
+  if (eligible.length === 0) {
+    throw new ActionableError({
+      goal: 'Resolve multi-provider debate models',
+      problem: `No available backends have models defined for tier "${tier}". Available: [${availableBackends.join(', ')}], tier has: [${Object.keys(tierMap).join(', ')}]`,
+      location: 'modelRouter.resolveMultiProviderModels',
+      nextSteps: ['Register at least one API key for a backend in the tier', 'Check ai-models.json debateTiers config'],
+    });
+  }
+
+  const shuffled = fisherYatesShuffle(eligible);
+  const result: Record<string, string> = {};
+  for (let i = 0; i < speakers.length; i++) {
+    const backend = shuffled[i % shuffled.length];
+    result[speakers[i]] = tierMap[backend];
+  }
+  return result;
 }

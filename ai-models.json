@@ -17,6 +17,10 @@
       "label": "OpenAI"
     },
     {
+      "id": "deepseek",
+      "label": "DeepSeek"
+    },
+    {
       "id": "ollama",
       "label": "Ollama (Local)",
       "local": true
@@ -282,9 +286,9 @@
       "backend": "claude"
     },
     {
-      "id": "groq-openai-gpt-oss-120b",
-      "apiModelId": "openai/gpt-oss-120b",
-      "label": "Openai/Gpt Oss 120b",
+      "id": "groq-groq-compound",
+      "apiModelId": "groq/compound",
+      "label": "Groq/Compound",
       "backend": "groq"
     },
     {
@@ -294,51 +298,9 @@
       "backend": "groq"
     },
     {
-      "id": "groq-canopylabs-orpheus-arabic-saudi",
-      "apiModelId": "canopylabs/orpheus-arabic-saudi",
-      "label": "Canopylabs/Orpheus Arabic Saudi",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-openai-gpt-oss-20b",
-      "apiModelId": "openai/gpt-oss-20b",
-      "label": "Openai/Gpt Oss 20b",
-      "backend": "groq"
-    },
-    {
       "id": "groq-canopylabs-orpheus-v1-english",
       "apiModelId": "canopylabs/orpheus-v1-english",
       "label": "Canopylabs/Orpheus V1 English",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-allam-2-7b",
-      "apiModelId": "allam-2-7b",
-      "label": "Allam 2 7b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-groq-compound",
-      "apiModelId": "groq/compound",
-      "label": "Groq/Compound",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-groq-compound-mini",
-      "apiModelId": "groq/compound-mini",
-      "label": "Groq/Compound Mini",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-llama-3.1-8b-instant",
-      "apiModelId": "llama-3.1-8b-instant",
-      "label": "Llama 3.1 8b Instant",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-llama-3.3-70b-versatile",
-      "apiModelId": "llama-3.3-70b-versatile",
-      "label": "Llama 3.3 70b Versatile",
       "backend": "groq"
     },
     {
@@ -348,16 +310,550 @@
       "backend": "groq"
     },
     {
+      "id": "groq-allam-2-7b",
+      "apiModelId": "allam-2-7b",
+      "label": "Allam 2 7b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.3-70b-versatile",
+      "apiModelId": "llama-3.3-70b-versatile",
+      "label": "Llama 3.3 70b Versatile",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-openai-gpt-oss-120b",
+      "apiModelId": "openai/gpt-oss-120b",
+      "label": "Openai/Gpt Oss 120b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-canopylabs-orpheus-arabic-saudi",
+      "apiModelId": "canopylabs/orpheus-arabic-saudi",
+      "label": "Canopylabs/Orpheus Arabic Saudi",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-llama-3.1-8b-instant",
+      "apiModelId": "llama-3.1-8b-instant",
+      "label": "Llama 3.1 8b Instant",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-groq-compound-mini",
+      "apiModelId": "groq/compound-mini",
+      "label": "Groq/Compound Mini",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-openai-gpt-oss-20b",
+      "apiModelId": "openai/gpt-oss-20b",
+      "label": "Openai/Gpt Oss 20b",
+      "backend": "groq"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo",
+      "apiModelId": "gpt-3.5-turbo",
+      "label": "Gpt 3.5 Turbo",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo-16k",
+      "apiModelId": "gpt-3.5-turbo-16k",
+      "label": "Gpt 3.5 Turbo 16k",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4-0613",
+      "apiModelId": "gpt-4-0613",
+      "label": "Gpt 4 0613",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4",
+      "apiModelId": "gpt-4",
+      "label": "Gpt 4",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo-instruct",
+      "apiModelId": "gpt-3.5-turbo-instruct",
+      "label": "Gpt 3.5 Turbo Instruct",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo-instruct-0914",
+      "apiModelId": "gpt-3.5-turbo-instruct-0914",
+      "label": "Gpt 3.5 Turbo Instruct 0914",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo-1106",
+      "apiModelId": "gpt-3.5-turbo-1106",
+      "label": "Gpt 3.5 Turbo 1106",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo-0125",
+      "apiModelId": "gpt-3.5-turbo-0125",
+      "label": "Gpt 3.5 Turbo 0125",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4-turbo",
+      "apiModelId": "gpt-4-turbo",
+      "label": "Gpt 4 Turbo",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4-turbo-2024-04-09",
+      "apiModelId": "gpt-4-turbo-2024-04-09",
+      "label": "Gpt 4 Turbo 2024 04 09",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o",
+      "apiModelId": "gpt-4o",
+      "label": "Gpt 4o",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-2024-05-13",
+      "apiModelId": "gpt-4o-2024-05-13",
+      "label": "Gpt 4o 2024 05 13",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-mini-2024-07-18",
+      "apiModelId": "gpt-4o-mini-2024-07-18",
+      "label": "Gpt 4o Mini 2024 07 18",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-mini",
+      "apiModelId": "gpt-4o-mini",
+      "label": "Gpt 4o Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-2024-08-06",
+      "apiModelId": "gpt-4o-2024-08-06",
+      "label": "Gpt 4o 2024 08 06",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o1-2024-12-17",
+      "apiModelId": "o1-2024-12-17",
+      "label": "O1 2024 12 17",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o1",
+      "apiModelId": "o1",
+      "label": "O1",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o3-mini",
+      "apiModelId": "o3-mini",
+      "label": "O3 Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o3-mini-2025-01-31",
+      "apiModelId": "o3-mini-2025-01-31",
+      "label": "O3 Mini 2025 01 31",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-2024-11-20",
+      "apiModelId": "gpt-4o-2024-11-20",
+      "label": "Gpt 4o 2024 11 20",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-mini-search-preview-2025-03-11",
+      "apiModelId": "gpt-4o-mini-search-preview-2025-03-11",
+      "label": "Gpt 4o Mini Search Preview 2025 03 11",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-mini-search-preview",
+      "apiModelId": "gpt-4o-mini-search-preview",
+      "label": "Gpt 4o Mini Search Preview",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o1-pro-2025-03-19",
+      "apiModelId": "o1-pro-2025-03-19",
+      "label": "O1 Pro 2025 03 19",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o1-pro",
+      "apiModelId": "o1-pro",
+      "label": "O1 Pro",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-mini-tts",
+      "apiModelId": "gpt-4o-mini-tts",
+      "label": "Gpt 4o Mini Tts",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o3-2025-04-16",
+      "apiModelId": "o3-2025-04-16",
+      "label": "O3 2025 04 16",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o4-mini-2025-04-16",
+      "apiModelId": "o4-mini-2025-04-16",
+      "label": "O4 Mini 2025 04 16",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o3",
+      "apiModelId": "o3",
+      "label": "O3",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-o4-mini",
+      "apiModelId": "o4-mini",
+      "label": "O4 Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4.1-2025-04-14",
+      "apiModelId": "gpt-4.1-2025-04-14",
+      "label": "Gpt 4.1 2025 04 14",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4.1",
+      "apiModelId": "gpt-4.1",
+      "label": "Gpt 4.1",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4.1-mini-2025-04-14",
+      "apiModelId": "gpt-4.1-mini-2025-04-14",
+      "label": "Gpt 4.1 Mini 2025 04 14",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4.1-mini",
+      "apiModelId": "gpt-4.1-mini",
+      "label": "Gpt 4.1 Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4.1-nano-2025-04-14",
+      "apiModelId": "gpt-4.1-nano-2025-04-14",
+      "label": "Gpt 4.1 Nano 2025 04 14",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4.1-nano",
+      "apiModelId": "gpt-4.1-nano",
+      "label": "Gpt 4.1 Nano",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-image-1",
+      "apiModelId": "gpt-image-1",
+      "label": "Gpt Image 1",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-chat-latest",
+      "apiModelId": "gpt-5-chat-latest",
+      "label": "Gpt 5 Chat Latest",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-2025-08-07",
+      "apiModelId": "gpt-5-2025-08-07",
+      "label": "Gpt 5 2025 08 07",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5",
+      "apiModelId": "gpt-5",
+      "label": "Gpt 5",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-mini-2025-08-07",
+      "apiModelId": "gpt-5-mini-2025-08-07",
+      "label": "Gpt 5 Mini 2025 08 07",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-mini",
+      "apiModelId": "gpt-5-mini",
+      "label": "Gpt 5 Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-nano-2025-08-07",
+      "apiModelId": "gpt-5-nano-2025-08-07",
+      "label": "Gpt 5 Nano 2025 08 07",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-nano",
+      "apiModelId": "gpt-5-nano",
+      "label": "Gpt 5 Nano",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-codex",
+      "apiModelId": "gpt-5-codex",
+      "label": "Gpt 5 Codex",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-image-1-mini",
+      "apiModelId": "gpt-image-1-mini",
+      "label": "Gpt Image 1 Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-pro-2025-10-06",
+      "apiModelId": "gpt-5-pro-2025-10-06",
+      "label": "Gpt 5 Pro 2025 10 06",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-pro",
+      "apiModelId": "gpt-5-pro",
+      "label": "Gpt 5 Pro",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-search-api",
+      "apiModelId": "gpt-5-search-api",
+      "label": "Gpt 5 Search Api",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5-search-api-2025-10-14",
+      "apiModelId": "gpt-5-search-api-2025-10-14",
+      "label": "Gpt 5 Search Api 2025 10 14",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.1-chat-latest",
+      "apiModelId": "gpt-5.1-chat-latest",
+      "label": "Gpt 5.1 Chat Latest",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.1-2025-11-13",
+      "apiModelId": "gpt-5.1-2025-11-13",
+      "label": "Gpt 5.1 2025 11 13",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.1",
+      "apiModelId": "gpt-5.1",
+      "label": "Gpt 5.1",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.1-codex",
+      "apiModelId": "gpt-5.1-codex",
+      "label": "Gpt 5.1 Codex",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.1-codex-mini",
+      "apiModelId": "gpt-5.1-codex-mini",
+      "label": "Gpt 5.1 Codex Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.1-codex-max",
+      "apiModelId": "gpt-5.1-codex-max",
+      "label": "Gpt 5.1 Codex Max",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-image-1.5",
+      "apiModelId": "gpt-image-1.5",
+      "label": "Gpt Image 1.5",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.2-2025-12-11",
+      "apiModelId": "gpt-5.2-2025-12-11",
+      "label": "Gpt 5.2 2025 12 11",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.2",
+      "apiModelId": "gpt-5.2",
+      "label": "Gpt 5.2",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.2-pro-2025-12-11",
+      "apiModelId": "gpt-5.2-pro-2025-12-11",
+      "label": "Gpt 5.2 Pro 2025 12 11",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.2-pro",
+      "apiModelId": "gpt-5.2-pro",
+      "label": "Gpt 5.2 Pro",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.2-chat-latest",
+      "apiModelId": "gpt-5.2-chat-latest",
+      "label": "Gpt 5.2 Chat Latest",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-mini-tts-2025-03-20",
+      "apiModelId": "gpt-4o-mini-tts-2025-03-20",
+      "label": "Gpt 4o Mini Tts 2025 03 20",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-mini-tts-2025-12-15",
+      "apiModelId": "gpt-4o-mini-tts-2025-12-15",
+      "label": "Gpt 4o Mini Tts 2025 12 15",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.2-codex",
+      "apiModelId": "gpt-5.2-codex",
+      "label": "Gpt 5.2 Codex",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.3-codex",
+      "apiModelId": "gpt-5.3-codex",
+      "label": "Gpt 5.3 Codex",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-search-preview",
+      "apiModelId": "gpt-4o-search-preview",
+      "label": "Gpt 4o Search Preview",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-4o-search-preview-2025-03-11",
+      "apiModelId": "gpt-4o-search-preview-2025-03-11",
+      "label": "Gpt 4o Search Preview 2025 03 11",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.3-chat-latest",
+      "apiModelId": "gpt-5.3-chat-latest",
+      "label": "Gpt 5.3 Chat Latest",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4-2026-03-05",
+      "apiModelId": "gpt-5.4-2026-03-05",
+      "label": "Gpt 5.4 2026 03 05",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4-pro",
+      "apiModelId": "gpt-5.4-pro",
+      "label": "Gpt 5.4 Pro",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4-pro-2026-03-05",
+      "apiModelId": "gpt-5.4-pro-2026-03-05",
+      "label": "Gpt 5.4 Pro 2026 03 05",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4",
+      "apiModelId": "gpt-5.4",
+      "label": "Gpt 5.4",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4-nano-2026-03-17",
+      "apiModelId": "gpt-5.4-nano-2026-03-17",
+      "label": "Gpt 5.4 Nano 2026 03 17",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4-nano",
+      "apiModelId": "gpt-5.4-nano",
+      "label": "Gpt 5.4 Nano",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4-mini-2026-03-17",
+      "apiModelId": "gpt-5.4-mini-2026-03-17",
+      "label": "Gpt 5.4 Mini 2026 03 17",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.4-mini",
+      "apiModelId": "gpt-5.4-mini",
+      "label": "Gpt 5.4 Mini",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-image-2",
+      "apiModelId": "gpt-image-2",
+      "label": "Gpt Image 2",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-image-2-2026-04-21",
+      "apiModelId": "gpt-image-2-2026-04-21",
+      "label": "Gpt Image 2 2026 04 21",
+      "backend": "openai"
+    },
+    {
       "id": "openai-gpt-5.5",
       "apiModelId": "gpt-5.5",
-      "label": "GPT-5.5",
+      "label": "Gpt 5.5",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.5-2026-04-23",
+      "apiModelId": "gpt-5.5-2026-04-23",
+      "label": "Gpt 5.5 2026 04 23",
       "backend": "openai"
     },
     {
       "id": "openai-gpt-5.5-pro",
       "apiModelId": "gpt-5.5-pro",
-      "label": "GPT-5.5 Pro",
+      "label": "Gpt 5.5 Pro",
       "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.5-pro-2026-04-23",
+      "apiModelId": "gpt-5.5-pro-2026-04-23",
+      "label": "Gpt 5.5 Pro 2026 04 23",
+      "backend": "openai"
+    },
+    {
+      "id": "deepseek-deepseek-v4-flash",
+      "apiModelId": "deepseek-v4-flash",
+      "label": "Deepseek V4 Flash",
+      "backend": "deepseek"
+    },
+    {
+      "id": "deepseek-deepseek-v4-pro",
+      "apiModelId": "deepseek-v4-pro",
+      "label": "Deepseek V4 Pro",
+      "backend": "deepseek"
     },
     {
       "id": "ollama-gemma4-e4b-it-q4-k-m",
@@ -370,6 +866,7 @@
     "gemini": "gemini-3.1-flash-lite",
     "claude": "claude-sonnet-4-6",
     "groq": "groq-openai-gpt-oss-120b",
+    "deepseek": "deepseek-deepseek-v4-flash",
     "ollama": "ollama-gemma4-e4b-it-q4-k-m"
   },
   "fallbackChains": {
@@ -427,6 +924,14 @@
     "openai-gpt-5.5": [
       "gemini-2.5-flash",
       "groq-llama-3.3-70b-versatile"
+    ],
+    "deepseek-chat": [
+      "groq-llama-3.3-70b-versatile",
+      "gemini-2.5-flash"
+    ],
+    "deepseek-reasoner": [
+      "deepseek-chat",
+      "gemini-2.5-pro"
     ]
   },
   "contextWindows": {
@@ -434,7 +939,27 @@
     "claude": 1048576,
     "groq": 131072,
     "openai": 131072,
+    "deepseek": 65536,
     "ollama": 131072
+  },
+  "debateTiers": {
+    "_comment": "Preferred model per backend for multi-provider debate mode. Basic = fast/cheap, Advanced = frontier.",
+    "basic": {
+      "gemini": "gemini-3.1-flash-lite",
+      "claude": "claude-haiku-4-5",
+      "groq": "groq-llama-3.1-8b-instant",
+      "openai": "openai-gpt-4.1-mini",
+      "deepseek": "deepseek-deepseek-v4-flash",
+      "ollama": "ollama-gemma4-e4b-it-q4-k-m"
+    },
+    "advanced": {
+      "gemini": "gemini-2.5-pro",
+      "claude": "claude-sonnet-4-6",
+      "groq": "groq-llama-3.3-70b-versatile",
+      "openai": "openai-gpt-4.1",
+      "deepseek": "deepseek-deepseek-v4-pro",
+      "ollama": "ollama-gemma4-e4b-it-q4-k-m"
+    }
   },
   "pricing": {
     "_comment": "USD per 1M tokens. cachedInputPer1M is the reduced rate for cache-hit input tokens. Updated 2026-05-03.",
@@ -527,7 +1052,17 @@
     "openai-gpt-5.5-pro": {
       "inputPer1M": 10,
       "outputPer1M": 40
+    },
+    "deepseek-chat": {
+      "inputPer1M": 0.27,
+      "outputPer1M": 1.1,
+      "cachedInputPer1M": 0.07
+    },
+    "deepseek-reasoner": {
+      "inputPer1M": 0.55,
+      "outputPer1M": 2.19,
+      "cachedInputPer1M": 0.14
     }
   },
-  "lastRefreshed": "2026-06-03T12:52:35.917Z"
+  "lastRefreshed": "2026-06-05T16:13:07.453Z"
 }

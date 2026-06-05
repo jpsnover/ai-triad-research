@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, initAIModels } from '../hooks/useTaxonomyStore';
+import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, DEBATE_TIERS, initAIModels } from '../hooks/useTaxonomyStore';
 import type { AIBackend } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../types/debate';
@@ -13,6 +13,7 @@ import { AI_POVERS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
+import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 
 export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
 
@@ -84,6 +85,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? 4);
   const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? 2);
   const [evaluatorModel, setEvaluatorModel] = useState('');
+  const [multiProvider, setMultiProvider] = useState(false);
+  const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showModelModal, setShowModelModal] = useState(false);
   const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
@@ -114,7 +117,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   };
 
   useEffect(() => {
-    if (!showModelModal) return;
     void Promise.all(
       AI_BACKENDS.map(async (b) => {
         const has = await api.hasApiKey(b.value);
@@ -122,6 +124,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       }),
     ).then(results => setHasApiKey(Object.fromEntries(results)));
   }, [showModelModal]);
+
+  const backendsWithKeys = useMemo(
+    () => Object.entries(hasApiKey).filter(([, has]) => has).map(([b]) => b),
+    [hasApiKey],
+  );
 
   const openModelModal = () => {
     const model = useCustomModel ? customModel : globalModel;
@@ -228,7 +235,27 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     if (userIsPover && !povers.includes('user')) povers.push('user');
     const effectiveModel = useCustomModel ? customModel : globalModel;
     localStorage.setItem('taxonomy-editor-last-debate-model', effectiveModel);
-    const debateModelOverride = useCustomModel ? customModel : undefined;
+    const debateModelOverride = multiProvider ? undefined : (useCustomModel ? customModel : undefined);
+
+    let speakerModels: Record<string, string> | undefined;
+    if (multiProvider) {
+      try {
+        const aiSpeakers = povers.filter(p => p !== 'user');
+        const registry = { backends: AI_BACKENDS.map(b => ({ id: b.value, label: b.label })), models: [], debateTiers: DEBATE_TIERS };
+        speakerModels = resolveMultiProviderModels(modelTier, backendsWithKeys, aiSpeakers, registry);
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'new-debate-dialog',
+          level: 'error',
+          message: 'Failed to resolve multi-provider models',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+        setCreating(false);
+        return;
+      }
+    }
+
     const id = await createDebate(
       finalTopic,
       povers,
@@ -249,11 +276,13 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           maxArgumentationRounds: argumentationRounds,
           maxConcludingRounds: concludingRounds,
         },
+        speakerModels,
+        modelTier: multiProvider ? modelTier : undefined,
       },
     );
     await loadDebate(id);
     const _creationWeights = (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds, overrides: { confrontation: confrontationRounds, argumentation: argumentationRounds, concluding: concludingRounds } }; } catch { return null; } })();
-    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, ..._creationWeights && { adaptive_config: _creationWeights } } });
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, multi_provider: multiProvider || undefined, model_tier: multiProvider ? modelTier : undefined, speaker_models: speakerModels || undefined, ..._creationWeights && { adaptive_config: _creationWeights } } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();
@@ -460,25 +489,79 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
             {/* AI Model */}
             <label className="ndd-field-label">AI Model</label>
-            <div className="ndd-model-section">
-              <div className="ndd-model-display">
-                <span className="ndd-model-badge" title={useCustomModel ? customModel : globalModel}>
-                  {(() => {
-                    const modelId = useCustomModel ? customModel : globalModel;
-                    const entry = availableModels.find(m => m.value === modelId);
-                    return entry ? entry.label : modelId;
-                  })()}
-                </span>
-                {useCustomModel && <span className="ndd-model-override-tag">override</span>}
-                <button
-                  className="btn btn-sm ndd-models-btn"
-                  onClick={openModelModal}
-                  type="button"
-                >
-                  Models
-                </button>
+            {!multiProvider && (
+              <div className="ndd-model-section">
+                <div className="ndd-model-display">
+                  <span className="ndd-model-badge" title={useCustomModel ? customModel : globalModel}>
+                    {(() => {
+                      const modelId = useCustomModel ? customModel : globalModel;
+                      const entry = availableModels.find(m => m.value === modelId);
+                      return entry ? entry.label : modelId;
+                    })()}
+                  </span>
+                  {useCustomModel && <span className="ndd-model-override-tag">override</span>}
+                  <button
+                    className="btn btn-sm ndd-models-btn"
+                    onClick={openModelModal}
+                    type="button"
+                  >
+                    Models
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Multi-provider toggle */}
+            <label className="ndd-model-toggle" style={{ marginTop: multiProvider ? 0 : 6 }}>
+              <input
+                type="checkbox"
+                checked={multiProvider}
+                onChange={() => setMultiProvider(!multiProvider)}
+                disabled={backendsWithKeys.length < 2}
+              />
+              Multi-Provider Mode
+              {backendsWithKeys.length < 2 && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 6 }}>
+                  (need 2+ backends with keys)
+                </span>
+              )}
+            </label>
+
+            {multiProvider && (
+              <div className="ndd-multi-provider-section" style={{ marginTop: 6, padding: '8px 10px', background: 'var(--bg-secondary)', borderRadius: 6, fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <label style={{ fontWeight: 500 }}>Tier:</label>
+                  <select
+                    className="ndd-model-select"
+                    value={modelTier}
+                    onChange={(e) => setModelTier(e.target.value as 'basic' | 'advanced')}
+                    style={{ flex: 1 }}
+                  >
+                    <option value="basic">Basic (fast / cheap)</option>
+                    <option value="advanced">Advanced (frontier)</option>
+                  </select>
+                </div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginBottom: 4 }}>
+                  Each speaker gets a different backend. Available:
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {backendsWithKeys.map(b => {
+                    const tierModels = DEBATE_TIERS[modelTier];
+                    const hasModel = tierModels && tierModels[b];
+                    return (
+                      <span key={b} style={{
+                        padding: '2px 8px', borderRadius: 4, fontSize: '0.72rem',
+                        background: hasModel ? 'var(--accent-bg, rgba(59,130,246,0.15))' : 'var(--bg-tertiary)',
+                        color: hasModel ? 'var(--accent, #3b82f6)' : 'var(--text-muted)',
+                        border: `1px solid ${hasModel ? 'var(--accent, #3b82f6)' : 'var(--border)'}`,
+                      }}>
+                        {b} {hasModel ? '✓' : '✗'}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Dialectical Style */}
             <label className="ndd-field-label">Dialectical Style</label>

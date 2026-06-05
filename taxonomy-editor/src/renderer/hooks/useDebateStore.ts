@@ -465,6 +465,24 @@ function recordDiagnostic(
     diag.overview.total_response_time_ms += data.response_time_ms;
   }
 
+  // Aggregate per-stage token counts into entry and overview totals
+  const stages = data.stage_diagnostics;
+  if (stages && stages.length > 0) {
+    let entryInput = 0;
+    let entryOutput = 0;
+    let hasTokens = false;
+    for (const s of stages) {
+      if (s.input_tokens != null) { entryInput += s.input_tokens; hasTokens = true; }
+      if (s.output_tokens != null) { entryOutput += s.output_tokens; hasTokens = true; }
+    }
+    if (hasTokens) {
+      diag.entries[entryId].input_tokens = entryInput;
+      diag.entries[entryId].output_tokens = entryOutput;
+      diag.overview.total_input_tokens = (diag.overview.total_input_tokens ?? 0) + entryInput;
+      diag.overview.total_output_tokens = (diag.overview.total_output_tokens ?? 0) + entryOutput;
+    }
+  }
+
   const updatedDebate = { ...debate, diagnostics: diag };
   set({ activeDebate: updatedDebate });
 
@@ -924,6 +942,7 @@ async function extractClaimsAndUpdateAN(
     const { newNodes, newEdges } = claimsResult;
     const diagAccepted = claimsResult.accepted;
     const diagRejected = claimsResult.rejected;
+
 
     for (const t of claimsResult.commitments.asserted) {
       if (!speakerCommits.asserted.includes(t)) speakerCommits.asserted.push(t);
@@ -2529,7 +2548,7 @@ interface DebateStore {
   setDiagPopoutOpen: (open: boolean) => void;
   inspectNode: (nodeId: string | null) => void;
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number } }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced' }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -2768,6 +2787,8 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       generated_with_prompt_version: 'dolce-phase-1',
       debate_model: debateModel || undefined,
       evaluator_model: options?.evaluatorModel || undefined,
+      speaker_models: options?.speakerModels || undefined,
+      model_tier: options?.modelTier || undefined,
       protocol_id: protocolId || 'structured',
       debate_temperature: debateTemperature ?? undefined,
       adaptive_staging: options?.useAdaptiveStaging
@@ -3141,6 +3162,58 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       if (Object.keys(promptConfig).length > 0) {
         (activeDebate as Record<string, unknown>).prompt_config = promptConfig;
       }
+
+      // Recompute overview counters from authoritative data (race-proof — t/404, t/414)
+      const overview = activeDebate.diagnostics?.overview;
+      if (overview) {
+        overview.move_type_counts = {};
+        overview.disagreement_type_counts = {};
+        overview.claims_accepted = 0;
+        overview.claims_rejected = 0;
+        let turnsWithSitRefs = 0;
+        let totalDebateTurns = 0;
+        const uniqueSitIds = new Set<string>();
+        for (const e of activeDebate.transcript) {
+          if (e.type !== 'statement' && e.type !== 'opening') continue;
+          totalDebateTurns++;
+          const meta = e.metadata as Record<string, unknown> | undefined;
+          if (Array.isArray(meta?.move_types)) {
+            for (const m of meta.move_types as (string | MoveAnnotation)[]) {
+              const name = getMoveName(m);
+              overview.move_type_counts[name] = (overview.move_type_counts[name] ?? 0) + 1;
+            }
+          }
+          if (typeof meta?.disagreement_type === 'string') {
+            overview.disagreement_type_counts[meta.disagreement_type] =
+              (overview.disagreement_type_counts[meta.disagreement_type] ?? 0) + 1;
+          }
+          const refs = e.taxonomy_refs;
+          if (refs && refs.length > 0) {
+            const sitRefs = refs.filter(r => r.node_id.startsWith('sit-'));
+            if (sitRefs.length > 0) {
+              turnsWithSitRefs++;
+              for (const r of sitRefs) uniqueSitIds.add(r.node_id);
+            }
+          }
+        }
+        const entries = activeDebate.diagnostics?.entries ?? {};
+        for (const diag of Object.values(entries) as EntryDiagnostics[]) {
+          const trace = diag.extraction_trace;
+          if (trace) {
+            overview.claims_accepted += trace.candidates_accepted ?? 0;
+            overview.claims_rejected += trace.candidates_rejected ?? 0;
+          }
+        }
+        if (totalDebateTurns > 0) {
+          overview.situation_citations = {
+            turns_with_sit_refs: turnsWithSitRefs,
+            total_debate_turns: totalDebateTurns,
+            citation_rate: turnsWithSitRefs / totalDebateTurns,
+            unique_sit_ids_cited: [...uniqueSitIds].sort(),
+          };
+        }
+      }
+
       await api.saveDebateSession(activeDebate);
       set((state) => ({
         sessions: state.sessions.map((s) =>
@@ -4550,6 +4623,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
 
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
         if (lastEntry) {
+
           recordDiagnostic(get, set, lastEntry.id, {
             prompt,
             raw_response: text,
@@ -4732,6 +4806,7 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
         });
         const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
         if (lastEntry) {
+
           const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
           recordDiagnostic(get, set, lastEntry.id, {
             prompt: draftDiag?.raw_response ?? pipelineResult.final_text,
@@ -5160,10 +5235,12 @@ export const useDebateStore = create<DebateStore>((set, get) => ({
       const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
       const lastEntry = get().activeDebate?.transcript.slice(-1)[0];
       if (lastEntry) {
+        incrementMoveCounters(get, set, meta as Record<string, unknown>);
         const topicAlignDiag = pipelineResult.topicAlignmentResult
           ? {
             topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
             repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+            draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
             scope_used: get().activeDebate?.topic?.scope ?? null,
           }
           : undefined;
