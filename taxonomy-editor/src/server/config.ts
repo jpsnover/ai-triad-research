@@ -120,7 +120,7 @@ export function getProjectRoot(): string {
 
 // ── API key resolution ──
 
-export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'tavily' | 'ollama';
+export type AIBackend = 'gemini' | 'claude' | 'groq' | 'openai' | 'tavily' | 'ollama' | 'deepseek';
 
 const ENV_KEY_NAMES: Record<AIBackend, string> = {
   gemini: 'GEMINI_API_KEY',
@@ -129,6 +129,7 @@ const ENV_KEY_NAMES: Record<AIBackend, string> = {
   openai: 'OPENAI_API_KEY',
   tavily: 'TAVILY_API_KEY',
   ollama: '', // local — no key needed
+  deepseek: 'DEEPSEEK_API_KEY',
 };
 
 // Imported after AIBackend is defined (keyStore depends on the type).

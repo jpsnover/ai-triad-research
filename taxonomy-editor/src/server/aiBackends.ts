@@ -132,7 +132,7 @@ export async function generateText(
   const backend = resolveBackend(resolved);
   const apiKey = explicitApiKey ?? await getApiKey(backend);
   if (!apiKey) {
-    const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily' };
+    const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek' };
     const backendName = names[backend] ?? backend;
     throw new ActionableError({
       goal: `Generate text via ${backendName}`,
