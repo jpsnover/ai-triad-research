@@ -276,6 +276,11 @@ process.on('unhandledRejection', (reason) => {
   console.error('[main] UNHANDLED REJECTION:', reason);
 });
 
+if (process.argv.includes('--debug-cdp') || process.env.DEBUG_CDP === '1') {
+  app.commandLine.appendSwitch('remote-debugging-port', '9222');
+  console.log('[main] CDP enabled on port 9222 (--debug-cdp)');
+}
+
 void app.whenReady().then(() => {
   console.log('[main] app.whenReady fired');
   registerIpcHandlers();
