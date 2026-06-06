@@ -228,7 +228,7 @@ interface EmbeddingsFile {
   model: string;
   dimension: number;
   node_count: number;
-  nodes: Record<string, { pov: string; vector: number[] }>;
+  nodes: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] | null }>;
 }
 
 let embeddingsCache: EmbeddingsFile | null = null;
@@ -324,7 +324,7 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
   }
 }
 
-export async function updateNodeEmbeddings(nodes: { id: string; text: string; pov: string }[]): Promise<void> {
+export async function updateNodeEmbeddings(nodes: { id: string; text: string; pov: string; exclusionText?: string }[]): Promise<void> {
   if (nodes.length === 0) return;
   const filePath = getEmbeddingsPath();
   const items = nodes.map(n => ({ id: n.id, text: n.text }));
@@ -338,12 +338,31 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
     child.stdin!.end();
   });
 
+  const exclItems = nodes.filter(n => n.exclusionText).map(n => ({ id: n.id, text: n.exclusionText! }));
+  let exclVectors: Record<string, number[]> = {};
+  if (exclItems.length > 0) {
+    exclVectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
+      const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+        if (err) { reject(new Error(`batch-encode (exclusion) failed: ${err.message}\n${stderr}`)); return; }
+        try { resolve(JSON.parse(stdout)); } catch (e) { reject(new Error(`Parse exclusion failed: ${e}`)); }
+      });
+      child.stdin!.write(JSON.stringify(exclItems));
+      child.stdin!.end();
+    });
+  }
+
   let data: EmbeddingsFile;
   try { data = JSON.parse(fs.readFileSync(filePath, 'utf-8')); }
   catch { data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
 
   for (const node of nodes) {
-    if (vectors[node.id]) data.nodes[node.id] = { pov: node.pov, vector: vectors[node.id] };
+    if (vectors[node.id]) {
+      data.nodes[node.id] = {
+        pov: node.pov,
+        vector: vectors[node.id],
+        exclusion_vector: exclVectors[node.id] ?? null,
+      };
+    }
   }
   data.node_count = Object.keys(data.nodes).length;
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');

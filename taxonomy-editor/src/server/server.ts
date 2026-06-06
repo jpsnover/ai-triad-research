@@ -684,7 +684,7 @@ post('/api/embeddings/query', async (_req, res, body) => {
 });
 
 post('/api/embeddings/update-nodes', async (_req, res, body) => {
-  const { nodes } = body as { nodes: { id: string; text: string; pov: string }[] };
+  const { nodes } = body as { nodes: { id: string; text: string; pov: string; exclusionText?: string }[] };
   try {
     await ai.updateNodeEmbeddings(nodes);
     json(res, { ok: true });

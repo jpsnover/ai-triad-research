@@ -114,7 +114,7 @@ interface EmbeddingsFile {
   model: string;
   dimension: number;
   node_count: number;
-  nodes: Record<string, { pov: string; vector: number[] }>;
+  nodes: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] | null }>;
 }
 
 let embeddingsCache: EmbeddingsFile | null = null;
@@ -219,6 +219,7 @@ export interface NodeEmbeddingInput {
   id: string;
   text: string;
   pov: string;
+  exclusionText?: string;
 }
 
 const EXCLUDES_RE = /\s*Excludes:.*/s;
@@ -273,6 +274,44 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
     });
   }
 
+  // Generate exclusion vectors for nodes that have exclusionText
+  const exclItems = nodes
+    .filter(n => n.exclusionText)
+    .map(n => ({ id: n.id, text: n.exclusionText! }));
+  let exclVectors: Record<string, number[]> = {};
+  if (exclItems.length > 0) {
+    console.log(`[embeddings] Generating ${exclItems.length} exclusion vectors...`);
+    if (_onnxReady) {
+      const texts = exclItems.map(n => n.text);
+      const vecs = await onnxComputeEmbeddings(texts);
+      for (let i = 0; i < exclItems.length; i++) {
+        exclVectors[exclItems[i].id] = vecs[i];
+      }
+    } else {
+      const exclJson = JSON.stringify(exclItems);
+      exclVectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
+        const child = execFile(
+          PYTHON,
+          [EMBED_SCRIPT, 'batch-encode'],
+          { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 },
+          (err, stdout, stderr) => {
+            if (err) {
+              reject(new Error(`Python batch-encode (exclusion) failed: ${err.message}\n${stderr}`));
+              return;
+            }
+            try {
+              resolve(JSON.parse(stdout) as Record<string, number[]>);
+            } catch (parseErr) {
+              reject(new Error(`Failed to parse exclusion batch-encode output: ${parseErr}`));
+            }
+          },
+        );
+        child.stdin!.write(exclJson);
+        child.stdin!.end();
+      });
+    }
+  }
+
   // Read existing embeddings.json (fresh, not from cache)
   let data: EmbeddingsFile;
   try {
@@ -297,9 +336,14 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
         console.warn(`[embeddings] Dimension mismatch for ${node.id}: got ${vec.length}, expected ${expectedDim} — skipping`);
         continue;
       }
+      const exclVec = exclVectors[node.id];
+      if (exclVec && exclVec.length !== expectedDim) {
+        console.warn(`[embeddings] Exclusion dimension mismatch for ${node.id}: got ${exclVec.length}, expected ${expectedDim} — skipping exclusion`);
+      }
       data.nodes[node.id] = {
         pov: node.pov,
         vector: vec,
+        exclusion_vector: (exclVec && exclVec.length === expectedDim) ? exclVec : null,
       };
     }
   }

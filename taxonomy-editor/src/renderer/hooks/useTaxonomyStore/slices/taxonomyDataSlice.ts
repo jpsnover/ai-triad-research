@@ -394,13 +394,17 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       set({ dirty: new Set() });
 
       const stripExcludes = (text: string) => text.replace(/\s*Excludes:.*/s, '').trim();
-      const nodesToEmbed: { id: string; text: string; pov: string }[] = [];
+      const extractExcludesText = (text: string): string | undefined => {
+        const match = text.match(/\bExcludes:\s*([\s\S]*?)\.?\s*$/);
+        return match?.[1]?.trim() || undefined;
+      };
+      const nodesToEmbed: { id: string; text: string; pov: string; exclusionText?: string }[] = [];
       for (const key of dirtyKeys) {
         if ((POV_KEYS as readonly string[]).includes(key)) {
           const file = state[key as typeof POV_KEYS[number]];
           if (file) {
             for (const node of file.nodes) {
-              nodesToEmbed.push({ id: node.id, text: stripExcludes(node.description), pov: key });
+              nodesToEmbed.push({ id: node.id, text: stripExcludes(node.description), pov: key, exclusionText: extractExcludesText(node.description) });
             }
           }
         } else if (key === 'situations') {
@@ -411,6 +415,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
                 id: node.id,
                 text: `[situations]\nID: ${node.id}\nLabel: ${node.label}\nDescription: ${stripExcludes(node.description)}\nAccelerationist interpretation: ${interpretationText(node.interpretations.accelerationist)}\nSafetyist interpretation: ${interpretationText(node.interpretations.safetyist)}\nSkeptic interpretation: ${interpretationText(node.interpretations.skeptic)}`,
                 pov: 'situations',
+                exclusionText: extractExcludesText(node.description),
               });
             }
           }

@@ -35,7 +35,7 @@ export interface ElectronAPI {
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
   computeEmbeddings: (texts: string[], ids?: string[]) => Promise<{ vectors: number[][] }>;
-  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string }[]) => Promise<void>;
+  updateNodeEmbeddings: (nodes: { id: string; text: string; pov: string; exclusionText?: string }[]) => Promise<void>;
   computeQueryEmbedding: (text: string) => Promise<{ vector: number[] }>;
   generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number) => Promise<{ text: string }>;
   setDebateTemperature: (temp: number | null) => Promise<void>;
