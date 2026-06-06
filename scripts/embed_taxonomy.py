@@ -171,11 +171,22 @@ def _load_lineage_categories():
 
 
 _EXCLUDES_RE = re.compile(r"\s*Excludes:.*", re.DOTALL)
+_EXCLUDES_EXTRACT_RE = re.compile(r"\bExcludes:\s*(.*?)\.?\s*$", re.DOTALL)
 
 
 def _strip_excludes(description: str) -> str:
     """Remove the 'Excludes: ...' clause from a node description."""
     return _EXCLUDES_RE.sub("", description).strip()
+
+
+def _extract_excludes(description: str) -> str:
+    """Extract the Excludes clause text from a node description.
+
+    Returns the raw exclusion items text (without 'Excludes:' prefix),
+    or empty string if no clause is present.
+    """
+    m = _EXCLUDES_EXTRACT_RE.search(description)
+    return m.group(1).strip() if m else ""
 
 
 def _compose_field_texts(node, lineage_map):
@@ -347,6 +358,7 @@ def cmd_generate(args):
     lineage_texts = []
     epistemic_texts = []
     rhetorical_texts = []
+    exclusion_texts = []
     for _, node in nodes:
         d, a, l, e, r = _compose_field_texts(node, lineage_map)
         desc_texts.append(d)
@@ -354,6 +366,7 @@ def cmd_generate(args):
         lineage_texts.append(l)
         epistemic_texts.append(e)
         rhetorical_texts.append(r)
+        exclusion_texts.append(_extract_excludes(node.get("description", "") or ""))
 
     # ── Collect all texts to encode in one batch ─────────────────────
     policy_texts = [p.get("action", "") for p in policies]
@@ -362,10 +375,19 @@ def cmd_generate(args):
     ]
     n = len(nodes)
 
-    all_texts = desc_texts + assumes_texts + lineage_texts + epistemic_texts + rhetorical_texts + policy_texts + conflict_texts
+    # Exclusion texts that are non-empty get embedded; empty ones get null vectors
+    has_exclusion = [bool(t) for t in exclusion_texts]
+    nonempty_exclusion_texts = [t for t in exclusion_texts if t]
+    excl_count = len(nonempty_exclusion_texts)
+
+    all_texts = (
+        desc_texts + assumes_texts + lineage_texts + epistemic_texts + rhetorical_texts
+        + nonempty_exclusion_texts + policy_texts + conflict_texts
+    )
     print(
-        f"Encoding {n} nodes x 5 fields + {len(policy_texts)} policies + "
-        f"{len(conflict_texts)} conflicts ({len(all_texts)} total texts)...",
+        f"Encoding {n} nodes x 5 fields + {excl_count} exclusion vectors + "
+        f"{len(policy_texts)} policies + {len(conflict_texts)} conflicts "
+        f"({len(all_texts)} total texts)...",
         file=sys.stderr,
     )
     # Encode without pre-normalization — preserves raw magnitudes for weighted combination
@@ -377,8 +399,26 @@ def cmd_generate(args):
     lineage_vecs = all_vecs[2 * n : 3 * n]
     epistemic_vecs = all_vecs[3 * n : 4 * n]
     rhetorical_vecs = all_vecs[4 * n : 5 * n]
-    policy_vecs = all_vecs[5 * n : 5 * n + len(policy_texts)]
-    conflict_vecs = all_vecs[5 * n + len(policy_texts) :]
+    excl_vecs_dense = all_vecs[5 * n : 5 * n + excl_count]
+    policy_vecs = all_vecs[5 * n + excl_count : 5 * n + excl_count + len(policy_texts)]
+    conflict_vecs = all_vecs[5 * n + excl_count + len(policy_texts) :]
+
+    # Expand dense exclusion vectors back to per-node array (None for nodes without Excludes)
+    excl_vecs_per_node: list[Optional[np.ndarray]] = []
+    dense_idx = 0
+    for i in range(n):
+        if has_exclusion[i]:
+            excl_vecs_per_node.append(excl_vecs_dense[dense_idx])
+            dense_idx += 1
+        else:
+            excl_vecs_per_node.append(None)
+
+    # Normalize exclusion vectors individually
+    for i in range(n):
+        if excl_vecs_per_node[i] is not None:
+            norm = np.linalg.norm(excl_vecs_per_node[i])
+            if norm > 0:
+                excl_vecs_per_node[i] = excl_vecs_per_node[i] / norm
 
     # ── Weighted combination for taxonomy nodes ──────────────────────
     # Raw encoding + weight + single normalize fixes re-normalization distortion (t/268)
@@ -424,6 +464,7 @@ def cmd_generate(args):
         entry = {
             "pov": pov,
             "vector": node_vectors[i].tolist(),
+            "exclusion_vector": excl_vecs_per_node[i].tolist() if excl_vecs_per_node[i] is not None else None,
         }
         if degenerate_mask[i]:
             entry["degenerate"] = True
@@ -460,7 +501,7 @@ def cmd_generate(args):
         json.dumps(output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
     print(
-        f"Wrote {len(nodes_dict)} embeddings ({n} nodes + "
+        f"Wrote {len(nodes_dict)} embeddings ({n} nodes [{excl_count} with exclusion_vector] + "
         f"{len(policy_texts)} policies + {len(conflict_texts)} conflicts, "
         f"{all_vecs.shape[1]}d) to {EMBEDDINGS_FILE}",
         file=sys.stderr,

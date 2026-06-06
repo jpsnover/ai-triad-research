@@ -10,6 +10,7 @@ import type { DocumentAnalysis, DebatePhase, DebateAudience, InterventionMove, I
 import { POVER_INFO } from './types.js';
 import { documentAnalysisContext } from './documentAnalysis.js';
 import { interpretationText } from './taxonomyTypes.js';
+import { stripExcludes } from './helpers.js';
 
 // ── Model-tier prompt routing (t/331) ────────────────────────────
 // Flash/lite models can't process full prose_style + voice_hygiene blocks.
@@ -2807,7 +2808,7 @@ export function formatSituationDebateContext(cc: SituationDebateInput): string {
   const lines: string[] = [
     `=== SITUATION: ${cc.id} ===`,
     `Label: ${cc.label}`,
-    `Description: ${cc.description}`,
+    `Description: ${stripExcludes(cc.description)}`,
     '',
     '=== POV INTERPRETATIONS ===',
     `Accelerationist: ${interpretationText(cc.interpretations.accelerationist)}`,
@@ -3086,7 +3087,7 @@ export function midDebateGapPrompt(
     : '  (none extracted yet)';
 
   const focusBlock = focusNodes && focusNodes.length > 0
-    ? `\n\nPRIORITY — UNENGAGED HIGH-RELEVANCE NODES:\nThe following taxonomy nodes are highly relevant to this debate but no debater has engaged them. Prioritize arguments that incorporate these perspectives:\n${focusNodes.map(n => `  [${n.id}] ${n.label}: ${n.description.slice(0, 120)}`).join('\n')}\n`
+    ? `\n\nPRIORITY — UNENGAGED HIGH-RELEVANCE NODES:\nThe following taxonomy nodes are highly relevant to this debate but no debater has engaged them. Prioritize arguments that incorporate these perspectives:\n${focusNodes.map(n => `  [${n.id}] ${n.label}: ${stripExcludes(n.description).slice(0, 120)}`).join('\n')}\n`
     : '';
 
   return `You are an independent analyst reviewing a multi-perspective debate on AI policy. You have NO assigned perspective — you are looking for what is MISSING.

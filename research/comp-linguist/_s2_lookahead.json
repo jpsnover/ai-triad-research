@@ -1,0 +1,104 @@
+{
+  "entry_id": "95487db7-1ba8-49ac-ac42-d7aa96d8abe5",
+  "speaker": "safetyist",
+  "lookahead": {
+    "stage": "lookahead",
+    "first_attempt": {
+      "pass": true,
+      "utility_before": {
+        "position_strength": 0.552,
+        "attack_effectiveness": 0.25,
+        "crux_engagement": 0.75,
+        "composite": 0.5656,
+        "concession_asymmetry": -0.16666666666666669
+      },
+      "utility_after": {
+        "position_strength": 0.8463333333333334,
+        "attack_effectiveness": 0.25,
+        "crux_engagement": 0.75,
+        "composite": 0.6539,
+        "concession_asymmetry": -0.25277777777777777
+      },
+      "utility_delta": 0.08830000000000005,
+      "threshold": 0,
+      "tentative_claims": [
+        {
+          "text": "The mechanism I propose is a harm-volume-indexed liability framework, implemented by a multi-stakeholder body under the authority of the National Institute of Standards and Technology, which decouples safety obligations from capital expenditure to prevent market monopolization.",
+          "strength": 1
+        },
+        {
+          "text": "By mandating that all foundational models undergo externalized reasoning monitoring, regulators can force systems to expose their internal logic for inspection.",
+          "strength": 1
+        },
+        {
+          "text": "A tiered-liability framework ensures that the party creating the risk is held accountable for the specific harm-volume they unleash.",
+          "strength": 0.8333333333333334
+        }
+      ],
+      "tentative_network_size": {
+        "nodes": 15,
+        "edges": 12
+      }
+    },
+    "regen_triggered": false,
+    "per_claim_analysis": [
+      {
+        "perClaim": [
+          {
+            "index": 0,
+            "text": "The mechanism I propose is a harm-volume-indexed liability framework, implemented by a multi-stakeholder body under the authority of the National Institute of Standards and Technology, which decouples safety obligations from capital expenditure to prevent market monopolization.",
+            "base_strength": 1,
+            "marginal_delta": 0.01536666666666664,
+            "classification": "STRONG",
+            "dominant_component": "position_strength"
+          },
+          {
+            "index": 1,
+            "text": "By mandating that all foundational models undergo externalized reasoning monitoring, regulators can force systems to expose their internal logic for inspection.",
+            "base_strength": 1,
+            "marginal_delta": 0.01536666666666664,
+            "classification": "STRONG",
+            "dominant_component": "position_strength"
+          },
+          {
+            "index": 2,
+            "text": "A tiered-liability framework ensures that the party creating the risk is held accountable for the specific harm-volume they unleash.",
+            "base_strength": 0.8333333333333334,
+            "marginal_delta": -0.0012999999999999678,
+            "classification": "WEAK",
+            "dominant_component": "position_strength"
+          }
+        ],
+        "analysis": {
+          "strongFoundations": [
+            {
+              "text": "The mechanism I propose is a harm-volume-indexed liability framework, implemented by a multi-stakeholder body under the authority of the National Institute of Standards and Technology, which decouples safety obligations from capital expenditure to prevent market monopolization.",
+              "base_strength": 1,
+              "marginal_delta": 0.01536666666666664,
+              "reason": "Strong declarative claim — anchors your position with high specificity."
+            },
+            {
+              "text": "By mandating that all foundational models undergo externalized reasoning monitoring, regulators can force systems to expose their internal logic for inspection.",
+              "base_strength": 1,
+              "marginal_delta": 0.01536666666666664,
+              "reason": "Strong declarative claim — anchors your position with high specificity."
+            }
+          ],
+          "avoidClaims": [
+            {
+              "text": "A tiered-liability framework ensures that the party creating the risk is held accountable for the specific harm-volume they unleash.",
+              "base_strength": 0.8333333333333334,
+              "marginal_delta": -0.0012999999999999678,
+              "reason": "Marginal contribution — this claim adds little strategic value to your position."
+            }
+          ],
+          "preserveConcessions": []
+        }
+      }
+    ],
+    "final_pass": true,
+    "elapsed_ms": 1
+  },
+  "metadata_lookahead_regenerated": null,
+  "metadata_lookahead_regen_attempts": null
+}

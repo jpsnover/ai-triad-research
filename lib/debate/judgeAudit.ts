@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCLIAdapter } from './aiAdapter.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { DebateSession, TranscriptEntry, TaxonomyRef, DebatePhase } from './types.js';
 import { getDebatePhase } from './types.js';
 import { parseJsonRobust } from './helpers.js';
@@ -309,6 +310,7 @@ async function auditDebate(
         process.stderr.write(` ${model.split('-').slice(-2).join('-')}=${icon}`);
       } catch (err) {
         const elapsed = Date.now() - t0;
+        getGlobalRecorder()?.record({ type: 'ai.error', component: 'judgeAudit', level: 'warn', message: `Judge audit LLM call failed for model ${model}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         verdicts[model] = {
           verdict: { advances: false, advancement_reason: 'judge_call_error', clarifies_taxonomy: [], weaknesses: [], recommend: 'accept_with_flag' },
           response_time_ms: elapsed, raw_response: '', error: (err as Error).message,

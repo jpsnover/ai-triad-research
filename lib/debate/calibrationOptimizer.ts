@@ -203,7 +203,7 @@ export function applyRelevanceThresholdAdaptation(
 
     fs.writeFileSync(targetPath, JSON.stringify(weights, null, 2) + '\n', 'utf-8');
     return { applied: true, reason: `adjusted ${oldValue} → ${newValue}: ${recommendation.rationale}` };
-  } catch (err) {
+  } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
     return { applied: false, reason: `write failed: ${(err as Error).message}` };
   }
 }

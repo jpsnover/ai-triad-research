@@ -1,0 +1,1881 @@
+{
+  "generated_at": "2026-06-06T20:00:00",
+  "debates_analyzed": [
+    {
+      "id": "cdb1a6b9-c9f0-406d-8539-b77b38409bc5",
+      "title": "Under what conditions and through what specific economic ...",
+      "timestamp": "2026-06-06T19:40:04.979Z",
+      "phase": "closed",
+      "app_version": "0.8.0",
+      "model": null,
+      "temperature": null,
+      "statement_count": 12,
+      "transcript_length": 30,
+      "process_rewards": [],
+      "avg_process_reward": null,
+      "accept_with_flag_count": 0,
+      "pass_count": 0,
+      "skip_count": 0,
+      "quality_gate_pass": 0,
+      "quality_gate_fail": 0,
+      "stageA_scores": [],
+      "avg_stageA": null,
+      "lookahead_results": [
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.25,
+          "weak_claims": 0,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.4125000000000001,
+          "weak_claims": 1,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.05405083333333338,
+          "weak_claims": 1,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.10266666666666663,
+          "weak_claims": 1,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.00895833333333329,
+          "weak_claims": 1,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.044267792640000136,
+          "weak_claims": 1,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.004439808910666643,
+          "weak_claims": 1,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": true,
+          "utility_delta": -0.03298557692307691,
+          "weak_claims": 1,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.04482692307692304,
+          "weak_claims": 0,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.013236990696126938,
+          "weak_claims": 0,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.03146320274285719,
+          "weak_claims": 1,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.012862499999999999,
+          "weak_claims": 2,
+          "strong_claims": 0
+        }
+      ],
+      "lookahead_regen_count": 1,
+      "lookahead_weak_total": 10,
+      "an_node_count": 30,
+      "an_edge_count": 29,
+      "an_speakers": {
+        "safetyist": 10,
+        "accelerationist": 12,
+        "skeptic": 7,
+        "system": 1
+      },
+      "avg_node_strength": 0.5033462222222221,
+      "crux_count": 10,
+      "convergence_signals": [
+        {
+          "round": 2,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 1,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 3,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 4,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 7,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 1,
+            "ratio": 0.6666666666666666
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.24731182795698925,
+            "max_self_overlap": 0.24731182795698925,
+            "semantic_max_similarity": 0.6522432424206243,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 8,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.17592592592592593,
+            "max_self_overlap": 0.17592592592592593,
+            "semantic_max_similarity": 0.3273614626576768,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 10,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 1,
+            "ratio": 0.5
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2538860103626943,
+            "max_self_overlap": 0.29015544041450775,
+            "semantic_max_similarity": 0.6466743016868944,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 14,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.20078740157480315,
+            "max_self_overlap": 0.20078740157480315,
+            "semantic_max_similarity": 0.6257237401685025,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 16,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 2,
+            "ratio": 0.3333333333333333
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2077922077922078,
+            "max_self_overlap": 0.23809523809523808,
+            "semantic_max_similarity": 0.310089884890459,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 17,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2604166666666667,
+            "max_self_overlap": 0.35833333333333334,
+            "semantic_max_similarity": 0.6306494105156029,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 19,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.22417153996101366,
+            "max_self_overlap": 0.2982456140350877,
+            "semantic_max_similarity": 0.5138213598338527,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 21,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.20328849028400597,
+            "max_self_overlap": 0.24663677130044842,
+            "semantic_max_similarity": 0.426759124990115,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 23,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.23068181818181818,
+            "max_self_overlap": 0.2409090909090909,
+            "semantic_max_similarity": 0.5418927160934534,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 24,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.19402985074626863,
+            "max_self_overlap": 0.208955223880597,
+            "semantic_max_similarity": 0.6115588502198188,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 26,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2608695652173913,
+            "max_self_overlap": 0.2753623188405797,
+            "semantic_max_similarity": 0.44387773764809463,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 27,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.234375,
+            "max_self_overlap": 0.28125,
+            "semantic_max_similarity": 0.5960079055099237,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        }
+      ],
+      "concession_mentions": 1,
+      "edge_density": 0.9666666666666667
+    },
+    {
+      "id": "5cf84d60-bfc3-4361-a157-ad80ceec97c3",
+      "title": "Anthropic & DOD",
+      "timestamp": "2026-06-05T10:10:44.933Z",
+      "phase": "debate",
+      "app_version": "0.8.0",
+      "model": null,
+      "temperature": null,
+      "statement_count": 7,
+      "transcript_length": 30,
+      "process_rewards": [],
+      "avg_process_reward": null,
+      "accept_with_flag_count": 0,
+      "pass_count": 0,
+      "skip_count": 0,
+      "quality_gate_pass": 0,
+      "quality_gate_fail": 0,
+      "stageA_scores": [],
+      "avg_stageA": null,
+      "lookahead_results": [
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.04166666666666663,
+          "weak_claims": 1,
+          "strong_claims": 0
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.011730769230769211,
+          "weak_claims": 1,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.016365866666666617,
+          "weak_claims": 2,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.004735314285714276,
+          "weak_claims": 3,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.022398824999999956,
+          "weak_claims": 0,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.079147196233609,
+          "weak_claims": 0,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.05331704701414142,
+          "weak_claims": 0,
+          "strong_claims": 4
+        }
+      ],
+      "lookahead_regen_count": 0,
+      "lookahead_weak_total": 7,
+      "an_node_count": 55,
+      "an_edge_count": 65,
+      "an_speakers": {
+        "accelerationist": 19,
+        "system": 14,
+        "safetyist": 10,
+        "skeptic": 12
+      },
+      "avg_node_strength": 0.5334205551814815,
+      "crux_count": 19,
+      "convergence_signals": [
+        {
+          "round": 2,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 5,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 5,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 8,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 12,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.21944444444444444,
+            "max_self_overlap": 0.21944444444444444,
+            "semantic_max_similarity": 0.6101298701925578,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 13,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.23333333333333334,
+            "max_self_overlap": 0.23333333333333334,
+            "semantic_max_similarity": 0.5903335846765324,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 16,
+          "dialectical_engagement": {
+            "targeted": 5,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2549019607843137,
+            "max_self_overlap": 0.2549019607843137,
+            "semantic_max_similarity": 0.39854073843153254,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 22,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 1,
+            "ratio": 0.8
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2231638418079096,
+            "max_self_overlap": 0.2768361581920904,
+            "semantic_max_similarity": 0.4638135733142048,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 24,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.21800433839479394,
+            "max_self_overlap": 0.22342733188720174,
+            "semantic_max_similarity": 0.44420067570845384,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 26,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.21019108280254778,
+            "max_self_overlap": 0.23354564755838642,
+            "semantic_max_similarity": 0.4671394340381719,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        }
+      ],
+      "concession_mentions": 3,
+      "edge_density": 1.1818181818181819
+    },
+    {
+      "id": "5663d315-ab39-4156-a631-4817abb5a4bd",
+      "title": "\"The United States Congress should establish a National A...",
+      "timestamp": "2026-06-04T05:48:53.934Z",
+      "phase": "closed",
+      "app_version": "0.8.0",
+      "model": null,
+      "temperature": null,
+      "statement_count": 12,
+      "transcript_length": 56,
+      "process_rewards": [],
+      "avg_process_reward": null,
+      "accept_with_flag_count": 0,
+      "pass_count": 0,
+      "skip_count": 0,
+      "quality_gate_pass": 0,
+      "quality_gate_fail": 0,
+      "stageA_scores": [],
+      "avg_stageA": null,
+      "lookahead_results": [
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.013746796875000022,
+          "weak_claims": 0,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.06281324388586951,
+          "weak_claims": 0,
+          "strong_claims": 4
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.019103636363636323,
+          "weak_claims": 0,
+          "strong_claims": 4
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.0292210101471862,
+          "weak_claims": 0,
+          "strong_claims": 4
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0,
+          "weak_claims": 2,
+          "strong_claims": 0
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.10040669477740671,
+          "weak_claims": 0,
+          "strong_claims": 4
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.1219006586137984,
+          "weak_claims": 0,
+          "strong_claims": 5
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0,
+          "weak_claims": 0,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": true,
+          "utility_delta": -0.004574727988094329,
+          "weak_claims": 2,
+          "strong_claims": 0
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0,
+          "weak_claims": 0,
+          "strong_claims": 1
+        }
+      ],
+      "lookahead_regen_count": 1,
+      "lookahead_weak_total": 4,
+      "an_node_count": 79,
+      "an_edge_count": 167,
+      "an_speakers": {
+        "safetyist": 23,
+        "system": 13,
+        "accelerationist": 24,
+        "skeptic": 19
+      },
+      "avg_node_strength": 0.42839753181056095,
+      "crux_count": 29,
+      "convergence_signals": [
+        {
+          "round": 2,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 5,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 3,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 4,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.3466666666666667,
+            "max_self_overlap": 0.3466666666666667,
+            "semantic_max_similarity": 0.8132850353870807,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 4,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.33256880733944955,
+            "max_self_overlap": 0.3348623853211009,
+            "semantic_max_similarity": 0.8160624050062901,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 8,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 9,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.16370106761565836,
+            "max_self_overlap": 0.16370106761565836,
+            "semantic_max_similarity": 0.8586813850743367,
+            "semantically_recycled": true
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 10,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.20883534136546184,
+            "max_self_overlap": 0.285140562248996,
+            "semantic_max_similarity": 0.7276809158065668,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 12,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 13,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.24199288256227758,
+            "max_self_overlap": 0.24199288256227758,
+            "semantic_max_similarity": 0.8638121900023678,
+            "semantically_recycled": true
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 16,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.23936170212765956,
+            "max_self_overlap": 0.25886524822695034,
+            "semantic_max_similarity": 0.8619110041426764,
+            "semantically_recycled": true
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 21,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.22826086956521738,
+            "max_self_overlap": 0.2826086956521739,
+            "semantic_max_similarity": 0.5199630082889545,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 24,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.18618421052631579,
+            "max_self_overlap": 0.23684210526315788,
+            "semantic_max_similarity": 0.8417783357842319,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 29,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 3,
+            "ratio": 0.25
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.24384787472035793,
+            "max_self_overlap": 0.27181208053691275,
+            "semantic_max_similarity": 0.6627011279632082,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 31,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.21785714285714286,
+            "max_self_overlap": 0.2642857142857143,
+            "semantic_max_similarity": 0.7488773147125404,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 32,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 2,
+            "ratio": 0.3333333333333333
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.24820143884892085,
+            "max_self_overlap": 0.26258992805755393,
+            "semantic_max_similarity": 0.5042845681512441,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 33,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.18036529680365296,
+            "max_self_overlap": 0.2534246575342466,
+            "semantic_max_similarity": 0.5487632337038438,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 39,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2539936102236422,
+            "max_self_overlap": 0.3003194888178914,
+            "semantic_max_similarity": 0.6968255165623166,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 38,
+          "dialectical_engagement": {
+            "targeted": 5,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.1875,
+            "max_self_overlap": 0.2625,
+            "semantic_max_similarity": 0.6355237956249957,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 49,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 1,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.23161764705882354,
+            "max_self_overlap": 0.27205882352941174,
+            "semantic_max_similarity": 0.6033888352036538,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 47,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.29765886287625415,
+            "max_self_overlap": 0.3879598662207358,
+            "semantic_max_similarity": 0.7615880171171164,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        }
+      ],
+      "concession_mentions": 2,
+      "edge_density": 2.1139240506329116
+    },
+    {
+      "id": "ff1310c8-9a5b-415c-aa3a-eb076e12efc7",
+      "title": "What labor market policies are needed for the AI transition?",
+      "timestamp": "2026-06-04T05:17:07.297Z",
+      "phase": "closed",
+      "app_version": "0.8.0",
+      "model": null,
+      "temperature": null,
+      "statement_count": 12,
+      "transcript_length": 38,
+      "process_rewards": [],
+      "avg_process_reward": null,
+      "accept_with_flag_count": 0,
+      "pass_count": 0,
+      "skip_count": 0,
+      "quality_gate_pass": 0,
+      "quality_gate_fail": 0,
+      "stageA_scores": [],
+      "avg_stageA": null,
+      "lookahead_results": [
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.5334107142857143,
+          "weak_claims": 1,
+          "strong_claims": 5
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.04912,
+          "weak_claims": 3,
+          "strong_claims": 0
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.09521157986111106,
+          "weak_claims": 1,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": false,
+          "regen_triggered": true,
+          "utility_delta": -0.04637142857142851,
+          "weak_claims": 1,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.014635555555555624,
+          "weak_claims": 3,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.005376000000000047,
+          "weak_claims": 0,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.05832356223366475,
+          "weak_claims": 2,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.042625975284090845,
+          "weak_claims": 1,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.123741358780382,
+          "weak_claims": 0,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.05579679289583339,
+          "weak_claims": 0,
+          "strong_claims": 4
+        }
+      ],
+      "lookahead_regen_count": 1,
+      "lookahead_weak_total": 12,
+      "an_node_count": 60,
+      "an_edge_count": 107,
+      "an_speakers": {
+        "skeptic": 12,
+        "system": 10,
+        "safetyist": 18,
+        "accelerationist": 20
+      },
+      "avg_node_strength": 0.4269229000728007,
+      "crux_count": 25,
+      "convergence_signals": [
+        {
+          "round": 3,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 5,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 5,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 9,
+          "dialectical_engagement": {
+            "targeted": 6,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.16574585635359115,
+            "max_self_overlap": 0.16574585635359115
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 12,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.1791044776119403,
+            "max_self_overlap": 0.1791044776119403,
+            "semantic_max_similarity": 0.6821627315652928,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 14,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 3,
+            "ratio": 0.25
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2767857142857143,
+            "max_self_overlap": 0.2767857142857143,
+            "semantic_max_similarity": 0.6365698801792371,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 20,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 3,
+            "ratio": 0.4
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.1557632398753894,
+            "max_self_overlap": 0.21806853582554517,
+            "semantic_max_similarity": 0.6497517512342238,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 19,
+          "dialectical_engagement": {
+            "targeted": 4,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.26217228464419473,
+            "max_self_overlap": 0.3333333333333333,
+            "semantic_max_similarity": 0.75442774870101,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 25,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2098393574297189,
+            "max_self_overlap": 0.2710843373493976,
+            "semantic_max_similarity": 0.5801552798208739,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 27,
+          "dialectical_engagement": {
+            "targeted": 5,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.17901234567901234,
+            "max_self_overlap": 0.22839506172839505,
+            "semantic_max_similarity": 0.63311896232362,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 30,
+          "dialectical_engagement": {
+            "targeted": 5,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.26224066390041495,
+            "max_self_overlap": 0.3236514522821577,
+            "semantic_max_similarity": 0.5158371426295507,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 33,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2235294117647059,
+            "max_self_overlap": 0.3411764705882353,
+            "semantic_max_similarity": 0.69590914505053,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 36,
+          "dialectical_engagement": {
+            "targeted": 5,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.1995114006514658,
+            "max_self_overlap": 0.26058631921824105,
+            "semantic_max_similarity": 0.7770023720948372,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        }
+      ],
+      "concession_mentions": 3,
+      "edge_density": 1.7833333333333334
+    },
+    {
+      "id": "7dd088cd-4c54-4a3a-9a19-386eaa678ff9",
+      "title": "Interpretability for alignment",
+      "timestamp": "2026-06-03T21:45:31.953Z",
+      "phase": "closed",
+      "app_version": "0.8.0",
+      "model": null,
+      "temperature": null,
+      "statement_count": 10,
+      "transcript_length": 32,
+      "process_rewards": [],
+      "avg_process_reward": null,
+      "accept_with_flag_count": 0,
+      "pass_count": 0,
+      "skip_count": 0,
+      "quality_gate_pass": 0,
+      "quality_gate_fail": 0,
+      "stageA_scores": [],
+      "avg_stageA": null,
+      "lookahead_results": [
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0,
+          "weak_claims": 0,
+          "strong_claims": 0
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.08145427904761904,
+          "weak_claims": 0,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": true,
+          "utility_delta": -0.03849999999999998,
+          "weak_claims": 2,
+          "strong_claims": 1
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.08333333333333326,
+          "weak_claims": 0,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.010960104761904788,
+          "weak_claims": 0,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "skeptic",
+          "final_pass": true,
+          "regen_triggered": false,
+          "utility_delta": 0.0905460759722222,
+          "weak_claims": 0,
+          "strong_claims": 2
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": true,
+          "utility_delta": -0.018160714285714308,
+          "weak_claims": 1,
+          "strong_claims": 3
+        },
+        {
+          "speaker": "safetyist",
+          "final_pass": true,
+          "regen_triggered": true,
+          "utility_delta": -0.009109373333333393,
+          "weak_claims": 3,
+          "strong_claims": 0
+        },
+        {
+          "speaker": "accelerationist",
+          "final_pass": true,
+          "regen_triggered": true,
+          "utility_delta": -0.009874999999999967,
+          "weak_claims": 1,
+          "strong_claims": 1
+        }
+      ],
+      "lookahead_regen_count": 4,
+      "lookahead_weak_total": 7,
+      "an_node_count": 36,
+      "an_edge_count": 33,
+      "an_speakers": {
+        "safetyist": 11,
+        "accelerationist": 14,
+        "skeptic": 8,
+        "system": 3
+      },
+      "avg_node_strength": 0.6298233888888888,
+      "crux_count": 8,
+      "convergence_signals": [
+        {
+          "round": 2,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 4,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 3,
+          "dialectical_engagement": {
+            "targeted": 0,
+            "standalone": 3,
+            "ratio": 0
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 4,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0,
+            "max_self_overlap": 0
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 6,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.28402366863905326,
+            "max_self_overlap": 0.28402366863905326,
+            "semantic_max_similarity": 0.6863403230977881,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 7,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.32954545454545453,
+            "max_self_overlap": 0.32954545454545453,
+            "semantic_max_similarity": 0.5600692132228033,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 11,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 1,
+            "ratio": 0.6666666666666666
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.20202020202020202,
+            "max_self_overlap": 0.20202020202020202,
+            "semantic_max_similarity": 0.6197516218134492,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 15,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.22701149425287356,
+            "max_self_overlap": 0.23563218390804597,
+            "semantic_max_similarity": 0.6698331437228798,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 18,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 1,
+            "ratio": 0.6666666666666666
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.2577639751552795,
+            "max_self_overlap": 0.2670807453416149,
+            "semantic_max_similarity": 0.6976994087750209,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 19,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.22513089005235604,
+            "max_self_overlap": 0.23036649214659685,
+            "semantic_max_similarity": 0.7176986218569639,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 24,
+          "dialectical_engagement": {
+            "targeted": 1,
+            "standalone": 0,
+            "ratio": 1
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.23497267759562843,
+            "max_self_overlap": 0.273224043715847,
+            "semantic_max_similarity": 0.7264113315754988,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 23,
+          "dialectical_engagement": {
+            "targeted": 3,
+            "standalone": 1,
+            "ratio": 0.75
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.1993127147766323,
+            "max_self_overlap": 0.21649484536082475,
+            "semantic_max_similarity": 0.6669462245200223,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        },
+        {
+          "round": 29,
+          "dialectical_engagement": {
+            "targeted": 2,
+            "standalone": 1,
+            "ratio": 0.6666666666666666
+          },
+          "argument_redundancy": {
+            "avg_self_overlap": 0.21927374301675978,
+            "max_self_overlap": 0.26256983240223464,
+            "semantic_max_similarity": 0.5783874320803631,
+            "semantically_recycled": false
+          },
+          "crux_engagement_rate": {
+            "used_this_turn": false,
+            "cumulative_count": 0,
+            "cumulative_follow_through": 0
+          }
+        }
+      ],
+      "concession_mentions": 0,
+      "edge_density": 0.9166666666666666
+    }
+  ],
+  "calibration_log": {
+    "total_entries": 1228,
+    "recent_entries_7d": 1228,
+    "metrics": {
+      "crux_addressed_ratio": {
+        "recent_count": 58,
+        "recent_mean": 0.008620689655172414,
+        "recent_min": 0,
+        "recent_max": 0.5,
+        "recent_latest": 0.5
+      },
+      "repetition_rate": {
+        "recent_count": 1228,
+        "recent_mean": 0.0,
+        "recent_min": 0,
+        "recent_max": 0,
+        "recent_latest": 0
+      },
+      "claims_forgotten_rate": {
+        "recent_count": 59,
+        "recent_mean": 0.022853841074180054,
+        "recent_min": 0,
+        "recent_max": 0.425,
+        "recent_latest": 0.3
+      },
+      "avg_utilization_rate": {
+        "recent_count": 1228,
+        "recent_mean": 0.0006549063805192976,
+        "recent_min": 0,
+        "recent_max": 0.34983762439056965,
+        "recent_latest": 0.10136752136752136
+      },
+      "structural_error_rate": {
+        "recent_count": 1228,
+        "recent_mean": 0.0,
+        "recent_min": 0,
+        "recent_max": 0,
+        "recent_latest": 0
+      },
+      "qbaf_preference_concordance": {
+        "recent_count": 0,
+        "note": "No data in last 7 days"
+      },
+      "taxonomy_mapped_ratio": {
+        "recent_count": 59,
+        "recent_mean": 0.05656137647663071,
+        "recent_min": 0,
+        "recent_max": 0.9666666666666667,
+        "recent_latest": 0.9666666666666667
+      },
+      "recycling_novelty_agreement": {
+        "recent_count": 1228,
+        "recent_mean": 1.0,
+        "recent_min": 1,
+        "recent_max": 1,
+        "recent_latest": 1
+      }
+    }
+  }
+}

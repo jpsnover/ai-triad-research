@@ -18,6 +18,7 @@ import type { DebateConfig } from './debateEngine.js';
 import type { DebateSourceType, SpeakerId, DebateAudience } from './types.js';
 import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types.js';
 import { formatSituationDebateContext } from './prompts.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
 import { ActionableError } from './errors.js';
 
@@ -155,6 +156,7 @@ async function main(): Promise<void> {
     try {
       configText = fs.readFileSync(resolvedConfig, 'utf-8');
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to read config file ${resolvedConfig}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       throw new ActionableError({
         goal: 'Load debate configuration',
         problem: `Failed to read config file ${resolvedConfig}: ${err instanceof Error ? err.message : err}`,
@@ -172,6 +174,7 @@ async function main(): Promise<void> {
   try {
     config = JSON.parse(configText);
   } catch (err) {
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: 'Config file contains invalid JSON', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     throw new ActionableError({
       goal: 'Parse debate configuration',
       problem: `Config file contains invalid JSON: ${err instanceof Error ? err.message : err}`,
@@ -383,6 +386,7 @@ async function main(): Promise<void> {
   try {
     fs.mkdirSync(outputDir, { recursive: true });
   } catch (err) {
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to create output directory '${outputDir}'`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     throw new ActionableError({
       goal: 'Create debate output directory',
       problem: `Failed to create output directory '${outputDir}': ${err instanceof Error ? err.message : err}`,
@@ -403,6 +407,7 @@ async function main(): Promise<void> {
       fs.writeFileSync(filePath, content, 'utf-8');
       log(`Wrote ${description}: ${filePath}`);
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write ${description} to '${filePath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       throw new ActionableError({
         goal: 'Write debate output file',
         problem: `Failed to write ${description} to '${filePath}': ${err instanceof Error ? err.message : err}`,
@@ -464,6 +469,7 @@ async function main(): Promise<void> {
     appendCalibrationLog(dataPoint, dataRoot);
     log(`Calibration data logged to ${dataRoot}/calibration/calibration-log.json`);
   } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'warn', message: 'Calibration logging failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     log(`Calibration logging failed (non-critical): ${err instanceof Error ? err.message : err}`);
   }
 

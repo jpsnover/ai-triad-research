@@ -22,6 +22,12 @@ export function stripCodeFences(text: string): string {
   return text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
 }
 
+/** Strip "Excludes: ..." suffix from taxonomy node descriptions.
+ *  Debate-facing prompts should not expose Excludes clauses to LLM debaters. */
+export function stripExcludes(description: string): string {
+  return description.replace(/\s*Excludes:\s*.*/s, '').trim();
+}
+
 /**
  * Robust JSON parser for LLM responses. Handles:
  *  - Markdown code fences

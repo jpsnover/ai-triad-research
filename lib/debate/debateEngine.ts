@@ -147,6 +147,7 @@ import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageT
 import { generateDialecticTraces } from './dialecticTrace.js';
 import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis.js';
 import { extractSituationDebateRefs } from './situationRefs.js';
+import { checkClaimExclusionBoundary, checkDraftScopeBoundary } from './exclusionGuard.js';
 import { ActionableError } from './errors.js';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis.js';
 import { resolveTurnValidationConfig, classifyHintKey } from './turnValidator.js';
@@ -326,6 +327,31 @@ export class DebateEngine {
       if (streak.suppressed) suppressed.add(key);
     }
     return suppressed;
+  }
+
+  /** Re-score situations against emerging cruxes at phase transitions. */
+  private _rescoreSituations(): void {
+    if (!this.session.crux_tracker?.length) return;
+
+    const sitNodes = (this.taxonomy as Record<string, { nodes?: SituationNode[] }>).situations?.nodes ?? [];
+    const anForRescore = this.session.argument_network;
+    if (!sitNodes.length || !anForRescore) return;
+
+    const injectedSitIds = new Set(
+      this._contextManifests.flatMap(m => m.injected_node_ids).filter(id => id.startsWith('sit-')),
+    );
+    const referencedSitIds = new Set(
+      this.session.transcript.flatMap(e => e.taxonomy_refs).map(r => r.node_id).filter(id => id.startsWith('sit-')),
+    );
+
+    this._situationScoreAdjustments = reScoreSituationsForCruxes({
+      situationNodes: sitNodes,
+      cruxes: this.session.crux_tracker,
+      anNodes: anForRescore.nodes,
+      nodeEmbeddings: this.taxonomy.embeddings,
+      injectedSitIds,
+      referencedSitIds,
+    });
   }
 
   /** Update hint streaks after a turn completes. Hints that fired increment; hints that didn't reset. */
@@ -2611,33 +2637,7 @@ export class DebateEngine {
         });
 
         // Adaptive situation re-scoring: re-score situations against emerging cruxes
-        if (this.session.crux_tracker && this.session.crux_tracker.length > 0) {
-          const sitNodes = (this.taxonomy as Record<string, { nodes?: SituationNode[] }>).situations?.nodes ?? [];
-          const anForRescore = this.session.argument_network;
-          if (sitNodes.length > 0 && anForRescore) {
-            // Collect injected and referenced sit IDs from transcript
-            const injectedSitIds = new Set<string>();
-            for (const m of this._contextManifests) {
-              for (const id of m.injected_node_ids) {
-                if (id.startsWith('sit-')) injectedSitIds.add(id);
-              }
-            }
-            const referencedSitIds = new Set<string>();
-            for (const e of this.session.transcript) {
-              for (const ref of e.taxonomy_refs) {
-                if (ref.node_id.startsWith('sit-')) referencedSitIds.add(ref.node_id);
-              }
-            }
-            this._situationScoreAdjustments = reScoreSituationsForCruxes({
-              situationNodes: sitNodes,
-              cruxes: this.session.crux_tracker,
-              anNodes: anForRescore.nodes,
-              nodeEmbeddings: this.taxonomy.embeddings,
-              injectedSitIds,
-              referencedSitIds,
-            });
-          }
-        }
+        this._rescoreSituations();
       }
 
       if (result.action === 'regress') {
@@ -2787,8 +2787,10 @@ export class DebateEngine {
           metaphor_reframe_offered: diagnostics.metaphorReframeOffered ?? null,
           metaphor_reframe_used: false,
           intervention_recommended: selectionResult.intervene ?? false,
-          intervention_move: activeIntervention?.move ?? null,
+          intervention_move: activeIntervention?.move ?? modResult.engineValidation?.validated_move ?? null,
           intervention_validated: !!activeIntervention,
+          suppressed_reason: modResult.engineValidation?.suppressed_reason ?? null,
+          suppression_explanation: modResult.engineValidation?.suppression_explanation ?? null,
           health_score: healthScore.value,
           budget_remaining: modResult.modState.budget_remaining,
           argument_network_snapshot: an ? {
@@ -2814,6 +2816,15 @@ export class DebateEngine {
       response_time_ms: diagnostics.selectionElapsed,
       edges_used: diagnostics.edgesUsed as { source: string; target: string; type: string; confidence: number }[] | undefined,
     });
+
+    if ((selectionResult.intervene ?? false) && !activeIntervention && !modResult.engineValidation?.suppressed_reason) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'debateEngine', level: 'error',
+        debate_id: this.session?.id,
+        message: 'Intervention recommended but neither executed nor suppressed — missing suppression reason',
+        data: { round, selectionResult },
+      });
+    }
 
     // Generate response
     const info = POVER_INFO[responder];
@@ -3105,6 +3116,33 @@ export class DebateEngine {
       }
     }
 
+    // Draft scope boundary check (t/451): flag when draft drifts into excluded scope
+    let scopeDriftWarnings: { debater: string; node_id: string; similarity: number; draft_excerpt: string }[] | undefined;
+    const adapterForScope = this.adapter as ExtendedAIAdapter;
+    if (adapterForScope.computeQueryEmbedding && statement) {
+      try {
+        const { vector: draftVec } = await adapterForScope.computeQueryEmbedding(statement.slice(0, 500));
+        if (draftVec?.length) {
+          const refIds = taxonomyRefs.map(r => r.node_id);
+          const warnings = checkDraftScopeBoundary(
+            draftVec, refIds, this.taxonomy.embeddings, responder, statement,
+          );
+          if (warnings.length > 0) {
+            scopeDriftWarnings = warnings;
+            for (const w of warnings) {
+              caveats.push(`[Scope drift] Draft may overlap excluded scope of ${w.node_id} (similarity=${w.similarity.toFixed(2)})`);
+            }
+            getGlobalRecorder()?.record({
+              type: 'turn.scope_drift', component: 'debateEngine', level: 'warn',
+              speaker: responder, debate_id: this.session?.id,
+              message: `${warnings.length} scope drift warning(s)`,
+              data: { warnings },
+            });
+          }
+        }
+      } catch { /* scope check is advisory — never block turn commit */ }
+    }
+
     const entry = this.addEntry({
       type: 'statement',
       speaker: responder,
@@ -3168,6 +3206,7 @@ export class DebateEngine {
           }
         : undefined,
       quality_gate: pipelineResult.qualityGateResult,
+      scope_drift_warnings: scopeDriftWarnings,
     });
 
     // Track move types and disagreement types
@@ -4797,6 +4836,20 @@ Return ONLY JSON (no markdown, no code fences):
           console.warn(`[attribution.no-statement-refs] speaker=${speaker} entry=${entryId} — no taxonomy_refs on parent statement`);
         }
       }
+    }
+
+    // Exclusion boundary guard (t/450): flag claims in a node's excluded scope
+    const exclusionViolations = checkClaimExclusionBoundary(
+      claimsResult.newNodes, this.taxonomy.embeddings,
+    );
+    if (exclusionViolations.length > 0) {
+      trace.exclusion_violations = exclusionViolations;
+      getGlobalRecorder()?.record({
+        type: 'an.exclusion_violation', component: 'debateEngine', level: 'warn',
+        speaker, debate_id: this.session?.id,
+        message: `${exclusionViolations.length} claim(s) flagged in exclusion zone`,
+        data: { violations: exclusionViolations },
+      });
     }
 
     const commits = this.session.commitments![speaker];

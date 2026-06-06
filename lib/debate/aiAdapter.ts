@@ -82,6 +82,7 @@ function loadRegistry(repoRoot: string): ModelRegistry {
   try {
     _registry = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ModelRegistry;
   } catch (err) {
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'aiAdapter', level: 'error', message: `Failed to parse model registry at ${configPath}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     throw new ActionableError({
       goal: 'Parse AI model registry',
       problem: `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}`,

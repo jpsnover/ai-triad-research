@@ -1,0 +1,2739 @@
+Related Work on Token-Level Metaphor Detection
+
+framework for metaphor detection.
+
+Together, these sections demonstrate the evolution of token-level metaphor
+
+detection techniques, from context denoising and conceptual embedding integration
+
+to explicit basic meaning modeling. Each approach contributes to a more refined
+
+understanding of how metaphors function in diverse linguistic settings, advancing
+
+the field of figurative language processing and its broader applications in natural
+
+language understanding.
+
+3.1 Related Work on Token-Level Metaphor De-
+
+tection
+
+Recent research in metaphor detection has transitioned from hand-crafted linguistic
+
+features (Hartley & Barnden 1997, Shutova et al. 2010, Turney et al. 2011, Broadwell
+
+et al. 2013, Tsvetkov et al. 2014) to deep neural models, leveraging contextualized
+
+representations from pre-trained language models (PLMs). In this section, we review
+
+representative neural approaches against which we compare our methods in following
+
+sections. We group these works into RNN-based models, PLM-based models, and
+
+hybrid approaches combining theoretical insights such as Metaphor Identification
+
+Procedure (MIP) and Selectional Preference Violation (SPV).
+
+RNN-based Approaches
+
+Early neural approaches to metaphor detection employed recurrent neural networks
+
+(RNNs) or convolutional neural networks (CNNs) as encoders. Wu et al. (2018) used
+
+a BiLSTM–CNN hybrid architecture with Word2Vec embeddings, augmented by
+
+POS tags and word clustering features. RNN ELMo (Gao et al. 2018) combined
+
+deep contextualized embeddings from ELMo with a BiLSTM backbone, effectively
+
+capturing sequential dependencies for metaphor detection. RNN MHCA (Mao
+
+et al. 2019) extended this model by integrating MIP and SPV theories and applying
+
+multi-head contextual attention over a fixed window, enabling better modeling
+
+of metaphor-related contextual cues. While effective, these shallow architectures
+
+41
+
+Chapter 3 Towards Robust Metaphor Detection
+
+struggle to represent the full contextual semantics of words, particularly in long-
+
+distance dependencies.
+
+PLM-based Approaches
+
+The introduction of contextualized PLMs such as BERT (Devlin et al. 2019) and
+
+RoBERTa (Liu 2019) enabled substantial improvements in metaphor detection.
+
+RoBERTa SEQ (Leong et al. 2020) fine-tuned RoBERTa in a token-level se-
+
+quence labeling setting, achieving strong performance in the VUA 2020 shared
+
+task. Su, Fukumoto, Huang, Li, Wang & Chen (2020) proposed DeepMet, which
+
+augments RoBERTa with global and local context windows and POS features. These
+
+approaches benefit from PLMs’ ability to encode rich semantic and syntactic in-
+
+formation, but still encode the entire sentence indiscriminately, which can dilute
+
+metaphor-relevant signals in noisy contexts.
+
+Hybrid and Theory-Driven Models
+
+More recent work explicitly incorporates linguistic theory or additional structural in-
+
+formation. MelBERT (Choi et al. 2021) operationalizes both MIP and SPV theories
+
+within a RoBERTa-based architecture, jointly modeling contextual and literal target
+
+embeddings to improve metaphor detection. MrBERT (Song et al. 2021) achieves
+
+state-of-the-art performance on verb metaphor detection by encoding verb–argument
+
+relational structures within BERT representations. MUL GCN (Le et al. 2020)
+
+takes a multitask approach, applying graph convolutional networks (GCNs) to
+
+jointly model metaphor detection and word sense disambiguation, leveraging shared
+
+syntactic and semantic signals.
+
+Motivation for Our Approach
+
+These prior methods have explored token-level metaphor detection extensively.
+
+For instance, RoBERTa SEQ and DeepMet demonstrated the effectiveness of
+
+leveraging pre-trained language models (PLMs), paving the way for later research —
+
+today, using BERT- or RoBERTa-based architectures has become almost standard
+
+practice for this task. MelBERT has had a lasting influence by operationalizing
+
+42
+
+Metaphor Detection with Effective Context Denoising
+
+MIP and SPV theories, and our own methods also incorporate these two theoretical
+
+frameworks.
+
+However, as highlighted by approaches such as MrBERT and MUL GCN,
+
+training purely on the original metaphor datasets sometimes provides insufficient
+
+signal for modeling the semantics of part of complex target words. This has led
+
+to a growing trend of incorporating external information to enrich target-word
+
+understanding — for example, our FrameBERT method introduces frame-semantic
+
+knowledge, while our BasicBERT approach improves basic sense modeling through
+
+more efficient use of training data.
+
+Moreover, existing token-level metaphor detection approaches process the entire
+
+sentence without explicitly filtering out irrelevant context, which can introduce noise.
+
+Our proposed RoPPT method addresses this limitation by leveraging pruned parse
+
+trees to retain only syntactically and semantically relevant parts of the sentence,
+
+thereby reducing noise and amplifying metaphor-related signals.
+
+3.2 Metaphor Detection with Effective Context
+
+Denoising
+
+Metaphor detection in NLP requires understanding complex relationships between
+
+abstract concepts and their linguistic context. However, existing methods often
+
+struggle with filtering irrelevant noise while modeling relevant contextual information.
+
+This section introduces RoPPT, a novel framework that reshapes and prunes syntactic
+
+parse trees to focus on semantically relevant neighbours of the target word.
+
+Key contributions of this section：
+
+1. Target-Oriented Parsing for Context Denoising
+
+• Instead of considering full syntactic trees, RoPPT restructures parse trees
+
+to prioritize words most relevant to the target metaphorical expression.
+
+• This ensures that only the most meaningful context is retained, reducing
+
+the impact of irrelevant sub-sentences and extraneous linguistic elements.
+
+43
+
+Chapter 3 Towards Robust Metaphor Detection
+
+2. A Robust, RoBERTa-Based Metaphor Detection Model
+
+• RoPPT integrates its target-oriented parse tree representations into a
+
+RoBERTa-based neural framework, achieving state-of-the-art performance
+
+on three benchmark metaphor datasets (VUA, MOH-X, TroFi).
+
+3. Comprehensive Evaluation of Context Denoising Strategies
+
+• RoPPT is extensively tested against existing context denoising methods,
+
+demonstrating its superiority in retaining useful linguistic features for
+
+metaphor detection.
+
+• It surpasses existing denoising and pruning techniques while maintaining
+
+computational efficiency.
+
+By introducing a target-centered, syntactically aware approach to metaphor
+
+detection, this section highlights the importance of efficient context modeling in
+
+NLP. RoPPT’s framework not only enhances metaphor recognition but also lays the
+
+groundwork for future research in figurative language processing, providing a more
+
+refined understanding of how metaphors function in diverse linguistic settings.
+
+3.2.1 Intuition and Motivation
+
+Before diving into the computational details of our method, we first explain its
+
+underlying intuition with a concrete example. Consider the following sentence from
+
+the VUA dataset:
+
+The house that when he first saw it had seemed to float on a
+
+raft of golden mist, now lay in a wilderness, amidst ragged
+
+grass and straggling bushes and trees dead from the heat.
+
+Here, the target word lay is used metaphorically, as the sentence does not literally
+
+describe a house lying down but rather conveys that the house exists in a desolate,
+
+neglected state. The main challenge is that the grammatical subject (house) is far
+
+from the verb (lay), separated by a long relative clause containing many intervening
+
+words.
+
+44
+
+Metaphor Detection with Effective Context Denoising
+
+Most previous approaches to token-level metaphor detection rely on encoding
+
+the entire sentence as a flat sequence when encoding contextual semantic informa-
+
+tion (e.g., using BERT or RoBERTa), which treats all tokens equally regardless
+
+of their syntactic relevance. In cases like the example above, the long-distance
+
+context introduces significant noise that may obscure the true semantic relationship
+
+between house and lay, making it difficult for the model to correctly classify lay as
+
+metaphorical.
+
+Our approach, RoPPT, addresses this problem by leveraging syntactic structure.
+
+Instead of processing the full unfiltered sentence, we first construct a dependency
+
+parse tree and prune it to retain only the nodes that are syntactically relevant to
+
+the target word. This process effectively removes irrelevant tokens from the input,
+
+reducing contextual noise and strengthening the signal of the true grammatical
+
+relation (house → lay). Intuitively, this allows the model to “see” a cleaner version
+
+of the sentence where the most important cues for metaphor detection are preserved,
+
+which we hypothesize will lead to more accurate predictions.
+
+Figure 3.1: The overall framework of RoPPT. The parse tree of a
+sentence is reshaped to a target-oriented tree, and the context is pruned
+with a pre-set threshold. The sentence embedding is the average pooling
+result of hidden states for pruned context from RoBERTa. (cid:76) denotes
+concatenation.
+
+45
+
+Chapter 3 Towards Robust Metaphor Detection
+
+3.2.2 Method
+
+The overall architecture of RoPPT is shown in Figure 3.1, which can be divided into
+
+two parts: a target-oriented parse tree pruning module and a RoBERTa (Liu 2019)
+
+contextual encoder.
+
+Target-oriented Dependency Parse Tree
+
+We tackle this challenge by introducing a target-oriented parse tree generated by
+
+three steps: 1) reshape the original parse tree from existing parsers such as spaCy
+
+(Honnibal & Montani 2017) and Biaffine (Dozat & Manning 2016); 2) root the tree
+
+at the target word; 3) prune the tree according to the distance between leaves and
+
+the new root, for which we coin the term neighbour range. The rationale behind
+
+is that the target word is the focus of the task rather than the original root. So
+
+the re-rooting allows us to focus on the connections between target words and their
+
+relevant context. The resulting flat, target-oriented tree structure also enables simple
+
+encoding process into the model. Figure 3.1 shows an example of our reshaped tree,
+
+which retrains words with neighbour range con = 1 to the root ‘bogged’.
+
+RoBERTa-based Context Encoder
+
+We employ two metaphor identification theories in our model, i.e., Metaphor Identi-
+
+fication Procedure (Steen 2010, MIP) and Selectional Preference Violation (Wilks
+
+1978, SPV). In MIP, a metaphor is detected when there is a contrast between target
+
+word’s contextual and literal meanings, whereas in SPV a metaphorical word is
+
+identified by the semantic difference from its surrounding words.
+
+Therefore, we model three types of semantic representations for implementing
+
+MIP and SPV, i.e., the literal meaning and the contextual meaning of a target word,
+
+and the context meaning.
+
+Formally, given a sentence S = (w0, ..., wn), we first employ the RoBERTa
+
+network to produce representations for each word.
+
+H = RoBERTa Enc(embcls, emb0, ..., embn)
+
+(3.1)
+
+46
+
+Metaphor Detection with Effective Context Denoising
+
+Here cls is a special token indicating the start of an input, H = (hcls, h0, ..., hn)
+
+the output hidden states, and embi the input embedding for word wi. Specifically,
+
+embi = embw + embpos, where embw is the word embedding produced by the
+
+tokenizer, and embpos the position encoding.
+
+Context denoising with the target-oriented parse tree. When modelling
+
+sentence representation, existing works directly employ the cls embedding as a
+
+common practice (Choi et al. 2021, Song et al. 2021). In contrast, RoPPT employs
+
+the target-oriented parse tree to retain the most relevant context for a target word
+
+when computing the sentence embedding.
+
+Specifically, our sentence embedding is computed as follows:
+
+vS =
+
+(cid:88)
+
+1
+n
+
+hi, i ∈ Cn
+
+(3.2)
+
+Here vS is the sentence representation; Cn represents the n neighbour words within
+
+the neighbour range of the target-oriented parse tree, and hi is the hidden state of
+
+wi. In other words, we do average pooling on the most relevant context words as
+
+the sentence representation and ignore other words in the sentence.
+
+We also design an alternative strategy by directly masking the original input
+
+sentence to the encoder according to the pruned parse tree. Specifically, we retain
+
+only the words that are preserved in the pruned tree and replace all others with the
+
+special [mask] token. We denote this intuitive solution as RoPPT with Input Mask
+
+(RoPPT IM) and discuss the performance difference between these two variants in
+§3.2.5. Similar to Choi et al. (2021), we use the hidden state of target word wt as
+
+the contextual target word embedding (i.e. vS,t = ht), and the literal target word
+
+embedding vt is obtained by feeding the single target word wt to the RoBERTa
+
+network.
+
+vt = RoBERTa Enc(embt)
+
+(3.3)
+
+We then model SPV (hSPV) by concatenating the sentence embedding vS and
+
+contextual target embedding vS,t, and MIP (hMIP) by concatenating the contextual
+
+and literal target embeddings vt, followed by a MLP layer (i.e. f1(·) and f2(·)),
+
+47
+
+Chapter 3 Towards Robust Metaphor Detection
+
+which allows the model to learn task-specific features from the two strategies. This
+
+design ensures that SPV and MIP capture complementary aspects of metaphorical
+
+usage before being fused in later layers.
+
+hSPV = f1([vS, vS,t])
+
+hMIP = f2([vS,t, vt])
+
+(3.4)
+
+(3.5)
+
+Finally, we combine two hidden vectors hMIP and hSPV to compute a prediction
+
+score ˆy, and use binary cross entropy loss to train the overall framework for metaphor
+
+prediction.
+
+ˆy = σ(W ⊤[hMIP; hSPV] + b)
+
+L = −
+
+N
+(cid:88)
+
+i=1
+
+[yi log ˆyi + (1 − yi) log(1 − ˆyi)]
+
+(3.6)
+
+(3.7)
+
+3.2.3 Statistical Significance Testing
+
+To rigorously evaluate the performance improvements of our proposed methods over
+
+existing baselines, we conduct statistical significance testing on the model outputs.
+
+Significance testing is crucial in metaphor detection, where performance differences
+
+between systems are often small, and claims of superiority must be substantiated by
+
+robust statistical evidence.
+
+Historically, the two-tailed t-test has been commonly used in the metaphor
+
+detection community for this purpose. The two-tailed t-test evaluates whether the
+
+mean of the pairwise differences in performance (e.g., F1-scores across samples)
+
+between two models differs significantly from zero. However, as noted by Dietterich
+
+(1998), Rainio et al. (2024), Jurafsky & Martin (2025), the t-test is a parametric
+
+method that assumes normality of the difference distribution and independence
+
+of samples—assumptions that may not hold for classification outcomes on a fixed
+
+test set. As such, reliance on the two-tailed t-test alone has been questioned in the
+
+broader ML/NLP community.
+
+48
+
+Metaphor Detection with Effective Context Denoising
+
+To address this, we complement the two-tailed t-test with an additional non-
+
+parametric method: McNemar’s test for pairwise comparison of classification out-
+
+comes (Rainio et al. 2024). McNemar’s test focuses on discordant pairs—cases
+
+where the two models disagree—and thus directly tests whether the models have
+
+significantly different error patterns. This approach makes no assumptions about
+
+the underlying data distribution and provides more reliable confidence intervals.
+
+By including both parametric (two-tailed t-test) and non-parametric (McNemar)
+
+tests, we ensure that our claims of significance are robust under different statistical
+
+assumptions. In all cases, we report the p-values and indicate statistical significance
+
+at the conventional threshold (p < 0.05). The test set sizes and evaluation metrics
+
+(Precision, Recall, F1) are explicitly stated for reproducibility.
+
+3.2.4 Experimental Setup
+
+Dataset. We conduct experiments on four public benchmark datasets, as detailed
+
+in §2.2.3. These include VUA-18, VUA-20, MOH-X, and TroFi, which vary in
+
+size, sentence length, and annotation format.
+
+Methods. For comparison, we evaluate our method against several representa-
+
+tive baselines previously introduced in §3.1: RNN ELMo (Peters et al. 2018),
+
+RoBERTa SEQ (Leong et al. 2020), MrBERT (Song et al. 2021), and MelBERT
+
+(Choi et al. 2021). Unlike above methods, which encode full sentences, RoPPT lever-
+
+ages pruned parse trees to filter out irrelevant tokens, reducing noise and enhancing
+
+metaphor-relevant signals. In addition, we design several RoBERTa-based denois-
+
+ing methods for ablation comparison: RoBERTa tree: apply our target-oriented
+
+pruned dependency tree to the RoBERTa SEQ encoder without using SPV and MIP
+
+strategies. RoChunk: a denoising method that splits sentences by commas and
+
+keep only the comma-delimited clause that contains the target before encoding, and
+
+use RoBERTa with SVP and MIP strategies. RoWindow: a fixed context window
+
+baseline, keep a symmetric token window around the target (window size = 4), drop
+
+everything else, and feed the windowed context to RoBERTa with the SPV and
+
+MIP stragegies. RoPPT IM: an intermediate version of our approach that applies
+
+direct masking before the encoder. RoPPT: our full method combining pruned
+
+49
+
+Chapter 3 Towards Robust Metaphor Detection
+
+VUA18
+
+VUA20
+
+Prec Rec
+
+Model
+
+Prec Rec
+F1
+73.6
+71.6
+RNN ELMo
+72.6
+74.4
+RoBERTa SEQ 80.1
+77.1
+72.5
+82.7
+MrBERT
+77.2
+MelBERT*
+76.4
+79.6
+77.9
+76.9
+80.1
+MelBERT
+78.5
+76.1
+78.9
+RoBERTa tree
+77.4
+80.0
+76.6
+RoChunk
+78.2
+78.1
+78.0
+RoWindow
+78.0
+73.9
+74.3
+73.4
+RoPPT IM
+78.2 79.1
+80.0
+RoPPT
+
+F1
+-
+-
+67.1
+70.9
+-
+-
+68.6
+72.2
+69.0
+72.3
+68.6
+71.6
+70.0
+71.9
+68.8
+71.8
+67.2
+66.8
+70.0 72.8
+
+-
+75.1
+-
+76.3
+75.9
+74.8
+73.9
+75.0
+67.7
+75.9
+
+Table 3.1: Performance comparison on VUA dataset (best is in bold).
+NB: * indicates the reproduced results of MelBERT using the original
+source code and setting of Choi et al. (2021). RNN ELMo and MrBERT
+have no results on VUA20 in their original paper. Popular denoising
+methods are also compared. RoChunk means chunk sentence by comma
+on RoBERTa input, RoWindow means denoising by a context win-
+dow (size=4). RoPPT IM represent masking sentence before input to
+transformer encoder. The solid horizontal line separates previous work
+(above) from our proposed models (below). The partial dotted horizon-
+tal line further separates generic denoising strategies (above) from our
+RoPPT-based models (below).
+
+parse tree guidance with SPV and MIP strategies.
+
+Hyperparameter. We set the hyperparameter neighbour range con = 4 based on
+
+the validation set results. All the parser results are based on spaCy as it performs
+
+better than Biaffine empirically (see §3.2.5 for more discussion).
+
+3.2.5 Experimental Results
+
+Overall results. Table 3.1 shows a comparison of the performance of our models
+
+against the baseline models on VUA18 and VUA20, respectively. It is clear that our
+
+RoPPT outperforms all baselines on VUA18 and VUA20, including the state-of-the-
+
+art model MelBERT. A two-tailed t-test was conducted based on 10 paired results
+
+from RoPPT and the strongest baseline MelBERT* on both VUA-18 (p = 0.014)
+
+and VUA-20 (p = 0.019). A McNemar’s test was also performed on the prediction
+
+outputs of RoPPT and the strongest baseline MelBERT* for both VUA-18 and
+
+VUA-20, yielding highly significant results with p < 0.001 in both cases. Due to
+
+50
+
+Metaphor Detection with Effective Context Denoising
+
+Models
+
+RoBERTa SEQ 53.6
+53.7
+DeepMet
+53.8
+MrBERT
+MelBERT*
+53.1
+53.4
+MelBERT
+50.3
+RoBERTa tree
+54.2
+RoPPT
+
+TroFi
+F1
+Prec Rec
+60.7
+70.1
+61.7
+72.9
+62.7
+75.0
+61.6
+73.2
+62.0
+74.1
+77.8
+61.1
+76.2 63.3
+
+MOH-X
+
+F1
+Prec Rec
+78.7
+77.7
+80.6
+77.9
+76.5
+79.9
+79.8
+84.1
+75.9
+78.8
+79.5
+78.0
+79.2
+79.7
+79.3
+83.5
+76.9
+79.3
+83.5 80.1
+77.0
+
+Table 3.2: Performance comparison on TroFi and MOH-X datasets
+(NB: bold denotes the best result).
+
+environment differences and random variation, we were not able to exactly match
+
+the original reported numbers; therefore, in our statistical significance tests we used
+
+MelBERT* as the baseline.
+
+We also compared our method against several common denoising strategies. The
+
+results show that our tree-based denoising method is more effective than other
+
+popular denoising approaches such as RoChunk and RoWindow, which are sequence-
+
+based methods. We also apply our target-oriented tree to RoBERTa SEQ, denoted as
+
+the RoBERTa tree model. The improvement of RoBERTa tree over RoBERTa SEQ
+
+on two VUA datasets (i.e. 0.3% and 0.7%) further demonstrates the utility of our
+
+tree-based denoising method.
+
+Following the setup of Choi et al. (2021), we also conducted a zero-shot transfer
+
+learning experiment shown in Table 3.2. Specifically, our model is trained on the
+
+training set of VUA20 and directly tested on the entire Trofi and MOH-X datasets.
+
+This is intended to test the generalisation power of trained models. RoPPT shows
+
+the best performance on both datasets. The results of two-tailed t-test significance
+
+test on RoPPT against MelBERT* are p < 0.001 on TroFi and p = 0.021 on MOH-X,
+
+and the McNemar’s test are p < 0.001 on TroFi and p = 0.042 on MOH-H (we
+
+cannot compare with MrBERT as the code is unavailable). It can be observed that
+
+our model gives a larger margin of improvement over the baselines on TroFi (i.e.,
+
+1.3% gain over MelBERT and 0.6% over MrBERT) than MoH-X (i.e., 0.9% gain
+
+over MelBERT and 0.3% over MrBERT).
+
+On the Use of Combined SPV and MIP Representations A key design choice
+
+51
+
+Chapter 3 Towards Robust Metaphor Detection
+
+in RoPPT is to jointly model SPV and MIP representations, rather than evaluating
+
+each representation in isolation. This decision is grounded in both prior empirical
+
+evidence and the specific focus of our contribution.
+
+First, MelBERT (Choi et al. 2021), which our framework closely follows, system-
+
+atically compared SPV-only, MIP-only, and combined SPV+MIP settings. Their
+
+results demonstrated that the joint modeling approach consistently outperformed
+
+either representation used individually. The rationale is intuitive: SPV is effective
+
+for metaphors that violate selectional restrictions, whereas MIP captures shifts in
+
+contextual meaning. These two theoretical perspectives are complementary—each
+
+detects cases that the other may miss—and their combination provides a more
+
+robust signal for metaphor detection.
+
+Second, the primary novelty of RoPPT lies in the introduction of parse-tree
+
+pruning to reduce contextual noise. This pruning operation is applied at the output
+
+level of the RoBERTa encoder, thus primarily improving the quality of the contextual
+
+embeddings that feed into MIP-based representations. Consequently, additional
+
+ablation experiments that separately evaluate SPV and MIP are unlikely to yield
+
+new insights beyond what was already established in MelBERT.
+
+Given this empirical evidence and the theoretical grounding in prior work, we
+
+opted to retain the combined representation as the default and did not conduct
+
+further ablation experiments on SPV- or MIP-only settings.
+
+Model performance vs. Sentence length. As the averaged sentences length
+
+of TroFi (28.3 tokens) is significantly longer than that of MoH-X (8 tokens), it is
+
+worth investigating whether our model gives more performance boost on data with
+
+longer context as it is likely to be noisier. To verify this hypothesis, we evaluated the
+
+performance boost of our RoPPT against the SOTA baseline MelBERT. Table 3.4
+
+shows the results of VUA18 with the test set split into 3 different groups based
+
+on sentence length. The results demonstrate a clear positive correlation between
+
+performance boost and sentence length.
+
+Impact of Parsers. neumann2019scispacy As shown in Tabel 3.3, we also in-
+
+vestigated how the choice of parsers impacts the metaphor detection performance
+
+of our model. Specifically, following and investigating the work of Neumann et al.
+
+52
+
+Metaphor Detection with Effective Context Denoising
+
+(2019), we tested two parsers for constructing the target-oriented dependency parse
+
+trees, namely, the CNN-based parser Biaffine and the RoBERTa-based parser spaCy.
+
+When tested on the validation set, our model achieves 78.0% with spaCy and 77.7%
+
+with Biaffine in F1 for metaphor detection, respectively. This shows that the impact
+
+of the parse choice is relatively small for our model.
+
+Parsers
+spaCy
+Biaffine
+
+based-on
+RoBERTa
+CNN
+
+Precision
+95
+90
+
+F1
+78.0
+77.7
+
+Table 3.3: Impact of Parsers on the validation set.
+
+Case Studies. RoPPT shows its strength in the following example with the target
+
+word far away from its subject, which is correctly labeled by RoPPT but incorrectly
+
+by baseline models. For the instance with metaphorical target word bogged, “a
+
+routine exercise in extending the government’s borrowing power to $3.1 thousand
+
+billion became bogged down.”, the target word bogged is separated from its subject
+
+by a long phrase, which causes baselines (including MelBERT) to fail to detect the
+
+metaphor. Thanks to the parse tree, RoPPT links exercise directly to the target and
+
+produces the right label. RoPPT is also able to solve false positive examples where a
+
+target verb’s neighbours mislead baselines. For the example with non-metaphorical
+
+target word bother, “Well, better than that, and one of the best things about it is
+
+the fact that so few people, except the French themselves, bother with it.”, French
+
+(which could also be understood as a language), bother ’s neighbour, misleads other
+
+denoising methods like RoChunk and RoWindow yet our model accurately detects
+
+its real subject people here.
+
+The above two examples from VUA are both classified successfully by our method.
+
+However, our method is particularly effective in reducing the noise introduced by long
+
+contexts, which is evident on the VUA dataset. In contrast, on datasets such as MOH-
+
+X, where sentence lengths are generally shorter, the advantage is less pronounced.
+
+For example, in the sentence “He injected new life into the performance”, all methods
+
+are able to correctly identify injected as a metaphor.
+
+53
+
+Chapter 3 Towards Robust Metaphor Detection
+
+Sent.
+len.
+<20
+20-40
+>40
+
+RoPPT
+
+MelBERT*
+
+Prec Rec
+76.4
+81.8
+82.3
+
+F1
+74.8 75.6
+79.9 80.8
+80.0 81.1
+
+Prec Rec
+75.2
+75.0
+79.1
+79.2
+76.8
+78.5
+
+F1
+75.1
+79.2
+77.6
+
+F1
+diff.
+0.5
+1.6
+3.5
+
+Pruning
+comp.
+10.7 / 12.3
+16.4 / 29.4
+19.5 / 53.6
+
+# of
+Sent.
+18,515
+17,729
+7,703
+
+Table 3.4: RoPPT and MelBERT* performance comparison on sen-
+tences with different length range from VUA18. ‘Pruning comp.’ is the
+comparison of the average length of (pruned) / (original) sentences.
+
+3.3 FrameBERT: Conceptual Metaphor Detection
+
+with Frame Embedding Learning
+
+While transformer-based models like BERT excel at capturing contextual semantics,
+
+they often miss deeper conceptual meanings essential for metaphor detection. This
+
+section presents FrameBERT, a RoBERTa-based model that integrates FrameNet
+
+embeddings to incorporate structured external knowledge.
+
+Key contributions of this section:
+
+1. Integration of FrameNet for Conceptual Metaphor Detection
+
+• FrameBERT is the first deep learning model to incorporate FrameNet
+
+embeddings for metaphor detection, leveraging external conceptual knowl-
+
+edge to enhance metaphor identification.
+
+2. A More Explainable and Interpretable Metaphor Detection Model
+
+• By utilizing semantic frames, FrameBERT improves explainability, pro-
+
+viding insights into how metaphorical meanings emerge from structured
+
+conceptual relationships.
+
+3. State-of-the-Art Performance on Multiple Benchmark Datasets
+
+• FrameBERT outperforms or matches the best-performing models on four
+
+public metaphor detection datasets (VUA18, VUA20, MOH-X, TroFi),
+
+demonstrating the effectiveness of incorporating external knowledge.
+
+By integrating conceptual structure and linguistic theory into metaphor detec-
+
+tion, this section presents a significant advancement in explainable NLP models.
+
+54
+
+FrameBERT: Conceptual Metaphor Detection with Frame Embedding Learning
+
+FrameBERT not only enhances metaphor detection accuracy but also establishes a
+
+framework for integrating external knowledge into deep learning models, paving the
+
+way for future research in metaphor processing and beyond.
+
+Figure 3.2: The overall framework. The foreground encoder illustrates
+sentence encoder providing hidden-state representations and the back-
+ground one shows concept encoder producing concepts information. The
+frame embedding and hidden state embedding are concatenated to make
+final predictions.
+
+3.3.1 Model
+
+We propose FrameBERT, a novel model that can explicitly learn and incorporate
+
+FrameNet embeddings for concept-level metaphor detection. Figure 3.2 illustrates
+
+the overall architecture of FrameBERT, which consists of two components: a sentence
+
+encoder and a concept encoder.
+
+Sentence Encoder
+
+The sentence encoder of FrameBERT follows the architecture of RoPPT §3.2.2,
+
+as both models adopt the same theoretical framework based on the MIP and
+
+the SPV hypothesis to model metaphor detection. Specifically, both models use
+
+RoBERTa (Liu 2019) to encode the sentence representation vS, the contextualised
+
+target word embedding vS, t, and the isolated target word representation vt.
+
+FrameBERT using MIP and SPV. Following the MIP and SPV theories,
+
+we construct vector representations hM IP and hSP V by concatenating the target’s
+
+55
+
+Chapter 3 Towards Robust Metaphor Detection
+
+literal and contextual embeddings, as well as the contextual target and sentence
+
+embeddings, respectively—identical to the formulation used in RoPPT (see Eq. 3.4
+
+& 3.5). Compared to RoPPT, FrameBERT removes the target-oriented syntactic
+
+denoising component based on dependency parse trees, streamlining the encoder.
+
+Instead, FrameBERT introduces an additional conceptual encoder to incorporate
+
+external semantic knowledge from FrameNet, which we discuss in the following
+
+subsection.
+
+Conceptual Encoder
+
+One of the key contributions of this method is that our model can explicitly learn
+
+and incorporate FrameNet Embeddings for concept-level metaphor detection. This
+
+is achieved via the conceptual encoder, where we first fine-tune a RoBERTa model
+
+on the FrameNet dataset (Ruppenhofer et al. 2002) with an objective to classify
+
+frame labels, and then join the conceptual encoder with the sentence encoder.
+
+FrameNet is a rich lexical database that documents the range of semantic frames
+
+(schematic representations of situations or events) and the lexical units (words or
+
+phrases) that evoke them. Each entry in the FrameNet dataset consists of a sentence
+
+annotated with a target word (lexical unit), the semantic frame it evokes (e.g.,
+
+Commerce buy, Cause to end, Coming to believe), and associated frame elements
+
+(the roles related to the frame, which we do not use here). In our setting, we focus
+
+on predicting the semantic frame label associated with each target word in context.
+
+Details of the FrameNet dataset used in this work are provided in §3.3.2. The
+
+sentence, target words, and their semantic frame is shown as in Figure 3.3.
+
+We extend the two metaphor detection theories to the conceptual dimension. For
+
+MIP we compare the literal concepts and the contextual concepts of the target word
+
+rather than its hidden-state-meaning. For SPV we compare the input sentence’s
+
+concepts and target’s concepts. Note that in all three cases (sentence meaning,
+
+contextual meaning, literal meaning) we allow for multiple concepts to represent
+
+the meaning; we actually use a distribution. We use FrameNet frames to provide
+
+concept information : literal concepts and contextual concepts for target words and
+
+sentence concepts for input sentence in the metaphor detection process, as shown in
+
+56
+
+FrameBERT: Conceptual Metaphor Detection with Frame Embedding Learning
+
+Figure 3.2. Before putting the conceptual information into our metaphor detection
+
+framework, we first perform a frame identification pre-training process.
+
+Figure 3.3: The frame identification pre-training stage, where target
+word embedding are used to predict target frame and cls embedding
+predict all frames occur in the input.
+
+In this pre-train stage, given an input sentence S = (w0, ..., wn) with several
+targets with their frame labeled, we add a special token cls at the beginning of the
+
+sentence and apply 12 Transformer encoder layers(like BERT) on the tokenised input
+
+to obtain the contextualised hidden states for each word H = (hcls, h0, ..., hn) and
+the cls token, similar to sentence encoder part. We then leverage the contextual
+
+target word hidden states and cls hidden states (as sentence representation) to
+
+predict the target word’s frame and all frames detected in the sentence. Formally,
+given cls hidden states hcls and a list of contextualised target word hidden states
+
+H = (h0, ..., hk), we obtain the frame distribution for sentence and targets as follows:
+
+ˆyf
+
+cls = sigmoid(W0hcls + b0)
+
+ˆyf = softmax(W1H + b1)
+
+(3.8)
+
+(3.9)
+
+where W0 and W1 are learnable parameters, b0 and b1 are bias. Note that ˆyf
+cls
+
+should be applied on all frame classes, that is compute it on each possible frame
+
+57
+
+Chapter 3 Towards Robust Metaphor Detection
+
+class. We then minimise the following loss functions:
+
+Ltarget = −
+
+(cid:88)
+
+y log ˆyf
+
+Lcls = −
+
+N
+(cid:88)
+
+L
+(cid:88)
+
+i=0
+
+yi log ˆyf
+cls
+
++ (1 − yi) log(1 − ˆyf
+
+cls)
+
+(3.10)
+
+(3.11)
+
+(3.12)
+
+where N is the number of training samples. L is number of frame labels, which
+
+means we are optimising the objective on all possible frame classes. We use λ as a
+
+hyperparameter controlling weights between two losses: L = λ ∗ Lcls + Ltarget; and
+
+we set it to 2 in our experiments.
+
+After the pre-train stage, the conceptual encoder will provide frame information
+
+for metaphor detection. As shown in Figure 3.2, in the MIP module, we concatenate
+
+the contextualised frame embedding hS,t and isolated frame embedding ht of target
+In the SPV module, we concatenate the cls frame
+
+word to hM IP (eq. 3.13).
+
+embedding hcls and contextualised target word frame embedding hS,t to hSP V (eq.
+
+3.14).
+
+hM IP = vt ⊕ vS,t ⊕ ht ⊕ hS,t
+
+hSP V = vS ⊕ vS,t ⊕ hcls ⊕ hS,t
+
+(3.13)
+
+(3.14)
+
+We then combine two hidden vectors hM IP and hSP V to compute a prediction score.
+
+ˆy = σ(WT (hM IP ⊕ hSP V ) + b)
+
+(3.15)
+
+Finally, we use binary cross entropy loss to train the overall framework for metaphor
+
+prediction.
+
+L = −
+
+N
+(cid:88)
+
+i=0
+
+yi log ˆyi − (1 − yi) log(1 − ˆyi)
+
+(3.16)
+
+58
+
+FrameBERT: Conceptual Metaphor Detection with Frame Embedding Learning
+
+3.3.2 Experiments
+
+Dataset. We conduct experiments on four public benchmark datasets, as detailed
+
+in §2.2.3. These include VUA-18, VUA-20, MOH-X, and TroFi. Additionally,
+
+the concept encoder was pre-trained on FrameNet release 1.7 (Ruppenhofer
+
+et al. 2002) with about 19k, 6k, 2k annotations for training, testing and evaluation
+
+respectively.
+
+Baselines. We adopt several strong baselines previously introduced in §3.1, including
+
+both conventional and state-of-the-art metaphor detection models. RNN ELMo
+
+(Gao et al. 2018) combined ELMo and BiLSTM as a backbone model. RNN MHCA
+
+(Mao et al. 2019): they introduced MIP and SPV into RNN ELMo and capture
+
+the contextual feature within window size by multi-head attention. MUL GCN
+
+(Le et al. 2020) apply a GCN based multi-task framework by modelling metaphor
+
+detection and word sense disambiguation. RoBERTa SEQ (Leong et al. 2020) is
+
+a fine-tuned RoBERTa model in sequence labeling setting for metaphor detection.
+
+MelBERT (Choi et al. 2021) realize MIP and SPV theories via a RoBERTa based
+
+model. MrBERT (Song et al. 2021) is the recent sota on verb metaphor detection
+
+based on BERT with verb relation encoded.
+
+Models
+
+Prec
+
+RNN ELMo
+71.6
+RoBERTa SEQ 80.1
+79.6
+MelBERT ⋆
+80.1
+MelBERT
+MrBERT
+82.7
+82.7
+FrameBERT
+
+VUA18
+
+VUA20
+
+Rec
+
+73.6
+74.4
+76.4
+76.9
+72.5
+75.3
+
+F1
+
+Prec
+
+72.6
+77.1
+77.9
+78.5
+77.2
+78.8*
+
+-
+75.1
+76.4
+75.9
+-
+79.1
+
+Rec
+
+-
+67.1
+68.6
+69.0
+-
+67.7
+
+F1
+
+-
+70.9
+72.3
+72.3
+-
+73.0*
+
+Table 3.5: Performance comparison on VUA datasets (best results in
+bold). NB: ⋆ indicates the reproduced results of MelBERT using the
+original source code and setting of Choi et al. (2021). * denotes our
+model outperforms the competing model with p < 0.05 for both 2-sided
+t-test and McNemar’s test; except MrBERT whose code is not published.
+
+Ablation Study. We conducted three controlled experiments to rigorously evaluate
+
+the contribution of conceptual information in our framework. All experiments were
+
+performed on the VUA-20 dataset, using the same data splits and hyperparameter
+
+59
+
+Chapter 3 Towards Robust Metaphor Detection
+
+configurations as in the main experiments, to ensure comparability. The only
+
+difference lies in the treatment of conceptual embeddings or the frame identification
+
+pretraining stage.
+
+• Shuffling Conceptual Embeddings during Evaluation. In this setting,
+
+we first train the model using the original conceptual encoder and its pre-
+
+trained frame embeddings, following the procedure described in §3.3.1. During
+
+evaluation, however, we randomly shuffle the conceptual embeddings within
+
+each mini-batch. This means that for every target token wt in the evaluation
+
+batch, instead of using its true conceptual embedding ht, we assign the
+
+conceptual embedding of a randomly sampled target token from the same
+
+batch. This breaks the semantic alignment between the sentence context and
+
+the corresponding concept representation, while leaving the rest of the model
+
+intact. The goal of this experiment is to measure how much the model’s
+
+predictive performance relies on conceptually accurate embeddings, as opposed
+
+to simply using the sentence encoder.
+
+• Shuffling Conceptual Embeddings during Training and Evaluation. In
+
+this more aggressive ablation, we apply the same shuffling procedure described
+
+above not only at evaluation time, but also during training. This forces the
+
+model to learn with inconsistent conceptual information, effectively preventing
+
+it from exploiting the conceptual encoder as a reliable signal. We expect this
+
+setting to largely reduce the model to a base RoBERTa encoder with additional
+
+noise injected from the conceptual stream. This experiment tests whether the
+
+model can still derive useful information when concept supervision is corrupted
+
+throughout the entire learning process.
+
+• Removing Frame Fine-Tuning. Finally, to test the contribution of the
+
+frame identification pretraining stage, we remove the frame fine-tuning step
+
+entirely and initialize the conceptual encoder with the base RoBERTa weights.
+
+The rest of the metaphor detection architecture remains unchanged. This
+
+allows us to examine whether explicitly adapting the encoder to the FrameNet
+
+frame classification task improves the downstream performance or whether
+
+60
+
+FrameBERT: Conceptual Metaphor Detection with Frame Embedding Learning
+
+the benefit is negligible.
+
+3.3.3 Experimental Results
+
+Overall results. Table 3.5 shows a comparison of the performance of our model
+
+against the baseline models on VUA18 and VUA20 respectively. Our model out-
+
+performs all the baseline models on VUA-20, including the state-of-the-art-model
+
+MelBERT (with p < 0.05 for both two-tailed t-test and McNemar’s test). For
+
+VUA-18, we outperformed all the baselines significantly including the re-produced
+
+results for MelBERT. Table 3.7 shows the results on the MOH-X and TroFi dataset.
+
+The results show our method beats the SOTA method on the TroFi benchmark and
+
+gains comparable performance on the MOH-X dataset. In addition, we evaluated
+
+our conceptual encoder on FrameNet 1.7, achieving a frame identification Accuracy
+
+of 90.1, which still lags behind the SOTA result reported by KGFI (Su, Li, Li, Pan,
+
+Zhang, Chai & Han 2021) at the time.
+
+Models
+Peng et al. (2018)
+Jiang & Riloff (2021)
+KGFI (2021)
+our conceptual encoder
+
+Accuracy
+89.1
+92.1
+92.4
+90.1
+
+Table 3.6: Accuracy comparison for Frame Identification on FrameNet
+release 1.7 datasets (best results in bold).
+
+Ablation Study. The results of all three experiments are summarized in Table 3.8.
+
+The first experiment shows a significant performance drop (F1 decreases by approx-
+
+imately 13%) when conceptual embeddings are shuffled only at evaluation time,
+
+confirming that the model actively uses conceptual information during inference. In
+
+the second experiment, where shuffling occurs during both training and evaluation,
+
+the F1 score drops by a smaller margin (3.7%), suggesting that the model learns to
+
+ignore unreliable conceptual information and relies more on the sentence encoder,
+
+effectively collapsing to a baseline model. Finally, removing frame fine-tuning reduces
+
+F1 by 1.2%, provides some evidence that the frame classification pretraining may
+
+contribute to the quality of the conceptual embeddings.
+
+61
+
+Chapter 3 Towards Robust Metaphor Detection
+
+Together, these results validate that (i) conceptual information is deeply inte-
+
+grated into the model’s decision-making process, (ii) the model can fall back to
+
+purely contextual representations when concept supervision is corrupted, and (iii)
+
+frame-level fine-tuning improves but is not solely responsible for the model’s ability
+
+to exploit conceptual signals.
+
+Models
+
+Prec Rec
+
+F1
+
+RNN MHCA 68.6
+73.1
+MUL GCN
+73.9
+MrBERT
+
+i
+
+F
+o
+r
+T
+
+76.8
+73.6
+72.1
+
+72.4
+73.2
+72.9
+
+FrameBERT 70.7
+
+78.2 74.2
+
+-
+
+X RNN MHCA 77.5
+79.7
+H
+O
+84.1
+M
+
+MUL GCN
+MrBERT
+
+80.0
+83.1
+80.5
+79.6
+85.6 84.2
+
+FrameBERT 83.2
+
+84.4
+
+83.8
+
+Table 3.7: Performance comparison of our method with baselines
+on TroFi and MOH-X (best results in bold). We do not perform a
+significance test since the code of MrBERT is not published.
+
+Concept Analysis.
+
+In this section, we illustrate how the proposed approach
+
+detects metaphors in an interpretable way and how well the method using frame
+
+features. We performed an exploratory analysis on 200 examples where our system
+
+had a correct classification, but MelBERT failed. We also identified counterexamples
+
+where MelBERT succeeded but our system did not, highlighting some of the limita-
+
+tions of our model. The following two examples show how frame information works
+
+in the metaphor detection procedure. The first is a true positive example with the
+
+target word in bold: ‘Local people mutter and march, make speeches and throw things;
+
+staff face sarcasm in nearby pubs . . . .’ Here our system had the following concepts
+
+as the literal meaning for ‘face’: ‘Body parts, Facial expression, Change posture’,
+
+which are more basic meanings, relating to the face as a part of the body. In contrast,
+
+contextual concepts are extracted as follows: ‘Confronting problem, Resolve problem,
+
+Surviving’. These capture well the contextual meaning of ‘face’ in the sentence.
+
+The contextual meanings are more abstract, and the contrast between literal and
+
+contextual concepts helps the model to detect the metaphorical usage of face here.
+
+An example of a true negative is: ‘. . . hot computers are slow, the warmth might
+
+62
+
+Metaphor Detection via Explicit Basic Meanings Modelling
+
+Models
+
+Prec Rec
+
+F1
+
+FrameBert
+rand in eval
+rand in train & eval
+w/o frame fine-tuning
+
+82.7
+81.8
+79.3
+79.1
+
+75.3 78.8
+68.3
+58.7
+75.8
+72.6
+77.6
+76.3
+
+Table 3.8: Results of ablation study, tested on VUA18. rand in eval
+represents the first experiment where the shuffle process is only performed
+in evaluation stage and rand in train & eval represents the second ex-
+periment where the shuffle process is performed in both training and
+evaluation stages. In w/o frame fine-tuning experiment, we remove the
+frame fine-tuning process.
+
+damage. . . ’. ‘Hot’ is a word that can often be used metaphorically (e.g. hot topic, hot
+
+pants, hot properties), but in this sentence our model correctly identified it as literal
+
+and contextual concepts identified were identical: ‘Temperature, Fire Burning’. In
+
+terms of how well our method using frame features, we measured the accuracy of
+
+the frame prediction module manually for these 200 examples, and found the correct
+
+frame label was identified in the top 3 frame label prediction for 178 of 200 examples
+
+(89%). This indicates our method is effective extracting frame features.
+
+However, our method is not without limitations.
+
+In one false positive case
+
+(where our model predicted metaphorical but the gold label is literal): Everything is
+
+home-grown, home-made and fresh: it tastes like forgotten food.’ Here, our model
+
+predicted metaphorical usage for tastes’, associating it with contextual frames such
+
+as: Experiencer focus, Judgement communication’, instead of more literal frames
+
+like: Ingestion, Perception experience’. The confusion likely stems from the abstract
+
+phrase ‘forgotten food ’, which resembles metaphorical expression but is not annotated
+
+as such in the gold data. This suggests the model can be overly sensitive to figurative
+
+cues in context, leading to false positives.
+
+3.4 Metaphor Detection via Explicit Basic Mean-
+
+ings Modelling
+
+Metaphor detection relies on distinguishing between a word’s contextual meaning
+
+and its more basic or concrete sense. However, we acknowledge that many words do
+
+63
+
+Chapter 3 Towards Robust Metaphor Detection
+
+not have a single, universally agreed-upon fundamental meaning. Due to phenomena
+
+such as homography (e.g., “bat” as an animal vs. a piece of sports equipment)
+
+and polysemy (e.g., “bridge” as a structure over water, part of a ship, or part
+
+of the nose), a surface form may correspond to multiple literal senses, which are
+
+not necessarily metaphorically related to one another. Rather than assuming a
+
+unique basic meaning per word, our approach leverages the VUA dataset, which is
+
+constructed based on MIP and provides annotated literal instances that implicitly
+
+reflect plausible basic meanings in context. BasicMIP thus constructs basic meaning
+
+representations empirically from these literal usage examples, allowing the model to
+
+learn from contextualized but non-metaphorical senses, even when ambiguity exists.
+
+This strategy avoids strong assumptions about lexical semantics while aligning with
+
+the empirical foundations of the dataset.
+
+Key contributions of this section：
+
+1. Explicit Basic Meaning Modeling for Metaphor Detection
+
+• Instead of approximating basic meanings with aggregated embeddings,
+
+BasicMIP constructs direct basic meaning representations from annotated
+
+literal instances, aligning closely with MIP theory.
+
+2. A New Transformer-Based Model: BasicBERT
+
+• BasicBERT integrates BasicMIP with Aggregated MIP (AMIP) and
+
+Selectional Preference Violation (SPV), enhancing metaphor detection
+
+performance with a multi-perspective approach.
+
+3. State-of-the-Art Performance in Metaphor Detection
+
+• Extensive experiments on VUA18 and VUA20 benchmark datasets show
+
+that BasicBERT outperforms existing models such as MelBERT, achieving
+
+a 1.0% F1-score improvement.
+
+• On VUA18, BasicBERT reaches the theoretical upper bound for targets
+
+with literal annotations, demonstrating the effectiveness of explicitly
+
+modeling basic meanings.
+
+64
+
+Metaphor Detection via Explicit Basic Meanings Modelling
+
+By redefining metaphor detection through basic meaning modeling, this sec-
+
+tion highlights the importance of linguistically grounded representations in NLP.
+
+BasicMIP provides a principled and interpretable framework for metaphor identifi-
+
+cation, paving the way for future research in metaphor processing and its broader
+
+applications in natural language understanding.
+
+Figure 3.4: Comparison of the AMIP implementation in Mao et al.
+(2019), Choi et al. (2021) and our BasicMIP.
+
+3.4.1 Method
+
+BasicBERT model consists of three main components: BasicMIP, AMIP, and SPV.
+
+We include both AMIP and BasicMIP as some words do not have literal annotations
+
+in training set, so AMIP is a useful augmented component for these cases.
+
+BasicMIP
+
+BasicMIP, as shown in Figure 3.4, is based on MIP, in which a target word’s
+
+contextualised meaning in the current context is compared with its more basic
+
+meaning. First, following RoPPT, we use RoBERTa to encode the input sentence
+
+and extract the contextual embedding of the target word wt as vS,t = ht (see Eq. 3.1).
+
+This step is identical to RoPPT’s sentence encoding process.
+
+Second, to contrast the contextual meaning with the basic meaning, our model
+
+learns the basic meaning representation of the target from the training annotations.
+
+According to MIP (Steen et al. 2010), we consider targets with literal label
+
+to represent their basic meaning. Therefore, we sample literal examples of
+
+the target wt from the training set denoted as Sb = (..., wt, ...) ∈ U, where U is
+
+training set and Sb stands for the context sentence containing a basic usage of
+
+65
+
+Chapter 3 Towards Robust Metaphor Detection
+
+wt. Our model obtains the basic meaning embedding of wt by feeding Sb to a
+
+RoBERTa encoder similar to Equation 3.1 and getting the t-th output hidden state
+
+ht. The final contextualised basic representation of wt is averaged among multiple
+
+literal instances, and is formulated as vB,t, which is intrinsically different from the
+
+aggregated representations of frequent meanings typically used in prior works such as
+
+MelBERT (Choi et al. 2021) and MrBERT (Song et al. 2021). These models rely on
+
+contextualized embeddings directly obtained from pre-trained language models like
+
+RoBERTa, which are biased toward dominant or frequent word senses in the training
+
+corpus. In contrast, our approach explicitly models the basic, literal meanings by
+
+extracting representations from literal usages, providing a clearer semantic contrast
+
+for metaphor detection.
+
+At last, we compute a hidden vector hBMIP for BasicMIP, by concatenating vS,t
+
+and vB,t.
+
+hBMIP = f0([vS,t, vB,t])
+
+(3.17)
+
+where f0(·) denotes a linear layer to learn semantic difference between vS,t and vB,t.
+
+AMIP and SPV
+
+The AMIP implementation of MIP theory is inherited by our model, where con-
+
+textual meaning and aggregated meaning of the target are compared. Here the
+
+contextual target meaning embedding of wt is vS,t, the same as in Equation 3.17.
+
+Then, we feed the single target word wt to the RoBERTa network to derive the
+
+decontextualised vector representing the aggregated meanings of wt (Choi et al.
+
+2021): vF,t = RoBERTa(embt).
+
+The SPV theory is also employed which measures the incongruity between the
+
+contextual meaning of the target and its context. Similarly, the contextual target
+
+meaning embedding is vS,t, and the context sentence meaning is produced by the
+cls embedding denoted as vS, where vS = hcls.
+
+Finally, we compute AMIP (hAMIP) from the contextual and aggregated target
+
+embedding, and SPV (hSPV) from the contextual target meaning embedding and
+
+66
+
+Metaphor Detection via Explicit Basic Meanings Modelling
+
+the sentence embedding.
+
+hSPV = f1([vS, vS,t])
+
+hAMIP = f2([vS,t, vF,t])
+
+(3.18)
+
+(3.19)
+
+where f1(·) and f2(·) denote a linear layer to learn the contrast between two features.
+
+Prediction
+
+Finally, we combine three hidden vectors hAMIP, hSPV and hBMIP to compute a
+
+prediction score ˆy, and use binary cross entropy loss to train the overall framework
+
+for metaphor prediction.
+
+ˆy = σ(W ⊤[hBMIP; hAMIP; hSPV] + b)
+
+L = −
+
+N
+(cid:88)
+
+i=1
+
+[yi log ˆyi + (1 − yi) log(1 − ˆyi)]
+
+(3.20)
+
+(3.21)
+
+3.4.2 Experiments
+
+Dataset. We conduct experiments on two public bench datasets: VUA18 (Leong
+
+et al. 2018) and VUA20 (Leong et al. 2020), which are the most popular metaphor
+
+detection benchmarks, as detailed in §2.2.3.
+
+Baselines. We adopt several strong baselines previously introduced in §3.1, including
+
+both conventional and state-of-the-art metaphor detection models. RNN ELMo
+
+(Gao et al. 2018) combined ELMo and BiLSTM as a backbone model. RNN MHCA
+
+(Mao et al. 2019) introduced MIP and SPV into RNN ELMo and capture the
+
+contextual feature within window size by multi-head attention. RoBERTa SEQ
+
+(Leong et al. 2020) is a fine-tuned RoBERTa model in the sequence labeling setting
+
+for metaphor detection. MelBERT (Choi et al. 2021) realize MIP and SPV theories
+
+via a RoBERTa based model. MrBERT (Song et al. 2021) is the SOTA on verb
+
+metaphor detection based on BERT with verb relation encoded. FrameBERT, our
+
+proposed model introduced in §3.3, leverages frame representations from FrameNet
+
+for metaphor detection.
+
+67
+
+Chapter 3 Towards Robust Metaphor Detection
+
+Hardware
+
+TITAN RTX
+
+Runtime/epoch
+
+50 min
+
+Parameters
+
+252,839,426
+
+Table 3.9: Experiment details
+
+Models
+
+Prec
+
+71.6
+RNN ELMo
+RNN MHCA
+73.0
+RoBERTa SEQ 80.1
+82.7
+MrBERT
+80.1
+MelBERT
+82.7
+FrameBERT
+
+BasicBERT
+w/o BasicMIP
+
+79.5
+81.7
+
+VUA18
+
+VUA20
+
+Rec
+
+73.6
+75.7
+74.4
+72.5
+76.9
+75.3
+
+78.5
+75.1
+
+F1
+
+Prec
+
+72.6
+74.3
+77.1
+77.2
+78.5
+78.8
+
+79.0*
+78.3
+
+-
+-
+75.1
+-
+75.9
+79.1
+
+73.3
+74.8
+
+Rec
+
+-
+-
+67.1
+-
+69.0
+67.7
+
+73.2
+69.8
+
+F1
+
+-
+-
+70.9
+-
+72.3
+73.0
+
+73.3*
+72.2
+
+Table 3.10: Performance comparison on VUA datasets (best results
+in bold). NB: * denotes our model outperforms the competing model,
+FrameBERT, with p < 0.05 for both two-tailed t-test and McNemar’s
+test.
+
+Implementation details. For target words which have no literal annotations
+
+in the training set, we return the decontextualised target representation as the
+
+basic meaning vector in the BasicMIP module. Therefore, the BasicMIP, in this
+
+situation, will degenerate to the AMIP implementation. The key details about the
+
+computational setup and model characteristics used in the experiment are shown in
+
+Table 3.9.
+
+3.4.3 Results and Analysis
+
+Overall results. Table 3.10 shows a comparison of the performance of our model
+
+against the baseline models on VUA18 and VUA20. BasicBERT outperforms all
+
+baselines on both VUA18 and VUA20, including the SOTA model MelBERT by 0.5%
+
+and 1.0% in F1 score, respectively. BasicBERT significantly outperforms MelBERT
+
+on VUA-18 (p = 0.022) and VUA-20 (p = 0.006) with two-tailed t-test; McNemar’s
+
+test confirms p < 0.001 for both.
+
+Ablation test. We also perform an ablation experiment to test the benefit of
+
+68
+
+Metaphor Detection via Explicit Basic Meanings Modelling
+
+Models
+
+Annotation #sample #target
+
+F1
+
+Acc
+
+0 w/ BMIP
+2
+A
+U
+V
+
+w/o BMIP
+
+8 w/ BMIP
+1
+A
+U
+V
+
+w/o BMIP
+
+has literal
+no literal
+
+has literal
+no literal
+
+has literal
+no literal
+
+has literal
+no literal
+
+18060
+4136
+
+18060
+4136
+
+38825
+5122
+
+38825
+5122
+
+4076
+2539
+
+4076
+2539
+
+3874
+2915
+
+3874
+2915
+
+74.7 91.2
+86.9
+68.2
+
+73.3
+68.2
+
+91.0
+87.6
+
+81.1 94.7
+87.4
+67.3
+
+80.7
+66.5
+
+94.8
+88.0
+
+Table 3.11: Breakdown results of BasicMIP. has literal indicates
+targets have literal annotations in the training set, and no literal
+indicates they have not.
+
+Modules
+
+Metaphor Literal
+
+Contextual vs. Frequent
+Contextual vs. Basic
+
+0.516
+-0.082
+
+0.642
+0.809
+
+Table 3.12: Contrast of features within AMIP and BasicMIP. The
+experiment is conducted on VUA20.
+
+the basic modelling. As shown in Table 3.10, the performance of BasicBERT drops
+
+substantially when removing basic meaning modelling (w/o BasicMIP) by 0.7% on
+
+VUA18 and 1.1% on VUA20, respectively.
+
+Target with and without basic annotation Some target words in the test
+
+set might not have literal annotations in the training set. To better understand
+
+the mechanism of basic meaning modelling, we test the performance of BasicBERT
+
+on targets that have and have not basic meaning annotations in the training data.
+
+As shown in Table 3.11, there are 13% of samples in the VUA18 test set for which
+
+we cannot find a corresponding basic meaning annotation from the training set.
+
+This number increases to 22% for VUA20. We find BasicBERT gains significant
+
+improvement on targets with literal annotations from VUA20 via basic meaning
+
+modelling by 1.4% in F1 score. For these targets with literal annotations in
+
+the VUA18 benchmark, BasicBERT gives 81.1% in F1 score, which reaches the
+
+theoretical upper bound since the Inter-annotator agreement (IAA) value of VUA18
+
+is around 0.8 (Leong et al. 2018) (which means further improvement might lead to
+
+overfitting).
+
+69
+
+Chapter 3 Towards Robust Metaphor Detection
+
+Contrast measuring. To better compare our BasicMIP with AMIP, we conduct
+
+an experiment to directly measure the contrast between features within BasicMIP
+
+and AMIP, i.e., the contrast between the contextual and the basic meaning for
+
+BasicMIP, and the contrast between the contextual and the most frequent meaning
+
+for AMIP. Intuitively, we expect the contrast to be obvious for metaphor cases and
+
+to be slight for literal cases. Cosine distance is used to compute the contrast between
+
+two features. The contrast will fall into (−1, 1), smaller numbers meaning more
+
+contrasting, larger numbers meaning less contrasting.
+
+The results (see Table 3.12) show that the contrast of BasicMIP features is much
+
+more obvious for metaphorical samples, and there is less contrast for literal samples
+
+compared with AMIP. Moreover, AMIP only shows a minor gap of 0.13 contrast
+
+between metaphor and literal cases. However, a significant gap of 0.89 is captured by
+
+BasicMIP between metaphor and literal cases, which demonstrates that BasicMIP
+
+learns the difference between metaphorical and literal expressions well. In summary,
+
+the results show the effectiveness of basic meaning modelling in metaphor detection.
+
+3.4.4 Case Study
+
+We perform an exploratory analysis on metaphors where BasicMIP succeeds to detect
+
+but fails without it. Prior methods might find very simple targets difficult to classify,
+
+such as see, back, hot. This is mainly because their metaphorical meanings are
+
+more frequent than their basic meanings, which leads the aggregated representations
+
+dominate by metaphorical semantics. For example, see means look basically. But,
+
+I see why you are angry and this place has seen the war are even more frequent
+
+in language corpus. Therefore, the contrast with contextual meaning tends not to
+
+indicate metaphors anymore. On the contrary, basic meaning modelling learns their
+
+basic representation by focusing literal annotations directly, which enables BasicMIP
+
+to tackle them with high accuracy.
+
+Table 3.13 shows cases where previous methods, such as MelBERT and Frame-
+
+BERT, fail but ours succeeds. Corresponding sentences with basic usage of target
+
+from the training set are also included. In addition, Figure 3.5 and Figure 3.6 provide
+
+word sense illustrations constructed using RoBERTa embeddings and visualized with
+
+70
+
+Metaphor Detection via Explicit Basic Meanings Modelling
+
+Target Cases
+
+Basic Examples
+
+get
+
+we will , i ’m just saying we do wan na get
+into cocktail
+they ’re watching neighbours come on , get
+up you lazy bugger !
+oh we did n’t get much further on there , what
+we started with this morning.
+
+back
+
+why ca n’t they take it through the back door
+and up the stair ?
+
+they are unlikely to find a place to do so which
+is not in somebody ’s back yard .
+
+where do you get your carrots from ?
+
+and you ’ll get a separate room
+
+i ’m gon na get some cleaning , i ’ll get some
+cleaning fluid this week .
+
+within 10 minutes i had turned my back on
+the corduroy battalions of trees and was strid-
+ing under a still.
+on the edge of the lawn with his back to the
+cedar tree .
+
+Table 3.13: Cases study of targets “get” and “back”. The cases are
+taken from VUA20.
+
+principal component analysis (PCA). The sense-level annotations used to generate
+
+these figures are derived from the SemCor corpus (Miller et al. 1994), a widely used,
+
+manually sense-annotated corpus based on WordNet (Miller 1995). In the figures,
+
+each dot represents a single occurrence of the word of interest (e.g., back or get) in
+
+SemCor. The RoBERTa embedding of that occurrence was projected into 2D space
+
+using PCA. We can see the most frequent meaning of back is ‘former location’ and
+
+‘travel backward’ instead of the basic meaning ‘human body’. And the meanings of
+
+get are almost equally frequent.
+
+71
+
+Chapter 3 Towards Robust Metaphor Detection
+
+Figure 3.5: Senses of back from word sense disambiguation dataset
+SemCor.
+
+Figure 3.6: Senses of get from word sense disambiguation dataset
+SemCor.
+
+72
+
+Conclusion
+
+3.5 Conclusion
+
+This chapter presents three innovative approaches to metaphor detection, each
+
+addressing distinct challenges and advancing the field of natural language processing
+
+(NLP).
+
+First, RoPPT introduces a novel framework for metaphor detection by reshaping
+
+and pruning syntactic parse trees to focus on semantically relevant contextual
+
+information. This target-oriented approach effectively denoises long and complex
+
+sentences, achieving state-of-the-art performance and demonstrating the importance
+
+of efficient context modeling in metaphor identification.
+
+Second, FrameBERT leverages FrameNet embeddings to incorporate structured
+
+external knowledge, enabling concept-level metaphor detection. By integrating
+
+linguistic theory and deep learning, FrameBERT not only matches or surpasses
+
+existing models in performance but also enhances interpretability, offering a more
+
+explainable framework for understanding metaphorical expressions.
+
+Finally, BasicBERT addresses the challenge of distinguishing between a word’s
+
+contextual and basic meanings by explicitly modeling basic meanings from annotated
+
+training data. This approach aligns closely with linguistic principles and achieves
+
+state-of-the-art results, even reaching the theoretical upper bound for instances
+
+with basic annotations. BasicBERT’s success highlights the value of linguistically
+
+grounded representations in metaphor detection and opens avenues for extending
+
+this approach to other forms of creative language, such as humor and sarcasm.
+
+Discussion and Comparative Analysis
+
+To better understand the relative strengths and weaknesses of the three proposed
+
+approaches—RoPPT, FrameBERT, and BasicMIP—we conducted a comparative
+
+analysis across the VUA-18 and VUA-20 datasets. Table 3.X reports a contingency-
+
+style summary of their performance in terms of precision, recall, and F1 score.
+
+From these results, we observe several noteworthy patterns:
+
+• Precision–Recall Trade-offs: FrameBERT achieves the highest precision on
+
+both datasets (82.7 on VUA-18, 79.1 on VUA-20), suggesting its frame-based
+
+73
+
+Chapter 3 Towards Robust Metaphor Detection
+
+Dataset
+VUA18
+VUA20
+
+Prec
+80.0/82.7/79.5
+75.9/79.1/73.3
+
+Rec
+78.2/75.3/78.5
+70.0/67.7/73.2
+
+F1
+79.1/78.8/79.0
+72.8/73.0/73.3
+
+Table 3.14: Contingency table comparing the performance of the three
+proposed methods. Results for RoPPT (red), FrameBERT (green), and
+BasicBERT (blue) are shown in distinct colors to facilitate visual com-
+parison of their difference.
+
+knowledge integration reduces false positives. However, its recall lags behind,
+
+indicating a tendency to miss some metaphorical cases.
+
+• Balanced Performance: RoPPT demonstrates a strong balance between
+
+precision and recall, producing the highest F1 score on VUA-18 and competitive
+
+performance on VUA-20. Its use of syntactic pruning appears to enhance
+
+recall without significantly sacrificing precision.
+
+• Stability Across Datasets: BasicMIP provides a solid baseline with rela-
+
+tively stable performance across both datasets. Its design is closely aligned
+
+with the metaphor definitions adopted in VUA, as it explicitly models the
+
+Metaphor Identification Procedure (MIP) semantics, which allows it to capture
+
+metaphorical meaning in a manner consistent with the dataset’s annotation
+
+guidelines. This explains its robustness and comparable F1 score, despite its
+
+relatively simple architecture.
+
+This comparison shows that no single method dominates across all metrics and
+
+datasets. RoPPT’s strength lies in handling long-range syntactic dependencies,
+
+FrameBERT improves precision via frame semantics, and BasicMIP remains a
+
+reliable, definition-aligned baseline.
+
+Future Work
+
+Given the complementary nature of these methods, a natural next step is to ex-
+
+plore ensemble or hybrid approaches. For example, combining RoPPT’s syntactic
+
+pruning with FrameBERT’s frame-semantic representation may improve recall while
+
+preserving high precision. Similarly, BasicMIP can serve as a fallback classifier in
+
+cases where syntactic pruning or frame-based reasoning fails, potentially improving
+
+74
+
+Conclusion
+
+overall robustness. Investigating such ensemble strategies is a promising direction
+
+for future research.
+
+Together, these contributions significantly advance the field of metaphor detection,
+
+offering robust, interpretable, and linguistically informed frameworks. We also
+
+contribute to further research in figurative language processing and its broader
+
+applications in natural language understanding.
+
+75
+
+Chapter 3 Towards Robust Metaphor Detection
+
+76
+
+Chapter 4
+
+MMTE: Corpus and Metrics for
+
+Evaluating Machine Translation
+
+Quality of Metaphorical Language
+
+Metaphors play a fundamental role in human language, enabling nuanced expression
+
+and deeper semantic understanding. However, translating metaphorical expressions
+
+across languages presents a significant challenge for machine translation (MT) sys-
+
+tems, as direct word-to-word translations often fail to capture the intended figurative
+
+meaning. Despite advancements in MT, existing evaluation metrics primarily focus
+
+on general translation quality and fluency while largely overlooking the complexities
+
+of metaphor translation. This gap underscores the need for specialized evaluation
+
+frameworks that assess how effectively MT systems preserve metaphorical meaning
+
+across languages.
+
+This chapter introduces MMTE (Metaphorical Machine Translation Evaluation),
+
+a novel corpus and evaluation framework designed specifically for metaphor trans-
+
+lation assessment. MMTE provides a structured methodology for systematically
+
+evaluating the quality of metaphor translations by integrating fine-grained human
+
+and automatic evaluation metrics. Through an extensive multilingual dataset,
+
+MMTE examines how metaphors are processed in English, Chinese, and Italian,
+
+highlighting both universal conceptual patterns and culturally specific nuances.
+
+77
+
+Chapter 4 MMTE: Corpus and Metrics for Evaluating Machine Translation
+Quality of Metaphorical Language
+
+The chapter is structured as follows. First, we outline the construction of the
+
+MMTE corpus, detailing the dataset creation, annotation guidelines, and evaluation
+
+criteria. The dataset is built using translations from multiple MT models, including
+
+commercial and open-source systems, with expert annotations ensuring high-quality
+
+assessment. Next, we introduce a fine-grained annotation framework, which evaluates
+
+translation quality along four key dimensions: Fluency, Metaphorical Equivalence,
+
+Emotion, and Authenticity. These dimensions enable a comprehensive analysis of
+
+how well metaphorical meaning is retained in translation.
+
+Additionally, the chapter explores the impact of metaphorical equivalence on
+
+translation accuracy and emotional salience. We analyze the correlation between
+
+metaphor translation quality and emotional expression, highlighting the role of
+
+figurative language in conveying affective meaning. To further enhance evaluation,
+
+MMTE incorporates post-editing methods to generate high-quality gold-standard
+
+references, facilitating automatic evaluation metrics such as BLEU, ROUGE, and
+
+BERTScore.
+
+Finally, we examine the performance of large language models (LLMs) like GPT-4
+
+in metaphor evaluation, assessing their ability to classify metaphor equivalence and
+
+provide human-like annotations. The results demonstrate the increasing potential of
+
+LLMs in assisting with metaphor translation evaluation, while also revealing their
+
+limitations in handling cultural and contextual variations.
+
+By addressing the shortcomings of existing MT evaluation metrics and introducing
+
+a specialized framework for metaphor translation, this chapter contributes to the
+
+development of more accurate, culturally adaptive, and semantically rich machine
+
+translation systems. MMTE not only provides a valuable resource for MT research
+
+but also provides a exploration for future advancements in figurative language
+
+processing across multilingual contexts.
+
+78
+
+Metaphorical Translation Quality Annotation Framework
+
+Figure 4.1: The dataset creation framework. By translating, annotating,
+and post-editing, we create a cross-lingual metaphor dataset. Specific
+details of these sub-steps are elaborated in §4.1.1, §4.1.2, and §4.1.3,
+respectively.
+
+4.1 Metaphorical Translation Quality Annotation
+
+Framework
+
+As discussed in §1.3.2, metaphorical expressions are not evaluated sufficiently with
+
+current MT evaluation metrics. To address this issue, we propose a set of novel
+
+MT evaluation metrics based on manual annotation and post-editing. The proposed
+
+metrics aim to provide a more accurate and insightful assessment of MT performance
+
+in handling metaphors. Our framework, as shown in Figure 4.1, allows for the
+
+evaluation of MT outputs in terms of their metaphorical expressions, enabling a more
+
+comprehensive analysis—compared to traditional machine translation evaluation
+
+methods—of how effectively nuanced metaphorical meanings are captured.
+
+4.1.1 Initial Dataset Translation
+
+Due to the absence of parallel multilingual metaphor datasets, we constructed
+
+our own dataset. We employ the MOH-X dataset (Mohammad et al. 2016) as
+
+our source, consisting of 315 metaphorical and 332 literal sentences sampled from
+
+WordNet (Miller 1998), as described in § 2.2.3. In MMTE, Literal samples refer to
+
+those not containing metaphors.
+
+We utilise four popular MT models to generate translations:
+
+the Google
+
+79
+
+YoudaoMTGoogleMTGoogleMTMOH DataMetricsQualityFluency, Intelligibility, ...EquivalenceFull, Part, Non, ...EmotionMore, same, Less, ...AuthenticityAuthenticityHigh-qualityTranslationsExpertsGroupEditorsGroup 1EditorsGroup 3EditorsGroup 2Annotated DataPre-processingAnnotatingPost-EditingMachineTranslationsAnnotatorsGroup 2AnnotatorsGroup 3AnnotatorsGroup 1Chapter 4 MMTE: Corpus and Metrics for Evaluating Machine Translation
+Quality of Metaphorical Language
+
+source instances
+
+The scream pierced the night.
+The Senator steamrollered the bill to defeat. 参
+
+youdao-en-zh
+尖叫声划划划破破破黑夜。
+那位参议员强强强行行行使该
+法案失败。
+
+opus-mt-en-zh
+
+GPT-4o
+
+尖叫声刺刺刺穿穿穿了夜晚。 尖叫声刺刺刺穿穿穿了夜晚。
+参 议 员 将 该 法
+参 议 员 把 法 案推推推倒倒倒
+案压压压倒倒倒性性性地地地 击败。
+了。
+
+议
+
+The scream pierced the night.
+
+The Senator steamrollered the bill to defeat.
+
+youdao-en-it
+L’urlo for`o la notte.
+
+Il
+ha
+senatore
+schiacciato il dis-
+legge per
+egno di
+sconfiggerlo.
+
+Il
+ha
+senatore
+buttato via il dis-
+legge per
+egno di
+sconfiggerlo.
+
+opus-mt-en-it
+L’urlo ha trafitto la
+notte.
+
+Il
+ha
+senatore
+rullato il conto per
+sconfiggere.
+
+GPT-4o
+
+L’urlo
+ha squarciato
+la notte.
+ha
+Il
+senatore
+fatto a pezzi
+il
+disegno di legge per
+sconfiggerlo.
+
+google-en-zh
+尖叫声划划划破破破黑夜。
+
+员以以以压压压倒倒倒性性性的的的方方方式式式
+使议案落败。
+
+google-en-it
+L’urlo squarci`o la
+notte.
+
+Table 4.1: Paired samples of source instances and their machine
+translations from different translation models. Target verbs are in
+bold and underlined.
+
+Cloud Translation API, the Youdao Cloud Translation API, the open-source
+
+Helsinki-NLP/opus-mt model from Hugging Face, and GPT-4o to translate
+
+English source data into Chinese and Italian, enabling us to explore and compare
+
+the treatment of metaphors in two languages with distinct characteristics. Ta-
+
+ble 4.1 presents example metaphors paired with their translations in the two target
+
+languages. Additional information regarding preprocessing is presented in §4.2.1.
+
+4.1.2 Metaphor Annotation Criteria
+
+Our annotation protocol involves comparing translations with their source sentences.
+
+We hire 18 linguistics majors who are native speakers of the target languages to
+
+annotate and post-edit 647 English-Chinese (EN-ZH) and English-Italian (EN-IT)
+
+translations, with each sample being annotated by 3 individuals. Professional trans-
+
+lators cross-checked the results, resolved disagreements in meetings, and recorded
+
+final decisions. Additional details are in §4.2.2. The source instances and their corre-
+
+sponding translations are systematically annotated based on four criteria to evaluate
+
+translation quality: Quality, Metaphorical Equivalence, Emotion, and Authenticity.
+
+These criteria are outlined and further broken down as follows.
+
+Quality. To estimate the quality of the translation, we adopt criteria inspired by
+
+several existing human assessment methods for MT (Carroll 1966, Church & Hovy
+
+1993, White et al. 1994) and consider three primary aspects of quality, including
+
+Fluency, Intelligibility, and Fidelity. Detailed definitions are presented in §4.2.3.
+
+Equivalence. To ascertain how metaphors impact MT, we propose Equivalence to
+
+80
+
+

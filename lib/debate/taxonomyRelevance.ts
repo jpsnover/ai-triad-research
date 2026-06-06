@@ -9,6 +9,7 @@
 
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
+import { stripExcludes } from './helpers.js';
 
 export interface NodeRelevanceScore {
   nodeId: string;
@@ -268,10 +269,10 @@ export function scoreNodesLexical(
   };
 
   for (const n of povNodes) {
-    score(n.id, `${n.label} ${n.description}`);
+    score(n.id, `${n.label} ${stripExcludes(n.description)}`);
   }
   for (const n of situationNodes) {
-    score(n.id, `${n.label} ${n.description}`);
+    score(n.id, `${n.label} ${stripExcludes(n.description)}`);
   }
   return scores;
 }
@@ -524,7 +525,7 @@ export function filterByTopicConstraints(
   const result: (ScoredPovNode & { _demoted?: boolean })[] = [];
 
   for (const entry of nodes) {
-    const desc = `${entry.node.label} ${entry.node.description}`.toLowerCase();
+    const desc = `${entry.node.label} ${stripExcludes(entry.node.description)}`.toLowerCase();
     let reason: string | null = null;
 
     if (isLowRisk) {

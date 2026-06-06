@@ -916,371 +916,24 @@ export async function runTurnPipeline(
         ? draftVal.repairHints.length > 0
         : draftVal.errorHints.length > 0;
       if (draftShouldRetry && draftAttempt < maxDraftRetries) {
-        // ── Micro-fix pass: try targeted fix before full retry ──
-        if (draft?.statement && draft?.claim_sketches) {
-          const claimSpecHints = (draftVal.repairHints ?? []).filter(
-            h => classifyHintKey(h) === 'claim_specificity',
-          );
-          if (claimSpecHints.length > 0) {
-            const SPECIFICITY_RE = /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/;
-            const flaggedClaims = draft.claim_sketches
-              .map((cs, i) => ({ claim: typeof cs === 'string' ? cs : cs.claim, index: i }))
-              .filter(c => !SPECIFICITY_RE.test(c.claim));
-
-            if (flaggedClaims.length > 0) {
-              const microFixT0 = Date.now();
-              let microFixPromptText = '';
-              let microFixRaw = '';
-              try {
-                microFixPromptText = microFixAbstractClaims(
-                  draft.statement,
-                  flaggedClaims,
-                  evidenceBlock,
-                  citationBankBlock?.slice(0, 500) ?? '',
-                );
-                microFixRaw = await generate(
-                  microFixPromptText, input.model,
-                  { temperature: 0.3 },
-                  `${input.label} micro-fix(specificity)`,
-                );
-                const microFixResult = parseJsonRobust(microFixRaw) as MicroFixResult | undefined;
-                const microFixElapsed = Date.now() - microFixT0;
-
-                // Helper to push a proper stage diagnostic for the micro-fix
-                const pushMicroFixDiag = (success: boolean, workProduct: Record<string, unknown>) => {
-                  stageDiags.push({
-                    stage: 'micro-fix',
-                    prompt: microFixPromptText,
-                    raw_response: microFixRaw,
-                    model: input.model,
-                    temperature: 0.3,
-                    response_time_ms: microFixElapsed,
-                    work_product: workProduct,
-                  });
-                };
-
-                if (microFixResult?.revised_statement) {
-                  // Reject hallucinated edits: LLM reports changes but original === revised
-                  const hasRealChange = microFixResult.changes?.some(
-                    c => c.original !== c.revised,
-                  ) ?? false;
-                  if (!hasRealChange) {
-                    pushMicroFixDiag(false, {
-                      type: 'abstract_claims', success: false,
-                      diff_check_passed: false, rejected_reason: 'hallucinated_changes',
-                      changes: microFixResult.changes ?? [],
-                    });
-                    console.log(`[pipeline] Micro-fix(specificity) rejected — all reported changes are identical (hallucinated edits)`);
-                  } else if (validateMicroFix(draft.statement, microFixResult.revised_statement, flaggedClaims.length)) {
-                    // Patch the statement in place
-                    const originalStatement = draft.statement;
-                    draft.statement = microFixResult.revised_statement;
-
-                    // Re-validate specificity on the revised statement text (not
-                    // claim_sketches, which the micro-fixer doesn't update).
-                    // Split into sentences and check that at least one per paragraph
-                    // contains a concrete specific.
-                    const revisedParagraphs = microFixResult.revised_statement.split(/\n\n+/).filter(Boolean);
-                    const recheckSpecific = revisedParagraphs.every(para =>
-                      para.split(/(?<=[.!?])\s+/).some(s => SPECIFICITY_RE.test(s)),
-                    );
-
-                    pushMicroFixDiag(recheckSpecific, {
-                      type: 'abstract_claims', success: recheckSpecific,
-                      diff_check_passed: true,
-                      changes: microFixResult.changes ?? [],
-                      revised_statement: microFixResult.revised_statement,
-                    });
-
-                    if (recheckSpecific) {
-                      // Micro-fix succeeded — skip full retry
-                      getGlobalRecorder()?.record({
-                        type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
-                        speaker: input.label,
-                        message: `Micro-fix(specificity) succeeded: ${microFixResult.changes?.length ?? 0} change(s)`,
-                        data: { target: 'specificity', success: true, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: true, elapsed_ms: microFixElapsed },
-                      });
-                      console.log(`[pipeline] Micro-fix(specificity) succeeded in ${microFixElapsed}ms — skipping full retry`);
-                      break; // exit the draft retry loop
-                    } else {
-                      // Re-validation failed — revert and fall through to full retry
-                      draft.statement = originalStatement;
-                      getGlobalRecorder()?.record({
-                        type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
-                        speaker: input.label,
-                        message: `Micro-fix(specificity) re-validation failed — falling through to full retry`,
-                        data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, elapsed_ms: microFixElapsed },
-                      });
-                      console.log(`[pipeline] Micro-fix(specificity) re-validation failed — falling through to full retry`);
-                    }
-                  } else {
-                    // Diff-check failed
-                    pushMicroFixDiag(false, {
-                      type: 'abstract_claims', success: false,
-                      diff_check_passed: false,
-                      changes: microFixResult.changes ?? [],
-                    });
-                    getGlobalRecorder()?.record({
-                      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
-                      speaker: input.label,
-                      message: `Micro-fix(specificity) diff-check failed — too many sentence changes`,
-                      data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, diff_check_failed: true },
-                    });
-                    console.log(`[pipeline] Micro-fix(specificity) diff-check failed — falling through to full retry`);
-                  }
-                }
-              } catch (err) {
-                // Micro-fix LLM call failed — fall through to full retry
-                getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(specificity) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-                stageDiags.push({
-                  stage: 'micro-fix',
-                  prompt: microFixPromptText,
-                  raw_response: microFixRaw,
-                  model: input.model,
-                  temperature: 0.3,
-                  response_time_ms: Date.now() - microFixT0,
-                  work_product: {
-                    type: 'abstract_claims', success: false,
-                    error: err instanceof Error ? err.message : String(err),
-                  },
-                });
-                console.warn(`[pipeline] Micro-fix(specificity) failed: ${err instanceof Error ? err.message : err}`);
-              }
-            }
-          }
-        }
-        // ── End micro-fix pass ──
-
-        // ── Micro-fix pass: intervention compliance ──
-        // When the LLM writes a valid statement but omits the required moderator
-        // response field, generate only the missing field instead of a full retry.
-        const interventionHints = (draftVal.repairHints ?? []).filter(
-          h => classifyHintKey(h) === 'intervention_compliance',
+        // ── Micro-fix passes: try targeted fixes before full retry ──
+        const specFix = await trySpecificityMicroFix(
+          draft, draftVal.repairHints ?? [], stageDiags, input, generate,
+          evidenceBlock, citationBankBlock,
         );
-        const pi = stageInput.pendingIntervention;
-        if (interventionHints.length > 0 && pi?.isTargeted && draft?.statement) {
-          const moveConfig = MOVE_RESPONSE_CONFIG[pi.move as keyof typeof MOVE_RESPONSE_CONFIG];
-          if (moveConfig?.field && !(draft as Record<string, unknown>)[moveConfig.field]) {
-            const intFixT0 = Date.now();
-            let intFixPromptText = '';
-            let intFixRaw = '';
-            try {
-              intFixPromptText = microFixInterventionResponse(
-                draft.statement,
-                pi.move,
-                moveConfig.field,
-                moveConfig.schema,
-                pi.directResponsePattern ?? `The moderator issued a ${pi.move} intervention directed at you.`,
-              );
-              intFixRaw = await generate(
-                intFixPromptText, input.model,
-                { temperature: 0.2 },
-                `${input.label} micro-fix(intervention)`,
-              );
-              const intFixResult = parseJsonRobust(intFixRaw) as InterventionMicroFixResult | undefined;
-              const intFixElapsed = Date.now() - intFixT0;
-              const fieldValue = intFixResult?.[moveConfig.field];
+        if (specFix.shouldBreak) break;
 
-              const pushIntFixDiag = (success: boolean, workProduct: Record<string, unknown>) => {
-                stageDiags.push({
-                  stage: 'micro-fix',
-                  prompt: intFixPromptText,
-                  raw_response: intFixRaw,
-                  model: input.model,
-                  temperature: 0.2,
-                  response_time_ms: intFixElapsed,
-                  work_product: workProduct,
-                });
-              };
-
-              if (fieldValue != null) {
-                (draft as Record<string, unknown>)[moveConfig.field] = fieldValue;
-                const recheckMeta = extractDraftMeta(draft);
-                const recheckCompliance = checkInterventionCompliance(
-                  pi.move as Parameters<typeof checkInterventionCompliance>[0],
-                  recheckMeta as Record<string, unknown>,
-                );
-
-                pushIntFixDiag(recheckCompliance.compliant, {
-                  type: 'intervention_compliance',
-                  move: pi.move,
-                  field: moveConfig.field,
-                  success: recheckCompliance.compliant,
-                  generated_value: fieldValue,
-                  recheck_result: recheckCompliance,
-                });
-
-                if (recheckCompliance.compliant) {
-                  const remainingErrors = (draftVal.errorHints ?? []).filter(
-                    h => classifyHintKey(h) !== 'intervention_compliance',
-                  );
-                  getGlobalRecorder()?.record({
-                    type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
-                    speaker: input.label,
-                    message: `Micro-fix(intervention) succeeded: generated ${moveConfig.field}`,
-                    data: { target: 'intervention_compliance', move: pi.move, field: moveConfig.field, success: true, remaining_errors: remainingErrors.length, elapsed_ms: intFixElapsed },
-                  });
-                  console.log(`[pipeline] Micro-fix(intervention) succeeded in ${intFixElapsed}ms — patched ${moveConfig.field}`);
-                  if (remainingErrors.length === 0) {
-                    break;
-                  }
-                  // Other errors remain — filter intervention hints from validation
-                  // so the full retry focuses on the actual remaining issues.
-                  draftVal.repairHints = draftVal.repairHints.filter(
-                    h => classifyHintKey(h) !== 'intervention_compliance',
-                  );
-                  draftVal.errorHints = draftVal.errorHints.filter(
-                    h => classifyHintKey(h) !== 'intervention_compliance',
-                  );
-                } else {
-                  delete (draft as Record<string, unknown>)[moveConfig.field];
-                  getGlobalRecorder()?.record({
-                    type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
-                    speaker: input.label,
-                    message: `Micro-fix(intervention) re-validation failed — falling through to full retry`,
-                    data: { target: 'intervention_compliance', move: pi.move, field: moveConfig.field, success: false, recheck: recheckCompliance, elapsed_ms: intFixElapsed },
-                  });
-                  console.log(`[pipeline] Micro-fix(intervention) re-validation failed — falling through to full retry`);
-                }
-              } else {
-                pushIntFixDiag(false, {
-                  type: 'intervention_compliance',
-                  move: pi.move,
-                  field: moveConfig.field,
-                  success: false,
-                  rejected_reason: 'missing_field_in_response',
-                });
-                console.log(`[pipeline] Micro-fix(intervention) returned no ${moveConfig.field} — falling through to full retry`);
-              }
-            } catch (err) {
-              getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(intervention) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-              stageDiags.push({
-                stage: 'micro-fix',
-                prompt: intFixPromptText,
-                raw_response: intFixRaw,
-                model: input.model,
-                temperature: 0.2,
-                response_time_ms: Date.now() - intFixT0,
-                work_product: {
-                  type: 'intervention_compliance', success: false,
-                  error: err instanceof Error ? err.message : String(err),
-                },
-              });
-              console.warn(`[pipeline] Micro-fix(intervention) failed: ${err instanceof Error ? err.message : err}`);
-            }
-          }
-        }
-        // ── End intervention micro-fix pass ──
-
-        // ── Micro-fix pass: directive content compliance (t/318) ──
-        // When the first paragraph fails to address the moderator's directive,
-        // rewrite only the first paragraph instead of a full draft retry.
-        const directiveHints = (draftVal.repairHints ?? []).filter(
-          h => classifyHintKey(h) === 'directive_compliance',
+        const intFix = await tryInterventionMicroFix(
+          draft, draftVal, stageDiags, input, generate,
+          stageInput.pendingIntervention,
         );
-        if (directiveHints.length > 0 && pi && draft?.statement) {
-          const move = pi.move as keyof typeof DIRECT_RESPONSE_PATTERNS;
-          const responsePattern = DIRECT_RESPONSE_PATTERNS[move] || '';
-          const directiveText = pi.directResponsePattern ?? `The moderator issued a ${pi.move} intervention.`;
-          const dirFixT0 = Date.now();
-          let dirFixPromptText = '';
-          let dirFixRaw = '';
-          try {
-            dirFixPromptText = microFixDirectiveCompliance(
-              draft.statement, pi.move, directiveText, responsePattern,
-            );
-            dirFixRaw = await generate(
-              dirFixPromptText, input.model,
-              { temperature: 0.3 },
-              `${input.label} micro-fix(directive)`,
-            );
-            const dirFixResult = parseJsonRobust(dirFixRaw) as DirectiveMicroFixResult | undefined;
-            const dirFixElapsed = Date.now() - dirFixT0;
+        if (intFix.shouldBreak) break;
 
-            const pushDirFixDiag = (success: boolean, workProduct: Record<string, unknown>) => {
-              stageDiags.push({
-                stage: 'micro-fix',
-                prompt: dirFixPromptText,
-                raw_response: dirFixRaw,
-                model: input.model,
-                temperature: 0.3,
-                response_time_ms: dirFixElapsed,
-                work_product: workProduct,
-              });
-            };
-
-            if (dirFixResult?.revised_first_paragraph) {
-              const paragraphs = draft.statement.split(/\n\s*\n/);
-              const originalStatement = draft.statement;
-              paragraphs[0] = dirFixResult.revised_first_paragraph;
-              draft.statement = paragraphs.join('\n\n');
-
-              const recheck = checkDirectiveContentCompliance(
-                draft.statement,
-                { move: pi.move, directResponsePattern: pi.directResponsePattern, isTargeted: pi.isTargeted },
-              );
-
-              pushDirFixDiag(recheck.compliant, {
-                type: 'directive_compliance', success: recheck.compliant,
-                move: pi.move, recheck_compliant: recheck.compliant,
-                revised_first_paragraph: dirFixResult.revised_first_paragraph,
-              });
-
-              if (recheck.compliant) {
-                const remainingErrors = (draftVal.errorHints ?? []).filter(
-                  h => classifyHintKey(h) !== 'directive_compliance',
-                );
-                getGlobalRecorder()?.record({
-                  type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
-                  speaker: input.label,
-                  message: `Micro-fix(directive) succeeded: first paragraph rewritten for ${pi.move} compliance`,
-                  data: { target: 'directive_compliance', move: pi.move, success: true, recheck_compliant: true, elapsed_ms: dirFixElapsed },
-                });
-                console.log(`[pipeline] Micro-fix(directive) succeeded in ${dirFixElapsed}ms — first paragraph rewritten`);
-                if (remainingErrors.length === 0) {
-                  break;
-                }
-                draftVal.repairHints = draftVal.repairHints.filter(
-                  h => classifyHintKey(h) !== 'directive_compliance',
-                );
-                draftVal.errorHints = draftVal.errorHints.filter(
-                  h => classifyHintKey(h) !== 'directive_compliance',
-                );
-              } else {
-                draft.statement = originalStatement;
-                getGlobalRecorder()?.record({
-                  type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
-                  speaker: input.label,
-                  message: `Micro-fix(directive) re-validation failed — falling through to full retry`,
-                  data: { target: 'directive_compliance', move: pi.move, success: false, recheck_compliant: false, elapsed_ms: dirFixElapsed },
-                });
-                console.log(`[pipeline] Micro-fix(directive) re-validation failed — falling through to full retry`);
-              }
-            } else {
-              pushDirFixDiag(false, {
-                type: 'directive_compliance', success: false,
-                move: pi.move, rejected_reason: 'missing_revised_first_paragraph',
-              });
-              console.log(`[pipeline] Micro-fix(directive) returned no revised_first_paragraph — falling through to full retry`);
-            }
-          } catch (err) {
-            getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(directive) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-            stageDiags.push({
-              stage: 'micro-fix',
-              prompt: dirFixPromptText,
-              raw_response: dirFixRaw,
-              model: input.model,
-              temperature: 0.3,
-              response_time_ms: Date.now() - dirFixT0,
-              work_product: {
-                type: 'directive_compliance', success: false,
-                error: err instanceof Error ? err.message : String(err),
-              },
-            });
-            console.warn(`[pipeline] Micro-fix(directive) failed: ${err instanceof Error ? err.message : err}`);
-          }
-        }
-        // ── End directive micro-fix pass ──
+        const dirFix = await tryDirectiveMicroFix(
+          draft, draftVal, stageDiags, input, generate,
+          stageInput.pendingIntervention,
+        );
+        if (dirFix.shouldBreak) break;
 
         draftRepairHints = draftAttempt === 0 ? draftVal.repairHints : draftVal.errorHints;
         // Find the actual draft diagnostic (skip any micro-fix entries that were pushed after it)
@@ -2201,6 +1854,355 @@ function mergeFrozenDraftFields(
     }
   }
   return merged;
+}
+
+// ── Extracted micro-fix pass functions (t/453) ─────────
+
+interface MicroFixPassOutcome {
+  applied: boolean;
+  shouldBreak: boolean;
+}
+
+const MICRO_FIX_NO_OP: MicroFixPassOutcome = { applied: false, shouldBreak: false };
+
+async function trySpecificityMicroFix(
+  draft: DraftWorkProduct | undefined,
+  repairHints: string[],
+  stageDiags: StageDiagnostics[],
+  input: TurnPipelineInput,
+  generate: StageGenerateFn,
+  evidenceBlock: string,
+  citationBankBlock: string,
+): Promise<MicroFixPassOutcome> {
+  if (!draft?.statement || !draft?.claim_sketches) return MICRO_FIX_NO_OP;
+
+  const claimSpecHints = repairHints.filter(h => classifyHintKey(h) === 'claim_specificity');
+  if (claimSpecHints.length === 0) return MICRO_FIX_NO_OP;
+
+  const SPECIFICITY_RE = /\d|[A-Z][a-z]+\s[A-Z][a-z]+|within|by\s\d{4}|percent|%|per year/;
+  const flaggedClaims = draft.claim_sketches
+    .map((cs, i) => ({ claim: typeof cs === 'string' ? cs : cs.claim, index: i }))
+    .filter(c => !SPECIFICITY_RE.test(c.claim));
+  if (flaggedClaims.length === 0) return MICRO_FIX_NO_OP;
+
+  const microFixT0 = Date.now();
+  let microFixPromptText = '';
+  let microFixRaw = '';
+
+  try {
+    microFixPromptText = microFixAbstractClaims(
+      draft.statement, flaggedClaims, evidenceBlock,
+      citationBankBlock?.slice(0, 500) ?? '',
+    );
+    microFixRaw = await generate(
+      microFixPromptText, input.model,
+      { temperature: 0.3 },
+      `${input.label} micro-fix(specificity)`,
+    );
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(specificity) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    stageDiags.push({
+      stage: 'micro-fix', prompt: microFixPromptText, raw_response: microFixRaw,
+      model: input.model, temperature: 0.3,
+      response_time_ms: Date.now() - microFixT0,
+      work_product: { type: 'abstract_claims', success: false, error: err instanceof Error ? err.message : String(err) },
+    });
+    console.warn(`[pipeline] Micro-fix(specificity) failed: ${err instanceof Error ? err.message : err}`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  const microFixResult = parseJsonRobust(microFixRaw) as MicroFixResult | undefined;
+  const microFixElapsed = Date.now() - microFixT0;
+
+  const pushDiag = (workProduct: Record<string, unknown>) => {
+    stageDiags.push({
+      stage: 'micro-fix', prompt: microFixPromptText, raw_response: microFixRaw,
+      model: input.model, temperature: 0.3,
+      response_time_ms: microFixElapsed, work_product: workProduct,
+    });
+  };
+
+  if (!microFixResult?.revised_statement) return MICRO_FIX_NO_OP;
+
+  const hasRealChange = microFixResult.changes?.some(c => c.original !== c.revised) ?? false;
+  if (!hasRealChange) {
+    pushDiag({
+      type: 'abstract_claims', success: false,
+      diff_check_passed: false, rejected_reason: 'hallucinated_changes',
+      changes: microFixResult.changes ?? [],
+    });
+    console.log(`[pipeline] Micro-fix(specificity) rejected — all reported changes are identical (hallucinated edits)`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  if (!validateMicroFix(draft.statement, microFixResult.revised_statement, flaggedClaims.length)) {
+    pushDiag({
+      type: 'abstract_claims', success: false,
+      diff_check_passed: false, changes: microFixResult.changes ?? [],
+    });
+    getGlobalRecorder()?.record({
+      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+      speaker: input.label,
+      message: `Micro-fix(specificity) diff-check failed — too many sentence changes`,
+      data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, diff_check_failed: true },
+    });
+    console.log(`[pipeline] Micro-fix(specificity) diff-check failed — falling through to full retry`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  const originalStatement = draft.statement;
+  draft.statement = microFixResult.revised_statement;
+
+  const revisedParagraphs = microFixResult.revised_statement.split(/\n\n+/).filter(Boolean);
+  const recheckSpecific = revisedParagraphs.every(para =>
+    para.split(/(?<=[.!?])\s+/).some(s => SPECIFICITY_RE.test(s)),
+  );
+
+  pushDiag({
+    type: 'abstract_claims', success: recheckSpecific,
+    diff_check_passed: true,
+    changes: microFixResult.changes ?? [],
+    revised_statement: microFixResult.revised_statement,
+  });
+
+  if (recheckSpecific) {
+    getGlobalRecorder()?.record({
+      type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+      speaker: input.label,
+      message: `Micro-fix(specificity) succeeded: ${microFixResult.changes?.length ?? 0} change(s)`,
+      data: { target: 'specificity', success: true, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: true, elapsed_ms: microFixElapsed },
+    });
+    console.log(`[pipeline] Micro-fix(specificity) succeeded in ${microFixElapsed}ms — skipping full retry`);
+    return { applied: true, shouldBreak: true };
+  }
+
+  draft.statement = originalStatement;
+  getGlobalRecorder()?.record({
+    type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+    speaker: input.label,
+    message: `Micro-fix(specificity) re-validation failed — falling through to full retry`,
+    data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, elapsed_ms: microFixElapsed },
+  });
+  console.log(`[pipeline] Micro-fix(specificity) re-validation failed — falling through to full retry`);
+  return MICRO_FIX_NO_OP;
+}
+
+async function tryInterventionMicroFix(
+  draft: DraftWorkProduct | undefined,
+  draftVal: { repairHints: string[]; errorHints: string[] },
+  stageDiags: StageDiagnostics[],
+  input: TurnPipelineInput,
+  generate: StageGenerateFn,
+  pendingIntervention: TurnPipelineInput['pendingIntervention'],
+): Promise<MicroFixPassOutcome> {
+  const interventionHints = (draftVal.repairHints ?? []).filter(
+    h => classifyHintKey(h) === 'intervention_compliance',
+  );
+  if (interventionHints.length === 0 || !pendingIntervention?.isTargeted || !draft?.statement) return MICRO_FIX_NO_OP;
+
+  const moveConfig = MOVE_RESPONSE_CONFIG[pendingIntervention.move as keyof typeof MOVE_RESPONSE_CONFIG];
+  if (!moveConfig?.field || (draft as Record<string, unknown>)[moveConfig.field]) return MICRO_FIX_NO_OP;
+
+  const intFixT0 = Date.now();
+  let intFixPromptText = '';
+  let intFixRaw = '';
+
+  try {
+    intFixPromptText = microFixInterventionResponse(
+      draft.statement,
+      pendingIntervention.move,
+      moveConfig.field,
+      moveConfig.schema,
+      pendingIntervention.directResponsePattern ?? `The moderator issued a ${pendingIntervention.move} intervention directed at you.`,
+    );
+    intFixRaw = await generate(
+      intFixPromptText, input.model,
+      { temperature: 0.2 },
+      `${input.label} micro-fix(intervention)`,
+    );
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(intervention) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    stageDiags.push({
+      stage: 'micro-fix', prompt: intFixPromptText, raw_response: intFixRaw,
+      model: input.model, temperature: 0.2,
+      response_time_ms: Date.now() - intFixT0,
+      work_product: { type: 'intervention_compliance', success: false, error: err instanceof Error ? err.message : String(err) },
+    });
+    console.warn(`[pipeline] Micro-fix(intervention) failed: ${err instanceof Error ? err.message : err}`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  const intFixResult = parseJsonRobust(intFixRaw) as InterventionMicroFixResult | undefined;
+  const intFixElapsed = Date.now() - intFixT0;
+  const fieldValue = intFixResult?.[moveConfig.field];
+
+  const pushDiag = (workProduct: Record<string, unknown>) => {
+    stageDiags.push({
+      stage: 'micro-fix', prompt: intFixPromptText, raw_response: intFixRaw,
+      model: input.model, temperature: 0.2,
+      response_time_ms: intFixElapsed, work_product: workProduct,
+    });
+  };
+
+  if (fieldValue == null) {
+    pushDiag({
+      type: 'intervention_compliance', move: pendingIntervention.move,
+      field: moveConfig.field, success: false,
+      rejected_reason: 'missing_field_in_response',
+    });
+    console.log(`[pipeline] Micro-fix(intervention) returned no ${moveConfig.field} — falling through to full retry`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  (draft as Record<string, unknown>)[moveConfig.field] = fieldValue;
+  const recheckMeta = extractDraftMeta(draft);
+  const recheckCompliance = checkInterventionCompliance(
+    pendingIntervention.move as Parameters<typeof checkInterventionCompliance>[0],
+    recheckMeta as Record<string, unknown>,
+  );
+
+  pushDiag({
+    type: 'intervention_compliance', move: pendingIntervention.move,
+    field: moveConfig.field, success: recheckCompliance.compliant,
+    generated_value: fieldValue, recheck_result: recheckCompliance,
+  });
+
+  if (!recheckCompliance.compliant) {
+    delete (draft as Record<string, unknown>)[moveConfig.field];
+    getGlobalRecorder()?.record({
+      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+      speaker: input.label,
+      message: `Micro-fix(intervention) re-validation failed — falling through to full retry`,
+      data: { target: 'intervention_compliance', move: pendingIntervention.move, field: moveConfig.field, success: false, recheck: recheckCompliance, elapsed_ms: intFixElapsed },
+    });
+    console.log(`[pipeline] Micro-fix(intervention) re-validation failed — falling through to full retry`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  const remainingErrors = (draftVal.errorHints ?? []).filter(
+    h => classifyHintKey(h) !== 'intervention_compliance',
+  );
+  getGlobalRecorder()?.record({
+    type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+    speaker: input.label,
+    message: `Micro-fix(intervention) succeeded: generated ${moveConfig.field}`,
+    data: { target: 'intervention_compliance', move: pendingIntervention.move, field: moveConfig.field, success: true, remaining_errors: remainingErrors.length, elapsed_ms: intFixElapsed },
+  });
+  console.log(`[pipeline] Micro-fix(intervention) succeeded in ${intFixElapsed}ms — patched ${moveConfig.field}`);
+
+  if (remainingErrors.length === 0) return { applied: true, shouldBreak: true };
+
+  draftVal.repairHints = draftVal.repairHints.filter(h => classifyHintKey(h) !== 'intervention_compliance');
+  draftVal.errorHints = draftVal.errorHints.filter(h => classifyHintKey(h) !== 'intervention_compliance');
+  return { applied: true, shouldBreak: false };
+}
+
+async function tryDirectiveMicroFix(
+  draft: DraftWorkProduct | undefined,
+  draftVal: { repairHints: string[]; errorHints: string[] },
+  stageDiags: StageDiagnostics[],
+  input: TurnPipelineInput,
+  generate: StageGenerateFn,
+  pendingIntervention: TurnPipelineInput['pendingIntervention'],
+): Promise<MicroFixPassOutcome> {
+  const directiveHints = (draftVal.repairHints ?? []).filter(
+    h => classifyHintKey(h) === 'directive_compliance',
+  );
+  if (directiveHints.length === 0 || !pendingIntervention || !draft?.statement) return MICRO_FIX_NO_OP;
+
+  const move = pendingIntervention.move as keyof typeof DIRECT_RESPONSE_PATTERNS;
+  const responsePattern = DIRECT_RESPONSE_PATTERNS[move] || '';
+  const directiveText = pendingIntervention.directResponsePattern ?? `The moderator issued a ${pendingIntervention.move} intervention.`;
+
+  const dirFixT0 = Date.now();
+  let dirFixPromptText = '';
+  let dirFixRaw = '';
+
+  try {
+    dirFixPromptText = microFixDirectiveCompliance(
+      draft.statement, pendingIntervention.move, directiveText, responsePattern,
+    );
+    dirFixRaw = await generate(
+      dirFixPromptText, input.model,
+      { temperature: 0.3 },
+      `${input.label} micro-fix(directive)`,
+    );
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(directive) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    stageDiags.push({
+      stage: 'micro-fix', prompt: dirFixPromptText, raw_response: dirFixRaw,
+      model: input.model, temperature: 0.3,
+      response_time_ms: Date.now() - dirFixT0,
+      work_product: { type: 'directive_compliance', success: false, error: err instanceof Error ? err.message : String(err) },
+    });
+    console.warn(`[pipeline] Micro-fix(directive) failed: ${err instanceof Error ? err.message : err}`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  const dirFixResult = parseJsonRobust(dirFixRaw) as DirectiveMicroFixResult | undefined;
+  const dirFixElapsed = Date.now() - dirFixT0;
+
+  const pushDiag = (workProduct: Record<string, unknown>) => {
+    stageDiags.push({
+      stage: 'micro-fix', prompt: dirFixPromptText, raw_response: dirFixRaw,
+      model: input.model, temperature: 0.3,
+      response_time_ms: dirFixElapsed, work_product: workProduct,
+    });
+  };
+
+  if (!dirFixResult?.revised_first_paragraph) {
+    pushDiag({
+      type: 'directive_compliance', success: false,
+      move: pendingIntervention.move, rejected_reason: 'missing_revised_first_paragraph',
+    });
+    console.log(`[pipeline] Micro-fix(directive) returned no revised_first_paragraph — falling through to full retry`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  const paragraphs = draft.statement.split(/\n\s*\n/);
+  const originalStatement = draft.statement;
+  paragraphs[0] = dirFixResult.revised_first_paragraph;
+  draft.statement = paragraphs.join('\n\n');
+
+  const recheck = checkDirectiveContentCompliance(
+    draft.statement,
+    { move: pendingIntervention.move, directResponsePattern: pendingIntervention.directResponsePattern, isTargeted: pendingIntervention.isTargeted },
+  );
+
+  pushDiag({
+    type: 'directive_compliance', success: recheck.compliant,
+    move: pendingIntervention.move, recheck_compliant: recheck.compliant,
+    revised_first_paragraph: dirFixResult.revised_first_paragraph,
+  });
+
+  if (!recheck.compliant) {
+    draft.statement = originalStatement;
+    getGlobalRecorder()?.record({
+      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+      speaker: input.label,
+      message: `Micro-fix(directive) re-validation failed — falling through to full retry`,
+      data: { target: 'directive_compliance', move: pendingIntervention.move, success: false, recheck_compliant: false, elapsed_ms: dirFixElapsed },
+    });
+    console.log(`[pipeline] Micro-fix(directive) re-validation failed — falling through to full retry`);
+    return MICRO_FIX_NO_OP;
+  }
+
+  const remainingErrors = (draftVal.errorHints ?? []).filter(
+    h => classifyHintKey(h) !== 'directive_compliance',
+  );
+  getGlobalRecorder()?.record({
+    type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+    speaker: input.label,
+    message: `Micro-fix(directive) succeeded: first paragraph rewritten for ${pendingIntervention.move} compliance`,
+    data: { target: 'directive_compliance', move: pendingIntervention.move, success: true, recheck_compliant: true, elapsed_ms: dirFixElapsed },
+  });
+  console.log(`[pipeline] Micro-fix(directive) succeeded in ${dirFixElapsed}ms — first paragraph rewritten`);
+
+  if (remainingErrors.length === 0) return { applied: true, shouldBreak: true };
+
+  draftVal.repairHints = draftVal.repairHints.filter(h => classifyHintKey(h) !== 'directive_compliance');
+  draftVal.errorHints = draftVal.errorHints.filter(h => classifyHintKey(h) !== 'directive_compliance');
+  return { applied: true, shouldBreak: false };
 }
 
 /** Diff-check safeguard for micro-fix results.

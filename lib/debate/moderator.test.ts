@@ -638,6 +638,54 @@ describe('validateRecommendation', () => {
   });
 });
 
+// ── suppression reason invariant (t/458 regression) ───────
+
+describe('validateRecommendation — suppression reason invariant', () => {
+  it('records suppression reason when META-REFLECT is blocked by cooldown', () => {
+    const state = makeState({
+      phase: 'argumentation',
+      rounds_since_last_intervention: 0,
+      required_gap: 2,
+    });
+    const sel = makeSelection({ suggested_move: 'META-REFLECT', target_debater: 'accelerationist' });
+    const r = validateRecommendation(sel, state);
+    expect(r.proceed).toBe(false);
+    expect(r.suppressed_reason).toBe('cooldown_active');
+    expect(r.suppression_explanation).toBeTruthy();
+  });
+
+  it('records suppression reason when META-REFLECT is blocked by phase', () => {
+    const state = makeState({
+      phase: 'confrontation',
+      rounds_since_last_intervention: 2,
+    });
+    const sel = makeSelection({ suggested_move: 'META-REFLECT', target_debater: 'accelerationist' });
+    const r = validateRecommendation(sel, state);
+    expect(r.proceed).toBe(false);
+    expect(r.suppressed_reason).toBe('phase_mismatch');
+  });
+
+  it('never produces null suppressed_reason when proceed=false and intervene=true', () => {
+    const suppressionScenarios: { label: string; state: Partial<ModeratorState>; sel: Partial<SelectionResult> }[] = [
+      { label: 'cooldown', state: { phase: 'argumentation', rounds_since_last_intervention: 0, required_gap: 2 }, sel: { suggested_move: 'PIN' } },
+      { label: 'phase_mismatch', state: { phase: 'confrontation', rounds_since_last_intervention: 2 }, sel: { suggested_move: 'COMMIT' } },
+      { label: 'same_debater_consecutive', state: { phase: 'argumentation', rounds_since_last_intervention: 2, last_target: 'safetyist' }, sel: { suggested_move: 'PIN', target_debater: 'safetyist' } },
+      { label: 'burden_cap', state: { phase: 'argumentation', rounds_since_last_intervention: 2, burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 }, avg_burden: 2.0 }, sel: { suggested_move: 'PIN', target_debater: 'safetyist' } },
+      { label: 'engine_override (no move)', state: { phase: 'argumentation' }, sel: { intervene: true, suggested_move: undefined as unknown as string } },
+      { label: 'engine_override (no target)', state: { phase: 'argumentation' }, sel: { intervene: true, target_debater: undefined as unknown as string } },
+      { label: 'engine_override (not intervening)', state: { phase: 'argumentation' }, sel: { intervene: false } },
+    ];
+
+    for (const scenario of suppressionScenarios) {
+      const state = makeState(scenario.state);
+      const sel = makeSelection(scenario.sel);
+      const r = validateRecommendation(sel, state);
+      expect(r.proceed, `expected proceed=false for ${scenario.label}`).toBe(false);
+      expect(r.suppressed_reason, `missing suppressed_reason for ${scenario.label}`).toBeTruthy();
+    }
+  });
+});
+
 // ── updateModeratorState ─────────────────────────────────
 
 describe('updateModeratorState', () => {

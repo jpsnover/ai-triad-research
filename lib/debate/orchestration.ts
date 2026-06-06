@@ -155,6 +155,7 @@ export interface ModeratorSelectionResult {
   agreementDetected: boolean;
   selectionResult: Partial<SelectionResult>;
   intervention?: ModeratorIntervention;
+  engineValidation?: EngineValidationResult;
   interventionBriefInjection: string;
   /** Moderator state with health score appended but NOT yet updated for this round's intervention. Callers must call updateModeratorState() at end of round. */
   modState: ModeratorState;
@@ -352,6 +353,7 @@ export async function runModeratorSelection(
   let agreementDetected = false;
   let selectionResultObj: Partial<SelectionResult> = {};
   let activeIntervention: ModeratorIntervention | undefined;
+  let engineValidation: EngineValidationResult | undefined;
   let interventionBriefInjection = '';
   let selectionPrompt = '';
   let selectionText = '';
@@ -374,13 +376,13 @@ export async function runModeratorSelection(
       trigger_reasoning: 'Automatic COMMIT in synthesis phase',
     };
 
-    const validation = validateRecommendation(selectionResultObj as SelectionResult, modState);
-    if (validation.proceed) {
+    engineValidation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+    if (engineValidation.proceed) {
       try {
         const stage2Prompt = moderatorInterventionPrompt(
-          validation.validated_move,
-          validation.validated_family,
-          poverInfo[validation.validated_target]?.label ?? validation.validated_target,
+          engineValidation.validated_move,
+          engineValidation.validated_family,
+          poverInfo[engineValidation.validated_target]?.label ?? engineValidation.validated_target,
           'Automatic synthesis-phase COMMIT',
           undefined,
           formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries, { includeTaxonomyRefs: false }),
@@ -399,7 +401,7 @@ export async function runModeratorSelection(
 
         if (interventionText && interventionText.trim().length > 0) {
           activeIntervention = buildIntervention(
-            validation, interventionText,
+            engineValidation, interventionText,
             'Automatic synthesis-phase COMMIT',
             { signal: 'concluding_phase', round },
           );
@@ -409,7 +411,7 @@ export async function runModeratorSelection(
             speaker: 'moderator',
             content: interventionText,
             taxonomy_refs: [],
-            addressing: validation.validated_target,
+            addressing: engineValidation.validated_target,
             intervention_metadata: {
               family: activeIntervention.family,
               move: activeIntervention.move,
@@ -460,13 +462,13 @@ export async function runModeratorSelection(
         target_debater: policyChallengeTarget,
         trigger_reasoning: 'Automatic POLICY_CHALLENGE: policymaker audience, high convergence but abstract intention claims',
       };
-      const validation = validateRecommendation(selectionResultObj as SelectionResult, modState);
-      if (validation.proceed) {
+      engineValidation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+      if (engineValidation.proceed) {
         try {
           const stage2Prompt = moderatorInterventionPrompt(
-            validation.validated_move,
-            validation.validated_family,
-            poverInfo[validation.validated_target]?.label ?? validation.validated_target,
+            engineValidation.validated_move,
+            engineValidation.validated_family,
+            poverInfo[engineValidation.validated_target]?.label ?? engineValidation.validated_target,
             'Automatic policymaker POLICY_CHALLENGE — debaters converging on principles without addressing implementation',
             undefined,
             formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries, { includeTaxonomyRefs: false }),
@@ -483,7 +485,7 @@ export async function runModeratorSelection(
           const interventionText = stage2Parsed.text as string;
           if (interventionText && interventionText.trim().length > 0) {
             activeIntervention = buildIntervention(
-              validation, interventionText,
+              engineValidation, interventionText,
               'Automatic policymaker POLICY_CHALLENGE',
               { signal: 'policy_challenge_trigger', round },
             );
@@ -495,7 +497,7 @@ export async function runModeratorSelection(
               speaker: 'moderator',
               content: interventionText,
               taxonomy_refs: [],
-              addressing: validation.validated_target,
+              addressing: engineValidation.validated_target,
               intervention_metadata: {
                 family: activeIntervention.family,
                 move: activeIntervention.move,
@@ -538,13 +540,13 @@ export async function runModeratorSelection(
         target_debater: targetPov,
         trigger_reasoning: `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux "${cruxCandidate.description}" engaged for ${cruxCandidate.roundsEngaged} rounds without resolution`,
       };
-      const validation = validateRecommendation(selectionResultObj as SelectionResult, modState);
-      if (validation.proceed) {
+      engineValidation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+      if (engineValidation.proceed) {
         const interventionText = buildCruxFocusInterventionText(
           cruxCandidate, poverInfo[targetPov]?.label ?? targetPov,
         );
         activeIntervention = buildIntervention(
-          validation, interventionText,
+          engineValidation, interventionText,
           `CRUX_FOCUS: ${cruxCandidate.disagreementType} crux engaged ${cruxCandidate.roundsEngaged} rounds`,
           { signal: 'crux_focus_trigger', node_id: cruxCandidate.cruxId, round },
         );
@@ -556,7 +558,7 @@ export async function runModeratorSelection(
           speaker: 'moderator',
           content: interventionText,
           taxonomy_refs: [],
-          addressing: validation.validated_target,
+          addressing: engineValidation.validated_target,
           intervention_metadata: {
             family: activeIntervention.family,
             move: activeIntervention.move,
@@ -703,15 +705,15 @@ export async function runModeratorSelection(
       }
 
       // ── Engine validation (deterministic) ──
-      if (selectionResultObj.intervene && selectionResultObj.suggested_move && selectionResultObj.target_debater) {
-        const validation = validateRecommendation(selectionResultObj as SelectionResult, modState);
+      if (selectionResultObj.intervene) {
+        engineValidation = validateRecommendation(selectionResultObj as SelectionResult, modState);
 
-        if (validation.proceed) {
+        if (engineValidation.proceed) {
           try {
             const stage2Prompt = moderatorInterventionPrompt(
-              validation.validated_move,
-              validation.validated_family,
-              poverInfo[validation.validated_target]?.label ?? validation.validated_target,
+              engineValidation.validated_move,
+              engineValidation.validated_family,
+              poverInfo[engineValidation.validated_target]?.label ?? engineValidation.validated_target,
               selectionResultObj.trigger_reasoning ?? '',
               selectionResultObj.trigger_evidence?.source_claim,
               formatRecentTranscript(transcript as TranscriptEntry[], 4, contextSummaries, { includeTaxonomyRefs: false }),
@@ -723,7 +725,7 @@ export async function runModeratorSelection(
 
             const stage2Text = await callbacks.generate(
               stage2Prompt, model, { temperature: 0.7, timeoutMs: moderatorTimeoutMs(model) },
-              `Round ${round}: Moderator intervention (${validation.validated_move})`,
+              `Round ${round}: Moderator intervention (${engineValidation.validated_move})`,
             );
 
             if (callbacks.isAborted?.()) {
@@ -735,7 +737,7 @@ export async function runModeratorSelection(
 
             if (interventionText && interventionText.trim().length > 0) {
               activeIntervention = buildIntervention(
-                validation, interventionText,
+                engineValidation, interventionText,
                 selectionResultObj.trigger_reasoning ?? 'Engine-validated intervention',
                 {
                   signal: selectionResultObj.trigger_evidence?.signal_name,
@@ -745,7 +747,7 @@ export async function runModeratorSelection(
                 stage2Parsed.original_claim_text as string | undefined,
               );
 
-              responder = validation.validated_target as Exclude<SpeakerId, 'user'>;
+              responder = engineValidation.validated_target as Exclude<SpeakerId, 'user'>;
 
               interventionBriefInjection = buildInterventionBriefInjection(
                 activeIntervention, poverInfo[responder]?.label ?? responder,
@@ -825,6 +827,7 @@ export async function runModeratorSelection(
     agreementDetected,
     selectionResult: selectionResultObj,
     intervention: activeIntervention,
+    engineValidation,
     interventionBriefInjection,
     modState,
     healthScore,

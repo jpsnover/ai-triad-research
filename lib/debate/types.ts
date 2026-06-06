@@ -1115,6 +1115,12 @@ export interface EntryDiagnostics {
       element_type: 'verifiable' | 'normative';
     }>;
   };
+  scope_drift_warnings?: {
+    debater: string;
+    node_id: string;
+    similarity: number;
+    draft_excerpt: string;
+  }[];
 }
 
 export interface DraftQualityGateResult {
@@ -1372,6 +1378,14 @@ export interface ClaimExtractionTrace {
     attribution_confidence: number;
     secondary_refs_count: number;
     unattributed_reason?: 'novel_argument' | 'no_embedding';
+  }[];
+
+  exclusion_violations?: {
+    claim_id: string;
+    claim_text: string;
+    node_id: string;
+    similarity_main: number;
+    similarity_exclusion: number;
   }[];
 }
 

@@ -13,6 +13,7 @@ import { computeQbafStrengths } from './qbaf.js';
 import type { QbafNode, QbafEdge } from './qbaf.js';
 import type { EvidenceItem } from './evidenceRetriever.js';
 import type { AIAdapter, GenerateOptions } from './aiAdapter.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { StandardizedTerm } from '../dictionary/types.js';
 import { ActionableError } from './errors.js';
 
@@ -190,6 +191,7 @@ export async function buildEvidenceQbaf(
       ...options?.generateOptions,
     });
   } catch (err) {
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'evidenceQbaf', level: 'error', message: 'LLM evidence classification failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     throw new ActionableError({
       goal: 'Classify evidence items for QBAF',
       problem: `LLM classification failed: ${err instanceof Error ? err.message : err}`,

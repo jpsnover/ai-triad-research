@@ -1,0 +1,82 @@
+import { cosineSimilarity } from './taxonomyRelevance.js';
+import type { ArgumentNetworkNode } from './types.js';
+
+export const EXCLUSION_RATIO_THRESHOLD = 0.85;
+export const SCOPE_BOUNDARY_THRESHOLD = 0.65;
+
+export interface ExclusionViolation {
+  claim_id: string;
+  claim_text: string;
+  node_id: string;
+  similarity_main: number;
+  similarity_exclusion: number;
+}
+
+export interface ScopeDriftWarning {
+  debater: string;
+  node_id: string;
+  similarity: number;
+  draft_excerpt: string;
+}
+
+type NodeEmbeddingEntry = { pov: string; vector: number[]; exclusion_vector?: number[] };
+
+export function checkClaimExclusionBoundary(
+  nodes: readonly ArgumentNetworkNode[],
+  nodeEmbeddings: Record<string, NodeEmbeddingEntry>,
+  threshold = EXCLUSION_RATIO_THRESHOLD,
+): ExclusionViolation[] {
+  const violations: ExclusionViolation[] = [];
+
+  for (const node of nodes) {
+    if (!node.embedding) continue;
+    const primaryRef = node.claim_taxonomy_attribution?.primary_ref;
+    if (!primaryRef) continue;
+
+    const entry = nodeEmbeddings[primaryRef];
+    if (!entry?.exclusion_vector) continue;
+
+    const simMain = cosineSimilarity(node.embedding, entry.vector);
+    const simExcl = cosineSimilarity(node.embedding, entry.exclusion_vector);
+
+    if (simExcl > simMain * threshold) {
+      violations.push({
+        claim_id: node.id,
+        claim_text: node.text,
+        node_id: primaryRef,
+        similarity_main: simMain,
+        similarity_exclusion: simExcl,
+      });
+    }
+  }
+
+  return violations;
+}
+
+export function checkDraftScopeBoundary(
+  draftEmbedding: number[],
+  taxonomyRefIds: readonly string[],
+  nodeEmbeddings: Record<string, NodeEmbeddingEntry>,
+  debater: string,
+  draftText: string,
+  threshold = SCOPE_BOUNDARY_THRESHOLD,
+): ScopeDriftWarning[] {
+  const warnings: ScopeDriftWarning[] = [];
+
+  for (const nodeId of taxonomyRefIds) {
+    const entry = nodeEmbeddings[nodeId];
+    if (!entry?.exclusion_vector) continue;
+
+    const sim = cosineSimilarity(draftEmbedding, entry.exclusion_vector);
+    if (sim > threshold) {
+      warnings.push({
+        debater,
+        node_id: nodeId,
+        similarity: sim,
+        draft_excerpt: draftText.slice(0, 200),
+      });
+    }
+  }
+
+  return warnings;
+}

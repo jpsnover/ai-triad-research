@@ -1,0 +1,2299 @@
+Chapter 1
+
+Introduction
+
+Metaphor is a foundational linguistic phenomenon that serves as both a cognitive
+
+framework and a powerful communicative device. By mapping abstract or unfamiliar
+
+concepts onto concrete and familiar domains, metaphors enable humans to make
+
+sense of complex ideas and express nuanced emotions, thereby enhancing the richness
+
+and versatility of language. Beyond their aesthetic appeal, metaphors are integral
+
+to human thought, influencing how we reason, make decisions, and interact with the
+
+world around us.
+
+In the realm of computational linguistics, metaphor processing bridges the
+
+disciplines of psycholinguistics and artificial intelligence, offering a unique perspective
+
+to explore the interplay between language, cognition, and computation. This
+
+burgeoning field addresses the intricate challenges of detecting, interpreting, and
+
+even generating metaphors, tasks that demand an understanding of context, cultural
+
+nuances, and conceptual mappings. Its advancements have far-reaching implications
+
+for natural language processing (NLP), enhancing the depth and accuracy of tasks
+
+such as sentiment analysis, machine translation, overall interpretability.
+
+1.1 Background and Motivation
+
+Metaphorical expressions are a cornerstone of human language, appearing in nearly
+
+20% of everyday communication (Steen 2010). They bridge abstract concepts and
+
+concrete experiences, making complex ideas relatable and accessible. For example,
+
+1
+
+Chapter 1 Introduction
+
+in the expression,
+
+This project is such a headache!
+
+the word headache metaphorically conveys a source of frustration or difficulty, di-
+
+verging from its literal meaning of physical discomfort. This capacity for abstract
+
+mapping underscores metaphors’ pivotal role in shaping human cognition, communi-
+
+cation, and creativity (Lakoff & Johnson 1980, Lakoff 1993).
+
+The study of metaphors is particularly compelling within computational lin-
+
+guistics, where it intersects with challenges in natural language understanding and
+
+generation. Metaphors, by their very nature, defy straightforward interpretation.
+
+They often depend on cultural and contextual cues, requiring nuanced comprehen-
+
+sion. For instance, in the sentence,
+
+The scream pierced the night.
+
+the word pierced metaphorically conveys the sharp, penetrating quality of a sound,
+
+distinct from its literal association with physical penetration. Such examples high-
+
+light the multifaceted nature of metaphorical language, where meaning is derived
+
+from context-specific and conceptual mappings.
+
+Despite their ubiquity, metaphors remain one of the most challenging aspects
+
+of language for computational models to process effectively. Their interpretation
+
+demands not only the recognition of figurative language but also an understanding
+
+of the broader conceptual structures that underpin metaphorical expressions. As a
+
+result, developing robust computational approaches to detect, interpret, and generate
+
+metaphors is essential for advancing NLP systems. Applications such as sentiment
+
+analysis, where metaphors often carry emotional undertones, or machine translation,
+
+which must navigate culturally specific metaphorical constructs, stand to benefit
+
+significantly from such advancements.
+
+Understanding the intricate interplay between linguistic structure and metaphor-
+
+ical meaning is not merely an academic endeavor but a critical step toward creating
+
+AI systems that can truly grasp and replicate the richness of human language.
+
+2
+
+Background and Motivation
+
+Figure 1.1: Chinese and English metaphorical expressions of being
+drunk.
+
+1.1.1 Role of Metaphors in NLP
+
+Metaphors are not mere linguistic flourishes; they are deeply embedded concep-
+
+tual tools that profoundly shape human thought, communication, and decision-
+
+making (Lakoff & Johnson 1980). By linking abstract ideas with concrete experiences,
+
+metaphors enable individuals to structure and interpret complex phenomena, often
+
+influencing behaviors and societal norms. For instance, the conceptual metaphor
+
+“time is money” extends beyond language, shaping how societies prioritize efficiency,
+
+productivity, and resource allocation. Such metaphors encapsulate cultural values
+
+and shared cognitive frameworks, underscoring their significance beyond surface-level
+
+expression.
+
+In the realm of computational linguistics, metaphors hold transformative po-
+
+tential for advancing natural language processing (NLP) systems. Unlike literal
+
+language, metaphorical expressions encapsulate layers of implicit meaning, requiring
+
+a sophisticated understanding of context, semantics, and cultural nuances. Success-
+
+fully processing metaphors enables NLP systems to interpret emotional undertones
+
+3
+
+BEER Drunk (So That Collapsed Like Quagmire)烂醉如泥beerSeeing Pink ElepantsHeavily DrunkChapter 1 Introduction
+
+and nuanced perspectives, which are critical in tasks like sentiment analysis. For
+
+example, the metaphor “a wave of grief” conveys an emotional intensity that goes
+
+beyond literal descriptions, providing richer insights into user sentiment (Abd Yusof
+
+et al. 2017).
+
+Moreover, understanding metaphors is pivotal for tasks like machine translation,
+
+where figurative language often poses unique challenges. Direct translations of
+
+metaphors may not always capture their intended meaning due to cultural and
+
+linguistic differences. For example, while English speakers might describe someone
+
+as “seeing pink elephants” to denote drunkenness, a Chinese speaker might liken it
+
+to being “collapsed on the ground like quagmire.” Computational systems equipped
+
+to recognize and translate such metaphors can bridge these linguistic and cultural
+
+gaps, enhancing cross-linguistic communication (Guti´errez et al. 2017).
+
+Beyond translation and sentiment analysis, metaphor processing has broader
+
+implications for fields like mental healthcare and creative AI applications.
+
+In
+
+therapeutic contexts, metaphors often serve as windows into a patient’s mental
+
+state, offering valuable cues for diagnosis and treatment. For example, phrases
+
+like “drowning in sadness” or “shattered dreams” reflect deep emotional states
+
+that NLP systems could analyze to support mental health professionals. Similarly,
+
+creative applications such as story generation and dialogue systems benefit from
+
+incorporating metaphorical language, enabling them to produce more expressive and
+
+relatable content.
+
+By addressing the intricate challenges of metaphor detection and interpretation,
+
+NLP research can unlock new dimensions of language understanding, ultimately
+
+creating systems that better emulate the richness and complexity of human commu-
+
+nication.
+
+1.2 Aims and Objectives
+
+The overarching aim of this thesis is to advance the field of computational metaphor
+
+processing by addressing the multifaceted challenges associated with detecting,
+
+interpreting, and applying metaphors in diverse linguistic contexts. By bridging
+
+4
+
+Aims and Objectives
+
+theoretical insights with practical innovations, this research seeks to contribute both
+
+foundational knowledge and applied methodologies that enhance the capabilities
+
+of natural language processing (NLP) systems. Specifically, the objectives of this
+
+thesis are as follows:
+
+• Develop robust methodologies for detecting metaphorical expressions: This
+
+involves creating computational models capable of identifying metaphors in
+
+various linguistic and cultural contexts, ranging from conventional metaphors
+
+to more creative and context-dependent expressions. The focus is on achieving
+
+high accuracy and adaptability across multiple languages and domains.
+
+• Explore techniques to denoise and refine contextual information for metaphor
+
+interpretation: Metaphor comprehension often hinges on context. This research
+
+aims to investigate advanced methods for filtering out irrelevant or noisy
+
+contextual elements while retaining and emphasizing semantically meaningful
+
+information. Techniques such as dependency parsing, target-oriented pruning,
+
+and attention mechanisms will be explored to enhance metaphor interpretation.
+
+• Bridge cross-linguistic and cross-cultural gaps in metaphor processing: As
+
+metaphors are deeply influenced by cultural and linguistic factors, this research
+
+also aims to explore the universality and variability of metaphorical expressions.
+
+By analyzing cross-linguistic datasets and addressing challenges in metaphor
+
+translation, the thesis will contribute to building more culturally sensitive
+
+NLP systems.
+
+• Enhance the explainability and interpretability of metaphor processing models:
+
+In line with the increasing demand for explainable AI, this thesis will also
+
+investigate approaches to make metaphor processing models more interpretable,
+
+enabling a better understanding of how they detect and interpret metaphorical
+
+language.
+
+By addressing these objectives, this thesis aims to push the boundaries of what
+
+computational models can achieve in metaphor processing, paving the way for NLP
+
+5
+
+Chapter 1 Introduction
+
+systems that are not only more accurate but also more contextually aware, culturally
+
+adaptable, and semantically rich.
+
+1.2.1 Research Questions
+
+To fulfill the aims and objectives of this thesis, the following research questions
+
+are addressed, each designed to tackle critical aspects of computational metaphor
+
+processing and its integration into natural language processing (NLP) systems:
+
+1. How can computational models effectively detect and interpret metaphorical
+
+expressions in context? This question focuses on developing models capable of
+
+identifying metaphors in diverse linguistic scenarios. It investigates how to
+
+leverage context, linguistic theories, and modern machine learning techniques
+
+to accurately detect metaphorical language. Additionally, it seeks to explore
+
+how these models can interpret the underlying conceptual mappings that give
+
+metaphors their meaning, ensuring that the systems are both precise and
+
+semantically insightful.
+
+2. What techniques can improve the denoising of context for accurate metaphor
+
+understanding? Metaphor comprehension often requires isolating relevant
+
+contextual cues from noisy data. This question examines advanced techniques,
+
+such as syntactic pruning, dependency parsing, attention mechanisms, and
+
+representation learning, to filter out irrelevant information while preserving
+
+semantically significant elements. The goal is to enhance the model’s ability
+
+to focus on the most informative aspects of the context, improving metaphor
+
+detection and interpretation accuracy.
+
+3. What are the cross-linguistic and cultural challenges in metaphor processing,
+
+and how can they be addressed computationally? This additional question
+
+delves into the cultural and linguistic variations of metaphor usage, examining
+
+how computational models can effectively process and translate metaphors
+
+across different languages. It aims to identify universal patterns in metaphorical
+
+expressions and address challenges posed by culturally specific metaphors,
+
+contributing to more globally adaptable NLP systems.
+
+6
+
+Scope of the Study
+
+4. How can metaphor processing models be made more interpretable and ex-
+
+plainable? This question addresses the growing demand for explainable AI
+
+by investigating methods to enhance the interpretability of computational
+
+metaphor models. It examines how models can provide insights into their
+
+decision-making processes, particularly in detecting and interpreting metaphors,
+
+ensuring that the systems are transparent and trustworthy in their applications.
+
+By answering these questions, this thesis aims to deepen our understanding
+
+of computational metaphor processing while contributing innovative solutions to
+
+enhance the capabilities of NLP systems.
+
+1.3 Scope of the Study
+
+This thesis is dedicated to advancing computational methodologies for the detection,
+
+interpretation, and translation of metaphorical expressions in natural language.
+
+Metaphors are an essential component of human communication, often carrying
+
+abstract, figurative meanings that differ from their literal interpretations. However,
+
+their inherent complexity poses significant challenges for natural language processing
+
+(NLP) systems, which must navigate diverse linguistic structures, cultural variations,
+
+and context-dependent conceptual mappings to accurately process metaphorical lan-
+
+guage. Addressing these challenges requires a multi-faceted approach that combines
+
+advances in machine learning, linguistic theory, and cognitive science to develop
+
+models that are both linguistically proficient and computationally efficient.
+
+To tackle these challenges, this research explores three key aspects of metaphor
+
+processing: Enhancing metaphor detection – developing more precise and
+
+context-aware computational models to identify metaphorical expressions within
+
+natural language. Improving metaphor translation – ensuring that the figura-
+
+tive meaning of metaphors is preserved across different languages while accounting
+
+for cultural and structural differences. Leveraging interpretability in large
+
+language models (LLMs) for metaphor understanding – making LLMs more
+
+transparent and explainable in their handling of figurative language, improving both
+
+their usability and trustworthiness. By integrating insights from computational
+
+7
+
+Chapter 1 Introduction
+
+linguistics, psycholinguistics, and artificial intelligence, this thesis aims to construct
+
+robust and adaptable methodologies that improve the ability of NLP systems to
+
+detect, interpret, and translate metaphorical language with greater accuracy and
+
+contextual sensitivity. This research not only enhances the theoretical understand-
+
+ing of metaphor processing but also provides practical solutions for applications
+
+such as machine translation, sentiment analysis, and explainable AI, contributing
+
+to the development of NLP systems that are cognitively informed, linguistically
+
+sophisticated, and culturally aware.
+
+1.3.1 Towards Robust Metaphor Detection
+
+This chapter introduces three innovative approaches that address key challenges in
+
+computational metaphor detection. Each method brings unique contributions to
+
+improving the accuracy, interpretability, and applicability of metaphor processing
+
+models by leveraging advanced contextual, semantic, and syntactic techniques.
+
+RoPPT: Target-Oriented Context Pruning for Metaphor Detection
+
+RoPPT (RoBERTa with Pruning on Target-Oriented Parse Tree) introduces a novel
+
+approach to metaphor detection by leveraging syntactic structures for effective
+
+context denoising. It reshapes dependency parse trees into flat, target-oriented
+
+structures, focusing on the semantically relevant neighbors of the metaphorical
+
+target. This pruning mechanism filters out irrelevant nodes, retaining only the
+
+essential contextual information for accurate metaphor detection. RoPPT addresses
+
+key challenges in computational efficiency and context relevance. Its streamlined tree
+
+structure facilitates batch optimization, overcoming the limitations of traditional
+
+dependency tree models. Experimental results on benchmark datasets (VUA, MOH-
+
+X, TroFi) demonstrate that RoPPT achieves superior performance compared to
+
+existing state-of-the-art models. Notably, the model’s accuracy improves with
+
+sentence length, highlighting its robustness in handling complex linguistic structures.
+
+FrameBERT: Conceptual Metaphor Detection with Frame Embedding
+
+Learning and Context Pruning FrameBERT is a BERT-based model designed
+
+to enhance metaphor detection by integrating external semantic knowledge from
+
+FrameNet. FrameNet provides a structured representation of conceptual frames,
+
+8
+
+Scope of the Study
+
+capturing relationships between entities and actions in a given context. FrameBERT
+
+leverages these embeddings to enrich the semantic representation of metaphorical
+
+expressions, addressing limitations of traditional models that rely solely on shallow
+
+contextual information. Additionally, FrameBERT employs a target-oriented context
+
+pruning mechanism that reshapes dependency parse trees into flat, target-focused
+
+structures. This approach filters out irrelevant context, enabling the model to focus
+
+on semantically significant elements surrounding the metaphorical target. Exten-
+
+sive evaluations on benchmark datasets (VUA, MOH-X, TroFi) demonstrate that
+
+FrameBERT significantly improves metaphor detection performance while enhancing
+
+model explainability by providing interpretable semantic frame representations.
+
+Metaphor Detection via Explicit Basic Meanings Modelling This
+
+method introduces a novel mechanism called BasicMIP (Basic Metaphor Identi-
+
+fication Process), which explicitly models the basic meanings of words to detect
+
+metaphors. Rooted in the Metaphor Identification Process (MIP) linguistic theory,
+
+BasicMIP contrasts a word’s basic (literal) meaning with its contextual meaning
+
+to determine metaphorical usage. Unlike prior approaches that use aggregated or
+
+decontextualized embeddings (e.g., GloVe, RoBERTa) to approximate basic mean-
+
+ings, BasicMIP directly leverages basic annotations from the training data. By
+
+summing embeddings of instances labeled as literal, the model generates accurate
+
+basic meaning representations for each target word. These are then compared to
+
+contextual representations to identify semantic contrasts indicative of metaphors.
+
+The resulting model, BasicBERT, incorporates BasicMIP alongside a module for
+
+Selectional Preference Violation (SPV) and aggregated meaning modeling. Experi-
+
+mental results on VUA18 and VUA20 datasets show that BasicBERT outperforms
+
+state-of-the-art models, achieving F1 scores that approach theoretical upper bounds
+
+for annotated targets. BasicBERT’s explicit modeling of basic meanings addresses
+
+critical gaps in metaphor detection while improving performance and interpretability.
+
+These three approaches—RoPPT, FrameBERT, and BasicBERT—illustrate dis-
+
+tinct yet complementary strategies for advancing metaphor detection: RoPPT
+
+focuses on syntactic relevance through target-oriented context pruning, ensuring
+
+efficient and precise metaphor detection. FrameBERT integrates external concep-
+
+9
+
+Chapter 1 Introduction
+
+tual knowledge to enhance semantic richness and context relevance. BasicBERT
+
+employs explicit basic meaning modeling to refine the detection of semantic con-
+
+trasts in metaphorical language. Together, these methods push the boundaries of
+
+computational metaphor processing, offering new insights and tools for tackling this
+
+inherently complex and context-dependent task.
+
+1.3.2 Corpus and Metrics for Evaluating Machine Transla-
+
+tion Quality of Metaphorical Language
+
+Metaphors, deeply intertwined with language and culture, reflect how people from
+
+different linguistic backgrounds conceptualize abstract ideas through familiar terms.
+
+While metaphors often reveal universal cognitive patterns, their linguistic expressions
+
+vary significantly across cultures, shaped by distinct societal norms and worldviews.
+
+These variations create both opportunities and challenges for computational models
+
+tasked with processing metaphors in multilingual contexts.
+
+These linguistic and cultural variations pose unique challenges for computational
+
+processing, particularly in tasks like machine translation. Translating metaphorical
+
+expressions requires more than direct word-to-word mapping; it demands a deep
+
+understanding of both the source and target cultures to preserve the intended
+
+meaning. Direct translations often result in semantic loss or misinterpretation,
+
+making it essential for computational models to account for the cultural and linguistic
+
+contexts that shape metaphors.
+
+To address these challenges, this chapter explores the intricacies of metaphor
+
+translation using multilingual datasets, focusing on English, Chinese, and Italian.
+
+It examines how conceptual mappings, such as the mentioned “pierced the night”
+
+and its Chinese equivalent “穿透黑夜” (literally “penetrated the night”), retain
+
+their figurative meanings across languages despite structural and lexical differences.
+
+The study also investigates mismatches caused by linguistic norms, offering insights
+
+into how these challenges can be systematically approached through computational
+
+frameworks.
+
+Special attention is given to the development of culturally aware computational
+
+10
+
+Scope of the Study
+
+models capable of detecting, interpreting, and translating metaphors with sensi-
+
+tivity to linguistic and cultural nuances. By integrating insights from cognitive
+
+linguistics, psycholinguistics, and computational techniques, this research proposes
+
+methods to enhance machine translation, cross-linguistic sentiment analysis, and
+
+other applications requiring a nuanced understanding of metaphorical language.
+
+Additionally, this chapter introduces MMTE (Metaphorical Machine Translation
+
+Evaluation), a systematic framework for evaluating metaphor translation. MMTE
+
+contributes a manually annotated multilingual corpus between English, Chinese, and
+
+Italian, alongside a human evaluation framework to assess rhetorical equivalence.
+
+This framework bridges linguistic and computational insights, highlighting the
+
+challenges and solutions in metaphor translation.
+
+Through its focus on cross-linguistic perspectives, this chapter contributes to
+
+a deeper understanding of how metaphors operate in different linguistic and cul-
+
+tural environments. It provides practical solutions for addressing the challenges of
+
+metaphor translation, paving the way for NLP systems that are not only linguistically
+
+proficient but also culturally adaptive and semantically nuanced.
+
+1.3.3 Exploring Task Performance with Interpretable Mod-
+
+els via Sparse Auto-Encoders
+
+The rise of large language models (LLMs) such as GPT-4 and Llama 3 has brought
+
+transformative advancements to natural language processing, enabling systems to
+
+perform complex tasks with remarkable accuracy. However, the inherent opacity of
+
+these models presents significant challenges, particularly in specialized applications
+
+like metaphor detection and interpretation. Metaphors, characterized by their
+
+abstract, context-dependent meanings, demand nuanced understanding and precise
+
+reasoning capabilities that stretch the limits of current computational systems.
+
+LLMs have shown potential for tackling metaphor processing, but their success
+
+hinges on addressing several key challenges. One major issue is the polysemantic
+
+nature of neurons in neural networks, where individual neurons respond to multiple,
+
+unrelated inputs. This phenomenon, driven by superposition, complicates the task
+
+11
+
+Chapter 1 Introduction
+
+of interpreting metaphorical expressions. For example, as the previous mentioned
+
+metaphor “pierced the night” requires the model to distinguish between the literal
+
+sense of “pierced” and its metaphorical connotation of a sharp, penetrating sound.
+
+Traditional approaches relying on external tools like POS tagging or knowledge
+
+graphs often fall short in capturing the depth of such abstract relationships.
+
+This chapter leverages insights from mechanistic interpretability to address these
+
+challenges, applying techniques such as dictionary learning and sparse autoencoders.
+
+By decomposing LLMs into comprehensible components, this approach extracts
+
+monosemantic features from polysemantic neurons, reducing ambiguity and enabling
+
+the model to focus on contextually relevant information. This level of interpretability
+
+not only enhances metaphor detection but also provides transparency in how these
+
+models process abstract language.
+
+Another critical insight from this research is the role of modular applications in
+
+enhancing LLM performance. By applying autoencoder-based feature decomposition
+
+in a task-specific manner, this chapter demonstrates significant improvements in
+
+metaphor detection and other abstract reasoning tasks. This modularity ensures
+
+that LLMs are not only capable of processing metaphors with higher accuracy but
+
+are also adaptable to various linguistic and cultural contexts.
+
+In summary, processing metaphors with LLMs involves overcoming the opacity
+
+and polysemanticity inherent in these models. By employing advanced interpretabil-
+
+ity techniques and integrating them into task-specific workflows, this research
+
+contributes to a deeper understanding of how LLMs can handle complex, abstract
+
+reasoning. It supports the development of NLP systems that are both semantically
+
+rich and explainable, ensuring robust performance across structured and figurative
+
+language contexts.
+
+1.4 Overview of the Thesis
+
+This thesis explores the multifaceted challenges of computational metaphor detection
+
+and presents innovative approaches to advance the field. The research is structured
+
+into six main chapters, each addressing key aspects of metaphor processing, from
+
+12
+
+Overview of the Thesis
+
+foundational concepts to cutting-edge methodologies and cross-linguistic insights.
+
+The chapters are organized as follows:
+
+• Chapter 1: Introduction This chapter provides an introduction to metaphor
+
+as a cognitive and linguistic phenomenon, highlighting its significance in natural
+
+language processing (NLP). It outlines the research objectives and defines the
+
+scope of the thesis. The chapter also highlights the key contributions made
+
+throughout the study.
+
+• Chapter 2: Literature Survey This chapter reviews existing work in
+
+computational metaphor processing, covering theoretical frameworks, linguistic
+
+theories, and state-of-the-art methodologies. It delves into approaches for
+
+metaphor detection and metaphor interpretation, identifying gaps in the
+
+literature and motivating the development of the advanced methods proposed
+
+in this thesis.
+
+• Chapter 3: Towards Robust Metaphor Detection This chapter intro-
+
+duces three novel approaches to metaphor detection:
+
+– RoPPT, a RoBERTa-based model that employs target-oriented parse
+
+tree pruning to denoise and refine the contextual information surrounding
+
+metaphorical targets.
+
+– FrameBERT, which integrates FrameNet embeddings and context pruning
+
+for conceptual metaphor detection.
+
+– BasicBERT, a model that explicitly incorporates basic meaning modeling
+
+to refine metaphor identification.
+
+Each method is described in detail, and experimental results are presented to
+
+demonstrate their effectiveness and contributions to metaphor processing.
+
+• Chapter 4: Corpus and Metrics for Evaluating Machine Translation
+
+Quality of Metaphorical Language This chapter examines the role of
+
+linguistic and cultural variations in metaphorical expressions. By analyzing
+
+multilingual datasets, the chapter highlights universal conceptual patterns
+
+13
+
+Chapter 1 Introduction
+
+and culturally specific nuances. It also explores the challenges of metaphor
+
+translation and the importance of culturally aware computational models, with
+
+applications in machine translation and cross-linguistic sentiment analysis.
+
+• Chapter 5: Exploring Task Performance with Interpretable Models
+
+via Sparse Auto-Encoders This chapter investigates how large language
+
+models (LLMs) such as GPT-4 and Llama3 can be leveraged for metaphor
+
+processing. It explores the interpretability of LLMs, their potential for handling
+
+abstract and context-dependent language, and the integration of advanced
+
+techniques like mechanistic interpretability and feature decomposition to
+
+enhance metaphor detection and interpretation. The chapter provides insights
+
+into how LLMs can be adapted for metaphor tasks while addressing their
+
+limitations.
+
+• Chapter 6: Conclusion and Future Work The final chapter summarizes
+
+the key findings and contributions of the thesis. It reflects on the advancements
+
+made in metaphor detection and translation, emphasizing the significance
+
+of integrating semantic knowledge, context denoising, and cross-linguistic
+
+understanding. The chapter also outlines future research directions, including
+
+the potential for explainable AI in metaphor processing and the extension of
+
+proposed methods to other figurative language phenomena.
+
+This structure ensures a logical progression from foundational concepts to ad-
+
+vanced methodologies and practical applications. By addressing the theoretical,
+
+computational, and cultural dimensions of metaphor processing, this thesis con-
+
+tributes to the development of NLP systems that are not only more accurate but
+
+also more interpretable and adaptable across languages and domains.
+
+1.5 Publications
+
+This section presents a list of research publications that I have contributed to,
+
+focusing on metaphor detection, machine translation, and interpretable study. The
+
+14
+
+Publications
+
+works include peer-reviewed papers published in top conferences such as ACL,
+
+EMNLP, and EACL.
+
+1.5.1 Published Works focussing on Metaphor
+
+The following works have been published and focus on metaphor detection, evaluation
+
+and translation. These studies have been discussed and referenced throughout this
+
+thesis, providing essential background and contributions to the research presented.
+
+In the first paper, we proposed a cross-linguistic framework for evaluating
+
+metaphor translation quality by annotating and analyzing multilingual datasets
+
+that reflect both universal and culture-specific metaphorical patterns. I was pri-
+
+marily responsible for all experimental work, including data collection, annotation
+
+organization, and statistical analysis, as well as drafting the main body of the paper.
+
+In total, Papers 2, 3, and 4 are three closely related works that represent our
+
+initial exploration on metaphor detection. The second work, in which I am listed as
+
+a co-first author (first in order), was primarily led by me, with full responsibility for
+
+the design and execution of the experiments, as well as the writing of the manuscript.
+
+My co-authors played a key role in the later stages of the paper revision.
+
+For the third and fourth works, I am listed as a co-first author (second in
+
+order). These works build upon our earlier research and share many common ideas,
+
+developed jointly through extensive discussions with my co-authors and substantial
+
+conceptual guidance from my supervisor, Chenghua Lin. In these works, I led the
+
+design and execution of all experiments, ensuring methodological consistency with
+
+our previous research. The writing was primarily completed by my co-authors, while
+
+I actively participated in revising and refining the manuscripts. The findings of this
+
+joint work have been fully integrated into this thesis and extended with additional
+
+analyses and experiments.
+
+1. Wang, S., Zhang, G., Wu, H., Loakman, T., Huang, W., Lin, C. MMTE:
+
+Corpus and metrics for evaluating machine translation quality of metaphorical
+
+language. In Proceedings of the Conference on Empirical Methods in Natural
+
+15
+
+Chapter 1 Introduction
+
+Language Processing (EMNLP), 2024.
+
+2. Wang, S.*, Li, Y.*, Lin, C., Barrault, Loic., Guerin, F. Metaphor detection
+
+with effective context denoising. The European Chapter of the ACL (EACL),
+
+2023.
+
+3. Li, Y.*, Wang, S.*, Lin, C., Guerin, F., Barrault, Loic. FrameBERT: Con-
+
+ceptual metaphor detection with frame embedding learning. The European
+
+Chapter of the ACL (EACL), 2023.
+
+4. Li, Y.*, Wang, S.*, Lin, C., Guerin, F. Metaphor detection via explicit basic
+
+meanings modelling. ACL Association for Computational Linguistics (ACL),
+
+2023.
+
+1.5.2 Under Review and other Works
+
+This subsection includes ongoing research and papers under review. Notably, it
+
+covers work on interpretable models using sparse autoencoders(mentioned above)
+
+and biomedical summarization with knowledge aggregation. For Paper 5, I was
+
+responsible for all experimental work as well as drafting the main body of the
+
+manuscript. For Paper 6, I contributed to data preprocessing for the experiments
+
+and was responsible for revising the manuscript. These studies aim to enhance
+
+transparency in AI models and improve information synthesis in specialized domains.
+
+5. Wang, S., Loakman, T., Lei, Y., Liu, Y., Yang, B., Zhao, Y., Yang, D.,
+
+Lin, C. Exploring Task Performance with Interpretable Models via Sparse
+
+Auto-Encoders. (under review).
+
+6. Tang, C., Wang, S., Goldsack, T., Lin, C. Improving biomedical abstractive
+
+summarisation with knowledge aggregation from citation papers. In Proceedings
+
+of the Conference on Empirical Methods in Natural Language Processing
+
+(EMNLP), 2023.
+
+0 * The two authors contributed equally to the works.
+
+16
+
+Chapter 2
+
+Literature Survey
+
+The computational study of metaphors represents a multidisciplinary effort bridging
+
+psycholinguistics, cognitive science, and artificial intelligence. Metaphors are a
+
+cornerstone of human communication, enabling us to express abstract and complex
+
+ideas through figurative language. They permeate every aspect of human discourse,
+
+from casual conversations to literary masterpieces, serving not merely as stylistic
+
+devices but as tools for cognitive and conceptual framing. Understanding and
+
+processing metaphors computationally has profound implications for enhancing
+
+natural language processing (NLP) systems, making them more effective in tasks
+
+such as sentiment analysis, machine translation, dialogue generation, and creative
+
+text synthesis.
+
+Despite their ubiquity in human communication, metaphors pose significant
+
+challenges for computational systems due to their abstract and context-dependent
+
+nature. While literal language operates within the boundaries of explicit meaning,
+
+metaphorical language transcends these boundaries, relying heavily on shared knowl-
+
+edge, cultural context, and conceptual mappings. The difficulty lies in enabling
+
+machines to navigate this figurative terrain with precision and interpretive depth.
+
+This chapter delves into the theoretical foundations, computational advancements,
+
+and persistent challenges in metaphor research. It highlights the role of metaphor
+
+in cognition and communication, surveys the key methodologies for metaphor
+
+detection and interpretation, and underscores the significance of cross-cultural
+
+variability in metaphor usage. These explorations lay the groundwork for the novel
+
+17
+
+Chapter 2 Literature Survey
+
+methodologies and contributions presented in this thesis, which aim to advance the
+
+field of computational metaphor processing.
+
+2.1 Theoretical Foundations of Metaphor
+
+Metaphors are figurative expressions involving one or more words that create semantic
+
+contrast between their contextual and basic meanings, as defined by Pragglejaz (2007).
+
+The contextual meaning is shaped by the surrounding context, including culture,
+
+sentiment, and situational factors, while the basic meaning is typically more concrete,
+
+body-related, and can be traced back to the word’s original sense and earliest
+
+attested usage (Pragglejaz 2007). Beyond this contrast, metaphor processing also
+
+involves both contrast-based and similarity-based mappings, reflecting the cognitive
+
+mechanisms that allow speakers to relate disparate conceptual domains (Barnden
+
+2021). Moreover, research in Cognitive Linguistics and psychological experimentation
+
+suggests that the mind actively engages in source–target metaphorical mappings
+
+even in the absence of overt metaphorical language, indicating that metaphor is not
+
+merely a rhetorical device but a fundamental organizing structure of conceptual
+
+thought (Barnden 2020). This dual-layered semantic structure, combined with these
+
+underlying cognitive mappings, underscores the complexity of metaphors as linguistic
+
+constructs that straddle the literal and the abstract.
+
+This foundational definition establishes a vital bridge between classical linguistic
+
+frameworks and modern cognitive theories, particularly Conceptual Metaphor Theory
+
+(CMT) (Lakoff & Johnson 1980). While classical perspectives focus on the structural
+
+and functional aspects of metaphor as a linguistic phenomenon, cognitive theories
+
+like CMT emphasize the underlying mental processes that give rise to metaphorical
+
+expressions. CMT posits that metaphors are not merely decorative or stylistic
+
+devices but are deeply rooted in our cognitive architecture, shaping how humans
+
+perceive, reason, and communicate abstract ideas. This synergy between linguistic
+
+and cognitive approaches highlights the complementary nature of metaphor analysis,
+
+combining structural precision with conceptual depth.
+
+In this section, we survey the theoretical foundations of metaphor by synthesizing
+
+18
+
+Theoretical Foundations of Metaphor
+
+linguistic and cognitive theories with cultural perspectives. The goal is to provide a
+
+comprehensive framework for understanding the nature of metaphors, their role in
+
+communication, and their implications for broader fields such as psycholinguistics
+
+and computational linguistics. Subsequent Chapters will build on these foundations,
+
+examining specific methodologies and applications in detail.
+
+2.1.1 Selectional Preference Violation
+
+Selectional Preference Violation (SPV), introduced by Wilks (1975, 1978), provides
+
+a semantic framework for analyzing metaphors by focusing on deviations from
+
+expected word pair associations. The theory posits that metaphors emerge when
+
+the selectional preferences inherent in a predicate’s typical usage are violated by
+
+its arguments. This semantic anomaly signals a figurative interpretation, making
+
+SPV a valuable tool for understanding how metaphors function within linguistic
+
+structures.
+
+Understanding SPV in Metaphors
+
+Selectional preferences are implicit semantic constraints that determine which argu-
+
+ments are acceptable for a predicate. For example:
+
+The dog drinks water.
+
+The car drinks gasoline.
+
+the verb drink typically aligns with an animate subject (e.g., dog) and a liquid
+
+object (e.g., water). When these preferences are violated, as in the metaphor ’The
+
+car drinks gasoline’, a figurative interpretation is required to make sense of the
+
+phrase. Here:
+
+Car does not belong to the animate subject category.
+
+Gasoline does not belong to the drinkable liquid category.
+
+this double violation of selectional preferences transforms a literal interpretation
+
+into a metaphorical one, suggesting a conceptual mapping where the car is likened
+
+to an animate being consuming fuel.
+
+SPV operates bidirectionally, examining both the target word (drink) and its
+
+19
+
+Chapter 2 Literature Survey
+
+contextual elements (car and gasoline). This approach allows SPV to identify the
+
+semantic incongruity that gives rise to metaphors. Researchers have leveraged SPV
+
+to design models that compare target words with their contextual information,
+
+improving metaphor detection systems (Mao et al. 2019, Choi et al. 2021, Su, Wu &
+
+Chen 2021).
+
+Applications of SPV Beyond Metaphor Analysis
+
+SPV has also been applied to various natural language processing (NLP) tasks,
+
+demonstrating its versatility:
+
+• Word Sense Disambiguation: Resolving ambiguities in word meanings by
+
+analyzing context-specific preferences (Gallant 1991, Agirre & Stevenson 2007).
+
+• Named Entity Recognition: Identifying named entities in text by examining
+
+selectional preferences (Ratinov & Roth 2009).
+
+• Pronoun Resolution: Disambiguating pronoun referents by aligning them with
+
+compatible antecedents (Bergsma et al. 2008).
+
+• Textual Inference: Assessing logical relationships between textual statements (Rit-
+
+ter et al. 2010).
+
+These applications highlight SPV’s broader relevance in understanding and modeling
+
+language beyond metaphor analysis.
+
+Limitations of SPV in Metaphor Detection
+
+While SPV is effective in identifying novel metaphors, it encounters challenges in
+
+detecting conventional metaphors—those deeply embedded in cultural and linguistic
+
+norms. According to Lakoff and Johnson (1980): Conventional metaphors are
+
+integrated into the ordinary conceptual system of a culture and are reflected in
+
+everyday language. For example, spending time is a metaphorical expression but is so
+
+common that it aligns with conventional selectional preferences. Novel metaphors,
+
+by contrast, introduce new conceptual mappings, often challenging existing linguistic
+
+norms.
+
+20
+
+Theoretical Foundations of Metaphor
+
+In corpus-based studies, conventional metaphors may exhibit co-occurrence fre-
+
+quencies that surpass those of their literal counterparts. For instance, the collocation
+
+<spend, object, time>is more frequent in the British National Corpus than <spend,
+
+object, money>, making it difficult for SPV to distinguish the metaphorical nature
+
+of the former.
+
+Additionally, SPV can mistakenly classify incorrect collocations as metaphors.
+
+For example, the phrase My car reads gasoline violates selectional preferences
+
+but lacks figurative coherence, making it a meaningless sentence rather than a
+
+metaphor. This demonstrates SPV’s vulnerability to false positives and underscores
+
+the need for mechanisms to filter out such cases.
+
+Overall, Selectional Preference Violation provides a different semantic method
+
+for analyzing metaphors, emphasizing the role of contextual incongruity in figurative
+
+language.
+
+Its applications extend beyond metaphor detection, contributing to
+
+key NLP tasks such as word sense disambiguation and named entity recognition.
+
+Nevertheless, the limitation outlined above indicate that SPV alone may not suffice.
+
+Further exploration of complementary or alternative approaches is needed to address
+
+these limitations and enhance metaphor identification in computational systems.
+
+2.1.2 Conceptual metaphor theory
+
+Conceptual Metaphor Theory (CMT), introduced by Lakoff and Johnson in Metaphors
+
+We Live By (1980), revolutionized the understanding of metaphors by positioning
+
+them as fundamental cognitive tools rather than mere linguistic flourishes. CMT
+
+posits that metaphors are rooted in cross-domain mappings between a source do-
+
+main (typically concrete and grounded in sensory experiences) and a target domain
+
+(often abstract and conceptual). These mappings are not arbitrary; they arise from
+
+embodied experiences and serve as cognitive mechanisms that help humans navigate
+
+complex or abstract concepts by grounding them in familiar, tangible domains.
+
+21
+
+Chapter 2 Literature Survey
+
+Metaphors as Cognitive Processes
+
+Lakoff and Johnson argued that metaphors reveal distinct cognitive processes,
+
+enabling people to conceptualize and reason about abstract ideas through concrete
+
+experiences. For example:
+
+She attacked his argument.
+
+the metaphor ARGUMENT IS WAR demonstrates how the structure of conflict (a
+
+source domain) informs the way arguments (a target domain) are conceptualized.
+
+This mapping is evident in expressions like:
+
+I have never won an argument with her.
+
+He shot down all of my arguments.
+
+Your claims are indefensible.
+
+In these examples, WAR-related concepts such as aggression, defense, and victory
+
+are transferred to the domain of ARGUMENT. Importantly, Lakoff and Johnson
+
+observed that such mappings often occur unconsciously, highlighting the deep
+
+integration of metaphor in human thought.
+
+Beyond linguistic expressions, the cognitive underpinnings of metaphors extend
+
+to broader domains of creativity and problem-solving. By leveraging the properties or
+
+relationships inherent in source domains, metaphors introduce novelty and innovation
+
+in language and thought. This creative aspect underscores why metaphors are
+
+pervasive not only in communication but also in artistic, scientific, and technical
+
+domains.
+
+Source and Target Domains in Metaphor
+
+CMT categorizes metaphors into source and target domains, which play distinct
+
+roles in metaphorical reasoning. Lakoff and Johnson provided the following definition:
+
+”In a metaphor, there are two domains: the target domain, which is con-
+
+stituted by the immediate subject matter, and the source domain, in which
+
+important metaphorical reasoning takes place and that provides the source
+
+concepts used in that reasoning.”
+
+22
+
+Theoretical Foundations of Metaphor
+
+For example, in the metaphor ARGUMENT IS WAR, ARGUMENT is the target
+
+domain (abstract and complex), and WAR is the source domain (concrete and
+
+familiar). The source domain contributes properties such as aggression, strategy,
+
+and cooperation, which shape the understanding of the target domain. Lakoff (1993)
+
+extended the concept to include common source-target domain pairings, such as:
+
+TIME PASSING IS MOTION: The time has long since gone when...
+
+LIFE IS A JOURNEY: He’s gone through a lot in life.
+
+MAKING PROGRESS IS FORWARD MOVEMENT: We are moving ahead.
+
+These mappings illustrate how metaphors structure not only language but also
+
+fundamental human cognition.
+
+Challenges and Limitations of CMT
+
+While CMT provides a framework for understanding metaphors, it faces several
+
+challenges, particularly in formalizing and standardizing source-target mappings:
+
+Subjectivity in Concept Representation: The identification and abstraction
+
+of source and target domains often rely on the interpreter’s judgment. For example,
+
+in the metaphor argument is war, one might question whether battle or conflict
+
+would serve as more precise source domains. Such variability introduces ambiguity
+
+into the analysis.
+
+Lack of Standardized Abstraction: Determining the appropriate level of
+
+abstraction for concepts in source and target domains remains an open question. For
+
+instance, while war may emphasize aggression and strategy, a more generalized term
+
+like conflict might dilute these nuances, failing to capture the metaphor’s richness.
+
+Computational Modeling Challenges: Representing and processing con-
+
+ceptual mappings computationally is non-trivial. The fluid and context-dependent
+
+nature of metaphors complicates the development of algorithms capable of identifying
+
+and modeling these mappings effectively.
+
+23
+
+Chapter 2 Literature Survey
+
+Broader Impacts of CMT
+
+CMT’s influence extends beyond linguistics, shaping research in psychology, cognitive
+
+science, and computational linguistics. It has provided a foundation for exploring
+
+how metaphors:
+
+• Structure mental models and influence decision-making (Osbeck et al. 2010,
+
+Tileag˘a 2013).
+
+• Facilitate creativity and innovation in language (Brinton & Brinton 2010).
+
+• Enhance computational applications such as metaphor detection and genera-
+
+tion (Mason 2004, Ge et al. 2022).
+
+Moreover, CMT has inspired research into how metaphors vary across cultures,
+
+reflecting diverse conceptualizations of shared experiences. For example, the English
+
+metaphor time is money emphasizes efficiency and economic value. This metaphor
+
+initially came into English about the time of the industrial revolution, when people
+
+started to be paid for work by the amount of time they worked. However, other
+
+cultures may conceptualize time through metaphors that prioritize relationships or
+
+nature. For example, in Chinese, the expression 逝逝逝者者者如如如斯斯斯夫夫夫 describes ’time passing
+
+by like running water’. CMT provides a perspective through which to examine
+
+how metaphors bridge the gap between language and thought. By revealing the
+
+deep cognitive structures underpinning metaphorical expressions, CMT not only
+
+enriches our understanding of communication but also offers practical insights for
+
+fields ranging from education to artificial intelligence.
+
+Conceptual Metaphor Theory fundamentally redefines metaphors as cognitive
+
+phenomena rather than decorative linguistic devices. By elucidating the cross-
+
+domain mappings between source and target domains, CMT provides a framework
+
+for understanding how metaphors shape thought, language, and culture. However,
+
+the theory’s reliance on subjective interpretation and its challenges in computational
+
+application highlight the need for continued refinement.
+
+24
+
+Theoretical Foundations of Metaphor
+
+2.1.3 Metaphor Identification Procedure
+
+The Metaphor Identification Procedure (MIP) was introduced by Pragglejaz (2007)
+
+as a standardized framework for identifying metaphors in texts. This approach was
+
+designed to address the subjectivity often associated with metaphor annotation
+
+in large corpora. Building on this foundation, Steen (2010) refined MIP into the
+
+Metaphor Identification Procedure Vrije Universiteit (MIPVU) and applied it to the
+
+creation of the VU Amsterdam Metaphor Corpus (VUA), the largest token-level
+
+metaphor identification dataset to date. These methodological advancements provide
+
+a systematic and practical guideline for understanding metaphors, bridging linguistic
+
+theories with computational applications.
+
+Steps of MIP
+
+MIP provides a clear, step-by-step process to identify metaphors in text at the
+
+lexical level:
+
+1. Read the Text-Discourse: Develop a comprehensive understanding of the
+
+overall meaning and context.
+
+2. Identify Lexical Units: Break down the text into discrete lexical units (e.g.,
+
+words, phrases).
+
+3. Determine Contextual Meaning: Establish the meaning of each lexical
+
+unit within its immediate context, taking into account its relationships with
+
+other words in the text.
+
+4. Identify Basic Meaning: For each lexical unit, determine whether it has
+
+a more basic contemporary meaning in other contexts. Basic meanings are
+
+typically: a) More concrete: Evoking physical experiences like seeing, hearing,
+
+or touching. b) Body-related: Connected to physical actions or sensations.
+
+c) More precise: Opposed to abstract or vague interpretations. d) Historically
+
+older: Reflecting earlier or foundational meanings.
+
+5. Compare Contextual and Basic Meanings: If the contextual meaning
+
+25
+
+Chapter 2 Literature Survey
+
+contrasts with the basic meaning but can still be understood in relation to it,
+
+mark the lexical unit as metaphorical.
+
+Consider the sentence: Fear clogged his mind. Step 1: General Understanding
+
+The sentence conveys that fear overwhelmed the subject’s mental faculties. Step 2:
+
+Lexical Units Identify the units: fear, clogged, his, and mind. Step 3: Contextual
+
+and Basic Meaning Analysis: Fear: The contextual meaning is an intense emotion
+
+caused by danger or anxiety. The basic meaning is similar, so it is literal. Clogged:
+
+The contextual meaning refers to fear obstructing mental function, likening the mind
+
+to a pipe or passage. The basic meaning, “to block a pipe or passage,” contrasts
+
+with the contextual meaning, making it metaphorical. His: Both the contextual and
+
+basic meanings indicate possession, so it is literal. Mind: The contextual and basic
+
+meanings—relating to the cognitive faculties—are similar, so it is literal. Step 4:
+
+Conclusion In this analysis, clogged is identified as metaphorical, while the other
+
+words are literal.
+
+MIP and Computational Models
+
+MIP has inspired numerous computational approaches for metaphor detection.
+
+Studies such as those by Song et al. (2021), Lin et al. (2021), Ottolina et al. (2021),
+
+and Qin and Zhao (2021) demonstrate the utility of MIP in guiding algorithm design,
+
+particularly in token-level metaphor identification.
+
+While MIP aligns with Selectional Preference Violation (SPV) in its focus on
+
+contextual contrasts, it differs in its reliance on explicit definitions of basic and
+
+contextual meanings rather than frequency-based word pair associations. MIP also
+
+provides a more structured and systematic framework for metaphor annotation
+
+compared to the broader conceptual approach of Conceptual Metaphor Theory
+
+(CMT).
+
+Limitations of MIP
+
+Despite its strengths, the Metaphor Identification Procedure (MIP) is not without
+
+challenges. These limitations highlight the complexity of metaphor annotation
+
+26
+
+Theoretical Foundations of Metaphor
+
+and the areas where further refinement is needed to improve its consistency and
+
+applicability.
+
+Ambiguity in Basic Meanings Words with multiple meanings often lack
+
+clear and universally agreed-upon distinctions between their basic and contextual
+
+meanings. For instance, the word see can mean “to perceive with the eyes” (a
+
+literal interpretation) or “to understand” (an abstract sense). Determining which
+
+meaning is more basic depends on subjective judgment, as definitions may vary
+
+across dictionaries and cultural contexts. This ambiguity can lead to disagreements
+
+among annotators, especially when the contextual meaning is nuanced or overlaps
+
+significantly with multiple potential basic meanings.
+
+Subjectivity in Annotation The MIP process heavily relies on individual
+
+annotators’ interpretations, making the annotation process inherently subjective.
+
+For example, determining whether the word discard is metaphorical depends on
+
+how annotators perceive the concreteness or abstractness of the term it modifies.
+
+This subjectivity introduces variability in the annotations, potentially affecting the
+
+reliability and consistency of metaphor identification, especially in large-scale corpus
+
+annotation projects.
+
+Conventional vs. Novel Metaphors One significant challenge is distinguishing
+
+between conventional and novel metaphors. Conventional metaphors, which are
+
+deeply embedded in language and culture, often align closely with basic meanings.
+
+As a result, they can behave like literal expressions, making their metaphorical nature
+
+difficult to detect using MIP. For example, the phrase spending time is metaphorical,
+
+drawing on the conceptual metaphor time is money, but its conventional usage
+
+renders it almost indistinguishable from literal expressions. Novel metaphors, on
+
+the other hand, are more creative and less predictable, making them more easily
+
+identified but introducing additional complexity in interpretation.
+
+Inter-Annotator Agreement Inconsistencies among annotators further com-
+
+plicate the reliability of MIP. Studies, such as those by Shutova and Teufel (2010),
+
+report moderate inter-annotator agreement scores (e.g., 0.64), indicating substantial
+
+variation in the interpretation and annotation of metaphors. These discrepancies
+
+highlight the need for more robust training, clearer annotation guidelines, and tools
+
+27
+
+Chapter 2 Literature Survey
+
+to support annotators in making consistent decisions.
+
+Despite its limitations, MIP remains a cornerstone in the field of metaphor
+
+identification. Its structured, step-by-step methodology bridges linguistic theory
+
+and practical application, providing a foundation for both manual annotation and
+
+computational approaches. While challenges such as subjectivity, ambiguity, and
+
+the detection of conventional metaphors persist, ongoing advancements in NLP
+
+technologies and annotation practices offer promising solutions. By refining MIP
+
+through the integration of modern techniques such as PLMs, frequency-based metrics,
+
+and hybrid frameworks, researchers can enhance its effectiveness and expand its
+
+applicability. This evolution will ensure that MIP continues to play a vital role
+
+in understanding and processing the figurative dimensions of language, supporting
+
+advancements in both theoretical linguistics and computational metaphor research.
+
+2.2 Computational Methods for Metaphor Pro-
+
+cessing
+
+Linguistic metaphor processing focuses on two primary tasks: metaphor identifi-
+
+cation and metaphor interpretation (Shutova 2015). These tasks are central to
+
+computational metaphor studies and aim to uncover how metaphors are expressed
+
+and understood in text (Martin 1990, Shutova 2010, Mohler et al. 2013, Ghosh et al.
+
+2015, Rai et al. 2019, Su, Fukumoto, Huang, Li, Wang & Chen 2020).
+
+Metaphors can appear as individual words or phrases, or they may span multiple
+
+expressions within a broader narrative. The identification task involves determining
+
+whether a given expression is metaphorical, while the interpretation task deciphers
+
+its intended meaning. Both tasks depend heavily on the surrounding context, which
+
+influences how metaphors are recognized and understood.
+
+Effective metaphor processing often requires integrating linguistic, cognitive, and
+
+cultural knowledge. Metaphors frequently rely on shared experiences or cultural
+
+references, and their interpretation can vary depending on the background knowledge
+
+of the writer and reader. This complexity underscores the importance of context
+
+28
+
+Computational Methods for Metaphor Processing
+
+and common ground in understanding metaphorical language.
+
+2.2.1 Metaphor Identification
+
+Metaphor identification is a crucial task in natural language processing (NLP) that
+
+involves determining whether a given expression conveys metaphorical or literal
+
+meaning. Research in this area has evolved through various approaches, categorized
+
+into sentence-level, relation-level, and token-level tasks, each addressing different
+
+granularities of metaphorical language.
+
+Sentence-Level Metaphor Identification
+
+Sentence-level metaphor identification examines whether an entire sentence contains
+
+metaphorical content, and is typically framed as a binary sentence classification
+
+task (metaphorical vs. non-metaphorical). Early studies, such as those by Krish-
+
+nakumaran & Zhu (2007), relied heavily on lexical resources like WordNet (Miller
+
+1995) and statistical measures such as bigram counts from large corpora (Brants
+
+2006). While effective for simple noun and adjective-based metaphors, these methods
+
+struggled with polysemous words and complex contextual dependencies.
+
+Later works introduced cross-lingual methods, exemplified by Tsvetkov et al.
+
+(2014), who proposed a semantic feature-based classifier to detect metaphors in
+
+languages with limited resources. By leveraging abstractness degrees, semantic
+
+categories, and named entity types, this approach achieved F1 scores of 0.76 and
+
+0.78 on Russian and English datasets, respectively. Similarly, Mohler et al. (2013)
+
+developed domain-specific classifiers using semantic signatures from WordNet and
+
+Wikipedia, demonstrating the potential for clustering domain-specific metaphorical
+
+patterns.
+
+Recent advances have integrated sensory features, such as modality norms, into
+
+machine learning models. Modality norms are psycholinguistic ratings that indicate
+
+the degree to which words evoke sensory experiences (e.g., vision, hearing, touch,
+
+taste, smell, interoception, or action). For instance, the word bright is strongly
+
+associated with the visual modality, whereas loud is associated with the auditory
+
+29
+
+Chapter 2 Literature Survey
+
+modality. Wan et al. (2020) incorporated these modality norms into distributional
+
+representations by concatenating them with GloVe embeddings (Pennington et al.
+
+2014). In practice, each word vector was augmented with a fixed-length vector
+
+of modality strength ratings, thereby enriching purely statistical embeddings with
+
+embodied, perceptual information. When applied to metaphor detection, this hybrid
+
+representation outperformed BERT-based baselines trained directly on contextual
+
+embeddings. Crucially, the performance gains stemmed from modeling shifts in
+
+sensory modalities between source and target concepts in metaphorical expressions.
+
+For example, sweet smile uses the taste modality to describe the vision modality.
+
+Detecting certain concept transfer provides a signal of metaphorical usage (Wan &
+
+Xing 2020).
+
+Relation-Level Metaphor Identification
+
+Relation-level approaches focus on metaphorical patterns in word pairs, such as
+
+subject-verb, verb-object, or adjective-noun relationships. Tsvetkov et al. (2014)
+
+demonstrated that lexical semantic features, including abstractness, imageability,
+
+and supersenses, could reliably detect metaphors using a random forest classifier.
+
+Shutova et al. (2016) extended this idea by incorporating visual embeddings derived
+
+from convolutional neural networks (CNNs), enhancing the model’s ability to handle
+
+multimodal metaphorical associations.
+
+Attribute-based semantic representations have also been explored. Bulat et al.
+
+(2017) demonstrated that these representations capture abstract properties better
+
+than traditional dense embeddings like Word2Vec (Mikolov et al. 2013). How-
+
+ever, selecting appropriate levels of abstraction remains a challenge. Song et al.
+
+(2020) addressed nominal metaphors using knowledge graph embeddings, encoding
+
+metaphorical relationships as triplets, though this approach was limited to specific
+
+domains.
+
+Ge et al. (2022) proposed a multi-task learning framework inspired by Conceptual
+
+Metaphor Theory (CMT), achieving state-of-the-art performance on datasets like
+
+MOH and TSV. By explicitly modeling the mappings between source and target
+
+concepts, this framework demonstrated the potential for enhancing relation-level
+
+30
+
+Computational Methods for Metaphor Processing
+
+metaphor identification.
+
+Token-Level Metaphor Identification
+
+Token-level metaphor identification targets individual words or phrases within a
+
+sentence. Initial methods, such as Do Dinh & Gurevych (2016), utilized feedforward
+
+neural networks (FNNs) for metaphor detection, achieving promising results on
+
+the VUA dataset. Gao et al. (2018) introduced BiLSTM architectures with con-
+
+textual embeddings, significantly improving performance by capturing sequential
+
+dependencies in text.
+
+To address the reliance on external resources, Gong et al. (2020) combined linguis-
+
+tic features such as part-of-speech tags, concreteness scores, and WordNet attributes
+
+with contextualized embeddings in a novel framework. Similarly, Chen et al. (2021)
+
+proposed a contextual inconsistency-based approach, calculating distributional dis-
+
+tances between target words and their contexts to differentiate metaphorical from
+
+literal uses.
+
+Recent work by Mao et al. (2022) integrated multi-task learning, combining
+
+metaphor identification with part-of-speech tagging. This approach achieved the
+
+highest F1 scores on the VUA-A dataset, highlighting the efficacy of auxiliary tasks
+
+in enhancing token-level metaphor detection.
+
+Challenges and Emerging Trends
+
+Despite above advancements, several challenges persist in metaphor identification:
+
+Extended Metaphors and Multi-Word Expressions (MWEs): Detecting
+
+extended metaphors, which involve multiple source-target mappings, requires holistic
+
+textual analysis. Similarly, metaphorical MWEs present challenges for token-level
+
+models that rely on limited context (Rohanian et al. 2020). Multilingual and
+
+Cross-Lingual Applications: Although cross-lingual studies like Tsvetkov et al.
+
+(2013) show promise, most research focuses on English, limiting the adaptability
+
+of models to other languages. Integration of Multimodal Features: Visual
+
+and sensory modalities (Shutova et al. 2016, Kehat & Pustejovsky 2021) offer rich
+
+context but remain underexplored in metaphor identification frameworks.
+
+31
+
+Chapter 2 Literature Survey
+
+Emerging trends include leveraging pre-trained language models (PLMs) such as
+
+BERT (Devlin et al. 2019), RoBERTa (Liu 2019), and GPT-style models for richer
+
+contextual embeddings. Multi-task learning and graph-based methods are increas-
+
+ingly applied to fuse diverse features and enhance generalization across tasks (Le
+
+et al. 2020, Mao & Li 2021). Future research aims to address these challenges
+
+by incorporating broader contextual analysis, extending metaphor identification
+
+to diverse languages, and refining techniques for detecting complex metaphorical
+
+constructs.
+
+In summary, metaphor identification has evolved significantly, with advancements
+
+in computational methods and linguistic theory driving progress. The integration
+
+of multimodal and cross-lingual approaches, coupled with state-of-the-art machine
+
+learning techniques, holds promise for further breakthroughs in this dynamic field.
+
+2.2.2 Metaphor Interpretation
+
+Metaphor interpretation tasks can be broadly categorized into property extraction,
+
+word-level paraphrasing, and explanation pairing approaches. These methods address
+
+different aspects of interpreting metaphors, ranging from identifying shared attributes
+
+between source and target domains to generating literal explanations or paraphrases.
+
+Property Extraction
+
+Property extraction focuses on identifying shared attributes linking source and
+
+target concepts in a metaphor. Early models, such as Su et al. (2015, 2017), used
+
+lexical resources and semantic similarity measures to extract properties, typically
+
+representing them as adjectives. Later work integrated cultural and emotional
+
+dimensions into property extraction, such as Rai et al. (2019), who incorporated
+
+emotion analysis, and Su, Peng, Huang & Chen (2020), who employed culture-specific
+
+knowledge graphs. While effective for noun-based metaphors, these approaches often
+
+struggled with complex syntax and extending to other parts of speech.
+
+32
+
+Computational Methods for Metaphor Processing
+
+Word-Level Paraphrasing
+
+Word-level paraphrasing aims to convert metaphors into their literal counterparts by
+
+replacing metaphorical words with contextually appropriate literal terms. Shutova
+
+(2010) introduced the concept by using co-occurrence patterns and WordNet relations
+
+to rank paraphrases. Mao et al. (2018) expanded this with unsupervised methods
+
+and Word2Vec embeddings, later transitioning to pre-trained language models (Mao
+
+et al. 2022). These approaches improved downstream NLP tasks, such as sentiment
+
+analysis, but struggled with nuanced meanings and multi-word expressions (MWEs).
+
+Explanation Pairing
+
+Explanation pairing links metaphors to predefined explanations or paraphrases.
+
+Martin (1990) introduced a grammar- and knowledge-based system, while Bizzoni &
+
+Lappin (2018) used deep learning models to pair metaphorical sentences with literal
+
+paraphrases. Mao et al. (2022) advanced this by employing dependency parsing
+
+and curated dictionaries to interpret MWEs, demonstrating improved performance
+
+in idiomatic metaphor detection and sentiment analysis. However, these methods
+
+remain limited by their reliance on annotated data and predefined knowledge.
+
+Neural Interpretability
+
+While these approaches have laid the foundation for computational metaphor in-
+
+terpretation, they often rely on static lexical resources or curated knowledge bases,
+
+which limit their coverage and adaptability. With the rapid development of gener-
+
+ative models, these extraction- and matching-based tasks have been significantly
+
+enhanced. Large language models can now be incorporated into the predefined
+
+explanation paradigm, providing richer, more context-sensitive paraphrases and
+
+explanations.
+
+At the word level, this trend is complemented by the use of interpretability-
+
+oriented tools such as autoencoders and feature attribution methods, which can
+
+decompose a model’s internal embeddings into human-interpretable components.
+
+By combining these decomposed semantic features with predefined explanation
+
+33
+
+Chapter 2 Literature Survey
+
+templates or categories, we can more effectively compare a target word’s internal
+
+representation with its literal meaning, and more intuitively observe decomposition
+
+of the complex semantics of metaphors.
+
+Beyond metaphor-specific methods, recent advances in neural network inter-
+
+pretability offer promising tools for metaphor interpretation. Sparse Autoencoders
+
+(SAEs) are a form of unsupervised neural network that reconstructs input data while
+
+enforcing a sparsity constraint on the hidden layer—ensuring that only a small subset
+
+of hidden units are active for any given input. This encourages the model to learn
+
+compact, disentangled, and human-interpretable representations. Sparse feature
+
+learning has its roots in sparse coding approaches (Olshausen & Field 1997) and has
+
+since evolved to include neural network models trained with sparsity penalties (Lee
+
+et al. 2007, Nair & Hinton 2009).
+
+In recent work on interpretability, SAEs have been used to decompose hidden
+
+activations in large language models into interpretable features (Cunningham et al.
+
+2023). By learning a sparse “dictionary” of latent features, each unit in the hidden
+
+layer tends to correspond to a specific semantic or syntactic pattern. This enables
+
+researchers to trace how particular neurons contribute to the model’s behavior,
+
+making SAEs a valuable tool for understanding and explaining complex model
+
+decisions—such as those involved in metaphor interpretation. We build on this line
+
+of work in Chapter 5, where we apply sparse feature decomposition to investigate
+
+metaphor-specific activations in LLMs.
+
+2.2.3 Datasets
+
+Given the centrality of data to the development and evaluation of metaphor detection
+
+methods, this section provides a detailed description of the four major datasets
+
+used in this thesis: TroFi, VUA-18, VUA-20, and MOH-X. For each dataset we
+
+summarize its construction procedure, source material, annotation methodology,
+
+size and splits, inter-annotator agreement (where available), and its strengths and
+
+limitations. Choi et al. (2021) conducted a comprehensive statistical analysis of these
+
+datasets, reporting detailed counts of sentences, metaphorical tokens, and metaphor
+
+proportions across training, validation, and test splits. Table 2.1 summarizes these
+
+34
+
+Computational Methods for Metaphor Processing
+
+statistics, providing a quantitative overview that highlights differences in scale and
+
+metaphor density. These figures are particularly useful for understanding the class
+
+imbalance challenges faced by models trained on these datasets.
+
+Dataset
+TroFi
+VUA-18tr
+VUA-18dev
+VUA-18te
+VUA-20tr
+VUA-20te
+MOH-X
+
+#targets %M #Sent Sent len
+28.3
+18.4
+24.9
+18.6
+15
+15.5
+8
+
+3,737
+116,622
+38,628
+50,175
+160,154
+22,196
+647
+
+37,737
+6,323
+1,550
+2,694
+12,109
+3,698
+647
+
+43.5
+11.2
+11.6
+12.4
+12.0
+17.9
+48.7
+
+Table 2.1: Detailed statistics on datasets used in this thesis. #tar-
+gets is the number of tokens of target words, %M is the percentage of
+metaphorical targets, #Sent is the number of sentences, and Sent len is
+the average length of sentences.
+
+TroFi
+
+The TroFi (Tropes and Figurative Language) dataset was introduced by Birke &
+
+Sarkar (2006) with the aim of supporting research on verb metaphor detection. It
+
+contains 3,737 sentences sampled from the Wall Street Journal corpus, covering 50
+
+target verbs whose metaphoricity was to be determined. Annotation was performed
+
+semi-automatically: an unsupervised word sense disambiguation–based clustering
+
+algorithm first grouped usages of each verb, and the authors subsequently evaluated
+
+and refined the cluster assignments. Approximately 43.5% of all sentences were
+
+annotated as metaphorical.
+
+TroFi remains one of the earliest large-scale resources for verb metaphor detection
+
+and has been widely used as a benchmark in early neural and non-neural approaches.
+
+However, the use of unsupervised clustering means that annotation quality may
+
+vary, and inter-annotator agreement (IAA) figures are not reported, making the
+
+dataset somewhat noisy for fine-grained analysis.
+
+35
+
+Chapter 2 Literature Survey
+
+VU Amsterdam Metaphor Corpus (VUA)
+
+The VUA corpus, introduced by Steen (2010), is the largest all-word metaphor-
+
+annotated corpus to date. Sentences were sampled from the British National
+
+Corpus (BNC) across four genres: news, academic writing, fiction, and conversation.
+
+Following the Metaphor Identification Procedure (MIP), annotators labeled each
+
+content word for metaphoricity. The version of VUA used in the 2018 shared
+
+task (VUA-18) was the first publicly released benchmark for metaphor detection,
+
+publishing 10,567 sentences, of which 11.6% targets are metaphorical language.
+
+In 2020, an enhanced version (VUA-20) was released, expanding the corpus to
+
+15,807 sentences with 12.7% of the target words labeled as metaphorical. This
+
+extension provides a richer training resource and a slightly higher metaphor density.
+
+Importantly, the corpus also distinguishes between different metaphor types:
+
+• Indirect metaphors, where contextual and basic meanings contrast. Example:
+
+Professional religious education teachers likeMarjorie B Clark (Points of View,
+
+today) are doing valuable work in many secondary schools ...
+
+• Direct metaphors, which explicitly signal comparison. Example: ... he’s like a
+
+ferret.
+
+• Implicit metaphors, where metaphorical meaning is inferred from discourse
+
+context. Example: Naturally, to embark on such as step is not necessarily to
+
+succeed in realizing it.
+
+• Borderline cases, where annotators were uncertain or disagreed. Example: But
+
+by the time I had turned off the road from Bellingham at Kielder village and
+
+driven up the bumpy Forest Drive to East Kielder Farm ...
+
+VUA is regarded as the gold standard for supervised metaphor detection due
+
+to its size, coverage across genres, and systematic use of MIP. It has been widely
+
+adopted in shared tasks and neural metaphor detection research. Its main limitation
+
+is class imbalance, with only a small proportion of tokens labeled as metaphorical,
+
+which can bias models toward literal predictions.
+
+36
+
+Computational Methods for Metaphor Processing
+
+MOH and MOH-X
+
+Mohammad et al. (2016) developed the MOH dataset by selecting verbs with 3–10
+
+senses from WordNet and collecting corresponding example sentences. Each sentence
+
+was annotated for metaphoricity by 10 annotators on the CrowdFlower platform, and
+
+only sentences with ≥70% agreement were retained. The resulting dataset contains
+
+1,639 sentences (1,230 literal, 409 metaphorical) involving 440 unique verbs. Shutova
+
+et al. (2016) subsequently derived the MOH-X dataset from MOH by extracting
+
+verb–subject and verb–object pairs, discarding pronominal or clausal cases, resulting
+
+in 647 verb–noun pairs (316 metaphorical, 331 literal).
+
+MOH-X is smaller and more balanced than VUA, making it well-suited for
+
+evaluation and lexical-level studies. Its main limitation lies in its relatively narrow
+
+coverage, as it focusses on a subset of verbs with sufficient WordNet senses, and the
+
+sentences are relatively short, reducing the challenge posed by long-range context.
+
+37
+
+Chapter 2 Literature Survey
+
+38
+
+Chapter 3
+
+Towards Robust Metaphor
+
+Detection
+
+In this chapter, we focus on token-level metaphor detection (MD), one of the
+
+three metaphor detection tasks introduced in Chapter 2. The token-level MD
+
+task is formulated as a sequence labeling problem: given an input sentence X =
+
+[w0, w1, ..., wn−1], the goal is to predict a binary label y ∈ [literal, metaphor] for the
+
+target word wt which subscript t is index of the position of the target word in the
+
+sentence.
+
+In our experimental setting, following the design of widely used benchmarks such
+
+as VUA and MOH-X, a target word is explicitly marked in the input, and the model
+
+is required to classify whether this target word is metaphorical given the sentence
+
+context.
+
+Input: As a result of the stalemate, the Treasury has been forced to postpone
+
+$40billion in debt auctions this week.
+
+Target: stalemate
+
+Index: 5
+
+Output: Metaphor(y=1)
+
+Here the input is the full sentence, with the index of the target token to be detected.
+
+The output of model is a binary decision for this specific token. In this formulation,
+
+the model focuses exclusively on single-word metaphors and assumes that the target
+
+39
+
+Chapter 3 Towards Robust Metaphor Detection
+
+word is pre-identified in the input. Consequently, our approach does not address the
+
+detection of multi-word metaphorical expressions (e.g., phrasal verbs or idiomatic
+
+constructions). This restriction is consistent with the design of the VUA and MOH-X
+
+benchmarks but represents a limitation of the current work and an opportunity for
+
+future research on more comprehensive metaphor detection tasks.
+
+This chapter explores three innovative approaches to token-level metaphor detec-
+
+tion, each addressing distinct challenges in the field. The first section §3.1 provides
+
+an overview of recent neural approaches to metaphor detection, which serve as the
+
+baselines for our experiments. We summarize representative RNN-based models,
+
+pre-trained language model (PLM) approaches, and hybrid methods that integrate
+
+linguistic theories such as MIP and SPV. This background highlights the similarities
+
+and differences between these approaches and motivates the design choices behind
+
+our proposed methods introduced later in this chapter.
+
+The second section §3.2 introduces RoPPT (RoBERTa with Pruning on Target-
+
+Oriented Parse Trees), a novel framework designed to enhance metaphor detection
+
+by reshaping and pruning syntactic parse trees to focus on semantically relevant
+
+neighbors of the target word. This approach effectively filters out noise while retaining
+
+crucial syntactic and semantic information, leading to improved performance across
+
+diverse linguistic contexts.
+
+The third section §3.3 presents FrameBERT, a RoBERTa-based model that inte-
+
+grates FrameNet embeddings to capture deeper conceptual meanings in metaphor
+
+detection. Unlike traditional models that rely on shallow semantics, FrameBERT
+
+leverages structured external knowledge from FrameNet, enhancing both accuracy
+
+and interpretability. This section highlights the importance of incorporating concep-
+
+tual structures and linguistic theory into metaphor detection, paving the way for
+
+more explainable NLP models.
+
+The final section §3.4 introduces BasicMIP, a mechanism that explicitly models
+
+basic meanings to identify metaphorical expressions. By contrasting a word’s con-
+
+textual meaning with its basic meaning, BasicMIP aligns closely with the Metaphor
+
+Identification Procedure (MIP) theory. This section emphasizes the importance
+
+of linguistically grounded representations, offering a principled and interpretable
+
+40
+
+

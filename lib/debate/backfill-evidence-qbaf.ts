@@ -161,7 +161,7 @@ async function main(): Promise<void> {
     let session: { id: string; argument_network?: { nodes: ArgumentNetworkNode[] } };
     try {
       session = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    } catch (err) {
+    } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
       log(`SKIP ${file}: parse error — ${err instanceof Error ? err.message : err}`);
       continue;
     }
@@ -231,7 +231,7 @@ async function main(): Promise<void> {
 
         applyResult(node, result, session.id, stats, opts.dryRun);
         debateModified = true;
-      } catch (err) {
+      } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
         stats.nodesFailed++;
         log(`  FAIL ${node.id} in ${file}: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
         // Cache failure as empty to avoid retrying same claim
@@ -245,7 +245,7 @@ async function main(): Promise<void> {
         fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
         stats.debatesModified++;
         log(`  WROTE ${file}`);
-      } catch (err) {
+      } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
         log(`  WRITE ERROR ${file}: ${err instanceof Error ? err.message : err}`);
       }
     } else if (debateModified) {

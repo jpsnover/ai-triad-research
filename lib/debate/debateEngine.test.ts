@@ -1277,6 +1277,95 @@ describe('Per-speaker model routing', () => {
   });
 });
 
+// ── Adaptive situation re-scoring (t/455) ────────────────
+
+describe('_rescoreSituations', () => {
+  function makeEngine(taxonomyOverrides?: Partial<LoadedTaxonomy>) {
+    const config = createDefaultConfig();
+    const adapter = createMockAdapter();
+    const taxonomy = { ...createMinimalTaxonomy(), ...taxonomyOverrides };
+    const engine = new DebateEngine(config, adapter, taxonomy);
+    (engine as any).initSession();
+    return engine;
+  }
+
+  const MOCK_SITUATION: any = {
+    id: 'sit-001', label: 'AI Risk Framing', description: 'A contested concept',
+    interpretations: { accelerationist: 'opportunity', safetyist: 'threat', skeptic: 'hype' },
+    linked_nodes: [], conflict_ids: [],
+  };
+
+  const MOCK_CRUX: any = {
+    id: 'crux-001', description: 'Whether AI risk is existential',
+    identified_turn: 1, state: 'active', history: [],
+    attacking_claim_ids: ['AN-001'], speakers_involved: ['accelerationist', 'safetyist'],
+    last_computed_strength: 0.6, support_polarity: -0.2,
+  };
+
+  const MOCK_AN_NODE: any = {
+    id: 'AN-001', text: 'AI risk is existential', speaker: 'safetyist',
+    bdi_category: 'belief', base_strength: 0.7,
+  };
+
+  it('computes situation score adjustments when crux_tracker and situations exist', () => {
+    const engine = makeEngine({ situations: { nodes: [MOCK_SITUATION] } });
+    const e = engine as any;
+
+    e.session.crux_tracker = [MOCK_CRUX];
+    e.session.argument_network = { nodes: [MOCK_AN_NODE], edges: [] };
+    e.session.transcript = [
+      { type: 'turn', speaker: 'safetyist', content: 'test', taxonomy_refs: [{ node_id: 'sit-001', relevance: 0.8 }] },
+    ];
+    e._contextManifests = [
+      { round: 1, speaker: 'safetyist', pov: 'safetyist', injected_node_ids: ['sit-001', 'saf-B-001'], primary_node_ids: [], referenced_node_ids: [] },
+    ];
+
+    e._rescoreSituations();
+
+    expect(e._situationScoreAdjustments).toBeInstanceOf(Map);
+    expect(e._situationScoreAdjustments.size).toBeGreaterThanOrEqual(0);
+  });
+
+  it('skips re-scoring when crux_tracker is empty', () => {
+    const engine = makeEngine({ situations: { nodes: [MOCK_SITUATION] } });
+    const e = engine as any;
+
+    e.session.crux_tracker = [];
+    e.session.argument_network = { nodes: [MOCK_AN_NODE], edges: [] };
+    e._situationScoreAdjustments = null;
+
+    e._rescoreSituations();
+
+    expect(e._situationScoreAdjustments).toBeNull();
+  });
+
+  it('skips re-scoring when no situation nodes exist', () => {
+    const engine = makeEngine({ situations: { nodes: [] } });
+    const e = engine as any;
+
+    e.session.crux_tracker = [MOCK_CRUX];
+    e.session.argument_network = { nodes: [MOCK_AN_NODE], edges: [] };
+    e._situationScoreAdjustments = null;
+
+    e._rescoreSituations();
+
+    expect(e._situationScoreAdjustments).toBeNull();
+  });
+
+  it('skips re-scoring when argument_network is missing', () => {
+    const engine = makeEngine({ situations: { nodes: [MOCK_SITUATION] } });
+    const e = engine as any;
+
+    e.session.crux_tracker = [MOCK_CRUX];
+    e.session.argument_network = undefined;
+    e._situationScoreAdjustments = null;
+
+    e._rescoreSituations();
+
+    expect(e._situationScoreAdjustments).toBeNull();
+  });
+});
+
 // Helper: run engine and return session (may throw)
 async function config_stamps_test(config: DebateConfig, adapter: ExtendedAIAdapter) {
   const engine = new DebateEngine(config, adapter, createMinimalTaxonomy());

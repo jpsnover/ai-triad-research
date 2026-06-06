@@ -13,6 +13,7 @@ import {
   hashString,
   getMoveName,
   maxOverlapVsExisting,
+  stripExcludes,
 } from './helpers.js';
 
 // ── Helpers ───────────────────────────────────────────────
@@ -73,6 +74,38 @@ describe('stripCodeFences', () => {
     const input = '```json\n{"code": "use ``` for fences"}\n```';
     const result = stripCodeFences(input);
     expect(result).toContain('"code"');
+  });
+});
+
+// ── stripExcludes ──────────────────────────────────────
+
+describe('stripExcludes', () => {
+  it('strips single-line Excludes clause', () => {
+    const input = 'A Belief within accelerationist discourse that AI will transform society. Encompasses: automation, AGI timelines. Excludes: superintelligence risk, consciousness.';
+    expect(stripExcludes(input)).toBe('A Belief within accelerationist discourse that AI will transform society. Encompasses: automation, AGI timelines.');
+  });
+
+  it('strips multi-line Excludes clause', () => {
+    const input = 'A Desire within safetyist discourse.\nEncompasses: alignment research.\nExcludes: open-source model release,\nunregulated deployment,\nvoluntary self-governance.';
+    expect(stripExcludes(input)).toBe('A Desire within safetyist discourse.\nEncompasses: alignment research.');
+  });
+
+  it('returns description unchanged when no Excludes clause', () => {
+    const input = 'A Belief about economic impacts of AI automation.';
+    expect(stripExcludes(input)).toBe(input);
+  });
+
+  it('handles empty string', () => {
+    expect(stripExcludes('')).toBe('');
+  });
+
+  it('handles Excludes at the very start', () => {
+    expect(stripExcludes('Excludes: everything')).toBe('');
+  });
+
+  it('preserves text before Excludes with varied whitespace', () => {
+    const input = 'Core concept.  Excludes:   trailing items.';
+    expect(stripExcludes(input)).toBe('Core concept.');
   });
 });
 

@@ -132,7 +132,7 @@ async function main(): Promise<void> {
   try {
     boundaryEmbeddings = embedBoundariesLocal(repoRoot);
     console.log('  Done.\n');
-  } catch (err) {
+  } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
     console.error(`  Failed: ${err instanceof Error ? err.message : err}`);
     console.error('  Continuing without doctrinal anchoring.\n');
   }

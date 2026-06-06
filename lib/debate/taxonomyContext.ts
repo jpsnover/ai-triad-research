@@ -9,6 +9,7 @@
 import type { PovNode, SituationNode, GraphAttributes } from './taxonomyTypes.js';
 import { interpretationText, isBdiInterpretation } from './taxonomyTypes.js';
 import { POV_KEYS } from './types.js';
+import { stripExcludes } from './helpers.js';
 
 export interface PolicyRef {
   id: string;
@@ -259,7 +260,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
       const weightLabel = nodeWeightLabel(n, cat);
       // Compact node line: ID + weight + label + description (no raw relevance score — ★ marker suffices)
       lines.push(`${prefix}[${n.id}]${weightLabel}`);
-      lines.push(`  "${n.label}" — ${n.description}`);
+      lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
       // Per-node inline guidance replaces raw metadata labels
       const guidance = generateNodeGuidance(n, cat);
       lines.push(...guidance);
@@ -303,7 +304,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     for (let i = 0; i < sortedSit.length; i++) {
       const n = sortedSit[i];
       const isPrimary = i < SIT_PRIMARY;
-      lines.push(`${isPrimary ? '★ ' : '  '}[${n.id}] ${n.label}: ${n.description}`);
+      lines.push(`${isPrimary ? '★ ' : '  '}[${n.id}] ${n.label}: ${stripExcludes(n.description)}`);
 
       // This agent's interpretation — always full
       const interp = n.interpretations?.[pov as keyof typeof n.interpretations];
