@@ -11,6 +11,7 @@ import { createArgumentNetworkSlice } from './slices/argumentNetworkSlice';
 import { createSynthesisSlice } from './slices/synthesisSlice';
 import { createDebateLoopSlice } from './slices/debateLoopSlice';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { api } from '@bridge';
 
 export const useDebateStore = create<DebateStore>()((...a) => ({
   ...createConfigSlice(...a),
@@ -29,8 +30,9 @@ if (typeof window !== 'undefined') {
     const state = useDebateStore.getState();
     if (!state.activeDebate) return;
     const recorder = getGlobalRecorder();
-    if (!recorder) return;
-    recorder.record({
+
+    const isGenerating = !!state.debateGenerating;
+    recorder?.record({
       type: 'lifecycle',
       component: 'debate-store',
       level: 'warn',
@@ -39,11 +41,25 @@ if (typeof window !== 'undefined') {
       data: {
         phase: state.activeDebate.phase,
         transcript_length: state.activeDebate.transcript?.length ?? 0,
-        is_generating: !!state.debateGenerating,
+        is_generating: isGenerating,
         generating_speaker: state.debateGenerating ?? null,
         an_nodes: state.activeDebate.argument_network?.nodes?.length ?? 0,
       },
     });
+
+    if (isGenerating) {
+      const round = state.activeDebate.transcript.filter(e => e.type === 'statement').length + 1;
+      const session = {
+        ...state.activeDebate,
+        interrupted_turn: {
+          speaker: state.debateGenerating!,
+          phase: state.activeDebate.adaptive_staging?.phase_state?.current_phase ?? state.activeDebate.phase,
+          round,
+          timestamp: new Date().toISOString(),
+        },
+      };
+      void api.saveDebateSession(session);
+    }
   });
 }
 

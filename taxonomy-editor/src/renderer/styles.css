@@ -228,10 +228,12 @@ body {
   color: var(--text-primary);
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
 }
 
 #root {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -240,6 +242,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 .loading {
@@ -248,6 +251,7 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
+  height: 100dvh;
   gap: 12px;
   color: var(--text-secondary);
 }
@@ -14384,6 +14388,7 @@ th[data-tooltip]::after {
   right: 0;
   width: 340px;
   height: 100vh;
+  height: 100dvh;
   background: var(--bg-primary);
   border-left: 1px solid var(--border-color);
   display: flex;

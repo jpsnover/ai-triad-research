@@ -597,6 +597,45 @@ describe('loadDebate', () => {
 
     expect(useDebateStore.getState().audience).toBe('researchers');
   });
+
+  it('detects interrupted_turn and adds recovery notification', async () => {
+    const session = makeSession({
+      interrupted_turn: {
+        speaker: 'safetyist',
+        phase: 'debate',
+        round: 8,
+        timestamp: '2026-06-06T14:30:57.000Z',
+      },
+    });
+    mockApi.loadDebateSession.mockResolvedValueOnce(session);
+
+    await useDebateStore.getState().loadDebate('session-1');
+
+    const state = useDebateStore.getState();
+    expect(state.activeDebate).toBeTruthy();
+    // Should have added a system transcript entry about the interrupted turn
+    const recovery = state.activeDebate!.transcript.find(
+      e => e.type === 'system' && e.content.includes('[Recovered]'),
+    );
+    expect(recovery).toBeTruthy();
+    expect(recovery!.content).toContain('Safetyist');
+    expect(recovery!.content).toContain('round 8');
+    // interrupted_turn field should be cleared from the session
+    expect(state.activeDebate!.interrupted_turn).toBeUndefined();
+    // Should have saved to persist the cleanup
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+  });
+
+  it('does not add recovery notification when no interrupted_turn', async () => {
+    const session = makeSession();
+    mockApi.loadDebateSession.mockResolvedValueOnce(session);
+
+    await useDebateStore.getState().loadDebate('session-1');
+
+    const state = useDebateStore.getState();
+    expect(state.activeDebate!.transcript).toHaveLength(0);
+    expect(mockApi.saveDebateSession).not.toHaveBeenCalled();
+  });
 });
 
 describe('deleteDebate', () => {

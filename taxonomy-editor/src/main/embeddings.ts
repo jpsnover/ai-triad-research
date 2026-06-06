@@ -221,6 +221,12 @@ export interface NodeEmbeddingInput {
   pov: string;
 }
 
+const EXCLUDES_RE = /\s*Excludes:.*/s;
+
+function stripExcludes(text: string): string {
+  return EXCLUDES_RE.test(text) ? text.replace(EXCLUDES_RE, '').trim() : text;
+}
+
 /**
  * Re-embed a set of nodes via local Python and update embeddings.json.
  * Runs asynchronously — caller can fire-and-forget.
@@ -229,7 +235,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
   if (nodes.length === 0) return;
 
   const filePath = getEmbeddingsPath();
-  const items = nodes.map(n => ({ id: n.id, text: n.text }));
+  const items = nodes.map(n => ({ id: n.id, text: stripExcludes(n.text) }));
   const inputJson = JSON.stringify(items);
 
   console.log(`[embeddings] Updating ${nodes.length} node embeddings...`);

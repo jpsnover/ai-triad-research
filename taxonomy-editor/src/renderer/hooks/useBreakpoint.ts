@@ -32,9 +32,11 @@ export function useBreakpoint(): Breakpoint {
     };
 
     for (const mql of mqls) mql.addEventListener('change', handler);
+    window.addEventListener('resize', handler);
     return () => {
       if (timer) clearTimeout(timer);
       for (const mql of mqls) mql.removeEventListener('change', handler);
+      window.removeEventListener('resize', handler);
     };
   }, []);
 

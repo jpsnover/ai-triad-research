@@ -584,6 +584,13 @@ export interface DebateSession {
   };
   /** Perturbation testing result — present only for evaluation/benchmark debates with perturbation injection. */
   perturbation_result?: PerturbationResult;
+  /** Persisted when a window closes mid-generation. Cleared on next load after surfacing a notification. */
+  interrupted_turn?: {
+    speaker: string;
+    phase: string;
+    round: number;
+    timestamp: string;
+  };
 }
 
 // ── Perturbation testing (HDE Section B2) ───────────────

@@ -79,7 +79,7 @@ import { computeOperationality } from '@lib/debate/intentionOperationality';
 import { useTaxonomyStore } from '../../useTaxonomyStore';
 import { usePromptConfigStore } from '../../usePromptConfigStore';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
-import { cosineSimilarity } from '../../../utils/taxonomyRelevance';
+import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
 import {
   getConfiguredModel,
   generateTextWithProgress,
@@ -117,6 +117,7 @@ import {
   incrementGapInjectionCount,
   _abortController,
   _gapInjectionCount,
+  getTaxonomyContext,
 } from '../helpers';
 
 export interface DebateLoopSlice {

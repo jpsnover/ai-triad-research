@@ -280,6 +280,24 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       );
       void api.setDebateTemperature(session.debate_temperature ?? null);
       getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
+
+      if (session.interrupted_turn) {
+        const speakerLabel = POVER_INFO[session.interrupted_turn.speaker as Exclude<SpeakerId, 'user'>]?.label ?? session.interrupted_turn.speaker;
+        getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Interrupted turn detected on load', data: session.interrupted_turn });
+        get().addTranscriptEntry({
+          type: 'system',
+          speaker: 'system',
+          content: `[Recovered] ${speakerLabel}'s turn was interrupted when the window closed (round ${session.interrupted_turn.round}, ${session.interrupted_turn.phase} phase). Press Continue to restart the turn.`,
+          taxonomy_refs: [],
+          metadata: { interrupted_turn_recovery: true, ...session.interrupted_turn },
+        });
+        const fresh = get().activeDebate;
+        if (fresh) {
+          const { interrupted_turn: _, ...cleaned } = fresh;
+          set({ activeDebate: cleaned as DebateSession });
+        }
+        void get().saveDebate('loadDebate:interrupted_turn_recovery');
+      }
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err) } });
       set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
