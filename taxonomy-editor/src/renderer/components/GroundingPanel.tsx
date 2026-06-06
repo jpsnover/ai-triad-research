@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession } from '../types/debate';
 
@@ -25,11 +26,15 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      const loadWithRecorder = (name: string) => api.loadTaxonomyFile(name).catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'groundingPanel', level: 'warn', message: `Failed to load taxonomy file: ${name}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        return null;
+      });
       const files = await Promise.all([
-        api.loadTaxonomyFile('accelerationist').catch(() => null),
-        api.loadTaxonomyFile('safetyist').catch(() => null),
-        api.loadTaxonomyFile('skeptic').catch(() => null),
-        api.loadTaxonomyFile('situations').catch(() => null),
+        loadWithRecorder('accelerationist'),
+        loadWithRecorder('safetyist'),
+        loadWithRecorder('skeptic'),
+        loadWithRecorder('situations'),
       ]);
       if (cancelled) return;
       const m = new Map<string, string>();

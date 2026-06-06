@@ -33,7 +33,7 @@ async function post<T = unknown>(path: string, body?: unknown): Promise<T> {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (res.status === 429) {
-    const data = await res.json().catch(() => ({})) as Record<string, unknown>;
+    const data = await res.json().catch(() => ({})) as Record<string, unknown>; /* telemetry — silent by design: extracting error payload from already-throwing path */
     const msg = data.limitType === 'tokens_per_day'
       ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
       : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;

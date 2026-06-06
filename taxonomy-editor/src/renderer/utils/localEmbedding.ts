@@ -74,6 +74,13 @@ async function doInit(): Promise<boolean> {
         return true;
       } catch (err) {
         console.warn('[localEmbedding] WebNN init failed, trying WASM:', err);
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'localEmbedding',
+          level: 'warn',
+          message: 'WebNN init failed, falling back to WASM',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
       }
     }
 
@@ -95,6 +102,13 @@ async function doInit(): Promise<boolean> {
       return true;
     } catch (err) {
       console.warn('[localEmbedding] WASM init failed:', err);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'localEmbedding',
+        level: 'warn',
+        message: 'WASM init failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
     }
 
     _backend = 'none';

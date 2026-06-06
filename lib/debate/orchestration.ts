@@ -424,6 +424,7 @@ export async function runModeratorSelection(
           callbacks.progress('debate', undefined, `Moderator: COMMIT → ${poverInfo[concludingTarget]?.label}`);
         }
       } catch (err) {
+        getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator synthesis COMMIT generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         callbacks.warn('Moderator synthesis COMMIT generation', err, 'Proceeding without COMMIT intervention');
       }
     }
@@ -508,6 +509,7 @@ export async function runModeratorSelection(
             callbacks.progress('debate', undefined, `Moderator: POLICY_CHALLENGE → ${poverInfo[policyChallengeTarget]?.label}`);
           }
         } catch (err) {
+          getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator POLICY_CHALLENGE generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           callbacks.warn('Moderator POLICY_CHALLENGE generation', err, 'Proceeding without POLICY_CHALLENGE intervention');
         }
       }
@@ -774,12 +776,14 @@ export async function runModeratorSelection(
                 `Moderator: ${activeIntervention.move} → ${poverInfo[responder]?.label}`);
             }
           } catch (stage2Err) {
+            getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator Stage 2 intervention generation failed', error: { name: (stage2Err as Error).name ?? 'Error', message: String(stage2Err) } });
             callbacks.warn('Moderator Stage 2 generation', stage2Err, 'Proceeding without intervention');
           }
         }
       }
     } catch (err) {
       selectionParseError = err;
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: 'Moderator selection parse failed — falling back to least-recently-spoken', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       callbacks.warn('Parsing moderator selection', err, 'Falling back to least-recently-spoken debater');
     }
   }
@@ -922,6 +926,7 @@ export async function executeTurnWithRetry(
       break;
     } catch (err) {
       pipelineError = err instanceof Error ? err : new Error(String(err));
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: `Pipeline attempt ${pipelineAttempt + 1} failed`, error: { name: pipelineError.name, message: pipelineError.message } });
       if (pipelineAttempt < vConfig.maxRetries) {
         // Log and retry — transient parse errors from weak models often succeed on retry
         console.warn(`[orchestration] Pipeline attempt ${pipelineAttempt + 1} failed: ${pipelineError.message.slice(0, 100)}. Retrying...`);
@@ -1119,6 +1124,7 @@ export async function executeTurnWithRetry(
       pipelineResult.stage_diagnostics = [...carriedDiags, ...pipelineResult.stage_diagnostics];
     } catch (err) {
       // Pipeline parse failure on retry — treat as failed attempt, break with current validation
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: `Pipeline retry ${attemptIdx} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.warn(`[orchestration] Pipeline retry ${attemptIdx} failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
       break;
     }

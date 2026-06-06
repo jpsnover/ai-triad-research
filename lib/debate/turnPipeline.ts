@@ -280,7 +280,7 @@ function parseStageResponse<T>(raw: string, stage: TurnStageId): { product: T; e
   try {
     const parsed = parseJsonRobust(raw) as T;
     return { product: parsed };
-  } catch (err) {
+  } catch (err) { /* telemetry — silent by design: error returned to caller via result.error */
     return {
       product: {} as T,
       error: `${stage} stage parse error: ${err instanceof Error ? err.message : String(err)}`,
@@ -646,6 +646,7 @@ export async function runTurnPipeline(
       }
     } catch (err) {
       // Evidence retrieval failure is non-fatal — proceed without evidence
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Evidence retrieval failed — proceeding without evidence', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.warn(`[pipeline] Evidence retrieval failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -700,6 +701,7 @@ export async function runTurnPipeline(
         });
       }
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Citation bank build failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.warn(`[pipeline] Citation bank build failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -1029,6 +1031,7 @@ export async function runTurnPipeline(
                 }
               } catch (err) {
                 // Micro-fix LLM call failed — fall through to full retry
+                getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(specificity) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
                 stageDiags.push({
                   stage: 'micro-fix',
                   prompt: microFixPromptText,
@@ -1150,6 +1153,7 @@ export async function runTurnPipeline(
                 console.log(`[pipeline] Micro-fix(intervention) returned no ${moveConfig.field} — falling through to full retry`);
               }
             } catch (err) {
+              getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(intervention) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
               stageDiags.push({
                 stage: 'micro-fix',
                 prompt: intFixPromptText,
@@ -1260,6 +1264,7 @@ export async function runTurnPipeline(
               console.log(`[pipeline] Micro-fix(directive) returned no revised_first_paragraph — falling through to full retry`);
             }
           } catch (err) {
+            getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(directive) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
             stageDiags.push({
               stage: 'micro-fix',
               prompt: dirFixPromptText,
@@ -1331,8 +1336,8 @@ export async function runTurnPipeline(
       if (assumptionsParsed.product?.key_assumptions?.length) {
         (draft as Record<string, unknown>).key_assumptions = assumptionsParsed.product.key_assumptions;
       }
-    } catch {
-      // Non-critical — key_assumptions is nice-to-have metadata
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-draft assumptions extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     }
   }
 
@@ -1844,13 +1849,14 @@ export async function runTurnPipeline(
                 post: postRepairGate,
               },
             });
-          } catch {
-            // Post-repair check failure is non-fatal — we still have the regenerated draft
+          } catch (err) {
+            getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-repair quality re-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           }
         }
       }
     } catch (err) {
       // Pre-check failure is non-fatal — proceed to cite
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Draft quality pre-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.warn(`[pipeline] Draft quality pre-check failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }

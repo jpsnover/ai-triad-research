@@ -19,6 +19,7 @@ import { SUPPRESSION_REASON_TOOLTIPS } from '../shared/constants';
 import { classifyHintTarget, HINT_TARGET_STYLE, EdgesUsedGrouped } from '../shared';
 import type { TaxRefEdge } from '../../../TaxonomyRefDetail';
 import type { UtilitySnapshot } from '../types';
+import type { FlightRecorderEvent } from '@lib/flight-recorder/index';
 
 export interface DetailsTabProps {
   entry: DebateSession['transcript'][number];
@@ -39,6 +40,7 @@ export interface DetailsTabProps {
   nodeLabels: Map<string, string>;
   selectedTaxRefId: string | null;
   setSelectedTaxRefId: (id: string | null) => void;
+  entryErrors?: (FlightRecorderEvent & { error: { name: string; message: string; stack?: string } })[];
 }
 
 /**
@@ -48,7 +50,7 @@ export interface DetailsTabProps {
  * policy refs, edge tensions, argument network context, model info, lineage frame,
  * and opening statement.
  */
-export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTrail, perTurnUtilities, precedingIntervention, interventionResponseField, suppressedIntervention, policyMap, allEdges, taxNodeMap, nodeWeights, nodeLabels, selectedTaxRefId, setSelectedTaxRefId }: DetailsTabProps) {
+export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTrail, perTurnUtilities, precedingIntervention, interventionResponseField, suppressedIntervention, policyMap, allEdges, taxNodeMap, nodeWeights, nodeLabels, selectedTaxRefId, setSelectedTaxRefId, entryErrors }: DetailsTabProps) {
   // Lazy import to avoid circular dependency
   const { TurnValidationSection } = useMemo(() => {
     // TurnValidationSection is defined locally in DiagnosticsWindow.
@@ -60,6 +62,62 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
 
   return (
     <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+      {/* Pipeline error banner */}
+      {entry.type === 'statement' && diag && (diag.stage_diagnostics?.length ?? 0) > 0 && !diag.extracted_claims && !(diag as Record<string, unknown>).extraction_trace && (
+        <div style={{
+          marginBottom: 10, padding: '10px 12px', borderRadius: 6,
+          background: 'rgba(220,38,38,0.08)', borderLeft: '3px solid #dc2626',
+          fontSize: '0.75rem',
+        }}>
+          <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Pipeline Error</div>
+          <div style={{ color: 'var(--text-primary)', lineHeight: 1.5 }}>
+            Pipeline stages completed ({diag.stage_diagnostics!.map(s => s.stage).join(' → ')}),
+            but post-pipeline processing failed. Claim extraction, evidence gathering, and argument
+            network updates were skipped for this turn. Check the flight recorder for error details.
+          </div>
+        </div>
+      )}
+      {/* Flight recorder errors for this entry */}
+      {entryErrors && entryErrors.length > 0 && (
+        <Section title={`Flight Recorder Errors (${entryErrors.length})`} defaultOpen copyText={entryErrors.map(e => `${e.error.name}: ${e.error.message}${e.error.stack ? '\n' + e.error.stack : ''}`).join('\n\n')}>
+          {entryErrors.map((evt, i) => {
+            const data = evt.data as Record<string, unknown> | undefined;
+            return (
+              <div key={i} style={{
+                marginBottom: 8, padding: '8px 10px', borderRadius: 5,
+                background: 'rgba(220,38,38,0.06)', borderLeft: '3px solid #dc2626',
+                fontSize: '0.72rem',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{
+                    padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+                    background: 'rgba(220,38,38,0.15)', color: '#dc2626',
+                  }}>{evt.error.name}</span>
+                  {data?.speaker && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      {String(data.speaker)}{data.round ? ` R${data.round}` : ''}
+                    </span>
+                  )}
+                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto', fontFamily: 'monospace' }}>
+                    {new Date(evt._wall).toLocaleTimeString()}
+                  </span>
+                </div>
+                <div style={{ color: 'var(--text-primary)', lineHeight: 1.4 }}>{evt.error.message}</div>
+                {evt.error.stack && (
+                  <details style={{ marginTop: 4 }}>
+                    <summary style={{ fontSize: '0.62rem', color: 'var(--text-muted)', cursor: 'pointer' }}>Stack trace</summary>
+                    <pre style={{
+                      fontSize: '0.6rem', color: 'var(--text-muted)', margin: '4px 0 0',
+                      padding: '6px 8px', borderRadius: 3, background: 'var(--bg-secondary)',
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 150, overflow: 'auto',
+                    }}>{evt.error.stack}</pre>
+                  </details>
+                )}
+              </div>
+            );
+          })}
+        </Section>
+      )}
       {/* Per-turn utility delta for this speaker */}
       {(() => {
         const turnSnap = perTurnUtilities?.find(s => s.entryId === entry.id);

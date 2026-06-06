@@ -40,8 +40,7 @@ function CopyButton({ targetRef }: { targetRef: React.RefObject<HTMLDivElement |
       onClick={(e) => {
         e.stopPropagation();
         const text = targetRef.current?.innerText ?? '';
-        void navigator.clipboard.writeText(text).catch(() => {
-          // fallback for Electron
+        void navigator.clipboard.writeText(text).catch(() => { /* telemetry — silent by design: clipboard fallback to Electron API */
           void api.clipboardWriteText(text);
         });
         setCopied(true);

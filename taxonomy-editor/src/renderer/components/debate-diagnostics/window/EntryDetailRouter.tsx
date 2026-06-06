@@ -15,7 +15,7 @@
  * are rendered inline.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import type {
   DebateSession,
   EntryDiagnostics,
@@ -24,6 +24,7 @@ import type {
   CommitmentStore,
   TurnValidationTrail,
 } from '../../../types/debate';
+import { getGlobalRecorder, type FlightRecorderEvent } from '@lib/flight-recorder/index';
 import { TaxonomyRefDetail, type TaxRefEdge } from '../../TaxonomyRefDetail';
 import { speakerLabel } from './helpers';
 import { EntryTab, OverviewTab, UtilitySnapshot } from './types';
@@ -180,7 +181,8 @@ export function EntryDetailRouter({
     diag?.commitment_context ||
     diag?.edge_tensions ||
     diag?.argument_network_context ||
-    (meta?.move_types && (meta.move_types as unknown[]).length > 0)
+    (meta?.move_types && (meta.move_types as unknown[]).length > 0) ||
+    (entry.type === 'statement' && diag && (diag.stage_diagnostics?.length ?? 0) > 0 && !diag.extracted_claims && !extTrace)
   );
   const claimsCopy = [
     ...(diag?.extracted_claims ? [...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)] : []),
@@ -197,6 +199,21 @@ export function EntryDetailRouter({
   const planStage = planAttempts.length > 0 ? planAttempts[planAttempts.length - 1] : undefined;
   const draftStage = draftAttempts.length > 0 ? draftAttempts[draftAttempts.length - 1] : undefined;
   const citeStage = citeAttempts.length > 0 ? citeAttempts[citeAttempts.length - 1] : undefined;
+  const pipelineError = entry.type === 'statement' && !!diag && (stages?.length ?? 0) > 0 && !diag.extracted_claims && !extTrace;
+
+  const entryErrors = useMemo(() => {
+    const recorder = getGlobalRecorder();
+    if (!recorder || entryIdx < 0) return [];
+    const snap = recorder.snapshot();
+    return snap.events.filter((e): e is FlightRecorderEvent & { error: NonNullable<FlightRecorderEvent['error']> } =>
+      e.type === 'system.error' &&
+      e.level === 'error' &&
+      e.debate_id === debate.id &&
+      !!(e.data as Record<string, unknown> | undefined)?.transcript_length &&
+      (e.data as Record<string, unknown>).transcript_length === entryIdx + 1
+    );
+  }, [debate.id, entryIdx]);
+
   const lookaheadDiag = (diag as Record<string, unknown> | undefined)?.lookahead as {
     stage: 'lookahead';
     first_attempt: { pass: boolean; utility_before: { position_strength: number; attack_effectiveness: number; crux_engagement: number; composite: number; concession_asymmetry: number }; utility_after: { position_strength: number; attack_effectiveness: number; crux_engagement: number; composite: number; concession_asymmetry: number }; utility_delta: number; threshold: number; tentative_claims: { text: string; strength: number }[]; tentative_network_size: { nodes: number; edges: number } };
@@ -303,7 +320,7 @@ export function EntryDetailRouter({
     ? entryTab
     : (tabs.find(t => t.has)?.id ?? 'details');
   const active = tabs.find(t => t.id === activeTab)!;
-  const handleCopy = () => { if (active.copy) navigator.clipboard?.writeText(active.copy).catch(() => {}); };
+  const handleCopy = () => { if (active.copy) navigator.clipboard?.writeText(active.copy).catch(() => { /* telemetry — silent by design: clipboard write is best-effort UI convenience */ }); };
 
   const tabBtnStyle = (t: typeof tabs[0]): React.CSSProperties => ({
     padding: '6px 12px',
@@ -375,20 +392,24 @@ export function EntryDetailRouter({
             }}>{repaired.length} repaired</span>
           );
         })()}
+        {pipelineError && (
+          <span title="Pipeline stages completed but post-pipeline processing (claim extraction, evidence, AN update) failed — check flight recorder" style={{
+            padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 600,
+            background: 'rgba(220,38,38,0.15)', color: '#dc2626', cursor: 'help',
+          }}>pipeline error</span>
+        )}
         {!diag && !proxiedModeratorTrace && entry.type !== 'intervention' && <span style={{ color: '#f59e0b', fontSize: '0.65rem' }}>(no diagnostic capture &mdash; turn was generated before diagnostics was always-on)</span>}
         <span style={{ flex: 1 }} />
-        {effectiveOverviewTab === 'transcript' && (
-          <button
-            onClick={() => { setSelectedEntry(null); setLocalOverride(true); }}
-            title="Back to transcript list"
-            style={{
-              padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
-              borderRadius: 4, border: '1px solid var(--border)',
-              background: 'rgba(249,115,22,0.1)', color: '#f97316',
-              cursor: 'pointer',
-            }}
-          >{'▲'} Transcript</button>
-        )}
+        <button
+          onClick={() => { setSelectedEntry(null); setLocalOverride(true); }}
+          title="Back to overview"
+          style={{
+            padding: '2px 8px', fontSize: '0.7rem', fontWeight: 600,
+            borderRadius: 4, border: '1px solid var(--border)',
+            background: 'rgba(249,115,22,0.1)', color: '#f97316',
+            cursor: 'pointer',
+          }}
+        >{'◀'} Back</button>
         <button
           onClick={() => goToIdx(entryIdx - 1)}
           disabled={entryIdx <= 0}
@@ -517,6 +538,9 @@ export function EntryDetailRouter({
               title={t.has ? t.label : `${t.label} (no data)`}
             >
               {t.label}
+              {!t.has && pipelineError && (t.id === 'claims' || t.id === 'evidence' || t.id === 'citations') && (
+                <span title="Skipped — pipeline error" style={{ marginLeft: 3, color: '#dc2626', fontSize: '0.55rem' }}>⚠</span>
+              )}
               {t.count != null && <span style={{ marginLeft: 4, color: 'var(--text-muted)', fontWeight: 400 }}>({t.count})</span>}
             </button>
           ))}
@@ -586,6 +610,7 @@ export function EntryDetailRouter({
               nodeLabels={nodeLabels}
               selectedTaxRefId={selectedTaxRefId}
               setSelectedTaxRefId={setSelectedTaxRefId}
+              entryErrors={entryErrors}
             />
           )}
 

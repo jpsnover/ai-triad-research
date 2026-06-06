@@ -306,8 +306,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       {debate && (
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
-          {/* Vertical tab sidebar */}
-          {(() => {
+          {/* Vertical tab sidebar — hidden when viewing entry detail */}
+          {!selectedEntry && (() => {
             const hasAn = !!(an && an.nodes.length > 0);
             const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
             const plateau = debate.extraction_summary?.plateau_detected === true;

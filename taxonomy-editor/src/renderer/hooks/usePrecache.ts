@@ -58,7 +58,7 @@ function getStoredVersions(): Record<string, string> {
   try {
     const raw = localStorage.getItem(VERSION_KEY);
     return raw ? JSON.parse(raw) : {};
-  } catch {
+  } catch { /* telemetry — silent by design: corrupted localStorage is non-fatal, returns empty default */
     return {};
   }
 }

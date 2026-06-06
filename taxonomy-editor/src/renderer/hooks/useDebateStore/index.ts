@@ -1,19 +1,15 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
-//
-// Thin shim — the real store lives in useDebateStore/ (Phase 5 decomposition).
-// All consumers import from this path; this file re-exports the sliced store.
 
-export {
-  useDebateStore,
-} from './useDebateStore/index';
+export { useDebateStore } from './store';
+
+export type { DebateStore } from './types';
 
 export type {
-  DebateStore,
   ReflectionEdit,
   ReflectionResult,
   ConsensusProposal,
   ConsensusCluster,
   NodeScoringSource,
   RelevanceSourceEntry,
-} from './useDebateStore/index';
+} from './types';

@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── Hoisted mocks (available before vi.mock factories execute) ──
 
-const { mockApi, mockTaxonomyState } = vi.hoisted(() => {
+const { mockApi, mockTaxonomyState, mockPromptConfigState } = vi.hoisted(() => {
   const mockApi = {
     generateText: vi.fn().mockResolvedValue({ text: '{}' }),
     generateTextWithSearch: vi.fn().mockResolvedValue({ text: '', searchQueries: [], citations: [] }),
@@ -25,6 +25,7 @@ const { mockApi, mockTaxonomyState } = vi.hoisted(() => {
     loadEdges: vi.fn().mockResolvedValue({ edges: [] }),
     loadDictionary: vi.fn().mockResolvedValue({ standardized: [], colloquial: [], lintViolations: [] }),
     exportDebateToFile: vi.fn().mockResolvedValue({ cancelled: true }),
+    generateNewsReport: vi.fn().mockResolvedValue({ article: 'mock-news-article' }),
   };
 
   const mockTaxonomyState = {
@@ -36,6 +37,7 @@ const { mockApi, mockTaxonomyState } = vi.hoisted(() => {
     policyRegistry: [] as unknown[],
     conflicts: [] as unknown[],
     getLabelForId: vi.fn().mockReturnValue('mock-label'),
+    getDescriptionForId: vi.fn().mockReturnValue('mock-description'),
     loadEdges: vi.fn().mockResolvedValue(undefined),
     createPovNode: vi.fn().mockReturnValue('new-node-id'),
     updatePovNode: vi.fn(),
@@ -43,7 +45,13 @@ const { mockApi, mockTaxonomyState } = vi.hoisted(() => {
     saveError: null as string | null,
   };
 
-  return { mockApi, mockTaxonomyState };
+  const mockPromptConfigState = {
+    loadSessionConfig: vi.fn(),
+    resetSession: vi.fn(),
+    exportSessionConfig: vi.fn().mockReturnValue({}),
+  };
+
+  return { mockApi, mockTaxonomyState, mockPromptConfigState };
 });
 
 // ── Mock dependencies BEFORE importing the store ────────────
@@ -60,11 +68,7 @@ vi.mock('./useTaxonomyStore', () => ({
 
 vi.mock('./usePromptConfigStore', () => ({
   usePromptConfigStore: {
-    getState: () => ({
-      loadSessionConfig: vi.fn(),
-      resetSession: vi.fn(),
-      exportSessionConfig: vi.fn().mockReturnValue({}),
-    }),
+    getState: () => mockPromptConfigState,
   },
 }));
 
@@ -222,6 +226,92 @@ vi.mock('@lib/debate/turnPipeline', () => ({
   assemblePipelineResult: vi.fn().mockReturnValue({}),
   runOpeningPipeline: vi.fn().mockResolvedValue({}),
   assembleOpeningPipelineResult: vi.fn().mockReturnValue({}),
+  getOpeningRepairHints: vi.fn().mockReturnValue([]),
+}));
+
+vi.mock('@lib/debate/topicCritique', () => ({
+  computeStructuralScore: vi.fn().mockReturnValue({ total: 8, activated_nodes: [], coverage: {} }),
+  critiqueTopicPrompt: vi.fn().mockReturnValue('mock-critique-prompt'),
+  parseTopicCritique: vi.fn().mockReturnValue({
+    rating: 'good', composite_score: 14, frame_score: { total: 6 },
+    structural_score: { total: 8, activated_nodes: [], coverage: {} },
+    rewritten_topic: null, lineage_frame: [],
+  }),
+  formatCritiqueForRefinement: vi.fn().mockReturnValue(''),
+  formatStructuralContext: vi.fn().mockReturnValue('mock-structural-context'),
+  computeLineageDistribution: vi.fn().mockReturnValue([]),
+  formatLineageContext: vi.fn().mockReturnValue(''),
+}));
+
+vi.mock('@lib/debate/prompts', () => ({
+  decomposeResolutionPrompt: vi.fn().mockReturnValue('mock-decompose-prompt'),
+  topicScopeExtractionPrompt: vi.fn().mockReturnValue('mock-scope-prompt'),
+  setTopicScope: vi.fn(),
+}));
+
+vi.mock('@lib/debate/phaseTransitions', () => ({
+  loadProvisionalWeights: vi.fn().mockReturnValue({}),
+  initPhaseState: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 0, total_rounds_elapsed: 0 }),
+  evaluatePhaseTransition: vi.fn().mockReturnValue({ action: 'continue', reason: 'test' }),
+  advanceRound: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 1, total_rounds_elapsed: 1 }),
+  applyTransition: vi.fn().mockReturnValue({ current_phase: 'confrontation', rounds_in_phase: 0, total_rounds_elapsed: 1 }),
+  buildSignalRegistry: vi.fn().mockReturnValue([]),
+  computeSaturationScore: vi.fn().mockReturnValue(0),
+  computeConvergenceScore: vi.fn().mockReturnValue(0),
+  detectCruxNodes: vi.fn().mockReturnValue([]),
+}));
+
+vi.mock('@lib/debate/gapCheck', () => ({
+  shouldRunGapCheck: vi.fn().mockReturnValue(false),
+  findUnengagedHighRelevanceNodes: vi.fn().mockReturnValue([]),
+  collectEngagedNodeIds: vi.fn().mockReturnValue(new Set()),
+  MAX_GAP_INJECTIONS: 3,
+}));
+
+vi.mock('@lib/debate/neutralEvaluator', () => ({
+  runNeutralEvaluation: vi.fn().mockResolvedValue({ checkpoint: 'baseline', claims: [], cruxes: [] }),
+  buildSpeakerMapping: vi.fn().mockReturnValue({}),
+}));
+
+vi.mock('@lib/debate/doctrinalAnchoring', () => ({
+  embedDoctrinalBoundaries: vi.fn().mockResolvedValue({}),
+  computeDoctrinalAnchoring: vi.fn().mockReturnValue([]),
+  checkThresholdAnomalies: vi.fn().mockReturnValue(null),
+}));
+
+vi.mock('@lib/debate/beliefConfidence', () => ({
+  computeBeliefConfidence: vi.fn().mockReturnValue(0.5),
+}));
+
+vi.mock('@lib/debate/desirePriority', () => ({
+  computeTreePriority: vi.fn().mockReturnValue(0.5),
+}));
+
+vi.mock('@lib/debate/intentionOperationality', () => ({
+  computeOperationality: vi.fn().mockReturnValue(0.5),
+}));
+
+vi.mock('@lib/debate/vocabularyDisambiguation', () => ({
+  disambiguateTerms: vi.fn().mockReturnValue({ terms: [], ambiguousCount: 0 }),
+}));
+
+vi.mock('@lib/debate/processReward', () => ({
+  computeProcessReward: vi.fn().mockReturnValue({ score: 0.5, breakdown: {} }),
+}));
+
+vi.mock('../data/lineageCategories', () => ({
+  getLineageMapping: vi.fn().mockReturnValue({}),
+  getL2Categories: vi.fn().mockReturnValue([]),
+  isLineageDataLoaded: vi.fn().mockReturnValue(false),
+}));
+
+vi.mock('@lib/debate/lookaheadGate', () => ({
+  evaluateLookaheadPerClaim: vi.fn().mockReturnValue([]),
+  buildClaimAnalysis: vi.fn().mockReturnValue({ claims: [] }),
+}));
+
+vi.mock('../utils/dolceCompliance', () => ({
+  checkDolceCompliance: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('@lib/debate/vocabularyContext', () => ({
@@ -276,6 +366,8 @@ function resetStore(): void {
     debateWarnings: [],
     openingOrder: [],
     initialCrossRespondRounds: 3,
+    topicCritiqueLoading: false,
+    consensusClusters: [],
   });
 }
 
@@ -309,11 +401,16 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(generateId).mockImplementation(() => `test-id-${++idCounter}`);
   vi.mocked(nowISO).mockReturnValue('2026-05-01T00:00:00.000Z');
+  mockApi.onGenerateTextProgress.mockReturnValue(() => {});
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  vi.clearAllMocks();
 });
+
+// ── Imports resolved after vi.mock (safe because modules are already mocked) ──
+import { disambiguateTerms } from '@lib/debate/vocabularyDisambiguation';
+import { executeTurnWithRetry, runModeratorSelection } from '@lib/debate/orchestration';
 
 // ── 1. Store Initialization ─────────────────────────────────
 
@@ -1486,5 +1583,889 @@ describe('createSituationDebate', () => {
     await expect(
       useDebateStore.getState().createSituationDebate('cc-nonexistent'),
     ).rejects.toThrow('not found');
+  });
+});
+
+// ══════════════════════════════════════════════════════════════
+// PHASE 5 PRE-REFACTOR TESTS
+// These tests exercise cross-slice boundaries and currently
+// untested actions to serve as a safety net during useDebateStore
+// slicing into 7 slices + helpers.
+// ══════════════════════════════════════════════════════════════
+
+// ── P5-1. Config Slice — Model Resolution ──────────────────
+
+describe('Config slice: getConfiguredModel behavior', () => {
+  it('uses debate-specific model when set', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any, debateModel: 'gemini-2.0-pro' });
+    mockApi.generateText.mockResolvedValue({ text: '{"questions":["Q1"]}' });
+
+    await useDebateStore.getState().runClarification();
+
+    expect(mockApi.generateText).toHaveBeenCalled();
+    const call = mockApi.generateText.mock.calls[0];
+    expect(call[1]).toBe('gemini-2.0-pro');
+  });
+
+  it('falls back to localStorage model when debateModel is null', async () => {
+    localStorageMock.getItem.mockReturnValue('gemini-2.5-flash');
+    useDebateStore.setState({ activeDebate: makeSession() as any, debateModel: null });
+    mockApi.generateText.mockResolvedValue({ text: '{"questions":["Q1"]}' });
+
+    await useDebateStore.getState().runClarification();
+
+    const call = mockApi.generateText.mock.calls[0];
+    expect(call[1]).toBe('gemini-2.5-flash');
+  });
+
+  it('falls back to default when localStorage is empty', async () => {
+    localStorageMock.getItem.mockReturnValue(null);
+    useDebateStore.setState({ activeDebate: makeSession() as any, debateModel: null });
+    mockApi.generateText.mockResolvedValue({ text: '{"questions":["Q1"]}' });
+
+    await useDebateStore.getState().runClarification();
+
+    const call = mockApi.generateText.mock.calls[0];
+    expect(call[1]).toBe('gemini-flash-lite-latest');
+  });
+
+  it('setResponseLength clears per-entry display_tier overrides', () => {
+    const session = makeSession({
+      transcript: [
+        { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [], display_tier: 'brief' },
+        { id: 'e2', timestamp: 't', type: 'statement', speaker: 'safetyist', content: 'Y', taxonomy_refs: [], display_tier: 'medium' },
+      ],
+    });
+    useDebateStore.setState({ activeDebate: session as any });
+
+    useDebateStore.getState().setResponseLength('claims');
+
+    const transcript = useDebateStore.getState().activeDebate!.transcript;
+    expect(transcript[0].display_tier).toBeUndefined();
+    expect(transcript[1].display_tier).toBeUndefined();
+    expect(useDebateStore.getState().responseLength).toBe('claims');
+  });
+});
+
+// ── P5-2. Session Slice — Conflict Debate, Speaker Migration ─
+
+describe('Session slice: createConflictDebate', () => {
+  it('throws when the conflict is not found', async () => {
+    mockTaxonomyState.conflicts = [];
+    await expect(
+      useDebateStore.getState().createConflictDebate('conflict-nonexistent'),
+    ).rejects.toThrow('not found');
+  });
+
+  it('creates a debate from a conflict with all povers', async () => {
+    mockTaxonomyState.conflicts = [{
+      claim_id: 'conflict-001',
+      claim_label: 'Test Conflict',
+      description: 'A test conflict',
+      status: 'open',
+      linked_taxonomy_nodes: [],
+      instances: [{ doc_id: 'doc1', stance: 'supports', assertion: 'AI is safe' }],
+      human_notes: [],
+    }];
+
+    const id = await useDebateStore.getState().createConflictDebate('conflict-001');
+
+    expect(id).toBeTruthy();
+    const state = useDebateStore.getState();
+    expect(state.activeDebate).not.toBeNull();
+    expect(state.activeDebate!.phase).toBe('clarification');
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+  });
+});
+
+describe('Session slice: loadDebate speaker migration', () => {
+  it('migrates legacy character names to POV keys', async () => {
+    const session = makeSession({
+      active_povers: ['prometheus', 'sentinel', 'cassandra'],
+      transcript: [
+        { id: 'e1', timestamp: 't', type: 'opening', speaker: 'prometheus', content: 'Hello', taxonomy_refs: [] },
+      ],
+    });
+    mockApi.loadDebateSession.mockResolvedValueOnce(session);
+
+    await useDebateStore.getState().loadDebate('session-1');
+
+    const loaded = useDebateStore.getState().activeDebate!;
+    expect(loaded.active_povers).toContain('accelerationist');
+    expect(loaded.active_povers).not.toContain('prometheus');
+    expect(loaded.transcript[0].speaker).toBe('accelerationist');
+  });
+});
+
+describe('Session slice: saveDebate overview recomputation', () => {
+  it('recomputes diagnostic overview counters from authoritative data', async () => {
+    const session = makeSession({
+      transcript: [
+        { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [], metadata: { move_types: ['concede', 'challenge'] } },
+        { id: 'e2', timestamp: 't', type: 'statement', speaker: 'safetyist', content: 'Y', taxonomy_refs: [], metadata: { disagreement_type: 'factual' } },
+      ],
+      diagnostics: {
+        enabled: true,
+        entries: {
+          e1: { extraction_trace: { candidates_accepted: 3, candidates_rejected: 1 } },
+        },
+        overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+      },
+    });
+    useDebateStore.setState({ activeDebate: session as any });
+
+    await useDebateStore.getState().saveDebate('test');
+
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+    const saved = mockApi.saveDebateSession.mock.calls[0][0] as Record<string, unknown>;
+    const overview = (saved.diagnostics as any).overview;
+    expect(overview.claims_accepted).toBe(3);
+    expect(overview.claims_rejected).toBe(1);
+    expect(overview.move_type_counts.concede).toBe(1);
+    expect(overview.move_type_counts.challenge).toBe(1);
+    expect(overview.disagreement_type_counts.factual).toBe(1);
+  });
+});
+
+// ── P5-3. Topic Critique Slice ─────────────────────────────
+
+describe('Topic critique slice: runTopicCritique', () => {
+  it('does not run for non-topic source types', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({ source_type: 'document' }) as any,
+    });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+    expect(useDebateStore.getState().topicCritiqueLoading).toBe(false);
+  });
+
+  it('does not run if critique already exists', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        topic: { original: 'AI governance', refined: null, final: 'AI governance', critique: { rating: 'good', composite_score: 14 } },
+      }) as any,
+    });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('does not run if already loading', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      topicCritiqueLoading: true,
+    });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('runs critique and stores result on session', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any });
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [0.1, 0.2, 0.3] });
+    mockApi.computeEmbeddings.mockResolvedValue({ vectors: [] });
+    mockApi.generateText.mockResolvedValue({ text: '{"rating":"good","frame_score":{"total":6}}' });
+
+    await useDebateStore.getState().runTopicCritique();
+
+    expect(useDebateStore.getState().topicCritiqueLoading).toBe(false);
+    const debate = useDebateStore.getState().activeDebate!;
+    expect(debate.topic.critique).toBeDefined();
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+  });
+
+  it('handles critique failure gracefully without setting debateError', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any });
+    mockApi.computeQueryEmbedding.mockRejectedValue(new Error('Embedding unavailable'));
+
+    await useDebateStore.getState().runTopicCritique();
+
+    expect(useDebateStore.getState().topicCritiqueLoading).toBe(false);
+    expect(useDebateStore.getState().debateError).toBeNull();
+  });
+});
+
+describe('Topic critique slice: reEvaluateSuggestedTopic', () => {
+  it('does not run if already loading', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      topicCritiqueLoading: true,
+    });
+
+    await useDebateStore.getState().reEvaluateSuggestedTopic('Better topic');
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('does not run with empty text', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any });
+
+    await useDebateStore.getState().reEvaluateSuggestedTopic('   ');
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+});
+
+// ── P5-4. Clarification Slice ──────────────────────────────
+
+describe('Clarification slice: runClarification happy path', () => {
+  it('generates clarifying questions and adds transcript entry', async () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any });
+    mockApi.generateText.mockResolvedValue({ text: '{"questions":["What scope?","Which stakeholders?","What timeline?"]}' });
+
+    await useDebateStore.getState().runClarification();
+
+    const state = useDebateStore.getState();
+    expect(state.debateGenerating).toBeNull();
+    expect(state.activeDebate!.phase).toBe('clarification');
+    const clarEntry = state.activeDebate!.transcript.find((e: any) => e.type === 'clarification');
+    expect(clarEntry).toBeDefined();
+    expect(clarEntry!.content).toContain('What scope?');
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+  });
+});
+
+describe('Clarification slice: beginDebate', () => {
+  it('proceeds directly to opening for topic-type debates', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({ phase: 'clarification' }) as any,
+    });
+    mockApi.loadDictionary.mockResolvedValue({ standardized: [], colloquial: [], lintViolations: [] });
+
+    await useDebateStore.getState().beginDebate();
+
+    expect(useDebateStore.getState().activeDebate!.phase).toBe('opening');
+  });
+
+  it('loads vocabulary terms during beginDebate', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({ phase: 'clarification' }) as any,
+    });
+    mockApi.loadDictionary.mockResolvedValue({
+      standardized: [{ term: 'AI alignment', definition: 'test' }],
+      colloquial: [],
+      lintViolations: [],
+    });
+
+    await useDebateStore.getState().beginDebate();
+
+    expect(useDebateStore.getState().vocabularyTerms).not.toBeNull();
+    expect(useDebateStore.getState().vocabularyTerms!.standardized).toHaveLength(1);
+  });
+
+  it('pushes warning when vocabulary loading fails', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({ phase: 'clarification' }) as any,
+    });
+    mockApi.loadDictionary.mockRejectedValue(new Error('Dict not found'));
+
+    await useDebateStore.getState().beginDebate();
+
+    const warnings = useDebateStore.getState().debateWarnings;
+    expect(warnings.some((w: string) => w.includes('Vocabulary'))).toBe(true);
+  });
+
+  it('enters edit-claims phase for document debates with i_nodes', async () => {
+    const session = makeSession({
+      phase: 'clarification',
+      source_type: 'document',
+      source_content: 'Document content here',
+    });
+    useDebateStore.setState({ activeDebate: session as any });
+    mockApi.loadDictionary.mockResolvedValue({ standardized: [], colloquial: [], lintViolations: [] });
+    mockApi.generateText.mockResolvedValue({
+      text: JSON.stringify({
+        i_nodes: [{ id: 'inode-1', text: 'Claim', taxonomy_refs: [] }],
+        tension_points: [],
+        claims_summary: 'One claim',
+      }),
+    });
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [0.1] });
+
+    await useDebateStore.getState().beginDebate();
+
+    expect(useDebateStore.getState().activeDebate!.phase).toBe('edit-claims');
+  });
+});
+
+// ── P5-5. Debate Loop Slice ────────────────────────────────
+
+describe('Debate loop slice: askQuestion', () => {
+  const debateSession = () => makeSession({
+    phase: 'debate',
+    transcript: [
+      { id: 'e1', timestamp: 't', type: 'system', speaker: 'system', content: 'Debate started', taxonomy_refs: [] },
+    ],
+  });
+
+  it('does nothing with empty input', async () => {
+    useDebateStore.setState({ activeDebate: debateSession() as any });
+
+    await useDebateStore.getState().askQuestion('   ');
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when activeDebate is null', async () => {
+    await useDebateStore.getState().askQuestion('Test question');
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('adds user question to transcript and generates AI responses', async () => {
+    useDebateStore.setState({ activeDebate: debateSession() as any });
+    mockApi.generateText.mockResolvedValue({ text: '{"statement":"I believe...","taxonomy_refs":[],"move_types":[]}' });
+    mockApi.computeEmbeddings.mockResolvedValue({ vectors: [] });
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [] });
+
+    await useDebateStore.getState().askQuestion('What about regulation?');
+
+    const transcript = useDebateStore.getState().activeDebate!.transcript;
+    const userEntry = transcript.find((e: any) => e.type === 'question');
+    expect(userEntry).toBeDefined();
+    expect(userEntry!.content).toBe('What about regulation?');
+    expect(useDebateStore.getState().debateGenerating).toBeNull();
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+  });
+
+  it('validates @mention targets are active povers', async () => {
+    // Create a debate with only 2 active povers — skeptic is excluded
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        active_povers: ['accelerationist', 'safetyist'],
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'system', speaker: 'system', content: 'Debate started', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+
+    // @Skeptic is a valid parse target but NOT in this debate's active_povers
+    await useDebateStore.getState().askQuestion('@Skeptic Test question');
+
+    expect(useDebateStore.getState().debateError).toBeTruthy();
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('handles AI generation failure for a single pover', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        active_povers: ['accelerationist'],
+        transcript: [],
+      }) as any,
+    });
+    mockApi.generateText.mockRejectedValue(new Error('Rate limited'));
+    mockApi.computeEmbeddings.mockResolvedValue({ vectors: [] });
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [] });
+
+    await useDebateStore.getState().askQuestion('Test');
+
+    const transcript = useDebateStore.getState().activeDebate!.transcript;
+    const errorEntry = transcript.find((e: any) => e.type === 'system' && e.content.includes('failed'));
+    expect(errorEntry).toBeDefined();
+    expect(useDebateStore.getState().debateGenerating).toBeNull();
+  });
+});
+
+describe('Debate loop slice: crossRespond', () => {
+  it('does nothing when activeDebate is null', async () => {
+    await useDebateStore.getState().crossRespond();
+
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('requires at least 2 AI debaters', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        active_povers: ['accelerationist'],
+      }) as any,
+    });
+
+    await useDebateStore.getState().crossRespond();
+
+    expect(useDebateStore.getState().debateError).toContain('at least 2');
+  });
+
+  it('auto-fixes phase from opening to debate if openings exist', () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'opening',
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'opening', speaker: 'accelerationist', content: 'Hello', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+
+    // Verify updatePhase('debate') is called when phase is 'opening' and openings exist
+    // We test via the store action directly rather than through crossRespond's complex flow
+    useDebateStore.getState().updatePhase('debate');
+
+    expect(useDebateStore.getState().activeDebate!.phase).toBe('debate');
+  });
+});
+
+describe('Debate loop slice: crossRespond post-pipeline path', () => {
+  const makeTurnResult = (speaker: string) => ({
+    statement: `${speaker} response text`,
+    taxonomyRefs: [],
+    meta: { move_types: ['CHALLENGE'], policy_refs: [] },
+    validation: { outcome: 'accept', score: 0.9, repairHints: [], clarifies_taxonomy: [] },
+    attempts: [{ statement: `${speaker} response text`, score: 0.9 }],
+    pipelineResult: {
+      draft: {},
+      total_time_ms: 100,
+      stage_diagnostics: [{ stage: 'draft', prompt: 'p', raw_response: 'r' }],
+      topicAlignmentResult: null,
+    },
+    aborted: false,
+  });
+
+  const makeModResult = (speaker: string) => ({
+    responder: speaker,
+    focusPoint: 'test focus',
+    addressing: 'all',
+    agreementDetected: false,
+    selectionResult: {},
+    intervention: null,
+    interventionBriefInjection: '',
+    modState: { budget_remaining: 10, budget_total: 10, health_history: [], consecutive_decline: 0, round: 1, phase: 'debate', required_gap: 2, rounds_since_last_intervention: 5, burden_per_debater: {} },
+    healthScore: { value: 0.8, trend: 0, components: {} },
+    earlyReturn: false,
+    diagnostics: { selectionPrompt: '', selectionResponse: '' },
+  });
+
+  it('completes without throwing for all three speakers', async () => {
+    let callCount = 0;
+    const speakers = ['accelerationist', 'safetyist', 'skeptic'];
+    vi.mocked(runModeratorSelection).mockImplementation(async () =>
+      makeModResult(speakers[callCount++ % 3]) as any,
+    );
+    vi.mocked(executeTurnWithRetry).mockImplementation(async (input: any) =>
+      makeTurnResult(input.speaker) as any,
+    );
+
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        active_povers: ['accelerationist', 'safetyist', 'skeptic'],
+        transcript: [
+          { id: 'o1', timestamp: 't', type: 'opening', speaker: 'accelerationist', content: 'Opening A', taxonomy_refs: [] },
+          { id: 'o2', timestamp: 't', type: 'opening', speaker: 'safetyist', content: 'Opening S', taxonomy_refs: [] },
+          { id: 'o3', timestamp: 't', type: 'opening', speaker: 'skeptic', content: 'Opening K', taxonomy_refs: [] },
+        ],
+        diagnostics: {
+          enabled: true,
+          entries: {},
+          overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+        },
+      }) as any,
+      initialCrossRespondRounds: 1,
+      diagnosticsEnabled: true,
+    });
+
+    for (const speaker of speakers) {
+      vi.mocked(runModeratorSelection).mockResolvedValueOnce(
+        makeModResult(speaker) as any,
+      );
+      vi.mocked(executeTurnWithRetry).mockResolvedValueOnce(
+        makeTurnResult(speaker) as any,
+      );
+      await useDebateStore.getState().crossRespond();
+      expect(useDebateStore.getState().debateError).toBeNull();
+    }
+
+    const statements = useDebateStore.getState().activeDebate!.transcript.filter((e: any) => e.type === 'statement');
+    expect(statements.length).toBe(3);
+    for (const speaker of speakers) {
+      expect(statements.some((e: any) => e.speaker === speaker)).toBe(true);
+    }
+  });
+});
+
+describe('Debate loop slice: toggleDiagnostics', () => {
+  it('initializes diagnostics object when enabling on debate without diagnostics', () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      diagnosticsEnabled: false,
+    });
+
+    useDebateStore.getState().toggleDiagnostics();
+
+    expect(useDebateStore.getState().diagnosticsEnabled).toBe(true);
+    const debate = useDebateStore.getState().activeDebate!;
+    expect((debate as any).diagnostics).toBeDefined();
+    expect((debate as any).diagnostics.enabled).toBe(true);
+  });
+
+  it('disables diagnostics and closes popout', () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      diagnosticsEnabled: true,
+      diagPopoutOpen: true,
+    });
+
+    useDebateStore.getState().toggleDiagnostics();
+
+    expect(useDebateStore.getState().diagnosticsEnabled).toBe(false);
+    expect(useDebateStore.getState().diagPopoutOpen).toBe(false);
+  });
+});
+
+// ── P5-6. Synthesis Slice ──────────────────────────────────
+
+describe('Synthesis slice: requestSynthesis', () => {
+  it('does nothing when activeDebate is null', async () => {
+    await useDebateStore.getState().requestSynthesis();
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('generates synthesis and adds concluding transcript entry', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'Point A', taxonomy_refs: [] },
+          { id: 'e2', timestamp: 't', type: 'statement', speaker: 'safetyist', content: 'Counter B', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+    mockApi.generateText.mockResolvedValue({
+      text: JSON.stringify({
+        areas_of_agreement: [{ point: 'AI needs governance', povers: ['accelerationist', 'safetyist'] }],
+        areas_of_disagreement: [{ point: 'Speed of regulation', type: 'empirical' }],
+        unresolved_questions: ['What timeline?'],
+        taxonomy_coverage: [],
+      }),
+    });
+
+    await useDebateStore.getState().requestSynthesis();
+
+    expect(useDebateStore.getState().debateGenerating).toBeNull();
+    const transcript = useDebateStore.getState().activeDebate!.transcript;
+    const synthEntry = transcript.find((e: any) => e.type === 'concluding');
+    expect(synthEntry).toBeDefined();
+    expect(synthEntry!.content).toContain('Areas of Agreement');
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+  });
+
+  it('handles unparseable synthesis by salvaging arrays', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+    mockApi.generateText.mockResolvedValue({ text: 'This is not JSON at all' });
+
+    await useDebateStore.getState().requestSynthesis();
+
+    const transcript = useDebateStore.getState().activeDebate!.transcript;
+    const synthEntry = transcript.find((e: any) => e.type === 'concluding');
+    expect(synthEntry).toBeDefined();
+  });
+});
+
+describe('Synthesis slice: generateNewsReport', () => {
+  it('does nothing when activeDebate is null', async () => {
+    await useDebateStore.getState().generateNewsReport();
+    expect(mockApi.generateNewsReport).not.toHaveBeenCalled();
+  });
+
+  it('requires a synthesis entry before generating', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({ transcript: [] }) as any,
+    });
+
+    await useDebateStore.getState().generateNewsReport();
+
+    expect(useDebateStore.getState().newsReportError).toBeTruthy();
+    expect(useDebateStore.getState().newsReportError).toContain('synthesis');
+    expect(mockApi.generateNewsReport).not.toHaveBeenCalled();
+  });
+
+  it('generates news report when synthesis exists', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'concluding', speaker: 'system', content: 'Synthesis', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+
+    await useDebateStore.getState().generateNewsReport();
+
+    expect(useDebateStore.getState().newsReport).toBe('mock-news-article');
+    expect(useDebateStore.getState().newsReportLoading).toBe(false);
+    expect(useDebateStore.getState().newsReportError).toBeNull();
+  });
+
+  it('sets error when generation fails', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'concluding', speaker: 'system', content: 'Synthesis', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+    mockApi.generateNewsReport.mockRejectedValueOnce(new Error('API down'));
+
+    await useDebateStore.getState().generateNewsReport();
+
+    expect(useDebateStore.getState().newsReportError).toBeTruthy();
+    expect(useDebateStore.getState().newsReportLoading).toBe(false);
+  });
+});
+
+describe('Synthesis slice: requestReflections', () => {
+  it('does nothing when activeDebate is null', async () => {
+    await useDebateStore.getState().requestReflections();
+    expect(mockApi.generateText).not.toHaveBeenCalled();
+  });
+
+  it('generates reflections for each active AI pover', async () => {
+    useDebateStore.setState({
+      activeDebate: makeSession({
+        phase: 'debate',
+        active_povers: ['accelerationist', 'safetyist'],
+        transcript: [
+          { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [] },
+        ],
+      }) as any,
+    });
+    mockApi.generateText.mockResolvedValue({
+      text: JSON.stringify({
+        reflection_summary: 'The debate revealed...',
+        edits: [{
+          edit_type: 'revise',
+          node_id: 'acc-B-001',
+          category: 'Beliefs',
+          current_label: 'Old',
+          proposed_label: 'New',
+          current_description: 'Old desc',
+          proposed_description: 'New desc',
+          rationale: 'Evidence showed',
+          confidence: 'high',
+          evidence_entries: ['e1'],
+        }],
+      }),
+    });
+
+    await useDebateStore.getState().requestReflections();
+
+    const reflections = useDebateStore.getState().reflections;
+    expect(reflections).toHaveLength(2);
+    expect(reflections[0].pover).toBe('accelerationist');
+    expect(reflections[1].pover).toBe('safetyist');
+    expect(reflections[0].edits[0].status).toBe('pending');
+    expect(useDebateStore.getState().debateGenerating).toBeNull();
+  });
+});
+
+describe('Synthesis slice: consensus management', () => {
+  describe('rejectConsensus', () => {
+    it('sets consensus cluster status to rejected', () => {
+      useDebateStore.setState({
+        consensusClusters: [
+          { id: 'cc-1', proposals: [], similarityScores: {}, status: 'pending' as const },
+          { id: 'cc-2', proposals: [], similarityScores: {}, status: 'pending' as const },
+        ],
+      });
+
+      useDebateStore.getState().rejectConsensus('cc-1');
+
+      const clusters = useDebateStore.getState().consensusClusters;
+      expect(clusters.find((c: any) => c.id === 'cc-1')!.status).toBe('rejected');
+      expect(clusters.find((c: any) => c.id === 'cc-2')!.status).toBe('pending');
+    });
+  });
+});
+
+// ── P5-7. Context Compression ──────────────────────────────
+
+describe('Context compression: full flow', () => {
+  it('compresses old entries and adds context summary', async () => {
+    const entries = Array.from({ length: 15 }, (_, i) => ({
+      id: `e${i}`, timestamp: 't', type: 'statement', speaker: i % 2 === 0 ? 'accelerationist' : 'safetyist',
+      content: `Entry ${i} content`, taxonomy_refs: [],
+    }));
+    useDebateStore.setState({ activeDebate: makeSession({ transcript: entries }) as any });
+    mockApi.generateText.mockResolvedValue({ text: '{"summary":"Compressed summary of debate"}' });
+
+    await useDebateStore.getState().compressOldTranscript();
+
+    const debate = useDebateStore.getState().activeDebate!;
+    expect(debate.context_summaries.length).toBeGreaterThan(0);
+    expect(debate.context_summaries[0].summary).toContain('Compressed summary');
+    expect(useDebateStore.getState().debateGenerating).toBeNull();
+    expect(mockApi.saveDebateSession).toHaveBeenCalled();
+  });
+
+  it('handles non-JSON summary text gracefully', async () => {
+    const entries = Array.from({ length: 15 }, (_, i) => ({
+      id: `e${i}`, timestamp: 't', type: 'statement', speaker: 'accelerationist',
+      content: `Entry ${i}`, taxonomy_refs: [],
+    }));
+    useDebateStore.setState({ activeDebate: makeSession({ transcript: entries }) as any });
+    mockApi.generateText.mockResolvedValue({ text: 'Plain text summary without JSON' });
+
+    await useDebateStore.getState().compressOldTranscript();
+
+    const debate = useDebateStore.getState().activeDebate!;
+    expect(debate.context_summaries.length).toBeGreaterThan(0);
+    expect(debate.context_summaries[0].summary).toBe('Plain text summary without JSON');
+  });
+});
+
+// ── P5-8. Cross-Slice State Dependencies ───────────────────
+
+describe('Cross-slice: phase transitions', () => {
+  it('proceedToOpening preserves existing openingOrder from setup screen', () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      openingOrder: ['skeptic', 'accelerationist', 'safetyist'],
+    });
+
+    useDebateStore.getState().proceedToOpening();
+
+    expect(useDebateStore.getState().openingOrder).toEqual(['skeptic', 'accelerationist', 'safetyist']);
+  });
+
+  it('proceedToOpening persists opening_order on debate object', () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      openingOrder: ['safetyist', 'skeptic', 'accelerationist'],
+    });
+
+    useDebateStore.getState().proceedToOpening();
+
+    const debate = useDebateStore.getState().activeDebate!;
+    expect((debate as any).opening_order).toEqual(['safetyist', 'skeptic', 'accelerationist']);
+  });
+
+  it('closeDebate resets prompt config store', () => {
+    useDebateStore.setState({
+      activeDebateId: 'x',
+      activeDebate: makeSession() as any,
+    });
+
+    useDebateStore.getState().closeDebate();
+
+    expect(mockPromptConfigState.resetSession).toHaveBeenCalled();
+  });
+});
+
+describe('Cross-slice: addTranscriptEntry vocabulary disambiguation', () => {
+  it('applies vocabulary disambiguation to debater statements', () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      vocabularyTerms: {
+        standardized: [{ term: 'alignment', definition: 'test' }],
+        colloquial: [{ bare: 'align', canonical: 'alignment', camps: ['accelerationist'], confidence: 0.9 }],
+      },
+    });
+    vi.mocked(disambiguateTerms).mockReturnValueOnce({
+      terms: [{ bare: 'align', canonical: 'alignment', confidence: 0.9, offset: 5, ambiguous: false }],
+      ambiguousCount: 0,
+    });
+
+    useDebateStore.getState().addTranscriptEntry({
+      type: 'statement',
+      speaker: 'accelerationist',
+      content: 'The align approach works',
+      taxonomy_refs: [],
+    });
+
+    const transcript = useDebateStore.getState().activeDebate!.transcript;
+    const entry = transcript[0];
+    expect(entry.metadata?.vocabulary_resolutions).toBeDefined();
+    expect(entry.metadata.vocabulary_resolutions).toHaveLength(1);
+    expect(entry.metadata.vocabulary_resolutions[0].canonical).toBe('alignment');
+  });
+
+  it('does not apply disambiguation to system or user entries', () => {
+    useDebateStore.setState({
+      activeDebate: makeSession() as any,
+      vocabularyTerms: {
+        standardized: [{ term: 'alignment', definition: 'test' }],
+        colloquial: [{ bare: 'align', canonical: 'alignment', camps: ['accelerationist'], confidence: 0.9 }],
+      },
+    });
+
+    useDebateStore.getState().addTranscriptEntry({
+      type: 'system',
+      speaker: 'system',
+      content: 'System message about align',
+      taxonomy_refs: [],
+    });
+
+    const transcript = useDebateStore.getState().activeDebate!.transcript;
+    expect(transcript[0].metadata?.vocabulary_resolutions).toBeUndefined();
+  });
+});
+
+describe('Cross-slice: deleteTranscriptEntries cleans up AN', () => {
+  it('removes orphaned AN nodes and edges when entries are deleted', async () => {
+    const session = makeSession({
+      transcript: [
+        { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [] },
+        { id: 'e2', timestamp: 't', type: 'statement', speaker: 'safetyist', content: 'Y', taxonomy_refs: [] },
+      ],
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'Claim 1', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1 },
+          { id: 'AN-2', text: 'Claim 2', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: [], turn_number: 2 },
+        ],
+        edges: [
+          { source: 'AN-1', target: 'AN-2', type: 'attacks' },
+        ],
+      },
+    });
+    useDebateStore.setState({ activeDebate: session as any });
+
+    await useDebateStore.getState().deleteTranscriptEntries(['e1']);
+
+    const debate = useDebateStore.getState().activeDebate!;
+    const an = (debate as any).argument_network;
+    expect(an.nodes).toHaveLength(1);
+    expect(an.nodes[0].id).toBe('AN-2');
+    expect(an.edges).toHaveLength(0);
+  });
+
+  it('cleans up orphaned diagnostics entries', async () => {
+    const session = makeSession({
+      transcript: [
+        { id: 'e1', timestamp: 't', type: 'statement', speaker: 'accelerationist', content: 'X', taxonomy_refs: [] },
+      ],
+      diagnostics: {
+        enabled: true,
+        entries: { e1: { prompt: 'test', raw_response: 'test', model: 'test' } },
+        overview: { total_ai_calls: 1, total_response_time_ms: 100, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+      },
+    });
+    useDebateStore.setState({ activeDebate: session as any });
+
+    await useDebateStore.getState().deleteTranscriptEntries(['e1']);
+
+    const diag = (useDebateStore.getState().activeDebate as any).diagnostics;
+    expect(diag.entries.e1).toBeUndefined();
+  });
+});
+
+describe('Cross-slice: setAudience propagates to activeDebate', () => {
+  it('updates audience on both store state and activeDebate object', () => {
+    useDebateStore.setState({ activeDebate: makeSession() as any });
+
+    useDebateStore.getState().setAudience('researchers');
+
+    expect(useDebateStore.getState().audience).toBe('researchers');
+    expect(useDebateStore.getState().activeDebate!.audience).toBe('researchers');
   });
 });

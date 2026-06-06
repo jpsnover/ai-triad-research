@@ -79,7 +79,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [audience, setAudience] = useState<DebateAudience>('policymakers');
   const [dialecticalStyle, setDialecticalStyle] = useState<DialecticalStyle>('adversarial');
   const defaultBounds = useMemo(() => {
-    try { const w = loadProvisionalWeights(); return w.phase_bounds; } catch { return null; }
+    try { const w = loadProvisionalWeights(); return w.phase_bounds; } catch { /* telemetry — silent by design: missing weights file is expected on first launch */ return null; }
   }, []);
   const [confrontationRounds, setConfrontationRounds] = useState(defaultBounds?.max_confrontation_rounds ?? 2);
   const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? 4);
@@ -281,7 +281,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       },
     );
     await loadDebate(id);
-    const _creationWeights = (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds, overrides: { confrontation: confrontationRounds, argumentation: argumentationRounds, concluding: concludingRounds } }; } catch { return null; } })();
+    const _creationWeights = (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds, overrides: { confrontation: confrontationRounds, argumentation: argumentationRounds, concluding: concludingRounds } }; } catch { /* telemetry — silent by design: weights unavailable is non-fatal */ return null; } })();
     getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, multi_provider: multiProvider || undefined, model_tier: multiProvider ? modelTier : undefined, speaker_models: speakerModels || undefined, ..._creationWeights && { adaptive_config: _creationWeights } } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
