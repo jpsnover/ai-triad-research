@@ -213,4 +213,27 @@ describe('OverviewTabRouter', () => {
     // which is hidden when an entry is selected
     expect(screen.queryByRole('button', { name: /All \(/i })).not.toBeInTheDocument();
   });
+
+  it('shows pipeline error indicator on entries with failed post-pipeline processing', () => {
+    const debate = makeDebate([
+      { id: 'e1', type: 'statement', speaker: 'accelerationist', content: 'Good entry', taxonomy_refs: [], policy_refs: [], metadata: {} },
+      { id: 'e2', type: 'statement', speaker: 'safetyist', content: 'Bad entry', taxonomy_refs: [], policy_refs: [], metadata: {} },
+    ]);
+    debate.diagnostics = {
+      entries: {
+        e1: { stage_diagnostics: [{ stage: 'draft' }], extracted_claims: [{ text: 'claim' }] },
+        e2: { stage_diagnostics: [{ stage: 'draft' }] },
+      },
+    };
+
+    render(
+      <OverviewTabRouter
+        {...makeProps({ debate, effectiveOverviewTab: 'transcript', selectedEntry: null })}
+      />,
+    );
+
+    expect(screen.getByTitle('Statement S1')).toBeInTheDocument();
+    expect(screen.getByTitle('Statement S2 — pipeline error')).toBeInTheDocument();
+    expect(screen.getByTitle('Statement S2 — pipeline error').textContent).toContain('●');
+  });
 });

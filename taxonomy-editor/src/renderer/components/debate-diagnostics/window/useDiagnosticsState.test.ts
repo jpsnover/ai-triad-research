@@ -204,6 +204,44 @@ describe('useDiagnosticsState — matchCount', () => {
     act(() => { result.current.setSearchQuery('AI'); });
     expect(result.current.matchCount).toBeGreaterThanOrEqual(2);
   });
+
+  it('counts matches in nested stage_diagnostics work_product objects', () => {
+    const debate = makeDebate({
+      transcript: [{ id: 'e1', type: 'statement', speaker: 'accelerationist', content: 'test' }] as any,
+      diagnostics: {
+        entries: {
+          e1: {
+            stage_diagnostics: [
+              { stage: 'brief', work_product: { summary: 'alignment risk overview', context: 'alignment matters' } },
+            ],
+          },
+        },
+      },
+    } as any);
+    const { result } = renderHook(() => useDiagnosticsState({ debate } as any));
+    act(() => { result.current.setSelectedEntry('e1'); });
+    act(() => { result.current.setSearchQuery('alignment'); });
+    expect(result.current.matchCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('counts matches in work_product arrays of objects', () => {
+    const debate = makeDebate({
+      transcript: [{ id: 'e1', type: 'statement', speaker: 'accelerationist', content: 'test' }] as any,
+      diagnostics: {
+        entries: {
+          e1: {
+            stage_diagnostics: [
+              { stage: 'draft', work_product: { changes: [{ original: 'governance model', revised: 'updated governance approach' }] } },
+            ],
+          },
+        },
+      },
+    } as any);
+    const { result } = renderHook(() => useDiagnosticsState({ debate } as any));
+    act(() => { result.current.setSelectedEntry('e1'); });
+    act(() => { result.current.setSearchQuery('governance'); });
+    expect(result.current.matchCount).toBeGreaterThanOrEqual(2);
+  });
 });
 
 describe('useDiagnosticsState — proxiedModeratorTrace', () => {

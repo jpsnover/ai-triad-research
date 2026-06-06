@@ -56,6 +56,12 @@ vi.mock('./entry-tabs', () => ({
   ClaimsTab: () => <div data-testid="claims-tab">ClaimsTab</div>,
   EvidenceTab: () => <div data-testid="evidence-tab">EvidenceTab</div>,
   CitationsTab: () => <div data-testid="citations-tab">CitationsTab</div>,
+  TaxRefsTab: () => <div data-testid="tax-refs-tab">TaxRefsTab</div>,
+  DetailsTab: () => <div data-testid="details-tab">DetailsTab</div>,
+  BriefTab: () => <div data-testid="brief-tab">BriefTab</div>,
+  PlanTab: () => <div data-testid="plan-tab">PlanTab</div>,
+  LookaheadTab: () => <div data-testid="lookahead-tab">LookaheadTab</div>,
+  CiteTab: () => <div data-testid="cite-tab">CiteTab</div>,
 }));
 
 // ---------------------------------------------------------------------------
@@ -265,5 +271,26 @@ describe('EntryDetailRouter', () => {
     const taxRefsBtn = screen.getByRole('button', { name: /Taxonomy Refs/i });
     expect(taxRefsBtn).toBeInTheDocument();
     expect(taxRefsBtn.textContent).toContain('(1)');
+  });
+
+  it('shows ran-empty indicator on Claims tab when pipeline ran but produced no claims', () => {
+    render(
+      <EntryDetailRouter
+        {...makeProps({
+          entryTab: 'claims',
+          diag: {
+            stage_diagnostics: [{ stage: 'brief' }, { stage: 'plan' }, { stage: 'draft' }, { stage: 'cite' }],
+            extraction_trace: { candidates_proposed: 3, candidates_accepted: 0, candidates_rejected: 3, rejection_reasons: {} },
+            extracted_claims: undefined,
+          } as any,
+          meta: {},
+        })}
+      />,
+    );
+
+    const claimsBtn = screen.getByRole('button', { name: /Claims/i });
+    expect(claimsBtn).not.toBeDisabled();
+    expect(claimsBtn).toHaveAttribute('title', 'Claims — stage ran, no output');
+    expect(claimsBtn.textContent).toContain('∅');
   });
 });

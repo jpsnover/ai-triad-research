@@ -27,6 +27,7 @@ import type {
 import { getGlobalRecorder, type FlightRecorderEvent } from '@lib/flight-recorder/index';
 import { TaxonomyRefDetail, type TaxRefEdge } from '../../TaxonomyRefDetail';
 import { speakerLabel } from './helpers';
+import { api } from '@bridge';
 import { EntryTab, OverviewTab, UtilitySnapshot } from './types';
 import { ModeratorTab } from './shared';
 import {
@@ -302,42 +303,47 @@ export function EntryDetailRouter({
     ? modTrace : null;
   const hasModTab = !!modTrace;
 
-  const tabs: { id: EntryTab; label: string; count?: number; has: boolean; copy: string }[] = [
+  const stageRan = (stages?.length ?? 0) > 0;
+  const tabs: { id: EntryTab; label: string; count?: number; has: boolean; ranEmpty?: boolean; copy: string }[] = [
     { id: 'moderator', label: 'Moderator-Pre', has: hasModTab, copy: modTrace?.selection_prompt ?? '' },
     { id: 'details', label: 'Overview', has: hasDetails, copy: '' },
     { id: 'brief', label: 'Brief', has: !!briefStage, copy: JSON.stringify(briefStage?.work_product, null, 2) ?? '' },
     { id: 'plan', label: 'Plan', has: !!planStage, copy: JSON.stringify(planStage?.work_product, null, 2) ?? '' },
-    { id: 'evidence', label: 'Evidence', count: evidenceFactCount || undefined, has: hasEvidence, copy: evidenceStage?.raw_response ?? '' },
-    { id: 'citations', label: 'Citations', count: citationsCount || undefined, has: hasCitations, copy: citationResDiag ? JSON.stringify(citationResDiag, null, 2) : '' },
+    { id: 'evidence', label: 'Evidence', count: evidenceFactCount || undefined, has: hasEvidence, ranEmpty: !hasEvidence && stageRan && entry.type === 'statement' && !pipelineError, copy: evidenceStage?.raw_response ?? '' },
+    { id: 'citations', label: 'Citations', count: citationsCount || undefined, has: hasCitations, ranEmpty: !hasCitations && !!draftStage && entry.type === 'statement' && !pipelineError, copy: citationResDiag ? JSON.stringify(citationResDiag, null, 2) : '' },
     { id: 'draft', label: 'Draft', has: !!(draftStage || entry.content), copy: draftStage ? (JSON.stringify(draftStage?.work_product, null, 2) ?? '') : (typeof entry.content === 'string' ? entry.content : JSON.stringify(entry.content, null, 2)) },
     { id: 'lookahead', label: 'Lookahead', has: !!lookaheadDiag, copy: lookaheadDiag ? JSON.stringify(lookaheadDiag, null, 2) : '' },
     { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
-    { id: 'claims', label: 'Claims', has: hasClaims, copy: claimsCopy },
+    { id: 'claims', label: 'Claims', has: hasClaims, ranEmpty: !hasClaims && stageRan && entry.type === 'statement' && !pipelineError, copy: claimsCopy },
     { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
   ];
-  // If the current tab has no data, auto-select the first tab that does.
-  const activeTab = tabs.find(t => t.id === entryTab)?.has
+  const tabEnabled = (t: typeof tabs[0]) => t.has || !!t.ranEmpty;
+  // If the current tab has no data, auto-select the first tab that does (prefer has over ranEmpty).
+  const activeTab = tabs.find(t => t.id === entryTab && tabEnabled(t))
     ? entryTab
-    : (tabs.find(t => t.has)?.id ?? 'details');
+    : (tabs.find(t => t.has)?.id ?? tabs.find(t => t.ranEmpty)?.id ?? 'details');
   const active = tabs.find(t => t.id === activeTab)!;
   const handleCopy = () => { if (active.copy) navigator.clipboard?.writeText(active.copy).catch(() => { /* telemetry — silent by design: clipboard write is best-effort UI convenience */ }); };
 
-  const tabBtnStyle = (t: typeof tabs[0]): React.CSSProperties => ({
-    padding: '6px 12px',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-    border: '1px solid var(--border)',
-    borderBottom: t.id === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border)',
-    background: t.id === activeTab ? 'var(--bg-primary)' : 'transparent',
-    color: t.has ? (t.id === activeTab ? '#f97316' : 'var(--text-primary)') : 'var(--text-muted)',
-    cursor: t.has ? 'pointer' : 'not-allowed',
-    opacity: t.has ? 1 : 0.5,
-    borderRadius: '6px 6px 0 0',
-    marginRight: 2,
-    marginBottom: -1,
-    position: 'relative',
-    zIndex: t.id === activeTab ? 2 : 1,
-  });
+  const tabBtnStyle = (t: typeof tabs[0]): React.CSSProperties => {
+    const enabled = tabEnabled(t);
+    return {
+      padding: '6px 12px',
+      fontSize: '0.75rem',
+      fontWeight: 600,
+      border: '1px solid var(--border)',
+      borderBottom: t.id === activeTab ? '1px solid var(--bg-primary)' : '1px solid var(--border)',
+      background: t.id === activeTab ? 'var(--bg-primary)' : 'transparent',
+      color: !enabled ? 'var(--text-muted)' : t.ranEmpty ? '#d97706' : (t.id === activeTab ? '#f97316' : 'var(--text-primary)'),
+      cursor: enabled ? 'pointer' : 'not-allowed',
+      opacity: enabled ? 1 : 0.5,
+      borderRadius: '6px 6px 0 0',
+      marginRight: 2,
+      marginBottom: -1,
+      position: 'relative',
+      zIndex: t.id === activeTab ? 2 : 1,
+    };
+  };
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
@@ -355,6 +361,11 @@ export function EntryDetailRouter({
         )}
         <strong style={{ fontSize: '0.85rem' }}>{speakerLabel(entry.speaker)}</strong>
         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{entry.type}</span>
+        <button
+          onClick={() => { void api.clipboardWriteText(entry.id); }}
+          style={{ fontSize: '0.55rem', color: 'var(--text-muted)', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 4px', cursor: 'pointer', opacity: 0.7 }}
+          title={`Copy turn_id for flight recorder correlation: ${entry.id}`}
+        >{entry.id.slice(0, 8)}</button>
         {diag?.topic_alignment && (() => {
           const ta = diag.topic_alignment;
           const sft = (meta?.injection_manifest as Record<string, unknown> | undefined)?.scope_filter_trace as
@@ -532,13 +543,14 @@ export function EntryDetailRouter({
           {tabs.map(t => (
             <button
               key={t.id}
-              onClick={() => t.has && setEntryTab(t.id)}
-              disabled={!t.has}
+              onClick={() => tabEnabled(t) && setEntryTab(t.id)}
+              disabled={!tabEnabled(t)}
               style={tabBtnStyle(t)}
-              title={t.has ? t.label : `${t.label} (no data)`}
+              title={t.has ? t.label : t.ranEmpty ? `${t.label} — stage ran, no output` : `${t.label} (no data)`}
             >
+              {t.ranEmpty && <span style={{ marginRight: 3, fontSize: '0.6rem' }}>∅</span>}
               {t.label}
-              {!t.has && pipelineError && (t.id === 'claims' || t.id === 'evidence' || t.id === 'citations') && (
+              {!t.has && !t.ranEmpty && pipelineError && (t.id === 'claims' || t.id === 'evidence' || t.id === 'citations') && (
                 <span title="Skipped — pipeline error" style={{ marginLeft: 3, color: '#dc2626', fontSize: '0.55rem' }}>⚠</span>
               )}
               {t.count != null && <span style={{ marginLeft: 4, color: 'var(--text-muted)', fontWeight: 400 }}>({t.count})</span>}
@@ -696,6 +708,12 @@ export function EntryDetailRouter({
           {/* ══════════════ CLAIMS TAB (delegated) ══════════════ */}
           {activeTab === 'claims' && (
             <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+              {tabs.find(t => t.id === 'claims')?.ranEmpty && (
+                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 6, background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706', fontSize: '0.72rem' }}>
+                  <div style={{ fontWeight: 600, color: '#d97706' }}>Stage ran — no output</div>
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>The pipeline completed but claim extraction produced no claims for this entry. This may indicate the entry content was too short or off-topic for extraction.</div>
+                </div>
+              )}
               <ClaimsTab
                 entry={entry as any}
                 diag={diag}
@@ -711,6 +729,12 @@ export function EntryDetailRouter({
           {/* ══════════════ EVIDENCE TAB (delegated) ══════════════ */}
           {activeTab === 'evidence' && (
             <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+              {tabs.find(t => t.id === 'evidence')?.ranEmpty && (
+                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 6, background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706', fontSize: '0.72rem' }}>
+                  <div style={{ fontWeight: 600, color: '#d97706' }}>Stage ran — no output</div>
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>The pipeline completed but the evidence stage produced no facts or key points for this entry.</div>
+                </div>
+              )}
               <EvidenceTab
                 entry={entry as any}
                 diag={diag}
@@ -723,6 +747,12 @@ export function EntryDetailRouter({
           {/* ══════════════ CITATIONS TAB (delegated) ══════════════ */}
           {activeTab === 'citations' && (
             <div style={{ padding: '8px 10px', flex: 1, minHeight: 200, overflowY: 'auto' }}>
+              {tabs.find(t => t.id === 'citations')?.ranEmpty && (
+                <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 6, background: 'rgba(217,119,6,0.08)', borderLeft: '3px solid #d97706', fontSize: '0.72rem' }}>
+                  <div style={{ fontWeight: 600, color: '#d97706' }}>Stage ran — no output</div>
+                  <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>The draft stage completed but produced no citation resolution data. The cite stage may have been skipped or the entry contained no references to verify.</div>
+                </div>
+              )}
               <CitationsTab
                 diag={diag}
                 searchQuery={searchQuery}

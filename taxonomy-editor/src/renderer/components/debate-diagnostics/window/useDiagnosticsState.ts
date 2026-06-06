@@ -13,6 +13,21 @@ import { countMatches } from './helpers';
 import type { OverviewTab, EntryTab, UtilitySnapshot } from './types';
 import { UTILITY_WEIGHTS } from './types';
 
+function countMatchesInValue(value: unknown, term: string): number {
+  if (typeof value === 'string') return countMatches(value, term);
+  if (Array.isArray(value)) {
+    let n = 0;
+    for (const item of value) n += countMatchesInValue(item, term);
+    return n;
+  }
+  if (value && typeof value === 'object') {
+    let n = 0;
+    for (const v of Object.values(value as Record<string, unknown>)) n += countMatchesInValue(v, term);
+    return n;
+  }
+  return 0;
+}
+
 export function useDiagnosticsState(initialData?: Record<string, unknown>) {
   const [debate, setDebate] = useState<DebateSession | null>(() => {
     if (initialData) {
@@ -292,21 +307,8 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
       const stages = (diag as unknown as Record<string, unknown>).stage_diagnostics as { work_product?: Record<string, unknown> }[] | undefined;
       if (stages) {
         for (const stage of stages) {
-          const wp = stage.work_product;
-          if (!wp) continue;
-          for (const val of Object.values(wp)) {
-            if (typeof val === 'string') count += countMatches(val, sq);
-            else if (Array.isArray(val)) {
-              for (const item of val) {
-                if (typeof item === 'string') count += countMatches(item, sq);
-                else if (item && typeof item === 'object') {
-                  for (const v of Object.values(item as Record<string, unknown>)) {
-                    if (typeof v === 'string') count += countMatches(v, sq);
-                  }
-                }
-              }
-            }
-          }
+          if (!stage.work_product) continue;
+          count += countMatchesInValue(stage.work_product, sq);
         }
       }
     }

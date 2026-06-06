@@ -303,30 +303,66 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
               <div style={{ color: '#f59e0b', fontSize: '0.65rem', paddingLeft: 16 }}>{c.reason}</div>
             </div>
           ))}
-          {diag.claim_extraction ? (
-            <div style={{ marginTop: 10, borderTop: '1px solid var(--border-color)', paddingTop: 8 }}>
-              <details>
-                <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  Raw Prompt <CopyButton text={diag.claim_extraction.prompt} />
-                </summary>
-                <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', marginTop: 4, padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)' }}>{diag.claim_extraction.prompt}</pre>
-              </details>
-              <details style={{ marginTop: 6 }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                  Raw Response <CopyButton text={diag.claim_extraction.raw_response} />
-                  <span style={{ fontWeight: 400, fontSize: '0.6rem', marginLeft: 8, color: 'var(--text-muted)' }}>
-                    {diag.claim_extraction.claims_parsed} claims parsed, {(diag.claim_extraction.response_time_ms / 1000).toFixed(1)}s
-                  </span>
-                </summary>
-                <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', marginTop: 4, padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)' }}>{diag.claim_extraction.raw_response}</pre>
-              </details>
+        </Section>
+      )}
+
+      {/* Extraction Trace */}
+      {extTrace && (
+        <Section title={`Extraction Trace — ${extTrace.candidates_proposed} proposed, ${extTrace.candidates_accepted} accepted, ${extTrace.candidates_rejected} rejected`} defaultOpen copyText={JSON.stringify(extTrace, null, 2)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: '0.7rem', marginBottom: 6 }}>
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.6rem' }}>Proposed</div>
+              <div>{extTrace.candidates_proposed}</div>
             </div>
-          ) : (
-            <div style={{ marginTop: 10, borderTop: '1px solid var(--border-color)', paddingTop: 8, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-              No claim extraction diagnostics — claims were extracted inline during the draft stage. Check the Draft tab for raw prompt/response.
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.6rem' }}>Accepted</div>
+              <div style={{ color: '#22c55e' }}>{extTrace.candidates_accepted}</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.6rem' }}>Rejected</div>
+              <div style={{ color: '#ef4444' }}>{extTrace.candidates_rejected}</div>
+            </div>
+          </div>
+          {extTrace.an_node_count_before != null && (
+            <div style={{ fontSize: '0.65rem', marginBottom: 4 }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>AN nodes:</span>{' '}
+              {extTrace.an_node_count_before} → {extTrace.an_node_count_after}
+              {extTrace.an_nodes_added_ids.length > 0 && (
+                <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>
+                  (+{extTrace.an_nodes_added_ids.join(', +')})
+                </span>
+              )}
+            </div>
+          )}
+          {Object.keys(extTrace.rejection_reasons).length > 0 && (
+            <div style={{ fontSize: '0.65rem' }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Rejection reasons:</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                {Object.entries(extTrace.rejection_reasons).map(([reason, count]) => (
+                  <span key={reason} style={{ padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>
+                    {reason.replace(/_/g, ' ')} ({count})
+                  </span>
+                ))}
+              </div>
             </div>
           )}
         </Section>
+      )}
+
+      {/* Raw Prompt */}
+      {diag?.claim_extraction ? (
+        <>
+          <Section title="Raw Extraction Prompt" copyText={diag.claim_extraction.prompt}>
+            <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontFamily: 'monospace' }}>{diag.claim_extraction.prompt}</pre>
+          </Section>
+          <Section title={`Raw Extraction Response — ${diag.claim_extraction.claims_parsed} claims, ${(diag.claim_extraction.response_time_ms / 1000).toFixed(1)}s`} copyText={diag.claim_extraction.raw_response}>
+            <pre style={{ fontSize: '0.62rem', whiteSpace: 'pre-wrap', maxHeight: 300, overflow: 'auto', padding: '6px 8px', borderRadius: 4, background: 'var(--bg-secondary)', fontFamily: 'monospace' }}>{diag.claim_extraction.raw_response}</pre>
+          </Section>
+        </>
+      ) : diag?.extracted_claims && (
+        <div style={{ padding: '6px 10px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+          No claim extraction diagnostics — claims were extracted inline during the draft stage. Check the Draft tab for raw prompt/response.
+        </div>
       )}
     </div>
   );

@@ -277,6 +277,9 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               style={{ fontSize: '0.62rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'monospace', background: 'none', border: '1px solid var(--border)', borderRadius: 3, padding: '1px 5px', cursor: 'pointer', opacity: 0.7 }}
               title={`Copy debate ID: ${debate.id}`}
             >{debate.id}</button>
+            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontFamily: 'monospace', opacity: 0.7 }} title={`Session start — matches flight recorder filename`}>
+              {new Date(debate.created_at).toISOString().replace(/\.\d{3}Z$/, 'Z')}
+            </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260, userSelect: 'all', fontFamily: 'monospace' }} title={debate.title}>
               {debate.title}
             </span>

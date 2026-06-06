@@ -623,6 +623,7 @@ export function OverviewTabRouter({
           } | undefined;
           const eDiag = debate.diagnostics?.entries[e.id];
           const hasStages = eDiag?.stage_diagnostics && eDiag.stage_diagnostics.length > 0;
+          const pipelineError = e.type === 'statement' && hasStages && !eDiag?.extracted_claims && !(eDiag as Record<string, unknown>)?.extraction_trace;
           return (
             <div
               key={e.id}
@@ -631,14 +632,15 @@ export function OverviewTabRouter({
             >
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                 <span
-                  title={`Statement ${stmtId}`}
+                  title={pipelineError ? `Statement ${stmtId} — pipeline error` : `Statement ${stmtId}`}
                   style={{
                     padding: '1px 6px', borderRadius: 8,
-                    background: 'rgba(249,115,22,0.12)', color: '#f97316',
+                    background: pipelineError ? 'rgba(220,38,38,0.15)' : 'rgba(249,115,22,0.12)',
+                    color: pipelineError ? '#dc2626' : '#f97316',
                     fontSize: '0.6rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums',
                     flexShrink: 0,
                   }}
-                >{stmtId}</span>
+                >{pipelineError && <span style={{ marginRight: 3 }}>●</span>}{stmtId}</span>
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <strong>{speakerLabel(e.speaker)}</strong> [{e.type}] <Highlight text={e.content.slice(0, 80)} />...
                 </span>
