@@ -185,3 +185,21 @@ export function countOccurrences(text: string, query: string): number {
   while ((pos = lower.indexOf(q, pos)) !== -1) { count++; pos += q.length; }
   return count;
 }
+
+// ── Adaptive phase types (shared by DebateActionBar + DebateWorkspace) ──
+
+export type AdaptivePhase = 'confrontation' | 'argumentation' | 'concluding';
+
+export const ADAPTIVE_PHASES: AdaptivePhase[] = ['confrontation', 'argumentation', 'concluding'];
+
+export const ADAPTIVE_PHASE_LABELS: Record<AdaptivePhase, string> = {
+  'confrontation': 'Confrontation',
+  'argumentation': 'Argumentation',
+  'concluding': 'Concluding',
+};
+
+export const ADAPTIVE_PHASE_COLORS: Record<AdaptivePhase, string> = {
+  'confrontation': '#f59e0b',
+  'argumentation': '#3b82f6',
+  'concluding': '#10b981',
+};
