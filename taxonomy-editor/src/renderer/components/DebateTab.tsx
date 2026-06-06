@@ -14,7 +14,7 @@ import { SearchPreview } from './SearchPreview';
 import { PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
-import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from './ToolbarPaneRenderer';
 import type { DebateSession } from '../types/debate';
 import { POVER_INFO } from '@lib/debate/types';
 import { ParameterHistoryPanel } from './ParameterHistoryPanel';
@@ -201,11 +201,12 @@ export function DebateTab() {
   };
 
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isTablet ? ' tablet-mode' : ''}${(isPhone ? nav.current.view !== 'list' : !!activeDebateId) ? ' has-selection' : ''}`}>
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isTablet ? ' tablet-mode' : ''}${(isPhone ? nav.current.view !== 'list' : !!activeDebateId) && !toolbarPanel ? ' has-selection' : ''}`}>
       {/* Left pane: Session list OR toolbar panel (Search, Prompts, etc.) */}
       {toolbarPanel ? (
         <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
              style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
+          {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={(id) => setSearchPreviewId(id)}

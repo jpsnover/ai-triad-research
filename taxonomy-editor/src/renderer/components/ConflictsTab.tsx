@@ -11,7 +11,7 @@ import { PinnedPanel } from './PinnedPanel';
 import { SearchPreview } from './SearchPreview';
 import { FallacyDetailPanel } from './FallacyPanel';
 import { PromptDetailPanel } from './PromptsPanel';
-import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from './ToolbarPaneRenderer';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
@@ -237,9 +237,10 @@ export function ConflictsTab() {
   };
 
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId ? ' has-selection' : ''}`}>
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId && !toolbarPanel ? ' has-selection' : ''}`}>
       {fullWidth ? (
         <div className="list-panel list-panel-full">
+          {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}
@@ -251,6 +252,7 @@ export function ConflictsTab() {
         </div>
       ) : toolbarPanel ? (
         <div className="list-panel" style={{ width }}>
+          {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}

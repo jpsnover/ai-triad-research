@@ -9,7 +9,7 @@ import { useResizablePanel } from '../hooks/useResizablePanel';
 import { SearchPreview } from './SearchPreview';
 import { FallacyDetailPanel } from './FallacyPanel';
 import { PromptDetailPanel } from './PromptsPanel';
-import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from './ToolbarPaneRenderer';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
@@ -108,9 +108,10 @@ export function CruxesTab() {
   }, [cruxes]);
 
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId ? ' has-selection' : ''}`}>
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId && !toolbarPanel ? ' has-selection' : ''}`}>
       {fullWidth ? (
         <div className="list-panel list-panel-full">
+            {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}
@@ -120,6 +121,7 @@ export function CruxesTab() {
         </div>
       ) : toolbarPanel ? (
         <div className="list-panel" style={{ width }}>
+            {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}

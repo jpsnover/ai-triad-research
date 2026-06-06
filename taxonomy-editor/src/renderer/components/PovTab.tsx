@@ -20,7 +20,7 @@ import { AnalysisPanel } from './AnalysisPanel';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { PromptDetailPanel } from './PromptsPanel';
 import { FallacyDetailPanel } from './FallacyPanel';
-import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from './ToolbarPaneRenderer';
 import { getLineageInfo, getAllLineages } from '../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../data/lineageCategories';
 import { POV_KEYS, POVER_INFO } from '@lib/debate/types';
@@ -698,10 +698,11 @@ export function PovTab({ pov }: PovTabProps) {
   }
 
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNode ? ' has-selection' : ''}${mobileListOpen ? ' phone-list-open' : ''}`}>
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNode && !hasToolbarPane ? ' has-selection' : ''}${mobileListOpen ? ' phone-list-open' : ''}`}>
       {/* Pane 1: Node list OR promoted toolbar panel */}
       {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? (
         <div className="list-panel list-panel-full">
+            {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}
@@ -714,6 +715,7 @@ export function PovTab({ pov }: PovTabProps) {
         </div>
       ) : hasToolbarPane ? (
         <div className="list-panel" style={{ width }}>
+            {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}

@@ -12,7 +12,7 @@ import { SearchPreview } from './SearchPreview';
 import { PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../data/promptCatalog';
 import { PROMPT_CATALOG } from '../data/promptCatalog';
-import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from './ToolbarPaneRenderer';
 import { POVER_INFO } from '../types/debate';
 import type { ChatSessionSummary, ChatMode } from '../types/chat';
 
@@ -61,11 +61,12 @@ export function ChatTab() {
   };
 
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${(isPhone && activeChatId) ? ' has-selection' : ''}`}>
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${(isPhone && activeChatId && !toolbarPanel) ? ' has-selection' : ''}`}>
       {/* Left pane: Session list OR toolbar panel */}
       {toolbarPanel ? (
         <div className={`list-panel${isFullWidthPanel(toolbarPanel, promptInspectorActive) ? ' list-panel-full' : ''}`}
              style={isFullWidthPanel(toolbarPanel, promptInspectorActive) ? undefined : { width }}>
+          {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}

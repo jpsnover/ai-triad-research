@@ -13,7 +13,7 @@ import { FallacyDetailPanel } from './FallacyPanel';
 import { PinnedPanel } from './PinnedPanel';
 import { SearchPreview } from './SearchPreview';
 import { EdgeDetailPanel } from './EdgeDetailPanel';
-import { ToolbarPaneRenderer, isFullWidthPanel } from './ToolbarPaneRenderer';
+import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from './ToolbarPaneRenderer';
 import { useBreakpoint } from '../hooks/useBreakpoint';
 import { getLineageInfo } from '../data/lineageLookup';
 import { getCategoryLabel } from '../data/lineageCategories';
@@ -348,10 +348,11 @@ export function SituationsTab() {
   };
 
   return (
-    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId ? ' has-selection' : ''}`}>
+    <div className={`two-column${isPhone ? ' phone-mode' : ''}${isPhone && selectedNodeId && !toolbarPanel ? ' has-selection' : ''}`}>
       {/* Pane 1: Node list OR promoted toolbar panel */}
       {isFullWidthPanel(toolbarPanel, promptInspectorActive) ? (
         <div className="list-panel list-panel-full">
+            {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}
@@ -363,6 +364,7 @@ export function SituationsTab() {
         </div>
       ) : hasToolbarPane ? (
         <div className="list-panel" style={{ width }}>
+            {isPhone && <PhoneToolClose />}
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}

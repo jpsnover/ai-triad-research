@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
+
 import { SearchPanel } from './SearchPanel';
 import { RelatedEdgesPanel } from './RelatedEdgesPanel';
 import { AttributeFilterPanel } from './AttributeFilterPanel';
@@ -62,4 +64,27 @@ export function ToolbarPaneRenderer({
     case 'calibration': return <CalibrationDashboard />;
     default: return null;
   }
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  search: 'Search', related: 'Related Edges', attrFilter: 'Attribute Filter',
+  attrInfo: 'Attribute Info', lineage: 'Intellectual Lineage', prompts: 'Prompts',
+  fallacy: 'Possible Fallacies', edges: 'Edge Browser', console: 'Console',
+  policyAlignment: 'Policy Alignment', policyDashboard: 'Policy Dashboard',
+  vocabulary: 'Vocabulary', calibration: 'Calibration',
+};
+
+export function PhoneToolClose() {
+  const { toolbarPanel, setToolbarPanel } = useTaxonomyStore();
+  if (!toolbarPanel) return null;
+  return (
+    <div className="phone-tool-close">
+      <button onClick={() => setToolbarPanel(null)} className="phone-tool-close-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        {TOOL_LABELS[toolbarPanel] ?? toolbarPanel}
+      </button>
+    </div>
+  );
 }
