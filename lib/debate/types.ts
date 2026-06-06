@@ -584,6 +584,8 @@ export interface DebateSession {
   };
   /** Perturbation testing result — present only for evaluation/benchmark debates with perturbation injection. */
   perturbation_result?: PerturbationResult;
+  /** When true (default), individual WEAK-classified claims are filtered from passing lookahead batches before AN commit. */
+  lookahead_filter_weak?: boolean;
   /** Persisted when a window closes mid-generation. Cleared on next load after surfacing a notification. */
   interrupted_turn?: {
     speaker: string;

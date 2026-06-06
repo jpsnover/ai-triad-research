@@ -90,6 +90,8 @@ export interface LookaheadDiagnostics {
   final_pass: boolean;
   /** Total wall-clock time for the lookahead evaluation (ms). */
   elapsed_ms: number;
+  /** Texts of WEAK-classified claims filtered before AN commit (t/459). */
+  filtered_weak_claims?: string[];
 }
 
 // ── Constants ─────────────────────────────────────────────

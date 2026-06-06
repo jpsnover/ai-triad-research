@@ -1054,6 +1054,7 @@ export async function extractClaimsAndUpdateAN(
 
     // ── Pre-commit lookahead gate (t/34) — evaluate before committing ──
     let lookaheadDiag: LookaheadDiagnostics | undefined;
+    let bestPerClaim: PerClaimResult[] | undefined;
     try {
       const lookaheadStart = Date.now();
       const lookaheadInput = {
@@ -1065,6 +1066,7 @@ export async function extractClaimsAndUpdateAN(
         cruxes: debate.crux_tracker,
       };
       const { batchResult: firstResult, perClaim: firstPerClaim } = evaluateLookaheadPerClaim(lookaheadInput);
+      bestPerClaim = firstPerClaim;
 
       const MAX_REGEN_ATTEMPTS = 3;
       let bestResult = firstResult;
@@ -1161,6 +1163,7 @@ export async function extractClaimsAndUpdateAN(
             // Track the best attempt — use if it passes or beats previous best
             if (retryResult.pass || retryResult.utility_delta > bestResult.utility_delta) {
               bestResult = retryResult;
+              bestPerClaim = retryPerClaim;
               bestNodes = regenClaims.newNodes;
               bestEdges = regenClaims.newEdges;
               bestStatement = regenResult.statement;
@@ -1236,6 +1239,29 @@ export async function extractClaimsAndUpdateAN(
       });
       console.warn('[Lookahead] Pre-commit gate evaluation failed (non-blocking):', err);
     }
+    // Filter WEAK claims from passing batches before commit (t/459)
+    if (lookaheadDiag?.final_pass && debate.lookahead_filter_weak !== false && bestPerClaim) {
+      const weakIndices = new Set(
+        bestPerClaim.filter(pc => pc.classification === 'WEAK').map(pc => pc.index),
+      );
+      if (weakIndices.size > 0) {
+        const filteredTexts = [...weakIndices].map(i => newNodes[i]?.text).filter(Boolean);
+        const removedIds = new Set(newNodes.filter((_, i) => weakIndices.has(i)).map(n => n.id));
+        newNodes.splice(0, newNodes.length, ...newNodes.filter((_, i) => !weakIndices.has(i)));
+        newEdges.splice(0, newEdges.length, ...newEdges.filter(e => !removedIds.has(e.source) && !removedIds.has(e.target)));
+        extractionTrace.candidates_accepted = newNodes.length;
+        lookaheadDiag.filtered_weak_claims = filteredTexts;
+        getGlobalRecorder()?.record({
+          type: 'debate.lookahead.filter',
+          debate_id: debate.id,
+          component: 'debate-store',
+          level: 'info',
+          message: `Filtered ${weakIndices.size} WEAK claim(s) from passing lookahead batch`,
+          data: { filtered_count: weakIndices.size, remaining_count: newNodes.length },
+        });
+      }
+    }
+
     if (lookaheadDiag) recordDiagnostic(get, set, entryId, { lookahead: lookaheadDiag });
 
     extractionTrace.status = 'ok';

@@ -411,6 +411,8 @@ afterEach(() => {
 // ── Imports resolved after vi.mock (safe because modules are already mocked) ──
 import { disambiguateTerms } from '@lib/debate/vocabularyDisambiguation';
 import { executeTurnWithRetry, runModeratorSelection } from '@lib/debate/orchestration';
+import { evaluateLookaheadPerClaim } from '@lib/debate/lookaheadGate';
+import { processExtractedClaims } from '../prompts/argumentNetwork';
 
 // ── 1. Store Initialization ─────────────────────────────────
 
@@ -2506,5 +2508,137 @@ describe('Cross-slice: setAudience propagates to activeDebate', () => {
 
     expect(useDebateStore.getState().audience).toBe('researchers');
     expect(useDebateStore.getState().activeDebate!.audience).toBe('researchers');
+  });
+});
+
+describe('Lookahead WEAK claim filtering (t/459)', () => {
+  it('filters WEAK claims from a passing batch, keeping STRONG and PRESERVE', async () => {
+    const threeNodes = [
+      { id: 'tmp-1', text: 'Strong claim about governance', speaker: 'accelerationist', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.7 },
+      { id: 'tmp-2', text: 'Weak marginal claim', speaker: 'accelerationist', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.3 },
+      { id: 'tmp-3', text: 'Preserved concession claim', speaker: 'accelerationist', source_entry_id: 'entry-1', taxonomy_refs: [], turn_number: 1, base_strength: 0.5 },
+    ];
+    const threeEdges = [
+      { id: 'te-1', source: 'tmp-1', target: 'AN-1', type: 'supports', weight: 0.5 },
+      { id: 'te-2', source: 'tmp-2', target: 'AN-1', type: 'attacks', weight: 0.3 },
+    ];
+
+    vi.mocked(processExtractedClaims).mockReturnValueOnce({
+      newNodes: [...threeNodes],
+      newEdges: [...threeEdges],
+      accepted: threeNodes.map(n => ({ id: n.id, text: n.text })),
+      rejected: [],
+      commitments: { asserted: [], conceded: [], challenged: [] },
+      rejectionReasons: {},
+      rejectedOverlapPcts: [],
+      maxOverlapVsExisting: 0,
+    } as any);
+
+    vi.mocked(evaluateLookaheadPerClaim).mockReturnValueOnce({
+      batchResult: {
+        pass: true,
+        utility_before: { position_strength: 0.5, attack_effectiveness: 0.3, crux_engagement: 0.2 },
+        utility_after: { position_strength: 0.7, attack_effectiveness: 0.4, crux_engagement: 0.3 },
+        utility_delta: 0.15,
+        threshold: 0.05,
+        tentative_claims: threeNodes.map(n => ({ text: n.text, strength: n.base_strength })),
+        tentative_network_size: { nodes: 4, edges: 3 },
+        concession_indices: [],
+      },
+      perClaim: [
+        { index: 0, text: threeNodes[0].text, base_strength: 0.7, marginal_delta: 0.12, classification: 'STRONG' as const, dominant_component: 'position_strength' as const },
+        { index: 1, text: threeNodes[1].text, base_strength: 0.3, marginal_delta: 0.01, classification: 'WEAK' as const, dominant_component: 'attack_effectiveness' as const },
+        { index: 2, text: threeNodes[2].text, base_strength: 0.5, marginal_delta: 0.04, classification: 'PRESERVE' as const, dominant_component: 'crux_engagement' as const },
+      ],
+    });
+
+    const claimsJson = JSON.stringify({
+      claims: [
+        { claim: 'Strong claim about governance', type: 'assertion', targets: [] },
+        { claim: 'Weak marginal claim', type: 'assertion', targets: [] },
+        { claim: 'Preserved concession claim', type: 'concession', targets: [] },
+      ],
+    });
+    mockApi.generateText.mockResolvedValueOnce({ text: claimsJson });
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [0.1, 0.2, 0.3] });
+
+    const session = makeSession({
+      phase: 'debate',
+      transcript: [
+        { id: 'entry-1', timestamp: '2026-05-01T00:00:00.000Z', type: 'statement', speaker: 'accelerationist', content: 'My argument about AI governance...', taxonomy_refs: [] },
+      ],
+      argument_network: { nodes: [{ id: 'AN-1', text: 'Prior claim', speaker: 'safetyist', source_entry_id: 'e0', taxonomy_refs: [], turn_number: 0, base_strength: 0.5 }], edges: [] },
+      lookahead_filter_weak: true,
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    await useDebateStore.getState().reExtractClaims('entry-1');
+
+    const debate = useDebateStore.getState().activeDebate as any;
+    const an = debate.argument_network;
+    // Original AN-1 + 2 committed (STRONG + PRESERVE); WEAK filtered out
+    expect(an.nodes).toHaveLength(3);
+    const committedTexts = an.nodes.slice(1).map((n: any) => n.text);
+    expect(committedTexts).toContain('Strong claim about governance');
+    expect(committedTexts).toContain('Preserved concession claim');
+    expect(committedTexts).not.toContain('Weak marginal claim');
+
+    // Edge from WEAK claim (tmp-2 → AN-1) should be removed
+    const edgeSources = an.edges.map((e: any) => e.source);
+    expect(edgeSources).not.toContain(expect.stringContaining('tmp-2'));
+  });
+
+  it('does not filter when lookahead_filter_weak is false', async () => {
+    const twoNodes = [
+      { id: 'tmp-1', text: 'Strong claim', speaker: 'accelerationist', source_entry_id: 'entry-2', taxonomy_refs: [], turn_number: 1, base_strength: 0.7 },
+      { id: 'tmp-2', text: 'Weak claim', speaker: 'accelerationist', source_entry_id: 'entry-2', taxonomy_refs: [], turn_number: 1, base_strength: 0.3 },
+    ];
+
+    vi.mocked(processExtractedClaims).mockReturnValueOnce({
+      newNodes: [...twoNodes],
+      newEdges: [],
+      accepted: twoNodes.map(n => ({ id: n.id, text: n.text })),
+      rejected: [],
+      commitments: { asserted: [], conceded: [], challenged: [] },
+      rejectionReasons: {},
+      rejectedOverlapPcts: [],
+      maxOverlapVsExisting: 0,
+    } as any);
+
+    vi.mocked(evaluateLookaheadPerClaim).mockReturnValueOnce({
+      batchResult: {
+        pass: true, utility_before: { position_strength: 0.5, attack_effectiveness: 0.3, crux_engagement: 0.2 },
+        utility_after: { position_strength: 0.6, attack_effectiveness: 0.4, crux_engagement: 0.3 },
+        utility_delta: 0.1, threshold: 0.05,
+        tentative_claims: twoNodes.map(n => ({ text: n.text, strength: n.base_strength })),
+        tentative_network_size: { nodes: 3, edges: 0 }, concession_indices: [],
+      },
+      perClaim: [
+        { index: 0, text: 'Strong claim', base_strength: 0.7, marginal_delta: 0.08, classification: 'STRONG' as const, dominant_component: 'position_strength' as const },
+        { index: 1, text: 'Weak claim', base_strength: 0.3, marginal_delta: 0.01, classification: 'WEAK' as const, dominant_component: 'attack_effectiveness' as const },
+      ],
+    });
+
+    mockApi.generateText.mockResolvedValueOnce({ text: JSON.stringify({ claims: [{ claim: 'Strong claim', type: 'assertion', targets: [] }, { claim: 'Weak claim', type: 'assertion', targets: [] }] }) });
+    mockApi.computeQueryEmbedding.mockResolvedValue({ vector: [0.1, 0.2, 0.3] });
+
+    const session = makeSession({
+      phase: 'debate',
+      transcript: [
+        { id: 'entry-2', timestamp: '2026-05-01T00:00:00.000Z', type: 'statement', speaker: 'accelerationist', content: 'Some argument', taxonomy_refs: [] },
+      ],
+      argument_network: { nodes: [{ id: 'AN-1', text: 'Prior', speaker: 'safetyist', source_entry_id: 'e0', taxonomy_refs: [], turn_number: 0, base_strength: 0.5 }], edges: [] },
+      lookahead_filter_weak: false,
+    });
+    useDebateStore.setState({ activeDebate: session as any, debateModel: 'gemini-2.0-flash' });
+
+    await useDebateStore.getState().reExtractClaims('entry-2');
+
+    const an = (useDebateStore.getState().activeDebate as any).argument_network;
+    // All claims committed — WEAK not filtered because lookahead_filter_weak is false
+    expect(an.nodes).toHaveLength(3);
+    const committedTexts = an.nodes.slice(1).map((n: any) => n.text);
+    expect(committedTexts).toContain('Strong claim');
+    expect(committedTexts).toContain('Weak claim');
   });
 });
