@@ -19,8 +19,10 @@ LABEL org.opencontainers.image.licenses="MIT"
 
 # System dependencies + build tools for native Node modules (node-pty)
 # Consolidated into a single apt-get to avoid stale package cache on a second invocation.
-# hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# hadolint ignore=DL3008,DL3009
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
     git \
     pandoc \
     python3 \
