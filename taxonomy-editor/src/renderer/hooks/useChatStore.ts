@@ -189,7 +189,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   loadChat: async (id) => {
-    set({ chatLoading: true, chatError: null });
+    set({ chatLoading: true, chatError: null, chatGenerating: false });
     try {
       const raw = await api.loadChatSession(id);
       const session = raw as ChatSession;

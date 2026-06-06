@@ -158,6 +158,12 @@ export function ChatWorkspace() {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeChat?.transcript.length, chatGenerating]);
 
+  // Reset opening trigger when chat changes — must precede the trigger effect
+  // so the ref is cleared before the trigger check runs in the same render.
+  useEffect(() => {
+    hasTriggeredOpening.current = false;
+  }, [activeChat?.id]);
+
   // Auto-trigger opening message
   useEffect(() => {
     if (activeChat && activeChat.transcript.length === 0 && !hasTriggeredOpening.current && !chatGenerating) {
@@ -165,11 +171,6 @@ export function ChatWorkspace() {
       void generateOpening();
     }
   }, [activeChat, chatGenerating, generateOpening]);
-
-  // Reset opening trigger when chat changes
-  useEffect(() => {
-    hasTriggeredOpening.current = false;
-  }, [activeChat?.id]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || chatGenerating) return;
