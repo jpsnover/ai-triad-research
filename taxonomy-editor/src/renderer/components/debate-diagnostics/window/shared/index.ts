@@ -7,3 +7,6 @@ export * from './TurnValidation';
 export * from './EdgesUsed';
 export * from './CommitmentsPanel';
 export * from './INodeRow';
+export * from './TensionsListDetail';
+export * from './DebateExchangeRich';
+export * from './ModeratorTab';

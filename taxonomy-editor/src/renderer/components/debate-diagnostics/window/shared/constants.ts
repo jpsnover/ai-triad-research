@@ -34,6 +34,14 @@ export const DEBATER_COLORS: Record<string, string> = {
   accelerationist: '#f97316', safetyist: '#3b82f6', skeptic: '#a855f7',
 };
 
+export function debaterColor(name: string): string {
+  return DEBATER_COLORS[name.toLowerCase()] ?? '#888';
+}
+
+export function truncateLabel(s: string, max: number) {
+  return s.length > max ? s.slice(0, max) + '…' : s;
+}
+
 /** Short tooltip text for BDI sub-score keys. */
 export const SUB_SCORE_TIPS: Record<string, string> = {
   evidence_quality: 'How well-supported is this claim by cited evidence?',
