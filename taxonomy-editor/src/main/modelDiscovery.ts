@@ -6,6 +6,7 @@ import path from 'path';
 import { loadApiKey } from './apiKeyStore.js';
 import { PROJECT_ROOT } from './fileIO.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const CONFIG_PATH = path.join(PROJECT_ROOT, 'ai-models.json');
 
@@ -182,6 +183,13 @@ async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]> {
       console.log(`[ModelDiscovery] Claude probe ${candidate.apiModelId}: ${resp.status} ${valid ? 'VALID' : 'NOT FOUND'} ${bodySnippet}`);
       return valid;
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'model-discovery',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn(`[ModelDiscovery] Claude probe ${candidate.apiModelId} failed:`, err);
       return false;
     }
@@ -389,6 +397,13 @@ export async function refreshAIModels(): Promise<RefreshResult> {
       result.gemini = { ok: true, count: models.length };
       console.log(`[ModelDiscovery] Gemini: discovered ${models.length} models`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'model-discovery',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       result.gemini = { ok: false, count: 0, error: msg };
       console.error(`[ModelDiscovery] Gemini error:`, msg);
@@ -416,6 +431,13 @@ export async function refreshAIModels(): Promise<RefreshResult> {
         result.claude = { ok: false, count: 0, error: 'No valid models found via probing — kept existing' };
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'model-discovery',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       result.claude = { ok: false, count: 0, error: msg };
       console.error(`[ModelDiscovery] Claude error:`, msg);
@@ -435,6 +457,13 @@ export async function refreshAIModels(): Promise<RefreshResult> {
       result.groq = { ok: true, count: models.length };
       console.log(`[ModelDiscovery] Groq: discovered ${models.length} models`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'model-discovery',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       result.groq = { ok: false, count: 0, error: msg };
       console.error(`[ModelDiscovery] Groq error:`, msg);
@@ -454,6 +483,13 @@ export async function refreshAIModels(): Promise<RefreshResult> {
       result.openai = { ok: true, count: models.length };
       console.log(`[ModelDiscovery] OpenAI: discovered ${models.length} models`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'model-discovery',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       result.openai = { ok: false, count: 0, error: msg };
       console.error(`[ModelDiscovery] OpenAI error:`, msg);
@@ -473,6 +509,13 @@ export async function refreshAIModels(): Promise<RefreshResult> {
       result.deepseek = { ok: true, count: models.length };
       console.log(`[ModelDiscovery] DeepSeek: discovered ${models.length} models`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'model-discovery',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       result.deepseek = { ok: false, count: 0, error: msg };
       console.error(`[ModelDiscovery] DeepSeek error:`, msg);
@@ -490,6 +533,13 @@ export async function refreshAIModels(): Promise<RefreshResult> {
     result.ollama = { ok: true, count: models.length };
     console.log(`[ModelDiscovery] Ollama: discovered ${models.length} local models`);
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'model-discovery',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     const msg = err instanceof Error ? err.message : String(err);
     result.ollama = { ok: false, count: 0, error: msg };
     console.log(`[ModelDiscovery] Ollama not available: ${msg}`);

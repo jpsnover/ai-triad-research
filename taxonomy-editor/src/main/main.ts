@@ -7,6 +7,7 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +60,7 @@ function startFocusServer(): void {
             res.end(JSON.stringify({ error: 'missing nodeId' }));
           }
         } catch {
+          /* telemetry — silent by design */
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'invalid JSON' }));
         }
@@ -259,6 +261,7 @@ function createWindow(): void {
               const content = fs.readFileSync(noticesPath, 'utf-8');
               void licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent(content)}`);
             } catch {
+              /* telemetry — silent by design */
               void licensesWindow.loadURL(`data:text/plain;charset=utf-8,${encodeURIComponent('License notices file not found. Run npm run licenses to generate.')}`);
             }
           },
@@ -303,6 +306,13 @@ void app.whenReady().then(() => {
         const content = fs.readFileSync(filePath, 'utf-8');
         return { type: 'diagnostics', path: filePath, data: JSON.parse(content) };
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'main-process',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         console.error('[main] Failed to read diagnostics file:', err);
         return { type: 'diagnostics', path: filePath, data: null, error: String(err) };
       }
@@ -315,6 +325,13 @@ void app.whenReady().then(() => {
         const content = fs.readFileSync(filePath, 'utf-8');
         return { type: 'harvest', path: filePath, data: JSON.parse(content) };
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'main-process',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         console.error('[main] Failed to read harvest file:', err);
         return { type: 'harvest', path: filePath, data: null, error: String(err) };
       }

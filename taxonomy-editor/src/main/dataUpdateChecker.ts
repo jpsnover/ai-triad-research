@@ -11,6 +11,7 @@ import { resolveDataPath } from './fileIO.js';
 import fs from 'fs';
 import path from 'path';
 import { net } from 'electron';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 export interface DataUpdateStatus {
   available: boolean;
@@ -34,6 +35,7 @@ async function isOnline(): Promise<boolean> {
     const resp = await net.fetch('https://github.com', { method: 'HEAD' });
     return resp.ok || resp.status === 301 || resp.status === 302;
   } catch {
+    /* telemetry — silent by design */
     return false;
   }
 }
@@ -71,6 +73,13 @@ export async function checkForDataUpdates(): Promise<DataUpdateStatus> {
 
     return { available: behindCount > 0, behindCount, currentCommit, remoteCommit };
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'data-update-checker',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('[DataUpdateChecker] Error:', msg);
     return { available: false, behindCount: 0, currentCommit: '', remoteCommit: '', error: msg };
@@ -92,6 +101,7 @@ export async function getChangedFiles(): Promise<ChangedFileInfo[]> {
       return { path: pathParts.join('\t'), status: status.charAt(0) };
     });
   } catch {
+    /* telemetry — silent by design */
     return [];
   }
 }
@@ -113,7 +123,7 @@ export async function pullDataUpdates(): Promise<{ success: boolean; message: st
         fs.unlinkSync(lockPath);
         console.log('[DataUpdateChecker] Removed stale index.lock');
       }
-    } catch { /* doesn't exist — normal */ }
+    } catch { /* telemetry — silent by design;  doesn't exist — normal */ }
 
     // Auto-commit any dirty working tree so pull doesn't fail on conflicts
     const status = await runGit(['status', '--porcelain'], dataRoot);
@@ -126,6 +136,13 @@ export async function pullDataUpdates(): Promise<{ success: boolean; message: st
     const output = await runGit(['pull', '--rebase', 'origin', 'main'], dataRoot);
     return { success: true, message: output || 'Up to date' };
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'data-update-checker',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, message: msg };
   }

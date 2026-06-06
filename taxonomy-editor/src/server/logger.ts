@@ -53,7 +53,7 @@ export function generateRequestId(): string {
 const isProduction = process.env.NODE_ENV === 'production';
 
 function hasPinoPretty(): boolean {
-  try { require.resolve('pino-pretty'); return true; } catch { return false; }
+  try { require.resolve('pino-pretty'); return true; } catch { /* telemetry — silent by design */ return false; }
 }
 
 // Evaluate before pino constructor — pino resolves transports eagerly

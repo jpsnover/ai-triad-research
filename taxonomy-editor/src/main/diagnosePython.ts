@@ -19,6 +19,7 @@ export function diagnosePythonEmbeddings(): string {
       pythonPath = candidate;
       break;
     } catch {
+      /* telemetry — silent by design */
       // try next
     }
   }
@@ -34,6 +35,7 @@ export function diagnosePythonEmbeddings(): string {
   try {
     execFileSync(pythonPath, ['-c', 'import sentence_transformers'], { encoding: 'utf-8', timeout: 10000 });
   } catch {
+    /* telemetry — silent by design */
     return `Python 3 is installed (${version}) but sentence-transformers is missing. Install it with: pip3 install sentence-transformers`;
   }
 
@@ -41,6 +43,7 @@ export function diagnosePythonEmbeddings(): string {
   try {
     execFileSync(pythonPath, ['-c', 'import numpy'], { encoding: 'utf-8', timeout: 5000 });
   } catch {
+    /* telemetry — silent by design */
     return `sentence-transformers is installed but numpy is missing. Install it with: pip3 install numpy`;
   }
 

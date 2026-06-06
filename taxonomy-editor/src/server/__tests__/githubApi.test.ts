@@ -41,6 +41,12 @@ vi.mock('../githubAppAuth', () => ({
   getTokenExpiryMs: vi.fn().mockReturnValue(0), // PAT mode — no expiry
 }));
 
+// Mock flight recorder — prevent ReferenceError in catch blocks
+vi.mock('../../../../lib/flight-recorder/index.js', () => ({
+  getGlobalRecorder: vi.fn().mockReturnValue(null),
+  FlightRecorder: vi.fn(),
+}));
+
 // Track fetch calls for assertions
 const fetchCalls: Array<{ url: string; method: string; body?: unknown }> = [];
 

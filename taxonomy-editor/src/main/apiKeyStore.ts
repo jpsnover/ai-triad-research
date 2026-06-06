@@ -29,6 +29,7 @@ export function loadApiKey(backend?: Backend): string | null {
     const encrypted = fs.readFileSync(fp);
     return safeStorage.decryptString(encrypted);
   } catch {
+    /* telemetry — silent by design */
     return null;
   }
 }

@@ -4,6 +4,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { StorageBackend } from './storageBackend.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 /**
  * FilesystemBackend — local disk implementation of StorageBackend.
@@ -17,6 +18,13 @@ export class FilesystemBackend implements StorageBackend {
     try {
       return await fs.readFile(filePath, 'utf-8');
     } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'filesystem-backend',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw err;
     }
@@ -33,6 +41,13 @@ export class FilesystemBackend implements StorageBackend {
     try {
       return await fs.readdir(dirPath);
     } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'filesystem-backend',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
       // ENOTDIR: path exists but is a file, not a directory
       if ((err as NodeJS.ErrnoException).code === 'ENOTDIR') return [];
@@ -44,6 +59,13 @@ export class FilesystemBackend implements StorageBackend {
     try {
       await fs.unlink(filePath);
     } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'filesystem-backend',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
       throw err;
     }
@@ -54,6 +76,7 @@ export class FilesystemBackend implements StorageBackend {
       await fs.access(filePath);
       return true;
     } catch {
+      /* telemetry — silent by design */
       return false;
     }
   }

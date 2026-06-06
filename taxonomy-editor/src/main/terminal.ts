@@ -7,6 +7,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import path from 'path';
 import { PROJECT_ROOT } from './fileIO.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 type IPty = import('node-pty').IPty;
 
@@ -35,6 +36,13 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
     try {
       pty = await import('node-pty');
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'terminal',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const win = getWindow();
       if (win && !win.isDestroyed()) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -71,6 +79,13 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
         handleFlowControl: true,
       });
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'terminal',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const win = getWindow();
       if (win && !win.isDestroyed()) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -123,7 +138,7 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
     if (ptyProcess) {
       try {
         ptyProcess.resize(cols, rows);
-      } catch { /* ignore races during shutdown */ }
+      } catch { /* telemetry — silent by design;  ignore races during shutdown */ }
     }
   });
 

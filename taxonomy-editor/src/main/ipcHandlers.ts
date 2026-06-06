@@ -54,6 +54,7 @@ import type { NodeEmbeddingInput, NliPair } from './embeddings.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { z } from 'zod';
 import path from 'path';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 // IPC input schemas for high-risk handlers
 const VALID_POV = z.enum(['accelerationist', 'safetyist', 'skeptic', 'situations', 'cross_cutting']);
@@ -67,6 +68,7 @@ export function registerIpcHandlers(): void {
       const raw = fs.readFileSync(configPath, 'utf-8');
       return JSON.parse(raw);
     } catch {
+      /* telemetry — silent by design */
       return null;
     }
   });
@@ -134,7 +136,7 @@ export function registerIpcHandlers(): void {
         for (const f of fs.readdirSync(stdDir).filter(f => f.endsWith('.json'))) {
           try {
             standardized.push(JSON.parse(fs.readFileSync(path.join(stdDir, f), 'utf-8')));
-          } catch { /* skip malformed */ }
+          } catch { /* telemetry — silent by design;  skip malformed */ }
         }
       }
 
@@ -143,12 +145,13 @@ export function registerIpcHandlers(): void {
         for (const f of fs.readdirSync(colDir).filter(f => f.endsWith('.json'))) {
           try {
             colloquial.push(JSON.parse(fs.readFileSync(path.join(colDir, f), 'utf-8')));
-          } catch { /* skip malformed */ }
+          } catch { /* telemetry — silent by design;  skip malformed */ }
         }
       }
 
       return { standardized, colloquial, lintViolations: [] };
     } catch {
+      /* telemetry — silent by design */
       return { standardized: [], colloquial: [], lintViolations: [] };
     }
   });
@@ -247,7 +250,7 @@ export function registerIpcHandlers(): void {
       const cfgPath = require('path').resolve(__dirname, '../../../lib/debate/calibration-config.json');
       const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
       info.calibration_version = cfg.schema_version;
-    } catch { /* calibration config not found — leave undefined */ }
+    } catch { /* telemetry — silent by design;  calibration config not found — leave undefined */ }
     return info;
   });
 
@@ -255,6 +258,13 @@ export function registerIpcHandlers(): void {
     try {
       return { vectors: await computeEmbeddings(texts, ids) };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-embeddings failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
@@ -275,6 +285,13 @@ export function registerIpcHandlers(): void {
     try {
       return { vector: await computeQueryEmbedding(text) };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-query-embedding failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
@@ -295,6 +312,13 @@ export function registerIpcHandlers(): void {
     try {
       await updateNodeEmbeddings(nodes);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] update-node-embeddings failed:', msg);
       const diagnosis = diagnosePythonEmbeddings();
@@ -323,6 +347,13 @@ export function registerIpcHandlers(): void {
         }, timeoutMs, temperature),
       };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-text failed:', msg);
       throw new ActionableError({
@@ -363,6 +394,13 @@ export function registerIpcHandlers(): void {
     try {
       return await generateTextWithSearch(prompt, model);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-text-with-search failed:', msg);
       throw new ActionableError({
@@ -465,7 +503,7 @@ export function registerIpcHandlers(): void {
     const queuePath = path.join(getDataRootPath(), 'harvest-queue.json');
     let queue: { queued_at: string; items: Record<string, unknown>[] } = { queued_at: new Date().toISOString(), items: [] };
     if (fs.existsSync(queuePath)) {
-      try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf-8')); } catch { /* start fresh */ }
+      try { queue = JSON.parse(fs.readFileSync(queuePath, 'utf-8')); } catch { /* telemetry — silent by design;  start fresh */ }
     }
     queue.items.push({ ...concept, status: 'queued', queued_at: new Date().toISOString() });
     queue.queued_at = new Date().toISOString();
@@ -518,6 +556,7 @@ export function registerIpcHandlers(): void {
           const data = JSON.parse(fs.readFileSync(path.join(proposalDir, f), 'utf-8'));
           return { filename: f, ...data };
         } catch {
+          /* telemetry — silent by design */
           return { filename: f, error: 'Failed to parse' };
         }
       });
@@ -550,6 +589,13 @@ export function registerIpcHandlers(): void {
       const text = fs.readFileSync(promptPath, 'utf-8');
       return { text };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return { text: null, error: String(err) };
     }
   });
@@ -727,7 +773,7 @@ export function registerIpcHandlers(): void {
       if (!fs.existsSync(indexPath)) return null;
       _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
       return _evidenceIndex;
-    } catch { return null; }
+    } catch { /* telemetry — silent by design */ return null; }
   }
 
   /** Build doc_id → metadata map from source metadata.json files (best-effort). */
@@ -757,12 +803,12 @@ export function registerIpcHandlers(): void {
             if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
             metaMap[entry.name] = docMeta;
           }
-        } catch { /* skip malformed metadata */ }
+        } catch { /* telemetry — silent by design;  skip malformed metadata */ }
       }
       _docTitles = Object.keys(metaMap).length > 0 ? metaMap as unknown as DocTitleMap : undefined;
       if (_docTitles) console.log(`[evidence] Loaded ${Object.keys(metaMap).length} document metadata entries`);
       return _docTitles;
-    } catch { return undefined; }
+    } catch { /* telemetry — silent by design */ return undefined; }
   }
 
   ipcMain.handle('load-source-evidence-index', () => loadEvidenceIndex());
@@ -777,6 +823,13 @@ export function registerIpcHandlers(): void {
       const docTitles = loadDocTitles();
       return retrieveSourceEvidence(nodeIds, pov, index, 3, 2, docTitles);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn(`[ipc] get-source-evidence failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
       return emptyResult;
     }
@@ -808,6 +861,13 @@ export function registerIpcHandlers(): void {
       });
       return { ...result, claim_id: claimId };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[ipc] run-evidence-qbaf failed for ${claimId}: ${msg}`);
       return null;
@@ -920,6 +980,13 @@ export function registerIpcHandlers(): void {
       const markdown = await fetchUrlContent(url);
       return { content: markdown };
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ipc-handlers',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       return { content: '', error: String(err) };
     }
   });
@@ -950,13 +1017,13 @@ export function registerIpcHandlers(): void {
       const histPath = path.join(dataRoot, 'calibration', 'parameter-history.json');
       let history: unknown[] = [];
       if (fs.existsSync(histPath)) {
-        try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch { /* corrupt */ }
+        try { history = JSON.parse(fs.readFileSync(histPath, 'utf-8')); } catch { /* telemetry — silent by design;  corrupt */ }
       }
 
       // Capture current snapshot from provisional-weights.json
       const weightsPath = path.join(PROJECT_ROOT, 'lib', 'debate', 'provisional-weights.json');
       let weights: Record<string, unknown> = {};
-      try { weights = JSON.parse(fs.readFileSync(weightsPath, 'utf-8')); } catch { /* use defaults */ }
+      try { weights = JSON.parse(fs.readFileSync(weightsPath, 'utf-8')); } catch { /* telemetry — silent by design;  use defaults */ }
 
       const current = {
         exploration_exit: (weights?.thresholds as Record<string, number>)?.exploration_exit ?? 0.65,
@@ -981,6 +1048,7 @@ export function registerIpcHandlers(): void {
 
       return { current, history };
     } catch {
+      /* telemetry — silent by design */
       return { current: null, history: [] };
     }
   });
@@ -998,11 +1066,12 @@ export function registerIpcHandlers(): void {
       const reportPath = path.join(dataRoot, 'calibration', 'validation-report.json');
       let validationReport = null;
       if (fs.existsSync(reportPath)) {
-        try { validationReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8')); } catch { /* ok */ }
+        try { validationReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8')); } catch { /* telemetry — silent by design;  ok */ }
       }
 
       return { entries, validationReport };
     } catch {
+      /* telemetry — silent by design */
       return { entries: [], validationReport: null };
     }
   });
@@ -1080,7 +1149,7 @@ export function registerIpcHandlers(): void {
         fs.unlinkSync(remaining[i].path);
         totalSize -= remaining[i].size;
       }
-    } catch { /* retention cleanup is best-effort */ }
+    } catch { /* telemetry — silent by design;  retention cleanup is best-effort */ }
 
     const filename = path.basename(filePath);
     console.log(`[flight-recorder] Dump written: ${filePath}`);

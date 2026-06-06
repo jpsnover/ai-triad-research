@@ -18,6 +18,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { spawn, execFile, ChildProcess } from 'child_process';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
 
@@ -196,7 +197,7 @@ const SERVER_VERSION = (() => {
     try {
       const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
       if (pkg.version) return pkg.version as string;
-    } catch { /* try next */ }
+    } catch { /* telemetry — silent by design;  try next */ }
   }
   return '0.0.0';
 })();
@@ -210,6 +211,7 @@ get('/third-party-notices', (_req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end(content);
   } catch {
+    /* telemetry — silent by design */
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('License notices file not found. Run npm run licenses to generate.');
   }
@@ -289,7 +291,7 @@ get('/api/taxonomy/:pov', async (req, res) => {
   try {
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
     json(res, await fileIO.readTaxonomyFile(pov));
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 put('/api/taxonomy/:pov', async (req, res, body) => {
@@ -298,7 +300,7 @@ put('/api/taxonomy/:pov', async (req, res, body) => {
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
     await fileIO.writeTaxonomyFile(pov, body);
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Conflicts ──
@@ -333,7 +335,7 @@ put('/api/conflicts/:id', async (req, res, body) => {
     await fileIO.writeConflictFile(id, body);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/conflicts/:id', async (req, res, body) => {
@@ -343,7 +345,7 @@ post('/api/conflicts/:id', async (req, res, body) => {
     await fileIO.createConflictFile(id, body);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 del('/api/conflicts/:id', async (req, res) => {
@@ -353,7 +355,7 @@ del('/api/conflicts/:id', async (req, res) => {
     await fileIO.deleteConflictFile(id);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Policy registry ──
@@ -432,6 +434,13 @@ post('/api/data/set-root', (_req, res, body) => {
     process.env.AI_TRIAD_DATA_ROOT = path.resolve(newRoot);
     json(res, { success: true });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     json(res, { success: false, message: String(err) }, 500);
   }
 });
@@ -457,6 +466,13 @@ post('/api/data/clone', async (_req, res, body) => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
     json(res, { success: true, message: 'Data repository cloned successfully.' });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     json(res, { success: false, message: String(err) });
   }
 });
@@ -480,6 +496,13 @@ post('/api/data/check-updates', async (_req, res) => {
 
     json(res, { available: count > 0, behindCount: count, currentCommit: local, remoteCommit: remote });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     json(res, { available: false, error: String(err) });
   }
 });
@@ -563,6 +586,13 @@ post('/api/data/pull', async (_req, res) => {
     serverRecorder.record({ type: 'lifecycle', component: 'data-pull', level: 'info', message: 'pull.ok', duration_ms: Date.now() - pullStart });
     res.write(JSON.stringify({ success: true, message: 'Data updated.' }) + '\n');
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     const msg = err instanceof Error ? err.message : String(err);
     log.dataPull.error({ err: msg }, 'Pull failed');
     serverRecorder.record({ type: 'system.error', component: 'data-pull', level: 'error', message: 'pull.failed', error: { name: 'Error', message: msg }, duration_ms: Date.now() - pullStart });
@@ -582,7 +612,7 @@ get('/api/models', async (_req, res) => {
 post('/api/models/refresh', async (_req, res) => {
   try {
     json(res, await ai.refreshAIModels());
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/keys/has', async (req, res) => {
@@ -631,14 +661,14 @@ post('/api/ai/generate', async (req, res, body) => {
     }
 
     json(res, { text: result.text, tokenUsage: result.tokenUsage });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/ai/search', async (_req, res, body) => {
   const { prompt, model } = body as { prompt: string; model?: string };
   try {
     json(res, await ai.generateTextWithSearch(prompt, model));
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Proxy info endpoints ──
@@ -672,7 +702,7 @@ post('/api/embeddings/compute', async (_req, res, body) => {
   try {
     const vectors = await ai.computeEmbeddings(texts, ids);
     json(res, { vectors });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/embeddings/query', async (_req, res, body) => {
@@ -680,7 +710,7 @@ post('/api/embeddings/query', async (_req, res, body) => {
   try {
     const vector = await ai.computeQueryEmbedding(text);
     json(res, { vector });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/embeddings/update-nodes', async (_req, res, body) => {
@@ -688,7 +718,7 @@ post('/api/embeddings/update-nodes', async (_req, res, body) => {
   try {
     await ai.updateNodeEmbeddings(nodes);
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/nli/classify', async (_req, res, body) => {
@@ -696,7 +726,7 @@ post('/api/nli/classify', async (_req, res, body) => {
   try {
     const results = await ai.classifyNli(pairs);
     json(res, { results });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Debate sessions ──
@@ -711,7 +741,7 @@ get('/api/calibration/history', (_req, res) => {
     const history = readParameterHistory(getDataRoot());
     const current = captureSnapshot();
     json(res, { current, history });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Flight recorder dump ──
@@ -744,12 +774,12 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
         fs.unlinkSync(remaining[i].path);
         totalSize -= remaining[i].size;
       }
-    } catch { /* retention cleanup is best-effort */ }
+    } catch { /* telemetry — silent by design;  retention cleanup is best-effort */ }
 
     const filename = path.basename(filePath);
     log.fr.info({ filePath }, 'Dump written');
     json(res, { filePath, filename });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // Server-side flight recorder dump
@@ -764,7 +794,7 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
     fs.writeFileSync(filePath, ndjson, 'utf-8');
     log.fr.info({ filePath }, 'Server dump written');
     json(res, { filePath, filename });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/flight-recorder/download/:filename', (req, res) => {
@@ -784,7 +814,7 @@ get('/api/flight-recorder/download/:filename', (req, res) => {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.end(content);
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/flight-recorder/view/:filename', (req, res) => {
@@ -819,12 +849,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const outputHtml = viewerHtml.replace('</body>', `${autoLoadScript}\n</body>`);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(outputHtml);
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/debates/:id', async (req, res) => {
   try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
-  catch (err) { error(res, String(err), 404); }
+  catch (err) { /* telemetry — silent by design */ error(res, String(err), 404); }
 });
 
 put('/api/debates', async (_req, res, body) => {
@@ -840,11 +870,11 @@ put('/api/debates', async (_req, res, body) => {
         const dataPoint = extractCalibrationData(session, 'azure' as const);
         appendCalibrationLog(dataPoint, getDataRoot());
       }
-    } catch { /* calibration logging never blocks save */ }
+    } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
 
     json(res, { ok: true });
   }
-  catch (err) { error(res, String(err)); }
+  catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 del('/api/debates/:id', async (req, res) => {
@@ -852,12 +882,12 @@ del('/api/debates/:id', async (req, res) => {
     await ensureSessionBranch();
     await fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/debates/:id/comments', async (req, res) => {
   try { json(res, await fileIO.loadDebateComments(param(req, 'id', '/api/debates/:id/comments'))); }
-  catch (err) { error(res, String(err), 404); }
+  catch (err) { /* telemetry — silent by design */ error(res, String(err), 404); }
 });
 
 put('/api/debates/:id/comments', async (req, res, body) => {
@@ -866,7 +896,7 @@ put('/api/debates/:id/comments', async (req, res, body) => {
     const debateId = param(req, 'id', '/api/debates/:id/comments');
     await fileIO.saveDebateComments(debateId, body);
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/debates/export', (_req, res, body) => {
@@ -901,7 +931,7 @@ post('/api/debates/:id/news-report', async (req, res) => {
     const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../lib/debate/types.js').DebateAudience | undefined);
     const result = await ai.generateText(prompt);
     json(res, { article: result.text });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Chat sessions ──
@@ -910,12 +940,12 @@ get('/api/chats', async (_req, res) => { json(res, await fileIO.listChatSessions
 
 get('/api/chats/:id', async (req, res) => {
   try { json(res, await fileIO.loadChatSession(param(req, 'id', '/api/chats/:id'))); }
-  catch (err) { error(res, String(err), 404); }
+  catch (err) { /* telemetry — silent by design */ error(res, String(err), 404); }
 });
 
 put('/api/chats', async (_req, res, body) => {
   try { await ensureSessionBranch(); await fileIO.saveChatSession(body); json(res, { ok: true }); }
-  catch (err) { error(res, String(err)); }
+  catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 del('/api/chats/:id', async (req, res) => {
@@ -923,7 +953,7 @@ del('/api/chats/:id', async (req, res) => {
     await ensureSessionBranch();
     await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
     json(res, { ok: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Harvest ──
@@ -934,7 +964,7 @@ post('/api/harvest/conflict', async (_req, res, body) => {
     const created = await fileIO.harvestCreateConflict(body as Record<string, unknown>);
     if (created) conflictsCache = null;
     json(res, { created });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/harvest/debate-ref', async (_req, res, body) => {
@@ -942,7 +972,7 @@ post('/api/harvest/debate-ref', async (_req, res, body) => {
     await ensureSessionBranch();
     const { nodeId, debateId } = body as { nodeId: string; debateId: string };
     json(res, { updated: await fileIO.harvestAddDebateRef(nodeId, debateId) });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/harvest/steelman', async (_req, res, body) => {
@@ -950,7 +980,7 @@ post('/api/harvest/steelman', async (_req, res, body) => {
     await ensureSessionBranch();
     const { nodeId, attackerPov, newText } = body as { nodeId: string; attackerPov: string; newText: string };
     json(res, { updated: await fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/harvest/verdict', async (_req, res, body) => {
@@ -1004,7 +1034,7 @@ function loadEvidenceIndex(): SourceEvidenceIndex | null {
     if (!fs.existsSync(indexPath)) return null;
     _evidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
     return _evidenceIndex;
-  } catch { return null; }
+  } catch { /* telemetry — silent by design */ return null; }
 }
 
 type DocMetaMap = import('../../../lib/debate/evidenceFromSummaries.js').DocMetaMap;
@@ -1040,11 +1070,11 @@ function loadDocTitles(): DocMetaMap | null {
           if (!docMeta.resolved_url && meta.url) docMeta.resolved_url = meta.url;
           metaMap[entry.name] = docMeta;
         }
-      } catch { /* skip */ }
+      } catch { /* telemetry — silent by design;  skip */ }
     }
     _docTitles = Object.keys(metaMap).length > 0 ? metaMap : null;
     return _docTitles;
-  } catch { _docTitles = null; return null; }
+  } catch { /* telemetry — silent by design */ _docTitles = null; return null; }
 }
 
 get('/api/source-evidence-index', (_req, res) => {
@@ -1065,6 +1095,13 @@ post('/api/source-evidence', async (_req, res, body) => {
     const docTitles = loadDocTitles() ?? undefined;
     json(res, retrieveSourceEvidence(nodeIds, pov, index, 3, 2, docTitles));
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     log.api.warn({ err }, 'source-evidence failed');
     json(res, emptyResult);
   }
@@ -1100,6 +1137,13 @@ post('/api/evidence-qbaf', async (_req, res, body) => {
     });
     json(res, { ...result, claim_id: claimId });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     log.api.warn({ err }, `evidence-qbaf failed for ${claimId}`);
     json(res, null);
   }
@@ -1113,7 +1157,7 @@ put('/api/proposals/:filename', async (req, res, body) => {
   try {
     await fileIO.saveProposal(param(req, 'filename', '/api/proposals/:filename'), body);
     json(res, { saved: true });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── PowerShell prompts ──
@@ -1167,7 +1211,7 @@ post('/api/sync/credentials', async (_req, res, body) => {
     // Validate by checking if credentials resolve
     const creds = await getCredentials();
     json(res, { ok: true, configured: !!creds });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/sync/status', async (_req, res) => {
@@ -1210,7 +1254,7 @@ get('/api/sync/status', async (_req, res) => {
         age_seconds: githubBackend.getLastPollAge(),
       },
     });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/sync/diagnostics', async (_req, res) => {
@@ -1244,7 +1288,7 @@ get('/api/sync/diagnostics', async (_req, res) => {
       rate_limit_remaining: githubBackend.getRateLimitRemaining(),
       active_sessions: sessionManager.getActiveBranches(),
     });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/sync/unsynced', async (_req, res) => {
@@ -1262,7 +1306,7 @@ get('/api/sync/unsynced', async (_req, res) => {
       path: f.filename,
       status: statusMap[f.status] || 'M',
     })));
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 get('/api/sync/diff', async (req, res) => {
@@ -1277,7 +1321,7 @@ get('/api/sync/diff', async (req, res) => {
     const cmp = await githubBackend.compareBranches('main', branch);
     const file = cmp.files.find(f => f.filename === p);
     json(res, { path: p, diff: file?.patch ?? '' });
-  } catch (err) { error(res, String(err), 400); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err), 400); }
 });
 
 post('/api/sync/discard', async (_req, res, body) => {
@@ -1294,7 +1338,7 @@ post('/api/sync/discard', async (_req, res, body) => {
       return;
     }
     error(res, 'Per-file discard is not supported. Use "Discard All" to reset.', 400);
-  } catch (err) { error(res, String(err), 400); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err), 400); }
 });
 
 post('/api/sync/commit', async (_req, res, body) => {
@@ -1312,7 +1356,7 @@ post('/api/sync/commit', async (_req, res, body) => {
       return;
     }
     json(res, { ok: true, commitSha: result.commitSha, filesCommitted: result.filesCommitted });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/sync/create-pr', async (_req, res, body) => {
@@ -1336,7 +1380,7 @@ post('/api/sync/create-pr', async (_req, res, body) => {
       branch,
       created: true,
     });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/sync/resync', async (_req, res, body) => {
@@ -1388,7 +1432,7 @@ post('/api/sync/resync', async (_req, res, body) => {
       conflict_files: mergeResult.conflicts ? [] : undefined,
       message: mergeResult.message,
     });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 // ── Phase 4: interactive rebase conflict resolution ──
@@ -1445,7 +1489,7 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
 
   const event = (req.headers['x-github-event'] as string | undefined) ?? '';
   let parsed: Record<string, unknown> = {};
-  try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch { /* empty payload */ }
+  try { parsed = JSON.parse(raw) as Record<string, unknown>; } catch { /* telemetry — silent by design;  empty payload */ }
 
   if (event === 'ping') {
     json(res, { ok: true, pong: true });
@@ -1555,6 +1599,13 @@ post('/debug/events', (_req, res, body) => {
     }
     json(res, { received: accepted.length, dropped: Math.max(0, events.length - accepted.length) });
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     error(res, String(err));
   }
 });
@@ -1638,7 +1689,7 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
   (req as RawBodyReq).__rawBody = raw;
   if (!raw) return {};
   try { return JSON.parse(raw); }
-  catch { return raw; }
+  catch { /* telemetry — silent by design */ return raw; }
 }
 
 // ── HTTP server ──
@@ -1702,6 +1753,13 @@ function loadAuthorizedUsers(): AuthorizedUsersFile | null {
         return data;
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       log.auth.error({ path: p, err }, 'Failed to parse authorized users file');
     }
   }
@@ -2014,6 +2072,13 @@ async function handleRequestInner(
         const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'server',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         log.server.error({ err, method: req.method, path: url.pathname }, 'Error handling request');
         error(res, String(err));
       }
@@ -2169,7 +2234,7 @@ function handleTerminalConnection(ws: WebSocket) {
       } else if (parsed.type === 'kill') {
         if (terminalProcess) { terminalProcess.kill(); terminalProcess = null; }
       }
-    } catch { /* ignore malformed messages */ }
+    } catch { /* telemetry — silent by design;  ignore malformed messages */ }
   });
 
   ws.on('close', () => {
@@ -2193,7 +2258,7 @@ function shutdown(signal: string) {
     const dumpDir = path.join(getDataRoot(), 'flight-recorder');
     fs.mkdirSync(dumpDir, { recursive: true });
     fs.writeFileSync(path.join(dumpDir, `server-shutdown-${Date.now()}.jsonl`), ndjson);
-  } catch { /* best effort */ }
+  } catch { /* telemetry — silent by design;  best effort */ }
 
   // 1a. Stop GitHubAPIBackend polling
   if (githubBackend) {
@@ -2209,7 +2274,7 @@ function shutdown(signal: string) {
 
   // 2. Close all WebSocket connections
   for (const ws of eventClients) {
-    try { ws.close(1001, 'Server shutting down'); } catch { /* ignore */ }
+    try { ws.close(1001, 'Server shutting down'); } catch { /* telemetry — silent by design;  ignore */ }
   }
   eventClients.clear();
 
@@ -2237,7 +2302,7 @@ process.on('uncaughtException', (err) => {
     const dumpDir = path.join(getDataRoot(), 'flight-recorder');
     fs.mkdirSync(dumpDir, { recursive: true });
     fs.writeFileSync(path.join(dumpDir, `server-crash-${Date.now()}.jsonl`), ndjson);
-  } catch { /* best effort */ }
+  } catch { /* telemetry — silent by design;  best effort */ }
   log.server.fatal({ err }, 'Uncaught exception');
   process.exit(1);
 });
@@ -2255,7 +2320,7 @@ server.listen(PORT, () => {
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');
 
   // Initialize analytics storage (daily NDJSON files + 90-day pruning)
-  try { analytics.initAnalytics(getDataRoot()); } catch (e) { log.analytics.warn({ err: e }, 'Analytics init failed'); }
+  try { analytics.initAnalytics(getDataRoot()); } catch (e) { /* telemetry — silent by design */ log.analytics.warn({ err: e }, 'Analytics init failed'); }
 
   if (githubBackend) {
     // Initialize GitHubAPIBackend (token + cache check) AFTER health check is

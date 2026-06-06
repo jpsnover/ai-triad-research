@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,7 +87,7 @@ export function loadDataConfig(): AiTriadConfig {
         _dataConfigCache = merged;
         return merged;
       }
-    } catch { /* try next */ }
+    } catch { /* telemetry — silent by design;  try next */ }
   }
 
   console.log(`[fileIO] Using default config (packaged=${IS_PACKAGED}, data_root=${defaults.data_root})`);
@@ -109,6 +110,7 @@ export function isDataAvailable(): boolean {
     const taxDir = resolveDataPath(loadDataConfig().taxonomy_dir);
     return fs.existsSync(taxDir) && fs.readdirSync(taxDir).some(f => f.endsWith('.json') && f !== 'embeddings.json' && f !== 'edges.json');
   } catch {
+    /* telemetry — silent by design */
     return false;
   }
 }
@@ -125,7 +127,7 @@ export function setDataRootPath(newRoot: string): void {
     if (fs.existsSync(configPath)) {
       existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     }
-  } catch { /* start fresh */ }
+  } catch { /* telemetry — silent by design;  start fresh */ }
   existing.data_root = newRoot;
   fs.writeFileSync(configPath, JSON.stringify(existing, null, 2) + '\n', 'utf-8');
   _dataConfigCache = null; // invalidate — caller should relaunch
@@ -203,6 +205,13 @@ function parseJsonFile(filePath: string): unknown {
   try {
     return JSON.parse(raw);
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     const msg = err instanceof Error ? err.message : String(err);
     const basename = path.basename(filePath);
     // Diagnose the specific problem
@@ -239,8 +248,15 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
     fs.writeFileSync(tmpPath, content, 'utf-8');
     fs.renameSync(tmpPath, filePath);
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     // Clean up tmp file if rename failed
-    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+    try { fs.unlinkSync(tmpPath); } catch { /* telemetry — silent by design;  ignore */ }
     throw new ActionableError({
       goal: 'Save taxonomy data',
       problem: `Failed to write ${path.basename(filePath)}`,
@@ -302,6 +318,7 @@ export function readLineageEnrichments(): Record<string, unknown> {
     lineageInfoCache = result;
     return result;
   } catch {
+    /* telemetry — silent by design */
     return {};
   }
 }
@@ -338,7 +355,7 @@ export function readAggregatedCruxes(): unknown | null {
   if (!fs.existsSync(filePath)) return null;
   try {
     return parseJsonFile(filePath);
-  } catch { return null; }
+  } catch { /* telemetry — silent by design */ return null; }
 }
 
 export function readConflictClusters(): unknown | null {
@@ -346,7 +363,7 @@ export function readConflictClusters(): unknown | null {
   if (!fs.existsSync(filePath)) return null;
   try {
     return parseJsonFile(filePath);
-  } catch { return null; }
+  } catch { /* telemetry — silent by design */ return null; }
 }
 
 export function readAllConflictFiles(): unknown[] {
@@ -359,6 +376,13 @@ export function readAllConflictFiles(): unknown[] {
     try {
       results.push(parseJsonFile(path.join(CONFLICTS_DIR, f)));
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'file-io',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn(`[fileIO] Skipping corrupt conflict file ${f}:`, err);
     }
   }
@@ -455,7 +479,7 @@ export function discoverSources(): DiscoveredSource[] {
         tags: meta.pov_tags || [],
         authors: meta.authors || [],
       });
-    } catch { /* skip */ }
+    } catch { /* telemetry — silent by design;  skip */ }
   }
   return sources.sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -467,7 +491,7 @@ export function loadSummary(docId: string): unknown | null {
   if (!fs.existsSync(filePath)) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-  } catch { return null; }
+  } catch { /* telemetry — silent by design */ return null; }
 }
 
 export function loadSnapshot(sourceId: string): string | null {
@@ -477,7 +501,7 @@ export function loadSnapshot(sourceId: string): string | null {
   if (!fs.existsSync(filePath)) return null;
   try {
     return fs.readFileSync(filePath, 'utf-8');
-  } catch { return null; }
+  } catch { /* telemetry — silent by design */ return null; }
 }
 
 export function readEdgesFile(): unknown | null {
@@ -535,7 +559,7 @@ export function buildNodeSourceIndex(): NodeSourceIndex {
             datePublished: meta.date_published || meta.source_time || '',
           };
         }
-      } catch { /* skip */ }
+      } catch { /* telemetry — silent by design;  skip */ }
     }
   }
 
@@ -558,7 +582,7 @@ export function buildNodeSourceIndex(): NodeSourceIndex {
 
     try {
       summary = JSON.parse(fs.readFileSync(path.join(SUMMARIES_DIR, file), 'utf-8'));
-    } catch { continue; }
+    } catch { /* telemetry — silent by design */ continue; }
 
     const meta = metaCache[docId] || { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
 
@@ -633,7 +657,7 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
           nodeToPolicies.get(node.id)!.push(action.policy_id);
         }
       }
-    } catch { /* skip unavailable POV files */ }
+    } catch { /* telemetry — silent by design;  skip unavailable POV files */ }
   }
 
   // 3. Build or reuse the node-source index
@@ -654,7 +678,7 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
             sourceTime: meta.source_time || '',
           };
         }
-      } catch { /* skip */ }
+      } catch { /* telemetry — silent by design;  skip */ }
     }
   }
 

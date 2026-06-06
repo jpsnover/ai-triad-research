@@ -20,6 +20,7 @@ import crypto from 'crypto';
 import os from 'os';
 import { createRequire } from 'module';
 import type { AIBackend } from './config.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
 import { log } from './logger.js';
@@ -79,6 +80,7 @@ class LocalFileKeyStore implements KeyStore {
     try {
       return this.decrypt(p, this.derivedKey());
     } catch {
+      /* telemetry — silent by design */
       // Migrate from legacy hostname-based key
       try {
         const value = this.decrypt(p, this.legacyDerivedKey());
@@ -86,6 +88,13 @@ class LocalFileKeyStore implements KeyStore {
         log.server.info({ backend }, 'Migrated key to new key material');
         return value;
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'key-store',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         log.server.warn({ path: p, err }, 'Failed to decrypt with current and legacy keys');
         return null;
       }
@@ -147,6 +156,13 @@ class AzureKeyVaultKeyStore implements KeyStore {
       if (value) this.cache.set(name, { value, expires: Date.now() + this.cacheTtlMs });
       return value;
     } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'key-store',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       const code = (err as { code?: string; statusCode?: number })?.code;
       const status = (err as { statusCode?: number })?.statusCode;
       if (code === 'SecretNotFound' || status === 404) return null;

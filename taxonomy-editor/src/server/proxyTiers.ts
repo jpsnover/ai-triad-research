@@ -71,7 +71,7 @@ function loadTierConfig(): TierConfig {
       _cacheMtime = stat.mtimeMs;
       log.server.debug({ count: _cache.users.length, path: p }, 'Loaded tier entries');
       return _cache;
-    } catch { /* try next */ }
+    } catch { /* telemetry — silent by design;  try next */ }
   }
   return DEFAULT_CONFIG;
 }

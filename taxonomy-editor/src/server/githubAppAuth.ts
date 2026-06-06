@@ -25,6 +25,7 @@
 import crypto from 'crypto';
 import { createRequire } from 'module';
 import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
 
@@ -75,6 +76,13 @@ async function loadPrivateKey(): Promise<string | null> {
         return cachedPrivateKey;
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'github-auth',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       log.auth.warn({ err }, 'Failed to load private key from Key Vault');
     }
   }
@@ -251,7 +259,7 @@ export async function githubFetch(
 
   const text = await res.text();
   let data: unknown = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  try { data = text ? JSON.parse(text) : null; } catch { /* telemetry — silent by design */ data = text; }
 
   if (!res.ok) {
     const message = (data && typeof data === 'object' && 'message' in data)

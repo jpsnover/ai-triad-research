@@ -23,6 +23,7 @@ import path from 'path';
 import type { StorageBackend } from './storageBackend.js';
 import { getCredentials, getRepoSlug, type SyncCredentials } from './githubAppAuth.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index.js';
 import { getCurrentUserId, getSessionBranchName } from './userContext.js';
 
@@ -1075,7 +1076,7 @@ export class GitHubAPIBackend implements StorageBackend {
         // Parse response body
         const text = await res.text();
         let data: unknown = null;
-        try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+        try { data = text ? JSON.parse(text) : null; } catch { /* telemetry — silent by design */ data = text; }
 
         this.recordEvent({
           type: res.ok ? 'github.api.response' : 'github.api.error',
@@ -1157,6 +1158,13 @@ export class GitHubAPIBackend implements StorageBackend {
         return { ok: false, status: res.status, data, error: errorMsg };
 
       } catch (err: unknown) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'github-api',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         // Network error — retryable
         const durationMs = Date.now() - startMs;
         this.recordEvent({
@@ -1315,6 +1323,7 @@ export class GitHubAPIBackend implements StorageBackend {
 
       this.manifest = parsed as CacheManifest;
     } catch {
+      /* telemetry — silent by design */
       // Missing or corrupt — cold start
       this.manifest = null;
     }
@@ -1350,6 +1359,7 @@ export class GitHubAPIBackend implements StorageBackend {
     try {
       return await fs.readFile(diskPath, 'utf-8');
     } catch {
+      /* telemetry — silent by design */
       return null;
     }
   }
@@ -1391,6 +1401,7 @@ export class GitHubAPIBackend implements StorageBackend {
     try {
       await fs.unlink(diskPath);
     } catch {
+      /* telemetry — silent by design */
       // Ignore missing file
     }
 
@@ -1552,6 +1563,13 @@ export class GitHubAPIBackend implements StorageBackend {
         await this.fetchRepoTree(currentSha);
         await this.updateManifestSha(currentSha);
       } catch (err: unknown) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'github-api',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         this.recordEvent({
           type: 'system.error',
           component: 'cache',

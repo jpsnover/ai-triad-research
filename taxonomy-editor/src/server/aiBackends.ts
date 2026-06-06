@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFile } from 'child_process';
 import { createRequire } from 'module';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
 import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config.js';
@@ -79,6 +80,13 @@ function loadModelMap(): Record<string, string> {
       log.api.debug({ count: Object.keys(_modelMapCache!).length }, 'Reloaded model map');
     }
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'ai-backends',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     log.api.warn({ err }, 'Failed to load model map');
     if (!_modelMapCache) _modelMapCache = {};
   }
@@ -245,6 +253,7 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
     embeddingsCache = JSON.parse(fs.readFileSync(p, 'utf-8'));
     return embeddingsCache;
   } catch {
+    /* telemetry — silent by design */
     return null;
   }
 }
@@ -298,7 +307,7 @@ function computeQueryViaLocalPython(text: string): Promise<number[]> {
         const v = JSON.parse(stdout) as number[];
         if (!Array.isArray(v) || v.length === 0) { reject(new Error('Empty vector')); return; }
         resolve(v);
-      } catch (e) { reject(new Error(`Parse failed: ${e}`)); }
+      } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse failed: ${e}`)); }
     });
   });
 }
@@ -307,6 +316,7 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
   try {
     return await computeQueryViaLocalPython(text);
   } catch {
+    /* telemetry — silent by design */
     const apiKey = await getApiKey('gemini');
     if (!apiKey) {
       throw new ActionableError({
@@ -332,7 +342,7 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
   const vectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
     const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`batch-encode failed: ${err.message}\n${stderr}`)); return; }
-      try { resolve(JSON.parse(stdout)); } catch (e) { reject(new Error(`Parse failed: ${e}`)); }
+      try { resolve(JSON.parse(stdout)); } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse failed: ${e}`)); }
     });
     child.stdin!.write(JSON.stringify(items));
     child.stdin!.end();
@@ -344,7 +354,7 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
     exclVectors = await new Promise<Record<string, number[]>>((resolve, reject) => {
       const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
         if (err) { reject(new Error(`batch-encode (exclusion) failed: ${err.message}\n${stderr}`)); return; }
-        try { resolve(JSON.parse(stdout)); } catch (e) { reject(new Error(`Parse exclusion failed: ${e}`)); }
+        try { resolve(JSON.parse(stdout)); } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse exclusion failed: ${e}`)); }
       });
       child.stdin!.write(JSON.stringify(exclItems));
       child.stdin!.end();
@@ -353,7 +363,7 @@ export async function updateNodeEmbeddings(nodes: { id: string; text: string; po
 
   let data: EmbeddingsFile;
   try { data = JSON.parse(fs.readFileSync(filePath, 'utf-8')); }
-  catch { data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
+  catch { /* telemetry — silent by design */ data = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} }; }
 
   for (const node of nodes) {
     if (vectors[node.id]) {
@@ -376,7 +386,7 @@ export async function classifyNli(pairs: { text_a: string; text_b: string }[]): 
   return new Promise((resolve, reject) => {
     const child = execFile(PYTHON, [EMBED_SCRIPT, 'nli-classify'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
       if (err) { reject(new Error(`NLI failed: ${err.message}\n${stderr}`)); return; }
-      try { resolve(JSON.parse(stdout)); } catch (e) { reject(new Error(`Parse failed: ${e}`)); }
+      try { resolve(JSON.parse(stdout)); } catch (e) { /* telemetry — silent by design */ reject(new Error(`Parse failed: ${e}`)); }
     });
     child.stdin!.write(JSON.stringify(pairs));
     child.stdin!.end();
@@ -407,6 +417,13 @@ export async function refreshAIModels(): Promise<unknown> {
         result[backend] = { ok: true, count: 0, error: 'Discovery not implemented for this backend in container mode' };
       }
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ai-backends',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       result[backend] = { ok: false, count: 0, error: String(err) };
     }
   }

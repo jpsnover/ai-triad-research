@@ -17,6 +17,7 @@ import {
 } from '../../../lib/embeddings/onnxEmbedding.js';
 console.log('[embeddings] About to import tavily...');
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 console.log('[embeddings] Tavily import OK');
 
 const EXPECTED_DIMENSION = 384;
@@ -136,6 +137,13 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
     console.log(`[embeddings] Loaded ${embeddingsCache.node_count} local embeddings (${embeddingsCache.dimension}d)`);
     return embeddingsCache;
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'embeddings',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     console.warn('[embeddings] Could not load embeddings.json:', err);
     return null;
   }
@@ -202,12 +210,26 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
     try {
       return await onnxComputeEmbedding(text);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'embeddings',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       console.warn('[embeddings] ONNX embedding failed, trying Python fallback:', err);
     }
   }
   try {
     return await computeQueryViaLocalPython(text);
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'embeddings',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     console.warn('[embeddings] Local Python embedding failed, falling back to Gemini API:', err);
     return computeQueryViaApi(text);
   }
@@ -265,6 +287,13 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
           try {
             resolve(JSON.parse(stdout) as Record<string, number[]>);
           } catch (parseErr) {
+            getGlobalRecorder()?.record({
+              type: 'system.error',
+              component: 'embeddings',
+              level: 'error',
+              message: 'Operation failed',
+              error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+            });
             reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
           }
         },
@@ -302,6 +331,13 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
             try {
               resolve(JSON.parse(stdout) as Record<string, number[]>);
             } catch (parseErr) {
+              getGlobalRecorder()?.record({
+                type: 'system.error',
+                component: 'embeddings',
+                level: 'error',
+                message: 'Operation failed',
+                error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+              });
               reject(new Error(`Failed to parse exclusion batch-encode output: ${parseErr}`));
             }
           },
@@ -318,6 +354,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
     const raw = fs.readFileSync(filePath, 'utf-8');
     data = JSON.parse(raw) as EmbeddingsFile;
   } catch {
+    /* telemetry — silent by design */
     // Create new file structure
     data = {
       model: 'all-MiniLM-L6-v2',
@@ -400,6 +437,13 @@ export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
         try {
           resolve(JSON.parse(stdout) as NliResult[]);
         } catch (parseErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'embeddings',
+            level: 'error',
+            message: 'Operation failed',
+            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+          });
           reject(new Error(`Failed to parse NLI output: ${parseErr}`));
         }
       },
@@ -430,6 +474,13 @@ function computeQueryViaLocalPython(text: string): Promise<number[]> {
           }
           resolve(vector);
         } catch (parseErr) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'embeddings',
+            level: 'error',
+            message: 'Operation failed',
+            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+          });
           reject(new Error(`Failed to parse Python output: ${parseErr}`));
         }
       },
@@ -605,6 +656,13 @@ function resolveApiModelId(friendlyId: string): string {
       console.log(`[model-map] Loaded ${Object.keys(_modelMapCache!).length} mappings from ${configPath}`);
     }
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'embeddings',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     if (!_modelMapCache) _modelMapCache = {};
     console.error(`[model-map] FAILED to load model map: ${err instanceof Error ? err.message : err}`);
   }
@@ -804,7 +862,7 @@ export async function generateChatStream(
           fullText += text;
           onChunk(text);
         }
-      } catch { /* skip malformed chunks */ }
+      } catch { /* telemetry — silent by design;  skip malformed chunks */ }
     }
   }
 
@@ -818,7 +876,7 @@ export async function generateChatStream(
           fullText += text;
           onChunk(text);
         }
-      } catch { /* skip */ }
+      } catch { /* telemetry — silent by design;  skip */ }
     }
   }
 

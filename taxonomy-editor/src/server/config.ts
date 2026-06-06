@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,7 +68,7 @@ export function loadDataConfig(): AiTriadConfig {
       log.server.debug({ configPath }, 'Loaded config');
       return merged;
     }
-  } catch { /* use defaults */ }
+  } catch { /* telemetry — silent by design;  use defaults */ }
 
   _configCache = DEFAULT_CONFIG;
   return _configCache;
@@ -151,6 +152,13 @@ export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string |
     const stored = await getKeyStore(getDataRoot).get(backend, getCurrentUserId());
     if (stored) return stored;
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server-config',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     log.server.warn({ backend, err }, 'getApiKey failed');
   }
 

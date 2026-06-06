@@ -44,6 +44,7 @@ export function listChatSessions(): ChatSessionSummary[] {
         pover: data.pover,
       });
     } catch {
+      /* telemetry — silent by design */
       // Skip corrupt files
     }
   }

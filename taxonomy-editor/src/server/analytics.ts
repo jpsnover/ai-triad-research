@@ -90,7 +90,7 @@ function readEvents(from: string, to: string): AnalyticsEvent[] {
     for (const line of lines) {
       try {
         events.push(JSON.parse(line) as AnalyticsEvent);
-      } catch { /* skip malformed lines */ }
+      } catch { /* telemetry — silent by design;  skip malformed lines */ }
     }
   }
 
@@ -197,5 +197,5 @@ function pruneOldFiles(): void {
         fs.unlinkSync(path.join(analyticsDir, f));
       }
     }
-  } catch { /* best-effort cleanup */ }
+  } catch { /* telemetry — silent by design;  best-effort cleanup */ }
 }

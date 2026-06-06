@@ -21,6 +21,7 @@ import { POV_KEYS } from '../../../lib/debate/types.js';
 import type { StorageBackend } from './storageBackend.js';
 import { log } from './logger.js';
 import { FilesystemBackend } from './filesystemBackend.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 // ── Backend injection ──
 
 let backend: StorageBackend = new FilesystemBackend();
@@ -84,6 +85,7 @@ export async function getTaxonomyDirs(): Promise<string[]> {
     }
     return dirs;
   } catch {
+    /* telemetry — silent by design */
     return [];
   }
 }
@@ -117,6 +119,13 @@ export async function isDataAvailable(): Promise<boolean> {
     log.server.debug({ taxDir, fileCount: files.length, hasData }, 'isDataAvailable check');
     return hasData;
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     log.server.debug({ taxDir, err: String(err) }, 'isDataAvailable error');
     return false;
   }
@@ -170,14 +179,14 @@ export async function readAggregatedCruxes(): Promise<unknown | null> {
   const filePath = path.join(getTaxonomyDir(), 'aggregated-cruxes.json');
   const raw = await backend.readFile(filePath);
   if (raw === null) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
 }
 
 export async function readConflictClusters(): Promise<unknown | null> {
   const filePath = path.join(getConflictsDir(), '_conflict-clusters.json');
   const raw = await backend.readFile(filePath);
   if (raw === null) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
 }
 
 export async function readAllConflictFiles(): Promise<unknown[]> {
@@ -245,7 +254,7 @@ export async function readLineageCategories(): Promise<unknown | null> {
   const filePath = path.join(getTaxonomyDir(), 'lineage_categories.json');
   const raw = await backend.readFile(filePath);
   if (raw === null) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
 }
 
 // ── Lineage enrichments ──
@@ -271,7 +280,7 @@ export async function readLineageEnrichments(): Promise<Record<string, unknown>>
     }
     lineageInfoCache = result;
     return result;
-  } catch { return {}; }
+  } catch { /* telemetry — silent by design */ return {}; }
 }
 
 // ── Policy registry ──
@@ -289,6 +298,13 @@ export async function readPolicyRegistry(): Promise<unknown | null> {
     log.server.debug({ count }, 'readPolicyRegistry loaded');
     return data;
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     log.server.error({ err }, 'readPolicyRegistry failed');
     return null;
   }
@@ -306,6 +322,7 @@ export async function readEdgesFile(): Promise<unknown | null> {
     if (raw === null) return null;
     return JSON.parse(raw);
   } catch {
+    /* telemetry — silent by design */
     return null;
   }
 }
@@ -396,7 +413,7 @@ export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
           datePublished: meta.date_published || meta.source_time || '',
         };
       }
-    } catch { /* skip */ }
+    } catch { /* telemetry — silent by design;  skip */ }
   }
 
   // Scan all summary files
@@ -420,7 +437,7 @@ export async function buildNodeSourceIndex(): Promise<NodeSourceIndex> {
       const raw = await backend.readFile(path.join(summariesDir, file));
       if (raw === null) continue;
       summary = JSON.parse(raw);
-    } catch { continue; }
+    } catch { /* telemetry — silent by design */ continue; }
 
     const meta = metaCache[docId] || { title: docId, url: null, sourceType: 'unknown', datePublished: '' };
 
@@ -492,7 +509,7 @@ export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
           nodeToPolicies.get(node.id)!.push(action.policy_id);
         }
       }
-    } catch { /* skip unavailable POV files */ }
+    } catch { /* telemetry — silent by design;  skip unavailable POV files */ }
   }
 
   // 3. Build node-source index
@@ -512,7 +529,7 @@ export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
           sourceTime: meta.source_time || '',
         };
       }
-    } catch { /* skip */ }
+    } catch { /* telemetry — silent by design;  skip */ }
   }
 
   // 5. For each node that has sources, map those sources to the node's policies
@@ -552,7 +569,7 @@ const DEBATE_INDEX_FILE = '_index.json';
 async function readDebateIndex(): Promise<{ id: string; title: string; created_at: string; updated_at: string; phase: string }[] | null> {
   const raw = await backend.readFile(path.join(getDebatesDir(), DEBATE_INDEX_FILE));
   if (raw === null) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
 }
 
 /** Write the debate index to disk. */
@@ -599,6 +616,7 @@ export async function listDebateSessionsMeta(): Promise<unknown[]> {
       void rebuildDebateIndex().catch(() => {});
       return cached;
     } catch {
+      /* telemetry — silent by design */
       return cached; // tree unavailable — trust the index
     }
   }
@@ -648,7 +666,7 @@ export async function listDebateSessions(): Promise<unknown[]> {
           model: raw.debate_model,
           turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
         });
-      } catch { /* skip */ }
+      } catch { /* telemetry — silent by design;  skip */ }
     }
   }
   return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
@@ -731,7 +749,7 @@ export async function listChatSessions(): Promise<unknown[]> {
         mode: parsed.mode || '',
         pover: parsed.pover || '',
       });
-    } catch { /* skip */ }
+    } catch { /* telemetry — silent by design;  skip */ }
   }
   return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
@@ -777,6 +795,7 @@ export async function listProposals(): Promise<unknown[]> {
     }
     return proposals;
   } catch {
+    /* telemetry — silent by design */
     return [];
   }
 }
@@ -817,7 +836,7 @@ export async function harvestAddDebateRef(nodeId: string, debateId: string): Pro
         }
         return true;
       }
-    } catch { /* try next */ }
+    } catch { /* telemetry — silent by design;  try next */ }
   }
   return false;
 }
@@ -842,7 +861,7 @@ export async function harvestUpdateSteelman(nodeId: string, attackerPov: string,
         await backend.writeFile(filePath, JSON.stringify(data, null, 2));
         return true;
       }
-    } catch { /* try next */ }
+    } catch { /* telemetry — silent by design;  try next */ }
   }
   return false;
 }
@@ -934,7 +953,7 @@ export async function discoverSources(): Promise<DiscoveredSource[]> {
         tags: meta.pov_tags || [],
         authors: meta.authors || [],
       });
-    } catch { /* skip */ }
+    } catch { /* telemetry — silent by design;  skip */ }
   }
   return sources.sort((a, b) => a.title.localeCompare(b.title));
 }
@@ -944,7 +963,7 @@ export async function loadSummary(docId: string): Promise<unknown | null> {
   const filePath = path.join(getSummariesDir(), `${docId}.json`);
   const raw = await backend.readFile(filePath);
   if (raw === null) return null;
-  try { return JSON.parse(raw); } catch { return null; }
+  try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
 }
 
 export async function loadSnapshot(sourceId: string): Promise<string | null> {
@@ -968,9 +987,9 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
       try {
         const raw = await backend.readFile(path.join(stdDir, f));
         if (raw) standardized.push(JSON.parse(raw));
-      } catch { /* skip malformed */ }
+      } catch { /* telemetry — silent by design;  skip malformed */ }
     }
-  } catch { /* directory may not exist */ }
+  } catch { /* telemetry — silent by design;  directory may not exist */ }
 
   const colloquial: unknown[] = [];
   try {
@@ -979,9 +998,9 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
       try {
         const raw = await backend.readFile(path.join(colDir, f));
         if (raw) colloquial.push(JSON.parse(raw));
-      } catch { /* skip malformed */ }
+      } catch { /* telemetry — silent by design;  skip malformed */ }
     }
-  } catch { /* directory may not exist */ }
+  } catch { /* telemetry — silent by design;  directory may not exist */ }
 
   return { standardized, colloquial, lintViolations: [] };
 }
@@ -994,6 +1013,7 @@ export async function readPsPrompt(promptName: string): Promise<{ text: string |
   try {
     return { text: await fs.readFile(filePath, 'utf-8') };
   } catch {
+    /* telemetry — silent by design */
     return { text: null, error: `Prompt not found: ${promptName}` };
   }
 }
@@ -1006,6 +1026,7 @@ export async function listPsPrompts(): Promise<string[]> {
       .filter(f => f.endsWith('.prompt'))
       .map(f => f.replace('.prompt', ''));
   } catch {
+    /* telemetry — silent by design */
     return [];
   }
 }
@@ -1017,6 +1038,7 @@ export async function loadAIModels(): Promise<unknown> {
   try {
     return JSON.parse(await fs.readFile(configPath, 'utf-8'));
   } catch {
+    /* telemetry — silent by design */
     return { backends: [], models: [], defaults: {} };
   }
 }
@@ -1041,7 +1063,7 @@ function isPrivateIP(hostname: string): boolean {
 
 function validateFetchUrl(url: string): string | null {
   let parsed: URL;
-  try { parsed = new URL(url); } catch { return 'Invalid URL'; }
+  try { parsed = new URL(url); } catch { /* telemetry — silent by design */ return 'Invalid URL'; }
 
   if (parsed.protocol !== 'https:') return 'Only HTTPS URLs are allowed';
   if (parsed.username || parsed.password) return 'URLs with credentials are not allowed';
@@ -1076,6 +1098,13 @@ export async function fetchUrlContent(url: string): Promise<{ content: string; e
     const markdown = await htmlToMarkdown(html);
     return { content: markdown };
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
     return { content: '', error: String(err) };
   }
 }
@@ -1091,6 +1120,7 @@ async function htmlToMarkdown(html: string): Promise<string> {
     });
     return stdout;
   } catch {
+    /* telemetry — silent by design */
     return stripHtmlFallback(html);
   } finally {
     fs.unlink(tmpFile).catch(() => { /* ignore */ });

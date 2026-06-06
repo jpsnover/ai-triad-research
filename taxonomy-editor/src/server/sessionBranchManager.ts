@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import type { GitHubAPIBackend, FileChange } from './githubAPIBackend.js';
 import { getTokenExpiryMs, getCredentials } from './githubAppAuth.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import type { FlightRecorder, RecordInput } from '../../../lib/flight-recorder/index.js';
 
 // ── Constants ────────────────────────────────────────────────────────────
@@ -115,6 +116,13 @@ class CommitMutex {
       try {
         await Promise.race([existing.promise, timeoutPromise]);
       } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'session-branch',
+          level: 'error',
+          message: 'Operation failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         if (err instanceof LockTimeoutError) {
           this.recordLockEvent('lock.timeout', userId, requestId, {
@@ -401,6 +409,13 @@ export class SessionBranchManager {
         });
       }
     } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'session-branch',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       this.recordEvent({
         type: 'github.api.error',
         component: 'session',
@@ -517,6 +532,7 @@ export class SessionBranchManager {
       );
       return res.ok;
     } catch {
+      /* telemetry — silent by design */
       return false;
     }
   }

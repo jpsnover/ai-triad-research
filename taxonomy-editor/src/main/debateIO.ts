@@ -65,6 +65,7 @@ export function listDebateSessions(): DebateSessionSummary[] {
           turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
         });
       } catch {
+        /* telemetry — silent by design */
         // Skip corrupt files
       }
     }
@@ -99,7 +100,7 @@ export function saveDebateSession(session: unknown): void {
       const dataPoint = extractCalibrationData(session as Parameters<typeof extractCalibrationData>[0], 'local' as const);
       appendCalibrationLog(dataPoint, dataRoot);
     }
-  } catch { /* calibration logging never blocks save */ }
+  } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
 }
 
 export function deleteDebateSession(id: string): void {
