@@ -1381,7 +1381,7 @@ export async function extractClaimsAndUpdateAN(
             baseDebate.topic?.embedding,
             baseDebate.topic?.clause_embeddings,
           );
-          patches.convergence_signals = [...(baseDebate.convergence_signals ?? []), sig];
+          patches.convergence_signals = [...(get().activeDebate?.convergence_signals ?? []), sig];
           getGlobalRecorder()?.record({ type: 'debate.signal', component: 'convergence-signals', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: 'Convergence signals computed', data: { round: sig.round, move_polarity: sig.move_polarity?.ratio, dialectical_engagement: sig.dialectical_engagement?.ratio, argument_redundancy: sig.argument_redundancy?.avg_self_overlap, crux_engagement_rate: sig.crux_engagement_rate?.cumulative_count } });
 
           // 4b. Process reward — continuous turn quality score (PRM-adjacent signal)
@@ -1417,7 +1417,7 @@ export async function extractClaimsAndUpdateAN(
               score: pr.score,
               components: pr.components,
             };
-            patches.process_rewards = [...(baseDebate.process_rewards ?? []), prEntry];
+            patches.process_rewards = [...(get().activeDebate?.process_rewards ?? []), prEntry];
             getGlobalRecorder()?.record({ type: 'debate.signal', component: 'process-reward', level: 'info', debate_id: baseDebate.id, turn_id: entryId, speaker, message: `Process reward: ${pr.score.toFixed(3)}`, data: { score: pr.score, ...pr.components } });
           }
         } catch (convErr) {
@@ -1467,14 +1467,19 @@ export async function extractClaimsAndUpdateAN(
         pushWarning(get, set, 'Crux resolution tracking skipped');
       }
 
-      // Single batched state update — one spread, one React re-render
-      set({
-        activeDebate: {
-          ...baseDebate,
-          ...patches,
-          argument_network: { ...an, nodes: currentNodes, edges: currentEdges },
-        },
-      });
+      // Single batched state update — re-read fresh state to avoid clobbering
+      // concurrent writes (turn_validations, position_drift, adaptive_staging)
+      // from the main crossRespond flow which runs in parallel.
+      const freshForBatch = get().activeDebate;
+      if (freshForBatch) {
+        set({
+          activeDebate: {
+            ...freshForBatch,
+            ...patches,
+            argument_network: { ...an, nodes: currentNodes, edges: currentEdges },
+          },
+        });
+      }
     }
 
     // Steelman validation (non-blocking)
@@ -1668,19 +1673,17 @@ export async function extractClaimsAndUpdateAN(
         pNode.verification_status = 'pending';
       }
     }
-    if (factCheckMutated) {
-      try { await get().saveDebate('extractClaimsAndUpdateAN:verify'); } catch (saveErr) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          debate_id: debate.id,
-          component: 'debate-store',
-          level: 'warn',
-          message: 'Failed to persist inline fact-check mutations',
-          error: { name: (saveErr as Error).name ?? 'Error', message: String(saveErr) },
-        });
-        console.warn('[Verify] Failed to persist inline fact-check mutations:', saveErr);
-        pushWarning(get, set, 'Fact-check results could not be saved');
-      }
+    try { await get().saveDebate('extractClaimsAndUpdateAN:postAnalytics'); } catch (saveErr) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        debate_id: debate.id,
+        component: 'debate-store',
+        level: 'warn',
+        message: 'Failed to persist post-extraction analytics',
+        error: { name: (saveErr as Error).name ?? 'Error', message: String(saveErr) },
+      });
+      console.warn('[Extract] Failed to persist post-extraction analytics:', saveErr);
+      pushWarning(get, set, 'Post-extraction data could not be saved');
     }
 
     // Record claim extraction diagnostics

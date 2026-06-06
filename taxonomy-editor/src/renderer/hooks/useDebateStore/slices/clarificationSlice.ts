@@ -879,6 +879,14 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         // Record diagnostics with full stage data
         if (lastEntry) {
           const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+          const topicAlignDiagOpen = pipelineResult.topicAlignmentResult
+            ? {
+              topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
+              repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+              draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
+              scope_used: get().activeDebate?.topic?.scope ?? null,
+            }
+            : undefined;
           recordDiagnostic(get, set, lastEntry.id, {
             prompt: draftDiag?.prompt ?? '',
             raw_response: draftDiag?.raw_response ?? '',
@@ -887,6 +895,8 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
             taxonomy_context: taxonomyBlock,
             commitment_context: commitBlock || undefined,
             stage_diagnostics: pipelineResult.stage_diagnostics,
+            topic_alignment: topicAlignDiagOpen,
+            quality_gate: pipelineResult.qualityGateResult,
           });
         }
 

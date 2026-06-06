@@ -429,6 +429,14 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         if (lastEntry) {
 
           const draftDiag = pipelineResult.stage_diagnostics.find(s => s.stage === 'draft');
+          const topicAlignDiagTerm = pipelineResult.topicAlignmentResult
+            ? {
+              topic_aligned: pipelineResult.topicAlignmentResult.topic_aligned,
+              repaired: pipelineResult.topicAlignmentResult.repaired || undefined,
+              draft_attempt: pipelineResult.topicAlignmentResult.draft_attempt,
+              scope_used: get().activeDebate?.topic?.scope ?? null,
+            }
+            : undefined;
           recordDiagnostic(get, set, lastEntry.id, {
             prompt: draftDiag?.raw_response ?? pipelineResult.final_text,
             raw_response: pipelineResult.final_text,
@@ -436,6 +444,8 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
             taxonomy_context: taxonomyBlock,
             commitment_context: commitBlock || undefined,
             stage_diagnostics: pipelineResult.stage_diagnostics,
+            topic_alignment: topicAlignDiagTerm,
+            quality_gate: pipelineResult.qualityGateResult,
           });
           void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
           await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
@@ -875,6 +885,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           commitment_context: commitBlock || undefined,
           stage_diagnostics: pipelineResult.stage_diagnostics,
           topic_alignment: topicAlignDiag,
+          quality_gate: pipelineResult.qualityGateResult,
         });
         void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims,
           // Lookahead regen callback: regenerate with per-claim guidance, frozen Brief
