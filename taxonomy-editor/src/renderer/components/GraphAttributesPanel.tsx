@@ -142,6 +142,381 @@ function Badge({ field, value, onClick, onContextMenu }: {
   );
 }
 
+// ── Extracted sub-components for complexity reduction ──────────
+
+function confidenceColor(val: number): string {
+  if (val >= 0.7) return 'var(--color-success, #22c55e)';
+  if (val >= 0.4) return 'var(--color-info, #3b82f6)';
+  return 'var(--color-warning, #f59e0b)';
+}
+
+function ConfidenceCell({ value, readOnly, doctrinallyAnchored, evidentialConfidence, history, onUpdate }: {
+  value: number;
+  readOnly?: boolean;
+  doctrinallyAnchored?: boolean;
+  evidentialConfidence?: number | null;
+  history?: Array<{ reason: string }>;
+  onUpdate?: (updates: { confidence: number }) => void;
+}) {
+  return (
+    <div className="ga-cell">
+      <div className="ga-label">Confidence</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <input
+          type="range"
+          min={0} max={1} step={0.05}
+          value={value}
+          disabled={readOnly || !onUpdate}
+          onChange={(e) => onUpdate?.({ confidence: parseFloat(e.target.value) })}
+          style={{ flex: 1 }}
+        />
+        <span style={{ fontSize: '0.8rem', fontWeight: 700, minWidth: 36, textAlign: 'right', color: confidenceColor(value) }}>
+          {value.toFixed(2)}
+        </span>
+        {doctrinallyAnchored && (
+          <span
+            style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', whiteSpace: 'nowrap' }}
+            title="This Belief is cosine-similar to the POV's doctrinal boundaries — a confidence floor is applied to prevent it from dropping below the doctrinal minimum"
+          >⚓ Doctrinally Anchored</span>
+        )}
+      </div>
+      {doctrinallyAnchored && evidentialConfidence != null && (
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+          Evidential confidence: <strong>{evidentialConfidence.toFixed(2)}</strong>
+          <span style={{ marginLeft: 4, fontSize: '0.65rem' }}>(floor applied: {value.toFixed(2)} ≥ doctrinal minimum)</span>
+        </div>
+      )}
+      {history && history.length > 0 && (
+        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+          {history.length} update(s) — latest: {history[history.length - 1].reason}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RankedSelectCell({ label, value, options, badge, history, readOnly, onUpdate }: {
+  label: string;
+  value: number;
+  options: Array<{ value: number; label: string }>;
+  badge?: { show: boolean; text: string; color: string; bg: string; title: string };
+  history?: Array<{ reason: string }>;
+  readOnly?: boolean;
+  onUpdate?: (val: number) => void;
+}) {
+  return (
+    <div className="ga-cell">
+      <div className="ga-label">{label}</div>
+      <select
+        value={value}
+        disabled={readOnly || !onUpdate}
+        onChange={(e) => onUpdate?.(parseInt(e.target.value, 10))}
+        style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+      >
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      {badge?.show && (
+        <span
+          style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: badge.bg, color: badge.color, marginTop: 4, display: 'inline-block' }}
+          title={badge.title}
+        >{badge.text}</span>
+      )}
+      {history && history.length > 0 && (
+        <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
+          {history.length} update(s) — latest: {history[history.length - 1].reason}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const PRIORITY_OPTIONS = [
+  { value: 5, label: '5 — Core (non-negotiable)' },
+  { value: 4, label: '4 — High' },
+  { value: 3, label: '3 — Important' },
+  { value: 2, label: '2 — Preferred' },
+  { value: 1, label: '1 — Nice-to-have' },
+];
+
+const OPERATIONALITY_OPTIONS = [
+  { value: 5, label: '5 — Fully operational (deployed/enacted)' },
+  { value: 4, label: '4 — High (concrete plan, resources allocated)' },
+  { value: 3, label: '3 — Moderate (specific but unresourced)' },
+  { value: 2, label: '2 — Low (vague aspiration)' },
+  { value: 1, label: '1 — Notional (pure rhetoric)' },
+];
+
+interface PolicyEdge { type: string; target: string; targetAction: string }
+
+const EDGE_GROUPS: Array<{ key: string; type: string; className: string; label: string }> = [
+  { key: 'contradicts', type: 'CONTRADICTS', className: 'ga-policy-edge-contradicts', label: 'Contradicts' },
+  { key: 'complements', type: 'COMPLEMENTS', className: 'ga-policy-edge-complements', label: 'Complements' },
+  { key: 'tensions', type: 'TENSION_WITH', className: 'ga-policy-edge-tension', label: 'Tension With' },
+];
+
+function PolicyEdgeGroups({ edges }: { edges: PolicyEdge[] }) {
+  return (
+    <div className="ga-policy-edges">
+      {EDGE_GROUPS.map(({ key, type, className, label }) => {
+        const group = edges.filter(e => e.type === type);
+        if (group.length === 0) return null;
+        return (
+          <div key={key} className="ga-policy-edge-group">
+            <div className={`ga-policy-edge-type ${className}`}>{label}</div>
+            {group.map((e, ei) => (
+              <div key={ei} className="ga-policy-edge-item">
+                <span className="ga-policy-edge-id">{e.target}</span> {e.targetAction}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PolicyActionHeader({ policyId, reg, edgeCount, expanded, onToggleExpand }: {
+  policyId: string;
+  reg?: PolicyRegistryEntry;
+  edgeCount: number;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}) {
+  return (
+    <div className="ga-policy-action-header">
+      <span className="ga-policy-action-id">{policyId}</span>
+      {reg && reg.member_count > 1 && (
+        <span className="ga-policy-action-reuse" title={`Used by ${reg.member_count} nodes across ${reg.source_povs.join(', ')}`}>
+          {reg.member_count} nodes &middot; {reg.source_povs.map(p => p.slice(0, 3)).join(', ')}
+        </span>
+      )}
+      {edgeCount > 0 && (
+        <button
+          className="ga-policy-edges-toggle"
+          onClick={onToggleExpand}
+          title={`${edgeCount} policy relationships`}
+        >
+          {expanded ? '▼' : '▶'} {edgeCount} edge{edgeCount !== 1 ? 's' : ''}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PolicyActionItem({ pa, index, reg, edges, readOnly, expanded, onToggleExpand, onUpdateFraming, onRemove }: {
+  pa: { policy_id?: string; action: string; framing: string };
+  index: number;
+  reg?: PolicyRegistryEntry;
+  edges?: PolicyEdge[];
+  readOnly?: boolean;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  onUpdateFraming?: (index: number, framing: string) => void;
+  onRemove?: (index: number) => void;
+}) {
+  const edgeCount = edges?.length || 0;
+  return (
+    <li className="ga-policy-action-item">
+      {pa.policy_id && (
+        <PolicyActionHeader policyId={pa.policy_id} reg={reg} edgeCount={edgeCount} expanded={expanded} onToggleExpand={onToggleExpand} />
+      )}
+      <div className="ga-policy-action-text">{pa.action}</div>
+      {!readOnly && onUpdateFraming ? (
+        <textarea
+          className="ga-policy-action-framing-input"
+          value={pa.framing}
+          onChange={(e) => onUpdateFraming(index, e.target.value)}
+          placeholder="POV-specific framing..."
+          rows={2}
+        />
+      ) : (
+        <div className="ga-policy-action-framing">{pa.framing}</div>
+      )}
+      {!readOnly && onRemove && (
+        <button className="ga-policy-action-remove" onClick={() => onRemove(index)} title="Remove policy">&times;</button>
+      )}
+      {expanded && edges && edges.length > 0 && <PolicyEdgeGroups edges={edges} />}
+    </li>
+  );
+}
+
+function AssumptionsCell({ assumes, readOnly, editing, onToggleEdit, onUpdate, onBadgeClick }: {
+  assumes?: string[];
+  readOnly?: boolean;
+  editing: boolean;
+  onToggleEdit: () => void;
+  onUpdate?: (assumes: string[]) => void;
+  onBadgeClick?: (field: string, value: string) => void;
+}) {
+  const items = assumes ?? [];
+  return (
+    <div className="ga-cell">
+      <div className="ga-label">
+        {LABEL_MAP.assumes}
+        {!readOnly && onUpdate && (
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px' }}
+            onClick={onToggleEdit}
+          >{editing ? 'Done' : 'Edit'}</button>
+        )}
+      </div>
+      {editing && onUpdate ? (
+        <>
+          <ul className="ga-list">
+            {items.map((a, i) => (
+              <li key={i} className="nd-editable-list-item">
+                <textarea
+                  className="nd-assumption-input"
+                  value={a}
+                  rows={2}
+                  onChange={(e) => {
+                    const updated = [...items];
+                    updated[i] = e.target.value;
+                    onUpdate(updated);
+                  }}
+                />
+                <button
+                  className="nd-remove-btn"
+                  title="Remove assumption"
+                  onClick={() => onUpdate(items.filter((_, j) => j !== i))}
+                >&times;</button>
+              </li>
+            ))}
+          </ul>
+          <button
+            className="btn btn-sm nd-add-btn"
+            onClick={() => onUpdate([...items, ''])}
+          >+ Add Assumption</button>
+        </>
+      ) : items.length > 0 ? (
+        <ul className="ga-list">
+          {items.map((a, i) => <li key={i}>{a}</li>)}
+        </ul>
+      ) : <div className="ga-empty">&mdash;</div>}
+    </div>
+  );
+}
+
+function FallacyItem({ f }: { f: PossibleFallacy }) {
+  const info = FALLACY_CATALOG[f.fallacy];
+  const label = info ? info.label : f.fallacy.replace(/_/g, ' ');
+  return (
+    <li className="ga-fallacy-item">
+      <div className="ga-fallacy-header">
+        <span className={`ga-fallacy-badge ga-fallacy-${f.confidence}`}>
+          {label}
+        </span>
+        {f.type ? (
+          <span className="ga-fallacy-type" title={`Fallacy tier: ${f.type.replace(/_/g, ' ')}`}>
+            {f.type.replace(/_/g, ' ')}
+          </span>
+        ) : (
+          <span className="ga-fallacy-type ga-fallacy-type-missing" title="Missing fallacy tier — run attribute extraction to populate">
+            no tier
+          </span>
+        )}
+        <span className="ga-fallacy-confidence">{f.confidence}</span>
+        {info && (
+          <button
+            className="ga-fallacy-about"
+            onClick={() => api.openExternal(info.wikiUrl)}
+            title={`Open Wikipedia article: ${label}`}
+          >
+            About
+          </button>
+        )}
+      </div>
+      <div className="ga-fallacy-explanation">{f.explanation}</div>
+      {info && (
+        <details className="ga-fallacy-details">
+          <summary>What is this fallacy?</summary>
+          <div className="ga-fallacy-description">{info.description}</div>
+          {info.example && <div className="ga-fallacy-example"><strong>Example:</strong> {info.example}</div>}
+        </details>
+      )}
+    </li>
+  );
+}
+
+function EpistemicTypeCell({ attrs, onBadgeClick, contextMenuHandler }: {
+  attrs: GraphAttributes;
+  onBadgeClick?: (field: string, value: string) => void;
+  contextMenuHandler?: (e: React.MouseEvent, field: string, value: string) => void;
+}) {
+  return (
+    <div className="ga-cell">
+      <div className="ga-label">{LABEL_MAP.epistemic_type}</div>
+      {attrs.epistemic_type ? (
+        <div className="ga-value">
+          <Badge field="epistemic_type" value={attrs.epistemic_type} onClick={onBadgeClick} onContextMenu={contextMenuHandler} />
+        </div>
+      ) : <div className="ga-empty">&mdash;</div>}
+      {attrs.falsifiability && (
+        <div className="ga-cell-sub">
+          <div className="ga-label">{LABEL_MAP.falsifiability}</div>
+          <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
+        </div>
+      )}
+      {attrs.node_scope && (
+        <div className="ga-cell-sub">
+          <div className="ga-label">{LABEL_MAP.node_scope}</div>
+          <div className="ga-value">
+            <Badge field="node_scope" value={attrs.node_scope} onClick={onBadgeClick} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PolicyPicker({ policyRegistry, filteredPolicies, policySearchQuery, onSearch, onAdd, onClose }: {
+  policyRegistry: PolicyRegistryEntry[];
+  filteredPolicies: PolicyRegistryEntry[];
+  policySearchQuery: string;
+  onSearch: (q: string) => void;
+  onAdd: (pol: PolicyRegistryEntry) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="ga-policy-picker">
+      <input
+        className="ga-policy-picker-input"
+        type="text"
+        value={policySearchQuery}
+        onChange={(e) => onSearch(e.target.value)}
+        placeholder="Search policies by ID or text..."
+        autoFocus
+      />
+      {filteredPolicies.length > 0 && (
+        <div className="ga-policy-picker-results">
+          {filteredPolicies.map(pol => (
+            <button
+              key={pol.id}
+              className="ga-policy-picker-item"
+              onClick={() => onAdd(pol)}
+            >
+              <span className="ga-policy-picker-id">{pol.id}</span>
+              <span className="ga-policy-picker-text">{pol.action}</span>
+              {pol.member_count > 1 && (
+                <span className="ga-policy-picker-reuse">{pol.member_count} nodes</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+      {policySearchQuery && filteredPolicies.length === 0 && (
+        <div className="ga-policy-picker-empty">No matching policies</div>
+      )}
+      <button className="btn btn-ghost btn-sm" onClick={onClose}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────
+
 export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo, onUpdatePolicyActions, onUpdateAssumptions, readOnly, defaultOpen, nodeCategory, confidence, priority, operationality, doctrinallyAnchored, evidentialConfidence, confidenceHistory, priorityHistory, operationalityHistory, onUpdateWeightedBdi }: GraphAttributesPanelProps) {
   const { policyRegistry, edgesFile } = useTaxonomyStore();
   const [open, setOpen] = useState(defaultOpen ?? false);
@@ -236,83 +611,15 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
       {open && (
         <div className="ga-grid-3col">
           {/* Row 1: Assumptions | Epistemic Type + Falsifiability | Rhetorical Strategy */}
-          <div className="ga-cell">
-            <div className="ga-label">
-              {LABEL_MAP.assumes}
-              {!readOnly && onUpdateAssumptions && !editingAssumptions && (
-                <button
-                  className="btn btn-ghost btn-sm"
-                  style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px' }}
-                  onClick={() => setEditingAssumptions(true)}
-                >Edit</button>
-              )}
-              {editingAssumptions && (
-                <button
-                  className="btn btn-ghost btn-sm"
-                  style={{ marginLeft: 6, fontSize: '0.6rem', padding: '1px 5px' }}
-                  onClick={() => setEditingAssumptions(false)}
-                >Done</button>
-              )}
-            </div>
-            {editingAssumptions && onUpdateAssumptions ? (
-              <>
-                <ul className="ga-list">
-                  {(attrs.assumes ?? []).map((a, i) => (
-                    <li key={i} className="nd-editable-list-item">
-                      <textarea
-                        className="nd-assumption-input"
-                        value={a}
-                        rows={2}
-                        onChange={(e) => {
-                          const updated = [...(attrs.assumes ?? [])];
-                          updated[i] = e.target.value;
-                          onUpdateAssumptions(updated);
-                        }}
-                      />
-                      <button
-                        className="nd-remove-btn"
-                        title="Remove assumption"
-                        onClick={() => {
-                          onUpdateAssumptions((attrs.assumes ?? []).filter((_, j) => j !== i));
-                        }}
-                      >&times;</button>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className="btn btn-sm nd-add-btn"
-                  onClick={() => onUpdateAssumptions([...(attrs.assumes ?? []), ''])}
-                >+ Add Assumption</button>
-              </>
-            ) : attrs.assumes && attrs.assumes.length > 0 ? (
-              <ul className="ga-list">
-                {attrs.assumes.map((a, i) => <li key={i}>{a}</li>)}
-              </ul>
-            ) : <div className="ga-empty">&mdash;</div>}
-          </div>
+          <AssumptionsCell
+            assumes={attrs.assumes}
+            readOnly={readOnly}
+            editing={editingAssumptions}
+            onToggleEdit={() => setEditingAssumptions(!editingAssumptions)}
+            onUpdate={onUpdateAssumptions}
+          />
 
-          <div className="ga-cell">
-            <div className="ga-label">{LABEL_MAP.epistemic_type}</div>
-            {attrs.epistemic_type ? (
-              <div className="ga-value">
-                <Badge field="epistemic_type" value={attrs.epistemic_type} onClick={onBadgeClick} onContextMenu={contextMenuHandler} />
-              </div>
-            ) : <div className="ga-empty">&mdash;</div>}
-            {attrs.falsifiability && (
-              <div className="ga-cell-sub">
-                <div className="ga-label">{LABEL_MAP.falsifiability}</div>
-                <HardnessMeter field="falsifiability" value={attrs.falsifiability} onClick={onBadgeClick} />
-              </div>
-            )}
-            {attrs.node_scope && (
-              <div className="ga-cell-sub">
-                <div className="ga-label">{LABEL_MAP.node_scope}</div>
-                <div className="ga-value">
-                  <Badge field="node_scope" value={attrs.node_scope} onClick={onBadgeClick} />
-                </div>
-              </div>
-            )}
-          </div>
+          <EpistemicTypeCell attrs={attrs} onBadgeClick={onBadgeClick} contextMenuHandler={contextMenuHandler} />
 
           <div className="ga-cell">
             <div className="ga-label">{LABEL_MAP.rhetorical_strategy}</div>
@@ -331,91 +638,37 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
             ) : <div className="ga-empty">&mdash;</div>}
           </div>
 
-          {/* Weighted BDI: Confidence (Beliefs) or Priority (Desires) */}
+          {/* Weighted BDI: Confidence (Beliefs) / Priority (Desires) / Operationality (Intentions) */}
           {nodeCategory === 'Beliefs' && (
-            <div className="ga-cell">
-              <div className="ga-label">Confidence</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="range"
-                  min={0} max={1} step={0.05}
-                  value={confidence ?? 0.5}
-                  disabled={readOnly || !onUpdateWeightedBdi}
-                  onChange={(e) => onUpdateWeightedBdi?.({ confidence: parseFloat(e.target.value) })}
-                  style={{ flex: 1 }}
-                />
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, minWidth: 36, textAlign: 'right', color: (confidence ?? 0.5) >= 0.7 ? 'var(--color-success, #22c55e)' : (confidence ?? 0.5) >= 0.4 ? 'var(--color-info, #3b82f6)' : 'var(--color-warning, #f59e0b)' }}>
-                  {(confidence ?? 0.5).toFixed(2)}
-                </span>
-                {doctrinallyAnchored && (
-                  <span
-                    style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(99,102,241,0.12)', color: '#6366f1', whiteSpace: 'nowrap' }}
-                    title="This Belief is cosine-similar to the POV's doctrinal boundaries — a confidence floor is applied to prevent it from dropping below the doctrinal minimum"
-                  >⚓ Doctrinally Anchored</span>
-                )}
-              </div>
-              {doctrinallyAnchored && evidentialConfidence != null && (
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  Evidential confidence: <strong>{evidentialConfidence.toFixed(2)}</strong>
-                  <span style={{ marginLeft: 4, fontSize: '0.65rem' }}>(floor applied: {(confidence ?? 0.5).toFixed(2)} ≥ doctrinal minimum)</span>
-                </div>
-              )}
-              {confidenceHistory && confidenceHistory.length > 0 && (
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {confidenceHistory.length} update(s) — latest: {confidenceHistory[confidenceHistory.length - 1].reason}
-                </div>
-              )}
-            </div>
+            <ConfidenceCell
+              value={confidence ?? 0.5}
+              readOnly={readOnly}
+              doctrinallyAnchored={doctrinallyAnchored}
+              evidentialConfidence={evidentialConfidence}
+              history={confidenceHistory}
+              onUpdate={onUpdateWeightedBdi}
+            />
           )}
           {nodeCategory === 'Desires' && (
-            <div className="ga-cell">
-              <div className="ga-label">Priority</div>
-              <select
-                value={priority ?? 3}
-                disabled={readOnly || !onUpdateWeightedBdi}
-                onChange={(e) => onUpdateWeightedBdi?.({ priority: parseInt(e.target.value, 10) })}
-                style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-              >
-                <option value={5}>5 — Core (non-negotiable)</option>
-                <option value={4}>4 — High</option>
-                <option value={3}>3 — Important</option>
-                <option value={2}>2 — Preferred</option>
-                <option value={1}>1 — Nice-to-have</option>
-              </select>
-              {priority === 5 && (
-                <span
-                  style={{ fontSize: '0.65rem', fontWeight: 600, padding: '1px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.12)', color: '#ef4444', marginTop: 4, display: 'inline-block' }}
-                  title="Priority 5 = Core doctrinal boundary — non-negotiable commitment for this POV"
-                >Doctrinally Pinned</span>
-              )}
-              {priorityHistory && priorityHistory.length > 0 && (
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {priorityHistory.length} update(s) — latest: {priorityHistory[priorityHistory.length - 1].reason}
-                </div>
-              )}
-            </div>
+            <RankedSelectCell
+              label="Priority"
+              value={priority ?? 3}
+              options={PRIORITY_OPTIONS}
+              badge={{ show: priority === 5, text: 'Doctrinally Pinned', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', title: 'Priority 5 = Core doctrinal boundary — non-negotiable commitment for this POV' }}
+              history={priorityHistory}
+              readOnly={readOnly}
+              onUpdate={onUpdateWeightedBdi ? (val) => onUpdateWeightedBdi({ priority: val }) : undefined}
+            />
           )}
           {nodeCategory === 'Intentions' && (
-            <div className="ga-cell">
-              <div className="ga-label">Operationality</div>
-              <select
-                value={operationality ?? 3}
-                disabled={readOnly || !onUpdateWeightedBdi}
-                onChange={(e) => onUpdateWeightedBdi?.({ operationality: parseInt(e.target.value, 10) })}
-                style={{ fontSize: '0.8rem', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-              >
-                <option value={5}>5 — Fully operational (deployed/enacted)</option>
-                <option value={4}>4 — High (concrete plan, resources allocated)</option>
-                <option value={3}>3 — Moderate (specific but unresourced)</option>
-                <option value={2}>2 — Low (vague aspiration)</option>
-                <option value={1}>1 — Notional (pure rhetoric)</option>
-              </select>
-              {operationalityHistory && operationalityHistory.length > 0 && (
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {operationalityHistory.length} update(s) — latest: {operationalityHistory[operationalityHistory.length - 1].reason}
-                </div>
-              )}
-            </div>
+            <RankedSelectCell
+              label="Operationality"
+              value={operationality ?? 3}
+              options={OPERATIONALITY_OPTIONS}
+              history={operationalityHistory}
+              readOnly={readOnly}
+              onUpdate={onUpdateWeightedBdi ? (val) => onUpdateWeightedBdi({ operationality: val }) : undefined}
+            />
           )}
 
           {/* Row 2: Audience | Emotional Register | Policy Actionability */}
@@ -453,87 +706,20 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
             <div className="ga-cell ga-cell-full">
               <div className="ga-label">Policy Actions</div>
               <ul className="ga-policy-actions-list">
-                {attrs.policy_actions.map((pa, i) => {
-                  const reg = policyRegistry?.find(p => p.id === pa.policy_id);
-                  const edges = pa.policy_id ? policyEdges.get(pa.policy_id) : undefined;
-                  const edgeCount = edges?.length || 0;
-                  const isExpanded = expandedPolicyId === pa.policy_id;
-                  const contradicts = edges?.filter(e => e.type === 'CONTRADICTS') || [];
-                  const complements = edges?.filter(e => e.type === 'COMPLEMENTS') || [];
-                  const tensions = edges?.filter(e => e.type === 'TENSION_WITH') || [];
-                  return (
-                    <li key={i} className="ga-policy-action-item">
-                      {pa.policy_id && (
-                        <div className="ga-policy-action-header">
-                          <span className="ga-policy-action-id">{pa.policy_id}</span>
-                          {reg && reg.member_count > 1 && (
-                            <span className="ga-policy-action-reuse" title={`Used by ${reg.member_count} nodes across ${reg.source_povs.join(', ')}`}>
-                              {reg.member_count} nodes &middot; {reg.source_povs.map(p => p.slice(0, 3)).join(', ')}
-                            </span>
-                          )}
-                          {edgeCount > 0 && (
-                            <button
-                              className="ga-policy-edges-toggle"
-                              onClick={() => setExpandedPolicyId(isExpanded ? null : pa.policy_id!)}
-                              title={`${edgeCount} policy relationships`}
-                            >
-                              {isExpanded ? '\u25BC' : '\u25B6'} {edgeCount} edge{edgeCount !== 1 ? 's' : ''}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      <div className="ga-policy-action-text">{pa.action}</div>
-                      {!readOnly && onUpdatePolicyActions ? (
-                        <textarea
-                          className="ga-policy-action-framing-input"
-                          value={pa.framing}
-                          onChange={(e) => handleUpdateFraming(i, e.target.value)}
-                          placeholder="POV-specific framing..."
-                          rows={2}
-                        />
-                      ) : (
-                        <div className="ga-policy-action-framing">{pa.framing}</div>
-                      )}
-                      {!readOnly && onUpdatePolicyActions && (
-                        <button className="ga-policy-action-remove" onClick={() => handleRemovePolicy(i)} title="Remove policy">&times;</button>
-                      )}
-                      {isExpanded && edges && edges.length > 0 && (
-                        <div className="ga-policy-edges">
-                          {contradicts.length > 0 && (
-                            <div className="ga-policy-edge-group">
-                              <div className="ga-policy-edge-type ga-policy-edge-contradicts">Contradicts</div>
-                              {contradicts.map((e, ei) => (
-                                <div key={ei} className="ga-policy-edge-item">
-                                  <span className="ga-policy-edge-id">{e.target}</span> {e.targetAction}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {complements.length > 0 && (
-                            <div className="ga-policy-edge-group">
-                              <div className="ga-policy-edge-type ga-policy-edge-complements">Complements</div>
-                              {complements.map((e, ei) => (
-                                <div key={ei} className="ga-policy-edge-item">
-                                  <span className="ga-policy-edge-id">{e.target}</span> {e.targetAction}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          {tensions.length > 0 && (
-                            <div className="ga-policy-edge-group">
-                              <div className="ga-policy-edge-type ga-policy-edge-tension">Tension With</div>
-                              {tensions.map((e, ei) => (
-                                <div key={ei} className="ga-policy-edge-item">
-                                  <span className="ga-policy-edge-id">{e.target}</span> {e.targetAction}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
+                {attrs.policy_actions.map((pa, i) => (
+                  <PolicyActionItem
+                    key={i}
+                    pa={pa}
+                    index={i}
+                    reg={policyRegistry?.find(p => p.id === pa.policy_id)}
+                    edges={pa.policy_id ? policyEdges.get(pa.policy_id) : undefined}
+                    readOnly={readOnly}
+                    expanded={expandedPolicyId === pa.policy_id}
+                    onToggleExpand={() => setExpandedPolicyId(expandedPolicyId === pa.policy_id ? null : pa.policy_id!)}
+                    onUpdateFraming={onUpdatePolicyActions ? handleUpdateFraming : undefined}
+                    onRemove={onUpdatePolicyActions ? handleRemovePolicy : undefined}
+                  />
+                ))}
               </ul>
             </div>
           )}
@@ -546,39 +732,14 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
                   + Add Policy Action
                 </button>
               ) : (
-                <div className="ga-policy-picker">
-                  <input
-                    className="ga-policy-picker-input"
-                    type="text"
-                    value={policySearchQuery}
-                    onChange={(e) => setPolicySearchQuery(e.target.value)}
-                    placeholder="Search policies by ID or text..."
-                    autoFocus
-                  />
-                  {filteredPolicies.length > 0 && (
-                    <div className="ga-policy-picker-results">
-                      {filteredPolicies.map(pol => (
-                        <button
-                          key={pol.id}
-                          className="ga-policy-picker-item"
-                          onClick={() => handleAddPolicy(pol)}
-                        >
-                          <span className="ga-policy-picker-id">{pol.id}</span>
-                          <span className="ga-policy-picker-text">{pol.action}</span>
-                          {pol.member_count > 1 && (
-                            <span className="ga-policy-picker-reuse">{pol.member_count} nodes</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {policySearchQuery && filteredPolicies.length === 0 && (
-                    <div className="ga-policy-picker-empty">No matching policies</div>
-                  )}
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setShowPolicyPicker(false); setPolicySearchQuery(''); }}>
-                    Cancel
-                  </button>
-                </div>
+                <PolicyPicker
+                  policyRegistry={policyRegistry}
+                  filteredPolicies={filteredPolicies}
+                  policySearchQuery={policySearchQuery}
+                  onSearch={setPolicySearchQuery}
+                  onAdd={handleAddPolicy}
+                  onClose={() => { setShowPolicyPicker(false); setPolicySearchQuery(''); }}
+                />
               )}
             </div>
           )}
@@ -588,46 +749,9 @@ export function GraphAttributesPanel({ attrs, onBadgeClick, onShowAttributeInfo,
             <div className="ga-cell ga-cell-full">
               <div className="ga-label">Possible Fallacies</div>
               <ul className="ga-fallacy-list">
-                {attrs.possible_fallacies.map((f: PossibleFallacy, i: number) => {
-                  const info = FALLACY_CATALOG[f.fallacy];
-                  const label = info ? info.label : f.fallacy.replace(/_/g, ' ');
-                  return (
-                    <li key={i} className="ga-fallacy-item">
-                      <div className="ga-fallacy-header">
-                        <span className={`ga-fallacy-badge ga-fallacy-${f.confidence}`}>
-                          {label}
-                        </span>
-                        {f.type ? (
-                          <span className="ga-fallacy-type" title={`Fallacy tier: ${f.type.replace(/_/g, ' ')}`}>
-                            {f.type.replace(/_/g, ' ')}
-                          </span>
-                        ) : (
-                          <span className="ga-fallacy-type ga-fallacy-type-missing" title="Missing fallacy tier — run attribute extraction to populate">
-                            no tier
-                          </span>
-                        )}
-                        <span className="ga-fallacy-confidence">{f.confidence}</span>
-                        {info && (
-                          <button
-                            className="ga-fallacy-about"
-                            onClick={() => api.openExternal(info.wikiUrl)}
-                            title={`Open Wikipedia article: ${label}`}
-                          >
-                            About
-                          </button>
-                        )}
-                      </div>
-                      <div className="ga-fallacy-explanation">{f.explanation}</div>
-                      {info && (
-                        <details className="ga-fallacy-details">
-                          <summary>What is this fallacy?</summary>
-                          <div className="ga-fallacy-description">{info.description}</div>
-                          {info.example && <div className="ga-fallacy-example"><strong>Example:</strong> {info.example}</div>}
-                        </details>
-                      )}
-                    </li>
-                  );
-                })}
+                {attrs.possible_fallacies.map((f: PossibleFallacy, i: number) => (
+                  <FallacyItem key={i} f={f} />
+                ))}
               </ul>
             </div>
           )}

@@ -47,89 +47,92 @@ export function PhaseTransitionCard({ type, content }: {
   );
 }
 
+const CONV_LBL: React.CSSProperties = { color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.03em' };
+const CONV_VAL: React.CSSProperties = { color: 'var(--text-primary)', fontSize: '0.72rem' };
+const CONV_CELL: React.CSSProperties = { padding: '4px 6px', borderRadius: 3, background: 'var(--bg-tertiary, rgba(255,255,255,0.03))' };
+
+function ConvBadge({ text, color }: { text: string; color: string }) {
+  return <span style={{ color, marginLeft: 4, fontSize: '0.62rem' }}>{text}</span>;
+}
+
+function bandBadge(value: number, bands: [number, string, string][]): ReactNode {
+  for (const [threshold, label, color] of bands) {
+    if (value >= threshold) return <ConvBadge text={label} color={color} />;
+  }
+  const fallback = bands[bands.length - 1];
+  return <ConvBadge text={fallback[1]} color={fallback[2]} />;
+}
+
+function ConvCell({ label, span, children }: { label: string; span?: boolean; children: ReactNode }) {
+  return (
+    <div style={span ? { ...CONV_CELL, gridColumn: '1 / -1' } : CONV_CELL}>
+      <div style={CONV_LBL}>{label}</div>
+      <div style={CONV_VAL}>{children}</div>
+    </div>
+  );
+}
+
+const CONCESSION_STYLES: Record<string, { bg: string; fg: string; label: string }> = {
+  taken: { bg: 'rgba(34,197,94,0.15)', fg: '#22c55e', label: 'Taken' },
+  missed: { bg: 'rgba(239,68,68,0.15)', fg: '#ef4444', label: 'Missed' },
+};
+const CONCESSION_DEFAULT = { bg: 'rgba(148,163,184,0.15)', fg: '#94a3b8', label: 'N/A' };
+
 export function ConvergenceInlineCard({ signal }: { signal: ConvergenceSignals | undefined }) {
   if (!signal) {
     return <div style={{ padding: 8, color: 'var(--text-muted)', fontSize: '0.8rem' }}>No convergence data for this turn.</div>;
   }
-  const md = signal.move_polarity;
-  const ed = signal.dialectical_engagement;
-  const rr = signal.argument_redundancy;
-  const so = signal.dominant_counterargument;
-  const co = signal.concession_opportunity;
-  const pd = signal.position_drift;
-  const cr = signal.crux_engagement_rate;
-  const lbl: React.CSSProperties = { color: 'var(--text-muted)', fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.03em' };
-  const val: React.CSSProperties = { color: 'var(--text-primary)', fontSize: '0.72rem' };
-  const cell: React.CSSProperties = { padding: '4px 6px', borderRadius: 3, background: 'var(--bg-tertiary, rgba(255,255,255,0.03))' };
-  const badge = (text: string, color: string) => (
-    <span style={{ color, marginLeft: 4, fontSize: '0.62rem' }}>{text}</span>
-  );
+  const { move_polarity: md, dialectical_engagement: ed, argument_redundancy: rr,
+    dominant_counterargument: so, concession_opportunity: co, position_drift: pd, crux_engagement_rate: cr } = signal;
+
+  const edTargeted = ed?.targeted ?? 0;
+  const edTotal = edTargeted + (ed?.standalone ?? 0);
+  const rrMaxOverlap = rr?.max_self_overlap ?? 0;
+  const coStyle = CONCESSION_STYLES[co?.outcome ?? ''] ?? CONCESSION_DEFAULT;
+  const pdOverlap = pd?.overlap_with_opening ?? 0;
+  const crCount = cr?.cumulative_count ?? 0;
+  const crFollow = cr?.cumulative_follow_through ?? 0;
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, padding: '4px 0' }}>
-      <div style={cell}>
-        <div style={lbl}>Polarity</div>
-        <div style={val}>
-          <span style={{ color: '#ef4444' }}>{md?.confrontational ?? 0}C</span>{' / '}
-          <span style={{ color: '#22c55e' }}>{md?.collaborative ?? 0}S</span>
-          {' = '}<strong>{pctFmt(md?.ratio ?? 0)}</strong>
-          {(md?.ratio ?? 0) >= 0.5 ? badge('cooperative', '#22c55e') : badge('confrontational', '#ef4444')}
-        </div>
-      </div>
-      <div style={cell}>
-        <div style={lbl}>Dialectical Engagement</div>
-        <div style={val}>
-          {ed?.targeted ?? 0}/{(ed?.targeted ?? 0) + (ed?.standalone ?? 0)} targeted = <strong>{pctFmt(ed?.ratio ?? 0)}</strong>
-          {(ed?.ratio ?? 0) >= 0.7 ? badge('deep', '#22c55e') : (ed?.ratio ?? 0) >= 0.4 ? badge('moderate', '#f59e0b') : badge('standalone', '#ef4444')}
-        </div>
-      </div>
-      <div style={cell}>
-        <div style={lbl}>Argument Redundancy</div>
-        <div style={val}>
-          avg <strong>{pctFmt(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pctFmt(rr?.max_self_overlap ?? 0)}</strong>
-          {rr?.semantic_max_similarity != null && <>, sem <strong>{pctFmt(rr.semantic_max_similarity)}</strong></>}
-          {rr?.semantically_recycled ? badge('semantic repeat', '#ef4444')
-            : (rr?.max_self_overlap ?? 0) >= 0.5 ? badge('repeating', '#f59e0b')
-            : badge('fresh', '#22c55e')}
-        </div>
-      </div>
-      <div style={cell}>
-        <div style={lbl}>Dominant Counterargument</div>
-        <div style={val}>
-          {so ? (
-            <>{so.node_id} str={so.strength?.toFixed(2)}
-              {(so.strength ?? 0) >= 0.7 ? badge('strong', '#ef4444') : (so.strength ?? 0) >= 0.5 ? badge('moderate', '#f59e0b') : badge('weak', '#22c55e')}
-            </>
-          ) : <span style={{ color: 'var(--text-muted)' }}>none</span>}
-        </div>
-      </div>
-      <div style={cell}>
-        <div style={lbl}>Concession</div>
-        <div style={val}>
-          {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} —{' '}
-          <span style={{
-            padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700,
-            background: co?.outcome === 'taken' ? 'rgba(34,197,94,0.15)' : co?.outcome === 'missed' ? 'rgba(239,68,68,0.15)' : 'rgba(148,163,184,0.15)',
-            color: co?.outcome === 'taken' ? '#22c55e' : co?.outcome === 'missed' ? '#ef4444' : '#94a3b8',
-          }}>{co?.outcome === 'taken' ? 'Taken' : co?.outcome === 'missed' ? 'Missed' : 'N/A'}</span>
-        </div>
-      </div>
-      <div style={cell}>
-        <div style={lbl}>Position Drift</div>
-        <div style={val}>
-          opening: <strong>{pctFmt(pd?.overlap_with_opening ?? 0)}</strong>, drift: <strong>{pctFmt(pd?.drift ?? 0)}</strong>
-          {(pd?.overlap_with_opening ?? 0) >= 0.6 ? badge('anchored', '#f59e0b')
-            : (pd?.overlap_with_opening ?? 0) < 0.3 ? badge('shifted', '#3b82f6')
-            : badge('evolved', '#22c55e')}
-        </div>
-      </div>
-      <div style={{ ...cell, gridColumn: '1 / -1' }}>
-        <div style={lbl}>Crux Engagement</div>
-        <div style={val}>
-          this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {cr?.cumulative_count ?? 0} | follow-through: {cr?.cumulative_follow_through ?? 0}
-          {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) === 0 && badge('no follow-through', '#f59e0b')}
-          {(cr?.cumulative_count ?? 0) > 0 && (cr?.cumulative_follow_through ?? 0) > 0 && badge('resolving', '#22c55e')}
-        </div>
-      </div>
+      <ConvCell label="Polarity">
+        <span style={{ color: '#ef4444' }}>{md?.confrontational ?? 0}C</span>{' / '}
+        <span style={{ color: '#22c55e' }}>{md?.collaborative ?? 0}S</span>
+        {' = '}<strong>{pctFmt(md?.ratio ?? 0)}</strong>
+        {bandBadge(md?.ratio ?? 0, [[0.5, 'cooperative', '#22c55e'], [0, 'confrontational', '#ef4444']])}
+      </ConvCell>
+      <ConvCell label="Dialectical Engagement">
+        {edTargeted}/{edTotal} targeted = <strong>{pctFmt(ed?.ratio ?? 0)}</strong>
+        {bandBadge(ed?.ratio ?? 0, [[0.7, 'deep', '#22c55e'], [0.4, 'moderate', '#f59e0b'], [0, 'standalone', '#ef4444']])}
+      </ConvCell>
+      <ConvCell label="Argument Redundancy">
+        avg <strong>{pctFmt(rr?.avg_self_overlap ?? 0)}</strong>, max <strong>{pctFmt(rrMaxOverlap)}</strong>
+        {rr?.semantic_max_similarity != null && <>, sem <strong>{pctFmt(rr.semantic_max_similarity)}</strong></>}
+        {rr?.semantically_recycled ? <ConvBadge text="semantic repeat" color="#ef4444" />
+          : bandBadge(rrMaxOverlap, [[0.5, 'repeating', '#f59e0b'], [0, 'fresh', '#22c55e']])}
+      </ConvCell>
+      <ConvCell label="Dominant Counterargument">
+        {so ? (
+          <>{so.node_id} str={so.strength?.toFixed(2)}
+            {bandBadge(so.strength ?? 0, [[0.7, 'strong', '#ef4444'], [0.5, 'moderate', '#f59e0b'], [0, 'weak', '#22c55e']])}
+          </>
+        ) : <span style={{ color: 'var(--text-muted)' }}>none</span>}
+      </ConvCell>
+      <ConvCell label="Concession">
+        {co?.strong_attacks_faced ?? 0} attacks, used: {co?.concession_used ? 'Y' : 'N'} —{' '}
+        <span style={{ padding: '1px 6px', borderRadius: 3, fontSize: '0.6rem', fontWeight: 700, background: coStyle.bg, color: coStyle.fg }}>
+          {coStyle.label}
+        </span>
+      </ConvCell>
+      <ConvCell label="Position Drift">
+        opening: <strong>{pctFmt(pdOverlap)}</strong>, drift: <strong>{pctFmt(pd?.drift ?? 0)}</strong>
+        {bandBadge(pdOverlap, [[0.6, 'anchored', '#f59e0b'], [0.3, 'evolved', '#22c55e'], [0, 'shifted', '#3b82f6']])}
+      </ConvCell>
+      <ConvCell label="Crux Engagement" span>
+        this turn: {cr?.used_this_turn ? 'Yes' : 'No'} | cumulative: {crCount} | follow-through: {crFollow}
+        {crCount > 0 && crFollow === 0 && <ConvBadge text="no follow-through" color="#f59e0b" />}
+        {crCount > 0 && crFollow > 0 && <ConvBadge text="resolving" color="#22c55e" />}
+      </ConvCell>
     </div>
   );
 }
@@ -230,6 +233,37 @@ export function EntryCommentBadge({ entryId }: { entryId: string }) {
   );
 }
 
+// ── Tier display content resolution ─────────────────────
+
+const SUBSTANTIVE_TYPES = new Set(['opening', 'statement', 'fact-check', 'cross_respond']);
+
+function resolveDisplayContent(entry: TranscriptEntry, activeTier: string, isSubstantive: boolean): { displayContent: string; isTruncated: boolean } {
+  const hasSummaries = entry.summaries != null;
+  if (hasSummaries && activeTier === 'brief') return { displayContent: stripLeadingHeadings(entry.summaries!.brief), isTruncated: false };
+  if (hasSummaries && activeTier === 'medium') return { displayContent: stripLeadingHeadings(entry.summaries!.medium), isTruncated: false };
+  if (!hasSummaries && activeTier === 'brief' && isSubstantive) {
+    const sentences = entry.content.split(/(?<=[.!?])\s+/);
+    return { displayContent: stripLeadingHeadings(sentences.slice(0, 2).join(' ')), isTruncated: sentences.length > 2 };
+  }
+  if (!hasSummaries && activeTier === 'medium' && isSubstantive) {
+    const paraBreak = entry.content.indexOf('\n\n');
+    const text = (paraBreak > 0 && paraBreak < 500) ? entry.content.slice(0, paraBreak) : entry.content.slice(0, 500);
+    return { displayContent: stripLeadingHeadings(text), isTruncated: text.length < entry.content.length };
+  }
+  return { displayContent: stripLeadingHeadings(entry.content), isTruncated: false };
+}
+
+const TIER_LABELS: Record<string, string> = {
+  brief: 'Brief', medium: 'Med', detailed: 'Detail', reasoning: 'Plan',
+  claims: 'Claims', terms: 'Terms', lineage: 'Lineage', convergence: 'Conv',
+};
+const TIER_TITLES: Record<string, string> = {
+  brief: '2-3 sentences', medium: '1-2 paragraphs', detailed: 'Full response',
+  reasoning: 'Brief, plan & BDI (replaces text)', claims: 'Argument network claims',
+  terms: 'Vocabulary disambiguation', lineage: 'Intellectual lineage references',
+  convergence: 'Convergence diagnostics',
+};
+
 // ── Main cards ──────────────────────────────────────────
 
 export function StatementCard({ entry, statementId, findQuery = '', matchOffset = 0, findCurrentIndex = -1, entryIndex, totalEntries }: {
@@ -263,34 +297,11 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
     [vocabResolutions, showTerms, showLineage],
   );
 
-  // Tier display logic (DT-3)
-  const hasSummaries = entry.summaries != null;
-  const isSubstantive = ['opening', 'statement', 'fact-check', 'cross_respond'].includes(entry.type);
+  const isSubstantive = SUBSTANTIVE_TYPES.has(entry.type);
   const activeTier = isSubstantive ? (entry.display_tier ?? defaultTier) : 'detailed';
   const showTierPills = isSubstantive;
   const hasHighlights = useHasCommentHighlights(entry.id, activeTier as DetailTier);
-  let displayContent: string;
-  let isTruncated = false;
-  if (hasSummaries && activeTier === 'brief') {
-    displayContent = entry.summaries!.brief;
-  } else if (hasSummaries && activeTier === 'medium') {
-    displayContent = entry.summaries!.medium;
-  } else if (!hasSummaries && activeTier === 'brief' && isSubstantive) {
-    const sentences = entry.content.split(/(?<=[.!?])\s+/);
-    displayContent = sentences.slice(0, 2).join(' ');
-    isTruncated = sentences.length > 2;
-  } else if (!hasSummaries && activeTier === 'medium' && isSubstantive) {
-    const paraBreak = entry.content.indexOf('\n\n');
-    if (paraBreak > 0 && paraBreak < 500) {
-      displayContent = entry.content.slice(0, paraBreak);
-    } else {
-      displayContent = entry.content.slice(0, 500);
-    }
-    isTruncated = displayContent.length < entry.content.length;
-  } else {
-    displayContent = entry.content;
-  }
-  displayContent = stripLeadingHeadings(displayContent);
+  const { displayContent, isTruncated } = resolveDisplayContent(entry, activeTier, isSubstantive);
 
   return (
     <div
@@ -333,15 +344,16 @@ export function StatementCard({ entry, statementId, findQuery = '', matchOffset 
           <span className="debate-tier-pills">
             {(['brief', 'medium', 'detailed', 'reasoning', 'terms', 'lineage', 'claims', 'convergence'] as const).map(tier => {
               if (tier === 'terms' && !(vocabResolutions && vocabResolutions.length > 0)) return null;
+              const isSpecial = (tier === 'terms' || tier === 'lineage') && activeTier !== tier;
               return (
                 <button
                   key={tier}
                   className={`debate-tier-pill${activeTier === tier ? ' debate-tier-pill-active' : ''}`}
                   onClick={(e) => { e.stopPropagation(); setEntryDisplayTier(entry.id, tier); }}
-                  title={tier === 'brief' ? '2-3 sentences' : tier === 'medium' ? '1-2 paragraphs' : tier === 'detailed' ? 'Full response' : tier === 'reasoning' ? 'Brief, plan & BDI (replaces text)' : tier === 'claims' ? 'Argument network claims' : tier === 'terms' ? 'Vocabulary disambiguation' : tier === 'lineage' ? 'Intellectual lineage references' : 'Convergence diagnostics'}
-                  style={(tier === 'terms' && activeTier !== 'terms') || (tier === 'lineage' && activeTier !== 'lineage') ? { color: 'rgb(168, 85, 247)' } : undefined}
+                  title={TIER_TITLES[tier]}
+                  style={isSpecial ? { color: 'rgb(168, 85, 247)' } : undefined}
                 >
-                  {tier === 'brief' ? 'Brief' : tier === 'medium' ? 'Med' : tier === 'detailed' ? 'Detail' : tier === 'reasoning' ? 'Plan' : tier === 'claims' ? 'Claims' : tier === 'terms' ? 'Terms' : tier === 'lineage' ? 'Lineage' : 'Conv'}
+                  {TIER_LABELS[tier]}
                 </button>
               );
             })}
