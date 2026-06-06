@@ -3,42 +3,47 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { api } from '@bridge';
-import { useDebateStore } from '../hooks/useDebateStore';
+import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
-import { humanizeSpeakerIds } from '../utils/humanizeSpeakers';
-import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge, ConvergenceSignals } from '../types/debate';
-import { computeQbafStrengths } from '@lib/debate/qbaf';
-import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
-import type { TopicCritique, StructuralScore, FrameScore } from '@lib/debate/topicCritique';
-import type { TabId } from '../types/taxonomy';
-import { DebateSourceViewer } from './DebateSourceViewer';
-import { HarvestDialog } from './HarvestDialog';
-import { ReflectionsPanel } from './ReflectionsPanel';
-import { NewsReportModal } from './NewsReportModal';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { POVER_INFO, DEBATE_AUDIENCES } from '../../types/debate';
+import { humanizeSpeakerIds } from '../../utils/humanizeSpeakers';
+import type { SpeakerId, TranscriptEntry, TaxonomyRef, DebateAudience, DocumentINode, ArgumentNetworkNode, ArgumentNetworkEdge, ConvergenceSignals } from '../../types/debate';
+import type { TopicCritique } from '@lib/debate/topicCritique';
+import { DebateSourceViewer } from '../DebateSourceViewer';
+import { HarvestDialog } from '../HarvestDialog';
+import { ReflectionsPanel } from '../ReflectionsPanel';
+import { NewsReportModal } from '../NewsReportModal';
 // DiagnosticsPanel removed — diagnostics always uses popup window
-import { NeutralEvaluationPanel } from './NeutralEvaluationPanel';
-import { ParameterHistoryPanel } from './ParameterHistoryPanel';
-import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import { NeutralEvaluationPanel } from '../NeutralEvaluationPanel';
+import { ParameterHistoryPanel } from '../ParameterHistoryPanel';
 import { AI_POVERS } from '@lib/debate/types';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { lineageMarkdownComponents, extractLineageNames } from '../utils/lineageMatcher';
-import { getDebateMarkdownComponents, type VocabResolution } from '../utils/vocabularyAnnotations';
-import { getLineageInfo } from '../data/lineageLookup';
-import { CommentCreationPopover } from './CommentCreationPopover';
-import type { CommentPopoverState } from './CommentCreationPopover';
-import { CommentSidebar } from './CommentSidebar';
-import { CommentHighlightedText, useEntryCommentCount, useHasCommentHighlights } from './CommentHighlights';
-import { useCommentStore, COMMENT_TYPE_META } from '../hooks/useCommentStore';
+import { lineageMarkdownComponents } from '../../utils/lineageMatcher';
+import { getDebateMarkdownComponents, type VocabResolution } from '../../utils/vocabularyAnnotations';
+import {
+  speakerLabel, speakerColor, getPolicyAction, groundingLabel, GROUNDING_COLORS,
+  STRENGTH_BAND, pctFmt, POV_COLOR_VAR, nodeIdToTab, getNodeLabel, getNodeWeight,
+  focusMainWindowNode, countOccurrences, buildExplainPrompt, handleExplainEntry,
+  stripLeadingHeadings, fixMarkdownLinks, resolvePolRef,
+} from './utils';
+import type { PolicyRefEntry } from './utils';
+import { ClaimsView } from './ClaimsView';
+import { LineageTermsView, VocabTermsView } from './VocabularyPanel';
+import { TopicCritiqueCard, DIMENSION_LABELS, RATING_COLORS } from './TopicCritique';
+import { CommentCreationPopover } from '../CommentCreationPopover';
+import type { CommentPopoverState } from '../CommentCreationPopover';
+import { CommentSidebar } from '../CommentSidebar';
+import { CommentHighlightedText, useEntryCommentCount, useHasCommentHighlights } from '../CommentHighlights';
+import { useCommentStore, COMMENT_TYPE_META } from '../../hooks/useCommentStore';
 import type { Comment, DetailTier } from '@lib/debate/comments';
-import { UsernamePromptDialog } from './UsernamePromptDialog';
-import { DiagnosticsChatSidebar } from './DiagnosticsChatSidebar';
-import type { NavigateCommand } from './DiagnosticsChatSidebar';
-import { triggerManualDump } from '../lib/flightRecorderInit';
+import { UsernamePromptDialog } from '../UsernamePromptDialog';
+import { DiagnosticsChatSidebar } from '../debate-diagnostics/chat';
+import type { NavigateCommand } from '../debate-diagnostics/chat';
+import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Phase 7: Context menu state ──────────────────────────
@@ -149,41 +154,7 @@ function PhaseTransitionCard({ type, content }: {
   );
 }
 
-function getPolicyAction(polId: string): string {
-  const registry = useTaxonomyStore.getState().policyRegistry;
-  if (!registry) return polId;
-  const entry = registry.find(p => p.id === polId);
-  return entry ? entry.action : polId;
-}
-
-
-function speakerLabel(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string {
-  if (speaker === 'system') return 'System';
-  if (speaker === 'moderator') return 'Moderator';
-  if (speaker === 'user') return 'You';
-  if (speaker === 'document') return 'Document';
-  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
-  return info ? info.label : speaker;
-}
-
-function speakerColor(speaker: SpeakerId | 'system' | 'document' | 'moderator'): string | undefined {
-  if (speaker === 'system' || speaker === 'user' || speaker === 'document') return undefined;
-  if (speaker === 'moderator') return 'var(--color-moderator, #8b5cf6)';
-  const info = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>];
-  return info?.color;
-}
-
-// ── Claims View (t/52) — arg net subgraph per entry ─────
-
-const STRENGTH_BAND = (v: number) =>
-  v >= 0.8 ? { label: 'Strong', color: '#22c55e' }
-  : v >= 0.5 ? { label: 'Moderate', color: '#3b82f6' }
-  : v >= 0.3 ? { label: 'Weak', color: '#f59e0b' }
-  : { label: 'Very Weak', color: '#ef4444' };
-
 // ── Inline convergence diagnostics card for a single entry ──
-
-function pctFmt(v: number): string { return `${(v * 100).toFixed(0)}%`; }
 
 function ConvergenceInlineCard({ signal }: { signal: ConvergenceSignals | undefined }) {
   if (!signal) {
@@ -272,378 +243,6 @@ function ConvergenceInlineCard({ signal }: { signal: ConvergenceSignals | undefi
   );
 }
 
-function groundingLabel(baseStrength: number | undefined): string {
-  if (baseStrength === undefined) return '';
-  if (baseStrength >= 0.65) return 'Grounded';
-  if (baseStrength >= 0.35) return 'Reasoned';
-  return 'Asserted';
-}
-
-const GROUNDING_COLORS: Record<string, string | undefined> = {
-  Grounded: '#22c55e',
-  Asserted: '#f59e0b',
-};
-
-function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }: {
-  node: ArgumentNetworkNode;
-  attacks: ArgumentNetworkEdge[];
-  supports: ArgumentNetworkEdge[];
-  allNodes: ArgumentNetworkNode[];
-  strengthMap: Map<string, number>;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const hasEdges = attacks.length > 0 || supports.length > 0;
-  const base = node.base_strength ?? 0.5;
-  const computed = strengthMap.get(node.id) ?? node.computed_strength ?? base;
-  const delta = computed - base;
-  const band = STRENGTH_BAND(computed);
-
-  const bandColor = computed >= 0.8 ? '#22c55e' : computed >= 0.5 ? '#3b82f6' : computed >= 0.3 ? '#f59e0b' : '#ef4444';
-  const attr = node.claim_taxonomy_attribution;
-
-  return (
-    <div style={{ margin: '4px 0', paddingBottom: 4, borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
-        {hasEdges ? (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, lineHeight: 1, marginTop: 2, flexShrink: 0 }}
-          >{expanded ? '\u25BC' : '\u25B6'}</button>
-        ) : <span style={{ width: 10, flexShrink: 0 }} />}
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: node.political_salience ? '84px 110px 72px 180px 200px 60px 80px' : '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
-          {/* Col 1: AN ID */}
-          <strong style={{ color: 'var(--accent)' }}>{node.id}</strong>
-          {/* Col 2: Speaker */}
-          <span>{speakerLabel(node.speaker)}</span>
-          {/* Col 3: BDI category */}
-          <span>{node.bdi_category === 'belief' ? 'Belief' : node.bdi_category === 'desire' ? 'Desire' : node.bdi_category === 'intention' ? 'Intention' : ''}</span>
-          {/* Col 4: Attribution */}
-          <span>
-            {attr && (() => {
-              if (attr.unattributed_reason) {
-                const reasonLabel = attr.unattributed_reason === 'novel_argument' ? 'novel' : 'no embedding';
-                return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}><span style={{ color: '#ef4444', fontSize: '0.9rem', marginRight: 3 }}>●</span>{reasonLabel}</span>;
-              }
-              const conf = attr.attribution_confidence;
-              const confColor = conf >= 0.7 ? '#22c55e' : conf >= 0.5 ? '#3b82f6' : '#f59e0b';
-              return <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)' }}><span style={{ color: confColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{attr.primary_ref} {conf.toFixed(2)}</span>;
-            })()}
-          </span>
-          {/* Col 5: Strength */}
-          <span style={{ fontWeight: 700, padding: '1px 5px', borderRadius: 3, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }} title={`Strength: ${computed.toFixed(2)} (base: ${base.toFixed(2)})`}>
-            <span style={{ color: bandColor, fontSize: '0.9rem', marginRight: 3 }}>●</span>{band.label} {computed.toFixed(2)}
-            {Math.abs(delta) > 0.01 && <span style={{ color: 'var(--text-muted)', marginLeft: 3 }}>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</span>}
-          </span>
-          {/* Col 6: Edge count */}
-          <span style={{ color: 'var(--text-muted)' }}>
-            {hasEdges ? `${attacks.length + supports.length} edge${attacks.length + supports.length !== 1 ? 's' : ''}` : ''}
-          </span>
-          {/* Col 7: Political salience (policymaker debates only) */}
-          {node.political_salience && (
-            <span style={{ fontWeight: 700, fontSize: '0.75rem', padding: '1px 6px', borderRadius: 3 }}>
-              <span style={{ marginRight: 3 }}>
-                {node.political_salience === 'high' ? '🔴' : node.political_salience === 'medium' ? '🟡' : '⚪'}
-              </span>
-              {node.political_salience}
-            </span>
-          )}
-        </div>
-      </div>
-      <div style={{ paddingLeft: 18, marginTop: 2 }}>{node.text}</div>
-      {expanded && (
-        <div style={{ paddingLeft: 18, marginTop: 4 }}>
-          {attacks.map(e => {
-            const src = allNodes.find(n => n.id === e.source);
-            return (
-              <div key={`a-${e.source}`} style={{ color: '#ef4444', marginBottom: 2 }}>
-                ← <strong>{e.source}</strong> {e.attack_type ?? 'rebut'} ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
-              </div>
-            );
-          })}
-          {supports.map(e => {
-            const src = allNodes.find(n => n.id === e.source);
-            return (
-              <div key={`s-${e.source}`} style={{ color: '#22c55e', marginBottom: 2 }}>
-                ← <strong>{e.source}</strong> support ({speakerLabel(src?.speaker ?? 'system')}): {src?.text?.slice(0, 100)}{(src?.text?.length ?? 0) > 100 ? '…' : ''}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-const POV_COLOR_VAR: Record<string, string> = {
-  accelerationist: 'var(--color-acc)',
-  safetyist: 'var(--color-saf)',
-  skeptic: 'var(--color-skp)',
-  situations: 'var(--color-sit)',
-};
-
-function LineageTermsView({ content }: { content: string }) {
-  const names = useMemo(() => extractLineageNames(content), [content]);
-  if (names.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No lineage references found</div>;
-  return (
-    <div style={{ fontSize: '0.8rem', padding: '4px 0' }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-        {names.length} lineage reference{names.length !== 1 ? 's' : ''}
-      </div>
-      {names.map((name, i) => {
-        const info = getLineageInfo(name);
-        return (
-          <div key={i} style={{ marginBottom: 10, padding: '4px 8px' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{name}</div>
-            {info?.summary && (
-              <div style={{ marginLeft: 16, marginTop: 2, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {info.summary}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function VocabTermCard({ bare, dict, resolved, defLookup, navigateToLineage }: {
-  bare: string;
-  dict?: { resolves_to: { standardized_term: string; when: string; default_for_camp?: string }[]; ambiguous_when?: string[] };
-  resolved?: string;
-  defLookup?: Map<string, { display: string; definition: string }>;
-  navigateToLineage: (value: string) => void;
-}) {
-  return (
-    <div style={{ marginBottom: 10, padding: '4px 8px' }}>
-      <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{bare}</div>
-      {dict?.resolves_to.map((rt, j) => {
-        const isHighlighted = resolved != null && rt.standardized_term === resolved;
-        const def = defLookup?.get(rt.standardized_term);
-        return (
-          <div key={j} style={{ marginLeft: 16, marginTop: 4 }}>
-            <div style={{ fontSize: '0.78rem', display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <a
-                href="#"
-                style={{
-                  fontWeight: 600,
-                  textDecoration: 'underline',
-                  textUnderlineOffset: '2px',
-                  color: isHighlighted ? 'var(--text-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-                title={`Go to "${def?.display ?? rt.standardized_term}" in Lineage Panel`}
-                onClick={(ev) => { ev.preventDefault(); navigateToLineage(rt.standardized_term); }}
-              >
-                {def?.display ?? rt.standardized_term}
-              </a>
-              {rt.when && <span style={{ color: 'var(--text-muted)' }}>{rt.when}</span>}
-              {rt.default_for_camp && (
-                <span style={{ color: POV_COLOR_VAR[rt.default_for_camp] ?? 'var(--text-muted)', fontWeight: 600, fontSize: '0.72rem', flexShrink: 0 }}>
-                  {rt.default_for_camp}
-                </span>
-              )}
-            </div>
-            {def?.definition && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
-                {def.definition}
-              </div>
-            )}
-          </div>
-        );
-      })}
-      {!dict && resolved && (
-        <div style={{ marginLeft: 16, marginTop: 2 }}>
-          <div style={{ fontSize: '0.78rem' }}>
-            <a
-              href="#"
-              style={{ textDecoration: 'underline dotted', textUnderlineOffset: '2px', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              onClick={(ev) => { ev.preventDefault(); navigateToLineage(resolved); }}
-            >
-              {defLookup?.get(resolved)?.display ?? resolved}
-            </a>
-          </div>
-          {defLookup?.get(resolved)?.definition && (
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, marginLeft: 16, lineHeight: 1.4 }}>
-              {defLookup.get(resolved)!.definition}
-            </div>
-          )}
-        </div>
-      )}
-      {dict?.ambiguous_when && dict.ambiguous_when.length > 0 && (
-        <div style={{ marginLeft: 16, marginTop: 3, fontSize: '0.72rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>
-          Ambiguous when: {dict.ambiguous_when.join('; ')}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function VocabTermsView({ resolutions, ambiguities }: {
-  resolutions: VocabResolution[];
-  ambiguities?: { colloquial: string; offset?: number }[];
-}) {
-  const vocabTerms = useDebateStore(s => s.vocabularyTerms?.colloquial);
-  const stdTerms = useDebateStore(s => s.vocabularyTerms?.standardized);
-  const navigateToLineage = useTaxonomyStore(s => s.navigateToLineage);
-
-  // Build lookup from full dictionary (shared between entries and ambiguities)
-  const dictLookup = useMemo(() => {
-    const lookup = new Map<string, { resolves_to: { standardized_term: string; when: string; default_for_camp?: string }[]; ambiguous_when?: string[] }>();
-    if (vocabTerms) {
-      for (const ct of vocabTerms) {
-        const entry = ct as { colloquial_term: string; resolves_to: { standardized_term: string; when: string; default_for_camp?: string }[]; translation_ambiguous_when?: string[] };
-        lookup.set(entry.colloquial_term.toLowerCase(), { resolves_to: entry.resolves_to, ambiguous_when: entry.translation_ambiguous_when });
-      }
-    }
-    return lookup;
-  }, [vocabTerms]);
-
-  // Build canonical_form → definition lookup from standardized terms
-  const defLookup = useMemo(() => {
-    const lookup = new Map<string, { display: string; definition: string }>();
-    if (stdTerms) {
-      for (const st of stdTerms) {
-        const entry = st as { canonical_form: string; display_form: string; definition: string };
-        if (entry.canonical_form && entry.definition) {
-          lookup.set(entry.canonical_form, { display: entry.display_form, definition: entry.definition });
-        }
-      }
-    }
-    return lookup;
-  }, [stdTerms]);
-
-  // Build unique colloquial terms from this entry's resolutions, then enrich with full dictionary data
-  const entries = useMemo(() => {
-    const seen = new Set<string>();
-    const bareTerms: string[] = [];
-    for (const r of resolutions) {
-      const key = r.colloquial.toLowerCase();
-      if (!seen.has(key)) { seen.add(key); bareTerms.push(r.colloquial); }
-    }
-    bareTerms.sort((a, b) => a.localeCompare(b));
-
-    return bareTerms.map(term => ({
-      bare: term,
-      dict: dictLookup.get(term.toLowerCase()),
-      resolved: resolutions.find(r => r.colloquial.toLowerCase() === term.toLowerCase())?.canonical,
-    }));
-  }, [resolutions, dictLookup]);
-
-  return (
-    <div style={{ fontSize: '0.8rem', padding: '4px 0' }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-        {entries.length} term{entries.length !== 1 ? 's' : ''} resolved
-        {ambiguities && ambiguities.length > 0 && (
-          <span style={{ color: '#d97706', marginLeft: 6 }}> · {new Set(ambiguities.map(a => a.colloquial)).size} ambiguous</span>
-        )}
-      </div>
-      {entries.map((e, i) => (
-        <VocabTermCard key={i} bare={e.bare} dict={e.dict} resolved={e.resolved} defLookup={defLookup} navigateToLineage={navigateToLineage} />
-      ))}
-      {ambiguities && ambiguities.length > 0 && (() => {
-        const uniqueTerms = [...new Set(ambiguities.map(a => a.colloquial))].sort((a, b) => a.localeCompare(b));
-        return (
-          <div style={{ marginTop: 8, padding: '4px 8px', background: 'rgba(217,119,6,0.06)', borderLeft: '3px solid #d97706', borderRadius: 4 }}>
-            <div style={{ fontWeight: 600, color: '#d97706', marginBottom: 4, fontSize: '0.72rem' }}>Ambiguous meaning — could be any of these:</div>
-            {uniqueTerms.map((term, i) => (
-              <VocabTermCard key={i} bare={term} dict={dictLookup.get(term.toLowerCase())} defLookup={defLookup} navigateToLineage={navigateToLineage} />
-            ))}
-          </div>
-        );
-      })()}
-    </div>
-  );
-}
-
-function ClaimsView({ entryId, debate }: { entryId?: string; debate: { argument_network?: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] }; transcript: TranscriptEntry[] } }) {
-  const an = debate.argument_network;
-  if (!an || an.nodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No argument network yet</div>;
-
-  const entryNodes = entryId ? an.nodes.filter(n => n.source_entry_id === entryId) : an.nodes;
-  if (entryNodes.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No claims extracted for this statement</div>;
-
-  const qbafNodes: QbafNode[] = an.nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
-  const qbafEdges: QbafEdge[] = an.edges.map(e => ({
-    source: e.source, target: e.target,
-    type: e.type as 'attacks' | 'supports',
-    weight: e.weight ?? 0.5,
-    attack_type: e.attack_type,
-  }));
-  const { strengths: strengthMap } = computeQbafStrengths(qbafNodes, qbafEdges);
-
-  const caCount = an.edges.filter(e => entryNodes.some(n => n.id === e.target) && e.type === 'attacks').length;
-  const raCount = an.edges.filter(e => entryNodes.some(n => n.id === e.target) && e.type === 'supports').length;
-
-  // Political salience histogram (policymaker debates only)
-  const salienceCounts = (() => {
-    const high = entryNodes.filter(n => n.political_salience === 'high').length;
-    const medium = entryNodes.filter(n => n.political_salience === 'medium').length;
-    const low = entryNodes.filter(n => n.political_salience === 'low').length;
-    return (high + medium + low > 0) ? { high, medium, low } : null;
-  })();
-
-  return (
-    <div className="claims-view" style={{ fontSize: '0.8rem' }}>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4 }}>
-        {entryNodes.length} claim{entryNodes.length !== 1 ? 's' : ''} · {caCount} attack{caCount !== 1 ? 's' : ''} · {raCount} support{raCount !== 1 ? 's' : ''}
-      </div>
-      {salienceCounts && (
-        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span style={{ fontWeight: 600 }}>Salience:</span>
-          <span>🔴 {salienceCounts.high} high</span>
-          <span>🟡 {salienceCounts.medium} med</span>
-          <span>⚪ {salienceCounts.low} low</span>
-        </div>
-      )}
-      {entryNodes.map(node => {
-        const attacks = an.edges.filter(e => e.target === node.id && e.type === 'attacks');
-        const supports = an.edges.filter(e => e.target === node.id && e.type === 'supports');
-        return <ClaimNodeRow key={node.id} node={node} attacks={attacks} supports={supports} allNodes={an.nodes} strengthMap={strengthMap} />;
-      })}
-    </div>
-  );
-}
-
-// ── Phase 6: Taxonomy cross-navigation helpers ──────────
-
-/** Map node_id prefix to the taxonomy tab and CSS color */
-function nodeIdToTab(nodeId: string): { tab: TabId; colorVar: string } {
-  const pov = nodePovFromId(nodeId);
-  if (pov) return { tab: pov as TabId, colorVar: POV_COLOR_VAR[pov] || 'var(--text-muted)' };
-  return { tab: 'situations', colorVar: 'var(--text-muted)' };
-}
-
-/** Resolve a node_id to its label from the taxonomy store */
-function getNodeLabel(nodeId: string): string {
-  const state = useTaxonomyStore.getState();
-  const { tab } = nodeIdToTab(nodeId);
-
-  if (tab === 'situations') {
-    const node = state.situations?.nodes?.find((n: { id: string }) => n.id === nodeId);
-    if (node) return node.label;
-  } else {
-    const povFile = state[tab as 'accelerationist' | 'safetyist' | 'skeptic'];
-    const node = povFile?.nodes?.find((n: { id: string }) => n.id === nodeId);
-    if (node) return node.label;
-  }
-  return nodeId;
-}
-
-function getNodeWeight(nodeId: string): { category?: string; confidence?: number; priority?: number; operationality?: number } | null {
-  const state = useTaxonomyStore.getState();
-  const { tab } = nodeIdToTab(nodeId);
-  if (tab === 'situations') return null;
-  const povFile = state[tab as 'accelerationist' | 'safetyist' | 'skeptic'];
-  const node = povFile?.nodes?.find((n: { id: string }) => n.id === nodeId);
-  if (!node) return null;
-  return { category: node.category, confidence: node.confidence, priority: node.priority, operationality: node.operationality };
-}
-
-/** Navigate the main application window to a taxonomy node and focus it. */
-function focusMainWindowNode(nodeId: string): void {
-  api.focusNodeInMainWindow(nodeId);
-}
 
 /** Grounding badge for the debate header (CT-2). Color-coded by grounding %. */
 function CoverageBadge({ coverageMap, strengthWeighted }: { coverageMap: CoverageMap; strengthWeighted?: StrengthWeightedCoverage | null }) {
@@ -705,13 +304,6 @@ function TaxonomyPill({ taxRef }: { taxRef: TaxonomyRef }) {
   );
 }
 
-/** Combined taxonomy + policy refs with single "Show reasoning" toggle */
-type PolicyRefEntry = string | { policy_id: string; relevance: string };
-
-function resolvePolRef(ref: PolicyRefEntry): { id: string; relevance: string | null } {
-  if (typeof ref === 'string') return { id: ref, relevance: null };
-  return { id: ref.policy_id, relevance: ref.relevance };
-}
 
 function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, stageDiagnostics, forceExpanded }: {
   refs: TaxonomyRef[];
@@ -1120,14 +712,6 @@ function DebateSimilarPovPanel({ query, onClose }: { query: string; onClose: () 
 
 // ── Find-in-debate helpers ────────────────────────────────
 
-function countOccurrences(text: string, query: string): number {
-  if (!query) return 0;
-  const lower = text.toLowerCase();
-  const q = query.toLowerCase();
-  let count = 0, pos = 0;
-  while ((pos = lower.indexOf(q, pos)) !== -1) { count++; pos += q.length; }
-  return count;
-}
 
 function HighlightedText({ text, query, matchOffset, currentIndex }: {
   text: string; query: string; matchOffset: number; currentIndex: number;
@@ -1190,26 +774,6 @@ function FindBar({ query, onQueryChange, current, total, onPrev, onNext, onClose
 
 // ─────────────────────────────────────────────────────────
 
-function buildExplainPrompt(entry: TranscriptEntry): string {
-  const speaker = speakerLabel(entry.speaker);
-  const refs = entry.taxonomy_refs || [];
-  let prompt = `Explain this section of a debate between the Accelerationist, the Safetyist, and the Skeptic:\n\n`;
-  prompt += `[${speaker} — ${entry.type}]\n${entry.content}\n`;
-  if (refs.length > 0) {
-    prompt += `\nTaxonomy references cited:\n`;
-    for (const ref of refs) {
-      const label = getNodeLabel(ref.node_id);
-      prompt += `- ${ref.node_id} (${label}): ${ref.relevance}\n`;
-    }
-  }
-  return prompt;
-}
-
-function handleExplainEntry(entry: TranscriptEntry) {
-  const prompt = buildExplainPrompt(entry);
-  void api.clipboardWriteText(prompt);
-  void api.openExternal('https://gemini.google.com/app');
-}
 
 /** Wrapper that adds delete controls to any transcript entry */
 function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
@@ -1266,35 +830,6 @@ function EntryDeleteControls({ entry, totalEntries, entryIndex }: {
   );
 }
 
-/** Strip markdown headings the AI sometimes hallucinates at the top of a statement (e.g. "# Engine Thermometer Accelerator"). */
-function stripLeadingHeadings(text: string): string {
-  return text.replace(/^(?:#{1,3}\s+.*\n*)+/, '').trimStart();
-}
-
-/** Fix markdown links broken by newlines inside `[text](url)` — AI models often wrap long URLs.
- *  Also repairs garbled DOI links: if the link text contains a (doi:...) parenthetical, extract
- *  the DOI and use it to reconstruct the correct URL, then clean up the display text. */
-function fixMarkdownLinks(text: string): string {
-  return text.replace(/\[([^\]]*)\]\(\s*([\s\S]*?)\s*\)/g, (_match, linkText: string, url: string) => {
-    let cleanUrl = url.replace(/\s+/g, '');
-    let cleanText = linkText;
-
-    // If the link text contains doi:..., extract the FIRST DOI and use it to fix the URL.
-    // The AI often omits closing parens, so match flexibly: stop at whitespace, paren, or end.
-    const doiMatch = linkText.match(/doi:\s*(10\.\d{4,9}\/\S+?)(?:\s|\)|$)/i);
-    if (doiMatch) {
-      cleanUrl = `https://doi.org/${doiMatch[1]}`;
-      // Strip ALL doi parentheticals (with or without closing paren) and trailing junk
-      cleanText = linkText
-        .replace(/\s*\(?doi:[^)]*\)?/gi, '')
-        .replace(/\s*\([A-Z]{1,5}\d{8,}\)/g, '')
-        .replace(/\d+\)\]?$/, '')  // trailing "41)]" junk
-        .trim();
-    }
-
-    return `[${cleanText || linkText}](${cleanUrl})`;
-  });
-}
 
 function ClarificationCard({ entry }: { entry: TranscriptEntry }) {
   const meta = entry.metadata as Record<string, unknown> | undefined;
@@ -2114,376 +1649,6 @@ function ClaimsEditor() {
   );
 }
 
-// ── Topic Critique Card ──────────────────────────────────
-
-const DIMENSION_LABELS: Record<string, string> = {
-  crux_density: 'Crux Density',
-  evidence_coverage: 'Evidence',
-  bdi_heterogeneity: 'BDI Balance',
-  abstraction_level: 'Abstraction',
-  situation_activation: 'Situations',
-  conditionality: 'Conditionality',
-  mechanism: 'Mechanism',
-  stakeholder: 'Stakeholders',
-  tension: 'Tension',
-  scope: 'Scope',
-  actor_specificity: 'Actors',
-  decision_proximity: 'Decision Prox.',
-  constituency_impact: 'Constituency',
-};
-
-const DIMENSION_TOOLTIPS: Record<string, string> = {
-  crux_density: 'POV balance — do all three perspectives (accelerationist, safetyist, skeptic) have nodes activated by this topic?\n\nGood: "Should AI development require mandatory safety audits before deployment?" activates nodes across all three POVs evenly.',
-  evidence_coverage: 'Evidence richness — do the activated taxonomy nodes have supporting evidence entries (citations, data)?\n\nGood: "What does the empirical record show about algorithmic bias in hiring?" maps to well-evidenced nodes with real studies.',
-  bdi_heterogeneity: 'BDI category spread — does the topic engage Beliefs, Desires, and Intentions, not just one category?\n\nGood: "How should regulators balance innovation incentives with safety mandates?" touches beliefs about risk, desires for growth, and concrete policy intentions.',
-  abstraction_level: 'Goldilocks granularity — is the topic neither too broad (activating hundreds of nodes) nor too narrow (activating only a handful)?\n\nGood: "Should foundation model developers be liable for downstream harms?" — specific enough to focus debate, broad enough to sustain multiple rounds.',
-  situation_activation: 'Situational grounding — does the topic activate shared cross-cutting or situation nodes that anchor the debate in concrete contexts?\n\nGood: "In the wake of deepfake election interference, what guardrails should platforms adopt?" activates situation nodes about elections and misinformation.',
-  conditionality: 'Conditional framing — does the topic specify conditions under which different answers apply, rather than asking a binary yes/no question?\n\nGood: "Under what conditions should open-source AI models require licensing?" vs. bad: "Should AI be regulated?"',
-  mechanism: 'Mechanism focus — does the topic ask about causal pathways and processes rather than just outcomes?\n\nGood: "Through what institutional mechanisms can international AI governance achieve compliance?" vs. bad: "Will AI governance work?"',
-  stakeholder: 'Stakeholder breadth — does the topic name multiple actors with distinct roles and distributed responsibility?\n\nGood: "How should developers, regulators, and civil society actors share responsibility for AI safety?" vs. bad: "Should tech companies self-regulate?"',
-  tension: 'Tension acknowledgment — does the topic explicitly name a trade-off or invite meta-level disagreement?\n\nGood: "How should policymakers navigate the tension between AI innovation speed and precautionary safety requirements?" surfaces a genuine dilemma.',
-  scope: 'Scope boundedness — does the topic specify concrete artifacts, timeframes, or domains rather than remaining open-ended?\n\nGood: "Should the EU AI Act\'s risk classification framework be adopted as a global standard by 2030?" vs. bad: "What should AI policy look like?"',
-  actor_specificity: 'Actor specificity (policymaker) — does the topic name specific actors, agencies, or institutions rather than abstract entities?\n\n0 = abstract ("stakeholders"), 1 = general types ("regulators"), 2 = named actors ("the FTC")',
-  decision_proximity: 'Decision proximity (policymaker) — how close is the topic to a pending policy decision or action?\n\n0 = theoretical, 1 = general governance, 2 = pending action (named bill, rulemaking)',
-  constituency_impact: 'Constituency impact (policymaker) — does the topic identify specific affected groups?\n\n0 = no groups named, 1 = general population, 2 = specific constituencies',
-};
-
-const RATING_COLORS: Record<string, string> = {
-  strong: '#16a34a',
-  fair: '#d97706',
-  weak: '#dc2626',
-};
-
-function RadarChart({ structural, frame }: { structural: StructuralScore; frame: FrameScore | null }) {
-  const dimensions = [
-    { key: 'crux_density', value: structural.crux_density },
-    { key: 'evidence_coverage', value: structural.evidence_coverage },
-    { key: 'bdi_heterogeneity', value: structural.bdi_heterogeneity },
-    { key: 'abstraction_level', value: structural.abstraction_level },
-    { key: 'situation_activation', value: structural.situation_activation },
-    { key: 'conditionality', value: frame?.conditionality ?? 0 },
-    { key: 'mechanism', value: frame?.mechanism ?? 0 },
-    { key: 'stakeholder', value: frame?.stakeholder ?? 0 },
-    { key: 'tension', value: frame?.tension ?? 0 },
-    { key: 'scope', value: frame?.scope ?? 0 },
-  ];
-
-  const cx = 100, cy = 100, r = 75;
-  const n = dimensions.length;
-  const angleStep = (2 * Math.PI) / n;
-  const maxVal = 2;
-
-  const pointAt = (i: number, val: number) => {
-    const angle = -Math.PI / 2 + i * angleStep;
-    const dist = (val / maxVal) * r;
-    return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) };
-  };
-
-  // Grid rings at 1 and 2
-  const ringPaths = [1, 2].map(ring => {
-    const pts = Array.from({ length: n }, (_, i) => pointAt(i, ring));
-    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
-  });
-
-  // Data polygon
-  const dataPts = dimensions.map((d, i) => pointAt(i, d.value));
-  const dataPath = dataPts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ') + ' Z';
-
-  // Axis lines
-  const axes = Array.from({ length: n }, (_, i) => pointAt(i, maxVal));
-
-  return (
-    <svg viewBox="0 0 200 200" style={{ width: 200, height: 200 }}>
-      {/* Grid rings */}
-      {ringPaths.map((d, i) => (
-        <path key={i} d={d} fill="none" stroke="var(--border-color, #555)" strokeWidth={0.5} opacity={0.4} />
-      ))}
-      {/* Axis lines */}
-      {axes.map((p, i) => (
-        <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="var(--border-color, #555)" strokeWidth={0.3} opacity={0.3} />
-      ))}
-      {/* Data polygon */}
-      <path d={dataPath} fill="var(--accent-color, #3b82f6)" fillOpacity={0.2} stroke="var(--accent-color, #3b82f6)" strokeWidth={1.5} />
-      {/* Data points */}
-      {dataPts.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={2.5}
-          fill={dimensions[i].value === 0 ? '#dc2626' : dimensions[i].value === 1 ? '#d97706' : '#16a34a'}
-        />
-      ))}
-      {/* Labels */}
-      {axes.map((p, i) => {
-        const label = DIMENSION_LABELS[dimensions[i].key] ?? dimensions[i].key;
-        const dx = p.x - cx, dy = p.y - cy;
-        const labelDist = 14;
-        const lx = p.x + (dx / r) * labelDist;
-        const ly = p.y + (dy / r) * labelDist;
-        const anchor = Math.abs(dx) < 5 ? 'middle' : dx > 0 ? 'start' : 'end';
-        return (
-          <text key={i} x={lx} y={ly} textAnchor={anchor} dominantBaseline="central"
-            style={{ fontSize: 7.5, fill: 'var(--text-secondary, #999)' }}>
-            {label}
-          </text>
-        );
-      })}
-    </svg>
-  );
-}
-
-/** Single-column critique breakdown (used in both left and right columns) */
-function CritiqueColumn({ critique, label, topicText, accentColor, action }: {
-  critique: TopicCritique;
-  label: string;
-  topicText?: string;
-  accentColor: string;
-  action?: React.ReactNode;
-}) {
-  const highIssues = critique.issues.filter(i => i.severity === 'high');
-  const mediumIssues = critique.issues.filter(i => i.severity === 'medium');
-
-  return (
-    <div style={{ flex: 1, minWidth: 260 }}>
-      {/* Column header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
-        <span style={{
-          background: accentColor, color: '#fff', padding: '1px 8px', borderRadius: 4,
-          fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase',
-        }}>
-          {critique.rating}
-        </span>
-        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-          {critique.composite_score}/20
-        </span>
-      </div>
-
-      {/* Topic text */}
-      {topicText && (
-        <div style={{
-          fontSize: '0.78rem', fontStyle: 'italic', padding: '6px 10px', marginBottom: 8,
-          background: 'var(--bg-secondary)', borderRadius: 6, lineHeight: 1.5,
-          borderLeft: `3px solid ${accentColor}40`,
-        }}>
-          {topicText}
-        </div>
-      )}
-
-      {action && <div style={{ marginBottom: 8 }}>{action}</div>}
-
-      {/* Radar chart + scores */}
-      <RadarChart structural={critique.structural_score} frame={critique.frame_score} />
-
-      <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: 'var(--text-secondary)' }}>
-        Structural ({critique.structural_score.total}/10)
-      </div>
-      {(['crux_density', 'evidence_coverage', 'bdi_heterogeneity', 'abstraction_level', 'situation_activation'] as const).map(key => {
-        const val = critique.structural_score[key] as number;
-        return (
-          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.78rem' }} title={DIMENSION_TOOLTIPS[key]}>
-            <span style={{ width: 90, color: 'var(--text-secondary)', cursor: 'help', borderBottom: '1px dotted var(--text-muted, #999)' }}>{DIMENSION_LABELS[key]}</span>
-            <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
-            <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
-          </div>
-        );
-      })}
-
-      {critique.frame_score && (
-        <>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: 'var(--text-secondary)' }}>
-            Frame ({critique.frame_score.total}/10)
-          </div>
-          {(['conditionality', 'mechanism', 'stakeholder', 'tension', 'scope'] as const).map(key => {
-            const val = critique.frame_score![key] as number;
-            return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.78rem' }} title={DIMENSION_TOOLTIPS[key]}>
-                <span style={{ width: 90, color: 'var(--text-secondary)', cursor: 'help', borderBottom: '1px dotted var(--text-muted, #999)' }}>{DIMENSION_LABELS[key]}</span>
-                <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
-                <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
-              </div>
-            );
-          })}
-        </>
-      )}
-
-      {/* Policymaker political operationality sub-scores (t/251) */}
-      {critique.frame_score?.actor_specificity != null && (
-        <>
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, marginTop: 8, marginBottom: 4, color: '#ef4444' }}>
-            Political Operationality ({((critique.frame_score.actor_specificity ?? 0) + (critique.frame_score.decision_proximity ?? 0) + (critique.frame_score.constituency_impact ?? 0))}/6)
-          </div>
-          {(['actor_specificity', 'decision_proximity', 'constituency_impact'] as const).map(key => {
-            const val = critique.frame_score![key] as number | undefined;
-            if (val == null) return null;
-            return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, fontSize: '0.78rem' }} title={DIMENSION_TOOLTIPS[key]}>
-                <span style={{ width: 90, color: 'var(--text-secondary)', cursor: 'help', borderBottom: '1px dotted var(--text-muted, #999)' }}>{DIMENSION_LABELS[key]}</span>
-                <span style={{ color: val === 0 ? '#dc2626' : val === 1 ? '#d97706' : '#16a34a', fontWeight: 600, width: 16 }}>{val}</span>
-                <span style={{ color: 'var(--text-tertiary, #777)', fontSize: '0.7rem' }}>/2</span>
-              </div>
-            );
-          })}
-        </>
-      )}
-
-      {/* Issues */}
-      {(highIssues.length > 0 || mediumIssues.length > 0) && (
-        <div style={{ marginTop: 8, fontSize: '0.75rem' }}>
-          {highIssues.length > 0 && (
-            <div style={{ color: '#dc2626', marginBottom: 2 }}>
-              {highIssues.length} critical: {highIssues.map(i => DIMENSION_LABELS[i.dimension] ?? i.dimension).join(', ')}
-            </div>
-          )}
-          {mediumIssues.length > 0 && (
-            <div style={{ color: '#d97706' }}>
-              {mediumIssues.length} warning{mediumIssues.length !== 1 ? 's' : ''}: {mediumIssues.map(i => DIMENSION_LABELS[i.dimension] ?? i.dimension).join(', ')}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TopicCritiqueCard({ critique, suggestedCritique, currentTopicText, onUseSuggested, onReEvaluateSuggested, isLoading }: {
-  critique: TopicCritique;
-  suggestedCritique?: TopicCritique;
-  currentTopicText: string;
-  onUseSuggested: (topic: string) => void;
-  onReEvaluateSuggested: (editedTopic: string) => void;
-  isLoading?: boolean;
-}) {
-  const [showDetails, setShowDetails] = useState(false);
-  const [editingSuggested, setEditingSuggested] = useState(false);
-  const [editedSuggested, setEditedSuggested] = useState(critique.rewritten_topic ?? '');
-  const ratingColor = RATING_COLORS[critique.rating] ?? '#888';
-  const suggestedColor = suggestedCritique ? (RATING_COLORS[suggestedCritique.rating] ?? '#888') : '#888';
-  const hasSuggestion = !!critique.rewritten_topic && critique.rating !== 'strong';
-  const delta = suggestedCritique ? suggestedCritique.composite_score - critique.composite_score : 0;
-  const hasEdits = editedSuggested.trim() !== (critique.rewritten_topic ?? '').trim();
-
-  return (
-    <div className="topic-critique-card" style={{
-      borderRadius: 8,
-      padding: '12px 16px',
-      marginBottom: 12,
-      border: '1px solid var(--border-color)',
-      background: 'var(--bg-primary)',
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Topic Quality</span>
-        <span style={{
-          background: ratingColor, color: '#fff', padding: '1px 8px', borderRadius: 4,
-          fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase',
-        }}>
-          {critique.composite_score}/20
-        </span>
-        {suggestedCritique && (
-          <>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>→</span>
-            <span style={{
-              background: suggestedColor, color: '#fff', padding: '1px 8px', borderRadius: 4,
-              fontWeight: 600, fontSize: '0.7rem', textTransform: 'uppercase',
-            }}>
-              {suggestedCritique.composite_score}/20
-            </span>
-            {delta !== 0 && (
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: delta > 0 ? '#16a34a' : '#dc2626' }}>
-                ({delta > 0 ? '+' : ''}{delta})
-              </span>
-            )}
-          </>
-        )}
-        <button
-          className="btn btn-sm"
-          onClick={() => setShowDetails(d => !d)}
-          style={{ marginLeft: 'auto', fontSize: '0.75rem', padding: '2px 8px' }}
-        >
-          {showDetails ? 'Hide Details' : 'Show Details'}
-        </button>
-      </div>
-
-      {/* Expanded 2-column details */}
-      {showDetails && (
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 8, maxHeight: 420, overflowY: 'auto' }}>
-          {/* Left: Current topic */}
-          <CritiqueColumn
-            critique={critique}
-            label="Current Topic"
-            topicText={currentTopicText}
-            accentColor={ratingColor}
-          />
-
-          {/* Right: Suggested topic */}
-          {hasSuggestion && (
-            <CritiqueColumn
-              critique={suggestedCritique ?? critique}
-              label={suggestedCritique ? 'Suggested Topic' : 'Suggested Topic (scoring...)'}
-              topicText={editingSuggested ? undefined : (critique.rewritten_topic)}
-              accentColor={suggestedCritique ? suggestedColor : '#6b7280'}
-              action={
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {editingSuggested ? (
-                    <>
-                      <textarea
-                        value={editedSuggested}
-                        onChange={(e) => setEditedSuggested(e.target.value)}
-                        style={{
-                          width: '100%', minHeight: 80, fontSize: '0.78rem', lineHeight: 1.5,
-                          padding: '6px 10px', borderRadius: 6,
-                          border: '1px solid var(--border-color)',
-                          background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                          fontFamily: 'inherit', resize: 'vertical',
-                        }}
-                      />
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          className="btn btn-sm btn-primary"
-                          disabled={!editedSuggested.trim() || isLoading}
-                          onClick={() => {
-                            setEditingSuggested(false);
-                            onReEvaluateSuggested(editedSuggested.trim());
-                          }}
-                          style={{ fontSize: '0.75rem', padding: '3px 10px' }}
-                        >
-                          {isLoading ? 'Evaluating...' : hasEdits ? 'Re-evaluate' : 'Re-evaluate'}
-                        </button>
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => { setEditingSuggested(false); setEditedSuggested(critique.rewritten_topic ?? ''); }}
-                          style={{ fontSize: '0.75rem', padding: '3px 10px' }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        className="btn btn-sm btn-primary"
-                        onClick={() => onUseSuggested(critique.rewritten_topic)}
-                        style={{ fontSize: '0.75rem', padding: '3px 10px' }}
-                      >
-                        Use Suggested Topic
-                      </button>
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => setEditingSuggested(true)}
-                        style={{ fontSize: '0.75rem', padding: '3px 10px' }}
-                        title="Edit the suggested topic and re-evaluate its score"
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  )}
-                </div>
-              }
-            />
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /** Clarification phase action bar */
 interface StructuredQuestion {

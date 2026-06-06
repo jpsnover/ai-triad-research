@@ -4,12 +4,12 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import { useDebateStore } from '../hooks/useDebateStore';
+import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { POVER_INFO } from '../types/debate';
-import type { SpeakerId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion } from '../types/debate';
-import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from './QbafOverlay';
+import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
+import { POVER_INFO } from '../../../types/debate';
+import type { SpeakerId, EntryDiagnostics, DebateDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry, UnansweredClaimEntry, DriftSnapshot, MissingArgument, TaxonomySuggestion } from '../../../types/debate';
+import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from '../../QbafOverlay';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import { getMoveName } from '@lib/debate/helpers';

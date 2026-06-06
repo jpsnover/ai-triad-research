@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import type { DebateSession } from '../types/debate';
-import { POVER_INFO } from '../types/debate';
+import type { DebateSession } from '../../../types/debate';
+import { POVER_INFO } from '../../../types/debate';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';

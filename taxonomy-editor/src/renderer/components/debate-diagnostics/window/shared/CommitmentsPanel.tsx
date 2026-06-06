@@ -1,0 +1,222 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { useState, useEffect, useMemo } from 'react';
+import type { CommitmentStore, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
+import { POVER_INFO } from '../../../../types/debate';
+import type { SpeakerId } from '../../../../types/debate';
+
+// NOTE: speakerLabel and AifBadge stay in DiagnosticsWindow.tsx (parent).
+// This component uses a local copy of speakerLabel to remain self-contained.
+
+function speakerLabel(speaker: string): string {
+  if (speaker === 'system') return 'System';
+  if (speaker === 'moderator') return 'Moderator';
+  if (speaker === 'user') return 'You';
+  return POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.label || speaker;
+}
+
+export function CommitmentsPanel({ commitments, nodes, edges, onGoToNode }: {
+  commitments: Record<string, CommitmentStore>;
+  nodes: ArgumentNetworkNode[];
+  edges: ArgumentNetworkEdge[];
+  onGoToNode: (nodeId: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Record<string, string | null>>({});
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; text: string; nodeId: string | null } | null>(null);
+
+  const toggle = (pov: string, category: string) => {
+    setExpanded(prev => ({
+      ...prev,
+      [pov]: prev[pov] === category ? null : category,
+    }));
+  };
+
+  // Map commitment text → AN node ID via exact or substring match
+  const textToNodeId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const item of nodes) {
+      m.set(item.text, item.id);
+    }
+    return m;
+  }, [nodes]);
+
+  const findNodeId = (commitmentText: string): string | null => {
+    // Exact match first
+    if (textToNodeId.has(commitmentText)) return textToNodeId.get(commitmentText)!;
+    // Substring match — commitment text may be a prefix/substring of the node text
+    for (const [nodeText, nodeId] of textToNodeId) {
+      if (nodeText.includes(commitmentText) || commitmentText.includes(nodeText)) return nodeId;
+    }
+    return null;
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, text: string) => {
+    e.preventDefault();
+    setCtxMenu({ x: e.clientX, y: e.clientY, text, nodeId: findNodeId(text) });
+  };
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const dismiss = () => setCtxMenu(null);
+    window.addEventListener('click', dismiss);
+    return () => window.removeEventListener('click', dismiss);
+  }, [ctxMenu]);
+
+  const categories = [
+    { key: 'asserted', label: 'Asserted', color: '#3b82f6' },
+    { key: 'conceded', label: 'Conceded', color: '#f59e0b' },
+    { key: 'challenged', label: 'Challenged', color: '#ef4444' },
+  ] as const;
+
+  // Compute concession asymmetry per speaker (mirrors calibrationLogger logic)
+  const asymmetryByPov = useMemo(() => {
+    const result: Record<string, number | null> = {};
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const nodesBySpeaker = new Map<string, ArgumentNetworkNode[]>();
+    for (const n of nodes) {
+      if (!nodesBySpeaker.has(n.speaker)) nodesBySpeaker.set(n.speaker, []);
+      nodesBySpeaker.get(n.speaker)!.push(n);
+    }
+
+    for (const [pov, store] of Object.entries(commitments)) {
+      if (store.conceded.length === 0) { result[pov] = null; continue; }
+
+      // Mean strength of conceded claims (matched to AN nodes)
+      let concSum = 0, concCount = 0;
+      for (const text of store.conceded) {
+        const match = nodes.find(n => n.speaker === pov && (n.text === text || n.text.includes(text) || text.includes(n.text)));
+        if (match) { concSum += match.computed_strength ?? match.base_strength ?? 0.5; concCount++; }
+      }
+      const concededMean = concCount > 0 ? concSum / concCount : 0.5;
+
+      // Mean strength of attack targets
+      const speakerNodes = nodesBySpeaker.get(pov) ?? [];
+      const speakerNodeIds = new Set(speakerNodes.map(n => n.id));
+      const attackTargetIds = new Set<string>();
+      for (const e of edges) {
+        if (speakerNodeIds.has(e.source) && (e as { type?: string }).type === 'attacks') {
+          attackTargetIds.add(e.target);
+        }
+      }
+      let atkSum = 0, atkCount = 0;
+      for (const id of attackTargetIds) {
+        const n = nodeMap.get(id);
+        if (n) { atkSum += n.computed_strength ?? n.base_strength ?? 0.5; atkCount++; }
+      }
+      const atkMean = atkCount > 0 ? atkSum / atkCount : 0.5;
+
+      result[pov] = atkMean - concededMean;
+    }
+    return result;
+  }, [commitments, nodes, edges]);
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', position: 'relative' }}>
+      {Object.entries(commitments).map(([pov, store]) => (
+        <div key={pov} style={{ marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+            <strong style={{ fontSize: '0.8rem' }}>{speakerLabel(pov)}</strong>
+            {asymmetryByPov[pov] != null && (() => {
+              const a = asymmetryByPov[pov]!;
+              const color = Math.abs(a) > 0.3 ? '#dc2626' : Math.abs(a) > 0.15 ? '#d97706' : '#16a34a';
+              const label = Math.abs(a) > 0.3 ? 'high' : Math.abs(a) > 0.15 ? 'moderate' : 'balanced';
+              return (
+                <span
+                  title={`Concession asymmetry: ${a.toFixed(3)}\nAttack target strength minus conceded claim strength.\nHigh asymmetry = conceding weak claims while pressing strong ones.`}
+                  style={{ fontSize: '0.58rem', padding: '1px 6px', borderRadius: 10, background: `${color}15`, color, fontWeight: 600 }}
+                >
+                  asym: {a.toFixed(2)} ({label})
+                </span>
+              );
+            })()}
+          </div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 2 }}>
+            {categories.map(cat => {
+              const items = store[cat.key];
+              const isOpen = expanded[pov] === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => items.length > 0 && toggle(pov, cat.key)}
+                  style={{
+                    padding: '2px 8px', borderRadius: 10, border: 'none',
+                    fontSize: '0.65rem', fontWeight: 600, cursor: items.length > 0 ? 'pointer' : 'default',
+                    background: isOpen ? cat.color : `${cat.color}18`,
+                    color: isOpen ? '#fff' : cat.color,
+                    opacity: items.length === 0 ? 0.4 : 1,
+                  }}
+                >
+                  {cat.label} {items.length}
+                </button>
+              );
+            })}
+          </div>
+          {expanded[pov] && (() => {
+            const cat = categories.find(c => c.key === expanded[pov])!;
+            const items = store[cat.key];
+            if (items.length === 0) return null;
+            return (
+              <div style={{
+                margin: '2px 0 4px 8px', padding: '4px 8px', borderRadius: 4,
+                borderLeft: `3px solid ${cat.color}`,
+                background: `${cat.color}08`, fontSize: '0.7rem',
+              }}>
+                {items.map((item, i) => {
+                  const nodeId = findNodeId(item);
+                  return (
+                    <div
+                      key={i}
+                      onContextMenu={(e) => handleContextMenu(e, item)}
+                      style={{ padding: '2px 0', borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none', cursor: 'context-menu' }}
+                    >
+                      {nodeId && (
+                        <span style={{
+                          padding: '0 4px', borderRadius: 3, marginRight: 4,
+                          background: 'rgba(59,130,246,0.12)', color: '#3b82f6',
+                          fontSize: '0.6rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        }}>{nodeId}</span>
+                      )}
+                      {item}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      ))}
+      {ctxMenu && (
+        <div style={{
+          position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999,
+          background: 'var(--bg-primary)', border: '1px solid var(--border)',
+          borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          padding: '4px 0', minWidth: 140, fontSize: '0.72rem',
+        }}>
+          <button
+            onClick={() => { void navigator.clipboard.writeText(ctxMenu.text); setCtxMenu(null); }}
+            style={{
+              display: 'block', width: '100%', textAlign: 'left',
+              padding: '5px 12px', border: 'none', background: 'transparent',
+              color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+          >Copy</button>
+          {ctxMenu.nodeId && (
+            <button
+              onClick={() => { onGoToNode(ctxMenu.nodeId!); setCtxMenu(null); }}
+              style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '5px 12px', border: 'none', background: 'transparent',
+                color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.72rem',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >Go to {ctxMenu.nodeId}</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

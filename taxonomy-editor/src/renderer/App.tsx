@@ -17,7 +17,7 @@ import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
 import { DeploymentErrorScreen } from './components/DeploymentErrorScreen';
 import { StartupProgressScreen } from './components/StartupProgressScreen';
-import { DiagnosticsWindow } from './components/DiagnosticsWindow';
+import { DiagnosticsWindow } from './components/debate-diagnostics';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
 import { DebatePopoutWindow } from './components/DebatePopoutWindow';
 import { PromptDiffWindow } from './components/PromptDiffWindow';

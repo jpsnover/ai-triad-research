@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { DiagnosticsWindow } from './DiagnosticsWindow';
+import { DiagnosticsWindow } from './debate-diagnostics';
 
 export const DIAG_DRAWER_EVENT = 'open-diagnostics-drawer';
 

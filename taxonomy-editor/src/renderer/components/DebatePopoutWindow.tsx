@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@bridge';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
-import { DebateWorkspace } from './DebateWorkspace';
+import { DebateWorkspace } from './debate-workspace';
 
 export function DebatePopoutWindow() {
   const [ready, setReady] = useState(false);

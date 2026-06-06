@@ -137,10 +137,20 @@ const TAXONOMY_BASE = path.dirname(resolveDataPath(_config.taxonomy_dir));
 let activeTaxonomyDir = resolveDataPath(_config.taxonomy_dir);
 const CONFLICTS_DIR = resolveDataPath(_config.conflicts_dir);
 const SUMMARIES_DIR = resolveDataPath(_config.summaries_dir);
-const SOURCES_DIR = resolveDataPath(_config.sources_dir);
+const SOURCES_DIR_LEGACY = resolveDataPath(_config.sources_dir);
 
 export { PROJECT_ROOT, resolveDataPath };
-export function getSourcesDir(): string { return SOURCES_DIR; }
+
+export function getSourcesDir(): string | null {
+  const config = loadDataConfig();
+  if (config.sources_root) {
+    const resolved = path.isAbsolute(config.sources_root)
+      ? config.sources_root
+      : path.resolve(PROJECT_ROOT, config.sources_root);
+    if (fs.existsSync(resolved)) return resolved;
+  }
+  return fs.existsSync(SOURCES_DIR_LEGACY) ? SOURCES_DIR_LEGACY : null;
+}
 export function getSummariesDir(): string { return SUMMARIES_DIR; }
 
 const POV_FILE_MAP: Record<string, string> = {
@@ -422,10 +432,9 @@ export interface DiscoveredSource {
 }
 
 export function discoverSources(): DiscoveredSource[] {
-  const config = loadDataConfig();
-  const sourcesDir = resolveDataPath(config.sources_dir);
-  const summariesDir = resolveDataPath(config.summaries_dir);
-  if (!fs.existsSync(sourcesDir)) return [];
+  const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return [];
+  const summariesDir = resolveDataPath(loadDataConfig().summaries_dir);
 
   const sources: DiscoveredSource[] = [];
   for (const entry of fs.readdirSync(sourcesDir, { withFileTypes: true })) {
@@ -462,8 +471,8 @@ export function loadSummary(docId: string): unknown | null {
 }
 
 export function loadSnapshot(sourceId: string): string | null {
-  const config = loadDataConfig();
-  const sourcesDir = resolveDataPath(config.sources_dir);
+  const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return null;
   const filePath = path.join(sourcesDir, sourceId, 'snapshot.md');
   if (!fs.existsSync(filePath)) return null;
   try {
@@ -511,10 +520,11 @@ export function buildNodeSourceIndex(): NodeSourceIndex {
 
   // Pre-load source metadata for titles/URLs
   const metaCache: Record<string, { title: string; url: string | null; sourceType: string; datePublished: string }> = {};
-  if (fs.existsSync(SOURCES_DIR)) {
-    for (const entry of fs.readdirSync(SOURCES_DIR, { withFileTypes: true })) {
+  const srcDir = getSourcesDir();
+  if (srcDir) {
+    for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
-      const metaPath = path.join(SOURCES_DIR, entry.name, 'metadata.json');
+      const metaPath = path.join(srcDir, entry.name, 'metadata.json');
       try {
         if (fs.existsSync(metaPath)) {
           const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
@@ -631,10 +641,11 @@ export function buildPolicySourceIndex(): PolicySourceIndex {
 
   // 4. Pre-load source metadata for dateIngested / sourceTime
   const metaCache: Record<string, { dateIngested: string; sourceTime: string }> = {};
-  if (fs.existsSync(SOURCES_DIR)) {
-    for (const entry of fs.readdirSync(SOURCES_DIR, { withFileTypes: true })) {
+  const srcDir2 = getSourcesDir();
+  if (srcDir2) {
+    for (const entry of fs.readdirSync(srcDir2, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;
-      const metaPath = path.join(SOURCES_DIR, entry.name, 'metadata.json');
+      const metaPath = path.join(srcDir2, entry.name, 'metadata.json');
       try {
         if (fs.existsSync(metaPath)) {
           const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));

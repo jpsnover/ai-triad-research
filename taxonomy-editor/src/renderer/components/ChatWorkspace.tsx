@@ -198,15 +198,15 @@ export function ChatWorkspace() {
     );
   }
 
-  const poverInfo = POVER_INFO[activeChat.pover];
+  const poverInfo = POVER_INFO[activeChat.pover as keyof typeof POVER_INFO];
 
   return (
     <div className="chat-workspace">
       {/* Header */}
       <div className="chat-header">
         <div className="chat-header-left">
-          <span className="chat-header-pover" style={{ color: poverInfo.color }}>
-            {poverInfo.label}
+          <span className="chat-header-pover" style={{ color: poverInfo?.color ?? '#888' }}>
+            {poverInfo?.label ?? activeChat.pover}
           </span>
           <ModeSelector mode={activeChat.mode} onChange={(m) => { getGlobalRecorder()?.record({ type: 'user.action', component: 'chat', level: 'info', message: 'chat.mode_switch', data: { chat_id: activeChat.id, from: activeChat.mode, to: m } }); void changeMode(m); }} />
         </div>
