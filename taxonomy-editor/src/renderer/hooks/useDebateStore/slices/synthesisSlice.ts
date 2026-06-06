@@ -802,7 +802,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       addTranscriptEntry({
         type: 'fact-check',
         speaker: 'system',
-        content: `**Fact Check: ${verdictLabels[result.verdict] || result.verdict}**\n\n"${selectedText.length > 120 ? selectedText.slice(0, 117) + '...' : selectedText}"\n\n${result.explanation}${webNote}`,
+        content: `**Fact Check: ${verdictLabels[result.verdict] || result.verdict}**\n\n"${selectedText}"\n\n${result.explanation}${webNote}`,
         taxonomy_refs: sourceRefs,
         metadata: {
           fact_check: {
