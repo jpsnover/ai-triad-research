@@ -95,30 +95,7 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
       setScanning(true);
-
-      scanIntervalRef.current = window.setInterval(() => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code?.data) {
-          stopCamera();
-          setPasteInput(code.data);
-          setMode('import-paste');
-        }
-      }, 250);
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -130,6 +107,38 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
       setError('Camera not available. Use "Paste Payload" instead.');
     }
   };
+
+  useEffect(() => {
+    if (!scanning || !streamRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = streamRef.current;
+    video.play().catch(() => { /* autoplay blocked — user will see frozen frame */ });
+
+    scanIntervalRef.current = window.setInterval(() => {
+      const canvas = canvasRef.current;
+      if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code?.data) {
+        stopCamera();
+        setPasteInput(code.data);
+        setMode('import-paste');
+      }
+    }, 250);
+
+    return () => {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+    };
+  }, [scanning, stopCamera]);
 
   const handleCopyPayload = async () => {
     try {
