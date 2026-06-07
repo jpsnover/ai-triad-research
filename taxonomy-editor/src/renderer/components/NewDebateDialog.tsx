@@ -87,6 +87,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [evaluatorModel, setEvaluatorModel] = useState('');
   const [multiProvider, setMultiProvider] = useState(false);
   const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');
+  const [excludedBackends, setExcludedBackends] = useState<Set<string>>(new Set());
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showModelModal, setShowModelModal] = useState(false);
   const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
@@ -128,6 +129,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const backendsWithKeys = useMemo(
     () => Object.entries(hasApiKey).filter(([, has]) => has).map(([b]) => b),
     [hasApiKey],
+  );
+
+  const activeBackends = useMemo(
+    () => backendsWithKeys.filter(b => !excludedBackends.has(b)),
+    [backendsWithKeys, excludedBackends],
   );
 
   const activeModel = useCustomModel ? customModel : globalModel;
@@ -207,7 +213,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       ? sourceContent.length > 0
       : sourceRef.trim().length > 0;
 
-  const canStart = hasSource && selected.size >= 1 && (multiProvider || activeModelHasKey);
+  const canStart = hasSource && selected.size >= 1 && (multiProvider ? activeBackends.length >= 2 : activeModelHasKey);
 
   const handleStart = async () => {
     if (!canStart || creating) return;
@@ -255,7 +261,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       try {
         const aiSpeakers = povers.filter(p => p !== 'user');
         const registry = { backends: AI_BACKENDS.map(b => ({ id: b.value, label: b.label })), models: [], debateTiers: DEBATE_TIERS };
-        speakerModels = resolveMultiProviderModels(modelTier, backendsWithKeys, aiSpeakers, registry);
+        speakerModels = resolveMultiProviderModels(modelTier, activeBackends, aiSpeakers, registry);
       } catch (err) {
         getGlobalRecorder()?.record({
           type: 'system.error',
@@ -565,21 +571,39 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                   </select>
                 </div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginBottom: 4 }}>
-                  Each speaker gets a different backend. Available:
+                  Each speaker gets a different backend. Click to toggle:
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   {backendsWithKeys.map(b => {
                     const tierModels = DEBATE_TIERS[modelTier];
                     const hasModel = tierModels && tierModels[b];
+                    const isExcluded = excludedBackends.has(b);
+                    const isLastActive = !isExcluded && activeBackends.length <= 2;
                     return (
-                      <span key={b} style={{
-                        padding: '2px 8px', borderRadius: 4, fontSize: '0.72rem',
-                        background: hasModel ? 'var(--accent-bg, rgba(59,130,246,0.15))' : 'var(--bg-tertiary)',
-                        color: hasModel ? 'var(--accent, #3b82f6)' : 'var(--text-muted)',
-                        border: `1px solid ${hasModel ? 'var(--accent, #3b82f6)' : 'var(--border)'}`,
-                      }}>
-                        {b} {hasModel ? '✓' : '✗'}
-                      </span>
+                      <button
+                        key={b}
+                        type="button"
+                        disabled={!isExcluded && isLastActive}
+                        title={isExcluded ? `Click to include ${b}` : isLastActive ? 'At least 2 backends required' : `Click to exclude ${b}`}
+                        onClick={() => {
+                          setExcludedBackends(prev => {
+                            const next = new Set(prev);
+                            if (next.has(b)) next.delete(b); else next.add(b);
+                            return next;
+                          });
+                        }}
+                        style={{
+                          padding: '2px 8px', borderRadius: 4, fontSize: '0.72rem',
+                          cursor: (!isExcluded && isLastActive) ? 'not-allowed' : 'pointer',
+                          opacity: isExcluded ? 0.4 : 1,
+                          background: isExcluded ? 'var(--bg-tertiary)' : hasModel ? 'var(--accent-bg, rgba(59,130,246,0.15))' : 'var(--bg-tertiary)',
+                          color: isExcluded ? 'var(--text-muted)' : hasModel ? 'var(--accent, #3b82f6)' : 'var(--text-muted)',
+                          border: `1px solid ${isExcluded ? 'var(--border)' : hasModel ? 'var(--accent, #3b82f6)' : 'var(--border)'}`,
+                          textDecoration: isExcluded ? 'line-through' : 'none',
+                        }}
+                      >
+                        {b} {isExcluded ? '✗' : hasModel ? '✓' : '—'}
+                      </button>
                     );
                   })}
                 </div>
