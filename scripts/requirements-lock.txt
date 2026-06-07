@@ -5,7 +5,7 @@
 # Last pinned: 2026-05-05
 
 # HTTP and web fetching
-requests==2.32.3
+requests==2.33.0
 httpx==0.28.1
 
 # HTML to Markdown conversion
@@ -13,7 +13,7 @@ markdownify==0.14.1
 trafilatura==2.0.0
 
 # PDF text extraction
-pypdf==5.4.0
+pypdf==6.10.2
 pdfminer.six==20240706
 
 # URL/slug utilities
