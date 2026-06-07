@@ -7,13 +7,17 @@ BeforeAll {
 
 Describe 'Get-TaxonomyProcess' {
 
+    BeforeDiscovery {
+        $script:skipCim = -not $IsWindows
+    }
+
     It 'returns empty when no matching processes are found' {
         Mock Get-Process { return $null } -ModuleName AITriad
         $result = Get-TaxonomyProcess
         $result | Should -BeNullOrEmpty
     }
 
-    It 'identifies an electron process by command line' {
+    It 'identifies an electron process by command line' -Skip:$skipCim {
         $fakeProc = [PSCustomObject]@{
             Id        = 9999
             StartTime = [datetime]'2026-06-07T10:00:00'
@@ -30,7 +34,7 @@ Describe 'Get-TaxonomyProcess' {
         $result[0].PipeName | Should -Be 'taxonomy-flight-recorder-9999'
     }
 
-    It 'filters by -Type parameter' {
+    It 'filters by -Type parameter' -Skip:$skipCim {
         $fakeProc = [PSCustomObject]@{
             Id        = 1234
             StartTime = [datetime]'2026-06-07T10:00:00'
@@ -47,7 +51,7 @@ Describe 'Get-TaxonomyProcess' {
         $result2.Count | Should -Be 1
     }
 
-    It 'identifies a cli-debate process' {
+    It 'identifies a cli-debate process' -Skip:$skipCim {
         $fakeProc = [PSCustomObject]@{
             Id        = 5678
             StartTime = [datetime]'2026-06-07T10:00:00'
