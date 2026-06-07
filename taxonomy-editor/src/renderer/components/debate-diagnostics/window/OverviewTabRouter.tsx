@@ -73,8 +73,8 @@ export function OverviewTabRouter({
 }: OverviewTabRouterProps) {
   return (
     <>
-      {/* Overview content — shown when no entry is selected (or always for transcript tab) */}
-      {(!selectedEntry || effectiveOverviewTab === 'transcript') && <>
+      {/* Overview content — always visible (master-detail layout on desktop) */}
+      {<>
 
       {/* Topic Scope (10.2) */}
       {effectiveOverviewTab === 'topic-scope' && debate.topic?.scope && (() => {
@@ -576,8 +576,8 @@ export function OverviewTabRouter({
         );
       })()}
 
-      {/* Transcript list for selection — hidden when an entry is selected (sidebar handles navigation) */}
-      {effectiveOverviewTab === 'transcript' && !selectedEntry && (() => {
+      {/* Transcript list for selection */}
+      {effectiveOverviewTab === 'transcript' && (() => {
         const speakers = Array.from(new Set(debate.transcript.map(e => e.speaker)));
         const filteredTranscript = transcriptSpeakerFilter
           ? debate.transcript.map((e, i) => ({ e, i })).filter(({ e }) => e.speaker === transcriptSpeakerFilter)

@@ -199,7 +199,7 @@ describe('OverviewTabRouter', () => {
     expect(screen.getByTestId('an-tab')).toBeInTheDocument();
   });
 
-  it('does not render transcript list when selectedEntry is set', () => {
+  it('renders transcript list even when selectedEntry is set (master-detail layout)', () => {
     render(
       <OverviewTabRouter
         {...makeProps({
@@ -209,9 +209,9 @@ describe('OverviewTabRouter', () => {
       />,
     );
 
-    // The "All" filter button is only rendered in the transcript list view,
-    // which is hidden when an entry is selected
-    expect(screen.queryByRole('button', { name: /All \(/i })).not.toBeInTheDocument();
+    // The "All" filter button is rendered in the transcript list view,
+    // which stays visible alongside the entry detail in master-detail layout
+    expect(screen.queryByRole('button', { name: /All \(/i })).toBeInTheDocument();
   });
 
   it('shows pipeline error indicator on entries with failed post-pipeline processing', () => {

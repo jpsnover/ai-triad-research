@@ -309,8 +309,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
       {debate && (
         <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
-          {/* Vertical tab sidebar — hidden when viewing entry detail */}
-          {!selectedEntry && (() => {
+          {/* Vertical tab sidebar — always visible */}
+          {(() => {
             const hasAn = !!(an && an.nodes.length > 0);
             const hasCommitments = !!(commitments && Object.keys(commitments).length > 0);
             const plateau = debate.extraction_summary?.plateau_detected === true;
@@ -340,7 +340,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 {tabs.filter(t => t.visible).map(t => (
                   <div key={t.id}>
                     <button
-                      onClick={() => { setOverviewTab(t.id); setSelectedEntry(null); setLocalOverride(true); }}
+                      onClick={() => { setOverviewTab(t.id); setLocalOverride(true); }}
                       style={{
                         display: 'block', width: '100%', textAlign: 'left',
                         padding: '4px 8px', fontSize: '0.7rem', fontWeight: 600,
@@ -384,64 +384,77 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
             );
           })()}
 
-          {/* Content area — delegates to routers */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, minWidth: 0 }}>
-            <OverviewTabRouter
-              debate={debate}
-              an={an}
-              commitments={commitments}
-              effectiveOverviewTab={effectiveOverviewTab}
-              selectedEntry={selectedEntry}
-              setSelectedEntry={setSelectedEntry}
-              setOverviewTab={setOverviewTab}
-              setLocalOverride={setLocalOverride}
-              focusedNodeId={focusedNodeId}
-              setFocusedNodeId={setFocusedNodeId}
-              anFilterMode={anFilterMode}
-              anFilterNodeId={anFilterNodeId}
-              setAnFilterMode={setAnFilterMode}
-              setAnFilterNodeId={setAnFilterNodeId}
-              handleUpdateSubScore={handleUpdateSubScore}
-              transcriptSpeakerFilter={transcriptSpeakerFilter}
-              setTranscriptSpeakerFilter={setTranscriptSpeakerFilter}
-              perTurnUtilities={perTurnUtilities}
-              nodeLabels={nodeLabels}
-              searchQuery={sq}
-            />
-
-            {selectedEntry && entry && effectiveOverviewTab !== 'prompt-diff' && effectiveOverviewTab !== 'utility' && (
-              <EntryDetailRouter
+          {/* Content area — side-by-side master-detail on desktop */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, minWidth: 0 }}>
+            {/* Overview pane */}
+            <div style={{
+              flex: selectedEntry ? '0 0 35%' : '1 1 auto',
+              minWidth: selectedEntry ? 280 : 0,
+              maxWidth: selectedEntry ? '45%' : 'none',
+              overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              borderRight: selectedEntry ? '1px solid var(--border)' : 'none',
+              marginRight: selectedEntry ? 8 : 0,
+            }}>
+              <OverviewTabRouter
                 debate={debate}
-                entry={entry}
-                entryIdx={entryIdx}
-                diag={diag}
-                meta={meta}
-                turnValTrail={turnValTrail}
                 an={an}
                 commitments={commitments}
-                entryTab={entryTab}
-                setEntryTab={setEntryTab}
                 effectiveOverviewTab={effectiveOverviewTab}
                 selectedEntry={selectedEntry}
                 setSelectedEntry={setSelectedEntry}
                 setOverviewTab={setOverviewTab}
                 setLocalOverride={setLocalOverride}
-                proxiedModeratorTrace={proxiedModeratorTrace}
-                taxNodeMap={taxNodeMap}
-                policyMap={policyMap}
-                allEdges={allEdges}
-                nodeWeights={nodeWeights}
-                selectedTaxRefId={selectedTaxRefId}
-                setSelectedTaxRefId={setSelectedTaxRefId}
-                selectedPolicyId={selectedPolicyId}
-                setSelectedPolicyId={setSelectedPolicyId}
-                textCopyMenu={textCopyMenu}
-                setTextCopyMenu={setTextCopyMenu}
-                tabContentRef={tabContentRef}
-                searchQuery={sq}
+                focusedNodeId={focusedNodeId}
+                setFocusedNodeId={setFocusedNodeId}
+                anFilterMode={anFilterMode}
+                anFilterNodeId={anFilterNodeId}
+                setAnFilterMode={setAnFilterMode}
+                setAnFilterNodeId={setAnFilterNodeId}
+                handleUpdateSubScore={handleUpdateSubScore}
+                transcriptSpeakerFilter={transcriptSpeakerFilter}
+                setTranscriptSpeakerFilter={setTranscriptSpeakerFilter}
                 perTurnUtilities={perTurnUtilities}
                 nodeLabels={nodeLabels}
+                searchQuery={sq}
               />
+            </div>
+
+            {/* Entry detail pane */}
+            {selectedEntry && entry && effectiveOverviewTab !== 'prompt-diff' && effectiveOverviewTab !== 'utility' && (
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <EntryDetailRouter
+                  debate={debate}
+                  entry={entry}
+                  entryIdx={entryIdx}
+                  diag={diag}
+                  meta={meta}
+                  turnValTrail={turnValTrail}
+                  an={an}
+                  commitments={commitments}
+                  entryTab={entryTab}
+                  setEntryTab={setEntryTab}
+                  effectiveOverviewTab={effectiveOverviewTab}
+                  selectedEntry={selectedEntry}
+                  setSelectedEntry={setSelectedEntry}
+                  setOverviewTab={setOverviewTab}
+                  setLocalOverride={setLocalOverride}
+                  proxiedModeratorTrace={proxiedModeratorTrace}
+                  taxNodeMap={taxNodeMap}
+                  policyMap={policyMap}
+                  allEdges={allEdges}
+                  nodeWeights={nodeWeights}
+                  selectedTaxRefId={selectedTaxRefId}
+                  setSelectedTaxRefId={setSelectedTaxRefId}
+                  selectedPolicyId={selectedPolicyId}
+                  setSelectedPolicyId={setSelectedPolicyId}
+                  textCopyMenu={textCopyMenu}
+                  setTextCopyMenu={setTextCopyMenu}
+                  tabContentRef={tabContentRef}
+                  searchQuery={sq}
+                  perTurnUtilities={perTurnUtilities}
+                  nodeLabels={nodeLabels}
+                />
+              </div>
             )}
           </div>
 
