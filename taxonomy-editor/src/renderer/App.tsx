@@ -6,6 +6,7 @@ import { api } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import ErrorBoundary from '../../../lib/electron-shared/components/ErrorBoundary';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
+import { initDebateSessions } from './hooks/useDebateStore';
 import { Toolbar } from './components/Toolbar';
 import { TabBar } from './components/TabBar';
 import { SaveBar } from './components/SaveBar';
@@ -194,7 +195,7 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
+        void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
       }
     });
   }, [loadAll]);
@@ -216,7 +217,7 @@ function MainApp() {
             if (available) {
               setShowFirstRun(false);
               setCopyStatus(null);
-              void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
+              void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
             }
             // If still not available after copy complete, DeploymentErrorScreen will show
           });
@@ -405,12 +406,12 @@ function MainApp() {
 
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
+    void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
   };
 
   const handleFirstRunSkip = () => {
     setShowFirstRun(false);
-    void initAIModels().then(() => { void loadAll(); void initAnalytics(); });
+    void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
   };
 
   if (showFirstRun) {

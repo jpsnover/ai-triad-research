@@ -25,6 +25,10 @@ export const useDebateStore = create<DebateStore>()((...a) => ({
 
 ((window as unknown as { __ZUSTAND_STORES__?: Record<string, unknown> }).__ZUSTAND_STORES__ ??= {} as Record<string, unknown>).debate = useDebateStore;
 
+export function initDebateSessions(): void {
+  void useDebateStore.getState().loadSessions();
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     const state = useDebateStore.getState();
