@@ -262,33 +262,62 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               AI Triad Research — multi-perspective research platform for AI policy/safety literature.
               Berkman Klein Center, 2026.
             </p>
+            <p style={{ marginTop: 8, fontSize: '0.8em', color: 'var(--text-muted)' }}>
+              Built with Electron 35, React 19, TypeScript, Vite, and Zustand.
+              AI backends: Google Gemini, Anthropic Claude, Groq, OpenAI, DeepSeek, Ollama.
+            </p>
           </div>
         )}
 
         {activeTab === 'overview' && (
-          <div className="help-section">
+          <div className="help-section" style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
             <p>
               This editor manages the AI Triad taxonomy across three perspectives
               (Accelerationist, Safetyist, Skeptic), situations shared
               across perspectives, and documented conflicts between positions.
             </p>
-            <h4>Tabs</h4>
+
+            <h4>Main Tabs</h4>
+            <p><strong>Accelerationist / Safetyist / Skeptic</strong> — Each perspective has nodes organized into BDI categories (Beliefs, Desires, Intentions).</p>
+            <p><strong>Situations</strong> — Cross-cutting concepts showing how each perspective interprets the same issue.</p>
+            <p><strong>Conflicts</strong> — Documented disagreements with source instances and analyst notes.</p>
+            <p><strong>Cruxes</strong> — Core disagreements distilled from debate rounds and cross-perspective analysis.</p>
+            <p><strong>Summaries</strong> — Document summaries from the ingestion pipeline.</p>
+            <p><strong>Debate</strong> — Multi-agent debates between Accelerationist, Safetyist, and Skeptic characters using a BDI agent architecture. Debates progress through clarification, argumentation rounds, synthesis, and harvest.</p>
+            <p><strong>Chat</strong> — POVer Chat with brainstorm, inform, and decide conversation modes for free-form AI-assisted exploration.</p>
+
+            <h4>Toolbar Panels</h4>
+            <p><strong>Search</strong> — Full-text search with raw, wildcard, and regex modes. Scope by perspective and/or BDI category.</p>
+            <p><strong>Intellectual Lineage</strong> — Trace the intellectual heritage and influences behind taxonomy nodes.</p>
+            <p><strong>Edge Browser</strong> — Browse AIF-aligned typed edges (attack, support, inference) between nodes across the full taxonomy graph.</p>
+            <p><strong>Policy Alignment</strong> — Map taxonomy nodes to policy actions from the shared policy registry.</p>
+            <p><strong>Policy Dashboard</strong> — Aggregate view of policy action coverage and alignment across perspectives.</p>
+            <p><strong>Possible Fallacies</strong> — Identify potential logical fallacies in node claims and debate arguments.</p>
+            <p><strong>Vocabulary</strong> — Browse the controlled vocabulary used across the taxonomy.</p>
+            <p><strong>Calibration</strong> — Review and calibrate confidence scores and QBAF base scores.</p>
+            <p><strong>Console</strong> — Development console for inspecting state and debugging.</p>
+            <p><strong>Prompts</strong> — Inspect AI prompt templates and view prompt diffs between versions.</p>
+
+            <h4>AI &amp; Backends</h4>
             <p>
-              <strong>Accelerationist / Safetyist / Skeptic</strong> — Each perspective
-              has nodes organized into three BDI categories: Desires, Intentions, and Beliefs.
+              Six AI backends are supported: Google Gemini, Anthropic Claude, Groq, OpenAI, DeepSeek, and Ollama (local).
+              Models are configured in <code>ai-models.json</code> with per-backend defaults, debate tier assignments, and fallback chains.
+              Models without a configured API key are auto-disabled in debate setup.
             </p>
-            <p>
-              <strong>Situations</strong> — Concepts that span all three perspectives.
-              Each node includes how each perspective interprets the concept.
-            </p>
-            <p>
-              <strong>Conflicts</strong> — Documented disagreements between perspectives,
-              with source instances and analyst notes.
-            </p>
-            <h4>Features</h4>
+            <p><strong>Fact-checking</strong> — Debate claims can be verified using Gemini's integrated web search (google_search tool).</p>
+            <p><strong>Key Sharing</strong> — Share API keys between devices via AES-256-GCM encrypted QR codes (Settings).</p>
+
+            <h4>Diagnostics &amp; Observability</h4>
+            <p><strong>Flight Recorder</strong> — Always-on ring buffer capturing system events, errors, and debate telemetry. Dump manually with Ctrl+Alt+D or via named pipe.</p>
+            <p><strong>Diagnostics Window</strong> — Detachable window showing debate convergence signals, verification status, document coverage, and real-time debate state.</p>
+            <p><strong>Debate Chat</strong> — AI-powered diagnostic sidebar for interrogating debate state (Ctrl+Shift+D to toggle).</p>
+            <p><strong>Analytics Dashboard</strong> — Usage analytics and session metrics.</p>
+
+            <h4>General</h4>
             <p><strong>Pin</strong> — Pin any item to compare it side-by-side with the active item.</p>
-            <p><strong>Search</strong> — Full-text search with raw, wildcard, and regex modes. Scope by Perspective and/or category.</p>
             <p><strong>Resize</strong> — Drag the border between the list and detail panels to resize.</p>
+            <p><strong>Themes</strong> — Light, Dark, BKC, Harvard, and System (auto) color schemes.</p>
+            <p><strong>Zoom</strong> — Ctrl+= / Ctrl+- / Ctrl+0 to zoom in, out, or reset.</p>
           </div>
         )}
 
@@ -348,6 +377,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
 
         {activeTab === 'shortcuts' && (
           <div className="help-section">
+            <h4 style={{ marginTop: 0 }}>General</h4>
             <table className="help-shortcuts">
               <tbody>
                 <tr><td className="help-key">Ctrl + F</td><td>Open / close search</td></tr>
@@ -358,7 +388,24 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
                 <tr><td className="help-key">Arrow Up/Down</td><td>Navigate items in list</td></tr>
                 <tr><td className="help-key">Enter</td><td>Next search result</td></tr>
                 <tr><td className="help-key">Shift + Enter</td><td>Previous search result</td></tr>
-                <tr><td className="help-key">Escape</td><td>Close search / dialogs</td></tr>
+                <tr><td className="help-key">Escape</td><td>Close search / dialogs / navigate back</td></tr>
+              </tbody>
+            </table>
+            <h4>Diagnostics &amp; Debug</h4>
+            <table className="help-shortcuts">
+              <tbody>
+                <tr><td className="help-key">Ctrl + Alt + D</td><td>Dump flight recorder to disk</td></tr>
+                <tr><td className="help-key">Ctrl + Shift + D</td><td>Toggle Debate Chat sidebar</td></tr>
+                <tr><td className="help-key">Ctrl + L</td><td>Clear diagnostics chat (when input focused)</td></tr>
+              </tbody>
+            </table>
+            <h4>Chat &amp; Comments</h4>
+            <table className="help-shortcuts">
+              <tbody>
+                <tr><td className="help-key">Enter</td><td>Send message (chat / debate chat)</td></tr>
+                <tr><td className="help-key">Ctrl + Enter</td><td>Submit comment</td></tr>
+                <tr><td className="help-key">Arrow Up/Down</td><td>Browse prompt history (debate chat)</td></tr>
+                <tr><td className="help-key">Tab</td><td>Autocomplete slash commands (debate chat)</td></tr>
               </tbody>
             </table>
           </div>
