@@ -36,6 +36,7 @@ import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { isLineageDataLoaded } from '../../../data/lineageCategories';
 import {
   getConfiguredModel,
+  getSpeakerModel,
   generateTextWithProgress,
   createDebateGuard,
   pushWarning,
@@ -733,8 +734,6 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       }
     }
 
-    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
-
     console.log(`[debate-store] Opening statements: aiPovers=${JSON.stringify(aiPovers)}, existingOpenings=${JSON.stringify([...existingOpenings])}, resolvedOrder=${JSON.stringify(resolvedOrder)}`);
 
     for (const poverId of aiPovers) {
@@ -748,6 +747,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       const info = POVER_INFO[poverId];
 
       try {
+        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, poverId, model));
         const recentText = priorStatements.map(ps => ps.statement).join('\n').slice(-500);
         const ctx = await getRelevantTaxonomyContext(info.pov, topic, recentText);
         const speakerClaims = (get().activeDebate?.argument_network?.nodes || []).filter(n => n.speaker === poverId);
@@ -791,7 +791,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           sourceContent: docAnalysis ? undefined : (activeDebate.source_content || undefined),
           documentAnalysis: docAnalysis,
           audience: activeDebate.audience,
-          model,
+          model: getSpeakerModel(activeDebate, poverId, model),
           userSeedClaims: userSeeds.length > 0 ? userSeeds : undefined,
           availablePovNodeIds: [...getAllKnownNodeIds()],
           doctrinalBoundaries: info.doctrinal_boundaries,

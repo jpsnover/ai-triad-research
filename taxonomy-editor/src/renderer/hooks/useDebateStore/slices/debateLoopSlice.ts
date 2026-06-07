@@ -82,6 +82,7 @@ import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { cosineSimilarity, scoreNodesLexical } from '../../../utils/taxonomyRelevance';
 import {
   getConfiguredModel,
+  getSpeakerModel,
   generateTextWithProgress,
   createDebateGuard,
   pushWarning,
@@ -214,8 +215,9 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       );
 
       try {
+        const speakerModel = getSpeakerModel(activeDebate, poverId, model);
         const t0 = Date.now();
-        const { text } = await generateTextWithProgress(prompt, model, `${POVER_INFO[poverId].label} is responding (${model})`, set);
+        const { text } = await generateTextWithProgress(prompt, speakerModel, `${POVER_INFO[poverId].label} is responding (${speakerModel})`, set);
         const responseTime = Date.now() - t0;
         if (!isStillValid()) return;
         const { statement, taxonomyRefs, meta } = parsePoverResponse(text);
@@ -398,13 +400,13 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
           documentAnalysis: crDocAnalysis,
           audience: activeDebate.audience,
-          model,
+          model: getSpeakerModel(activeDebate, responderPover, model),
           sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
           docTitles: docTitles as TurnPipelineInput['docTitles'],
           doctrinalBoundaries: info.doctrinal_boundaries,
         };
 
-        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
+        const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
         const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
         if (!isStillValid()) { set({ debateGenerating: null }); return; }
 
@@ -744,7 +746,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       sourceContent: crDocAnalysis ? undefined : (activeDebate.source_content || undefined),
       documentAnalysis: crDocAnalysis,
       audience: activeDebate.audience,
-      model,
+      model: getSpeakerModel(activeDebate, responderPover, model),
       sourceEvidenceIndex: evidenceIndex as TurnPipelineInput['sourceEvidenceIndex'],
       docTitles: docTitles as TurnPipelineInput['docTitles'],
       doctrinalBoundaries: info.doctrinal_boundaries,
@@ -753,7 +755,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       lastOpponentStatement,
     };
 
-    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, model);
+    const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
 
     try {
       console.warn('%c[DEBATE-STORE] Inside try block — about to build retryCallbacks', 'color: cyan; font-weight: bold; font-size: 12px');

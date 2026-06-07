@@ -258,6 +258,10 @@ export async function runNeutralCheckpoint(
   }
 }
 
+export function getSpeakerModel(activeDebate: { speaker_models?: Record<string, string> } | null, speaker: string, fallbackModel: string): string {
+  return activeDebate?.speaker_models?.[speaker] || fallbackModel;
+}
+
 /** Read the model for the current debate context.
  *  Priority: debate-specific override > global Settings model > default */
 export function getConfiguredModel(): string {
