@@ -592,3 +592,134 @@ describe('FlightRecorder', () => {
     expect(eventLine.component).toBe('argument-network');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// dumpToFile
+// ═══════════════════════════════════════════════════════════════════
+
+describe('dumpToFile', () => {
+  let recorder: FlightRecorder;
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const os = require('node:os');
+
+  beforeEach(() => {
+    recorder = new FlightRecorder({ capacity: 10, dumpOnError: false });
+  });
+
+  it('writes NDJSON to the specified path and returns DumpResult', () => {
+    recorder.record(makeInput({ message: 'dump-event-1' }));
+    recorder.record(makeInput({ message: 'dump-event-2' }));
+
+    const outPath = path.join(os.tmpdir(), `fr-test-${Date.now()}.jsonl`);
+    const result = recorder.dumpToFile(outPath);
+
+    expect(result.path).toBe(outPath);
+    expect(result.event_count).toBe(2);
+    expect(result.size_bytes).toBeGreaterThan(0);
+    expect(result.first_event_ts).toBeTruthy();
+    expect(result.last_event_ts).toBeTruthy();
+
+    const content = fs.readFileSync(outPath, 'utf-8');
+    const lines = content.trim().split('\n');
+    expect(lines.length).toBeGreaterThanOrEqual(4);
+
+    const header = JSON.parse(lines[0]);
+    expect(header._type).toBe('header');
+
+    fs.unlinkSync(outPath);
+  });
+
+  it('auto-generates path when none provided', () => {
+    const tmpDir = path.join(os.tmpdir(), `fr-auto-${Date.now()}`);
+    const rec = new FlightRecorder({ capacity: 10, dumpDir: tmpDir });
+    rec.record(makeInput({ message: 'auto-path-event' }));
+
+    const result = rec.dumpToFile();
+
+    expect(result.path).toContain(tmpDir);
+    expect(result.path).toMatch(/\.jsonl$/);
+    expect(fs.existsSync(result.path)).toBe(true);
+
+    fs.unlinkSync(result.path);
+    fs.rmdirSync(tmpDir);
+  });
+
+  it('returns empty timestamps when buffer is empty', () => {
+    const outPath = path.join(os.tmpdir(), `fr-empty-${Date.now()}.jsonl`);
+    const result = recorder.dumpToFile(outPath);
+
+    expect(result.event_count).toBe(0);
+    expect(result.first_event_ts).toBeTruthy();
+    expect(result.last_event_ts).toBeTruthy();
+
+    fs.unlinkSync(outPath);
+  });
+
+  it('includes debate_id from context provider', () => {
+    recorder.setContextProvider(() => ({ active_debate_id: 'debate-abc' }));
+    recorder.record(makeInput({ message: 'with-debate-id' }));
+
+    const outPath = path.join(os.tmpdir(), `fr-ctx-${Date.now()}.jsonl`);
+    const result = recorder.dumpToFile(outPath);
+
+    expect(result.debate_id).toBe('debate-abc');
+
+    fs.unlinkSync(outPath);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// getSummary
+// ═══════════════════════════════════════════════════════════════════
+
+describe('getSummary', () => {
+  let recorder: FlightRecorder;
+
+  beforeEach(() => {
+    recorder = new FlightRecorder({ capacity: 10, dumpOnError: false });
+  });
+
+  it('returns zero state for empty recorder', () => {
+    const summary = recorder.getSummary();
+
+    expect(summary.event_count).toBe(0);
+    expect(summary.first_event_ts).toBeUndefined();
+    expect(summary.last_event_ts).toBeUndefined();
+    expect(summary.buffer_size_bytes).toBe(0);
+  });
+
+  it('returns correct counts and timestamps', () => {
+    recorder.record(makeInput({ message: 'summary-1' }));
+    recorder.record(makeInput({ message: 'summary-2' }));
+    recorder.record(makeInput({ message: 'summary-3' }));
+
+    const summary = recorder.getSummary();
+
+    expect(summary.event_count).toBe(3);
+    expect(summary.first_event_ts).toBeTruthy();
+    expect(summary.last_event_ts).toBeTruthy();
+    expect(summary.buffer_size_bytes).toBeGreaterThan(0);
+  });
+
+  it('includes debate_id from context provider', () => {
+    recorder.setContextProvider(() => ({ active_debate_id: 'debate-xyz' }));
+    recorder.record(makeInput({ message: 'ctx-event' }));
+
+    const summary = recorder.getSummary();
+    expect(summary.debate_id).toBe('debate-xyz');
+  });
+
+  it('estimates size based on event content', () => {
+    recorder.record(makeInput({ message: 'short' }));
+    const small = recorder.getSummary().buffer_size_bytes;
+
+    recorder.record(makeInput({
+      message: 'a'.repeat(1000),
+      data: { big: 'b'.repeat(1000) },
+    }));
+    const large = recorder.getSummary().buffer_size_bytes;
+
+    expect(large).toBeGreaterThan(small);
+  });
+});

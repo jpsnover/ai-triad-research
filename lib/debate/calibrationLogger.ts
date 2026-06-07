@@ -520,7 +520,8 @@ export function extractCalibrationData(
         total++;
         // Does the QBAF strength ordering match the preference verdict?
         const maxStr = Math.max(...claimStrengths);
-        if (claimStrengths[0] === maxStr) matches++;
+        const prevailsIdx = pref.prevails ? pref.claim_ids.indexOf(pref.prevails) : -1;
+        if (prevailsIdx >= 0 && prevailsIdx < claimStrengths.length && claimStrengths[prevailsIdx] === maxStr) matches++;
       }
     }
     concordance = total > 0 ? matches / total : null;

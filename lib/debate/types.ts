@@ -728,7 +728,7 @@ export interface TurnValidationConfig {
     argumentation?: number;
     concluding?: number;
   };
-  /** Model for the draft quality pre-check. Default: gemini-2.0-flash-lite. */
+  /** Model for the draft quality pre-check. Default: gemini-3.1-flash-lite. */
   preCheckModel?: string;
   /** Disable the draft quality pre-check. Default: false. */
   skipPreCheck?: boolean;
@@ -935,6 +935,8 @@ export interface ArgumentNetworkNode {
   vocabulary_tags?: { colloquial: string; canonical: string; offset: number }[];
   /** Policymaker debates only: political salience of this claim for policy decision-making. */
   political_salience?: 'high' | 'medium' | 'low';
+  /** Topic scope relevance when topic constraints are active. */
+  topic_relevance?: 'on_topic' | 'adjacent' | 'off_topic';
 }
 
 export interface ClaimTaxonomyAttribution {

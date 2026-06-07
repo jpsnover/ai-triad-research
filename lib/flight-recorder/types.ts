@@ -218,6 +218,23 @@ export interface DumpContext {
   [key: string]: unknown;
 }
 
+export interface DumpResult {
+  path: string;
+  event_count: number;
+  first_event_ts: string;
+  last_event_ts: string;
+  debate_id?: string;
+  size_bytes: number;
+}
+
+export interface RecorderSummary {
+  event_count: number;
+  first_event_ts?: string;
+  last_event_ts?: string;
+  debate_id?: string;
+  buffer_size_bytes: number;
+}
+
 export type TriggerType = 'uncaught_error' | 'unhandled_rejection' | 'error_boundary' | 'explicit' | 'manual';
 
 export interface DumpTrigger {

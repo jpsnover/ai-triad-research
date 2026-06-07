@@ -10,6 +10,7 @@ import type {
   ConvergenceSignals,
   ProcessRewardEntry,
   TurnValidation,
+  TrackedCrux,
 } from './types.js';
 import { wordOverlap, getMoveName, ATTACK_MOVES, SUPPORT_MOVES } from './helpers.js';
 import type { MoveAnnotation } from './helpers.js';
@@ -34,6 +35,7 @@ export function computeConvergenceSignals(
   precomputedStrengths?: Map<string, number>,
   topicEmbedding?: number[],
   clauseEmbeddings?: number[][],
+  cruxTracker?: TrackedCrux[],
 ): ConvergenceSignals {
   const entryIdx = transcript.findIndex(e => e.id === entryId);
   const entry = transcript[entryIdx];
@@ -153,11 +155,17 @@ export function computeConvergenceSignals(
   const priorDelta = existingSignals.filter(s => s.speaker === speaker).slice(-1)[0]?.position_drift;
   const drift = priorDelta ? Math.abs(overlapWithOpening - priorDelta.overlap_with_opening) : 0;
 
-  // 7. Crux rate — did this turn use IDENTIFY-CRUX, and cumulative tracking
-  const cruxUsedThisTurn = moveNames.some(m => {
-    const upper = m.toUpperCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
-    return upper === 'IDENTIFY CRUX' || upper === 'IDENTIFY-CRUX';
-  });
+  // 7. Crux rate — structural detection: did this turn's AN nodes engage any tracked crux?
+  // A crux is "engaged this turn" if any of its attacking_claim_ids were produced in this entry,
+  // or if a crux transitioned state at the current turn number.
+  let cruxUsedThisTurn = false;
+  if (cruxTracker && cruxTracker.length > 0) {
+    const currentTurn = turnNodes.length > 0 ? turnNodes[0].turn_number : round;
+    cruxUsedThisTurn = cruxTracker.some(crux =>
+      crux.attacking_claim_ids.some(cid => turnNodeIds.has(cid)) ||
+      crux.history.some(h => h.turn === currentTurn),
+    );
+  }
   const priorCruxSignals = existingSignals.filter(s => s.speaker === speaker);
   const cumulativeCruxCount = priorCruxSignals.reduce((c, s) => c + (s.crux_engagement_rate.used_this_turn ? 1 : 0), 0) + (cruxUsedThisTurn ? 1 : 0);
   const priorFollowThrough = priorCruxSignals.length > 0

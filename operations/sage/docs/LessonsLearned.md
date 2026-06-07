@@ -535,3 +535,39 @@ Institutional memory for failure patterns across the AI Triad Research project.
 4. Enable `noImplicitAny` awareness — always annotate callback parameters.
 
 **Applies To:** All agents writing TypeScript in the Electron apps (all three use nodenext).
+
+---
+
+## [Data] Hardcoded File References Go Stale During Active Sessions
+
+**Pattern:** Scripts that hardcode a specific file path or ID (e.g., a debate UUID) fail when the referenced file is overwritten, renamed, or deleted by concurrent user activity during the session.
+
+**Instances:**
+- 2026-06-06 — Computational Linguist: `_calibration_review.py` referenced a hardcoded debate file `debate-7362765b-...json` which was overwritten when the user ran a new debate mid-session. Fixed by rewriting the script to dynamically find the 5 most recent debates by modification time instead of hardcoding a debate ID (p/7#13).
+
+**Root Cause:** Data files in this project (especially debates, summaries) are actively written by the user and by enrichment pipelines. A file that existed when the script was written or first run may not exist — or may have different content — minutes later.
+
+**Prevention:**
+1. Never hardcode file paths or UUIDs for data files that change — use dynamic discovery (sort by mtime, glob for pattern).
+2. For analysis scripts, find recent files at runtime: `sorted(Path(dir).glob('debate-*.json'), key=lambda p: p.stat().st_mtime)[-N:]`.
+3. Add a file-existence check before processing and provide a clear error message if the target is missing.
+
+**Applies To:** All agents writing scripts that reference debate files, summaries, or other actively-written data.
+
+---
+
+## [Process] Bash vs PowerShell Tool Confusion
+
+**Pattern:** Running PowerShell cmdlets (e.g., `Get-ChildItem`) in the Bash tool instead of the PowerShell tool, causing syntax errors.
+
+**Instances:**
+- 2026-06-06 — Computational Linguist: ran `Get-ChildItem` in Bash tool, causing syntax error. Fixed by switching to PowerShell tool (p/7#13).
+
+**Root Cause:** Agents have access to both Bash and PowerShell tools. PowerShell cmdlets (`Get-ChildItem`, `Invoke-Pester`, `Select-Object`, etc.) only work in the PowerShell tool. Unix commands (`ls`, `grep`, `cat`) only work in Bash (on Windows/Git Bash).
+
+**Prevention:**
+1. Use PowerShell tool for: cmdlets (`Get-*`, `Set-*`, `Invoke-*`), `$env:` variables, pipeline operators with objects.
+2. Use Bash tool for: Unix commands, `git`, `npm`, `node`, `python3`, shell scripts.
+3. When in doubt, check if the command uses a Verb-Noun pattern — if yes, it's PowerShell.
+
+**Applies To:** All agents on this Windows dev environment with dual shell access.

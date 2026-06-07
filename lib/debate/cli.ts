@@ -18,7 +18,7 @@ import type { DebateConfig } from './debateEngine.js';
 import type { DebateSourceType, SpeakerId, DebateAudience } from './types.js';
 import { POVER_INFO, DEBATE_AUDIENCES, POV_KEYS } from './types.js';
 import { formatSituationDebateContext } from './prompts.js';
-import { getGlobalRecorder } from '../flight-recorder/index.js';
+import { FlightRecorder, getGlobalRecorder, setGlobalRecorder } from '../flight-recorder/index.js';
 import { generateSlug, formatDebateMarkdown, buildDiagnosticsOutput, buildHarvestOutput } from './formatters.js';
 import { ActionableError } from './errors.js';
 
@@ -300,6 +300,19 @@ async function main(): Promise<void> {
     });
   }
 
+  // Initialize flight recorder + named pipe listener
+  if (!getGlobalRecorder()) {
+    const recorder = new FlightRecorder({ capacity: 5000, dumpOnError: true });
+    recorder.intern('component', 'cli');
+    recorder.intern('component', 'ai-adapter');
+    recorder.intern('component', 'debate-engine');
+    setGlobalRecorder(recorder);
+  }
+  const recorder = getGlobalRecorder()!;
+  recorder.startPipeListener(process.pid);
+  process.on('SIGINT', () => { recorder.stopPipeListener(); process.exit(130); });
+  recorder.record({ type: 'state.init', component: 'cli', level: 'info', message: `CLI debate starting: PID ${process.pid}` });
+
   // Create adapter
   // Validate audience
   const validAudienceIds = DEBATE_AUDIENCES.map(a => a.id);
@@ -356,9 +369,12 @@ async function main(): Promise<void> {
   // Run debate
   log(`Starting debate: "${topic.slice(0, 80)}..." with ${activePovers.join(', ')}, ${engineConfig.useAdaptiveStaging ? `adaptive (${config.pacing ?? 'moderate'})` : `${engineConfig.rounds} rounds`}`);
   const engine = new DebateEngine(engineConfig, adapter, taxonomy);
+  let activeDebateId: string | undefined;
+  recorder.setContextProvider(() => ({ active_debate_id: activeDebateId }));
   const session = await engine.run((p) => {
     log(`[${p.phase}] ${p.speaker ? `${p.speaker}: ` : ''}${p.message}`);
   });
+  activeDebateId = session.id;
 
   // Stamp origin metadata
   session.origin = {
@@ -472,6 +488,10 @@ async function main(): Promise<void> {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'warn', message: 'Calibration logging failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     log(`Calibration logging failed (non-critical): ${err instanceof Error ? err.message : err}`);
   }
+
+  // Dump flight recorder to output directory
+  const recorderDump = recorder.dumpToFile(path.join(outputDir, `${slug}-flight-recorder.jsonl`));
+  log(`Flight recorder: ${recorderDump.event_count} events → ${recorderDump.path}`);
 
   const elapsed = Date.now() - startTime;
 

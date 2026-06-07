@@ -500,6 +500,18 @@ describe('4-stage turn pipeline', () => {
       const result = briefStagePrompt(makeStageInput({ phase: 'argumentation' }));
       expectContains(result, 'EXPLORATION');
     });
+
+    it('injects currentCruxContext into brief when provided', () => {
+      const result = briefStagePrompt(makeStageInput({
+        currentCruxContext: 'ACTIVE CRUXES (still contested):\n- "Is regulation feasible?" (crux-1) — engaged, polarity 0.30',
+      }));
+      expectContains(result, 'IDENTIFIED CRUXES (THIS DEBATE)', 'Is regulation feasible?');
+    });
+
+    it('omits crux section when currentCruxContext is absent', () => {
+      const result = briefStagePrompt(makeStageInput());
+      expect(result).not.toContain('IDENTIFIED CRUXES (THIS DEBATE)');
+    });
   });
 
   describe('planStagePrompt', () => {

@@ -1,0 +1,9 @@
+{
+  "topic": "For an established consumer software team shipping an AI-prototyped MVP within 90 days, under what conditions does moving fast with AI-generated code help versus hurt the company — and through what specific pathways does prototype code convert into either validated learning or terminal maintenance burden? Map the explicit tug-of-war between Product (feature velocity), Engineering (code stability), and Finance (growth per dollar) incentives. The product in mind is a low risk consumer product from an established company (not a startup) with no agentic or other AI features.",
+  "name": "rerun-consumer-product-post-changes",
+  "model": "gemini-2.5-flash",
+  "audience": "industry_leaders",
+  "pacing": "moderate",
+  "responseLength": "medium",
+  "outputDir": "../../ai-triad-data/debates"
+}

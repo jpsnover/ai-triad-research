@@ -28,6 +28,7 @@ import {
   GEMINI_BASE,
   geminiGroundedSearch,
 } from '../ai-client/index.js';
+import { callGeminiBatchEmbed } from '../ai-client/providers/gemini-embeddings.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type {
   ProviderResult,
@@ -82,7 +83,7 @@ function loadRegistry(repoRoot: string): ModelRegistry {
   try {
     _registry = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ModelRegistry;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'state.error', component: 'aiAdapter', level: 'error', message: `Failed to parse model registry at ${configPath}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'ai-adapter', level: 'error', message: `Failed to parse model registry at ${configPath}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     throw new ActionableError({
       goal: 'Parse AI model registry',
       problem: `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}`,
@@ -210,7 +211,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({
-      type: 'ai.request', component: 'aiAdapter', level: 'info',
+      type: 'ai.request', component: 'ai-adapter', level: 'info',
       message: `generateText ${backend}/${apiModelId}`,
       data: { backend, model: apiModelId, fn: 'generateText' },
     });
@@ -221,7 +222,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       );
       emitUsageTelemetry(backend, apiModelId, performance.now() - t0, result.usage);
       getGlobalRecorder()?.record({
-        type: 'ai.response', component: 'aiAdapter', level: 'info',
+        type: 'ai.response', component: 'ai-adapter', level: 'info',
         duration_ms: Math.round(performance.now() - t0),
         message: `generateText success ${backend}/${apiModelId}`,
         data: { backend, model: apiModelId, fn: 'generateText', usage: result.usage },
@@ -231,7 +232,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       const errMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
       const isAuthError = errMsg.includes('401') || errMsg.includes('403');
       getGlobalRecorder()?.record({
-        type: 'ai.error', component: 'aiAdapter', level: 'error',
+        type: 'ai.error', component: 'ai-adapter', level: 'error',
         error_category: isAuthError ? 'permissions' : 'ai_provider',
         duration_ms: Math.round(performance.now() - t0),
         message: `generateText failed ${backend}/${apiModelId}: ${errMsg.slice(0, 120)}`,
@@ -265,7 +266,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({
-      type: 'ai.request', component: 'aiAdapter', level: 'info',
+      type: 'ai.request', component: 'ai-adapter', level: 'info',
       message: `generate (envelope) ${backend}/${apiModelId}`,
       data: { backend, model: apiModelId, fn: 'generate' },
     });
@@ -283,7 +284,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       });
       emitUsageTelemetry(backend, apiModelId, latency, result.usage);
       getGlobalRecorder()?.record({
-        type: 'ai.response', component: 'aiAdapter', level: 'info',
+        type: 'ai.response', component: 'ai-adapter', level: 'info',
         duration_ms: Math.round(latency),
         message: `generate (envelope) success ${backend}/${apiModelId}`,
         data: { backend, model: apiModelId, fn: 'generate', usage: { inputTokens: result.usage?.promptTokens, outputTokens: result.usage?.completionTokens, cachedTokens: result.usage?.cachedTokens } },
@@ -291,7 +292,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
       return { text: result.text, usage, model: apiModelId, backend, responseTimeMs: Math.round(latency) };
     } catch (err) {
       getGlobalRecorder()?.record({
-        type: 'ai.error', component: 'aiAdapter', level: 'warn',
+        type: 'ai.error', component: 'ai-adapter', level: 'warn',
         error_category: 'ai_provider',
         duration_ms: Math.round(performance.now() - t0),
         message: `generate (envelope) fallback ${backend}/${apiModelId}`,
@@ -336,6 +337,22 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
       const text = await doGenerateText(prompt, resolved);
       return { text };
+    },
+
+    async computeQueryEmbedding(text: string): Promise<{ vector: number[] }> {
+      let apiKey: string;
+      try {
+        apiKey = resolveApiKey('gemini', explicitApiKey);
+      } catch {
+        throw new ActionableError({
+          goal: 'Compute query embedding for claim attribution',
+          problem: 'No Gemini API key available for embedding',
+          location: 'aiAdapter.createCLIAdapter.computeQueryEmbedding',
+          nextSteps: ['Set GEMINI_API_KEY env var', 'Pass --api-key to the CLI'],
+        });
+      }
+      const vectors = await callGeminiBatchEmbed(fetch, [text], 'RETRIEVAL_QUERY', apiKey);
+      return { vector: vectors[0] };
     },
   };
 

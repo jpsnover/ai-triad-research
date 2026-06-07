@@ -199,6 +199,8 @@ export interface TurnPipelineInput {
   topicScope?: import('./types.js').TopicScope;
   /** Prior crux context from cross-debate registry — injected into Brief stage. */
   priorCruxContext?: string;
+  /** Current debate crux context — active/resolved cruxes from this debate's crux_tracker. */
+  currentCruxContext?: string;
 }
 
 export type StageGenerateFn = (
@@ -273,6 +275,8 @@ function buildStageInput(input: TurnPipelineInput): StagePromptInput {
     preserveConcessions: input.preserveConcessions,
     vocabularyExclusion: input.vocabularyExclusion,
     priorCruxContext: input.priorCruxContext,
+    currentCruxContext: input.currentCruxContext,
+    topicScope: input.topicScope,
   };
 }
 
@@ -352,7 +356,7 @@ export async function runTurnPipeline(
   } else {
     onProgress?.('brief', `${input.label} is briefing...`);
     getGlobalRecorder()?.record({
-      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      type: 'turn.stage', component: 'turn-pipeline', level: 'info',
       speaker: input.label, debate_id: (input as any).debate_id, turn_id: (input as any).turn_id,
       message: `${input.label} entering BRIEF stage`,
       data: { stage: 'brief', action: 'enter' },
@@ -398,7 +402,7 @@ export async function runTurnPipeline(
     });
     briefJson = toPromptJson(brief);
     getGlobalRecorder()?.record({
-      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      type: 'turn.stage', component: 'turn-pipeline', level: 'info',
       speaker: input.label, duration_ms: elapsed,
       message: `${input.label} completed BRIEF stage`,
       data: { stage: 'brief', action: 'exit', duration_ms: elapsed },
@@ -458,7 +462,7 @@ export async function runTurnPipeline(
     for (let planAttempt = 0; planAttempt <= MAX_STAGE_RETRIES; planAttempt++) {
       onProgress?.('plan', `${input.label} is planning${planAttempt > 0 ? ` (retry ${planAttempt})` : ''}...`);
       getGlobalRecorder()?.record({
-        type: 'turn.stage', component: 'turnPipeline', level: 'info',
+        type: 'turn.stage', component: 'turn-pipeline', level: 'info',
         speaker: input.label,
         message: `${input.label} entering PLAN stage (attempt ${planAttempt})`,
         data: { stage: 'plan', action: 'enter', attempt: planAttempt },
@@ -515,7 +519,7 @@ export async function runTurnPipeline(
         (lastPlanDiag as Record<string, unknown>).validation_failed = true;
         (lastPlanDiag as Record<string, unknown>).validation_errors = [...planVal.errorHints];
         getGlobalRecorder()?.record({
-          type: 'turn.repair', component: 'turnPipeline', level: 'warn',
+          type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
           speaker: input.label,
           message: `PLAN repair attempt ${planAttempt}: ${planVal.errorHints.length} error(s)`,
           data: { stage: 'plan', attempt: planAttempt, hints: planVal.errorHints },
@@ -531,7 +535,7 @@ export async function runTurnPipeline(
       });
       planJson = toPromptJson(plan);
       getGlobalRecorder()?.record({
-        type: 'turn.stage', component: 'turnPipeline', level: 'info',
+        type: 'turn.stage', component: 'turn-pipeline', level: 'info',
         speaker: input.label, duration_ms: elapsed,
         message: `${input.label} completed PLAN stage (attempt ${planAttempt})`,
         data: { stage: 'plan', action: 'exit', attempt: planAttempt, duration_ms: elapsed },
@@ -604,7 +608,7 @@ export async function runTurnPipeline(
       for (const kp of evidenceBrief.keyPoints) evidenceDocIds.add(kp.doc_id);
       console.log(`[pipeline] EVIDENCE retrieved: ${evidenceBrief.facts.length} facts, ${evidenceBrief.keyPoints.length} keyPoints, block=${evidenceBrief.formattedBlock.length} chars`);
       getGlobalRecorder()?.record({
-        type: 'turn.evidence', component: 'turnPipeline', level: 'info',
+        type: 'turn.evidence', component: 'turn-pipeline', level: 'info',
         speaker: input.label,
         message: `Evidence: ${evidenceBrief.facts.length} facts, ${evidenceBrief.keyPoints.length} keyPoints`,
         data: {
@@ -646,7 +650,7 @@ export async function runTurnPipeline(
       }
     } catch (err) {
       // Evidence retrieval failure is non-fatal — proceed without evidence
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Evidence retrieval failed — proceeding without evidence', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Evidence retrieval failed — proceeding without evidence', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.warn(`[pipeline] Evidence retrieval failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -694,14 +698,14 @@ export async function runTurnPipeline(
         citationBankBlock = '\n\n' + formatCitationBank(scopedBank);
         console.log(`[pipeline] Citation bank built: ${scopedBank.length} scoped / ${citationBank.length} full entries, path=${citationPathUsed} (intended=${citationPathIntended}), ${citationBankBuildTime}ms`);
         getGlobalRecorder()?.record({
-          type: 'turn.citation_bank', component: 'turnPipeline', level: 'info',
+          type: 'turn.citation_bank', component: 'turn-pipeline', level: 'info',
           speaker: input.label,
           message: `Citation bank: ${scopedBank.length} scoped / ${citationBank.length} full`,
           data: { scoped_entries: scopedBank.length, full_entries: citationBank.length, tokens_saved_est: Math.round((citationBank.length - scopedBank.length) * 25) },
         });
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Citation bank build failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Citation bank build failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.warn(`[pipeline] Citation bank build failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -715,7 +719,7 @@ export async function runTurnPipeline(
   for (let draftAttempt = 0; draftAttempt <= MAX_DRAFT_RETRIES; draftAttempt++) {
     onProgress?.('draft', `${input.label} is drafting${draftAttempt > 0 ? ` (retry ${draftAttempt})` : ''}...`);
     getGlobalRecorder()?.record({
-      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      type: 'turn.stage', component: 'turn-pipeline', level: 'info',
       speaker: input.label,
       message: `${input.label} entering DRAFT stage (attempt ${draftAttempt})`,
       data: { stage: 'draft', action: 'enter', attempt: draftAttempt },
@@ -810,7 +814,7 @@ export async function runTurnPipeline(
     elapsed = Date.now() - t0;
     // Record prompt size for diagnostics
     getGlobalRecorder()?.record({
-      type: 'turn.prompt_size', component: 'turnPipeline', level: 'info',
+      type: 'turn.prompt_size', component: 'turn-pipeline', level: 'info',
       speaker: input.label,
       message: `Draft prompt: ${draftPromptText.length} chars`,
       data: {
@@ -941,7 +945,7 @@ export async function runTurnPipeline(
         (lastDraftDiag as Record<string, unknown>).validation_failed = true;
         (lastDraftDiag as Record<string, unknown>).validation_errors = [...draftRepairHints];
         getGlobalRecorder()?.record({
-          type: 'turn.repair', component: 'turnPipeline', level: 'warn',
+          type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
           speaker: input.label,
           message: `DRAFT repair attempt ${draftAttempt}: ${draftRepairHints.length} hint(s)`,
           data: { stage: 'draft', attempt: draftAttempt, hints: draftRepairHints, frozen_fields: fieldFreezeBlock ? ALL_DRAFT_FIELDS.filter(f => !targetedFields.has(f)) : [] },
@@ -990,7 +994,7 @@ export async function runTurnPipeline(
         (draft as Record<string, unknown>).key_assumptions = assumptionsParsed.product.key_assumptions;
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-draft assumptions extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-draft assumptions extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     }
   }
 
@@ -1011,7 +1015,7 @@ export async function runTurnPipeline(
       draft.statement = splitResult;
       autoSplitApplied = true;
       getGlobalRecorder()?.record({
-        type: 'turn.repair', component: 'turnPipeline', level: 'info',
+        type: 'turn.repair', component: 'turn-pipeline', level: 'info',
         speaker: input.label,
         message: `Auto-split single paragraph into ${autoSplitParagraphs} paragraphs`,
         data: { original_length: draft.statement.length, paragraph_count: autoSplitParagraphs },
@@ -1352,7 +1356,7 @@ export async function runTurnPipeline(
       };
       qualityGateResult = { pre_repair: preRepairGate };
       getGlobalRecorder()?.record({
-        type: 'turn.quality_gate', component: 'turnPipeline', level: allPass ? 'info' : 'warn',
+        type: 'turn.quality_gate', component: 'turn-pipeline', level: allPass ? 'info' : 'warn',
         speaker: input.label,
         message: `Draft quality gate ${allPass ? 'passed' : 'failed'}`,
         data: {
@@ -1492,7 +1496,7 @@ export async function runTurnPipeline(
             }
 
             getGlobalRecorder()?.record({
-              type: 'turn.quality_gate_repair', component: 'turnPipeline',
+              type: 'turn.quality_gate_repair', component: 'turn-pipeline',
               level: postAllPass ? 'info' : 'warn',
               speaker: input.label,
               message: `Post-repair quality gate: ${repairOutcome}`,
@@ -1503,13 +1507,13 @@ export async function runTurnPipeline(
               },
             });
           } catch (err) {
-            getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-repair quality re-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+            getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-repair quality re-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           }
         }
       }
     } catch (err) {
       // Pre-check failure is non-fatal — proceed to cite
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Draft quality pre-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Draft quality pre-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       console.warn(`[pipeline] Draft quality pre-check failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -1525,7 +1529,7 @@ export async function runTurnPipeline(
   for (let citeAttempt = 0; citeAttempt <= MAX_STAGE_RETRIES; citeAttempt++) {
     onProgress?.('cite', `${input.label} is citing${citeAttempt > 0 ? ` (retry ${citeAttempt})` : ''}...`);
     getGlobalRecorder()?.record({
-      type: 'turn.stage', component: 'turnPipeline', level: 'info',
+      type: 'turn.stage', component: 'turn-pipeline', level: 'info',
       speaker: input.label,
       message: `${input.label} entering CITE stage (attempt ${citeAttempt})`,
       data: { stage: 'cite', action: 'enter', attempt: citeAttempt },
@@ -1584,7 +1588,7 @@ export async function runTurnPipeline(
         (lastCiteDiag as Record<string, unknown>).validation_failed = true;
         (lastCiteDiag as Record<string, unknown>).validation_errors = [...citeVal.errorHints];
         getGlobalRecorder()?.record({
-          type: 'turn.repair', component: 'turnPipeline', level: 'warn',
+          type: 'turn.repair', component: 'turn-pipeline', level: 'warn',
           speaker: input.label,
           message: `CITE repair attempt ${citeAttempt}: ${citeVal.errorHints.length} error(s)`,
           data: { stage: 'cite', attempt: citeAttempt, hints: citeVal.errorHints },
@@ -1641,7 +1645,7 @@ export async function runTurnPipeline(
     const novelRefs = refs.filter(r => !(input.priorRefs ?? []).includes(r.node_id));
     const fillerCount = refs.filter(r => isFillerRelevance((r.relevance ?? '').trim())).length;
     getGlobalRecorder()?.record({
-      type: 'turn.cite_quality', component: 'turnPipeline', level: 'info',
+      type: 'turn.cite_quality', component: 'turn-pipeline', level: 'info',
       speaker: input.label,
       message: `Cite quality: ${refs.length} refs, ${novelRefs.length} novel, ${fillerCount} filler`,
       data: {
@@ -1900,7 +1904,7 @@ async function trySpecificityMicroFix(
       `${input.label} micro-fix(specificity)`,
     );
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(specificity) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(specificity) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     stageDiags.push({
       stage: 'micro-fix', prompt: microFixPromptText, raw_response: microFixRaw,
       model: input.model, temperature: 0.3,
@@ -1941,7 +1945,7 @@ async function trySpecificityMicroFix(
       diff_check_passed: false, changes: microFixResult.changes ?? [],
     });
     getGlobalRecorder()?.record({
-      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+      type: 'turn.micro-fix', component: 'turn-pipeline', level: 'warn',
       speaker: input.label,
       message: `Micro-fix(specificity) diff-check failed — too many sentence changes`,
       data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, diff_check_failed: true },
@@ -1967,7 +1971,7 @@ async function trySpecificityMicroFix(
 
   if (recheckSpecific) {
     getGlobalRecorder()?.record({
-      type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+      type: 'turn.micro-fix', component: 'turn-pipeline', level: 'info',
       speaker: input.label,
       message: `Micro-fix(specificity) succeeded: ${microFixResult.changes?.length ?? 0} change(s)`,
       data: { target: 'specificity', success: true, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: true, elapsed_ms: microFixElapsed },
@@ -1978,7 +1982,7 @@ async function trySpecificityMicroFix(
 
   draft.statement = originalStatement;
   getGlobalRecorder()?.record({
-    type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+    type: 'turn.micro-fix', component: 'turn-pipeline', level: 'warn',
     speaker: input.label,
     message: `Micro-fix(specificity) re-validation failed — falling through to full retry`,
     data: { target: 'specificity', success: false, original_claims: flaggedClaims.length, fixed_claims: microFixResult.changes?.length ?? 0, revalidation_passed: false, elapsed_ms: microFixElapsed },
@@ -2021,7 +2025,7 @@ async function tryInterventionMicroFix(
       `${input.label} micro-fix(intervention)`,
     );
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(intervention) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(intervention) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     stageDiags.push({
       stage: 'micro-fix', prompt: intFixPromptText, raw_response: intFixRaw,
       model: input.model, temperature: 0.2,
@@ -2070,7 +2074,7 @@ async function tryInterventionMicroFix(
   if (!recheckCompliance.compliant) {
     delete (draft as Record<string, unknown>)[moveConfig.field];
     getGlobalRecorder()?.record({
-      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+      type: 'turn.micro-fix', component: 'turn-pipeline', level: 'warn',
       speaker: input.label,
       message: `Micro-fix(intervention) re-validation failed — falling through to full retry`,
       data: { target: 'intervention_compliance', move: pendingIntervention.move, field: moveConfig.field, success: false, recheck: recheckCompliance, elapsed_ms: intFixElapsed },
@@ -2083,7 +2087,7 @@ async function tryInterventionMicroFix(
     h => classifyHintKey(h) !== 'intervention_compliance',
   );
   getGlobalRecorder()?.record({
-    type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+    type: 'turn.micro-fix', component: 'turn-pipeline', level: 'info',
     speaker: input.label,
     message: `Micro-fix(intervention) succeeded: generated ${moveConfig.field}`,
     data: { target: 'intervention_compliance', move: pendingIntervention.move, field: moveConfig.field, success: true, remaining_errors: remainingErrors.length, elapsed_ms: intFixElapsed },
@@ -2128,7 +2132,7 @@ async function tryDirectiveMicroFix(
       `${input.label} micro-fix(directive)`,
     );
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turnPipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(directive) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(directive) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     stageDiags.push({
       stage: 'micro-fix', prompt: dirFixPromptText, raw_response: dirFixRaw,
       model: input.model, temperature: 0.3,
@@ -2178,7 +2182,7 @@ async function tryDirectiveMicroFix(
   if (!recheck.compliant) {
     draft.statement = originalStatement;
     getGlobalRecorder()?.record({
-      type: 'turn.micro-fix', component: 'turnPipeline', level: 'warn',
+      type: 'turn.micro-fix', component: 'turn-pipeline', level: 'warn',
       speaker: input.label,
       message: `Micro-fix(directive) re-validation failed — falling through to full retry`,
       data: { target: 'directive_compliance', move: pendingIntervention.move, success: false, recheck_compliant: false, elapsed_ms: dirFixElapsed },
@@ -2191,7 +2195,7 @@ async function tryDirectiveMicroFix(
     h => classifyHintKey(h) !== 'directive_compliance',
   );
   getGlobalRecorder()?.record({
-    type: 'turn.micro-fix', component: 'turnPipeline', level: 'info',
+    type: 'turn.micro-fix', component: 'turn-pipeline', level: 'info',
     speaker: input.label,
     message: `Micro-fix(directive) succeeded: first paragraph rewritten for ${pendingIntervention.move} compliance`,
     data: { target: 'directive_compliance', move: pendingIntervention.move, success: true, recheck_compliant: true, elapsed_ms: dirFixElapsed },

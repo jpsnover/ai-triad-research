@@ -72,9 +72,9 @@ RUN if [ "$PRELOAD_MODEL" = "true" ]; then \
     fi
 
 # Non-root user
-RUN groupadd -r aitriad && useradd -r -g aitriad -d /home/aitriad -m aitriad
-RUN chown -R aitriad:aitriad /opt/ml-env
-RUN mkdir -p /home/aitriad/.cache /home/aitriad/.config /home/aitriad/.local/share \
+RUN groupadd -r aitriad && useradd -r -g aitriad -d /home/aitriad -m aitriad \
+    && chown -R aitriad:aitriad /opt/ml-env \
+    && mkdir -p /home/aitriad/.cache /home/aitriad/.config /home/aitriad/.local/share \
     && chown -R aitriad:aitriad /home/aitriad
 ENV XDG_CACHE_HOME=/home/aitriad/.cache
 ENV XDG_CONFIG_HOME=/home/aitriad/.config

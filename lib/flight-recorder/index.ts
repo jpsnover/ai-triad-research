@@ -15,6 +15,8 @@ export type {
   DumpHeader,
   DumpDictionary,
   DumpEvent,
+  DumpResult,
+  RecorderSummary,
   DumpTrigger,
   TriggerType,
   ErrorCategory,

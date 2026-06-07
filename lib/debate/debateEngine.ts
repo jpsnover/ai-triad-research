@@ -104,7 +104,7 @@ import {
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
-import { updateCruxTracker } from './cruxResolution.js';
+import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
 import { computeConvergenceSignals } from './convergenceSignals.js';
 import { computeProcessReward } from './processReward.js';
@@ -367,7 +367,7 @@ export class DebateEngine {
         if (!existing.suppressed && existing.consecutive_failures >= HINT_SUPPRESSION_THRESHOLD) {
           existing.suppressed = true;
           getGlobalRecorder()?.record({
-            type: 'turn.hint-suppressed', component: 'debateEngine', level: 'warn',
+            type: 'turn.hint-suppressed', component: 'debate-engine', level: 'warn',
             speaker,
             message: `Suppressed hint "${key}" after ${existing.consecutive_failures} consecutive failures`,
             data: { hint_key: key, consecutive_failures: existing.consecutive_failures },
@@ -472,7 +472,7 @@ export class DebateEngine {
             this._priorCruxContext = formatPriorCruxContext(relevant);
           }
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry seeding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry seeding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         }
       }
 
@@ -541,10 +541,10 @@ export class DebateEngine {
         this.session.updated_at = nowISO();
         this.session.diagnostics!.overview.total_ai_calls = this.apiCallCount;
         this.session.diagnostics!.overview.total_response_time_ms = this.totalResponseTimeMs;
-        getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debateEngine', level: 'info', debate_id: this.session.id, message: 'Debate cancelled via AbortSignal' });
+        getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-engine', level: 'info', debate_id: this.session.id, message: 'Debate cancelled via AbortSignal' });
         return this.session;
       }
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'error', debate_id: this.session?.id, message: 'Debate run failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'error', debate_id: this.session?.id, message: 'Debate run failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       throw err;
     }
 
@@ -602,7 +602,7 @@ export class DebateEngine {
         }
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
     }
 
     // Log calibration data point (non-blocking, never fails the debate)
@@ -630,11 +630,11 @@ export class DebateEngine {
           const generateFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Crux decontextualization', 30_000);
           await persistDebateCruxes(this.session, dataRoot, this.config.embedFn, generateFn);
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry persistence failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry persistence failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         }
       }
     } catch (calErr) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Calibration logging failed', error: { name: (calErr as Error).name ?? 'Error', message: String(calErr) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Calibration logging failed', error: { name: (calErr as Error).name ?? 'Error', message: String(calErr) } });
       this.warn('Calibration logging', calErr, 'Non-critical — debate results unaffected');
     }
 
@@ -708,7 +708,7 @@ export class DebateEngine {
 
     if (this.config.speakerModels) {
       getGlobalRecorder()?.record({
-        type: 'debate.config', component: 'debateEngine', level: 'info',
+        type: 'debate.config', component: 'debate-engine', level: 'info',
         debate_id: id,
         message: 'Multi-provider mode enabled',
         data: { tier: this.config.modelTier, speakerModels: this.config.speakerModels },
@@ -770,7 +770,7 @@ export class DebateEngine {
         },
       );
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Boundary embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Boundary embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       return;
     }
 
@@ -895,7 +895,7 @@ export class DebateEngine {
         this._sourceEvidenceIndex = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
         return this._sourceEvidenceIndex;
       }
-    } catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Source evidence index unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+    } catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Source evidence index unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
     this._sourceEvidenceIndex = undefined as unknown as import('./evidenceFromSummaries.js').SourceEvidenceIndex;
     return undefined;
   }
@@ -929,7 +929,7 @@ export class DebateEngine {
       }
       this._docTitles = Object.keys(metaMap).length > 0 ? metaMap : undefined;
       return this._docTitles;
-    } catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Doc titles loading failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return undefined; }
+    } catch (err) { getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Doc titles loading failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return undefined; }
   }
 
   private getNodeLabelMap(): Map<string, string> {
@@ -1042,7 +1042,7 @@ export class DebateEngine {
         entry.summaries = { brief: parsed.brief, medium: parsed.medium };
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Entry summarization failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Entry summarization failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('summarizeEntry', err, 'Entry will display at full detail only');
     }
   }
@@ -1430,7 +1430,7 @@ export class DebateEngine {
             topicScores = scoreNodeRelevance(vector, this.taxonomy.embeddings);
           }
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Topic embedding for relevance floor failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic embedding for relevance floor failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           this.warn('Topic embedding for relevance floor', err, 'Using AN-only scoring');
         }
       }
@@ -1454,7 +1454,7 @@ export class DebateEngine {
           scores = scoreNodeRelevance(vector, this.taxonomy.embeddings);
         }
       } catch (err) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Query embedding for relevance filter failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Query embedding for relevance filter failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         this.warn('Query embedding for relevance filter', err, 'Falling back to lexical scoring');
       }
     }
@@ -1524,7 +1524,7 @@ export class DebateEngine {
 
     if (constraintFilter.demoted.length > 0 || constraintFilter.boosted.length > 0) {
       getGlobalRecorder()?.record({
-        type: 'turn.taxonomy_inject', component: 'debateEngine', level: 'info',
+        type: 'turn.taxonomy_inject', component: 'debate-engine', level: 'info',
         message: `Topic constraint filter: ${constraintFilter.demoted.length} demoted, ${constraintFilter.boosted.length} boosted, ${constraintFilter.restorations.length} restored`,
         data: {
           demoted: constraintFilter.demoted,
@@ -1564,7 +1564,7 @@ export class DebateEngine {
 
     // Flight recorder: taxonomy injection details
     getGlobalRecorder()?.record({
-      type: 'turn.taxonomy_inject', component: 'debateEngine', level: 'info',
+      type: 'turn.taxonomy_inject', component: 'debate-engine', level: 'info',
       message: `Taxonomy inject: ${scoredPov.length} POV nodes selected`,
       data: {
         pov_nodes: scoredPov.length,
@@ -1575,7 +1575,7 @@ export class DebateEngine {
       },
     });
     getGlobalRecorder()?.record({
-      type: 'turn.situation_inject', component: 'debateEngine', level: 'info',
+      type: 'turn.situation_inject', component: 'debate-engine', level: 'info',
       message: `Situation inject: ${filteredSit.length} nodes selected`,
       data: {
         injected_ids: filteredSit.map(s => s.node.id),
@@ -1731,7 +1731,7 @@ export class DebateEngine {
         try {
           const { vector } = await adapter.computeQueryEmbedding(this.session.topic.final);
           topicEmbedding = vector;
-        } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Topic embedding for structural scoring failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+        } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic embedding for structural scoring failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
       }
 
       // Collect POV nodes for structural analysis
@@ -1856,7 +1856,7 @@ export class DebateEngine {
               });
             }
           } catch (err) {
-            getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Topic re-score after reframe failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+            getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic re-score after reframe failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
             critique.reframe_changes = 'Reframed topic applied (post-reframe re-score unavailable)';
             this.addEntry({
               type: 'system', speaker: 'system',
@@ -1891,7 +1891,7 @@ export class DebateEngine {
         });
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Topic critique failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic critique failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Topic critique', err, 'Topic quality evaluation skipped — does not affect debate flow');
     }
   }
@@ -1943,7 +1943,7 @@ export class DebateEngine {
       this.session.topic.scope = scope;
       this.progress('setup', undefined, `Topic scope extracted (${scope.constraint_confidence}, ${scope.off_scope_topics.length} off-scope, ${scope.drift_signatures.length} drift sigs)`);
       getGlobalRecorder()?.record({
-        type: 'topic_scope_extracted', component: 'debateEngine', level: 'info',
+        type: 'topic_scope_extracted', component: 'debate-engine', level: 'info',
         message: `Topic scope extracted (${scope.constraint_confidence})`,
         data: {
           core_proposition: scope.core_proposition,
@@ -1955,7 +1955,7 @@ export class DebateEngine {
       });
     } catch (err) {
       getGlobalRecorder()?.record({
-        type: 'topic_scope_extraction_failed', component: 'debateEngine', level: 'warn',
+        type: 'topic_scope_extraction_failed', component: 'debate-engine', level: 'warn',
         debate_id: this.session?.id,
         message: `Topic scope extraction failed: ${err instanceof Error ? err.message : String(err)}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err) },
@@ -2036,7 +2036,7 @@ export class DebateEngine {
         typeof q === 'string' ? { question: q, options: [] } : { question: q.question, options: q.options ?? [] }
       );
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Parsing clarification questions failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Parsing clarification questions failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Parsing clarification questions', err, 'Using raw AI response as a single question');
       structuredQuestions = [{ question: text, options: [] }];
     }
@@ -2067,7 +2067,7 @@ export class DebateEngine {
         this.session.topic.final = parsed.refined_topic;
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Parsing refined topic failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Parsing refined topic failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Parsing refined topic from clarification', err, 'Keeping original topic unchanged');
     }
 
@@ -2103,7 +2103,7 @@ export class DebateEngine {
         }
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Resolution clause decomposition failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Resolution clause decomposition failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Resolution clause decomposition', err, 'Moderator will anchor to resolution text only');
     }
   }
@@ -2125,7 +2125,7 @@ export class DebateEngine {
         this.session.topic.embedding = vector;
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Resolution embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Resolution embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Resolution embedding', err, 'ArCo drift signal will be unavailable');
     }
 
@@ -2137,7 +2137,7 @@ export class DebateEngine {
         const { vector } = await adapter.computeQueryEmbedding(clause.slice(0, 500));
         if (vector && vector.length > 0) clauseVectors.push(vector);
       } catch (err) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Clause embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Clause embedding failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       }
     }
     if (clauseVectors.length === clauses.length) {
@@ -2219,7 +2219,7 @@ export class DebateEngine {
     try {
       analysis = parseJsonRobust(text) as DocumentAnalysis;
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Parsing document analysis failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Parsing document analysis failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Parsing document analysis', err, 'Proceeding without document pre-analysis');
     }
 
@@ -2278,7 +2278,7 @@ export class DebateEngine {
     const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
       this.progress('generating', undefined, label);
       const start = Date.now();
-      const text = await this.adapter.generateText(prompt, model, options);
+      const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
       this.apiCallCount++;
       this.totalResponseTimeMs += Date.now() - start;
       return text;
@@ -2375,7 +2375,7 @@ export class DebateEngine {
             (_stage, label) => this.progress('opening', poverId, label),
           );
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Opening retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Opening retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           this.warn('Opening retry', err, 'Using first attempt');
         }
       }
@@ -2819,7 +2819,7 @@ export class DebateEngine {
 
     if ((selectionResult.intervene ?? false) && !activeIntervention && !modResult.engineValidation?.suppressed_reason) {
       getGlobalRecorder()?.record({
-        type: 'system.error', component: 'debateEngine', level: 'error',
+        type: 'system.error', component: 'debate-engine', level: 'error',
         debate_id: this.session?.id,
         message: 'Intervention recommended but neither executed nor suppressed — missing suppression reason',
         data: { round, selectionResult },
@@ -2979,6 +2979,9 @@ export class DebateEngine {
       priorFlaggedHints,
       vocabularyExclusion,
       priorCruxContext: this._priorCruxContext || undefined,
+      currentCruxContext: this.session.crux_tracker?.length
+        ? formatCruxResolutionContext(this.session.crux_tracker)
+        : undefined,
       topicScope: this.session.topic.scope ?? undefined,
       sourceContent: this.session.document_analysis ? undefined : this.config.sourceContent,
       documentAnalysis: this.session.document_analysis,
@@ -3030,7 +3033,7 @@ export class DebateEngine {
     const stageGenerate = async (prompt: string, model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => {
       this.progress('generating', undefined, label);
       const start = Date.now();
-      const text = await this.adapter.generateText(prompt, model, options);
+      const text = await this.adapter.generateText(prompt, model, { ...options, timeoutMs: options.timeoutMs ?? 120_000 });
       this.apiCallCount++;
       this.totalResponseTimeMs += Date.now() - start;
       return text;
@@ -3133,7 +3136,7 @@ export class DebateEngine {
               caveats.push(`[Scope drift] Draft may overlap excluded scope of ${w.node_id} (similarity=${w.similarity.toFixed(2)})`);
             }
             getGlobalRecorder()?.record({
-              type: 'turn.scope_drift', component: 'debateEngine', level: 'warn',
+              type: 'turn.scope_drift', component: 'debate-engine', level: 'warn',
               speaker: responder, debate_id: this.session?.id,
               message: `${warnings.length} scope drift warning(s)`,
               data: { warnings },
@@ -3261,7 +3264,7 @@ export class DebateEngine {
         };
         this.recordDiagnostic(entry.id, { lookahead: lookaheadDiag });
       } catch (err) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Lookahead gate failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Lookahead gate failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         this.warn('Lookahead gate', err, 'Lookahead evaluation skipped — does not affect debate flow');
       }
     }
@@ -3334,7 +3337,7 @@ export class DebateEngine {
             })
             .slice(0, 10);
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Probing coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Probing coverage computation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         }
       }
     }
@@ -3347,7 +3350,7 @@ export class DebateEngine {
       const parsed = parseJsonRobust(text) as { questions?: { text?: string; question?: string; targets?: string[]; options?: string[] }[] };
       questions = (parsed.questions ?? []).map(q => ({ text: q.text ?? q.question ?? '', targets: q.targets ?? q.options ?? [] }));
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Parsing probing questions failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Parsing probing questions failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Parsing probing questions', err, 'Skipping probing questions for this round');
     }
 
@@ -3422,7 +3425,7 @@ export class DebateEngine {
 
       return evaluation;
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: `Neutral evaluation (${checkpoint}) failed`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: `Neutral evaluation (${checkpoint}) failed`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       const errorMsg = err instanceof Error ? err.message : String(err);
       this.warn('Neutral evaluation', `Neutral evaluation (${checkpoint}) failed: ${errorMsg}`, 'Debate continues without neutral assessment');
       return null;
@@ -3700,7 +3703,7 @@ export class DebateEngine {
         this.session.missing_arguments = parsed.missing_arguments.slice(0, 5);
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Missing arguments pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Missing arguments pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Missing arguments pass', err, 'Non-critical — debate results unaffected');
     }
   }
@@ -3782,7 +3785,7 @@ export class DebateEngine {
         this.session.taxonomy_suggestions = [...postDebate, ...turnValidator];
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Taxonomy refinement pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Taxonomy refinement pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Taxonomy refinement pass', err, 'Non-critical — debate results unaffected');
     }
   }
@@ -3804,7 +3807,7 @@ export class DebateEngine {
         this.session.dialectic_traces = traces;
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Dialectic trace pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Dialectic trace pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Dialectic trace pass', err, 'Non-critical — debate results unaffected');
     }
   }
@@ -3888,7 +3891,7 @@ export class DebateEngine {
         this._gapInjectionCount++;
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Mid-debate gap injection failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Mid-debate gap injection failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Mid-debate gap injection', err, 'Non-critical — debate continues without gap analysis');
     }
   }
@@ -3963,7 +3966,7 @@ export class DebateEngine {
       const ccParsed = parseJsonRobust(ccResult) as { proposals?: CrossCuttingProposal[] };
       this.session.cross_cutting_proposals = ccParsed?.proposals ?? [];
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Cross-cutting proposal pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Cross-cutting proposal pass failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Cross-cutting proposal pass', err, 'Non-critical — debate results unaffected');
     }
   }
@@ -3995,7 +3998,7 @@ export class DebateEngine {
         this._contextManifests,
       );
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Taxonomy gap analysis failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Taxonomy gap analysis failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Taxonomy gap analysis', err, 'Non-critical — debate results unaffected');
     }
   }
@@ -4030,7 +4033,7 @@ export class DebateEngine {
         stats: result.stats,
       };
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Situation ref extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Situation ref extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Situation ref extraction', err, 'Non-critical — debate results unaffected');
     }
   }
@@ -4218,7 +4221,7 @@ export class DebateEngine {
       // Check for sycophancy
       this.detectSycophancy(speaker, round);
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Position drift tracking failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Position drift tracking failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Position drift tracking', err, 'Non-critical — drift data unavailable this turn');
     }
   }
@@ -4307,7 +4310,7 @@ export class DebateEngine {
         console.log(`[calibration] Relevance threshold adapted: ${result.reason}`);
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Post-debate calibration failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Post-debate calibration failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       this.warn('Post-debate calibration', err, 'Threshold adaptation skipped');
     }
   }
@@ -4361,7 +4364,7 @@ export class DebateEngine {
           });
         }
       } catch (err) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: `Steelman validation failed for ${POVER_INFO[speaker].label}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: `Steelman validation failed for ${POVER_INFO[speaker].label}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         this.warn(`Steelman validation for ${POVER_INFO[speaker].label}`, err, 'Non-critical — skipping validation');
       }
     }
@@ -4442,7 +4445,7 @@ Return ONLY JSON (no markdown, no code fences):
           });
         }
       } catch (err) {
-        getGlobalRecorder()?.record({ type: 'ai.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: `Inline verification failed for ${node.id}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: `Inline verification failed for ${node.id}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
         this.warn(`Inline verification for ${node.id}`, err, 'Non-critical — claim unverified');
         node.verification_status = 'pending';
         this.session.transcript.push({
@@ -4703,7 +4706,7 @@ Return ONLY JSON (no markdown, no code fences):
     try {
       text = await this.generateWithEvaluator(prompt, 'Claim extraction', 60_000);
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debateEngine', level: 'error', debate_id: this.session?.id, message: `Claim extraction adapter error for ${POVER_INFO[speaker].label}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'error', debate_id: this.session?.id, message: `Claim extraction adapter error for ${POVER_INFO[speaker].label}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       trace.status = 'adapter_error';
       trace.error_message = err instanceof Error ? err.message : String(err);
       trace.response_time_ms = Date.now() - extractStart;
@@ -4722,7 +4725,7 @@ Return ONLY JSON (no markdown, no code fences):
       const parsed = parseJsonRobust(text) as { claims?: RawExtractedClaim[] };
       claims = parsed.claims ?? [];
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'error', debate_id: this.session?.id, message: `Claim extraction parse error for ${POVER_INFO[speaker].label}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'error', debate_id: this.session?.id, message: `Claim extraction parse error for ${POVER_INFO[speaker].label}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       trace.status = 'parse_error';
       trace.error_message = err instanceof Error ? err.message : String(err);
       this.recordDiagnostic(entryId, {
@@ -4799,7 +4802,7 @@ Return ONLY JSON (no markdown, no code fences):
             node.text = eResult.repaired_claim;
           }
         } catch (eErr) {
-          getGlobalRecorder()?.record({ type: 'ai.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: `Entailment check failed for ${node.id}`, error: { name: (eErr as Error).name ?? 'Error', message: String(eErr) } });
+          getGlobalRecorder()?.record({ type: 'ai.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: `Entailment check failed for ${node.id}`, error: { name: (eErr as Error).name ?? 'Error', message: String(eErr) } });
           this.warn(`Entailment check for ${node.id}`, eErr, 'Skipping — claim text unchanged');
         }
       }
@@ -4845,7 +4848,7 @@ Return ONLY JSON (no markdown, no code fences):
     if (exclusionViolations.length > 0) {
       trace.exclusion_violations = exclusionViolations;
       getGlobalRecorder()?.record({
-        type: 'an.exclusion_violation', component: 'debateEngine', level: 'warn',
+        type: 'an.exclusion_violation', component: 'debate-engine', level: 'warn',
         speaker, debate_id: this.session?.id,
         message: `${exclusionViolations.length} claim(s) flagged in exclusion zone`,
         data: { violations: exclusionViolations },
@@ -4977,6 +4980,7 @@ Return ONLY JSON (no markdown, no code fences):
         precomputedStrengths,
         this.session.topic?.embedding,
         this.session.topic?.clause_embeddings,
+        this.session.crux_tracker,
       );
       if (!this.session.convergence_signals) this.session.convergence_signals = [];
       this.session.convergence_signals.push(sig);
@@ -5017,7 +5021,7 @@ Return ONLY JSON (no markdown, no code fences):
         this.session.process_rewards.push(prEntry);
       }
     } catch (convErr) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateEngine', level: 'warn', debate_id: this.session?.id, message: 'Convergence signal/process-reward computation failed', error: { name: (convErr as Error).name ?? 'Error', message: String(convErr) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Convergence signal/process-reward computation failed', error: { name: (convErr as Error).name ?? 'Error', message: String(convErr) } });
       console.warn('[Convergence] Signal/process-reward computation failed (non-blocking):', convErr);
     }
 

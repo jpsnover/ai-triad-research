@@ -1,0 +1,9 @@
+{
+  "topic": "The United States Congress should establish a National AI Injury Compensation Program (NAIICP), modeled on the National Vaccine Injury Compensation Program (VICP), to provide a no-fault administrative remedy for individuals harmed by AI systems, funded by a mandatory levy on AI deployers.",
+  "name": "rerun-naiicp-post-changes",
+  "model": "gemini-2.5-flash",
+  "audience": "policymakers",
+  "pacing": "moderate",
+  "responseLength": "medium",
+  "outputDir": "../../ai-triad-data/debates"
+}

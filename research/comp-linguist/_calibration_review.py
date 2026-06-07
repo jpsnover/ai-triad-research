@@ -97,7 +97,8 @@ def extract_debate_metrics(debate_data):
         diag = diag_entries.get(eid, {})
 
         tv = turn_validations.get(eid, {})
-        outcome = tv.get('turn_validation_outcome', tv.get('outcome'))
+        tv_final = tv.get('final', {})
+        outcome = tv_final.get('outcome') or tv.get('turn_validation_outcome', tv.get('outcome'))
         if outcome == 'accept_with_flag':
             accept_with_flag_count += 1
         elif outcome == 'pass':
@@ -105,17 +106,18 @@ def extract_debate_metrics(debate_data):
         elif outcome == 'skipped':
             skip_count += 1
 
-        pr = tv.get('process_reward')
+        pr = tv_final.get('process_reward') or tv.get('process_reward')
         if pr is not None:
             process_rewards.append({'speaker': s.get('speaker'), 'score': pr, 'outcome': outcome})
 
-        stageA = tv.get('stageA_score')
+        stageA = tv_final.get('stageA_score') or tv.get('stageA_score')
         if stageA is not None:
             stageA_scores.append(stageA)
 
         qg = diag.get('quality_gate')
         if qg:
-            if qg.get('pass'):
+            final_qg = qg.get('post_repair') or qg.get('pre_repair') or qg
+            if final_qg.get('pass'):
                 quality_gate_pass += 1
             else:
                 quality_gate_fail += 1

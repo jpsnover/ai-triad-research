@@ -1,0 +1,188 @@
+[
+  {
+    "schema_version": 1,
+    "debate_id": "a880f87a-e0d3-4dee-9ef7-392880d3a5ee",
+    "timestamp": "2026-06-07T11:38:41.382Z",
+    "origin": "local",
+    "model": "gemini-2.5-flash",
+    "rounds": 2,
+    "argumentative_saturation_at_transition": null,
+    "argumentation_exit_threshold": 0.65,
+    "engaging_real_disagreement": true,
+    "crux_addressed_ratio": null,
+    "avg_utilization_rate": 0.5333333333333334,
+    "avg_primary_utilization": 0.5333333333333334,
+    "relevance_threshold": 0.45,
+    "qbaf_preference_concordance": 0,
+    "attack_weights": [
+      1,
+      1.1,
+      1.2
+    ],
+    "structural_error_rate": 0,
+    "repetition_rate": 0,
+    "draft_temperature": 0.7,
+    "argumentative_saturation_signals_at_transition": null,
+    "argumentative_saturation_weights": {
+      "recycling_pressure": 0.3,
+      "crux_maturity": 0.25,
+      "concession_plateau": 0.15,
+      "engagement_fatigue": 0.15,
+      "pragmatic_convergence": 0.05,
+      "scheme_stagnation": 0.1
+    },
+    "claims_forgotten_rate": 0.22727272727272727,
+    "recent_window": 8,
+    "an_nodes_at_synthesis": 22,
+    "gc_runs": 0,
+    "gc_trigger": 175,
+    "crux_resolution_divergence_rate": null,
+    "polarity_resolved_threshold": 0.85,
+    "relevance_score_variance": null,
+    "max_nodes_cap": 50,
+    "recycling_novelty_agreement": 1,
+    "semantic_recycling_threshold": 0.85,
+    "taxonomy_mapped_ratio": 1,
+    "cluster_min_similarity": 0.55,
+    "near_miss_duplicate_count": 0,
+    "duplicate_similarity_threshold": 0.85,
+    "borderline_claim_survival_rate": null,
+    "fire_confidence_threshold": 0.7,
+    "avg_branch_cohesion": 0.5181818181818181,
+    "cohesion_clear_theme": 0.6,
+    "claims_per_1k_words": 10.918114143920596,
+    "kp_divisor": 500,
+    "hit_api_ceiling": false,
+    "total_api_calls": 55,
+    "budget_hard_multiplier": 15,
+    "situation_nodes_injected": 3,
+    "situation_nodes_referenced": 0,
+    "situation_crux_alignment": null,
+    "situation_max_nodes": 8,
+    "agent_utilities": {
+      "safetyist": {
+        "position_strength": 0.7958333333333334,
+        "attack_effectiveness": 0.3076923076923077,
+        "crux_engagement": 0.4,
+        "composite": 0.49567307692307694,
+        "concession_asymmetry": 0.28614651568333344
+      },
+      "accelerationist": {
+        "position_strength": 0.8202789583333334,
+        "attack_effectiveness": 0.35714285714285715,
+        "crux_engagement": 1,
+        "composite": 0.7262683883928571,
+        "concession_asymmetry": -0.5927567042133335
+      },
+      "skeptic": {
+        "position_strength": 0.6116666666666667,
+        "attack_effectiveness": 0.5294117647058824,
+        "crux_engagement": 0.6,
+        "composite": 0.584686274509804,
+        "concession_asymmetry": -0.31052694587999996
+      }
+    },
+    "low_value_claims_rejected": 0,
+    "topic_coherence_per_speaker": {
+      "safetyist": 0.7989265033316415,
+      "accelerationist": 0.8039991746949816,
+      "skeptic": 0.7871032499779322
+    },
+    "concession_asymmetry_per_speaker": {
+      "safetyist": 0.28614651568333344,
+      "accelerationist": -0.5927567042133335,
+      "skeptic": -0.31052694587999996
+    },
+    "concession_cascades": 1,
+    "topic_wisdom_total": 1,
+    "topic_reframed": true,
+    "topic_weakest": [
+      "crux_density",
+      "evidence_coverage",
+      "bdi_heterogeneity",
+      "abstraction_level",
+      "situation_activation",
+      "conditionality",
+      "mechanism",
+      "tension",
+      "scope"
+    ],
+    "lineage_frame": null,
+    "lineage_effectiveness": null,
+    "sycophancy_guard_fired": false,
+    "max_sycophancy_score": 0,
+    "claims_abandoned_rate": 0,
+    "qbaf_oscillation_detected": false,
+    "qbaf_iterations": 4,
+    "claim_outcome_summary": {
+      "total": 22,
+      "thrived": 6,
+      "survived": 16,
+      "died": 0,
+      "thrived_rate": 0.2727272727272727,
+      "died_rate": 0
+    },
+    "confidence_deferrals": 0,
+    "confidence_escalations": 0,
+    "confidence_bottleneck": "none",
+    "process_reward_series": [
+      {
+        "round": 9,
+        "speaker": "safetyist",
+        "score": 0.6995622927420336,
+        "components": {
+          "engagement": 1,
+          "novelty": 0.2262491709681348,
+          "consistency": 0.6,
+          "grounding": 0.9099999999999999,
+          "move_quality": 0.9099999999999999
+        }
+      },
+      {
+        "round": 12,
+        "speaker": "accelerationist",
+        "score": 0.7127021195446386,
+        "components": {
+          "engagement": 1,
+          "novelty": 0.2248084781785542,
+          "consistency": 0.6,
+          "grounding": 0.9099999999999999,
+          "move_quality": 1
+        }
+      }
+    ],
+    "process_reward_mean": 0.7061322061433362,
+    "process_reward_stddev": 0.006569913401302474,
+    "process_reward_min": 0.6995622927420336,
+    "topic_scope_extracted": true,
+    "topic_scope_confidence": "explicit",
+    "topic_scope_disciplines": 9,
+    "topic_scope_off_topics": 6,
+    "topic_scope_drift_sigs": 5,
+    "topic_alignment_rate": 1,
+    "scope_extraction_populated": 1,
+    "draft_repair_rate": 0.5,
+    "taxonomy_demotion_rate": 0.889,
+    "demoted_node_reference_rate": 0.542,
+    "moderator_drift_intervention_rate": null,
+    "max_prompt_chars": 65826,
+    "mean_prompt_chars": 35027,
+    "avg_grounding_confidence": 0.9400000000000001,
+    "min_grounding_confidence": 0.9,
+    "max_component_chars": {
+      "taxonomy_chars": 27822,
+      "transcript_chars": 14581,
+      "hints_chars": 2283,
+      "edge_chars": 3239,
+      "commitment_chars": 2195,
+      "an_summary_chars": 2619
+    },
+    "extraction_coverage_rate": 0.667,
+    "extraction_coverage_samples": 2,
+    "mean_extraction_confidence": 1,
+    "low_confidence_claims_rate": 0,
+    "entailment_pass_rate": 1,
+    "entailment_repair_rate": 0,
+    "entailment_sampling_coverage": 0.364
+  }
+]

@@ -1853,14 +1853,14 @@ export async function getDocTitles(): Promise<Record<string, string> | undefined
 export function makeStageGenerate(
   set: (partial: Record<string, unknown>) => void,
   model: string,
-): (prompt: string, _model: string, options: { temperature?: number; timeoutMs?: number }, label: string) => Promise<string> {
-  return async (prompt, _model, options, label) => {
+): (prompt: string, callModel: string, options: { temperature?: number; timeoutMs?: number }, label: string) => Promise<string> {
+  return async (prompt, callModel, options, label) => {
     set({ debateActivity: label, debateProgress: null });
     const unsubscribe = api.onGenerateTextProgress((progress: Record<string, unknown>) => {
       set({ debateProgress: normalizeProgress(progress) });
     });
     try {
-      const result = await api.generateText(prompt, model, options.timeoutMs, options.temperature);
+      const result = await api.generateText(prompt, callModel || model, options.timeoutMs, options.temperature);
       return result.text;
     } finally {
       unsubscribe();

@@ -1,7 +1,7 @@
 import { cosineSimilarity } from './taxonomyRelevance.js';
 import type { ArgumentNetworkNode } from './types.js';
 
-export const EXCLUSION_RATIO_THRESHOLD = 0.85;
+export const EXCLUSION_RATIO_THRESHOLD = 0.95;
 export const SCOPE_BOUNDARY_THRESHOLD = 0.65;
 
 export interface ExclusionViolation {

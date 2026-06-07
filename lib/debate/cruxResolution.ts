@@ -122,7 +122,7 @@ function transitionCrux(
 ): TrackedCrux {
   const transition: CruxStateTransition = { from: crux.state, to: newState, turn, trigger };
   getGlobalRecorder()?.record({
-    type: 'debate.crux_transition', component: 'cruxResolution', level: 'info',
+    type: 'debate.crux_transition', component: 'crux-resolution', level: 'info',
     message: `Crux ${crux.id}: ${crux.state} → ${newState}`,
     data: { crux_id: crux.id, from_state: crux.state, to_state: newState, turn, trigger },
   });
@@ -273,7 +273,7 @@ export function updateCruxTracker(
     tracker.push(newCrux);
     trackedIds.add(crux.id);
     getGlobalRecorder()?.record({
-      type: 'debate.crux', component: 'cruxResolution', level: 'info',
+      type: 'debate.crux', component: 'crux-resolution', level: 'info',
       message: `New crux identified: "${cruxNode.text.slice(0, 80)}"`,
       data: {
         crux_id: crux.id,

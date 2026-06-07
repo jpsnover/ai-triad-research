@@ -9,6 +9,7 @@ import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   ConvergenceSignals,
+  TrackedCrux,
 } from './types.js';
 
 // ── Factory helpers ────────────────────────────────────────
@@ -811,37 +812,50 @@ describe('computeConvergenceSignals — position delta', () => {
   });
 });
 
-// ── Crux rate ──────────────────────────────────────────────
+// ── Crux rate (structural detection via crux_tracker) ─────
+
+function makeCrux(overrides: Partial<TrackedCrux> & { id: string }): TrackedCrux {
+  return {
+    description: 'Test crux',
+    identified_turn: 1,
+    state: 'identified',
+    history: [],
+    attacking_claim_ids: [],
+    speakers_involved: ['accelerationist', 'safetyist'],
+    last_computed_strength: 0.5,
+    support_polarity: 0.0,
+    ...overrides,
+  };
+}
 
 describe('computeConvergenceSignals — crux rate', () => {
-  it('detects IDENTIFY-CRUX usage', () => {
-    const entry = makeEntry({
-      id: 'cr1',
-      metadata: { move_types: ['IDENTIFY-CRUX'] },
-    });
+  it('detects crux engagement when turn node matches attacking_claim_ids', () => {
+    const entry = makeEntry({ id: 'cr1' });
+    const node = makeNode({ id: 'AN-10', source_entry_id: 'cr1', turn_number: 1 });
+    const tracker = [makeCrux({ id: 'crux-1', attacking_claim_ids: ['AN-10'] })];
     const result = computeConvergenceSignals(
-      'cr1', 'accelerationist', [entry], [], [], [],
+      'cr1', 'accelerationist', [entry], [node], [], [], undefined, undefined, undefined, undefined, tracker,
     );
     expect(result.crux_engagement_rate.used_this_turn).toBe(true);
     expect(result.crux_engagement_rate.cumulative_count).toBe(1);
   });
 
-  it('detects IDENTIFY_CRUX variant', () => {
-    const entry = makeEntry({
-      id: 'cr2',
-      metadata: { move_types: ['IDENTIFY_CRUX'] },
-    });
+  it('detects crux engagement via state transition at current turn', () => {
+    const entry = makeEntry({ id: 'cr2' });
+    const node = makeNode({ id: 'AN-20', source_entry_id: 'cr2', turn_number: 3 });
+    const tracker = [makeCrux({
+      id: 'crux-2',
+      state: 'engaged',
+      history: [{ from: 'identified', to: 'engaged', turn: 3, trigger: 'claim_overlap' }],
+    })];
     const result = computeConvergenceSignals(
-      'cr2', 'accelerationist', [entry], [], [], [],
+      'cr2', 'accelerationist', [entry], [node], [], [], undefined, undefined, undefined, undefined, tracker,
     );
     expect(result.crux_engagement_rate.used_this_turn).toBe(true);
   });
 
-  it('returns false when no crux move used', () => {
-    const entry = makeEntry({
-      id: 'cr3',
-      metadata: { move_types: ['COUNTEREXAMPLE', 'CONCEDE'] },
-    });
+  it('returns false when no crux tracker provided', () => {
+    const entry = makeEntry({ id: 'cr3' });
     const result = computeConvergenceSignals(
       'cr3', 'accelerationist', [entry], [], [], [],
     );
@@ -849,11 +863,28 @@ describe('computeConvergenceSignals — crux rate', () => {
     expect(result.crux_engagement_rate.cumulative_count).toBe(0);
   });
 
+  it('returns false when crux tracker is empty', () => {
+    const entry = makeEntry({ id: 'cr3b' });
+    const result = computeConvergenceSignals(
+      'cr3b', 'accelerationist', [entry], [], [], [], undefined, undefined, undefined, undefined, [],
+    );
+    expect(result.crux_engagement_rate.used_this_turn).toBe(false);
+  });
+
+  it('returns false when turn nodes do not match any crux', () => {
+    const entry = makeEntry({ id: 'cr4' });
+    const node = makeNode({ id: 'AN-30', source_entry_id: 'cr4', turn_number: 2 });
+    const tracker = [makeCrux({ id: 'crux-3', attacking_claim_ids: ['AN-99'] })];
+    const result = computeConvergenceSignals(
+      'cr4', 'accelerationist', [entry], [node], [], [], undefined, undefined, undefined, undefined, tracker,
+    );
+    expect(result.crux_engagement_rate.used_this_turn).toBe(false);
+  });
+
   it('accumulates crux count from prior signals', () => {
-    const entry = makeEntry({
-      id: 'cr4',
-      metadata: { move_types: ['IDENTIFY-CRUX'] },
-    });
+    const entry = makeEntry({ id: 'cr5' });
+    const node = makeNode({ id: 'AN-40', source_entry_id: 'cr5', turn_number: 2 });
+    const tracker = [makeCrux({ id: 'crux-4', attacking_claim_ids: ['AN-40'] })];
     const priorSignals: ConvergenceSignals[] = [
       makeSignals({
         speaker: 'accelerationist',
@@ -861,53 +892,48 @@ describe('computeConvergenceSignals — crux rate', () => {
       }),
     ];
     const result = computeConvergenceSignals(
-      'cr4', 'accelerationist', [entry], [], [], priorSignals,
+      'cr5', 'accelerationist', [entry], [node], [], priorSignals, undefined, undefined, undefined, undefined, tracker,
     );
-    // Prior had 2 crux uses, this turn adds 1, but cumulative is recounted from signals
-    expect(result.crux_engagement_rate.cumulative_count).toBe(2); // prior 1 (from signals) + this 1
+    expect(result.crux_engagement_rate.cumulative_count).toBe(2);
   });
 
-  it('tracks follow-through when crux used with collaborative move', () => {
-    const entry = makeEntry({
-      id: 'cr5',
-      metadata: { move_types: ['IDENTIFY-CRUX', 'INTEGRATE'] },
-    });
+  it('tracks follow-through when crux engaged with collaborative move', () => {
+    const entry = makeEntry({ id: 'cr6', metadata: { move_types: ['INTEGRATE'] } });
+    const node = makeNode({ id: 'AN-50', source_entry_id: 'cr6', turn_number: 1 });
+    const tracker = [makeCrux({ id: 'crux-5', attacking_claim_ids: ['AN-50'] })];
     const result = computeConvergenceSignals(
-      'cr5', 'accelerationist', [entry], [], [], [],
+      'cr6', 'accelerationist', [entry], [node], [], [], undefined, undefined, undefined, undefined, tracker,
     );
     expect(result.crux_engagement_rate.used_this_turn).toBe(true);
     expect(result.crux_engagement_rate.cumulative_follow_through).toBe(1);
   });
 
-  it('does not count follow-through when crux used without collaborative move', () => {
-    const entry = makeEntry({
-      id: 'cr6',
-      metadata: { move_types: ['IDENTIFY-CRUX', 'COUNTEREXAMPLE'] },
-    });
+  it('does not count follow-through when crux engaged without collaborative move', () => {
+    const entry = makeEntry({ id: 'cr7', metadata: { move_types: ['COUNTEREXAMPLE'] } });
+    const node = makeNode({ id: 'AN-60', source_entry_id: 'cr7', turn_number: 1 });
+    const tracker = [makeCrux({ id: 'crux-6', attacking_claim_ids: ['AN-60'] })];
     const result = computeConvergenceSignals(
-      'cr6', 'accelerationist', [entry], [], [], [],
+      'cr7', 'accelerationist', [entry], [node], [], [], undefined, undefined, undefined, undefined, tracker,
     );
     expect(result.crux_engagement_rate.used_this_turn).toBe(true);
     expect(result.crux_engagement_rate.cumulative_follow_through).toBe(0);
   });
 
-  it('does not count follow-through when no crux used even with collaborative move', () => {
-    const entry = makeEntry({
-      id: 'cr7',
-      metadata: { move_types: ['INTEGRATE', 'CONCEDE'] },
-    });
+  it('does not count follow-through when no crux engaged even with collaborative move', () => {
+    const entry = makeEntry({ id: 'cr8', metadata: { move_types: ['INTEGRATE'] } });
+    const node = makeNode({ id: 'AN-70', source_entry_id: 'cr8', turn_number: 1 });
+    const tracker = [makeCrux({ id: 'crux-7', attacking_claim_ids: ['AN-99'] })];
     const result = computeConvergenceSignals(
-      'cr7', 'accelerationist', [entry], [], [], [],
+      'cr8', 'accelerationist', [entry], [node], [], [], undefined, undefined, undefined, undefined, tracker,
     );
     expect(result.crux_engagement_rate.used_this_turn).toBe(false);
     expect(result.crux_engagement_rate.cumulative_follow_through).toBe(0);
   });
 
   it('accumulates follow-through from prior signals', () => {
-    const entry = makeEntry({
-      id: 'cr8',
-      metadata: { move_types: ['IDENTIFY-CRUX', 'EXTEND'] },
-    });
+    const entry = makeEntry({ id: 'cr9', metadata: { move_types: ['EXTEND'] } });
+    const node = makeNode({ id: 'AN-80', source_entry_id: 'cr9', turn_number: 2 });
+    const tracker = [makeCrux({ id: 'crux-8', attacking_claim_ids: ['AN-80'] })];
     const priorSignals: ConvergenceSignals[] = [
       makeSignals({
         speaker: 'accelerationist',
@@ -915,7 +941,7 @@ describe('computeConvergenceSignals — crux rate', () => {
       }),
     ];
     const result = computeConvergenceSignals(
-      'cr8', 'accelerationist', [entry], [], [], priorSignals,
+      'cr9', 'accelerationist', [entry], [node], [], priorSignals, undefined, undefined, undefined, undefined, tracker,
     );
     expect(result.crux_engagement_rate.cumulative_follow_through).toBe(2);
   });
@@ -948,16 +974,16 @@ describe('computeConvergenceSignals — speaker isolation', () => {
   });
 
   it('only counts prior crux signals from the same speaker', () => {
-    const entry = makeEntry({
-      id: 'iso-crux',
-      metadata: { move_types: ['IDENTIFY-CRUX'] },
-    });
+    const entry = makeEntry({ id: 'iso-crux' });
+    const node = makeNode({ id: 'AN-iso', source_entry_id: 'iso-crux', turn_number: 1 });
+    const tracker = [makeCrux({ id: 'crux-iso', attacking_claim_ids: ['AN-iso'] })];
     const otherSpeakerSignal = makeSignals({
       speaker: 'safetyist',
       crux_engagement_rate: { used_this_turn: true, cumulative_count: 5, cumulative_follow_through: 3 },
     });
     const result = computeConvergenceSignals(
-      'iso-crux', 'accelerationist', [entry], [], [], [otherSpeakerSignal],
+      'iso-crux', 'accelerationist', [entry], [node], [], [otherSpeakerSignal],
+      undefined, undefined, undefined, undefined, tracker,
     );
     // Should not inherit safetyist's crux counts
     expect(result.crux_engagement_rate.cumulative_count).toBe(1);
@@ -999,6 +1025,7 @@ describe('computeConvergenceSignals — integration', () => {
     strengths.set('pn1', 0.55);
     strengths.set('sn1', 0.75);
 
+    const intTracker = [makeCrux({ id: 'crux-int', attacking_claim_ids: ['pn1'] })];
     const result = computeConvergenceSignals(
       'int-curr', 'accelerationist',
       [opening, safetyistTurn, current],
@@ -1007,6 +1034,9 @@ describe('computeConvergenceSignals — integration', () => {
       [],
       undefined,
       strengths,
+      undefined,
+      undefined,
+      intTracker,
     );
 
     // Basic fields
@@ -1059,25 +1089,31 @@ describe('computeConvergenceSignals — integration', () => {
       id: 'seq-t2',
       speaker: 'accelerationist',
       content: 'innovation progress acceleration technology growth future',
-      metadata: { move_types: ['IDENTIFY-CRUX', 'CONCEDE'] },
+      metadata: { move_types: ['CONCEDE-AND-PIVOT'] },
     });
     const turn3 = makeEntry({
       id: 'seq-t3',
       speaker: 'accelerationist',
       content: 'completely different vocabulary about regulation safety alignment',
-      metadata: { move_types: ['IDENTIFY-CRUX', 'COUNTEREXAMPLE'] },
+      metadata: { move_types: ['COUNTEREXAMPLE'] },
     });
+
+    const seqNode2 = makeNode({ id: 'AN-seq2', source_entry_id: 'seq-t2', turn_number: 2 });
+    const seqNode3 = makeNode({ id: 'AN-seq3', source_entry_id: 'seq-t3', turn_number: 3 });
+    const seqTracker = [makeCrux({ id: 'crux-seq', attacking_claim_ids: ['AN-seq2', 'AN-seq3'] })];
 
     // First call
     const sig1 = computeConvergenceSignals(
-      'seq-t2', 'accelerationist', [opening, turn2], [], [], [],
+      'seq-t2', 'accelerationist', [opening, turn2], [seqNode2], [], [],
+      undefined, undefined, undefined, undefined, seqTracker,
     );
     expect(sig1.crux_engagement_rate.cumulative_count).toBe(1);
-    expect(sig1.crux_engagement_rate.cumulative_follow_through).toBe(1); // crux + CONCEDE (support)
+    expect(sig1.crux_engagement_rate.cumulative_follow_through).toBe(1); // crux + CONCEDE-AND-PIVOT (support)
 
     // Second call uses first signal
     const sig2 = computeConvergenceSignals(
-      'seq-t3', 'accelerationist', [opening, turn2, turn3], [], [], [sig1],
+      'seq-t3', 'accelerationist', [opening, turn2, turn3], [seqNode2, seqNode3], [], [sig1],
+      undefined, undefined, undefined, undefined, seqTracker,
     );
     expect(sig2.crux_engagement_rate.cumulative_count).toBe(2);
     expect(sig2.crux_engagement_rate.cumulative_follow_through).toBe(1); // crux + COUNTEREXAMPLE (attack, not support)

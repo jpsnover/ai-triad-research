@@ -1897,6 +1897,10 @@ export interface StagePromptInput {
   vocabularyExclusion?: string;
   /** Prior crux context from cross-debate registry — injected into Brief stage. */
   priorCruxContext?: string;
+  /** Current debate crux context — active/resolved cruxes from this debate's crux_tracker. */
+  currentCruxContext?: string;
+  /** Topic scope constraints — injected into Brief stage for pre-draft scope checking. */
+  topicScope?: TopicScope;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -1909,8 +1913,7 @@ export function briefStagePrompt(input: StagePromptInput): string {
 Your task is to comprehend the current state of the debate and identify what matters most for ${input.label}'s next response. This is pure analysis — do not write any debate statement or adopt the debater's voice.
 
 ${input.taxonomyContext}
-${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}
-=== DEBATE TOPIC ===
+${input.edgeContext ? `\n=== KNOWN CROSS-POV TENSIONS ===\n${input.edgeContext}\n` : ''}${input.topicScope ? `\n${formatDebateScopeBlock(input.topicScope)}\n` : ''}${input.priorCruxContext ? `\n${input.priorCruxContext}\n` : ''}${input.currentCruxContext ? `\n=== IDENTIFIED CRUXES (THIS DEBATE) ===\n${input.currentCruxContext}\n\n` : ''}=== DEBATE TOPIC ===
 "${input.topic}"
 
 === RECENT DEBATE HISTORY ===
@@ -2364,7 +2367,7 @@ Assess whether the debater's rhetoric matches the evidential basis:
   const confidenceField = hasConfidence ? `,\n  "calibrated": true` : '';
 
   const topicAlignedQuestion = hasScope
-    ? `\n${++qNum}. TOPIC_ALIGNED — Does the draft stay within the debate's stated scope? Specifically: are the examples, analogies, and evidence drawn from the same risk level and domain as stated below? A brief illustrative analogy from a higher-risk domain is acceptable if clearly marked as illustrative and the argument returns to on-scope evidence. Sustained off-domain framing (multiple paragraphs of mismatched examples) is NOT aligned.
+    ? `\n${++qNum}. TOPIC_ALIGNED — Is the draft's core thesis about the debate topic? Pass if the argument's conclusion addresses the stated scope, even when it draws cross-domain analogies or precedents as supporting evidence. Analogical reasoning from other domains is legitimate argumentation — only fail if the argument's thesis itself concerns a different domain, or if the draft develops an off-scope argument across multiple paragraphs without connecting back to the debate question. Do NOT fail for lacking domain-specific evidence (that is a GROUNDED issue, not alignment).
   Scope: ${_topicScope!.example_ceiling}${_topicScope!.excluded_scenarios.length > 0 ? `\n  Excluded: ${_topicScope!.excluded_scenarios.join(', ')}` : ''}${_topicScope!.explicit_qualifiers.length > 0 ? `\n  User qualifiers: ${_topicScope!.explicit_qualifiers.join(', ')}` : ''}`
     : '';
   const topicAlignedField = hasScope ? `,\n  "topic_aligned": true` : '';

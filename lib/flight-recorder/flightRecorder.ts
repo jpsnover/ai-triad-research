@@ -1,6 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as net from 'node:net';
 import { Dictionary } from './dictionary.js';
 import { RingBuffer } from './ringBuffer.js';
 import { serializeDump } from './serializer.js';
@@ -11,6 +14,8 @@ import type {
   DumpHeader,
   DumpContext,
   DumpTrigger,
+  DumpResult,
+  RecorderSummary,
   TriggerType,
   ErrorCategory,
 } from './types.js';
@@ -118,6 +123,113 @@ export class FlightRecorder {
 
     const ndjson = serializeDump(header, this.dictionary, events, trigger, dumpContext);
     return { ndjson, trigger };
+  }
+
+  // ── On-demand dump to file ───────────────────────────────────────
+
+  dumpToFile(filePath?: string): DumpResult {
+    const events = this.buffer.drain();
+    const resolvedPath = filePath ?? path.join(
+      this.config.dumpDir || '.',
+      `dump-${process.pid}-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`,
+    );
+
+    const dir = path.dirname(resolvedPath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+    const { ndjson } = this.buildDump('explicit');
+    fs.writeFileSync(resolvedPath, ndjson, 'utf-8');
+
+    const ctx = this.contextProvider();
+    const firstWall = events.length > 0 ? events[0]._wall : Date.now();
+    const lastWall = events.length > 0 ? events[events.length - 1]._wall : Date.now();
+
+    return {
+      path: resolvedPath,
+      event_count: events.length,
+      first_event_ts: new Date(firstWall).toISOString(),
+      last_event_ts: new Date(lastWall).toISOString(),
+      debate_id: ctx.active_debate_id as string | undefined,
+      size_bytes: Buffer.byteLength(ndjson, 'utf-8'),
+    };
+  }
+
+  // ── Summary (no I/O) ───────────────────────────────────────────
+
+  getSummary(): RecorderSummary {
+    const events = this.buffer.drain();
+    const ctx = this.contextProvider();
+
+    const firstWall = events.length > 0 ? events[0]._wall : undefined;
+    const lastWall = events.length > 0 ? events[events.length - 1]._wall : undefined;
+
+    let sizeEstimate = 0;
+    for (const e of events) {
+      sizeEstimate += 200;
+      if (e.message) sizeEstimate += e.message.length;
+      if (e.data) sizeEstimate += JSON.stringify(e.data).length;
+    }
+
+    return {
+      event_count: events.length,
+      first_event_ts: firstWall != null ? new Date(firstWall).toISOString() : undefined,
+      last_event_ts: lastWall != null ? new Date(lastWall).toISOString() : undefined,
+      debate_id: ctx.active_debate_id as string | undefined,
+      buffer_size_bytes: sizeEstimate,
+    };
+  }
+
+  // ── Named pipe listener ────────────────────────────────────────
+
+  private _pipeServer: net.Server | null = null;
+
+  startPipeListener(pid?: number): void {
+    if (this._pipeServer) return;
+
+    const pipeName = `\\\\.\\pipe\\taxonomy-flight-recorder-${pid ?? process.pid}`;
+    const server = net.createServer((conn) => {
+      let data = '';
+      conn.on('data', (chunk) => { data += chunk.toString(); });
+      conn.on('end', () => {
+        try {
+          const req = JSON.parse(data) as { action?: string };
+          if (req.action === 'dump') {
+            const result = this.dumpToFile();
+            conn.end(JSON.stringify(result) + '\n');
+          } else if (req.action === 'summary') {
+            const result = this.getSummary();
+            conn.end(JSON.stringify(result) + '\n');
+          } else {
+            conn.end(JSON.stringify({ error: `Unknown action: ${req.action}` }) + '\n');
+          }
+        } catch (err) {
+          conn.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }) + '\n');
+        }
+      });
+    });
+
+    server.on('error', (err) => {
+      console.warn(`[flight-recorder] Pipe listener error: ${err.message}`);
+    });
+
+    server.listen(pipeName);
+    this._pipeServer = server;
+
+    const cleanup = () => {
+      if (this._pipeServer) {
+        this._pipeServer.close();
+        this._pipeServer = null;
+      }
+    };
+    process.on('exit', cleanup);
+    process.on('SIGTERM', cleanup);
+  }
+
+  stopPipeListener(): void {
+    if (this._pipeServer) {
+      this._pipeServer.close();
+      this._pipeServer = null;
+    }
   }
 
   /** Take a read-only snapshot of the current state (for inspection without serializing). */

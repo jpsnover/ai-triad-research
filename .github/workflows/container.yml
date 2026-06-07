@@ -64,9 +64,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU (for multi-platform builds)
-        uses: docker/setup-qemu-action@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -98,19 +95,18 @@ jobs:
           REPO="jpsnover/ai-triad-data"
           RAW="https://raw.githubusercontent.com/${REPO}/main"
           FAILED=0
+
+          # Fetch taxonomy and conflict files in parallel
+          mkdir -p taxonomy-snapshot/conflicts
           for f in accelerationist.json safetyist.json skeptic.json situations.json edges.json policy_actions.json embeddings.json lineage_categories.json aggregated-cruxes.json; do
             curl -sfL "${RAW}/taxonomy/Origin/${f}" -o "${SNAP}/${f}" \
-              || { echo "::warning::Failed to fetch ${f}"; FAILED=$((FAILED+1)); }
+              || { echo "::warning::Failed to fetch ${f}"; FAILED=$((FAILED+1)); } &
           done
-
-          # Fetch conflict index (single file replaces 1,244 individual files)
-          mkdir -p taxonomy-snapshot/conflicts
           curl -sfL "${RAW}/conflicts/_conflict-index.json" -o taxonomy-snapshot/conflicts/_conflict-index.json \
-            || echo "::warning::Conflict index not available yet"
-
-          # Fetch conflict clusters
+            || echo "::warning::Conflict index not available yet" &
           curl -sfL "${RAW}/conflicts/_conflict-clusters.json" -o taxonomy-snapshot/conflicts/_conflict-clusters.json \
-            || echo "::warning::Conflict clusters not available yet"
+            || echo "::warning::Conflict clusters not available yet" &
+          wait
 
           # Stamp snapshot age for read-only mode banner
           echo "{\"generated\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"commit\":\"$(gh api repos/${REPO}/commits/main --jq '.sha' 2>/dev/null || echo 'unknown')\"}" \

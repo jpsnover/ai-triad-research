@@ -1,0 +1,9 @@
+{
+  "topic": "What labor market policies are needed for the AI transition?",
+  "name": "rerun-labor-market-post-changes",
+  "model": "gemini-2.5-flash",
+  "audience": "policymakers",
+  "pacing": "moderate",
+  "responseLength": "medium",
+  "outputDir": "../../ai-triad-data/debates"
+}

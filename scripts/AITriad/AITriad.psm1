@@ -387,6 +387,9 @@ Export-ModuleMember -Function @(
     'Get-IntellectualLineage'
     'Invoke-BDIWeightAssignment'
     'Register-AITriadDrive'
+    'Get-TaxonomyProcess'
+    'Request-FlightRecorderDump'
+    'Get-FlightRecorderReport'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

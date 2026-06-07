@@ -25,6 +25,7 @@ export function stripCodeFences(text: string): string {
 /** Strip "Excludes: ..." suffix from taxonomy node descriptions.
  *  Debate-facing prompts should not expose Excludes clauses to LLM debaters. */
 export function stripExcludes(description: string): string {
+  if (!description) return '';
   return description.replace(/\s*Excludes:\s*.*/s, '').trim();
 }
 
@@ -331,13 +332,26 @@ export function parseJsonRobust(text: string): unknown {
     try {
       return JSON.parse(repairJson(stripped));
     } catch {
-      // Last resort: extract from first { to last } and try again
+      // Last resort: find the first top-level JSON object via brace-depth matching
       const firstBrace = stripped.indexOf('{');
-      const lastBrace = stripped.lastIndexOf('}');
-      if (firstBrace >= 0 && lastBrace > firstBrace) {
-        const extracted = stripped.slice(firstBrace, lastBrace + 1);
-        try { return JSON.parse(extracted); } catch { /* fall through */ }
-        return JSON.parse(repairJson(extracted));
+      if (firstBrace >= 0) {
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let i = firstBrace; i < stripped.length; i++) {
+          const ch = stripped[i];
+          if (escape) { escape = false; continue; }
+          if (ch === '\\' && inString) { escape = true; continue; }
+          if (ch === '"') { inString = !inString; continue; }
+          if (inString) continue;
+          if (ch === '{') depth++;
+          else if (ch === '}') { depth--; if (depth === 0) {
+            const extracted = stripped.slice(firstBrace, i + 1);
+            try { return JSON.parse(extracted); } catch { /* fall through */ }
+            try { return JSON.parse(repairJson(extracted)); } catch { /* fall through */ }
+            break;
+          }}
+        }
       }
       const preview = text.slice(0, 200).replace(/\n/g, '\\n');
       throw new Error(

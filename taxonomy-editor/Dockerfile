@@ -14,9 +14,10 @@ WORKDIR /build
 # Native-module build deps for node-gyp (node-pty etc.)
 # Builder stage is discarded — no impact on runtime image size.
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++
 
 # Copy dependency manifests first (Docker layer caching)
 COPY taxonomy-editor/package.json taxonomy-editor/package-lock.json ./taxonomy-editor/
@@ -24,11 +25,10 @@ COPY lib/ ./lib/
 
 # Install Node deps (including devDependencies for build)
 WORKDIR /build/taxonomy-editor
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy source and build
 WORKDIR /build
-COPY taxonomy-editor/package.json ./taxonomy-editor/
 COPY taxonomy-editor/src/ ./taxonomy-editor/src/
 COPY taxonomy-editor/tsconfig.json ./taxonomy-editor/
 COPY taxonomy-editor/tsconfig.main.json ./taxonomy-editor/
@@ -61,7 +61,7 @@ WORKDIR /app
 
 # 1. Node production dependencies (changes when package-lock.json changes)
 COPY --chown=aitriad:aitriad taxonomy-editor/package.json taxonomy-editor/package-lock.json ./
-RUN npm ci --omit=dev
+RUN --mount=type=cache,target=/home/aitriad/.npm npm ci --omit=dev
 
 # 2. Stable config and scripts (change occasionally)
 COPY --chown=aitriad:aitriad ai-models.json ./

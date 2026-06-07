@@ -244,7 +244,7 @@ export function resolveTurnValidationConfig(
       concluding: src.sampleRate?.concluding ?? 1,
     },
     scoreThreshold: Math.max(0, Math.min(1, src.scoreThreshold ?? 0.65)),
-    preCheckModel: src.preCheckModel ?? 'gemini-2.0-flash-lite',
+    preCheckModel: src.preCheckModel ?? 'gemini-3.1-flash-lite',
     skipPreCheck: src.skipPreCheck ?? false,
   };
 }
@@ -1415,7 +1415,7 @@ export function validateDraftStage(p: {
   const suppressedCount = (errors.length - activeErrors.length) + (warnings.length - activeWarnings.length);
   if (suppressedCount > 0) {
     getGlobalRecorder()?.record({
-      type: 'turn.hint-filtered', component: 'turnValidator', level: 'info',
+      type: 'turn.hint-filtered', component: 'turn-validator', level: 'info',
       message: `${suppressedCount} hint(s) suppressed due to repeated failures`,
       data: { suppressed_keys: [...(p.suppressedHints ?? [])], original_errors: errors.length, original_warnings: warnings.length },
     });
@@ -1433,7 +1433,7 @@ export function validateDraftStage(p: {
   };
   getGlobalRecorder()?.record({
     type: draftResult.pass ? 'turn.validate' : 'turn.stage.validation.fail',
-    component: 'turnValidator', level: draftResult.pass ? 'info' : 'warn',
+    component: 'turn-validator', level: draftResult.pass ? 'info' : 'warn',
     message: `draft validation ${draftResult.pass ? 'passed' : 'failed'}: ${errors.length} error(s), ${warnings.length} warning(s)`,
     data: { stage: 'draft', pass: draftResult.pass, error_count: errors.length, warning_count: warnings.length, failed_dimension: draftResult.failedDimension },
   });
@@ -1517,7 +1517,7 @@ export function validateCiteStage(p: {
   };
   getGlobalRecorder()?.record({
     type: citeResult.pass ? 'turn.validate' : 'turn.stage.validation.fail',
-    component: 'turnValidator', level: citeResult.pass ? 'info' : 'warn',
+    component: 'turn-validator', level: citeResult.pass ? 'info' : 'warn',
     message: `cite validation ${citeResult.pass ? 'passed' : 'failed'}: ${errors.length} error(s), ${warnings.length} warning(s)`,
     data: { stage: 'cite', pass: citeResult.pass, error_count: errors.length, warning_count: warnings.length, taxonomy_refs_count: taxonomyRefs.length },
   });
@@ -1608,7 +1608,7 @@ export function validatePlanStage(p: {
   };
   getGlobalRecorder()?.record({
     type: planResult.pass ? 'turn.validate' : 'turn.stage.validation.fail',
-    component: 'turnValidator', level: planResult.pass ? 'info' : 'warn',
+    component: 'turn-validator', level: planResult.pass ? 'info' : 'warn',
     message: `plan validation ${planResult.pass ? 'passed' : 'failed'}: ${errors.length} error(s), ${warnings.length} warning(s)`,
     data: { stage: 'plan', pass: planResult.pass, error_count: errors.length, warning_count: warnings.length, move_count: (plan.planned_moves ?? []).length },
   });

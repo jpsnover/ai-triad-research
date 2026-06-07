@@ -101,6 +101,9 @@
         'Get-IntellectualLineage'
         'Invoke-BDIWeightAssignment'
         'Register-AITriadDrive'
+        'Get-TaxonomyProcess'
+        'Request-FlightRecorderDump'
+        'Get-FlightRecorderReport'
     )
 
     # Aliases exported from this module

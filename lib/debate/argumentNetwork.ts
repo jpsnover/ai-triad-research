@@ -865,6 +865,8 @@ export interface RawExtractedClaim {
   belief_verification?: BeliefVerification;
   /** Policymaker debates only: political salience classification. */
   political_salience?: 'high' | 'medium' | 'low';
+  /** Topic scope relevance when topic constraints are active. */
+  topic_relevance?: 'on_topic' | 'adjacent' | 'off_topic';
   responds_to?: {
     prior_claim_id: string;
     relationship: string;
@@ -1028,7 +1030,7 @@ export function processExtractedClaims(
 
     if (typeof claim.extraction_confidence !== 'number') {
       getGlobalRecorder()?.record({
-        type: 'an.extraction_confidence_missing', component: 'argumentNetwork', level: 'warn',
+        type: 'an.extraction_confidence_missing', component: 'argument-network', level: 'warn',
         speaker,
         message: `LLM output missing extraction_confidence for claim "${claim.text.slice(0, 80)}" — computed server-side from wordOverlap (${Math.round(overlap * 100)}%)`,
         data: { node_id: nodeId, overlap, computed_confidence: node.extraction_confidence },
@@ -1153,6 +1155,11 @@ export function processExtractedClaims(
       }
     }
 
+    // Topic relevance: carry forward from extraction when topic constraints are active.
+    if (claim.topic_relevance && (claim.topic_relevance === 'on_topic' || claim.topic_relevance === 'adjacent' || claim.topic_relevance === 'off_topic')) {
+      node.topic_relevance = claim.topic_relevance;
+    }
+
     // Policymaker political salience: carry forward from extraction and apply QBAF boost.
     // Only fires on explicit 'high', never on undefined. +0.10 boost capped at 1.0.
     if (input.audience === 'policymakers' && claim.political_salience) {
@@ -1221,7 +1228,7 @@ export function processExtractedClaims(
           if (targetNode && targetNode.speaker !== speaker && !commitments.conceded.includes(targetNode.text)) {
             commitments.conceded.push(targetNode.text);
             getGlobalRecorder()?.record({
-              type: 'an.commitment_update', component: 'argumentNetwork', level: 'info',
+              type: 'an.commitment_update', component: 'argument-network', level: 'info',
               speaker,
               message: `Commitment: conceded "${targetNode.text.slice(0, 80)}"`,
               data: { type: 'conceded', claim_text: targetNode.text, target_node_id: rel.prior_claim_id, trigger_scheme: rel.scheme, target_speaker: targetNode.speaker },
@@ -1234,7 +1241,7 @@ export function processExtractedClaims(
         if (targetNode && !commitments.challenged.includes(targetNode.text)) {
           commitments.challenged.push(targetNode.text);
           getGlobalRecorder()?.record({
-            type: 'an.commitment_update', component: 'argumentNetwork', level: 'info',
+            type: 'an.commitment_update', component: 'argument-network', level: 'info',
             speaker,
             message: `Commitment: challenged "${targetNode.text.slice(0, 80)}"`,
             data: { type: 'challenged', claim_text: targetNode.text, target_node_id: rel.prior_claim_id, trigger_scheme: rel.scheme, target_speaker: targetNode.speaker },

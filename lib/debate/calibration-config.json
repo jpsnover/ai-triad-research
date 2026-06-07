@@ -29,14 +29,14 @@
     "max_argumentation_rounds": 2,
     "min_concluding_rounds": 1,
     "max_concluding_rounds": 1,
-    "max_total_rounds_default": 12,
+    "max_total_rounds_default": 5,
     "max_regressions": 2,
     "regression_ratchet": 0.10
   },
   "pacing_presets": {
-    "tight": { "maxTotalRounds": 8, "argumentationExit": 0.62, "concludingExit": 0.60 },
-    "moderate": { "maxTotalRounds": 12, "argumentationExit": 0.72, "concludingExit": 0.70 },
-    "thorough": { "maxTotalRounds": 15, "argumentationExit": 0.80, "concludingExit": 0.80 }
+    "tight": { "maxTotalRounds": 4, "argumentationExit": 0.62, "concludingExit": 0.60 },
+    "moderate": { "maxTotalRounds": 5, "argumentationExit": 0.72, "concludingExit": 0.70 },
+    "thorough": { "maxTotalRounds": 8, "argumentationExit": 0.80, "concludingExit": 0.80 }
   },
   "network": {
     "gc_trigger": 175,

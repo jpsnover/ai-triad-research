@@ -329,3 +329,127 @@ describe('extractCalibrationData extraction quality fields', () => {
     expect(dp.entailment_sampling_coverage).toBeNull();
   });
 });
+
+describe('qbaf_preference_concordance', () => {
+  it('matches when prevails claim has highest QBAF strength', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        {
+          id: 'c1', type: 'concluding', speaker: 'system', content: 'Synthesis', timestamp: '', taxonomy_refs: [],
+          metadata: {
+            synthesis: {
+              argument_map: [
+                { claim_id: 'C1', claim: 'regulation slows innovation significantly' },
+                { claim_id: 'C2', claim: 'safety frameworks protect the public interest' },
+              ],
+              preferences: [
+                { claim_ids: ['C1', 'C2'], prevails: 'C2', conflict: 'innovation vs safety' },
+              ],
+            },
+          },
+        },
+      ] as any,
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'regulation slows innovation significantly in practice', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1, computed_strength: 0.4 },
+          { id: 'AN-2', text: 'safety frameworks protect the public interest effectively', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: [], turn_number: 2, computed_strength: 0.8 },
+        ] as any,
+        edges: [],
+      },
+      diagnostics: {
+        enabled: true,
+        entries: {} as Record<string, EntryDiagnostics>,
+        overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.qbaf_preference_concordance).toBe(1.0);
+  });
+
+  it('returns 0 when prevails claim does not have highest strength', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        {
+          id: 'c1', type: 'concluding', speaker: 'system', content: 'Synthesis', timestamp: '', taxonomy_refs: [],
+          metadata: {
+            synthesis: {
+              argument_map: [
+                { claim_id: 'C1', claim: 'regulation slows innovation significantly' },
+                { claim_id: 'C2', claim: 'safety frameworks protect the public interest' },
+              ],
+              preferences: [
+                { claim_ids: ['C1', 'C2'], prevails: 'C2', conflict: 'innovation vs safety' },
+              ],
+            },
+          },
+        },
+      ] as any,
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'regulation slows innovation significantly in practice', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1, computed_strength: 0.9 },
+          { id: 'AN-2', text: 'safety frameworks protect the public interest effectively', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: [], turn_number: 2, computed_strength: 0.3 },
+        ] as any,
+        edges: [],
+      },
+      diagnostics: {
+        enabled: true,
+        entries: {} as Record<string, EntryDiagnostics>,
+        overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.qbaf_preference_concordance).toBe(0);
+  });
+
+  it('returns null when no synthesis preferences exist', () => {
+    const session = makeMinimalSession({
+      argument_network: { nodes: [], edges: [] },
+      diagnostics: {
+        enabled: true,
+        entries: {} as Record<string, EntryDiagnostics>,
+        overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.qbaf_preference_concordance).toBeNull();
+  });
+
+  it('skips undecidable preferences', () => {
+    const session = makeMinimalSession({
+      transcript: [
+        {
+          id: 'c1', type: 'concluding', speaker: 'system', content: 'Synthesis', timestamp: '', taxonomy_refs: [],
+          metadata: {
+            synthesis: {
+              argument_map: [
+                { claim_id: 'C1', claim: 'open source accelerates progress' },
+                { claim_id: 'C2', claim: 'closed models are more controllable' },
+              ],
+              preferences: [
+                { claim_ids: ['C1', 'C2'], prevails: 'undecidable', conflict: 'open vs closed' },
+              ],
+            },
+          },
+        },
+      ] as any,
+      argument_network: {
+        nodes: [
+          { id: 'AN-1', text: 'open source accelerates progress in AI development', speaker: 'accelerationist', source_entry_id: 'e1', taxonomy_refs: [], turn_number: 1, computed_strength: 0.9 },
+          { id: 'AN-2', text: 'closed models are more controllable and secure', speaker: 'safetyist', source_entry_id: 'e2', taxonomy_refs: [], turn_number: 2, computed_strength: 0.3 },
+        ] as any,
+        edges: [],
+      },
+      diagnostics: {
+        enabled: true,
+        entries: {} as Record<string, EntryDiagnostics>,
+        overview: { total_ai_calls: 0, total_response_time_ms: 0, claims_accepted: 0, claims_rejected: 0, move_type_counts: {}, disagreement_type_counts: {} },
+      },
+    });
+
+    const dp = extractCalibrationData(session, 'local');
+    expect(dp.qbaf_preference_concordance).toBeNull();
+  });
+});
