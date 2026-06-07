@@ -385,8 +385,12 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
           })()}
 
           {/* Content area — side-by-side master-detail on desktop */}
+          {(() => {
+            const hideOverviewForEntry = effectiveOverviewTab === 'transcript' && !!selectedEntry;
+            return (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, minWidth: 0 }}>
-            {/* Overview pane */}
+            {/* Overview pane — hidden when a transcript child is selected */}
+            {!hideOverviewForEntry && (
             <div style={{
               flex: selectedEntry ? '0 0 35%' : '1 1 auto',
               minWidth: selectedEntry ? 280 : 0,
@@ -418,6 +422,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 searchQuery={sq}
               />
             </div>
+            )}
 
             {/* Entry detail pane */}
             {selectedEntry && entry && effectiveOverviewTab !== 'prompt-diff' && effectiveOverviewTab !== 'utility' && (
@@ -457,6 +462,8 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               </div>
             )}
           </div>
+            );
+          })()}
 
         </div>
       )}
