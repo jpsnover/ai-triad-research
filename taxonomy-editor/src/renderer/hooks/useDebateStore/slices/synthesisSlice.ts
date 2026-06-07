@@ -8,7 +8,7 @@ import type {
   SpeakerId,
   TranscriptEntry,
 } from '../../../types/debate';
-import { POVER_INFO, AI_POVERS } from '../../../types/debate';
+import { POVER_INFO, AI_POVERS, POV_KEYS } from '../../../types/debate';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { generateId, nowISO, stripCodeFences, parseAIJson, extractArraysFromPartialJson, formatRecentTranscript } from '@lib/debate/helpers';
