@@ -12,6 +12,7 @@ export {
   MODELS_BY_BACKEND,
   GEMINI_MODELS,
   DEBATE_TIERS,
+  FALLBACK_CHAINS,
 } from './slices/settingsSlice';
 
 export type {

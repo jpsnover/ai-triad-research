@@ -104,6 +104,7 @@ const DEFAULT_MODELS: Record<AIBackend, AIModel> = {
 };
 
 export let DEBATE_TIERS: Record<string, Record<string, string>> = {};
+export let FALLBACK_CHAINS: Record<string, string[]> = {};
 
 // -- Module-level helpers --
 
@@ -133,6 +134,7 @@ interface AIModelsConfig {
   models: { id: string; label: string; backend: string }[];
   defaults: Record<string, string>;
   debateTiers?: Record<string, Record<string, string>>;
+  fallbackChains?: Record<string, string[]>;
 }
 
 export async function initAIModels(): Promise<void> {
@@ -163,6 +165,10 @@ export async function initAIModels(): Promise<void> {
 
     if (config.debateTiers) {
       DEBATE_TIERS = config.debateTiers;
+    }
+
+    if (config.fallbackChains) {
+      FALLBACK_CHAINS = config.fallbackChains;
     }
 
     console.log(`[AI Models] Loaded ${config.models.length} models from ai-models.json`);

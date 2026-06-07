@@ -4,7 +4,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useDebateStore } from '../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
-import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, DEBATE_TIERS, initAIModels } from '../hooks/useTaxonomyStore';
+import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS, DEBATE_TIERS, FALLBACK_CHAINS, initAIModels, backendForModel } from '../hooks/useTaxonomyStore';
 import type { AIBackend } from '../hooks/useTaxonomyStore';
 import { POVER_INFO, DEBATE_AUDIENCES } from '../types/debate';
 import type { SpeakerId, DebateSourceType, DebateAudience } from '../types/debate';
@@ -130,6 +130,19 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     [hasApiKey],
   );
 
+  const activeModel = useCustomModel ? customModel : globalModel;
+  const activeModelBackend = backendForModel(activeModel);
+  const activeModelHasKey = hasApiKey[activeModelBackend] !== false;
+
+  const fallbackWarnings = useMemo(() => {
+    const chain = FALLBACK_CHAINS[activeModel] ?? [];
+    if (!chain.length) return [];
+    return chain
+      .map(m => ({ model: m, backend: backendForModel(m) }))
+      .filter(({ backend }) => hasApiKey[backend] === false)
+      .map(({ model, backend }) => `${model} (${backend})`);
+  }, [activeModel, hasApiKey]);
+
   const openModelModal = () => {
     const model = useCustomModel ? customModel : globalModel;
     for (const [backend, models] of Object.entries(MODELS_BY_BACKEND)) {
@@ -194,7 +207,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
       ? sourceContent.length > 0
       : sourceRef.trim().length > 0;
 
-  const canStart = hasSource && selected.size >= 1;
+  const canStart = hasSource && selected.size >= 1 && (multiProvider || activeModelHasKey);
 
   const handleStart = async () => {
     if (!canStart || creating) return;
@@ -508,6 +521,16 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                     Models
                   </button>
                 </div>
+                {!activeModelHasKey && (
+                  <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
+                    No API key configured for {activeModelBackend}. Configure in Settings or choose a different model.
+                  </div>
+                )}
+                {activeModelHasKey && fallbackWarnings.length > 0 && (
+                  <div style={{ color: 'var(--warning, #f59e0b)', fontSize: '0.75rem', marginTop: 4 }}>
+                    Fallback model{fallbackWarnings.length > 1 ? 's' : ''} unavailable (no key): {fallbackWarnings.join(', ')}
+                  </div>
+                )}
               </div>
             )}
 
@@ -764,11 +787,20 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                         className="ndd-model-select"
                         value={customModel}
                         onChange={(e) => setCustomModel(e.target.value)}
+                        disabled={hasApiKey[modalBackend] === false}
+                        title={hasApiKey[modalBackend] === false ? `No API key configured for ${modalBackend}` : undefined}
                       >
                         {(MODELS_BY_BACKEND[modalBackend] || []).map(m => (
-                          <option key={m.value} value={m.value}>{m.label}</option>
+                          <option key={m.value} value={m.value} disabled={hasApiKey[modalBackend] === false}>
+                            {m.label}
+                          </option>
                         ))}
                       </select>
+                      {hasApiKey[modalBackend] === false && (
+                        <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
+                          No API key for {AI_BACKENDS.find(b => b.value === modalBackend)?.label ?? modalBackend}. Configure in Settings to use these models.
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
