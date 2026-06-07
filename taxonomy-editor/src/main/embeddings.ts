@@ -33,6 +33,7 @@ import {
   callProvider,
   withRetry,
   SERVER_RETRY_CONFIG,
+  generateViaDeepSeekStream,
 } from '../../../lib/ai-client/index.js';
 import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client/index.js';
 import type { ModelRegistry } from '../../../lib/ai-client/index.js';
@@ -724,13 +725,16 @@ export async function generateText(
     timeoutMs: timeoutMs ?? defaultTimeout,
   };
 
+  const providerFn = backend === 'deepseek'
+    ? () => generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts)
+    : () => callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts);
+
   const result = await withRetry(
-    () => callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts),
+    providerFn,
     SERVER_RETRY_CONFIG,
     `${backend}/${resolvedModel}`,
     (msg: string) => {
       console.log(msg);
-      // Parse retry info from the log message to feed the onRetry callback
       const attemptMatch = msg.match(/attempt (\d+)\/(\d+).*waiting (\d+)s/);
       if (attemptMatch && onRetry) {
         onRetry({
@@ -784,13 +788,15 @@ export async function generateChatStream(
     const prompt = systemInstruction + '\n\n' + messages.map(m =>
       m.role === 'user' ? `[User]: ${m.content}` : `[Assistant]: ${m.content}`
     ).join('\n\n') + '\n\n[Assistant]:';
-    const defaultTimeout = backend === 'groq' ? 60_000 : 120_000;
+    const defaultTimeout = backend === 'deepseek' ? 180_000 : backend === 'groq' ? 60_000 : 120_000;
     const opts: GenerateOptions = {
       temperature: temperature ?? 0.7,
       timeoutMs: defaultTimeout,
     };
-    const providerResult = await callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts);
-    onChunk(providerResult.text);
+    const providerResult = backend === 'deepseek'
+      ? await generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts, onChunk)
+      : await callProvider(electronFetch, backend, prompt, resolvedModel, apiKey, opts);
+    if (backend !== 'deepseek') onChunk(providerResult.text);
     return providerResult.text;
   }
 
