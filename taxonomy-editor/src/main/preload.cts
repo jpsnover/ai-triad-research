@@ -114,6 +114,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hasApiKey: (backend?: string): Promise<boolean> =>
     ipcRenderer.invoke('has-api-key', backend),
 
+  exportKeysForSharing: (passphrase: string): Promise<{ dataUrl: string; payloadText: string }> =>
+    ipcRenderer.invoke('export-keys-for-sharing', passphrase),
+
+  importKeysFromSharing: (payload: unknown, passphrase: string): Promise<string[]> =>
+    ipcRenderer.invoke('import-keys-from-sharing', payload, passphrase),
+
   computeEmbeddings: (texts: string[], ids?: string[]): Promise<{ vectors: number[][] }> =>
     ipcRenderer.invoke('compute-embeddings', texts, ids),
 

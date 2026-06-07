@@ -73,6 +73,8 @@ export interface AppAPI {
   refreshAIModels: () => Promise<unknown>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
+  exportKeysForSharing: (passphrase: string) => Promise<{ dataUrl: string; payloadText: string }>;
+  importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;
 
   // --- AI generation ---
   generateText: (prompt: string, model?: string, timeoutMs?: number, temperature?: number) => Promise<{ text: string; tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number } }>;

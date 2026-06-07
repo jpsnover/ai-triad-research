@@ -43,7 +43,8 @@ import {
   deleteChatSession,
 } from './chatIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
-import { storeApiKey, hasApiKey } from './apiKeyStore.js';
+import { storeApiKey, hasApiKey, exportKeysForSharing, importKeysFromSharing } from './apiKeyStore.js';
+import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir } from './fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
 import type { ChatMessage } from './embeddings.js';
@@ -242,6 +243,18 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
     if (backend === 'ollama') return true;
     return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);
+  });
+
+  ipcMain.handle('export-keys-for-sharing', async (_event, passphrase: string) => {
+    const payload = exportKeysForSharing(passphrase);
+    const payloadStr = JSON.stringify(payload);
+    const QRCode = await import('qrcode');
+    const dataUrl = await QRCode.toDataURL(payloadStr, { errorCorrectionLevel: 'M', width: 400 });
+    return { dataUrl, payloadText: payloadStr };
+  });
+
+  ipcMain.handle('import-keys-from-sharing', (_event, payload: KeySharePayload, passphrase: string) => {
+    return importKeysFromSharing(payload, passphrase);
   });
 
   ipcMain.handle('get-embedding-info', () => {

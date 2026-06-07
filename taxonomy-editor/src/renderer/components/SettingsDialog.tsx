@@ -8,6 +8,7 @@ import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { ColorScheme, AIBackend, AIModel } from '../hooks/useTaxonomyStore';
 import { AI_BACKENDS, MODELS_BY_BACKEND, initAIModels } from '../hooks/useTaxonomyStore';
 import { usePromptConfigStore, PROMPT_CONFIG_DEFAULTS } from '../hooks/usePromptConfigStore';
+import { KeySharingDialog } from './KeySharingDialog';
 
 interface SettingsDialogProps {
   onClose: () => void;
@@ -106,6 +107,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResult, setRefreshResult] = useState<RefreshResult | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [showKeySharing, setShowKeySharing] = useState(false);
   const [, forceUpdate] = useState(0);
 
   const models = MODELS_BY_BACKEND[aiBackend] || [];
@@ -271,6 +273,19 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             {keyError && <div className="settings-key-error">{keyError}</div>}
             {keySuccess && <div className="settings-key-success">{keySuccess}</div>}
           </div>
+        )}
+
+        <div style={{ textAlign: 'right', margin: '4px 0' }}>
+          <button className="btn btn-sm" onClick={() => setShowKeySharing(true)}>
+            Share / Import Keys via QR
+          </button>
+        </div>
+
+        {showKeySharing && (
+          <KeySharingDialog
+            onClose={() => setShowKeySharing(false)}
+            onKeysImported={() => setKeySuccess('Keys imported via QR')}
+          />
         )}
 
         <div className="settings-divider" />

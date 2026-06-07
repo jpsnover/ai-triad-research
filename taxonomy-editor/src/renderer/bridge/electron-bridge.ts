@@ -75,6 +75,8 @@ export const api: AppAPI = {
   refreshAIModels: () => window.electronAPI.refreshAIModels(),
   setApiKey: (key, backend) => window.electronAPI.setApiKey(key, backend),
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
+  exportKeysForSharing: (passphrase) => window.electronAPI.exportKeysForSharing(passphrase),
+  importKeysFromSharing: (payload, passphrase) => window.electronAPI.importKeysFromSharing(payload, passphrase),
 
   // AI generation
   generateText: (prompt, model, timeout, temperature) => window.electronAPI.generateText(prompt, model, timeout, temperature),

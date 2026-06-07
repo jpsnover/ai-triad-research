@@ -259,6 +259,8 @@ const rawApi: AppAPI = {
   refreshAIModels: () => post('/api/models/refresh'),
   setApiKey: (key, backend) => post('/api/keys', { key, backend }).then(() => {}),
   hasApiKey: (backend) => get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`),
+  exportKeysForSharing: (passphrase) => post('/api/keys/export', { passphrase }),
+  importKeysFromSharing: (payload, passphrase) => post('/api/keys/import', { payload, passphrase }),
 
   // AI generation
   generateText: (prompt, model, timeout, temperature) => {
