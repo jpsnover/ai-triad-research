@@ -18,7 +18,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import { spawn, execFile, ChildProcess } from 'child_process';
-import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { getGlobalRecorder, setGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
 
@@ -107,6 +107,9 @@ serverRecorder.setContextProvider(() => {
   return ctx;
 });
 /* eslint-enable @typescript-eslint/no-use-before-define */
+
+setGlobalRecorder(serverRecorder);
+serverRecorder.startPipeListener(process.pid);
 
 export { serverRecorder };
 

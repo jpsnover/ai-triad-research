@@ -2,12 +2,12 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 console.log('[main] === STARTUP BEGIN ===');
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, screen, shell } from 'electron';
 import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { FlightRecorder, setGlobalRecorder, getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -286,6 +286,12 @@ if (process.argv.includes('--debug-cdp') || process.env.DEBUG_CDP === '1') {
 
 void app.whenReady().then(() => {
   console.log('[main] app.whenReady fired');
+
+  const mainRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: true });
+  setGlobalRecorder(mainRecorder);
+  mainRecorder.startPipeListener(process.pid);
+  console.log(`[main] Flight recorder started, pipe listener on PID ${process.pid}`);
+
   registerIpcHandlers();
   console.log('[main] IPC handlers registered');
   registerTerminalHandlers(() => mainWindow);
@@ -351,9 +357,10 @@ void app.whenReady().then(() => {
       return;
     }
     const preloadPath = path.join(__dirname, 'preload.cjs');
+    const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
     diagWindow = new BrowserWindow({
-      width: 700,
-      height: 600,
+      width: Math.round(screenW * 0.8),
+      height: Math.round(screenH * 0.75),
       minWidth: 400,
       minHeight: 300,
       title: 'Debate Diagnostics',
