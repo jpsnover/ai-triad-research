@@ -9,6 +9,7 @@ import type { AppAPI } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 
 // ── HTTP helpers ──
 
@@ -259,8 +260,31 @@ const rawApi: AppAPI = {
   refreshAIModels: () => post('/api/models/refresh'),
   setApiKey: (key, backend) => post('/api/keys', { key, backend }).then(() => {}),
   hasApiKey: (backend) => get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`),
-  exportKeysForSharing: (passphrase) => post('/api/keys/export', { passphrase }),
-  importKeysFromSharing: (payload, passphrase) => post('/api/keys/import', { payload, passphrase }),
+  exportKeysForSharing: async (passphrase) => {
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    const keys: Record<string, string> = {};
+    for (const b of ALL_BACKENDS) {
+      const stored = sessionStorage.getItem(`byok-${b}`);
+      if (stored) keys[b] = stored;
+    }
+    const byok = sessionStorage.getItem('byok-api-key');
+    if (byok && Object.keys(keys).length === 0) keys['default'] = byok;
+    if (Object.keys(keys).length === 0) throw new Error('No API keys to export — save at least one key first');
+    const encrypted = await encryptKeysForSharing(keys, passphrase);
+    const payloadStr = JSON.stringify(encrypted);
+    const { default: QRCode } = await import('qrcode');
+    const dataUrl = await QRCode.toDataURL(payloadStr, { errorCorrectionLevel: 'M', width: 400 });
+    return { dataUrl, payloadText: payloadStr };
+  },
+  importKeysFromSharing: async (payload, passphrase) => {
+    const keys = await decryptKeysFromSharing(payload as { v: 1; salt: string; iv: string; data: string; tag: string }, passphrase);
+    const imported: string[] = [];
+    for (const [backend, key] of Object.entries(keys)) {
+      await post('/api/keys', { key, backend });
+      imported.push(backend);
+    }
+    return imported;
+  },
 
   // AI generation
   generateText: (prompt, model, timeout, temperature) => {
