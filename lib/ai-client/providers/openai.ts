@@ -12,7 +12,7 @@ export async function generateViaOpenAI(
   apiKey: string,
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 120_000;
+  const timeoutMs = opts.timeoutMs!;
 
   const reqBody: Record<string, unknown> = {
     model: apiModelId,

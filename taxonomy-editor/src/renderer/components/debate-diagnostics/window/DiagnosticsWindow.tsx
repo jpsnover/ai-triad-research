@@ -330,6 +330,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
               { id: 'fr-context', label: 'Flight Recorder', visible: true },
               { id: 'prompt-diff', label: 'Prompt Diff', visible: true },
               { id: 'utility', label: 'Agent Utility', visible: hasAn },
+              { id: 'exclusion-overview', label: 'Exclusion Guard', visible: true },
             ];
             return (
               <div style={{

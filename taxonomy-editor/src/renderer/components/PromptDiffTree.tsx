@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useCallback } from 'react';
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { POVER_INFO } from '../types/debate';
 import type { SpeakerId, DebateSession } from '../types/debate';
 import type { CitationResolutionDiagnostics } from '@lib/debate/citationResolution.js';
@@ -101,7 +102,7 @@ function speakerLabel(speaker: string): string {
 function abbreviateModel(model: string): string {
   return model
     .replace('gemini-3.1-flash-lite-preview', 'gemini-3.1')
-    .replace('gemini-flash-lite-latest', 'gemini-lite')
+    .replace(DEFAULT_MODEL, 'gemini-lite')
     .replace('claude-3-5-haiku-20241022', 'haiku-3.5')
     .replace(/^models\//, '')
     .slice(0, 20);

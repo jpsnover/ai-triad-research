@@ -25,8 +25,10 @@ import {
   withRetry,
   CLI_RETRY_CONFIG,
   resolveModel,
+  getDefaultTimeout,
   GEMINI_BASE,
   geminiGroundedSearch,
+  DEFAULT_MODEL,
 } from '../ai-client/index.js';
 import { callGeminiBatchEmbed } from '../ai-client/providers/gemini-embeddings.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
@@ -156,6 +158,7 @@ function callEnvelopeProvider(
   const sysText = envelopeSystemText(req.envelope);
   return callProvider(fetch, backend, req.envelope.layer4_variable, req.model, apiKey, {
     ...req.options,
+    timeoutMs: req.options?.timeoutMs ?? getDefaultTimeout(req.model),
     systemMessage: sysText || undefined,
   });
 }
@@ -193,13 +196,17 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
 
   const retryLog = (msg: string) => {
     process.stderr.write(msg + '\n');
-    const match = msg.match(/attempt (\d+)\/(\d+) failed .+waiting (\d+)s/);
+    const match = msg.match(/attempt (\d+)\/(\d+) failed \((.+?)\), waiting (\d+)s/);
     if (match) {
-      adapter.onRetryProgress?.({
-        attempt: parseInt(match[1], 10),
-        maxRetries: parseInt(match[2], 10),
-        backoffSeconds: parseInt(match[3], 10),
-        message: msg,
+      const attempt = parseInt(match[1], 10);
+      const maxRetries = parseInt(match[2], 10);
+      const reason = match[3];
+      const backoffSeconds = parseInt(match[4], 10);
+      adapter.onRetryProgress?.({ attempt, maxRetries, backoffSeconds, message: msg });
+      getGlobalRecorder()?.record({
+        type: 'ai.retry', component: 'ai-adapter', level: 'warn',
+        message: `Retry ${attempt}/${maxRetries}: ${reason}`,
+        data: { attempt, maxRetries, backoffSeconds, reason },
       });
     }
   };
@@ -207,7 +214,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
   async function doGenerateText(prompt: string, model: string, options?: GenerateOptions): Promise<string> {
     const { apiModelId, backend } = resolveModel(registry, model);
     const apiKey = resolveApiKey(backend, explicitApiKey);
-    const opts = options ?? {};
+    const opts = { ...options, timeoutMs: options?.timeoutMs ?? getDefaultTimeout(model) };
 
     const t0 = performance.now();
     getGlobalRecorder()?.record({
@@ -247,8 +254,9 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         try { fbKey = resolveApiKey(fb.backend, explicitApiKey); } catch { continue; }
         process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
         try {
+          const fbOpts = { ...opts, timeoutMs: getDefaultTimeout(fbModel) };
           const fbResult = await withRetry(
-            () => callProvider(fetch, fb.backend, prompt, fb.apiModelId, fbKey, opts),
+            () => callProvider(fetch, fb.backend, prompt, fb.apiModelId, fbKey, fbOpts),
             { ...CLI_RETRY_CONFIG, maxRetries: 2 }, `cascade:${fb.backend}/${fb.apiModelId}`, retryLog,
           );
           emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage);
@@ -313,7 +321,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     generate: process.env.DEBATE_ENVELOPE !== '0' ? doGenerate : undefined,
 
     async generateTextWithSearch(prompt: string, model?: string): Promise<{ text: string; searchQueries?: string[] }> {
-      const resolved = model || 'gemini-flash-lite-latest';
+      const resolved = model || DEFAULT_MODEL;
       const { backend, apiModelId } = resolveModel(registry, resolved);
 
       if (backend === 'gemini') {

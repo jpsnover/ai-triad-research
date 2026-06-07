@@ -17,6 +17,7 @@ import type { DebateStore } from './types';
 import { useDebateStore } from './store';
 
 declare const __APP_VERSION__: string;
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { mapErrorToUserMessage } from '../../utils/errorMessages';
@@ -272,12 +273,12 @@ export function getConfiguredModel(): string {
     return debateModel;
   }
   try {
-    const globalModel = localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
+    const globalModel = localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
     console.log(`[model] Using global model: ${globalModel}`);
     return globalModel;
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to read configured model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-    return 'gemini-flash-lite-latest';
+    return DEFAULT_MODEL;
   }
 }
 

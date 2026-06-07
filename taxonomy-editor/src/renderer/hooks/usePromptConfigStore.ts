@@ -8,6 +8,7 @@
  */
 
 import { create } from 'zustand';
+import { DOC_TRUNCATION_LIMIT } from '@lib/debate/constants';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Coded defaults (match current behavior — no change on first load) ──
@@ -30,7 +31,7 @@ export const PROMPT_CONFIG_DEFAULTS: Record<string, number | boolean | string> =
   'fallacies.confidenceFilter': 'likely',
   'policyRegistry.enabled': true,
   'policyRegistry.max': 10,
-  'sourceDocument.truncationLimit': 50000,
+  'sourceDocument.truncationLimit': DOC_TRUNCATION_LIMIT,
   'commitments.enabled': true,
   'argumentNetwork.enabled': true,
   'establishedPoints.enabled': true,

@@ -12,7 +12,7 @@ export async function generateViaClaude(
   apiKey: string,
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 180_000;
+  const timeoutMs = opts.timeoutMs!;
 
   const userContent = opts.responseSchema
     ? `${prompt}\n\nYou MUST respond with a JSON object conforming to this schema:\n${JSON.stringify(opts.responseSchema, null, 2)}`

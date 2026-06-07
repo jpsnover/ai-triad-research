@@ -6,6 +6,7 @@ import path from 'path';
 import os from 'os';
 import type { AiSettings, PromptOverrides } from './analysisTypes.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const CONFIG_DIR = path.join(os.homedir(), '.poviewer');
@@ -350,7 +351,7 @@ export function loadAiSettings(): AiSettings {
     const raw = fs.readFileSync(AI_SETTINGS_PATH, 'utf-8');
     return JSON.parse(raw);
   }
-  return { model: 'gemini-flash-lite-latest', temperature: 0.1 };
+  return { model: DEFAULT_MODEL, temperature: 0.1 };
 }
 
 export function saveAiSettings(settings: AiSettings): void {

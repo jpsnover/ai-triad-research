@@ -630,6 +630,122 @@ export function EntryView({ entryId }: { entryId: string }) {
         );
       })()}
 
+      {/* Exclusion Guard */}
+      {(() => {
+        const extTrace = diag?.extraction_trace as Record<string, unknown> | undefined;
+        const exclusionGuard = extTrace?.exclusion_guard as {
+          checked: number; refs_with_exclusion_vector: number; threshold: number;
+          violations: { claim_id: string; claim_text: string; node_id: string; similarity_main: number; similarity_exclusion: number }[];
+        } | undefined;
+        const scopeDriftCheck = diag?.scope_drift_check as {
+          checked: boolean; refs_checked: number; refs_with_exclusion_vector: number; threshold: number;
+          warnings: { debater: string; node_id: string; similarity: number; draft_excerpt: string }[];
+        } | undefined;
+        const legacyViolations = (extTrace?.exclusion_violations as { claim_id: string; claim_text: string; node_id: string; similarity_main: number; similarity_exclusion: number }[] | undefined);
+        const legacyWarnings = diag?.scope_drift_warnings;
+
+        const hasExclusionGuard = !!exclusionGuard || (legacyViolations && legacyViolations.length > 0);
+        const hasScopeCheck = !!scopeDriftCheck || (legacyWarnings && legacyWarnings.length > 0);
+        const hasExtTrace = !!extTrace;
+        const hasAnyData = hasExclusionGuard || hasScopeCheck || hasExtTrace || !!diag;
+
+        if (!hasAnyData) return null;
+
+        const violations = exclusionGuard?.violations ?? legacyViolations ?? [];
+        const warnings = scopeDriftCheck?.warnings ?? legacyWarnings ?? [];
+        const totalIssues = violations.length + warnings.length;
+
+        return (
+          <CollapsibleSection title={`Exclusion Guard${totalIssues > 0 ? ` — ${totalIssues} issue${totalIssues !== 1 ? 's' : ''}` : ''}`}>
+            {/* Claim Extraction Guard */}
+            <div style={{ marginBottom: 8 }}>
+              <div className="diag-k" style={{ marginBottom: 3 }}>Claim Extraction Guard</div>
+              {exclusionGuard ? (
+                <>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                    Checked {exclusionGuard.checked} claims against {exclusionGuard.refs_with_exclusion_vector} exclusion vectors (threshold: {exclusionGuard.threshold.toFixed(2)})
+                  </div>
+                  {violations.length > 0 ? violations.map((v, i) => (
+                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #ef4444', background: 'rgba(239,68,68,0.06)' }}>
+                      <span style={{ fontWeight: 600, color: '#ef4444' }}>{v.claim_id}</span> → {v.node_id}
+                      <span className="diag-muted"> (main: {v.similarity_main.toFixed(2)}, excl: {v.similarity_exclusion.toFixed(2)})</span>
+                    </div>
+                  )) : (
+                    <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>All {exclusionGuard.checked} claims within scope — 0 exclusion violations</div>
+                  )}
+                </>
+              ) : hasExtTrace ? (
+                <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>All claims within scope — 0 exclusion violations</div>
+              ) : (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No exclusion guard data — extraction trace not available</div>
+              )}
+            </div>
+
+            {/* Draft Scope Check */}
+            <div style={{ marginBottom: 8 }}>
+              <div className="diag-k" style={{ marginBottom: 3 }}>Draft Scope Check</div>
+              {scopeDriftCheck ? (
+                <>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                    Checked {scopeDriftCheck.refs_checked} refs, {scopeDriftCheck.refs_with_exclusion_vector} with exclusion vectors (threshold: {scopeDriftCheck.threshold.toFixed(2)})
+                  </div>
+                  {warnings.length > 0 ? warnings.map((w, i) => (
+                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2, padding: '2px 4px', borderLeft: '2px solid #f59e0b', background: 'rgba(245,158,11,0.06)' }}>
+                      <span style={{ fontWeight: 600, color: '#f59e0b' }}>{w.debater}</span> → {w.node_id}
+                      <span className="diag-muted"> (sim: {w.similarity.toFixed(2)})</span>
+                    </div>
+                  )) : (
+                    <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>All {scopeDriftCheck.refs_checked} refs within scope — 0 drift warnings</div>
+                  )}
+                </>
+              ) : diag ? (
+                <div style={{ fontSize: '0.65rem', color: '#22c55e', fontWeight: 600 }}>No scope drift detected — 0 warnings</div>
+              ) : (
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No scope drift data — diagnostics not available</div>
+              )}
+            </div>
+
+            {/* Taxonomy Context Injection — placeholder for t/489 */}
+            {(diag as Record<string, unknown> | undefined)?.taxonomy_injection_trace && (() => {
+              const tit = (diag as Record<string, unknown>).taxonomy_injection_trace as { considered: number; demoted: number; demoted_nodes?: { node_id: string; exclusion_similarity: number }[] };
+              return (
+                <div style={{ marginBottom: 8 }}>
+                  <div className="diag-k" style={{ marginBottom: 3 }}>Taxonomy Context Injection</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                    {tit.considered} nodes considered, {tit.demoted} demoted by exclusion filter
+                  </div>
+                  {tit.demoted_nodes?.map((n, i) => (
+                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                      <span style={{ fontWeight: 600 }}>{n.node_id}</span>
+                      <span className="diag-muted"> (excl: {n.exclusion_similarity.toFixed(2)})</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Situation Injection — placeholder for t/490 */}
+            {(diag as Record<string, unknown> | undefined)?.situation_injection_trace && (() => {
+              const sit = (diag as Record<string, unknown>).situation_injection_trace as { considered: number; excluded: number; excluded_situations?: { situation_id: string; exclusion_similarity: number }[] };
+              return (
+                <div>
+                  <div className="diag-k" style={{ marginBottom: 3 }}>Situation Injection</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                    {sit.considered} situations considered, {sit.excluded} excluded
+                  </div>
+                  {sit.excluded_situations?.map((s, i) => (
+                    <div key={i} style={{ fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                      <span style={{ fontWeight: 600 }}>{s.situation_id}</span>
+                      <span className="diag-muted"> (excl: {s.exclusion_similarity.toFixed(2)})</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </CollapsibleSection>
+        );
+      })()}
+
       {/* QBAF Claim Strength (D-Q3) */}
       <QbafClaimStrengthSection entryId={entryId} activeDebate={activeDebate} />
 

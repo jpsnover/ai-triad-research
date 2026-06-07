@@ -39,6 +39,19 @@ export function resolveModel(registry: ModelRegistry, friendlyId: string): { api
   return { apiModelId: friendlyId, backend: 'gemini' };
 }
 
+export function getDefaultTimeout(model: string): number {
+  const backend = resolveBackend(model);
+  switch (backend) {
+    case 'ollama':    return 300_000;
+    case 'deepseek':  return 180_000;
+    case 'openai':    return 180_000;
+    case 'claude':    return 180_000;
+    case 'groq':      return 120_000;
+    case 'gemini':    return 120_000;
+    default:          return 120_000;
+  }
+}
+
 export function buildModelIdMap(registry: ModelRegistry): Record<string, string> {
   const map: Record<string, string> = {};
   for (const m of registry.models) {

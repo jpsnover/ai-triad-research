@@ -11,6 +11,7 @@ import {
 import { loadPromptOverrides, loadAiSettings } from './fileIO.js';
 import type { RawPoint, RawMapping, AnalysisResult, AnalysisStatus } from './analysisTypes.js';
 import { ActionableError, errorMessage } from '../../../lib/debate/errors.js';
+import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 
 // Re-export types for convenience
 export type { RawPoint, RawMapping, AnalysisResult };
@@ -203,7 +204,7 @@ export async function runAnalysis(
     });
 
     const settings = loadAiSettings();
-    const model = settings.model || 'gemini-flash-lite-latest';
+    const model = settings.model || DEFAULT_MODEL;
 
     const promptOverrides = loadPromptOverrides();
     const defaults = getDefaultTemplates();

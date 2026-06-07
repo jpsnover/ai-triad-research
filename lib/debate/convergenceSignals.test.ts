@@ -945,6 +945,95 @@ describe('computeConvergenceSignals — crux rate', () => {
     );
     expect(result.crux_engagement_rate.cumulative_follow_through).toBe(2);
   });
+
+  it('detects crux engagement via edges when attacking_claim_ids is stale (t/497)', () => {
+    // Scenario: crux identified at turn 1 with attacking_claim_ids=['AN-100'].
+    // At turn 3, a new node AN-200 attacks the crux via an edge, but AN-200 is
+    // NOT in attacking_claim_ids (the tracker is stale). The edge-based check
+    // should still detect engagement.
+    const entry = makeEntry({ id: 'cr-edge' });
+    const turnNode = makeNode({ id: 'AN-200', source_entry_id: 'cr-edge', turn_number: 3, speaker: 'safetyist' });
+    const cruxNode = makeNode({ id: 'crux-stale', speaker: 'accelerationist', source_entry_id: 'old-entry' });
+    const attackEdge = makeEdge('AN-200', 'crux-stale', 'attacks');
+    const tracker = [makeCrux({
+      id: 'crux-stale',
+      attacking_claim_ids: ['AN-100'], // stale — does NOT include AN-200
+      speakers_involved: ['accelerationist'],
+    })];
+
+    const result = computeConvergenceSignals(
+      'cr-edge', 'safetyist', [entry],
+      [turnNode, cruxNode],
+      [attackEdge],
+      [],
+      undefined, undefined, undefined, undefined, tracker,
+    );
+    expect(result.crux_engagement_rate.used_this_turn).toBe(true);
+    expect(result.crux_engagement_rate.cumulative_count).toBe(1);
+  });
+
+  it('detects crux engagement via support edges to crux nodes (t/497)', () => {
+    const entry = makeEntry({ id: 'cr-sup-edge' });
+    const turnNode = makeNode({ id: 'AN-300', source_entry_id: 'cr-sup-edge', turn_number: 4, speaker: 'skeptic' });
+    const cruxNode = makeNode({ id: 'crux-sup', speaker: 'accelerationist' });
+    const supportEdge = makeEdge('AN-300', 'crux-sup', 'supports');
+    const tracker = [makeCrux({ id: 'crux-sup', attacking_claim_ids: [] })];
+
+    const result = computeConvergenceSignals(
+      'cr-sup-edge', 'skeptic', [entry],
+      [turnNode, cruxNode],
+      [supportEdge],
+      [],
+      undefined, undefined, undefined, undefined, tracker,
+    );
+    expect(result.crux_engagement_rate.used_this_turn).toBe(true);
+  });
+
+  it('multi-turn crux integration: engagement detected across turns with stale tracker (t/497)', () => {
+    // Turn 1: acc opening
+    const opening = makeEntry({ id: 'mt-open', speaker: 'accelerationist', type: 'opening', content: 'innovation drives progress' });
+    // Turn 2: saf response, crux identified
+    const safTurn = makeEntry({ id: 'mt-saf1', speaker: 'safetyist', content: 'alignment is critical' });
+    // Turn 3: acc engages crux with new claim via edge (not in attacking_claim_ids)
+    const accTurn = makeEntry({ id: 'mt-acc2', speaker: 'accelerationist', content: 'alignment can coexist with speed', metadata: { move_types: ['INTEGRATE'] } });
+
+    const cruxNode = makeNode({ id: 'crux-mt', speaker: 'safetyist', source_entry_id: 'mt-saf1', turn_number: 2 });
+    const safNode = makeNode({ id: 'AN-saf1', speaker: 'safetyist', source_entry_id: 'mt-saf1', turn_number: 2 });
+    const accNode = makeNode({ id: 'AN-acc2', speaker: 'accelerationist', source_entry_id: 'mt-acc2', turn_number: 3 });
+
+    const edgeToCrux = makeEdge('AN-acc2', 'crux-mt', 'attacks');
+    const edgeToSaf = makeEdge('AN-acc2', 'AN-saf1', 'attacks');
+
+    const tracker = [makeCrux({
+      id: 'crux-mt',
+      identified_turn: 2,
+      attacking_claim_ids: ['AN-saf1'], // frozen at turn 2 — does NOT include AN-acc2
+      speakers_involved: ['safetyist'],
+    })];
+
+    // Turn 2 signal (saf — crux engaged via attacking_claim_ids match)
+    const sig1 = computeConvergenceSignals(
+      'mt-saf1', 'safetyist', [opening, safTurn],
+      [cruxNode, safNode],
+      [],
+      [],
+      undefined, undefined, undefined, undefined, tracker,
+    );
+    expect(sig1.crux_engagement_rate.used_this_turn).toBe(true);
+
+    // Turn 3 signal (acc — crux engaged via NEW edge, not via attacking_claim_ids)
+    const sig2 = computeConvergenceSignals(
+      'mt-acc2', 'accelerationist', [opening, safTurn, accTurn],
+      [cruxNode, safNode, accNode],
+      [edgeToCrux, edgeToSaf],
+      [sig1],
+      undefined, undefined, undefined, undefined, tracker,
+    );
+    expect(sig2.crux_engagement_rate.used_this_turn).toBe(true);
+    expect(sig2.crux_engagement_rate.cumulative_count).toBe(1); // first acc engagement
+    // INTEGRATE is collaborative, so follow-through should count
+    expect(sig2.crux_engagement_rate.cumulative_follow_through).toBe(1);
+  });
 });
 
 // ── Speaker filtering ──────────────────────────────────────

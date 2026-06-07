@@ -73,6 +73,7 @@ import type { GenerateOptions } from './aiAdapter.js';
 import { validateTurn, resolveTurnValidationConfig } from './turnValidator.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { resolveBackend } from '../ai-client/registry.js';
+import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 
 const SLOW_BACKEND_TIMEOUT_MS = 180_000;
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -392,7 +393,7 @@ export async function runModeratorSelection(
           resolutionClauses,
         );
         const stage2Text = await callbacks.generate(
-          stage2Prompt, model, { temperature: 0.7, timeoutMs: moderatorTimeoutMs(model) },
+          stage2Prompt, model, { temperature: DEFAULT_TEMPERATURE, timeoutMs: moderatorTimeoutMs(model) },
           `Round ${round}: Moderator COMMIT → ${poverInfo[concludingTarget]?.label}`,
         );
 
@@ -478,7 +479,7 @@ export async function runModeratorSelection(
             resolutionClauses,
           );
           const stage2Text = await callbacks.generate(
-            stage2Prompt, model, { temperature: 0.7, timeoutMs: moderatorTimeoutMs(model) },
+            stage2Prompt, model, { temperature: DEFAULT_TEMPERATURE, timeoutMs: moderatorTimeoutMs(model) },
             `Round ${round}: Moderator POLICY_CHALLENGE → ${poverInfo[policyChallengeTarget]?.label}`,
           );
           const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
@@ -593,7 +594,7 @@ export async function runModeratorSelection(
 
     const selectionStart = Date.now();
     selectionText = await callbacks.generate(
-      selectionPrompt, model, { temperature: 0.7, timeoutMs: moderatorTimeoutMs(model) },
+      selectionPrompt, model, { temperature: DEFAULT_TEMPERATURE, timeoutMs: moderatorTimeoutMs(model) },
       `Round ${round}: Moderator selection`,
     );
     selectionElapsed = Date.now() - selectionStart;
@@ -724,7 +725,7 @@ export async function runModeratorSelection(
             );
 
             const stage2Text = await callbacks.generate(
-              stage2Prompt, model, { temperature: 0.7, timeoutMs: moderatorTimeoutMs(model) },
+              stage2Prompt, model, { temperature: DEFAULT_TEMPERATURE, timeoutMs: moderatorTimeoutMs(model) },
               `Round ${round}: Moderator intervention (${engineValidation.validated_move})`,
             );
 

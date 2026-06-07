@@ -797,7 +797,8 @@ DOCUMENT EXCERPT:
 $Excerpt
 "@
 
-    $AIResult = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey -Temperature 0.1 -MaxTokens 512 -JsonMode
+    $InitialMaxTokens = 1024
+    $AIResult = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey -Temperature 0.1 -MaxTokens $InitialMaxTokens -JsonMode
     if ($null -eq $AIResult) { return $null }
 
     $RawText = $AIResult.Text
@@ -808,13 +809,41 @@ $Excerpt
         -replace '(?s)\s*```$',     '' `
         | ForEach-Object { $_.Trim() }
 
+    $Parsed = $null
     try {
         $Parsed = $CleanJson | ConvertFrom-Json -ErrorAction Stop
     } catch {
-        Write-Warning "$($AIResult.Backend): response was not valid JSON — metadata enrichment skipped"
-        Write-Verbose "Raw AI response: $RawText"
-        return $null
+        if ($AIResult.Truncated) {
+            Write-Warning "$($AIResult.Backend): metadata response truncated at $InitialMaxTokens tokens — attempting repair"
+            $Repaired = Repair-TruncatedJson -Text $RawText
+            if ($Repaired) {
+                try {
+                    $Parsed = $Repaired | ConvertFrom-Json -ErrorAction Stop
+                    Write-Verbose 'Repair-TruncatedJson succeeded'
+                } catch { }
+            }
+            if ($null -eq $Parsed) {
+                Write-Warning "$($AIResult.Backend): repair failed — retrying with higher token limit"
+                $RetryResult = Invoke-AIApi -Prompt $Prompt -Model $Model -ApiKey $ApiKey -Temperature 0.1 -MaxTokens 2048 -JsonMode
+                if ($RetryResult) {
+                    $RetryJson = $RetryResult.Text `
+                        -replace '(?s)^```json\s*', '' `
+                        -replace '(?s)\s*```$',     '' `
+                        | ForEach-Object { $_.Trim() }
+                    try {
+                        $Parsed = $RetryJson | ConvertFrom-Json -ErrorAction Stop
+                    } catch {
+                        Write-Warning "$($RetryResult.Backend): retry also failed — metadata enrichment skipped"
+                        Write-Verbose "Raw AI response (retry): $($RetryResult.Text)"
+                    }
+                }
+            }
+        } else {
+            Write-Warning "$($AIResult.Backend): response was not valid JSON — metadata enrichment skipped"
+            Write-Verbose "Raw AI response: $RawText"
+        }
     }
+    if ($null -eq $Parsed) { return $null }
 
     # Validate pov_tags
     $ValidPovs    = @('accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations')

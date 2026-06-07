@@ -31,7 +31,7 @@ export async function generateViaOllama(
   _apiKey: string, // unused — Ollama is local, no auth needed
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 300_000; // local models can be slow
+  const timeoutMs = opts.timeoutMs!;
 
   const messages: { role: string; content: string }[] = [];
   if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });

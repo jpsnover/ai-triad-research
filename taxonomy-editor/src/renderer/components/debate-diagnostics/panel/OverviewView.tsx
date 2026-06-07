@@ -726,6 +726,136 @@ export function OverviewView() {
         );
       })()}
 
+      {/* Exclusion Guard Summary */}
+      {(() => {
+        const entries = diag?.entries;
+        if (!entries || Object.keys(entries).length === 0) return null;
+
+        let claimsChecked = 0;
+        let claimViolations: { claim_id: string; claim_text: string; node_id: string; similarity_main: number; similarity_exclusion: number }[] = [];
+        let draftsChecked = 0;
+        let driftWarnings: { debater: string; node_id: string; similarity: number; draft_excerpt: string }[] = [];
+        let hasAnyData = false;
+
+        for (const entry of Object.values(entries)) {
+          const extTrace = entry.extraction_trace;
+          if (extTrace) {
+            hasAnyData = true;
+            if (extTrace.exclusion_guard) {
+              claimsChecked += extTrace.exclusion_guard.checked;
+              if (extTrace.exclusion_guard.violations?.length) claimViolations = claimViolations.concat(extTrace.exclusion_guard.violations);
+            }
+            if (extTrace.exclusion_violations?.length) {
+              claimViolations = claimViolations.concat(extTrace.exclusion_violations);
+            }
+          }
+
+          if (entry.scope_drift_check) {
+            hasAnyData = true;
+            draftsChecked += entry.scope_drift_check.refs_checked;
+            if (entry.scope_drift_check.warnings?.length) driftWarnings = driftWarnings.concat(entry.scope_drift_check.warnings);
+          }
+          if (entry.scope_drift_warnings?.length) {
+            hasAnyData = true;
+            driftWarnings = driftWarnings.concat(entry.scope_drift_warnings);
+          }
+        }
+
+        if (!hasAnyData) {
+          return (
+            <CollapsibleSection title="Exclusion Guard">
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px 0' }}>
+                Exclusion guard data not available for this debate
+              </div>
+            </CollapsibleSection>
+          );
+        }
+
+        const allClear = claimViolations.length === 0 && driftWarnings.length === 0;
+
+        return (
+          <CollapsibleSection title={`Exclusion Guard${!allClear ? ` — ${claimViolations.length + driftWarnings.length} issues` : ''}`}>
+            {allClear ? (
+              <div style={{
+                padding: '6px 8px',
+                borderRadius: 4,
+                background: 'rgba(34,197,94,0.08)',
+                borderLeft: '3px solid #22c55e',
+                fontSize: '0.72rem',
+                color: '#22c55e',
+                fontWeight: 600,
+              }}>
+                All statements within scope — no exclusion violations or drift warnings
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.72rem' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                  <span style={{
+                    padding: '3px 6px',
+                    borderRadius: 3,
+                    background: claimViolations.length > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.08)',
+                    color: claimViolations.length > 0 ? '#ef4444' : '#22c55e',
+                    fontWeight: 600,
+                    fontSize: '0.65rem',
+                  }}>
+                    {claimsChecked} claims checked, {claimViolations.length} violation{claimViolations.length !== 1 ? 's' : ''}
+                  </span>
+                  <span style={{
+                    padding: '3px 6px',
+                    borderRadius: 3,
+                    background: driftWarnings.length > 0 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.08)',
+                    color: driftWarnings.length > 0 ? '#f59e0b' : '#22c55e',
+                    fontWeight: 600,
+                    fontSize: '0.65rem',
+                  }}>
+                    {draftsChecked} drafts checked, {driftWarnings.length} drift warning{driftWarnings.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {claimViolations.length > 0 && (
+                  <div style={{ marginBottom: 6 }}>
+                    <div className="diag-k" style={{ fontSize: '0.6rem', color: '#ef4444', marginBottom: 3 }}>Exclusion Violations ({claimViolations.length})</div>
+                    {claimViolations.slice(0, 10).map((v, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                        <span style={{ fontWeight: 600, color: '#ef4444' }}>{v.claim_id}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>→</span>
+                        <span>{v.node_id}</span>
+                        <span className="diag-muted" style={{ fontSize: '0.55rem' }}>
+                          (main: {v.similarity_main.toFixed(2)}, excl: {v.similarity_exclusion.toFixed(2)})
+                        </span>
+                      </div>
+                    ))}
+                    {claimViolations.length > 10 && (
+                      <div className="diag-muted" style={{ fontSize: '0.55rem', marginLeft: 8 }}>…and {claimViolations.length - 10} more</div>
+                    )}
+                  </div>
+                )}
+                {driftWarnings.length > 0 && (
+                  <div>
+                    <div className="diag-k" style={{ fontSize: '0.6rem', color: '#f59e0b', marginBottom: 3 }}>Scope Drift Warnings ({driftWarnings.length})</div>
+                    {driftWarnings.slice(0, 10).map((w, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8, marginBottom: 2 }}>
+                        <span style={{ fontWeight: 600, color: '#f59e0b' }}>{w.debater}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>→</span>
+                        <span>{w.node_id}</span>
+                        <span className="diag-muted" style={{ fontSize: '0.55rem' }}>
+                          (sim: {w.similarity.toFixed(2)})
+                        </span>
+                      </div>
+                    ))}
+                    {driftWarnings.length > 10 && (
+                      <div className="diag-muted" style={{ fontSize: '0.55rem', marginLeft: 8 }}>…and {driftWarnings.length - 10} more</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="diag-muted" style={{ fontSize: '0.55rem', marginTop: 6 }}>
+              {claimsChecked} claims checked, {claimViolations.length} violation{claimViolations.length !== 1 ? 's' : ''} | {draftsChecked} drafts checked, {driftWarnings.length} drift warning{driftWarnings.length !== 1 ? 's' : ''}
+            </div>
+          </CollapsibleSection>
+        );
+      })()}
+
       {/* Taxonomy Suggestions */}
       {activeDebate.taxonomy_suggestions && activeDebate.taxonomy_suggestions.length > 0 && (
         <CollapsibleSection title={`Taxonomy Suggestions — ${activeDebate.taxonomy_suggestions.length} revisions`} defaultOpen>

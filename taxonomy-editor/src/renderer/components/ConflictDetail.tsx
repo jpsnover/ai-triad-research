@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { TOAST_DURATION_FEEDBACK } from '../constants';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep } from '../types/taxonomy';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
@@ -63,7 +64,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
     );
     await api.clipboardWriteText(prompt);
     setClipboardState('copied');
-    setTimeout(() => setClipboardState('idle'), 3000);
+    setTimeout(() => setClipboardState('idle'), TOAST_DURATION_FEEDBACK);
   }, [conflict.claim_label, conflict.description, conflict.instances]);
 
   const handleDebate = useCallback(async () => {

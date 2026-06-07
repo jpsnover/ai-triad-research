@@ -52,7 +52,7 @@ export async function generateViaGemini(
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
   const url = `${GEMINI_BASE}/${apiModelId}:generateContent?key=${apiKey}`;
-  const timeoutMs = opts.timeoutMs ?? 120_000;
+  const timeoutMs = opts.timeoutMs!;
 
   const genConfig: Record<string, unknown> = {
     temperature: opts.temperature ?? 0.7,

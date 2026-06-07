@@ -7,6 +7,7 @@
  * a static template or a generate function for node-specific prompts.
  */
 
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { researchPrompt, conflictResearchPrompt } from '../prompts/research';
 import {
   distinctionAnalysisPrompt,
@@ -558,7 +559,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['sourceDocument', 'taxonomyNodes'],
     promptFiles: ['pov-summary-system', 'pov-summary-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for summarization' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for summarization' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature (0-2)' },
       { name: '-MaxTokens', type: 'number', default: '32768', description: 'Maximum response tokens' },
       { name: '-TimeoutSec', type: 'number', default: '120', description: 'API call timeout in seconds' },
@@ -575,7 +576,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['sourceDocument', 'taxonomyNodes'],
     promptFiles: ['pov-summary-chunk-system', 'pov-summary-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
       { name: '-MaxTokens', type: 'number', default: '65536', description: 'Max response tokens (larger for chunks)' },
       { name: '-MaxChunkTokens', type: 'number', default: '15000', description: 'Max tokens per chunk' },
@@ -593,7 +594,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['attribute-extraction', 'attribute-extraction-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.3', description: 'Slightly creative for attribute generation' },
       { name: '-BatchSize', type: 'number', default: '5', description: 'Nodes processed per API call' },
       { name: '-Force', type: 'switch', default: 'false', description: 'Re-extract even if attributes exist' },
@@ -610,7 +611,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'situationNodes'],
     promptFiles: ['edge-discovery', 'edge-discovery-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for edge discovery' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for edge discovery' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature (0-2)' },
       { name: '-BatchSize', type: 'number', default: '5', description: 'Node pairs processed per API call' },
     ],
@@ -626,7 +627,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['fallacy-analysis', 'fallacy-analysis-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for fallacy analysis' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for fallacy analysis' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature (0-2)' },
       { name: '-BatchSize', type: 'number', default: '5', description: 'Nodes processed per API call' },
     ],
@@ -642,7 +643,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'situationNodes'],
     promptFiles: ['graph-query', 'graph-query-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for graph queries' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for graph queries' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature (0-2)' },
     ],
   },
@@ -657,7 +658,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['sourceDocument'],
     promptFiles: ['metadata-extraction'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for metadata extraction' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for metadata extraction' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature (0-2)' },
     ],
   },
@@ -672,7 +673,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['sourceDocument', 'taxonomyNodes', 'situationNodes'],
     promptFiles: ['taxonomy-proposal'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for taxonomy proposals' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for taxonomy proposals' },
       { name: '-Temperature', type: 'number', default: '0.3', description: 'Slightly creative for proposal generation' },
     ],
   },
@@ -687,7 +688,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'situationNodes'],
     promptFiles: ['situation-candidates', 'situation-candidates-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for situation analysis' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for situation analysis' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature (0-2)' },
       { name: '-MinSimilarity', type: 'number', default: '0.7', description: 'Minimum cosine similarity threshold for candidate clusters' },
     ],
@@ -703,7 +704,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'situationNodes'],
     promptFiles: ['ingestion-priority'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model to use for priority scoring' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model to use for priority scoring' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature (0-2)' },
     ],
   },
@@ -718,7 +719,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['topic-frequency-label'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
     ],
   },
@@ -733,7 +734,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'situationNodes', 'vulnerabilities'],
     promptFiles: ['triad-dialogue-system', 'triad-dialogue-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.7', description: 'Higher creativity for dialogue' },
       { name: '-Rounds', type: 'number', default: '3', description: 'Number of debate rounds' },
     ],
@@ -749,7 +750,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'situationNodes', 'vulnerabilities'],
     promptFiles: ['triad-dialogue-turn'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.7', description: 'Higher creativity for dialogue' },
     ],
   },
@@ -764,7 +765,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'situationNodes'],
     promptFiles: ['triad-dialogue-synthesis'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.3', description: 'Lower creativity for synthesis' },
     ],
   },
@@ -779,7 +780,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['direction-check'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
     ],
   },
@@ -794,7 +795,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['edge-weight-evaluation'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
       { name: '-BatchSize', type: 'number', default: '5', description: 'Edges processed per API call' },
     ],
@@ -810,7 +811,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['hierarchy-proposal', 'hierarchy-proposal-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
     ],
   },
@@ -825,7 +826,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes'],
     promptFiles: ['hierarchy-placement'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
     ],
   },
@@ -840,7 +841,7 @@ export const PROMPT_CATALOG: PromptCatalogEntry[] = [
     applicableDataSources: ['taxonomyNodes', 'policyRegistry'],
     promptFiles: ['policy-actions', 'policy-actions-schema'],
     psParameters: [
-      { name: '-Model', type: 'string', default: 'gemini-flash-lite-latest', description: 'AI model' },
+      { name: '-Model', type: 'string', default: DEFAULT_MODEL, description: 'AI model' },
       { name: '-Temperature', type: 'number', default: '0.1', description: 'Sampling temperature' },
       { name: '-BatchSize', type: 'number', default: '5', description: 'Nodes processed per API call' },
     ],

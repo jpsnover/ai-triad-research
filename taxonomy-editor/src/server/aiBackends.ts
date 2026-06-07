@@ -25,9 +25,11 @@ import {
   withRetry,
   buildModelIdMap,
   getApiModelId as getApiModelIdFromMap,
+  getDefaultTimeout,
   SERVER_RETRY_CONFIG,
   callGeminiBatchEmbed,
   geminiGroundedSearch,
+  DEFAULT_MODEL,
   type GenerateOptions,
   type ProviderResult,
   type RateLimitType,
@@ -136,7 +138,7 @@ export async function generateText(
   timeoutMs?: number,
   explicitApiKey?: string,
 ): Promise<GenerateResult> {
-  const resolved = model || 'gemini-flash-lite-latest';
+  const resolved = model || DEFAULT_MODEL;
   const backend = resolveBackend(resolved);
   const apiKey = explicitApiKey ?? await getApiKey(backend);
   if (!apiKey) {
@@ -153,28 +155,32 @@ export async function generateText(
   const apiModel = getApiModelId(resolved);
   const opts: GenerateOptions = {
     temperature: _debateTemperature ?? 0.7,
-    timeoutMs,
+    timeoutMs: timeoutMs ?? getDefaultTimeout(resolved),
   };
 
   const result = await withRetry(
     () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
     SERVER_RETRY_CONFIG,
     `${backend}/${apiModel}`,
-    onRetry
-      ? (msg: string) => {
-          // Extract attempt info from the retry log message for the progress callback.
-          // Format: "[retry] label attempt N/M failed (reason), waiting Ds..."
+    (msg: string) => {
           const attemptMatch = msg.match(/attempt (\d+)\/(\d+)/);
           const backoffMatch = msg.match(/waiting (\d+)s/);
-          onRetry({
-            attempt: attemptMatch ? parseInt(attemptMatch[1], 10) : 1,
-            maxRetries: attemptMatch ? parseInt(attemptMatch[2], 10) : SERVER_RETRY_CONFIG.maxRetries,
-            backoffSeconds: backoffMatch ? parseInt(backoffMatch[1], 10) : 5,
+          const reasonMatch = msg.match(/failed \((.+?)\), waiting/);
+          const attempt = attemptMatch ? parseInt(attemptMatch[1], 10) : 1;
+          const maxRetries = attemptMatch ? parseInt(attemptMatch[2], 10) : SERVER_RETRY_CONFIG.maxRetries;
+          const backoffSeconds = backoffMatch ? parseInt(backoffMatch[1], 10) : 5;
+          const reason = reasonMatch?.[1] ?? msg;
+          onRetry?.({
+            attempt, maxRetries, backoffSeconds,
             limitType: 'unknown',
             limitMessage: msg,
           });
-        }
-      : undefined,
+          getGlobalRecorder()?.record({
+            type: 'ai.retry', component: 'ai-adapter', level: 'warn',
+            message: `Retry ${attempt}/${maxRetries}: ${reason}`,
+            data: { attempt, maxRetries, backoffSeconds, reason, backend, model: apiModel },
+          });
+        },
   );
 
   return { text: result.text, tokenUsage: mapUsage(result.usage) };
@@ -186,7 +192,7 @@ export type { GroundingSegment } from '../../../lib/ai-client/providers/gemini-s
 export async function generateTextWithSearch(
   prompt: string, model?: string,
 ): Promise<{ text: string; searchQueries?: string[]; citations?: SharedGroundingCitation[] }> {
-  const resolved = model || 'gemini-flash-lite-latest';
+  const resolved = model || DEFAULT_MODEL;
   const backend = resolveBackend(resolved);
 
   if (backend !== 'gemini') {

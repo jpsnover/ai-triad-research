@@ -12,7 +12,7 @@ export async function generateViaDeepSeek(
   apiKey: string,
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 180_000;
+  const timeoutMs = opts.timeoutMs!;
 
   const messages: { role: string; content: string }[] = [];
   if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });
@@ -99,7 +99,7 @@ export async function generateViaDeepSeekStream(
   opts: GenerateOptions,
   onChunk?: (text: string) => void,
 ): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 180_000;
+  const timeoutMs = opts.timeoutMs!;
 
   const messages: { role: string; content: string }[] = [];
   if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });

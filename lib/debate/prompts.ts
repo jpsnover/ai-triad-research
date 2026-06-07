@@ -11,6 +11,7 @@ import { POVER_INFO } from './types.js';
 import { documentAnalysisContext } from './documentAnalysis.js';
 import { interpretationText } from './taxonomyTypes.js';
 import { stripExcludes } from './helpers.js';
+import { DOC_TRUNCATION_LIMIT } from './constants.js';
 
 // ── Model-tier prompt routing (t/331) ────────────────────────────
 // Flash/lite models can't process full prose_style + voice_hygiene blocks.
@@ -1013,8 +1014,8 @@ function truncationNotice(text: string, limit: number): string {
 function sourceContext(sourceContent?: string): string {
   if (!sourceContent) return '';
   // Truncate for prompt size limits
-  const content = sourceContent.length > 50000
-    ? sourceContent.slice(0, 50000) + truncationNotice(sourceContent, 50000)
+  const content = sourceContent.length > DOC_TRUNCATION_LIMIT
+    ? sourceContent.slice(0, DOC_TRUNCATION_LIMIT) + truncationNotice(sourceContent, DOC_TRUNCATION_LIMIT)
     : sourceContent;
   return `\n\n=== SOURCE DOCUMENT ===\n${content}\n=== END SOURCE DOCUMENT ===
 
@@ -2857,8 +2858,8 @@ export function documentClarificationPrompt(
   audience?: DebateAudience,
   lineageContext?: string,
 ): string {
-  const content = sourceContent.length > 50000
-    ? sourceContent.slice(0, 50000) + truncationNotice(sourceContent, 50000)
+  const content = sourceContent.length > DOC_TRUNCATION_LIMIT
+    ? sourceContent.slice(0, DOC_TRUNCATION_LIMIT) + truncationNotice(sourceContent, DOC_TRUNCATION_LIMIT)
     : sourceContent;
 
   const lineageBlock = lineageContext

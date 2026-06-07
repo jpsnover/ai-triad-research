@@ -298,4 +298,89 @@ describe('EntryView', () => {
     expect(screen.getByText('challenge_assumption')).toBeInTheDocument();
     expect(screen.getByText(/Unsubstantiated claim detected/)).toBeInTheDocument();
   });
+
+  it('renders Exclusion Guard with all-clear when extraction_trace has no violations', () => {
+    mockActiveDebate = makeDebate({
+      diagnostics: {
+        entries: {
+          e1: {
+            extraction_trace: {
+              exclusion_guard: {
+                checked: 3,
+                refs_with_exclusion_vector: 5,
+                violations: [],
+                threshold: 0.95,
+              },
+            },
+          },
+        },
+      },
+    });
+    render(<EntryView entryId="e1" />);
+    const titles = screen.getAllByTestId('collapsible-title');
+    const guardTitle = titles.find(t => t.textContent?.includes('Exclusion Guard'));
+    expect(guardTitle).toBeDefined();
+    expect(screen.getByText(/All 3 claims within scope/)).toBeInTheDocument();
+  });
+
+  it('renders Exclusion Guard with violations when present', () => {
+    mockActiveDebate = makeDebate({
+      diagnostics: {
+        entries: {
+          e1: {
+            extraction_trace: {
+              exclusion_guard: {
+                checked: 4,
+                refs_with_exclusion_vector: 6,
+                violations: [
+                  { claim_id: 'acc-B-001', claim_text: 'Dangerous claim', node_id: 'saf-D-003', similarity_main: 0.92, similarity_exclusion: 0.97 },
+                ],
+                threshold: 0.95,
+              },
+            },
+          },
+        },
+      },
+    });
+    render(<EntryView entryId="e1" />);
+    const titles = screen.getAllByTestId('collapsible-title');
+    const guardTitle = titles.find(t => t.textContent?.includes('Exclusion Guard'));
+    expect(guardTitle).toBeDefined();
+    expect(guardTitle!.textContent).toContain('1 issue');
+    expect(screen.getByText(/acc-B-001/)).toBeInTheDocument();
+  });
+
+  it('renders Draft Scope Check all-clear when scope_drift_check has no warnings', () => {
+    mockActiveDebate = makeDebate({
+      diagnostics: {
+        entries: {
+          e1: {
+            scope_drift_check: {
+              checked: true,
+              refs_checked: 8,
+              refs_with_exclusion_vector: 4,
+              warnings: [],
+              threshold: 0.65,
+            },
+          },
+        },
+      },
+    });
+    render(<EntryView entryId="e1" />);
+    expect(screen.getByText(/All 8 refs within scope/)).toBeInTheDocument();
+  });
+
+  it('renders no-data message when no exclusion trace exists but diag does', () => {
+    mockActiveDebate = makeDebate({
+      diagnostics: {
+        entries: {
+          e1: {
+            model: 'gemini-2.5-flash',
+          },
+        },
+      },
+    });
+    render(<EntryView entryId="e1" />);
+    expect(screen.getByText(/No exclusion guard data/)).toBeInTheDocument();
+  });
 });

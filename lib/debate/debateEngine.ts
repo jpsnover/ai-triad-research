@@ -147,7 +147,7 @@ import { computeCoverageMap, computeStrengthWeightedCoverage } from './coverageT
 import { generateDialecticTraces } from './dialecticTrace.js';
 import { computeTaxonomyGapAnalysis } from './taxonomyGapAnalysis.js';
 import { extractSituationDebateRefs } from './situationRefs.js';
-import { checkClaimExclusionBoundary, checkDraftScopeBoundary } from './exclusionGuard.js';
+import { checkClaimExclusionBoundary, checkDraftScopeBoundary, filterByExclusionAbsolute, EXCLUSION_RATIO_THRESHOLD, SCOPE_BOUNDARY_THRESHOLD } from './exclusionGuard.js';
 import { ActionableError } from './errors.js';
 import type { ContextManifestEntry } from './taxonomyGapAnalysis.js';
 import { resolveTurnValidationConfig, classifyHintKey } from './turnValidator.js';
@@ -564,7 +564,7 @@ export class DebateEngine {
 
     // Compute extraction coverage on sampled turns (t/391)
     try {
-      const coverageGenFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Extraction coverage', 30_000);
+      const coverageGenFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Extraction coverage');
       await computeExtractionCoverage(this.session, coverageGenFn);
 
       const recorder = getGlobalRecorder();
@@ -627,7 +627,7 @@ export class DebateEngine {
       // Persist unresolved cruxes to cross-debate registry (t/367)
       if (this.config.embedFn && this.session.crux_tracker?.length) {
         try {
-          const generateFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Crux decontextualization', 30_000);
+          const generateFn = (prompt: string) => this.generateWithEvaluator(prompt, 'Crux decontextualization');
           await persistDebateCruxes(this.session, dataRoot, this.config.embedFn, generateFn);
         } catch (err) {
           getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Crux registry persistence failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
@@ -1407,6 +1407,7 @@ export class DebateEngine {
 
     let scores: Map<string, number> | null = null;
     let scoringMode: 'embedding' | 'lexical' = 'embedding';
+    let roundFocusVector: number[] | null = null;
 
     const adapter = this.adapter as ExtendedAIAdapter;
     const hasEmbeddings = Object.keys(this.taxonomy.embeddings).length > 0;
@@ -1428,6 +1429,7 @@ export class DebateEngine {
           const { vector } = await adapter.computeQueryEmbedding(query);
           if (vector && vector.length > 0) {
             topicScores = scoreNodeRelevance(vector, this.taxonomy.embeddings);
+            roundFocusVector = vector;
           }
         } catch (err) {
           getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Topic embedding for relevance floor failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
@@ -1452,6 +1454,7 @@ export class DebateEngine {
         const { vector } = await adapter.computeQueryEmbedding(query);
         if (vector && vector.length > 0) {
           scores = scoreNodeRelevance(vector, this.taxonomy.embeddings);
+          roundFocusVector = vector;
         }
       } catch (err) {
         getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Query embedding for relevance filter failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
@@ -1490,6 +1493,8 @@ export class DebateEngine {
       lexicalThreshold: 0.22,
       minPerCategory: parseInt(process.env.TAXONOMY_MIN_PER_BDI || '') || 3,
       maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 25,
+      nodeEmbeddings: roundFocusVector ? this.taxonomy.embeddings as Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }> : undefined,
+      queryVector: roundFocusVector ?? undefined,
     };
 
     // Apply lineage boost when lineage_frame is available
@@ -1547,7 +1552,20 @@ export class DebateEngine {
       }
     }
 
-    const filteredSit = selectRelevantSituationNodes(ctx.situationNodes, sitScores, { ...relevanceOpts, maxTotal: undefined }, 3, 8);
+    let filteredSit = selectRelevantSituationNodes(ctx.situationNodes, sitScores, { ...relevanceOpts, maxTotal: undefined }, 3, 8);
+
+    // Situation exclusion filter (t/490): skip situations whose exclusion zone matches the round focus
+    let situationExclusionSkipped: { node_id: string; similarity_exclusion: number }[] = [];
+    if (roundFocusVector) {
+      const sitIds = filteredSit.map(s => s.node.id);
+      const sitExclResult = filterByExclusionAbsolute(sitIds, roundFocusVector, this.taxonomy.embeddings as Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }>);
+      if (sitExclResult.skipped.length > 0) {
+        const passedSet = new Set(sitExclResult.passed);
+        filteredSit = filteredSit.filter(s => passedSet.has(s.node.id));
+        situationExclusionSkipped = sitExclResult.skipped;
+      }
+    }
+
     const filteredCtx = {
       povNodes: scoredPov.map(s => s.node),
       situationNodes: filteredSit.map(s => s.node),
@@ -1576,12 +1594,13 @@ export class DebateEngine {
     });
     getGlobalRecorder()?.record({
       type: 'turn.situation_inject', component: 'debate-engine', level: 'info',
-      message: `Situation inject: ${filteredSit.length} nodes selected`,
+      message: `Situation inject: ${filteredSit.length} nodes selected${situationExclusionSkipped.length > 0 ? `, ${situationExclusionSkipped.length} excluded` : ''}`,
       data: {
         injected_ids: filteredSit.map(s => s.node.id),
         count: filteredSit.length,
         primary_count: filteredSit.filter(s => s.score > 0.5).length,
         divergence_adjusted: policyBoostedSitIds.length,
+        exclusion_skipped: situationExclusionSkipped.length > 0 ? situationExclusionSkipped : undefined,
       },
     });
 
@@ -1612,6 +1631,15 @@ export class DebateEngine {
         situations: policyBoostedSitIds.slice(0, 20),
       };
     }
+
+    // Log situation exclusion filter diagnostics (t/490)
+    if (situationExclusionSkipped.length > 0) {
+      (this._lastInjectionManifest as Record<string, unknown>).situation_exclusion_filter = {
+        skipped: situationExclusionSkipped,
+        threshold: SCOPE_BOUNDARY_THRESHOLD,
+      };
+    }
+
     this._lastRelevanceScores = scores;
     return formatTaxonomyContext(filteredCtx, pov);
   }
@@ -2026,7 +2054,7 @@ export class DebateEngine {
       prompt = clarificationPrompt(this.config.topic, this.config.sourceContent, this.config.audience, lineageCtx);
     }
 
-    const text = await this.generate(prompt, 'Clarification questions', 30_000);
+    const text = await this.generate(prompt, 'Clarification questions');
     let structuredQuestions: { question: string; options: string[] }[] = [];
     try {
       const parsed = parseJsonRobust(text) as { questions?: unknown[] };
@@ -2092,7 +2120,7 @@ export class DebateEngine {
 
     try {
       const prompt = decomposeResolutionPrompt(resolution);
-      const text = await this.generate(prompt, 'Resolution clause decomposition', 30_000);
+      const text = await this.generate(prompt, 'Resolution clause decomposition');
       const parsed = parseJsonRobust(text) as { clauses?: unknown };
       if (Array.isArray(parsed.clauses)) {
         const clauses = parsed.clauses
@@ -3121,15 +3149,24 @@ export class DebateEngine {
 
     // Draft scope boundary check (t/451): flag when draft drifts into excluded scope
     let scopeDriftWarnings: { debater: string; node_id: string; similarity: number; draft_excerpt: string }[] | undefined;
+    let scopeDriftCheck: EntryDiagnostics['scope_drift_check'] | undefined;
     const adapterForScope = this.adapter as ExtendedAIAdapter;
     if (adapterForScope.computeQueryEmbedding && statement) {
       try {
         const { vector: draftVec } = await adapterForScope.computeQueryEmbedding(statement.slice(0, 500));
         if (draftVec?.length) {
           const refIds = taxonomyRefs.map(r => r.node_id);
+          const refsWithExclusionVector = refIds.filter(id => (this.taxonomy.embeddings[id] as { exclusion_vector?: number[] })?.exclusion_vector).length;
           const warnings = checkDraftScopeBoundary(
             draftVec, refIds, this.taxonomy.embeddings, responder, statement,
           );
+          scopeDriftCheck = {
+            checked: true,
+            refs_checked: refIds.length,
+            refs_with_exclusion_vector: refsWithExclusionVector,
+            warnings: warnings,
+            threshold: SCOPE_BOUNDARY_THRESHOLD,
+          };
           if (warnings.length > 0) {
             scopeDriftWarnings = warnings;
             for (const w of warnings) {
@@ -3210,6 +3247,7 @@ export class DebateEngine {
         : undefined,
       quality_gate: pipelineResult.qualityGateResult,
       scope_drift_warnings: scopeDriftWarnings,
+      scope_drift_check: scopeDriftCheck,
     });
 
     // Track move types and disagreement types
@@ -3343,7 +3381,7 @@ export class DebateEngine {
     }
 
     const prompt = probingQuestionsPrompt(this.session.topic.final, transcript, unreferencedNodes, hasSourceDoc, uncoveredClaims, this.config.audience);
-    const text = await this.generate(prompt, 'Probing questions', 30_000);
+    const text = await this.generate(prompt, 'Probing questions');
 
     let questions: { text: string; targets: string[] }[] = [];
     try {
@@ -3847,7 +3885,6 @@ export class DebateEngine {
 
       const gapResult = await this.adapter.generateText(gapPrompt, this.config.model, {
         temperature: 0.5,
-        timeoutMs: 30_000,
       });
       this.apiCallCount++;
 
@@ -3959,7 +3996,6 @@ export class DebateEngine {
 
       const ccResult = await this.adapter.generateText(ccPrompt, this.config.model, {
         temperature: 0.3,
-        timeoutMs: 30_000,
       });
       this.apiCallCount++;
 
@@ -4779,7 +4815,7 @@ Return ONLY JSON (no markdown, no code fences):
       for (const node of sampled) {
         try {
           const eprompt = entailmentRepairPrompt(statement, node.text);
-          const eText = await this.generateWithEvaluator(eprompt, 'Entailment check', 30_000);
+          const eText = await this.generateWithEvaluator(eprompt, 'Entailment check');
           const eResult = parseJsonRobust(eText) as {
             verdict?: string;
             explanation?: string;
@@ -4842,9 +4878,23 @@ Return ONLY JSON (no markdown, no code fences):
     }
 
     // Exclusion boundary guard (t/450): flag claims in a node's excluded scope
+    const nodesWithEmbeddingAndRef = claimsResult.newNodes.filter(
+      n => n.embedding && n.claim_taxonomy_attribution?.primary_ref,
+    );
+    const refsWithExclusionVec = new Set(
+      nodesWithEmbeddingAndRef
+        .map(n => n.claim_taxonomy_attribution!.primary_ref!)
+        .filter(ref => (this.taxonomy.embeddings[ref] as { exclusion_vector?: number[] })?.exclusion_vector),
+    ).size;
     const exclusionViolations = checkClaimExclusionBoundary(
       claimsResult.newNodes, this.taxonomy.embeddings,
     );
+    trace.exclusion_guard = {
+      checked: nodesWithEmbeddingAndRef.length,
+      refs_with_exclusion_vector: refsWithExclusionVec,
+      violations: exclusionViolations,
+      threshold: EXCLUSION_RATIO_THRESHOLD,
+    };
     if (exclusionViolations.length > 0) {
       trace.exclusion_violations = exclusionViolations;
       getGlobalRecorder()?.record({

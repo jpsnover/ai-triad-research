@@ -22,6 +22,7 @@ import type {
 import type { DocumentAnalysis, DraftQualityGateResult } from './types.js';
 import { POVER_INFO } from './types.js';
 import { ActionableError } from './errors.js';
+import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { validateDraftStage, validateCiteStage, validatePlanStage, isFillerRelevance, parseDraftQualityResult, resolveMoveName, classifyHintKey, checkDirectiveContentCompliance } from './turnValidator.js';
 import type { DraftQualityCheckOutput } from './turnValidator.js';
@@ -236,7 +237,7 @@ export type StageProgressFn = (stage: TurnStageId, label: string) => void;
 export const DEFAULT_STAGE_TEMPERATURES: Required<TurnStageConfig> = {
   brief_temperature: 0.15,
   plan_temperature: 0.4,
-  draft_temperature: 0.7,
+  draft_temperature: DEFAULT_TEMPERATURE,
   cite_temperature: 0.15,
 };
 

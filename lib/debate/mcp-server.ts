@@ -13,6 +13,7 @@ import { DebateEngine, type DebateConfig, type DebateProgress } from './debateEn
 import { createCLIAdapter } from './aiAdapter.js';
 import { loadTaxonomy, resolveRepoRoot, resolveDataRoot, type LoadedTaxonomy } from './taxonomyLoader.js';
 import type { DebateSession } from './types.js';
+import { listDebateSessionsIndexed, updateDebateIndexEntry } from './debateIndex.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolveRepoRoot(__dirname);
@@ -42,53 +43,6 @@ const activeDebates = new Map<string, ActiveDebate>();
 
 // ── Debate file helpers ─────────────────────────────────
 
-interface DebateSessionSummary {
-  id: string;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  phase: string;
-  topic_text?: string;
-  model?: string;
-  turn_count?: number;
-}
-
-function listDebateSessions(): DebateSessionSummary[] {
-  if (!fs.existsSync(debatesDir)) return [];
-
-  const scanDirs = [debatesDir];
-  const cliRunsDir = path.join(debatesDir, 'cli-runs');
-  if (fs.existsSync(cliRunsDir)) scanDirs.push(cliRunsDir);
-
-  const summaries: DebateSessionSummary[] = [];
-  for (const scanDir of scanDirs) {
-    const files = fs.readdirSync(scanDir).filter(f =>
-      f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json'))
-    );
-    for (const f of files) {
-      try {
-        const filePath = path.join(scanDir, f);
-        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-        const transcript = Array.isArray(data.transcript) ? data.transcript : [];
-        summaries.push({
-          id: data.id,
-          title: data.title || data.topic || 'Untitled',
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-          phase: data.phase,
-          topic_text: data.topic?.final ?? data.topic?.original ?? '',
-          model: data.debate_model,
-          turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
-        });
-      } catch {
-        // Skip corrupt files
-      }
-    }
-  }
-  summaries.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
-  return summaries;
-}
-
 function loadDebateSession(id: string): unknown {
   const filePath = path.join(debatesDir, `debate-${id}.json`);
   if (!fs.existsSync(filePath)) {
@@ -111,7 +65,7 @@ server.tool(
   'List all debate sessions from the data directory',
   {},
   async () => ({
-    content: [{ type: 'text', text: JSON.stringify({ debates: listDebateSessions() }, null, 2) }],
+    content: [{ type: 'text', text: JSON.stringify({ debates: listDebateSessionsIndexed(debatesDir) }, null, 2) }],
   }),
 );
 
@@ -261,6 +215,7 @@ server.tool(
       if (!fs.existsSync(debatesDir)) fs.mkdirSync(debatesDir, { recursive: true });
       const outPath = path.join(debatesDir, `debate-${session.id}.json`);
       fs.writeFileSync(outPath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
+      updateDebateIndexEntry(debatesDir, session as unknown as Record<string, unknown>);
     }).catch((err) => {
       state.error = err instanceof Error ? err.message : String(err);
       state.status = controller.signal.aborted ? 'cancelled' : 'failed';

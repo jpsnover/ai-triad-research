@@ -10,6 +10,7 @@
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
+import { filterByExclusionRatio, type ExclusionFilterResult } from './exclusionGuard.js';
 
 export interface NodeRelevanceScore {
   nodeId: string;
@@ -35,6 +36,10 @@ export interface RelevanceOptions {
   scoringMode?: 'embedding' | 'lexical';
   /** Optional lineage boost configuration — promotes nodes matching the debate's intellectual traditions. */
   lineageBoost?: LineageBoostConfig;
+  /** Embeddings map with optional exclusion_vector — enables exclusion ratio filtering. */
+  nodeEmbeddings?: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }>;
+  /** Query embedding vector — required for exclusion filtering. */
+  queryVector?: number[];
 }
 
 export interface LineageBoostConfig {
@@ -179,10 +184,22 @@ export function selectRelevantNodes(
   }
 
   // Stash diagnostics on the result array for callers that want it
-  const sliced = maxTotal != null ? result.slice(0, maxTotal) : result;
+  let sliced = maxTotal != null ? result.slice(0, maxTotal) : result;
   if (_lineageBoostResult) {
     (sliced as ScoredPovNode[] & { _lineageBoost?: LineageBoostResult })._lineageBoost = _lineageBoostResult;
   }
+
+  // Apply exclusion ratio filter when embeddings and query vector are provided
+  if (opts.nodeEmbeddings && opts.queryVector) {
+    const nodeIds = sliced.map(s => s.node.id);
+    const exclusionResult = filterByExclusionRatio(nodeIds, opts.queryVector, opts.nodeEmbeddings);
+    if (exclusionResult.demoted.length > 0) {
+      const passedSet = new Set(exclusionResult.passed);
+      sliced = sliced.filter(s => passedSet.has(s.node.id));
+    }
+    (sliced as ScoredPovNode[] & { _exclusionFilter?: ExclusionFilterResult })._exclusionFilter = exclusionResult;
+  }
+
   return sliced;
 }
 
@@ -218,7 +235,20 @@ export function selectRelevantSituationNodes(
     ? aboveThreshold
     : scored.slice(0, Math.max(min, aboveThreshold.length));
 
-  return selected.slice(0, max);
+  let result = selected.slice(0, max);
+
+  // Apply exclusion ratio filter when embeddings and query vector are provided
+  if (opts.nodeEmbeddings && opts.queryVector) {
+    const nodeIds = result.map(s => s.node.id);
+    const exclusionResult = filterByExclusionRatio(nodeIds, opts.queryVector, opts.nodeEmbeddings);
+    if (exclusionResult.demoted.length > 0) {
+      const passedSet = new Set(exclusionResult.passed);
+      result = result.filter(s => passedSet.has(s.node.id));
+    }
+    (result as ScoredSituationNode[] & { _exclusionFilter?: ExclusionFilterResult })._exclusionFilter = exclusionResult;
+  }
+
+  return result;
 }
 
 /**
@@ -304,7 +334,7 @@ export function computePolicymakerRelevanceBoost(
   audience?: string,
 ): number {
   if (audience !== 'policymakers') return 0;
-  const matches = (situation.description || '').match(POLICYMAKER_KEYWORDS) || [];
+  const matches = stripExcludes(situation.description || '').match(POLICYMAKER_KEYWORDS) || [];
   return matches.length >= 2 ? 0.10 : 0;
 }
 

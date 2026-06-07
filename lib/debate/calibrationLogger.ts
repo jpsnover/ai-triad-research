@@ -17,6 +17,7 @@ import type { NeutralEvaluation } from './neutralEvaluator.js';
 import { classifyClaimOutcomes, summarizeOutcomes } from './claimOutcomes.js';
 import { elementDecompositionPrompt, coverageCheckPrompt } from './prompts.js';
 import { parseJsonRobust } from './helpers.js';
+import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
 // ── Agent utility (game theory Layer 4) ────────────────────
 
 export interface AgentUtility {
@@ -1454,7 +1455,7 @@ export function captureSnapshot(weightsPath?: string): ParameterSnapshot {
     argumentation_exit: weights?.thresholds?.argumentation_exit ?? 0.65,
     relevance_threshold: 0.45,
     attack_weights: [1.0, 1.1, 1.2],
-    draft_temperature: 0.7,
+    draft_temperature: DEFAULT_TEMPERATURE,
     argumentative_saturation_weights: weights?.argumentative_saturation ?? {
       recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
       engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,

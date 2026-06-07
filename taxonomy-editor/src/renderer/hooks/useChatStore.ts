@@ -15,6 +15,7 @@ import { useTaxonomyStore } from './useTaxonomyStore';
 import { mapErrorToUserMessage } from '../utils/errorMessages';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
 import type { TaxonomyContext } from '../utils/taxonomyContext';
 import {
@@ -37,10 +38,10 @@ function getConfiguredModel(): string {
   const chatModel = useChatStore.getState().chatModel;
   if (chatModel) return chatModel;
   try {
-    return localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
+    return localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
   } catch (err) {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Failed to read chat model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-    return 'gemini-flash-lite-latest';
+    return DEFAULT_MODEL;
   }
 }
 

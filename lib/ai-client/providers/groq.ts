@@ -12,7 +12,7 @@ export async function generateViaGroq(
   apiKey: string,
   opts: GenerateOptions,
 ): Promise<ProviderResult> {
-  const timeoutMs = opts.timeoutMs ?? 120_000;
+  const timeoutMs = opts.timeoutMs!;
 
   const messages: { role: string; content: string }[] = [];
   if (opts.systemMessage) messages.push({ role: 'system', content: opts.systemMessage });

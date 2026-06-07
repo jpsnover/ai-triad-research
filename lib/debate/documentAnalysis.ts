@@ -9,6 +9,7 @@
 
 import type { DocumentAnalysis, ContextRotStage } from './types.js';
 import { POV_KEYS } from './types.js';
+import { DOC_TRUNCATION_LIMIT } from './constants.js';
 import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { PolicyRef } from './taxonomyContext.js';
 
@@ -98,7 +99,7 @@ interface TruncateResult {
   metrics: ContextRotStage;
 }
 
-function truncateDocument(text: string, limit: number = 50000): TruncateResult {
+function truncateDocument(text: string, limit: number = DOC_TRUNCATION_LIMIT): TruncateResult {
   if (text.length <= limit) {
     return {
       text,

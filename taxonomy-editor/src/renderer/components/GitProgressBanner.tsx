@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
+import { TOAST_DURATION_SUCCESS } from '../constants';
 import { useGitProgress } from '../hooks/useGitProgress';
 
 export function GitProgressBanner() {
@@ -29,7 +30,7 @@ export function GitProgressBanner() {
   // Auto-dismiss success after 5 seconds
   useEffect(() => {
     if (!progress || !progress.success) return;
-    const t = setTimeout(dismiss, 5000);
+    const t = setTimeout(dismiss, TOAST_DURATION_SUCCESS);
     return () => clearTimeout(t);
   }, [progress?.success, dismiss]);
 

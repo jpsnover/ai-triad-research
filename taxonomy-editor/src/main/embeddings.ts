@@ -34,6 +34,7 @@ import {
   withRetry,
   SERVER_RETRY_CONFIG,
   generateViaDeepSeekStream,
+  DEFAULT_MODEL,
 } from '../../../lib/ai-client/index.js';
 import type { GenerateOptions, RateLimitType as SharedRateLimitType, FetchFn } from '../../../lib/ai-client/index.js';
 import type { ModelRegistry } from '../../../lib/ai-client/index.js';
@@ -688,8 +689,7 @@ export async function generateText(
   timeoutMs?: number,
   temperature?: number,
 ): Promise<string> {
-  const DEFAULT_GENERATE_MODEL = 'gemini-flash-lite-latest';
-  const friendlyModel = model || DEFAULT_GENERATE_MODEL;
+  const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
   const resolvedModel = resolveApiModelId(friendlyModel);
 
@@ -764,7 +764,6 @@ export async function generateChatStream(
   model?: string,
   temperature?: number,
 ): Promise<string> {
-  const DEFAULT_MODEL = 'gemini-flash-lite-latest';
   const friendlyModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(friendlyModel);
   const resolvedModel = resolveApiModelId(friendlyModel);
@@ -948,8 +947,7 @@ export async function generateTextWithSearch(
   prompt: string,
   model?: string,
 ): Promise<{ text: string; searchQueries?: string[]; citations?: GroundingCitation[] }> {
-  const DEFAULT_GENERATE_MODEL = 'gemini-flash-lite-latest';
-  const resolvedModel = model || DEFAULT_GENERATE_MODEL;
+  const resolvedModel = model || DEFAULT_MODEL;
   const backend = resolveBackend(resolvedModel);
 
   // Non-Gemini: use Tavily search + LLM if Tavily key is available

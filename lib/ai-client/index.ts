@@ -3,7 +3,7 @@
 
 export type { GenerateOptions, ProviderResult, TokenUsage, RateLimitType, RetryProgress, BackendId, FetchFn, ToolDefinition, ToolCall, ToolResult } from './types.js';
 export type { ModelEntry, ModelRegistry } from './registry.js';
-export { resolveBackend, resolveModel, buildModelIdMap, getApiModelId } from './registry.js';
+export { resolveBackend, resolveModel, buildModelIdMap, getApiModelId, getDefaultTimeout } from './registry.js';
 export { withTimeout, withRetry, retryableFetch, parseRateLimitType, CLI_RETRY_CONFIG, SERVER_RETRY_CONFIG } from './retry.js';
 export type { RetryConfig } from './retry.js';
 export { generateViaGemini, GEMINI_BASE, GEMINI_SAFETY_SETTINGS, toGeminiSchema } from './providers/gemini.js';
@@ -19,3 +19,4 @@ export { geminiGroundedSearch } from './providers/gemini-search.js';
 export type { GroundingSegment, GroundingCitation, GroundedSearchResult } from './providers/gemini-search.js';
 export type { AIClientDeps, AIClient } from './client.js';
 export { callProvider, createAIClient } from './client.js';
+export { DEFAULT_MODEL, DEFAULT_TEMPERATURE } from './defaults.js';

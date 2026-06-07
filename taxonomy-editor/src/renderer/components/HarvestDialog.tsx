@@ -8,6 +8,7 @@ import { useDebateStore } from '../hooks/useDebateStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import type { ArgumentNetworkNode } from '../types/debate';
 import { QbafClaimBadge } from './QbafOverlay';
+import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import {
   extractConflictCandidates,
@@ -232,7 +233,7 @@ export function HarvestDialog({ onClose, fileData }: HarvestDialogProps) {
     setGeneratingConflicts(true);
 
     const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
+      localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
 
     for (const item of checked) {
       try {
@@ -297,7 +298,7 @@ IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxono
     setGeneratingSteelmans(true);
 
     const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
+      localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
 
     for (const item of checked) {
       try {
@@ -338,7 +339,7 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
     if (checked.length === 0) return;
 
     const model = useDebateStore.getState().debateModel ||
-      localStorage.getItem('taxonomy-editor-gemini-model') || 'gemini-flash-lite-latest';
+      localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
 
     for (const item of checked) {
       try {

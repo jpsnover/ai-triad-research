@@ -10,6 +10,7 @@ export type EventType =
   | 'ai.request'
   | 'ai.response'
   | 'ai.error'
+  | 'ai.retry'
   // Argument network
   | 'an.extract'
   | 'an.commit'

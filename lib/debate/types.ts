@@ -1123,6 +1123,13 @@ export interface EntryDiagnostics {
     similarity: number;
     draft_excerpt: string;
   }[];
+  scope_drift_check?: {
+    checked: true;
+    refs_checked: number;
+    refs_with_exclusion_vector: number;
+    warnings: { debater: string; node_id: string; similarity: number; draft_excerpt: string }[];
+    threshold: number;
+  };
 }
 
 export interface DraftQualityGateResult {
@@ -1389,6 +1396,18 @@ export interface ClaimExtractionTrace {
     similarity_main: number;
     similarity_exclusion: number;
   }[];
+  exclusion_guard?: {
+    checked: number;
+    refs_with_exclusion_vector: number;
+    violations: {
+      claim_id: string;
+      claim_text: string;
+      node_id: string;
+      similarity_main: number;
+      similarity_exclusion: number;
+    }[];
+    threshold: number;
+  };
 }
 
 /** Session-level aggregate of extraction health, computed incrementally. */

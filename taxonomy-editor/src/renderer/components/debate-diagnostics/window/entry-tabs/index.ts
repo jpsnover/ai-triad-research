@@ -11,3 +11,4 @@ export { LookaheadTab } from './LookaheadTab';
 export { CiteTab } from './CiteTab';
 export { TaxRefsTab } from './TaxRefsTab';
 export { DetailsTab } from './DetailsTab';
+export { ExclusionGuardTab } from './ExclusionGuardTab';

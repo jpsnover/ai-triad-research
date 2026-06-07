@@ -53,6 +53,7 @@ import { checkForDataUpdates, pullDataUpdates, getChangedFiles, getFileDiff } fr
 import { diagnosePythonEmbeddings } from './diagnosePython.js';
 import type { NodeEmbeddingInput, NliPair } from './embeddings.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { DEFAULT_MODEL, DEFAULT_TEMPERATURE } from '../../../lib/ai-client/index.js';
 import { z } from 'zod';
 import path from 'path';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
@@ -868,7 +869,7 @@ export function registerIpcHandlers(): void {
         },
       };
 
-      const evalModel = model || 'gemini-flash-lite-latest';
+      const evalModel = model || DEFAULT_MODEL;
       const result = await buildEvidenceQbaf(claimText, evidenceItems, adapter, evalModel, {
         claimBaseStrength: 0.5,
       });
@@ -1042,7 +1043,7 @@ export function registerIpcHandlers(): void {
         exploration_exit: (weights?.thresholds as Record<string, number>)?.exploration_exit ?? 0.65,
         relevance_threshold: 0.45,
         attack_weights: [1.0, 1.1, 1.2],
-        draft_temperature: 0.7,
+        draft_temperature: DEFAULT_TEMPERATURE,
         saturation_weights: (weights?.saturation as Record<string, number>) ?? {
           recycling_pressure: 0.30, crux_maturity: 0.25, concession_plateau: 0.15,
           engagement_fatigue: 0.15, pragmatic_convergence: 0.05, scheme_stagnation: 0.10,

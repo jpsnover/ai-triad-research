@@ -27,6 +27,7 @@ import { retrieveEvidence, clearSourceIndex } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
 import type { EvidenceQbafResult } from './evidenceQbaf.js';
 import { createCLIAdapter } from './aiAdapter.js';
+import { DEFAULT_MODEL } from '../ai-client/index.js';
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
 import type { ArgumentNetworkNode } from './types.js';
 
@@ -44,7 +45,7 @@ function parseArgs(): BackfillOptions {
   const args = process.argv.slice(2);
   const opts: BackfillOptions = {
     dryRun: !args.includes('--write'),
-    model: 'gemini-flash-lite-latest',
+    model: DEFAULT_MODEL,
     throttleMs: 500,
     limit: Infinity,
     topK: 10,

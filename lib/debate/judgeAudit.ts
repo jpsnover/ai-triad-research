@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCLIAdapter } from './aiAdapter.js';
+import { DEFAULT_MODEL } from '../ai-client/index.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import type { DebateSession, TranscriptEntry, TaxonomyRef, DebatePhase } from './types.js';
 import { getDebatePhase } from './types.js';
@@ -168,9 +169,9 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
 const MODEL_ALIASES: Record<string, string> = {
   haiku: 'claude-haiku-4-5',
   sonnet: 'claude-sonnet-4',
-  gemini: 'gemini-flash-lite-latest',
+  gemini: DEFAULT_MODEL,
   'gemini-flash': 'gemini-2.5-flash',
-  'gemini-lite': 'gemini-flash-lite-latest',
+  'gemini-lite': DEFAULT_MODEL,
   groq: 'groq-llama-3.3-70b-versatile',
   llama: 'groq-llama-3.3-70b-versatile',
 };

@@ -156,14 +156,22 @@ export function computeConvergenceSignals(
   const drift = priorDelta ? Math.abs(overlapWithOpening - priorDelta.overlap_with_opening) : 0;
 
   // 7. Crux rate — structural detection: did this turn's AN nodes engage any tracked crux?
-  // A crux is "engaged this turn" if any of its attacking_claim_ids were produced in this entry,
-  // or if a crux transitioned state at the current turn number.
+  // A crux is "engaged this turn" if:
+  //   (a) any of its attacking_claim_ids were produced in this entry, OR
+  //   (b) a crux transitioned state at the current turn number, OR
+  //   (c) any edge connects a turn node to a crux node (covers new attackers
+  //       added after crux identification — attacking_claim_ids is frozen at
+  //       identification time and misses later engagement).
   let cruxUsedThisTurn = false;
   if (cruxTracker && cruxTracker.length > 0) {
     const currentTurn = turnNodes.length > 0 ? turnNodes[0].turn_number : round;
+    const cruxIds = new Set(cruxTracker.map(c => c.id));
     cruxUsedThisTurn = cruxTracker.some(crux =>
       crux.attacking_claim_ids.some(cid => turnNodeIds.has(cid)) ||
       crux.history.some(h => h.turn === currentTurn),
+    ) || edges.some(e =>
+      (turnNodeIds.has(e.source) && cruxIds.has(e.target)) ||
+      (turnNodeIds.has(e.target) && cruxIds.has(e.source)),
     );
   }
   const priorCruxSignals = existingSignals.filter(s => s.speaker === speaker);

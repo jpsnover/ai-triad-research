@@ -689,6 +689,149 @@ export function OverviewTabRouter({
           setLocalOverride={setLocalOverride}
         />
       )}
+
+      {/* Exclusion Guard Overview — aggregate across all entries */}
+      {effectiveOverviewTab === 'exclusion-overview' && (() => {
+        const entries = debate.diagnostics?.entries;
+        if (!entries || Object.keys(entries).length === 0) {
+          return (
+            <div style={{ padding: 16 }}>
+              <h4 style={{ fontSize: '0.85rem', marginBottom: 8 }}>Exclusion Guard</h4>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                No diagnostics data available for this debate.
+              </div>
+            </div>
+          );
+        }
+
+        let claimsChecked = 0;
+        let claimViolations: { claim_id: string; claim_text: string; node_id: string; similarity_main: number; similarity_exclusion: number }[] = [];
+        let draftsChecked = 0;
+        let driftWarnings: { debater: string; node_id: string; similarity: number; draft_excerpt: string }[] = [];
+        let hasAnyData = false;
+
+        for (const entry of Object.values(entries)) {
+          const extTrace = entry.extraction_trace;
+          if (extTrace) {
+            hasAnyData = true;
+            if (extTrace.exclusion_guard) {
+              claimsChecked += extTrace.exclusion_guard.checked;
+              if (extTrace.exclusion_guard.violations?.length) claimViolations = claimViolations.concat(extTrace.exclusion_guard.violations);
+            }
+            if (extTrace.exclusion_violations?.length) {
+              claimViolations = claimViolations.concat(extTrace.exclusion_violations);
+            }
+          }
+          if (entry.scope_drift_check) {
+            hasAnyData = true;
+            draftsChecked += entry.scope_drift_check.refs_checked;
+            if (entry.scope_drift_check.warnings?.length) driftWarnings = driftWarnings.concat(entry.scope_drift_check.warnings);
+          }
+          if (entry.scope_drift_warnings?.length) {
+            hasAnyData = true;
+            driftWarnings = driftWarnings.concat(entry.scope_drift_warnings);
+          }
+        }
+
+        const allClear = claimViolations.length === 0 && driftWarnings.length === 0;
+
+        return (
+          <div style={{ padding: 16, overflowY: 'auto', flex: 1 }}>
+            <h4 style={{ fontSize: '0.85rem', marginBottom: 10 }}>Exclusion Guard Summary</h4>
+
+            {!hasAnyData ? (
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                Exclusion guard data not available — no extraction traces found in this debate.
+              </div>
+            ) : (
+              <>
+                {/* Aggregate badges */}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+                  <span style={{
+                    padding: '4px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.72rem',
+                    background: claimViolations.length > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.08)',
+                    color: claimViolations.length > 0 ? '#ef4444' : '#22c55e',
+                  }}>
+                    {claimsChecked} claims checked — {claimViolations.length} violation{claimViolations.length !== 1 ? 's' : ''}
+                  </span>
+                  <span style={{
+                    padding: '4px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.72rem',
+                    background: driftWarnings.length > 0 ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.08)',
+                    color: driftWarnings.length > 0 ? '#f59e0b' : '#22c55e',
+                  }}>
+                    {draftsChecked} refs checked — {driftWarnings.length} drift warning{driftWarnings.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {allClear ? (
+                  <div style={{
+                    padding: '8px 10px', borderRadius: 4, fontSize: '0.75rem',
+                    background: 'rgba(34,197,94,0.08)', borderLeft: '3px solid #22c55e',
+                    color: '#22c55e', fontWeight: 600,
+                  }}>
+                    All statements within scope — no exclusion violations or drift warnings
+                  </div>
+                ) : (
+                  <>
+                    {claimViolations.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>
+                          Exclusion Violations ({claimViolations.length})
+                        </div>
+                        {claimViolations.map((v, i) => (
+                          <div key={i} style={{
+                            padding: '6px 8px', marginBottom: 4, borderRadius: 4, fontSize: '0.7rem',
+                            background: 'rgba(239,68,68,0.06)', borderLeft: '3px solid #ef4444',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <span style={{ fontWeight: 700, color: '#ef4444' }}>{v.claim_id}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>→</span>
+                              <span style={{ fontWeight: 600 }}>{v.node_id}</span>
+                            </div>
+                            <div style={{ color: 'var(--text-primary)', fontSize: '0.65rem' }}>{v.claim_text}</div>
+                            <div style={{ display: 'flex', gap: 12, fontSize: '0.6rem', marginTop: 2, color: 'var(--text-muted)' }}>
+                              <span>main: <strong>{v.similarity_main.toFixed(3)}</strong></span>
+                              <span>exclusion: <strong>{v.similarity_exclusion.toFixed(3)}</strong></span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {driftWarnings.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>
+                          Scope Drift Warnings ({driftWarnings.length})
+                        </div>
+                        {driftWarnings.map((w, i) => (
+                          <div key={i} style={{
+                            padding: '6px 8px', marginBottom: 4, borderRadius: 4, fontSize: '0.7rem',
+                            background: 'rgba(245,158,11,0.06)', borderLeft: '3px solid #f59e0b',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <span style={{ fontWeight: 700, color: '#f59e0b' }}>{w.debater}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>→</span>
+                              <span style={{ fontWeight: 600 }}>{w.node_id}</span>
+                              <span style={{ marginLeft: 'auto', fontFamily: 'monospace', fontWeight: 600 }}>
+                                {w.similarity.toFixed(3)}
+                              </span>
+                            </div>
+                            <div style={{
+                              color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem',
+                              padding: '3px 6px', borderLeft: '1px solid var(--border)', marginTop: 2,
+                            }}>
+                              {w.draft_excerpt.length > 200 ? w.draft_excerpt.slice(0, 200) + '…' : w.draft_excerpt}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
     </>
   );
 }

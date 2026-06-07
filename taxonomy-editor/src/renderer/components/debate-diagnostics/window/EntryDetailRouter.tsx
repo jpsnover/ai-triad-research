@@ -33,6 +33,7 @@ import { ModeratorTab } from './shared';
 import {
   DraftTab, ClaimsTab, EvidenceTab, CitationsTab,
   TaxRefsTab, DetailsTab, BriefTab, PlanTab, LookaheadTab, CiteTab,
+  ExclusionGuardTab,
 } from './entry-tabs';
 
 // TensionsListDetail, DebateExchangeRich, ModeratorTab → extracted to ./shared/
@@ -159,6 +160,13 @@ export function EntryDetailRouter({
     scrub_original?: string;
     warnings: string[];
   } | undefined;
+  const hasExclusionData = !!(
+    (diag?.extraction_trace as Record<string, unknown> | undefined)?.exclusion_guard ||
+    (diag?.extraction_trace as Record<string, unknown> | undefined)?.exclusion_violations ||
+    (diag as Record<string, unknown> | undefined)?.scope_drift_check ||
+    (diag as Record<string, unknown> | undefined)?.scope_drift_warnings ||
+    (diag?.extraction_trace && entry.type === 'statement')
+  );
   const hasCitations = !!citationResDiag;
   const citationsCount = citationResDiag?.citations_extracted ?? 0;
   const hasPrecedingIntervention = (() => {
@@ -315,6 +323,7 @@ export function EntryDetailRouter({
     { id: 'lookahead', label: 'Lookahead', has: !!lookaheadDiag, copy: lookaheadDiag ? JSON.stringify(lookaheadDiag, null, 2) : '' },
     { id: 'cite', label: 'Cite', has: !!citeStage, copy: JSON.stringify(citeStage?.work_product, null, 2) ?? '' },
     { id: 'claims', label: 'Claims', has: hasClaims, ranEmpty: !hasClaims && stageRan && entry.type === 'statement' && !pipelineError, copy: claimsCopy },
+    { id: 'exclusion', label: 'Exclusion', has: hasExclusionData, copy: '' },
     { id: 'tax-refs', label: 'Taxonomy Refs', count: taxRefCount, has: taxRefCount > 0, copy: entry.taxonomy_refs?.map(r => `${r.node_id}: ${r.relevance}`).join('\n') ?? '' },
   ];
   const tabEnabled = (t: typeof tabs[0]) => t.has || !!t.ranEmpty;
@@ -724,6 +733,11 @@ export function EntryDetailRouter({
                 searchQuery={searchQuery}
               />
             </div>
+          )}
+
+          {/* ══════════════ EXCLUSION GUARD TAB ══════════════ */}
+          {activeTab === 'exclusion' && (
+            <ExclusionGuardTab diag={diag} />
           )}
 
           {/* ══════════════ EVIDENCE TAB (delegated) ══════════════ */}

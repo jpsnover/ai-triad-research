@@ -35,6 +35,7 @@ import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName } from './userContext.js';
 import * as fileIO from './fileIO.js';
 import * as ai from './aiBackends.js';
+import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
 import * as proxyTiers from './proxyTiers.js';
 import * as rateLimiter from './rateLimiter.js';
@@ -640,7 +641,7 @@ post('/api/ai/generate', async (req, res, body) => {
     const userId = principalName || '_anonymous';
 
     // Check backend is allowed
-    const backend = ai.resolveBackend(model || 'gemini-flash-lite-latest');
+    const backend = ai.resolveBackend(model || DEFAULT_MODEL);
     if (!tier.allowedBackends.includes(backend)) {
       res.writeHead(403); res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier` })); return;
     }
@@ -1134,7 +1135,7 @@ post('/api/evidence-qbaf', async (_req, res, body) => {
       },
     };
 
-    const evalModel = model || 'gemini-flash-lite-latest';
+    const evalModel = model || DEFAULT_MODEL;
     const result = await buildEvidenceQbaf(claimText, evidenceItems, adapter, evalModel, {
       claimBaseStrength: 0.5,
     });

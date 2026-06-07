@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState } from 'react';
+import { TOAST_DURATION_FEEDBACK } from '../../constants';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { TaxonomyRef, TranscriptEntry } from '../../types/debate';
@@ -88,7 +89,7 @@ export function TaxonomyRefsSection({ refs, policyRefs, metaPolicyRefs, entry, s
     if (!entry) return;
     handleExplainEntry(entry);
     setExplainCopied(true);
-    setTimeout(() => setExplainCopied(false), 3000);
+    setTimeout(() => setExplainCopied(false), TOAST_DURATION_FEEDBACK);
   };
 
   const briefStage = stageDiagnostics?.find(s => s.stage === 'brief');
