@@ -280,6 +280,14 @@ export function buildRegenHint(result: LookaheadGateResult): string {
 
 // ── Per-claim marginal utility (v2) ───────────────────────
 
+export interface ClaimEdgeContext {
+  type: 'supports' | 'attacks';
+  target_id: string;
+  target_text: string;
+  target_speaker: SpeakerId;
+  is_own: boolean;
+}
+
 export interface PerClaimResult {
   /** Index in the original tentativeClaims array. */
   index: number;
@@ -293,6 +301,8 @@ export interface PerClaimResult {
   classification: 'STRONG' | 'WEAK' | 'PRESERVE';
   /** Which utility component this claim impacts most (for reason generation). */
   dominant_component: 'position_strength' | 'attack_effectiveness' | 'crux_engagement';
+  /** Edges connecting this claim to existing argument network nodes. */
+  edges_context?: ClaimEdgeContext[];
 }
 
 export interface ClaimAnalysisItem {
@@ -415,6 +425,23 @@ export function evaluateLookaheadPerClaim(input: LookaheadGateInput): {
 
     const dominant = identifyDominantComponent(withoutResult.utility_after, batchResult.utility_after);
 
+    const nodeId = tentativeNodeIds[i];
+    const nodeMap = new Map(input.existingNodes.map(n => [n.id, n]));
+    const edgesContext: ClaimEdgeContext[] = (input.tentativeEdges as ArgumentNetworkEdge[])
+      .filter(e => e.source === nodeId || e.target === nodeId)
+      .map(e => {
+        const isSource = e.source === nodeId;
+        const targetId = isSource ? e.target : e.source;
+        const targetNode = nodeMap.get(targetId);
+        return {
+          type: e.type as 'supports' | 'attacks',
+          target_id: targetId,
+          target_text: targetNode?.text ?? targetId,
+          target_speaker: (targetNode?.speaker ?? 'unknown') as SpeakerId,
+          is_own: targetNode?.speaker === input.speaker,
+        };
+      });
+
     perClaim.push({
       index: i,
       text: input.tentativeClaims[i].text,
@@ -422,6 +449,7 @@ export function evaluateLookaheadPerClaim(input: LookaheadGateInput): {
       marginal_delta,
       classification: marginal_delta >= 0 ? 'STRONG' : 'WEAK',
       dominant_component: dominant,
+      edges_context: edgesContext,
     });
   }
 
@@ -475,8 +503,27 @@ function identifyDominantComponent(
   return deltas.reduce((a, b) => a.delta >= b.delta ? a : b).name;
 }
 
+function truncateClaimText(text: string, max = 60): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max - 1) + '…';
+}
+
+function describeEdgeImpact(edges: ClaimEdgeContext[] | undefined, filter: (e: ClaimEdgeContext) => boolean): string {
+  if (!edges) return '';
+  const matched = edges.filter(filter);
+  if (matched.length === 0) return '';
+  const first = matched[0];
+  const verb = first.type === 'attacks' ? 'attacks' : 'supports';
+  const owner = first.is_own ? 'your own' : 'opposing';
+  const label = truncateClaimText(first.target_text);
+  const extra = matched.length > 1 ? ` (and ${matched.length - 1} other${matched.length > 2 ? 's' : ''})` : '';
+  return ` — ${verb} ${owner} claim "${label}"${extra}`;
+}
+
 /** Generate a human-readable reason for a claim's classification. */
 function generateClaimReason(claim: PerClaimResult): string {
+  const edges = claim.edges_context;
+
   if (claim.classification === 'PRESERVE') {
     return 'Concession to opponent — intellectual honesty that advances wisdom generation.';
   }
@@ -486,7 +533,8 @@ function generateClaimReason(claim: PerClaimResult): string {
         return 'Directly engages a core crux — high-impact move that advances the debate.';
       }
       if (claim.dominant_component === 'attack_effectiveness') {
-        return 'Effective attack on opposing position — weakens their strongest arguments.';
+        const detail = describeEdgeImpact(edges, e => e.type === 'attacks' && !e.is_own);
+        return `Effective attack on opposing position${detail || ' — weakens their strongest arguments'}.`;
       }
       return 'Strong declarative claim — anchors your position with high specificity.';
     }
@@ -494,7 +542,8 @@ function generateClaimReason(claim: PerClaimResult): string {
       return 'Engages an active crux — keeps the debate focused on key disagreements.';
     }
     if (claim.dominant_component === 'attack_effectiveness') {
-      return 'Targets an opposing weak point — useful for shifting the balance.';
+      const detail = describeEdgeImpact(edges, e => e.type === 'attacks' && !e.is_own);
+      return `Targets an opposing weak point${detail || ' — useful for shifting the balance'}.`;
     }
     return 'Concrete mechanism or evidence — advances the debate with actionable specificity.';
   }
@@ -504,16 +553,27 @@ function generateClaimReason(claim: PerClaimResult): string {
     return 'Too vague to anchor your position — low specificity dilutes otherwise strong claims.';
   }
   if (claim.dominant_component === 'position_strength' && claim.marginal_delta < -0.005) {
-    return 'Undermines your own position — this claim weakens your argument network coherence.';
+    const selfAttacks = describeEdgeImpact(edges, e => e.type === 'attacks' && e.is_own);
+    if (selfAttacks) {
+      return `Undermines your own position${selfAttacks}, reducing network coherence by ${Math.abs(claim.marginal_delta * 100).toFixed(1)}%.`;
+    }
+    const selfSupports = edges?.filter(e => e.type === 'supports' && e.is_own) ?? [];
+    if (selfSupports.length === 0 && edges && edges.length > 0) {
+      const detail = describeEdgeImpact(edges, () => true);
+      return `Undermines your own position${detail} — introduces tension without strengthening your network (Δu ${(claim.marginal_delta * 100).toFixed(1)}%).`;
+    }
+    return `Undermines your own position — weakens argument network coherence (Δu ${(claim.marginal_delta * 100).toFixed(1)}%).`;
   }
   if (claim.dominant_component === 'attack_effectiveness') {
-    return 'Ineffective attack — targets a well-defended position without sufficient support.';
+    const detail = describeEdgeImpact(edges, e => e.type === 'attacks' && !e.is_own);
+    return `Ineffective attack${detail || ' — targets a well-defended position'} without sufficient support.`;
   }
   if (claim.dominant_component === 'crux_engagement') {
     return 'Avoids the core cruxes — tangential argument that distracts from key disagreements.';
   }
   if (claim.marginal_delta < -0.005) {
-    return 'Weakens overall position — the cost of this claim outweighs its contribution.';
+    const detail = describeEdgeImpact(edges, () => true);
+    return `Weakens overall position${detail} — the cost of this claim outweighs its contribution (Δu ${(claim.marginal_delta * 100).toFixed(1)}%).`;
   }
   return 'Marginal contribution — this claim adds little strategic value to your position.';
 }

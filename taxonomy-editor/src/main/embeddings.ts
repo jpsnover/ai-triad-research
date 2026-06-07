@@ -26,6 +26,7 @@ const EXPECTED_DIMENSION = 384;
 import {
   withTimeout,
   resolveBackend,
+  getDefaultTimeout,
   GEMINI_BASE,
   GEMINI_SAFETY_SETTINGS,
   buildModelIdMap,
@@ -719,10 +720,9 @@ export async function generateText(
     _lastLoggedModel = friendlyModel;
   }
 
-  const defaultTimeout = backend === 'deepseek' ? 180_000 : undefined;
   const opts: GenerateOptions = {
     temperature: temperature ?? _debateTemperature ?? 0.7,
-    timeoutMs: timeoutMs ?? defaultTimeout,
+    timeoutMs: timeoutMs ?? getDefaultTimeout(friendlyModel),
   };
 
   const providerFn = backend === 'deepseek'
@@ -787,10 +787,9 @@ export async function generateChatStream(
     const prompt = systemInstruction + '\n\n' + messages.map(m =>
       m.role === 'user' ? `[User]: ${m.content}` : `[Assistant]: ${m.content}`
     ).join('\n\n') + '\n\n[Assistant]:';
-    const defaultTimeout = backend === 'deepseek' ? 180_000 : backend === 'groq' ? 60_000 : 120_000;
     const opts: GenerateOptions = {
       temperature: temperature ?? 0.7,
-      timeoutMs: defaultTimeout,
+      timeoutMs: getDefaultTimeout(friendlyModel),
     };
     const providerResult = backend === 'deepseek'
       ? await generateViaDeepSeekStream(electronFetch, prompt, resolvedModel, apiKey, opts, onChunk)
