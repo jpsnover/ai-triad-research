@@ -159,6 +159,11 @@ export interface AppAPI {
   readPsPrompt: (promptName: string) => Promise<{ text: string | null; error?: string }>;
   listPsPrompts: () => Promise<string[]>;
 
+  // --- Golden Set Validation ---
+  loadGoldenSet: () => Promise<{ metadata: unknown; claims: unknown[] } | null>;
+  loadValidationResults: () => Promise<{ results: unknown[]; saved_at: string } | null>;
+  saveValidationResults: (data: unknown) => Promise<void>;
+
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
   getCalibrationLog: () => Promise<{ entries: unknown[]; validationReport: unknown }>;

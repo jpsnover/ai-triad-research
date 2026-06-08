@@ -166,6 +166,11 @@ export const api: AppAPI = {
   readPsPrompt: (name) => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).readPsPrompt(name) as Promise<{ text: string | null; error?: string }>,
   listPsPrompts: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).listPsPrompts() as Promise<string[]>,
 
+  // Golden Set Validation
+  loadGoldenSet: () => window.electronAPI.loadGoldenSet(),
+  loadValidationResults: () => window.electronAPI.loadValidationResults(),
+  saveValidationResults: (data) => window.electronAPI.saveValidationResults(data),
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),
