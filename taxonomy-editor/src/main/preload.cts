@@ -188,6 +188,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPovProgressionWindow: (): Promise<void> => ipcRenderer.invoke('open-pov-progression-window'),
   closeDiagnosticsWindow: (): Promise<void> => ipcRenderer.invoke('close-diagnostics-window'),
 
+  // Chat popout window
+  openChatWindow: (): Promise<void> => ipcRenderer.invoke('open-chat-window'),
+  onChatPopoutClosed: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('chat-popout-closed', listener);
+    return () => { ipcRenderer.removeListener('chat-popout-closed', listener); };
+  },
+
   // Prompt Diff window
   openPromptDiffWindow: (debateId: string, entryId: string): Promise<void> =>
     ipcRenderer.invoke('open-prompt-diff-window', debateId, entryId),

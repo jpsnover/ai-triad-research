@@ -21,6 +21,7 @@ import { StartupProgressScreen } from './components/StartupProgressScreen';
 import { DiagnosticsWindow } from './components/debate-diagnostics';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
 import { DebatePopoutWindow } from './components/DebatePopoutWindow';
+import { ChatWindow } from './components/ChatWindow';
 import { PromptDiffWindow } from './components/PromptDiffWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
@@ -143,6 +144,9 @@ export function App() {
   }
   if (hash.startsWith('#prompt-diff-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PromptDiffWindow /></ErrorBoundary>;
+  }
+  if (hash === '#chat-window') {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><ChatWindow /></ErrorBoundary>;
   }
   if (hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AnalyticsDashboard /></ErrorBoundary>;
@@ -573,7 +577,6 @@ function MainApp() {
           {activeTab === 'conflicts' && <ConflictsTab />}
           {activeTab === 'cruxes' && <CruxesTab />}
           {activeTab === 'debate' && <DebateTab />}
-          {activeTab === 'chat' && <ChatTab />}
           {activeTab === 'summaries' && <SummariesTab />}
         </div>
       </div>

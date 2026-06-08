@@ -206,6 +206,8 @@ export interface AppAPI {
   // --- Event listeners (return unsubscribe function) ---
   onDiagnosticsStateUpdate: (callback: (state: unknown) => void) => () => void;
   onDiagnosticsPopoutClosed: (callback: () => void) => () => void;
+  openChatWindow: () => Promise<void>;
+  onChatPopoutClosed: (callback: () => void) => () => void;
   requestReExtractClaims: (entryId: string) => void;
   onReExtractClaims: (callback: (entryId: string) => void) => () => void;
   onDebateWindowLoad: (callback: (debateId: string) => void) => () => void;

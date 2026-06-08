@@ -522,6 +522,10 @@ const rawApi: AppAPI = {
     diagClosedCallbacks.add(cb);
     return () => { diagClosedCallbacks.delete(cb); };
   },
+  openChatWindow: async () => {
+    window.open(`${window.location.origin}#chat-window`, 'pover-chat', 'width=700,height=800');
+  },
+  onChatPopoutClosed: () => () => {},
   requestReExtractClaims: (entryId) => {
     diagChannel?.postMessage({ type: 're-extract-claims', entryId });
   },
