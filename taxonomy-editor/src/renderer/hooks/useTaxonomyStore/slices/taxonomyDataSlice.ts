@@ -404,7 +404,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
           const file = state[key as typeof POV_KEYS[number]];
           if (file) {
             for (const node of file.nodes) {
-              nodesToEmbed.push({ id: node.id, text: stripExcludes(node.description), pov: key, exclusionText: extractExcludesText(node.description) });
+              nodesToEmbed.push({ id: node.id, text: node.description, pov: key, exclusionText: extractExcludesText(node.description) });
             }
           }
         } else if (key === 'situations') {

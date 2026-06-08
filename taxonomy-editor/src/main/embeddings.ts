@@ -261,7 +261,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
   if (nodes.length === 0) return;
 
   const filePath = getEmbeddingsPath();
-  const items = nodes.map(n => ({ id: n.id, text: stripExcludes(n.text) }));
+  const items = nodes.map(n => ({ id: n.id, text: n.text }));
   const inputJson = JSON.stringify(items);
 
   console.log(`[embeddings] Updating ${nodes.length} node embeddings...`);
