@@ -17,7 +17,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { api } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { formatTaxonomyContext } from '../utils/taxonomyContext';
-import type { TaxonomyContext } from '../utils/taxonomyContext';
+import type { TaxonomyContext, FormatContextConfig } from '../utils/taxonomyContext';
 import {
   chatSystemPrompt,
   chatOpeningPrompt,
@@ -66,6 +66,8 @@ async function generateTextWithProgress(
 function stripCodeFences(text: string): string {
   return text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
 }
+
+const CHAT_CONTEXT_CONFIG: FormatContextConfig = { maxNodes: 9999, maxDesires: 9999 };
 
 function getTaxonomyContext(pov: string): TaxonomyContext {
   const state = useTaxonomyStore.getState();
@@ -274,7 +276,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       const info = POVER_INFO[activeChat.pover];
       const ctx = getTaxonomyContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
 
       // Set per-mode temperature before generating
@@ -348,7 +350,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       const info = POVER_INFO[activeChat.pover];
       const ctx = getTaxonomyContext(info.pov);
-      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov);
+      const taxonomyBlock = formatTaxonomyContext(ctx, info.pov, undefined, CHAT_CONTEXT_CONFIG);
       const model = getConfiguredModel();
 
       // Set per-mode temperature before generating
