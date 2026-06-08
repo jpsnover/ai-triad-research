@@ -67,12 +67,11 @@ function stripCodeFences(text: string): string {
   return text.replace(/```json\s*/g, '').replace(/```/g, '').trim();
 }
 
-/** Get taxonomy data for a given POV — caps applied to prevent context explosion */
 function getTaxonomyContext(pov: string): TaxonomyContext {
   const state = useTaxonomyStore.getState();
   const povFile = state[pov as 'accelerationist' | 'safetyist' | 'skeptic'];
-  const povNodes: PovNode[] = (povFile?.nodes ?? []).slice(0, 35);
-  const situationNodes: SituationNode[] = (state.situations?.nodes ?? []).slice(0, 15);
+  const povNodes: PovNode[] = povFile?.nodes ?? [];
+  const situationNodes: SituationNode[] = state.situations?.nodes ?? [];
   return { povNodes, situationNodes };
 }
 
