@@ -16490,8 +16490,14 @@ th[data-tooltip]::after {
   margin-bottom: 6px;
 }
 
+.validation-search-row {
+  display: flex;
+  gap: 4px;
+}
+
 .validation-search-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 6px 8px;
   font-size: 0.8rem;
   border: 1px solid var(--border, #e2e8f0);
@@ -16499,6 +16505,29 @@ th[data-tooltip]::after {
   background: var(--bg-primary, #fff);
   color: var(--text-primary, #1e293b);
 }
+
+.validation-pov-select {
+  padding: 4px 6px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 4px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1e293b);
+  cursor: pointer;
+}
+
+.validation-pov-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+  color: #fff;
+}
+
+.validation-pov-badge.pov-acc { background: #f97316; }
+.validation-pov-badge.pov-saf { background: #3b82f6; }
+.validation-pov-badge.pov-skp { background: #a855f7; }
 
 .validation-beliefs-toggle {
   font-size: 0.75rem;
@@ -16513,9 +16542,60 @@ th[data-tooltip]::after {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 300px;
+  max-height: 400px;
   overflow-y: auto;
   flex-shrink: 0;
+}
+
+.validation-search-item {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.validation-search-item.expanded {
+  border-color: var(--color-accent, #3b82f6);
+}
+
+.validation-search-item .validation-alt-item {
+  border: none;
+  border-radius: 0;
+}
+
+.validation-expanded-detail {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  background: var(--bg-secondary, #f8fafc);
+  font-size: 0.8rem;
+  color: var(--text-primary, #1e293b);
+}
+
+.validation-expanded-detail .validation-node-desc {
+  margin-bottom: 6px;
+  line-height: 1.45;
+}
+
+.validation-expanded-detail .validation-node-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted, #888);
+  margin-bottom: 6px;
+}
+
+.validation-select-correction-btn {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--color-error, #ef4444);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-error, #ef4444) 8%, transparent);
+  color: var(--color-error, #ef4444);
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.validation-select-correction-btn:hover {
+  background: color-mix(in srgb, var(--color-error, #ef4444) 16%, transparent);
 }
 
 /* Resize handles */

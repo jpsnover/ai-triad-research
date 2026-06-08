@@ -9,6 +9,12 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { GoldenClaim, Verdict, SpeakerFilter, VerdictFilter } from '../types/validation';
 import type { PovNode } from '../types/taxonomy';
 
+type SearchPovFilter = 'same' | 'all' | 'accelerationist' | 'safetyist' | 'skeptic';
+
+const POV_ABBREV: Record<string, string> = {
+  acc: 'ACC', saf: 'SAF', skp: 'SKE', cc: 'CC',
+};
+
 const SPEAKER_COLORS: Record<string, string> = {
   accelerationist: '#f97316',
   safetyist: '#3b82f6',
@@ -44,14 +50,23 @@ function truncate(text: string, max: number): string {
   return text.slice(0, max - 1) + '…';
 }
 
+const POV_KEYS = ['accelerationist', 'safetyist', 'skeptic'] as const;
+type PovKey = (typeof POV_KEYS)[number];
+
+const PREFIX_TO_POV: Record<string, PovKey> = {
+  acc: 'accelerationist',
+  saf: 'safetyist',
+  skp: 'skeptic',
+};
+
+function nodePovBadge(nodeId: string): string {
+  const prefix = nodeId.split('-')[0];
+  return POV_ABBREV[prefix] ?? prefix.toUpperCase();
+}
+
 function resolveNode(nodeId: string, store: ReturnType<typeof useTaxonomyStore>): PovNode | null {
   const prefix = nodeId.split('-')[0];
-  const povMap: Record<string, 'accelerationist' | 'safetyist' | 'skeptic'> = {
-    acc: 'accelerationist',
-    saf: 'safetyist',
-    skp: 'skeptic',
-  };
-  const pov = povMap[prefix];
+  const pov = PREFIX_TO_POV[prefix];
   if (!pov) return null;
   const file = store[pov];
   return file?.nodes?.find((n: PovNode) => n.id === nodeId) ?? null;
@@ -268,6 +283,8 @@ function AttributionPanel({
   const store = useTaxonomyStore();
   const { results, setVerdict, beliefsOnly, setBeliefsOnly } = useValidationStore();
   const [searchText, setSearchText] = React.useState('');
+  const [searchPov, setSearchPov] = React.useState<SearchPovFilter>('same');
+  const [expandedNodeId, setExpandedNodeId] = React.useState<string | null>(null);
 
   if (!claim) {
     return (
@@ -286,27 +303,30 @@ function AttributionPanel({
     .map(ref => ({ node: resolveNode(ref.node_id, store), similarity: ref.similarity, id: ref.node_id }))
     .filter((r): r is { node: PovNode; similarity: number; id: string } => r.node !== null);
 
-  const prefix = claim.attributed_node.split('-')[0];
-  const povMap: Record<string, 'accelerationist' | 'safetyist' | 'skeptic'> = {
-    acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic',
-  };
-  const samePov = povMap[prefix];
+  const claimPov = PREFIX_TO_POV[claim.attributed_node.split('-')[0]];
+
   const searchPool = useMemo(() => {
-    if (!samePov) return [];
-    const file = store[samePov];
-    if (!file?.nodes) return [];
-    if (beliefsOnly) {
-      return file.nodes.filter((n: PovNode) => n.category === 'Beliefs');
+    const collectNodes = (pov: PovKey): PovNode[] => {
+      const file = store[pov];
+      if (!file?.nodes) return [];
+      return beliefsOnly ? file.nodes.filter((n: PovNode) => n.category === 'Beliefs') : file.nodes;
+    };
+
+    if (searchPov === 'same') {
+      return claimPov ? collectNodes(claimPov) : [];
     }
-    return file.nodes;
-  }, [store, samePov, beliefsOnly]);
+    if (searchPov === 'all') {
+      return POV_KEYS.flatMap(collectNodes);
+    }
+    return collectNodes(searchPov);
+  }, [store, claimPov, searchPov, beliefsOnly]);
 
   const searchResults = useMemo(() => {
     if (!searchText.trim()) return [];
     const q = searchText.toLowerCase();
     return searchPool
       .filter((n: PovNode) => n.label.toLowerCase().includes(q) || n.description.toLowerCase().includes(q) || n.id.includes(q))
-      .slice(0, 20);
+      .slice(0, 30);
   }, [searchPool, searchText]);
 
   const handleSelectCorrection = (nodeId: string) => {
@@ -390,13 +410,26 @@ function AttributionPanel({
 
       <h3 className="validation-section-title">Search Nodes</h3>
       <div className="validation-search-controls">
-        <input
-          type="text"
-          className="validation-search-input"
-          placeholder="Search by label, ID, or description..."
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-        />
+        <div className="validation-search-row">
+          <input
+            type="text"
+            className="validation-search-input"
+            placeholder="Search by label, ID, or description..."
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+          />
+          <select
+            className="validation-pov-select"
+            value={searchPov}
+            onChange={e => setSearchPov(e.target.value as SearchPovFilter)}
+          >
+            <option value="same">Same POV</option>
+            <option value="all">All POVs</option>
+            <option value="accelerationist">Accelerationist</option>
+            <option value="safetyist">Safetyist</option>
+            <option value="skeptic">Skeptic</option>
+          </select>
+        </div>
         <label className="validation-beliefs-toggle">
           <input
             type="checkbox"
@@ -408,21 +441,43 @@ function AttributionPanel({
       </div>
       {searchResults.length > 0 && (
         <div className="validation-search-results">
-          {searchResults.map((n: PovNode) => (
-            <button
-              key={n.id}
-              className="validation-alt-item"
-              onClick={() => isIncorrect && handleSelectCorrection(n.id)}
-              disabled={!isIncorrect}
-            >
-              <div className="validation-alt-header">
-                <span className="validation-node-id">{n.id}</span>
-                <span className="validation-node-category-tag">{n.category}</span>
+          {searchResults.map((n: PovNode) => {
+            const isExpanded = expandedNodeId === n.id;
+            return (
+              <div key={n.id} className={`validation-search-item${isExpanded ? ' expanded' : ''}`}>
+                <button
+                  className="validation-alt-item"
+                  onClick={() => setExpandedNodeId(isExpanded ? null : n.id)}
+                >
+                  <div className="validation-alt-header">
+                    <span className={`validation-pov-badge pov-${n.id.split('-')[0]}`}>{nodePovBadge(n.id)}</span>
+                    <span className="validation-node-id">{n.id}</span>
+                    <span className="validation-node-category-tag">{n.category}</span>
+                  </div>
+                  <div className="validation-node-label">{n.label}</div>
+                  {!isExpanded && (
+                    <div className="validation-node-desc-preview">{truncate(n.description, 120)}</div>
+                  )}
+                </button>
+                {isExpanded && (
+                  <div className="validation-expanded-detail">
+                    <div className="validation-node-desc">{n.description}</div>
+                    {n.confidence != null && (
+                      <div className="validation-node-meta">Confidence: {n.confidence.toFixed(3)}</div>
+                    )}
+                    {isIncorrect && (
+                      <button
+                        className="validation-select-correction-btn"
+                        onClick={() => handleSelectCorrection(n.id)}
+                      >
+                        Select as correction
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="validation-node-label">{n.label}</div>
-              <div className="validation-node-desc-preview">{truncate(n.description, 120)}</div>
-            </button>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
