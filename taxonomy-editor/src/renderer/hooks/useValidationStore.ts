@@ -55,6 +55,9 @@ interface ValidationStore {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+const GOLDEN_SET_PATH = 'comp-linguist/_golden_test_set.json';
+const VALIDATION_RESULTS_PATH = 'comp-linguist/_golden_validation_results.json';
+
 function debouncedSave(results: Map<string, ValidationResult>): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -62,7 +65,7 @@ function debouncedSave(results: Map<string, ValidationResult>): void {
       results: Array.from(results.values()),
       saved_at: new Date().toISOString(),
     };
-    api.saveValidationResults(payload).catch((err: unknown) => {
+    api.writeResearchFile(VALIDATION_RESULTS_PATH, payload).catch((err: unknown) => {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'validation-store',
@@ -114,8 +117,8 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
     set({ loading: true });
     try {
       const [goldenSet, existingResults] = await Promise.all([
-        api.loadGoldenSet(),
-        api.loadValidationResults(),
+        api.readResearchFile(GOLDEN_SET_PATH),
+        api.readResearchFile(VALIDATION_RESULTS_PATH),
       ]);
       const claims: GoldenClaim[] = goldenSet?.claims ?? [];
       const restoredResults = new Map<string, ValidationResult>();

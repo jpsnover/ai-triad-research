@@ -62,20 +62,6 @@ import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 const VALID_POV = z.enum(['accelerationist', 'safetyist', 'skeptic', 'situations', 'cross_cutting']);
 const SafePath = z.string().min(1).max(500);
 const NodeId = z.string().regex(/^[a-z]{2,3}-[a-z]+-\d{3}$|^cc-\d{3}$|^pol-\d{3}$/);
-const ValidationVerdict = z.enum(['correct', 'incorrect', 'uncertain', 'novel']);
-const ValidationResultSchema = z.object({
-  claim_id: z.string().min(1).max(20),
-  original_node: z.string().min(1).max(50),
-  verdict: ValidationVerdict,
-  corrected_node: z.string().max(50).optional(),
-  corrected_category: z.string().max(50).optional(),
-  reviewer_notes: z.string().max(2000).optional(),
-  reviewed_at: z.string(),
-});
-const ValidationResultsFileSchema = z.object({
-  results: z.array(ValidationResultSchema).max(2000),
-  saved_at: z.string(),
-});
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('load-ai-models', () => {
@@ -1233,45 +1219,57 @@ document.addEventListener('DOMContentLoaded', function() {
     return { cancelled: false, path: result.filePaths[0] };
   });
 
-  // ── Golden Set Validation ──────────────────────────────────────────────────
-  ipcMain.handle('load-golden-set', () => {
-    const filePath = path.join(PROJECT_ROOT, 'research', 'comp-linguist', '_golden_test_set.json');
-    try {
-      const raw = fs.readFileSync(filePath, 'utf-8');
-      return JSON.parse(raw);
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'ipc-golden-set',
-        level: 'error',
-        message: 'Failed to load golden test set',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
-      });
-      return null;
-    }
-  });
+  // ── Research file access (path-validated) ───────────────────────────────────
+  const RESEARCH_DIR = path.join(PROJECT_ROOT, 'research');
+  const MAX_RESEARCH_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-  ipcMain.handle('load-validation-results', () => {
-    const filePath = path.join(PROJECT_ROOT, 'research', 'comp-linguist', '_golden_validation_results.json');
+  function resolveResearchPath(relativePath: string): string {
+    const resolved = path.resolve(RESEARCH_DIR, relativePath);
+    if (!resolved.startsWith(RESEARCH_DIR + path.sep) && resolved !== RESEARCH_DIR) {
+      throw new ActionableError({
+        goal: 'Access research file',
+        problem: `Path traversal blocked: "${relativePath}" resolves outside research/`,
+        location: 'ipcHandlers:resolveResearchPath',
+        nextSteps: ['Use a relative path within the research/ directory'],
+      });
+    }
+    return resolved;
+  }
+
+  ipcMain.handle('read-research-file', (_event, relativePath: string) => {
+    const filePath = resolveResearchPath(relativePath);
     try {
       if (!fs.existsSync(filePath)) return null;
+      const stat = fs.statSync(filePath);
+      if (stat.size > MAX_RESEARCH_FILE_SIZE) {
+        throw new ActionableError({
+          goal: 'Read research file',
+          problem: `File exceeds 10 MB size limit (${(stat.size / 1024 / 1024).toFixed(1)} MB)`,
+          location: `ipcHandlers:read-research-file(${relativePath})`,
+          nextSteps: ['Use a smaller file or process it in chunks'],
+        });
+      }
       const raw = fs.readFileSync(filePath, 'utf-8');
       return JSON.parse(raw);
     } catch (err) {
+      if (err instanceof ActionableError) throw err;
       getGlobalRecorder()?.record({
         type: 'system.error',
-        component: 'ipc-golden-set',
+        component: 'ipc-research-file',
         level: 'error',
-        message: 'Failed to load validation results',
+        message: `Failed to read research file: ${relativePath}`,
         error: { name: (err as Error).name ?? 'Error', message: String(err) },
       });
       return null;
     }
   });
 
-  ipcMain.handle('save-validation-results', (_event, data: unknown) => {
-    const parsed = ValidationResultsFileSchema.parse(data);
-    const filePath = path.join(PROJECT_ROOT, 'research', 'comp-linguist', '_golden_validation_results.json');
-    writeJsonFileAtomic(filePath, parsed);
+  ipcMain.handle('write-research-file', (_event, relativePath: string, data: unknown) => {
+    const filePath = resolveResearchPath(relativePath);
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    writeJsonFileAtomic(filePath, data);
   });
 }

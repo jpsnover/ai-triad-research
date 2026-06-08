@@ -6,9 +6,8 @@ import type { GoldenClaim, ValidationResult } from '../types/validation';
 
 const { mockApi } = vi.hoisted(() => {
   const mockApi = {
-    loadGoldenSet: vi.fn().mockResolvedValue(null),
-    loadValidationResults: vi.fn().mockResolvedValue(null),
-    saveValidationResults: vi.fn().mockResolvedValue(undefined),
+    readResearchFile: vi.fn().mockResolvedValue(null),
+    writeResearchFile: vi.fn().mockResolvedValue(undefined),
   };
   return { mockApi };
 });
@@ -70,14 +69,9 @@ describe('useValidationStore', () => {
         verdict: 'correct',
         reviewed_at: '2026-06-07T00:00:00.000Z',
       };
-      mockApi.loadGoldenSet.mockResolvedValueOnce({
-        metadata: { total_claims: 5 },
-        claims: SAMPLE_CLAIMS,
-      });
-      mockApi.loadValidationResults.mockResolvedValueOnce({
-        results: [existingResult],
-        saved_at: '2026-06-07T00:00:00.000Z',
-      });
+      mockApi.readResearchFile
+        .mockResolvedValueOnce({ metadata: { total_claims: 5 }, claims: SAMPLE_CLAIMS })
+        .mockResolvedValueOnce({ results: [existingResult], saved_at: '2026-06-07T00:00:00.000Z' });
 
       await useValidationStore.getState().loadGoldenSet();
 
@@ -89,8 +83,7 @@ describe('useValidationStore', () => {
     });
 
     it('handles missing golden set gracefully', async () => {
-      mockApi.loadGoldenSet.mockResolvedValueOnce(null);
-      mockApi.loadValidationResults.mockResolvedValueOnce(null);
+      mockApi.readResearchFile.mockResolvedValue(null);
 
       await useValidationStore.getState().loadGoldenSet();
 
@@ -100,11 +93,9 @@ describe('useValidationStore', () => {
     });
 
     it('handles missing results file gracefully', async () => {
-      mockApi.loadGoldenSet.mockResolvedValueOnce({
-        metadata: { total_claims: 5 },
-        claims: SAMPLE_CLAIMS,
-      });
-      mockApi.loadValidationResults.mockResolvedValueOnce(null);
+      mockApi.readResearchFile
+        .mockResolvedValueOnce({ metadata: { total_claims: 5 }, claims: SAMPLE_CLAIMS })
+        .mockResolvedValueOnce(null);
 
       await useValidationStore.getState().loadGoldenSet();
 
@@ -128,9 +119,9 @@ describe('useValidationStore', () => {
       expect(result!.original_node).toBe('saf-beliefs-126');
       expect(result!.reviewed_at).toBeTruthy();
 
-      expect(mockApi.saveValidationResults).not.toHaveBeenCalled();
+      expect(mockApi.writeResearchFile).not.toHaveBeenCalled();
       vi.advanceTimersByTime(500);
-      expect(mockApi.saveValidationResults).toHaveBeenCalledTimes(1);
+      expect(mockApi.writeResearchFile).toHaveBeenCalledTimes(1);
     });
 
     it('records corrected_node for incorrect verdict', () => {
@@ -172,13 +163,13 @@ describe('useValidationStore', () => {
       expect(useValidationStore.getState().results.has('AN-1')).toBe(false);
 
       vi.advanceTimersByTime(500);
-      expect(mockApi.saveValidationResults).toHaveBeenCalledTimes(1);
+      expect(mockApi.writeResearchFile).toHaveBeenCalledTimes(1);
     });
 
     it('no-ops for non-existent claim', () => {
       useValidationStore.getState().clearVerdict('FAKE-999');
       vi.advanceTimersByTime(500);
-      expect(mockApi.saveValidationResults).not.toHaveBeenCalled();
+      expect(mockApi.writeResearchFile).not.toHaveBeenCalled();
     });
   });
 

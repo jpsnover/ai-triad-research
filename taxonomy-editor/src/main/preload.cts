@@ -391,13 +391,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listPsPrompts: (): Promise<string[]> =>
     ipcRenderer.invoke('list-ps-prompts'),
 
-  // Golden Set Validation
-  loadGoldenSet: (): Promise<unknown> =>
-    ipcRenderer.invoke('load-golden-set'),
-  loadValidationResults: (): Promise<unknown> =>
-    ipcRenderer.invoke('load-validation-results'),
-  saveValidationResults: (data: unknown): Promise<void> =>
-    ipcRenderer.invoke('save-validation-results', data),
+  // Research file access (path-validated)
+  readResearchFile: (relativePath: string): Promise<unknown> =>
+    ipcRenderer.invoke('read-research-file', relativePath),
+  writeResearchFile: (relativePath: string, data: unknown): Promise<void> =>
+    ipcRenderer.invoke('write-research-file', relativePath, data),
 
   // Clipboard (Electron 40: renderer clipboard API deprecated)
   clipboardWriteText: (text: string): Promise<void> =>

@@ -325,9 +325,8 @@ const rawApi: AppAPI = {
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
-  loadGoldenSet: () => get('/api/validation/golden-set'),
-  loadValidationResults: () => get('/api/validation/results'),
-  saveValidationResults: (data) => put('/api/validation/results', data).then(() => {}),
+  readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`),
+  writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
   getCalibrationHistory: () => get('/api/calibration/history'),
   getCalibrationLog: () => get('/api/calibration/log'),
   exportDebateToFile: async (session, format = 'json', exportOptions) => {
@@ -416,10 +415,9 @@ const rawApi: AppAPI = {
   readPsPrompt: (name) => get(`/api/ps-prompts/${encodeURIComponent(name)}`),
   listPsPrompts: () => get('/api/ps-prompts'),
 
-  // Golden Set Validation
-  loadGoldenSet: () => get('/api/validation/golden-set').catch(() => null),
-  loadValidationResults: () => get('/api/validation/results').catch(() => null),
-  saveValidationResults: (data) => put('/api/validation/results', data).then(() => {}),
+  // Research file access
+  readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`).catch(() => null),
+  writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
 
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
