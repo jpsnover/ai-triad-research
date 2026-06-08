@@ -26,6 +26,7 @@ import { PromptDiffWindow } from './components/PromptDiffWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
 import { CruxesTab } from './components/CruxesTab';
+import { ValidationTab } from './components/ValidationTab';
 
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -566,7 +567,7 @@ function MainApp() {
         </button>
         <span className="mobile-header-title">Taxonomy Editor</span>
       </div>
-      {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries'].includes(activeTab) && <TabBar />}
+      {toolbarPanel === null && !['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab) && <TabBar />}
       <div className="app-body">
         <Toolbar />
         <div className="tab-content">
@@ -578,6 +579,7 @@ function MainApp() {
           {activeTab === 'cruxes' && <CruxesTab />}
           {activeTab === 'debate' && <DebateTab />}
           {activeTab === 'summaries' && <SummariesTab />}
+          {activeTab === 'validation' && <ValidationTab />}
         </div>
       </div>
       <SaveBar />

@@ -34,7 +34,7 @@ export function BottomNav() {
   const handleTaxonomy = () => {
     if (toolbarPanel !== null) setToolbarPanel(null);
     useTaxonomyStore.setState({ relatedNodeId: null, selectedEdge: null });
-    if (['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries'].includes(activeTab)) {
+    if (['situations', 'conflicts', 'cruxes', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab)) {
       setActiveTab('accelerationist');
     }
   };

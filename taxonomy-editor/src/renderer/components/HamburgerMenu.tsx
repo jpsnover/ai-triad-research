@@ -57,7 +57,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     else if (toolbarPanel === 'attrInfo') clearAttributeInfo();
   }, [toolbarPanel, clearSimilarSearch, showRelatedEdges, clearAttributeFilter, clearAttributeInfo]);
 
-  const switchTab = useCallback((tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries') => {
+  const switchTab = useCallback((tab: 'situations' | 'conflicts' | 'cruxes' | 'debate' | 'chat' | 'summaries' | 'validation') => {
     clearCurrentPanel();
     useTaxonomyStore.setState({ relatedNodeId: null, selectedEdge: null });
     setToolbarPanel(null);
@@ -116,7 +116,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       action: () => {
         clearCurrentPanel();
         setToolbarPanel(null);
-        if (['situations', 'conflicts', 'debate', 'chat', 'summaries'].includes(activeTab)) setActiveTab('accelerationist');
+        if (['situations', 'conflicts', 'debate', 'chat', 'summaries', 'validation'].includes(activeTab)) setActiveTab('accelerationist');
       },
     },
     {
@@ -142,6 +142,12 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /><line x1="8" y1="7" x2="16" y2="7" /><line x1="8" y1="11" x2="14" y2="11" /></svg>,
       active: activeTab === 'summaries' && toolbarPanel === null,
       action: () => switchTab('summaries'),
+    },
+    {
+      id: 'validation', label: 'Validation',
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>,
+      active: activeTab === 'validation' && toolbarPanel === null,
+      action: () => switchTab('validation'),
     },
   ];
 
