@@ -25,11 +25,15 @@ on:
         required: false
         default: ''
         type: string
-      enable_auth:
-        description: 'Enforce sign-in gate (requires authorized-users.json on data volume)'
-        required: false
-        default: false
-        type: boolean
+      auth_mode:
+        description: 'Authentication mode: optional (login + anonymous read-only), required (must sign in), disabled (no auth)'
+        required: true
+        default: 'optional'
+        type: choice
+        options:
+          - optional
+          - required
+          - disabled
       # enable_git_sync removed — GitHub API-first mode is always on (STORAGE_MODE=github-api)
 
 permissions:
@@ -91,7 +95,8 @@ jobs:
               googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }} \
               githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }} \
               githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }} \
-              authDisabled=${{ inputs.enable_auth && '' || '1' }} \
+              authDisabled=${{ inputs.auth_mode == 'disabled' && '1' || '' }}
+              authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }} \
               gitSyncEnabled=1 \
               githubRepo=${{ vars.SYNC_GITHUB_REPO }} \
               githubAppId=${{ vars.SYNC_GITHUB_APP_ID }} \
@@ -120,7 +125,8 @@ jobs:
             googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }}
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
             githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-            authDisabled=${{ inputs.enable_auth && '' || '1' }}
+            authDisabled=${{ inputs.auth_mode == 'disabled' && '1' || '' }}
+              authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }}
             gitSyncEnabled=1
             githubRepo=${{ vars.SYNC_GITHUB_REPO }}
             githubAppId=${{ vars.SYNC_GITHUB_APP_ID }}
