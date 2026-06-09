@@ -1,0 +1,10 @@
+{
+  "topic": "That copyright law should exempt technological copying for functional indexing, but restrict technological copying that encodes expressive data for generative output.",
+  "pacing": "moderate",
+  "useAdaptiveStaging": true,
+  "rounds": 3,
+  "model": "gemini-2.5-flash",
+  "audience": "policymakers",
+  "name": "t504-control-copyright-law",
+  "salienceBeacon": false
+}

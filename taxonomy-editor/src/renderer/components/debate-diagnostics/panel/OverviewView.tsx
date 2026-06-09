@@ -6,7 +6,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
-import type { SpeakerId, ArgumentNetworkNode, QbafTimelineEntry } from '../../../types/debate';
+import type { SpeakerId, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry } from '../../../types/debate';
 import { QbafClaimBadge, QbafEdgeIndicator } from '../../QbafOverlay';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
@@ -262,6 +262,102 @@ function TopicScopePanel({ scope }: { scope: TopicScope }) {
   );
 }
 
+function PanelArgumentNetwork({ an }: { an: { nodes: ArgumentNetworkNode[]; edges: ArgumentNetworkEdge[] } }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const caCount = an.edges.filter(e => e.type === 'attacks').length;
+  const raCount = an.edges.filter(e => e.type === 'supports').length;
+
+  const allExpanded = expandedIds.size === an.nodes.length && an.nodes.length > 0;
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedIds(new Set());
+    } else {
+      setExpandedIds(new Set(an.nodes.map(n => n.id)));
+    }
+  };
+  const toggleNode = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <CollapsibleSection title={`Argument Network — ${an.nodes.length} I-nodes, ${caCount} CA-nodes, ${raCount} RA-nodes`} defaultOpen>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+        <button
+          onClick={toggleAll}
+          style={{ fontSize: '0.6rem', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer' }}
+        >
+          {allExpanded ? 'Collapse All' : 'Expand All'}
+        </button>
+      </div>
+      {an.nodes.map(n => {
+        const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
+        const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
+        const responded = attacks.length > 0 || supports.length > 0;
+        const isSource = an.edges.some(e => e.source === n.id);
+        const expanded = expandedIds.has(n.id);
+        return (
+          <div key={n.id} className="diag-an-node">
+            <div className="diag-an-claim" style={{ cursor: 'pointer' }} onClick={() => toggleNode(n.id)}>
+              <span style={{ fontSize: '0.6rem', marginRight: 2, userSelect: 'none' }}>{expanded ? '▼' : '▶'}</span>
+              <span className="diag-badge diag-badge-move" style={{ fontSize: '0.55rem', cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
+              <span className="diag-an-id">{n.id}</span>
+              <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
+              {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.6rem' }}>[unaddressed]</span>}
+              <QbafClaimBadge node={{ ...n, base_strength: n.base_strength ?? 0.5 }} />
+              {(() => {
+                const base = n.base_strength ?? 0.5;
+                const computed = n.computed_strength ?? base;
+                const delta = computed - base;
+                return Math.abs(delta) > 0.01 ? (
+                  <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`} style={{ fontSize: '0.55rem' }}>
+                    ({delta > 0 ? '+' : ''}{delta.toFixed(2)})
+                  </span>
+                ) : null;
+              })()}
+              {n.verification_status && (
+                <span className={`diag-badge diag-verification-${n.verification_status}`} title={n.verification_evidence || n.verification_status}>
+                  {n.verification_status === 'verified' ? 'V' : n.verification_status === 'disputed' ? 'X' : '?'}
+                </span>
+              )}
+            </div>
+            {expanded && (
+              <>
+                <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>
+                  {n.text}
+                  {n.verification_evidence && n.verification_status === 'disputed' && (
+                    <div style={{ color: '#ef4444', fontSize: '0.6rem', marginTop: 2 }}>Evidence: {n.verification_evidence}</div>
+                  )}
+                </div>
+                {attacks.map(a => (
+                  <div key={a.id} className="diag-an-edge diag-an-attack">
+                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
+                    ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? ` via ${a.scheme}` : ''}
+                    {a.argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 4 }}>{a.argumentation_scheme}</span>}
+                    {a.weight != null && <QbafEdgeIndicator edge={a} />}
+                    {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {a.warrant}</div>}
+                  </div>
+                ))}
+                {supports.map(s => (
+                  <div key={s.id} className="diag-an-edge diag-an-support">
+                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', cursor: 'default' }} title={AIF_TOOLTIPS['RA']}>RA</span>
+                    ← {s.source} supports
+                    {s.weight != null && <QbafEdgeIndicator edge={s} />}
+                    {s.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {s.warrant}</div>}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        );
+      })}
+    </CollapsibleSection>
+  );
+}
+
 export function OverviewView() {
   const { activeDebate, askQuestion, debateGenerating } = useDebateStore(
     useShallow(s => ({ activeDebate: s.activeDebate, askQuestion: s.askQuestion, debateGenerating: s.debateGenerating }))
@@ -326,69 +422,7 @@ export function OverviewView() {
       }} />}
 
       {/* Argument Network */}
-      {an && an.nodes.length > 0 && (() => {
-        const caCount = an.edges.filter(e => e.type === 'attacks').length;
-        const raCount = an.edges.filter(e => e.type === 'supports').length;
-        return (
-        <CollapsibleSection title={`Argument Network — ${an.nodes.length} I-nodes, ${caCount} CA-nodes, ${raCount} RA-nodes`} defaultOpen>
-          {an.nodes.map(n => {
-            const attacks = an.edges.filter(e => e.target === n.id && e.type === 'attacks');
-            const supports = an.edges.filter(e => e.target === n.id && e.type === 'supports');
-            const responded = attacks.length > 0 || supports.length > 0;
-            const isSource = an.edges.some(e => e.source === n.id);
-            return (
-              <div key={n.id} className="diag-an-node">
-                <div className="diag-an-claim">
-                  <span className="diag-badge diag-badge-move" style={{ fontSize: '0.55rem', cursor: 'default' }} title={AIF_TOOLTIPS['I-node']}>I-node</span>
-                  <span className="diag-an-id">{n.id}</span>
-                  <span className="diag-an-speaker">({speakerLabel(n.speaker)})</span>
-                  {!responded && !isSource && <span style={{ color: '#f59e0b', fontSize: '0.6rem' }}>[unaddressed]</span>}
-                  <QbafClaimBadge node={{ ...n, base_strength: n.base_strength ?? 0.5 }} />
-                  {(() => {
-                    const base = n.base_strength ?? 0.5;
-                    const computed = n.computed_strength ?? base;
-                    const delta = computed - base;
-                    return Math.abs(delta) > 0.01 ? (
-                      <span className={`qbaf-delta ${delta > 0 ? 'qbaf-delta-up' : 'qbaf-delta-down'}`} style={{ fontSize: '0.55rem' }}>
-                        ({delta > 0 ? '+' : ''}{delta.toFixed(2)})
-                      </span>
-                    ) : null;
-                  })()}
-                </div>
-                {n.verification_status && (
-                  <span className={`diag-badge diag-verification-${n.verification_status}`} title={n.verification_evidence || n.verification_status}>
-                    {n.verification_status === 'verified' ? 'V' : n.verification_status === 'disputed' ? 'X' : '?'}
-                  </span>
-                )}
-                <div style={{ paddingLeft: 8, fontSize: '0.7rem' }}>
-                  {n.text}
-                  {n.verification_evidence && n.verification_status === 'disputed' && (
-                    <div style={{ color: '#ef4444', fontSize: '0.6rem', marginTop: 2 }}>Evidence: {n.verification_evidence}</div>
-                  )}
-                </div>
-                {attacks.map(a => (
-                  <div key={a.id} className="diag-an-edge diag-an-attack">
-                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(239,68,68,0.15)', color: '#ef4444', cursor: 'default' }} title={AIF_TOOLTIPS['CA']}>CA</span>
-                    ← {a.source} <strong>{a.attack_type}</strong>{a.scheme ? ` via ${a.scheme}` : ''}
-                    {a.argumentation_scheme && <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(99,102,241,0.15)', color: '#6366f1', marginLeft: 4 }}>{a.argumentation_scheme}</span>}
-                    {a.weight != null && <QbafEdgeIndicator edge={a} />}
-                    {a.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {a.warrant}</div>}
-                  </div>
-                ))}
-                {supports.map(s => (
-                  <div key={s.id} className="diag-an-edge diag-an-support">
-                    <span className="diag-badge" style={{ fontSize: '0.5rem', background: 'rgba(34,197,94,0.15)', color: '#22c55e', cursor: 'default' }} title={AIF_TOOLTIPS['RA']}>RA</span>
-                    ← {s.source} supports
-                    {s.weight != null && <QbafEdgeIndicator edge={s} />}
-                    {s.warrant && <div style={{ paddingLeft: 16, color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '0.65rem' }}>Warrant: {s.warrant}</div>}
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </CollapsibleSection>
-        );
-      })()}
+      {an && an.nodes.length > 0 && <PanelArgumentNetwork an={an} />}
 
       {/* What-If Mode (D-Q6) */}
       {an && an.nodes.length > 0 && (

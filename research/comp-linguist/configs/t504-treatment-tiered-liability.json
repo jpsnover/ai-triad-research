@@ -1,0 +1,10 @@
+{
+  "topic": "Under what conditions and through what specific economic and engineering pathways does a tiered-liability framework for foundational model deployment incentivize safety-critical engineering versus obstructing market entry for smaller developers? This inquiry must balance the competing interests of model developers, downstream deployers, and regulators while addressing the inherent tension between robust harm mitigation and the preservation of technological innovation.",
+  "pacing": "moderate",
+  "useAdaptiveStaging": true,
+  "rounds": 3,
+  "model": "gemini-2.5-flash",
+  "audience": "policymakers",
+  "name": "t504-treatment-tiered-liability",
+  "salienceBeacon": true
+}

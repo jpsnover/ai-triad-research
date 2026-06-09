@@ -114,8 +114,8 @@ function deriveStrength(edge: { strength?: string; weight?: number }): string {
   return 'tangential';
 }
 
-/** Expandable I-node row — edges + warrants always visible, expand shows debater attribution + claim text. */
-export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore, searchQuery }: {
+/** Expandable I-node row — collapsed by default showing ID, speaker, strength. Expand reveals claim text, edges, sub-scores. */
+export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource, computedStrength, statementId, strengthMap, onGotoEntry, stmtIdByEntry, focused, onUpdateSubScore, searchQuery, defaultExpanded = false }: {
   node: ArgumentNetworkNode;
   attacks: ArgumentNetworkEdge[];
   supports: ArgumentNetworkEdge[];
@@ -131,8 +131,10 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
   onUpdateSubScore: (nodeId: string, key: string, value: number) => void;
   /** Optional search query for highlighting matched text. */
   searchQuery?: string;
+  defaultExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => { setExpanded(defaultExpanded); }, [defaultExpanded]);
   const responded = attacks.length > 0 || supports.length > 0;
   const hasChildren = attacks.length > 0 || supports.length > 0;
   // isSource is kept in the signature for API compatibility — future callers may use it.
@@ -150,16 +152,12 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
   return (
     <div ref={rowRef} style={{ margin: '6px 0', paddingBottom: 6, borderBottom: '1px solid var(--border)', outline: focused ? '2px solid #f59e0b' : 'none', borderRadius: focused ? 4 : 0, fontSize: '0.85rem' }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 4 }}>
-        {hasChildren ? (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1, marginTop: 2, flexShrink: 0 }}
-          >
-            {expanded ? '▼' : '▶'}
-          </button>
-        ) : (
-          <span style={{ width: 10, flexShrink: 0 }} />
-        )}
+        <button
+          onClick={() => setExpanded(!expanded)}
+          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', lineHeight: 1, marginTop: 2, flexShrink: 0 }}
+        >
+          {expanded ? '▼' : '▶'}
+        </button>
         <div className="diag-claim-row" style={{ flex: 1, display: 'grid', gridTemplateColumns: '84px 110px 72px 180px 200px 60px 1fr', gap: '4px', alignItems: 'center' }}>
           {/* Col 1: AN ID + Statement ID */}
           <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -237,9 +235,9 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
           </span>
         </div>
       </div>
-      <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} query={searchQuery} /></div>
+      {expanded && <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} query={searchQuery} /></div>}
       {/* NL strength explanation (B2) */}
-      {(attacks.length > 0 || supports.length > 0) && (() => {
+      {expanded && (attacks.length > 0 || supports.length > 0) && (() => {
         const base = node.base_strength ?? 0.5;
         const computed = computedStrength ?? node.computed_strength ?? base;
         const band = computed >= 0.8 ? 'accepted' : computed >= 0.5 ? 'moderate' : computed >= 0.3 ? 'weak' : 'rejected';
@@ -284,7 +282,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
           </div>
         );
       })()}
-      {node.bdi_sub_scores && <SubScoreRow node={node} onUpdateSubScore={onUpdateSubScore} />}
+      {expanded && node.bdi_sub_scores && <SubScoreRow node={node} onUpdateSubScore={onUpdateSubScore} />}
 
       {/* Edges — shown when expanded */}
       {hasChildren && expanded && (

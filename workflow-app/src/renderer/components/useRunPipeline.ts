@@ -53,6 +53,10 @@ function extractSummary(stepId: string, log: string): string {
       const issues = lines.filter(l => /error|invalid|missing|broken|orphan/i.test(l) && !/VERBOSE/i.test(l));
       return issues.length > 0 ? `${issues.length} issues` : 'All valid';
     }
+    case 'backfill': {
+      const backfilled = lines.filter(l => /backfill|created key_point|resolved/i.test(l));
+      return backfilled.length > 0 ? `${backfilled.length} backfilled` : 'Backfill complete';
+    }
     case 'embeddings': {
       const embedded = lines.find(l => /(\d+)\s*(node|embedding|vector)/i.test(l));
       const match = embedded?.match(/(\d+)\s*(node|embedding|vector)/i);

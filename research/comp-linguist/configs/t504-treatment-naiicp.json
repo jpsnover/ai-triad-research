@@ -1,0 +1,10 @@
+{
+  "topic": "\"The United States Congress should establish a National AI Injury Compensation Program (NAIICP), modeled on the National Vaccine Injury Compensation Program (VICP), to grant limited liability immunity to AI developers in exchange for a mandatory excise tax and adherence to tiered federal safety standards.\" The Logical Framework: The Noise Thesis: Ground the affirmative case in the work of Kahneman, Sibony, and Sunstein. Professional human judgment is inherently \"noisy\" (unwanted variability); auditable AI reduces this noise and improves accuracy. The Liability Chill: Current unlimited liability and the power disparity between tech giants and individuals throttle the deployment of beneficial AI. The Mechanism: An excise tax on AI services, tiered by risk (e.g., healthcare vs. social media) and safety compliance levels (basic safety vs state of the art safety practices), funds AI safety research, auditing, and a no-fault administrative compensation board. Companies that do not adhere to safety standards are not covered and are not protected from unlimited liability.",
+  "pacing": "moderate",
+  "useAdaptiveStaging": true,
+  "rounds": 3,
+  "model": "gemini-2.5-flash",
+  "audience": "policymakers",
+  "name": "t504-treatment-naiicp",
+  "salienceBeacon": true
+}

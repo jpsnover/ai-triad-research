@@ -1,0 +1,60 @@
+{
+  "baseline": {
+    "mrr": 0.2959,
+    "top1": 0.1592,
+    "top5": 0.4408,
+    "count": 515
+  },
+  "best_mrr": 0.2959,
+  "best_epoch": 0,
+  "final_epoch": 3,
+  "history": [
+    {
+      "epoch": 0,
+      "mrr": 0.2959,
+      "top1": 0.1592,
+      "top5": 0.4408
+    },
+    {
+      "epoch": 1,
+      "mrr": 0.259,
+      "top1": 0.132,
+      "top5": 0.3845
+    },
+    {
+      "epoch": 2,
+      "mrr": 0.2544,
+      "top1": 0.134,
+      "top5": 0.3883
+    },
+    {
+      "epoch": 3,
+      "mrr": 0.2475,
+      "top1": 0.1301,
+      "top5": 0.3709
+    }
+  ],
+  "improvement": 0.0,
+  "improvement_pct": 0.0,
+  "config": {
+    "corpus": "debate_claims_corpus.json",
+    "epochs": 10,
+    "batch_size": 32,
+    "lr": 2e-05,
+    "warmup_ratio": 0.1,
+    "patience": 3,
+    "seed": 42,
+    "max_hard_negatives": 3,
+    "corpus_metadata": {
+      "generated_at": "2026-06-09T10:02:49Z",
+      "count_per_node": 5,
+      "total_nodes": 720,
+      "model": "gemini-2.5-flash",
+      "source": "debate_register_augmentation",
+      "successful_nodes": 712,
+      "failed_nodes": 8,
+      "total_pairs": 3560,
+      "positive_pairs": 3560
+    }
+  }
+}

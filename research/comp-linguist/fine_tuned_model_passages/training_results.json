@@ -1,0 +1,89 @@
+{
+  "baseline": {
+    "mrr": 0.2959,
+    "top1": 0.1592,
+    "top5": 0.4408,
+    "count": 515
+  },
+  "best_mrr": 0.2959,
+  "best_epoch": 0,
+  "final_epoch": 3,
+  "history": [
+    {
+      "epoch": 0,
+      "mrr": 0.2959,
+      "top1": 0.1592,
+      "top5": 0.4408
+    },
+    {
+      "epoch": 1,
+      "mrr": 0.2824,
+      "top1": 0.1534,
+      "top5": 0.4233
+    },
+    {
+      "epoch": 2,
+      "mrr": 0.2739,
+      "top1": 0.1495,
+      "top5": 0.3922
+    },
+    {
+      "epoch": 3,
+      "mrr": 0.2711,
+      "top1": 0.1476,
+      "top5": 0.3864
+    }
+  ],
+  "improvement": 0.0,
+  "improvement_pct": 0.0,
+  "config": {
+    "corpus": "training_corpus_passages.json",
+    "epochs": 10,
+    "batch_size": 32,
+    "lr": 2e-06,
+    "warmup_ratio": 0.1,
+    "patience": 3,
+    "seed": 42,
+    "max_hard_negatives": 3,
+    "corpus_metadata": {
+      "generated_at": "2026-06-08T22:22:15Z",
+      "total_pairs": 8096,
+      "positive_pairs": 7436,
+      "hard_negative_pairs": 660,
+      "unique_nodes_covered": 966,
+      "total_taxonomy_nodes": 720,
+      "gap_nodes": 14,
+      "coverage_rate": 1.3417,
+      "golden_set_claims": 515,
+      "golden_set_nodes": 175,
+      "sources": {
+        "snapshot_passage": 7436,
+        "evidence_fact": 2685,
+        "pov_keypoint": 8846,
+        "summary_factual_claim": 3461,
+        "assumes": 2315,
+        "policy_action": 1293,
+        "edge_propagated_snapshot_passage": 12922,
+        "edge_propagated_evidence_fact": 4815,
+        "edge_propagated_pov_keypoint": 16181,
+        "edge_propagated_summary_factual_claim": 5096,
+        "edge_propagated_assumes": 77,
+        "steelman_hard_negative": 660
+      },
+      "elapsed_seconds": 878.1,
+      "config": {
+        "passage_threshold": 0.35,
+        "passage_top_k": 3,
+        "edge_confidence": 0.7,
+        "decay": 0.5,
+        "min_weight": 0.3,
+        "skip_passages": false,
+        "max_prop_per_pair": 2
+      },
+      "filter": [
+        "snapshot_passage",
+        "steelman_hard_negative"
+      ]
+    }
+  }
+}

@@ -1516,9 +1516,23 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
 // ── Analytics ──
 
 get('/api/auth/me', (req, res) => {
-  const principalName = (req.headers['x-ms-client-principal-name'] as string) || '_anonymous';
-  const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
-  json(res, { user: principalName, idp });
+  const principalName = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-name'] as string) || ''
+    : '';
+  const idp = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-idp'] as string) || ''
+    : '';
+  const isAnon = !principalName;
+  const authOpt = process.env.AUTH_OPTIONAL === '1';
+  json(res, {
+    user: principalName || '_anonymous',
+    idp: idp || '',
+    anonymous: isAnon,
+    capabilities: {
+      ai: !isAnon || !authOpt,
+      write: !isAnon || !authOpt,
+    },
+  });
 });
 
 post('/api/analytics/event', (_req, res, body) => {
@@ -1804,9 +1818,39 @@ function isUserAuthorized(principalName: string, idp: string): boolean {
   return false;
 }
 
+// ── Anonymous route guard ──
+// When AUTH_OPTIONAL is enabled, anonymous users get read-only, non-AI access.
+// This function returns true if the request is allowed for anonymous users.
+const AI_ROUTE_PREFIXES = ['/api/keys', '/api/ai/', '/api/embeddings/', '/api/nli/'];
+
+function isAnonAllowedRoute(method: string, urlPath: string): boolean {
+  // Block all AI-related routes regardless of method
+  if (AI_ROUTE_PREFIXES.some(p => urlPath.startsWith(p))) return false;
+  if (urlPath === '/api/evidence-qbaf') return false;
+  if (urlPath === '/api/models/refresh') return false;
+  if (urlPath.startsWith('/api/harvest/')) return false;
+  if (/^\/api\/debates\/[^/]+\/news-report$/.test(urlPath)) return false;
+
+  if (method === 'GET') return true;
+  if (method === 'PUT' || method === 'DELETE') return false;
+
+  // POST: allowlist read-like operations, block everything else
+  const safePostPaths = [
+    '/api/flight-recorder/dump',
+    '/api/flight-recorder/server-dump',
+    '/api/debates/export',
+    '/api/source-evidence',
+    '/api/analytics/event',
+    '/api/data/check-updates',
+    '/focus-node',
+    '/debug/events',
+  ];
+  return safePostPaths.some(p => urlPath === p);
+}
+
 function buildLoginPage(showAnonymous: boolean): string {
   const subtitle = showAnonymous
-    ? 'Sign in for server-managed API keys, or continue anonymously with your own'
+    ? 'Sign in for full access, or browse read-only without signing in'
     : 'Sign in to continue';
 
   const anonymousSection = showAnonymous ? `
@@ -1815,7 +1859,7 @@ function buildLoginPage(showAnonymous: boolean): string {
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
     Continue without signing in
   </a>
-  <p class="anon-note">Anonymous users have lower rate limits and must provide their own API keys</p>` : '';
+  <p class="anon-note">Anonymous users have read-only access — sign in to use AI features and edit content</p>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2003,6 +2047,7 @@ async function handleRequestInner(
     || urlPath === '/healthz'
     || urlPath === '/status'
     || urlPath === '/api/models'
+    || urlPath === '/api/auth/me'
     || urlPath === '/api/sync/webhook/github'
     || urlPath.startsWith('/.auth/');
   // AUTH_DISABLED='1' (default) = anonymous access, no login page.
@@ -2052,6 +2097,16 @@ async function handleRequestInner(
         res.end(FORBIDDEN_PAGE(principalName));
         return;
       }
+    }
+  }
+
+  // Anonymous route guard: in AUTH_OPTIONAL mode, block AI + write routes
+  if (authOptional && !principalName && !isPublicPath) {
+    const method = req.method || 'GET';
+    if (!isAnonAllowedRoute(method, urlPath)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Sign in required', detail: 'AI features and editing require authentication. Sign in at /.auth/login/github to unlock full access.' }));
+      return;
     }
   }
 

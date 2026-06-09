@@ -1,0 +1,10 @@
+{
+  "topic": "Under what conditions can labor market policies, forged through collaboration among governments, businesses, and workers, effectively balance the imperative for economic growth via AI innovation with the critical need for social equity and worker protection? Through what specific mechanisms can these policies foster resilience and adaptation, particularly in sectors vulnerable to automation within developed economies over the next decade?",
+  "pacing": "moderate",
+  "useAdaptiveStaging": true,
+  "rounds": 3,
+  "model": "gemini-2.5-flash",
+  "audience": "policymakers",
+  "name": "t504-control-labor-market",
+  "salienceBeacon": false
+}

@@ -1,0 +1,10 @@
+{
+  "topic": "Congress should mandate that AI developers utilize siloed datasets, defined as restricted access tiers where models train on specific information without the ability to cross-reference external user data. This policy prioritizes the mitigation of unauthorized data exfiltration and corporate surveillance over the potential reduction in agent utility. By enforcing these architectural boundaries, regulators will force companies to prioritize individual privacy protections over the convenience of unified data harvesting.",
+  "pacing": "moderate",
+  "useAdaptiveStaging": true,
+  "rounds": 3,
+  "model": "gemini-2.5-flash",
+  "audience": "policymakers",
+  "name": "t504-treatment-siloed-datasets",
+  "salienceBeacon": true
+}

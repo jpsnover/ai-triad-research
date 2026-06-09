@@ -69,6 +69,14 @@ export const PIPELINE_STEPS: StepDefinition[] = [
     requiresConfig: false,
   },
   {
+    id: 'backfill',
+    name: 'Backfill Resolved Concepts',
+    description: 'Create key_point entries for resolved unmapped concepts that lack evidence trails',
+    phase: 'Validate',
+    canSkip: true,
+    requiresConfig: false,
+  },
+  {
     id: 'embeddings',
     name: 'Update Embeddings',
     description: 'Regenerate 384-dim sentence embeddings for all taxonomy nodes',
@@ -198,6 +206,8 @@ function buildPsCommand(stepId: string, config: Record<string, unknown>): string
     }
     case 'integrity':
       return `${moduleImport}; Test-TaxonomyIntegrity -Verbose`;
+    case 'backfill':
+      return `${moduleImport}; Repair-ResolvedBackfill -Verbose`;
     case 'embeddings':
       return `${moduleImport}; Update-TaxEmbeddings -Verbose`;
     case 'edges':

@@ -3929,6 +3929,44 @@ body {
   font-size: 0.78rem;
   margin-top: 4px;
 }
+.settings-key-actions-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 4px 0;
+}
+.settings-key-summary {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
+}
+.settings-key-summary-row {
+  display: grid;
+  grid-template-columns: 140px 120px 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.settings-key-summary-row:last-child { border-bottom: none; }
+.settings-key-summary-row.no-key { opacity: 0.5; }
+.settings-key-summary-backend { font-weight: 600; }
+.settings-key-summary-masked {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--text-secondary, #666);
+}
+.settings-key-summary-models {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #888);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .settings-prompt-defaults { margin-top: 4px; }
 .settings-hint {
   font-size: 0.72rem;

@@ -1,0 +1,38 @@
+{
+  "B\u00d7i": {
+    "evaluated": 515,
+    "top1_accuracy": 10.49,
+    "top3_accuracy": 14.17,
+    "mrr": 0.1847,
+    "mean_similarity": 0.4552,
+    "discriminability_gap": 0.0294,
+    "novel_argument_rate": 17.48
+  },
+  "B\u00d7ii": {
+    "evaluated": 515,
+    "top1_accuracy": 9.9,
+    "top3_accuracy": 14.76,
+    "mrr": 0.1737,
+    "mean_similarity": 0.4581,
+    "discriminability_gap": 0.0285,
+    "novel_argument_rate": 13.2
+  },
+  "B\u00d7iii": {
+    "evaluated": 515,
+    "top1_accuracy": 9.32,
+    "top3_accuracy": 15.15,
+    "mrr": 0.1634,
+    "mean_similarity": 0.482,
+    "discriminability_gap": 0.0252,
+    "novel_argument_rate": 9.32
+  },
+  "B\u00d7iv": {
+    "evaluated": 515,
+    "top1_accuracy": 7.77,
+    "top3_accuracy": 13.2,
+    "mrr": 0.1382,
+    "mean_similarity": 0.5317,
+    "discriminability_gap": 0.0247,
+    "novel_argument_rate": 3.3
+  }
+}

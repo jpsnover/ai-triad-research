@@ -1,0 +1,67 @@
+{
+  "W1": {
+    "evaluated": 515,
+    "top1_accuracy": 7.38,
+    "top3_accuracy": 14.95,
+    "mrr": 0.1558,
+    "mean_similarity": 0.4728,
+    "discriminability_gap": 0.034,
+    "novel_argument_rate": 13.01,
+    "weights": {
+      "desc": 0.611,
+      "assumes": 0.389
+    }
+  },
+  "W2": {
+    "evaluated": 515,
+    "top1_accuracy": 6.6,
+    "top3_accuracy": 14.17,
+    "mrr": 0.1522,
+    "mean_similarity": 0.4622,
+    "discriminability_gap": 0.0358,
+    "novel_argument_rate": 16.12,
+    "weights": {
+      "desc": 1.0,
+      "assumes": 0.0
+    }
+  },
+  "W3": {
+    "evaluated": 515,
+    "top1_accuracy": 7.77,
+    "top3_accuracy": 14.17,
+    "mrr": 0.1604,
+    "mean_similarity": 0.4707,
+    "discriminability_gap": 0.0352,
+    "novel_argument_rate": 13.98,
+    "weights": {
+      "desc": 0.8,
+      "assumes": 0.2
+    }
+  },
+  "W4": {
+    "evaluated": 515,
+    "top1_accuracy": 6.99,
+    "top3_accuracy": 13.98,
+    "mrr": 0.1556,
+    "mean_similarity": 0.4671,
+    "discriminability_gap": 0.0356,
+    "novel_argument_rate": 15.15,
+    "weights": {
+      "desc": 0.9,
+      "assumes": 0.1
+    }
+  },
+  "W5": {
+    "evaluated": 515,
+    "top1_accuracy": 7.18,
+    "top3_accuracy": 13.98,
+    "mrr": 0.1541,
+    "mean_similarity": 0.4722,
+    "discriminability_gap": 0.0341,
+    "novel_argument_rate": 12.82,
+    "weights": {
+      "desc": 0.7,
+      "assumes": 0.3
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "baseline": {
+    "mrr": 0.2959,
+    "top1": 0.1592,
+    "top5": 0.4408,
+    "count": 515
+  },
+  "best_mrr": 0.2959,
+  "best_epoch": 0,
+  "final_epoch": 3,
+  "history": [
+    {
+      "epoch": 0,
+      "mrr": 0.2959,
+      "top1": 0.1592,
+      "top5": 0.4408
+    },
+    {
+      "epoch": 1,
+      "mrr": 0.2592,
+      "top1": 0.1437,
+      "top5": 0.3864
+    },
+    {
+      "epoch": 2,
+      "mrr": 0.2432,
+      "top1": 0.132,
+      "top5": 0.3612
+    },
+    {
+      "epoch": 3,
+      "mrr": 0.2304,
+      "top1": 0.1262,
+      "top5": 0.3398
+    }
+  ],
+  "improvement": 0.0,
+  "improvement_pct": 0.0,
+  "config": {
+    "corpus": "training_corpus_direct.json",
+    "epochs": 10,
+    "batch_size": 64,
+    "lr": 1e-05,
+    "warmup_ratio": 0.1,
+    "patience": 3,
+    "seed": 42,
+    "max_hard_negatives": 3,
+    "corpus_metadata": {
+      "generated_at": "2026-06-09T00:37:20Z",
+      "total_pairs": 19260,
+      "positive_pairs": 18600,
+      "hard_negative_pairs": 660,
+      "unique_nodes_covered": 961,
+      "total_taxonomy_nodes": 720,
+      "gap_nodes": 19,
+      "coverage_rate": 1.3347,
+      "golden_set_claims": 515,
+      "golden_set_nodes": 175,
+      "sources": {
+        "evidence_fact": 2685,
+        "pov_keypoint": 8846,
+        "summary_factual_claim": 3461,
+        "assumes": 2315,
+        "policy_action": 1293,
+        "steelman_hard_negative": 660
+      },
+      "elapsed_seconds": 0.6,
+      "config": {
+        "passage_threshold": 0.35,
+        "passage_top_k": 3,
+        "edge_confidence": 0.7,
+        "decay": 0.5,
+        "min_weight": 0.3,
+        "skip_passages": true,
+        "max_prop_per_pair": 0
+      }
+    }
+  }
+}

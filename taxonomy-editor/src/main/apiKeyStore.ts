@@ -41,6 +41,27 @@ export function hasApiKey(backend?: Backend): boolean {
   return fs.existsSync(keyFilePath(backend));
 }
 
+export interface ApiKeySummaryEntry {
+  backend: Backend;
+  hasKey: boolean;
+  maskedKey: string | null;
+}
+
+export function getApiKeySummary(): ApiKeySummaryEntry[] {
+  return ALL_BACKENDS.map((backend) => {
+    const key = loadApiKey(backend);
+    let maskedKey: string | null = null;
+    if (key) {
+      if (key.length <= 8) {
+        maskedKey = key.slice(0, 2) + '***';
+      } else {
+        maskedKey = key.slice(0, 4) + '...' + key.slice(-4);
+      }
+    }
+    return { backend, hasKey: !!key, maskedKey };
+  });
+}
+
 export interface KeySharePayload {
   v: 1;
   salt: string;

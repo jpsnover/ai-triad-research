@@ -73,6 +73,7 @@ export interface AppAPI {
   refreshAIModels: () => Promise<unknown>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
+  getApiKeySummary: () => Promise<{ backend: string; hasKey: boolean; maskedKey: string | null }[]>;
   exportKeysForSharing: (passphrase: string) => Promise<{ dataUrl: string; payloadText: string }>;
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;
 

@@ -341,7 +341,7 @@ export function DiagnosticsWindow({ initialData }: { initialData?: Record<string
                 {tabs.filter(t => t.visible).map(t => (
                   <div key={t.id}>
                     <button
-                      onClick={() => { setOverviewTab(t.id); setLocalOverride(true); }}
+                      onClick={() => { setOverviewTab(t.id); setSelectedEntry(null); setLocalOverride(true); }}
                       style={{
                         display: 'block', width: '100%', textAlign: 'left',
                         padding: '4px 8px', fontSize: '0.7rem', fontWeight: 600,

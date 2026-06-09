@@ -1,0 +1,35 @@
+{
+  "all-MiniLM-L6-v2 (dim=384)": {
+    "evaluated": 515,
+    "top1_accuracy": 9.32,
+    "top3_accuracy": 14.17,
+    "mrr": 0.164,
+    "mean_similarity": 0.4601,
+    "discriminability_gap": 0.0249,
+    "novel_argument_rate": 11.84,
+    "dim": 384,
+    "encode_time_s": 17.8
+  },
+  "all-mpnet-base-v2 (dim=768)": {
+    "evaluated": 515,
+    "top1_accuracy": 2.72,
+    "top3_accuracy": 7.96,
+    "mrr": 0.1005,
+    "mean_similarity": 0.5006,
+    "discriminability_gap": 0.0228,
+    "novel_argument_rate": 13.59,
+    "dim": 768,
+    "encode_time_s": 55.2
+  },
+  "BAAI/bge-base-en-v1.5 (dim=768)": {
+    "evaluated": 515,
+    "top1_accuracy": 6.21,
+    "top3_accuracy": 12.04,
+    "mrr": 0.1249,
+    "mean_similarity": 0.603,
+    "discriminability_gap": 0.0139,
+    "novel_argument_rate": 0.0,
+    "dim": 768,
+    "encode_time_s": 43.5
+  }
+}

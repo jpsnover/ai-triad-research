@@ -1,0 +1,44 @@
+{
+  "Cosine only": {
+    "evaluated": 484,
+    "top1_accuracy": 7.85,
+    "top3_accuracy": 16.94,
+    "mrr": 0.1533
+  },
+  "BM25 only": {
+    "evaluated": 484,
+    "top1_accuracy": 3.1,
+    "top3_accuracy": 7.44,
+    "mrr": 0.0846
+  },
+  "Linear \u03b1=0.3": {
+    "evaluated": 484,
+    "top1_accuracy": 3.72,
+    "top3_accuracy": 7.64,
+    "mrr": 0.0921
+  },
+  "Linear \u03b1=0.5": {
+    "evaluated": 484,
+    "top1_accuracy": 4.55,
+    "top3_accuracy": 9.09,
+    "mrr": 0.1025
+  },
+  "Linear \u03b1=0.7": {
+    "evaluated": 484,
+    "top1_accuracy": 4.96,
+    "top3_accuracy": 10.33,
+    "mrr": 0.1133
+  },
+  "Linear \u03b1=0.9": {
+    "evaluated": 484,
+    "top1_accuracy": 7.44,
+    "top3_accuracy": 15.29,
+    "mrr": 0.1456
+  },
+  "RRF (k=60)": {
+    "evaluated": 484,
+    "top1_accuracy": 4.96,
+    "top3_accuracy": 10.95,
+    "mrr": 0.1124
+  }
+}

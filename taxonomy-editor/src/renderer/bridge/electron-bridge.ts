@@ -75,6 +75,7 @@ export const api: AppAPI = {
   refreshAIModels: () => window.electronAPI.refreshAIModels(),
   setApiKey: (key, backend) => window.electronAPI.setApiKey(key, backend),
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
+  getApiKeySummary: () => window.electronAPI.getApiKeySummary(),
   exportKeysForSharing: (passphrase) => window.electronAPI.exportKeysForSharing(passphrase),
   importKeysFromSharing: (payload, passphrase) => window.electronAPI.importKeysFromSharing(payload, passphrase),
 

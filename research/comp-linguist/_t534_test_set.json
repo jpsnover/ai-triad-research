@@ -1,0 +1,282 @@
+{
+  "experiment": "t/534",
+  "selection_date": "2026-06-09",
+  "total_summaries": 561,
+  "eligible_count": 541,
+  "selected_count": 15,
+  "documents": [
+    {
+      "doc_id": "randliability-2026",
+      "stratum": "short",
+      "word_count": 75,
+      "total_kp": 0,
+      "kp_by_camp": {
+        "accelerationist": 0,
+        "safetyist": 0,
+        "skeptic": 0
+      },
+      "bdi_counts": {},
+      "attribution_rate": 0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "anthropic-just-showed-what-doing-right-thing-looks-like-2026",
+      "stratum": "short",
+      "word_count": 631,
+      "total_kp": 3,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 1,
+        "skeptic": 1
+      },
+      "bdi_counts": {
+        "Intentions": 1,
+        "Desires": 2
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": true
+    },
+    {
+      "doc_id": "ephemeral-tokens-advance-access-governance-2026",
+      "stratum": "short",
+      "word_count": 277,
+      "total_kp": 3,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 1,
+        "skeptic": 1
+      },
+      "bdi_counts": {
+        "Intentions": 3
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "ai-isnt-replacement-problem-its-redesign-problem-2026",
+      "stratum": "short",
+      "word_count": 2801,
+      "total_kp": 18,
+      "kp_by_camp": {
+        "accelerationist": 6,
+        "safetyist": 6,
+        "skeptic": 6
+      },
+      "bdi_counts": {
+        "Beliefs": 7,
+        "Desires": 4,
+        "Intentions": 7
+      },
+      "attribution_rate": 0.667,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "eight-ways-ai-will-shape-geopolitics-2026-2026-1",
+      "stratum": "short",
+      "word_count": 2775,
+      "total_kp": 18,
+      "kp_by_camp": {
+        "accelerationist": 6,
+        "safetyist": 6,
+        "skeptic": 6
+      },
+      "bdi_counts": {
+        "Desires": 3,
+        "Beliefs": 9,
+        "Intentions": 6
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "holding-ai-accountable-addressing-ai-related-harms-through-2026",
+      "stratum": "medium",
+      "word_count": 4640,
+      "total_kp": 3,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 1,
+        "skeptic": 1
+      },
+      "bdi_counts": {
+        "Intentions": 2,
+        "Beliefs": 1
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "missing-variable-socio-technical-alignment-risk-evaluation-2026",
+      "stratum": "medium",
+      "word_count": 4023,
+      "total_kp": 4,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 2,
+        "skeptic": 1
+      },
+      "bdi_counts": {
+        "Beliefs": 2,
+        "Desires": 1,
+        "Intentions": 1
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": true
+    },
+    {
+      "doc_id": "heavy-tails-vulnerability-exploitation-2026",
+      "stratum": "medium",
+      "word_count": 6925,
+      "total_kp": 4,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 1,
+        "skeptic": 2
+      },
+      "bdi_counts": {
+        "Intentions": 1,
+        "Beliefs": 3
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "global-energy-demands-within-ai-regulatory-landscape-2026",
+      "stratum": "medium",
+      "word_count": 7931,
+      "total_kp": 46,
+      "kp_by_camp": {
+        "accelerationist": 16,
+        "safetyist": 16,
+        "skeptic": 14
+      },
+      "bdi_counts": {
+        "Intentions": 22,
+        "Desires": 4,
+        "Beliefs": 20
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "aiembracespecializationviasuperhumanadadaptableintelligence-2026",
+      "stratum": "medium",
+      "word_count": 7480,
+      "total_kp": 45,
+      "kp_by_camp": {
+        "accelerationist": 15,
+        "safetyist": 15,
+        "skeptic": 15
+      },
+      "bdi_counts": {
+        "Desires": 4,
+        "Intentions": 21,
+        "Beliefs": 20
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "counterfactual-fairness-2026-1",
+      "stratum": "long",
+      "word_count": 11759,
+      "total_kp": 3,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 1,
+        "skeptic": 1
+      },
+      "bdi_counts": {
+        "Intentions": 2,
+        "Beliefs": 1
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "hidden-plain-sight-reconsidering-use-race-correction-2026-1",
+      "stratum": "long",
+      "word_count": 15080,
+      "total_kp": 4,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 1,
+        "skeptic": 2
+      },
+      "bdi_counts": {
+        "Intentions": 1,
+        "Beliefs": 2,
+        "Desires": 1
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": true
+    },
+    {
+      "doc_id": "explicitly-unbiased-large-language-models-still-form-biased-2026",
+      "stratum": "long",
+      "word_count": 8940,
+      "total_kp": 3,
+      "kp_by_camp": {
+        "accelerationist": 1,
+        "safetyist": 1,
+        "skeptic": 1
+      },
+      "bdi_counts": {
+        "Beliefs": 3
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": true,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "pi-20250403-us-public-ai-experts-report-2026-2",
+      "stratum": "long",
+      "word_count": 25517,
+      "total_kp": 188,
+      "kp_by_camp": {
+        "accelerationist": 47,
+        "safetyist": 43,
+        "skeptic": 98
+      },
+      "bdi_counts": {
+        "Beliefs": 134,
+        "Intentions": 24,
+        "Desires": 30
+      },
+      "attribution_rate": 1.0,
+      "is_balanced": false,
+      "has_bdi_edge_case": false
+    },
+    {
+      "doc_id": "evaluating-ai-providers-frontier-safety-frameworks-2026",
+      "stratum": "long",
+      "word_count": 142094,
+      "total_kp": 163,
+      "kp_by_camp": {
+        "accelerationist": 29,
+        "safetyist": 83,
+        "skeptic": 51
+      },
+      "bdi_counts": {
+        "Beliefs": 44,
+        "Intentions": 107,
+        "Desires": 12
+      },
+      "attribution_rate": 0.945,
+      "is_balanced": false,
+      "has_bdi_edge_case": false
+    }
+  ]
+}

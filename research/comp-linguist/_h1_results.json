@@ -1,0 +1,25 @@
+{
+  "bi_encoder": {
+    "evaluated": 484,
+    "top1_accuracy": 7.23,
+    "top3_accuracy": 14.88,
+    "mrr": 0.1608,
+    "mean_score": 0.4699,
+    "discriminability_gap": 0.0292,
+    "novel_argument_rate": 15.5
+  },
+  "cross_encoder": {
+    "evaluated": 484,
+    "top1_accuracy": 3.93,
+    "top3_accuracy": 11.16,
+    "mrr": 0.1301,
+    "mean_score": -6.3692,
+    "discriminability_gap": 1.1226,
+    "novel_argument_rate": 0.0
+  },
+  "config": {
+    "rerank_k": 20,
+    "cross_encoder_model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    "avg_latency_ms": 227.6
+  }
+}

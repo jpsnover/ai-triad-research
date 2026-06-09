@@ -43,7 +43,7 @@ import {
   deleteChatSession,
 } from './chatIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
-import { storeApiKey, hasApiKey, exportKeysForSharing, importKeysFromSharing } from './apiKeyStore.js';
+import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing } from './apiKeyStore.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
@@ -244,6 +244,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('has-api-key', (_event, backend?: string) => {
     if (backend === 'ollama') return true;
     return hasApiKey(backend as 'gemini' | 'claude' | 'groq' | 'openai' | 'deepseek' | undefined);
+  });
+
+  ipcMain.handle('get-api-key-summary', () => {
+    return getApiKeySummary();
   });
 
   ipcMain.handle('export-keys-for-sharing', async (_event, passphrase: string) => {

@@ -260,6 +260,17 @@ const rawApi: AppAPI = {
   refreshAIModels: () => post('/api/models/refresh'),
   setApiKey: (key, backend) => post('/api/keys', { key, backend }).then(() => {}),
   hasApiKey: (backend) => get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`),
+  getApiKeySummary: async () => {
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    return ALL_BACKENDS.map((b) => {
+      const stored = sessionStorage.getItem(`byok-${b}`);
+      return {
+        backend: b,
+        hasKey: !!stored,
+        maskedKey: stored ? stored.slice(0, 4) + '...' + stored.slice(-4) : null,
+      };
+    });
+  },
   exportKeysForSharing: async (passphrase) => {
     const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
     const keys: Record<string, string> = {};

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { DebateSession, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../../types/debate';
 import type { WeightHistoryEntry } from '../../../../types/taxonomy';
 import { computeQbafStrengths } from '@lib/debate/qbaf';
@@ -122,11 +122,20 @@ export function ArgumentNetworkTab({
 
   const filteredNodeCount = filteredGroups.reduce((sum, g) => sum + g.nodes.length, 0);
   const isFiltered = anFilterMode !== 'all' || anFilterNodeId.trim() !== '';
+  const [allExpanded, setAllExpanded] = useState(false);
 
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-        {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          {an.nodes.length} I-nodes · {caCount} CA · {raCount} RA{modCount > 0 ? ` · ${modCount} moderator decisions` : ''}
+        </span>
+        <button
+          onClick={() => setAllExpanded(!allExpanded)}
+          style={{ marginLeft: 'auto', fontSize: '0.6rem', padding: '2px 6px', borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer' }}
+        >
+          {allExpanded ? 'Collapse All' : 'Expand All'}
+        </button>
       </div>
       {/* AN claim filter bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap', fontSize: '0.65rem' }}>
@@ -226,6 +235,7 @@ export function ArgumentNetworkTab({
                 stmtIdByEntry={stmtIdByEntry}
                 focused={focusedNodeId === n.id}
                 onUpdateSubScore={handleUpdateSubScore}
+                defaultExpanded={allExpanded}
               />
             );
           })}

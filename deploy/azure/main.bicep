@@ -60,7 +60,7 @@ param githubClientSecret string = ''
 @description('Auth mode: set authDisabled="1" for anonymous-only (no login page), or authOptional="1" for login page with anonymous option. If neither, sign-in is required (needs authorized-users.json).')
 param authDisabled string = ''
 
-@description('Set to "1" to show login page with both sign-in and anonymous options. Signed-in users get platform-tier API keys; anonymous users must BYOK.')
+@description('Set to "1" to show login page with sign-in + anonymous options. Signed-in users get full access (AI + editing); anonymous users get read-only, non-AI access.')
 param authOptional string = '1'
 
 // ── GitHub data-sync (optional Phase-2 feature) ──

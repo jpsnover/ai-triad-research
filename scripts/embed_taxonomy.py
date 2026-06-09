@@ -139,7 +139,7 @@ CONFLICTS_DIR: Optional[Path] = None  # set in _resolve_taxonomy_dir
 
 # Default weights for multi-field embedding.  Must sum to 1.0.
 # Fields: description, assumes, lineage, epistemic_type, rhetorical_strategy
-DEFAULT_FIELD_WEIGHTS = (0.611, 0.389, 0.0, 0.0, 0.0)
+DEFAULT_FIELD_WEIGHTS = (0.8, 0.2, 0.0, 0.0, 0.0)
 
 
 def _load_lineage_categories():
@@ -204,16 +204,7 @@ def _compose_field_texts(node, lineage_map):
     ga = node.get("graph_attributes", {}) or {}
 
     # ── Field 1: Description ─────────────────────────────────────────
-    parts = []
-    label = node.get("label", "")
-    if label:
-        parts.append(label)
-
-    desc = node.get("description", "")
-    if desc:
-        parts.append(_strip_excludes(desc))
-
-    description_text = ". ".join(parts) if parts else ""
+    description_text = node.get("description", "")
 
     # ── Field 2: Assumes ─────────────────────────────────────────────
     assumes = ga.get("assumes", []) or []

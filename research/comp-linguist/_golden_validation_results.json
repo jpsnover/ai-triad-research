@@ -1,0 +1,37 @@
+{
+  "results": [
+    {
+      "claim_id": "AN-1",
+      "original_node": "saf-beliefs-126",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-08T18:54:59.185Z"
+    },
+    {
+      "claim_id": "AN-4",
+      "original_node": "acc-beliefs-011",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-08T19:00:35.159Z"
+    },
+    {
+      "claim_id": "AN-5",
+      "original_node": "acc-beliefs-072",
+      "verdict": "incorrect",
+      "corrected_node": "acc-beliefs-013",
+      "reviewed_at": "2026-06-08T19:04:16.505Z"
+    },
+    {
+      "claim_id": "AN-18",
+      "original_node": "saf-beliefs-124",
+      "verdict": "incorrect",
+      "corrected_node": "saf-beliefs-126",
+      "reviewed_at": "2026-06-08T19:28:20.830Z"
+    },
+    {
+      "claim_id": "AN-19",
+      "original_node": "saf-beliefs-126",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-08T19:29:01.285Z"
+    }
+  ],
+  "saved_at": "2026-06-08T19:29:01.787Z"
+}

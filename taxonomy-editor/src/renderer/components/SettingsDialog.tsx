@@ -37,6 +37,73 @@ const PROMPT_DEFAULT_ROWS: { label: string; key: string; type: 'number' | 'selec
   { label: 'Established Points: Max', key: 'establishedPoints.max', type: 'number', min: 5, max: 20 },
 ];
 
+function ShowKeysSection() {
+  const [expanded, setExpanded] = useState(false);
+  const [keySummary, setKeySummary] = useState<{ backend: string; hasKey: boolean; maskedKey: string | null }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const backendLabel: Record<string, string> = Object.fromEntries(
+    AI_BACKENDS.map(b => [b.value, b.label]),
+  );
+
+  const handleToggle = async () => {
+    if (expanded) {
+      setExpanded(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const summary = await api.getApiKeySummary();
+      setKeySummary(summary);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'settings-dialog',
+        level: 'error',
+        message: 'Failed to load API key summary',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      setKeySummary([]);
+    } finally {
+      setLoading(false);
+      setExpanded(true);
+    }
+  };
+
+  const modelsForBackend = (backend: string) => {
+    const models = MODELS_BY_BACKEND[backend as keyof typeof MODELS_BY_BACKEND];
+    if (!models || models.length === 0) return 'no models configured';
+    return models.map(m => m.label).join(', ');
+  };
+
+  return (
+    <>
+      <button className="btn btn-sm" onClick={handleToggle} disabled={loading}>
+        {loading ? '...' : expanded ? 'Hide Keys' : 'Show Keys'}
+      </button>
+      {expanded && (
+        <div className="settings-key-summary">
+          {keySummary.length === 0 ? (
+            <div className="settings-hint">No keys found</div>
+          ) : (
+            keySummary.map(entry => (
+              <div key={entry.backend} className={`settings-key-summary-row${entry.hasKey ? '' : ' no-key'}`}>
+                <span className="settings-key-summary-backend">{backendLabel[entry.backend] ?? entry.backend}</span>
+                <span className="settings-key-summary-masked">
+                  {entry.backend === 'ollama' ? '(local — no key)' : entry.maskedKey ?? '—'}
+                </span>
+                <span className="settings-key-summary-models" title={modelsForBackend(entry.backend)}>
+                  {modelsForBackend(entry.backend)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </>
+  );
+}
+
 function PromptDefaultsSection() {
   const workspaceDefaults = usePromptConfigStore(s => s.workspaceDefaults);
   const setWorkspace = usePromptConfigStore(s => s.setWorkspace);
@@ -275,10 +342,11 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           </div>
         )}
 
-        <div style={{ textAlign: 'right', margin: '4px 0' }}>
+        <div className="settings-key-actions-row">
           <button className="btn btn-sm" onClick={() => setShowKeySharing(true)}>
             Share / Import Keys via QR
           </button>
+          <ShowKeysSection />
         </div>
 
         {showKeySharing && (

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { subScoreTip } from './INodeRow';
@@ -157,7 +157,9 @@ function makeEdge(overrides: Partial<ArgumentNetworkEdge> = {}): ArgumentNetwork
 }
 
 describe('INodeRow', () => {
-  it('renders the node text', async () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('hides claim text when collapsed (default)', async () => {
     const INodeRow = await getINodeRow();
     render(
       <INodeRow
@@ -169,6 +171,24 @@ describe('INodeRow', () => {
         isSource={false}
         strengthMap={new Map()}
         onUpdateSubScore={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText('AI development should be regulated')).not.toBeInTheDocument();
+  });
+
+  it('renders claim text when expanded', async () => {
+    const INodeRow = await getINodeRow();
+    render(
+      <INodeRow
+        node={makeNode()}
+        attacks={[]}
+        supports={[]}
+        allNodes={[makeNode()]}
+        allEdges={[]}
+        isSource={false}
+        strengthMap={new Map()}
+        onUpdateSubScore={vi.fn()}
+        defaultExpanded
       />,
     );
     expect(screen.getByText('AI development should be regulated')).toBeInTheDocument();
@@ -210,7 +230,7 @@ describe('INodeRow', () => {
     expect(strengthEl).toBeTruthy();
   });
 
-  it('renders attack edges (starts expanded)', async () => {
+  it('renders attack edges when expanded', async () => {
     const INodeRow = await getINodeRow();
     const attackerNode = makeNode({ id: 'claim-002', text: 'Innovation outpaces regulation', speaker: 'accelerationist' });
     const edge = makeEdge({ source: 'claim-002', target: 'claim-001' });
@@ -225,15 +245,15 @@ describe('INodeRow', () => {
         isSource={false}
         strengthMap={new Map([['claim-002', 0.5]])}
         onUpdateSubScore={vi.fn()}
+        defaultExpanded
       />,
     );
 
-    // Component starts expanded (useState(true)), so attack edges are visible
     expect(screen.getByText('CA-node')).toBeInTheDocument();
     expect(screen.getByText('Innovation outpaces regulation')).toBeInTheDocument();
   });
 
-  it('renders BDI sub-scores when present', async () => {
+  it('renders BDI sub-scores when expanded', async () => {
     const INodeRow = await getINodeRow();
     render(
       <INodeRow
@@ -252,6 +272,7 @@ describe('INodeRow', () => {
         isSource={false}
         strengthMap={new Map()}
         onUpdateSubScore={vi.fn()}
+        defaultExpanded
       />,
     );
     expect(screen.getByText(/Evidence Quality/i)).toBeInTheDocument();
@@ -298,7 +319,7 @@ describe('INodeRow', () => {
     expect(screen.getByText(/0.82/)).toBeInTheDocument();
   });
 
-  it('has sliders for belief sub-scores', async () => {
+  it('has sliders for belief sub-scores when expanded', async () => {
     const INodeRow = await getINodeRow();
     const onUpdate = vi.fn();
     render(
@@ -318,13 +339,14 @@ describe('INodeRow', () => {
         isSource={false}
         strengthMap={new Map()}
         onUpdateSubScore={onUpdate}
+        defaultExpanded
       />,
     );
     const sliders = screen.getAllByRole('slider');
     expect(sliders.length).toBe(3);
   });
 
-  it('renders inline NL strength explanation when edges exist', async () => {
+  it('renders inline NL strength explanation when expanded with edges', async () => {
     const INodeRow = await getINodeRow();
     const supporterNode = makeNode({ id: 'claim-002', text: 'Evidence supports regulation', speaker: 'safetyist' });
     const supportEdge = makeEdge({ id: 'edge-sup', source: 'claim-002', target: 'claim-001', type: 'supports', weight: 0.8 });
@@ -340,9 +362,9 @@ describe('INodeRow', () => {
         strengthMap={new Map([['claim-002', 0.7]])}
         computedStrength={0.8}
         onUpdateSubScore={vi.fn()}
+        defaultExpanded
       />,
     );
-    // Inline explanation: "accepted (0.80) because "Evidence supports regulation" (+0.56)"
     expect(screen.getByText(/accepted.*because.*Evidence supports regulation/)).toBeInTheDocument();
   });
 });
