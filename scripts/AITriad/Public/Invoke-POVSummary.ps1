@@ -192,14 +192,14 @@ function Invoke-POVSummary {
 
         $wordCount = ($snapshotText -split '\s+').Count
         $outputSchema = Get-Prompt -Name 'pov-summary-schema'
+        $kpMin = [Math]::Max(3,  [int]($wordCount / 500))
         $systemPrompt = Get-Prompt -Name 'pov-summary-system' -Replacements @{
-            WORD_COUNT = $wordCount
-            KP_MIN     = [Math]::Max(3,  [int]($wordCount / 500))
-            KP_MAX     = [Math]::Max(8,  [int]($wordCount / 200))
-            FC_MIN     = [Math]::Max(3,  [int]($wordCount / 800))
-            FC_MAX     = [Math]::Max(8,  [int]($wordCount / 300))
-            UC_MIN     = [Math]::Max(2,  [int]($wordCount / 2000))
-            UC_MAX     = [Math]::Max(5,  [int]($wordCount / 800))
+            WORD_COUNT   = $wordCount
+            KP_MIN       = $kpMin
+            KP_MAX       = [Math]::Max(8,  [int]($wordCount / 200))
+            UC_MIN       = [Math]::Max(2,  [int]($wordCount / 2000))
+            UC_MAX       = [Math]::Max(5,  [int]($wordCount / 800))
+            TOTAL_FLOOR  = [Math]::Max(6,  $kpMin * 2)
         }
 
         Write-Host "`n$('─' * 72)" -ForegroundColor DarkGray
@@ -522,8 +522,14 @@ function Invoke-POVSummary {
                     if ($pt.taxonomy_node_id) { $nodeTag = "[$($pt.taxonomy_node_id)]" } else { $nodeTag = "[UNMAPPED]" }
                     if ($pt.stance) { $ptStance = $pt.stance } else { $ptStance = 'neutral' }
                     Write-Host "      $nodeTag ($ptStance) $($pt.point)" -ForegroundColor Gray
-                    if ($pt.verbatim) {
-                        Write-Host "        `"$($pt.verbatim)`"" -ForegroundColor DarkGray
+                    if ($pt.PSObject.Properties['verbatim'] -and $pt.verbatim) {
+                        if ($pt.verbatim -is [array]) {
+                            foreach ($span in $pt.verbatim) {
+                                Write-Host "        `"$span`"" -ForegroundColor DarkGray
+                            }
+                        } else {
+                            Write-Host "        `"$($pt.verbatim)`"" -ForegroundColor DarkGray
+                        }
                     }
                 }
             }

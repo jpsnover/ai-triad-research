@@ -155,7 +155,7 @@ function Invoke-ChunkedSummary {
     $SnapshotText = Get-Content $Doc.SnapshotFile -Raw
 
     # -- Split into chunks ----------------------------------------------------
-    $Chunks = @(Split-DocumentChunks -Text $SnapshotText -MaxChunkTokens 8000 -MinChunkTokens 1500)
+    $Chunks = @(Split-DocumentChunks -Text $SnapshotText -MaxChunkTokens 6000 -MinChunkTokens 1500)
     $ChunkCount = $Chunks.Count
     Write-Host "  │  split into $ChunkCount chunks" -ForegroundColor Cyan
 
@@ -249,6 +249,10 @@ $ChunkText
                 continue
             }
 
+            if ($AIResult.PSObject.Properties['Truncated'] -and $AIResult.Truncated) {
+                Write-Host " ⚠ TRUNCATED — output exceeded model limit, extraction may be incomplete" -ForegroundColor Yellow
+            }
+
             $ChunkObj = Parse-AIResponse -RawText $AIResult.Text -ThisDocId "$ThisDocId-chunk$ChunkNum" -SummariesDir $SummariesDir
             if ($null -eq $ChunkObj) {
                 Write-Host " ✗ bad JSON" -ForegroundColor Red
@@ -273,7 +277,13 @@ $ChunkText
             $ChunkExtractionStats.FactualClaims += $ChunkFacts
             $ChunkExtractionStats.UnmappedConcepts += $ChunkUnmapped
             $ChunkExtractionStats.PromptChars += $ChunkPrompt.Length
-            Write-Host " ✓ $ChunkPts points" -ForegroundColor Green
+            if ($ChunkPts -eq 0) {
+                Write-Host " ⚠ 0 points (chunk may be non-substantive or extraction failed silently)" -ForegroundColor Yellow
+            } elseif ($ChunkPts -lt 3) {
+                Write-Host " ⚠ $ChunkPts points (sparse)" -ForegroundColor Yellow
+            } else {
+                Write-Host " ✓ $ChunkPts points" -ForegroundColor Green
+            }
 
         } catch {
             Write-Host " ✗ $_" -ForegroundColor Red
@@ -359,8 +369,8 @@ $ChunkText
     $DensityFloors = Get-DensityFloors -WordCount $WordCount
     $MergeDiscount = 1 / [Math]::Sqrt($ChunkCount)
     $DensityFloors.KpMin = [Math]::Max(3, [int]($DensityFloors.KpMin * $MergeDiscount))
-    $DensityFloors.FcMin = [Math]::Max(2, [int]($DensityFloors.FcMin * $MergeDiscount))
     $DensityFloors.UcMin = [Math]::Max(1, [int]($DensityFloors.UcMin * $MergeDiscount))
+    $DensityFloors.TotalFloor = [Math]::Max(6, [int]($DensityFloors.TotalFloor * $MergeDiscount))
     $DensityCheck = Test-SummaryDensity -SummaryObject $SummaryObject -Floors $DensityFloors
     if (-not $DensityCheck.Pass) {
         Write-Host "  │  ⚠ Merged density below floor: $($DensityCheck.Shortfalls -join '; ')" -ForegroundColor Yellow
@@ -379,10 +389,11 @@ $ChunkText
 function Get-DensityFloors {
     param([int]$WordCount)
 
+    $kpTarget = [Math]::Max(3,  [int]($WordCount / 500))
     return @{
-        KpMin = [Math]::Max(3,  [int]($WordCount / 500))
-        FcMin = [Math]::Max(3,  [int]($WordCount / 800))
-        UcMin = [Math]::Max(2,  [int]($WordCount / 2000))
+        KpMin      = $kpTarget
+        UcMin      = [Math]::Max(2,  [int]($WordCount / 2000))
+        TotalFloor = [Math]::Max(6,  $kpTarget * 2)
     }
 }
 
@@ -395,27 +406,49 @@ function Test-SummaryDensity {
     $Camps = @('accelerationist','safetyist','skeptic')
     $Shortfalls = [System.Collections.Generic.List[string]]::new()
 
+    # Collect empty_cells declared by the model (licensed emptiness per REC-1)
+    $EmptyCellSet = [System.Collections.Generic.HashSet[string]]::new()
+    if ($SummaryObject.PSObject.Properties['empty_cells'] -and $SummaryObject.empty_cells) {
+        foreach ($ec in @($SummaryObject.empty_cells)) {
+            if ($ec.PSObject.Properties['camp'] -and $ec.PSObject.Properties['category']) {
+                [void]$EmptyCellSet.Add("$($ec.camp)|$($ec.category)")
+            }
+        }
+    }
+
+    # Total key_points across all camps (replaces per-camp floors)
+    $TotalKp = 0
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
         $Count = 0
-        if ($CampData -and $CampData.key_points) {
+        if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
             $Count = @($CampData.key_points).Count
         }
-        if ($Count -lt $Floors.KpMin) {
-            $null = $Shortfalls.Add("$Camp key_points: $Count < $($Floors.KpMin) min")
+        $TotalKp += $Count
+
+        # Flag camps with zero points and no empty_cell declaration
+        if ($Count -eq 0) {
+            $Categories = @('Desires','Beliefs','Intentions')
+            $AllDeclared = $true
+            foreach ($cat in $Categories) {
+                if (-not $EmptyCellSet.Contains("$Camp|$cat")) {
+                    $AllDeclared = $false
+                    break
+                }
+            }
+            if (-not $AllDeclared) {
+                $null = $Shortfalls.Add("$Camp has 0 key_points without empty_cells declarations")
+            }
         }
     }
 
-    $FcCount = 0
-    if ($SummaryObject.factual_claims) {
-        $FcCount = @($SummaryObject.factual_claims).Count
-    }
-    if ($FcCount -lt $Floors.FcMin) {
-        $null = $Shortfalls.Add("factual_claims: $FcCount < $($Floors.FcMin) min")
+    $TotalFloor = if ($Floors.ContainsKey('TotalFloor')) { $Floors.TotalFloor } else { 6 }
+    if ($TotalKp -lt $TotalFloor) {
+        $null = $Shortfalls.Add("total key_points: $TotalKp < $TotalFloor across all camps")
     }
 
     $UcCount = 0
-    if ($SummaryObject.unmapped_concepts) {
+    if ($SummaryObject.PSObject.Properties['unmapped_concepts'] -and $SummaryObject.unmapped_concepts) {
         $UcCount = @($SummaryObject.unmapped_concepts).Count
     }
     if ($UcCount -lt $Floors.UcMin) {
@@ -432,18 +465,20 @@ function Build-DensityRetryNudge {
     param([string[]]$Shortfalls)
 
     $Lines = @(
-        "IMPORTANT: Your previous response was REJECTED because it did not meet the"
-        "required output density minimums. Specific shortfalls:"
+        "IMPORTANT: Your previous response did not meet extraction effort requirements."
+        "Specific shortfalls:"
     )
     foreach ($s in $Shortfalls) {
         $Lines += "  - $s"
     }
     $Lines += @(
         ""
-        "Go back through the document and extract MORE points. The document contains"
-        "substantially more content than you captured. Read each section, paragraph,"
-        "and data point carefully. Every distinct claim, argument, or piece of evidence"
-        "should be its own key_point or factual_claim."
+        "Go back through the document and extract MORE points. Examine ALL nine BDI"
+        "cells (3 POV camps x 3 categories). For each cell, extract every distinct"
+        "point the document actually contains. If a cell is genuinely empty, declare"
+        "it in the empty_cells array with a reason. Every distinct claim, argument,"
+        "or piece of evidence should be its own key_point or factual_claim."
+        "Include a canonical_proposition for every key_point."
     )
     return ($Lines -join "`n")
 }
@@ -457,21 +492,19 @@ function Build-DensityScaledPrompt {
     $Floors = Get-DensityFloors -WordCount $WordCount
     $kpMin = $Floors.KpMin
     $kpMax = [Math]::Max(8,  [int]($WordCount / 200))
-    $fcMin = $Floors.FcMin
-    $fcMax = [Math]::Max(8,  [int]($WordCount / 300))
     $ucMin = $Floors.UcMin
     $ucMax = [Math]::Max(5,  [int]($WordCount / 800))
+    $totalFloor = $Floors.TotalFloor
 
-    Write-Host "  │  ~$WordCount words → key_points $kpMin-$kpMax/camp, claims $fcMin-$fcMax, unmapped $ucMin-$ucMax" -ForegroundColor Gray
+    Write-Host "  │  ~$WordCount words → key_points $kpMin-$kpMax/camp (target), total floor $totalFloor, unmapped $ucMin-$ucMax" -ForegroundColor Gray
 
     return $Template `
-        -replace '{{WORD_COUNT}}', $WordCount `
-        -replace '{{KP_MIN}}',     $kpMin `
-        -replace '{{KP_MAX}}',     $kpMax `
-        -replace '{{FC_MIN}}',     $fcMin `
-        -replace '{{FC_MAX}}',     $fcMax `
-        -replace '{{UC_MIN}}',     $ucMin `
-        -replace '{{UC_MAX}}',     $ucMax
+        -replace '{{WORD_COUNT}}',   $WordCount `
+        -replace '{{KP_MIN}}',       $kpMin `
+        -replace '{{KP_MAX}}',       $kpMax `
+        -replace '{{UC_MIN}}',       $ucMin `
+        -replace '{{UC_MAX}}',       $ucMax `
+        -replace '{{TOTAL_FLOOR}}',  $totalFloor
 }
 
 function Build-CompactTaxonomy {
@@ -761,8 +794,8 @@ function Finalize-Summary {
     }
 
     $SoProps = $SummaryObject.PSObject.Properties
-    if ($SoProps['factual_claims'])    { $FactualClaims = $SummaryObject.factual_claims }    else { $FactualClaims = @() }
-    if ($SoProps['unmapped_concepts']) { $UnmappedConcs = $SummaryObject.unmapped_concepts } else { $UnmappedConcs = @() }
+    if ($SoProps['factual_claims'] -and $null -ne $SummaryObject.factual_claims) { $FactualClaims = $SummaryObject.factual_claims } else { $FactualClaims = @() }
+    if ($SoProps['unmapped_concepts'] -and $null -ne $SummaryObject.unmapped_concepts) { $UnmappedConcs = $SummaryObject.unmapped_concepts } else { $UnmappedConcs = @() }
     $FactualCount   = @($FactualClaims).Count
     $UnmappedCount  = @($UnmappedConcs).Count
 

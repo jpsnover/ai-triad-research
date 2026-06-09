@@ -633,6 +633,11 @@ function Invoke-BatchSummary {
                 max  = [Math]::Round($Sorted[-1], 2)
             }
         }
+        else {
+            $ExtractionMetrics['density_stats'] = @{
+                mean = $null; p25 = $null; p50 = $null; p75 = $null; min = $null; max = $null
+            }
+        }
 
         # Compute duplicate analysis (parameter #12) — pairwise label similarity within each summary
         $DupCandidates = 0

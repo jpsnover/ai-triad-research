@@ -144,6 +144,29 @@ class TaxonomyNode {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# AITClaim — typed representation of an extracted claim (factual or key point)
+# ─────────────────────────────────────────────────────────────────────────────
+class AITClaim {
+    [string]   $DocId
+    [string]   $Type            # FactualClaim | KeyPoint
+    [string]   $Text
+    [string]   $Label           # claim_label (FactualClaim only)
+    [string]   $POV             # accelerationist/safetyist/skeptic (KeyPoint only)
+    [string]   $Category        # BDI category (KeyPoint only)
+    [string]   $Stance          # aligned/neutral/opposed (KeyPoint only)
+    [string]   $DocPosition     # supports/contradicts/discusses (FactualClaim only)
+    [string]   $TemporalScope   # historical/predictive/timeless (FactualClaim only)
+    [string]   $TemporalBound   # date bound (FactualClaim only)
+    [double]   $Confidence      # extraction_confidence
+    [double]   $FireConfidence  # fire_confidence (FactualClaim only)
+    [string[]] $LinkedNodes     # taxonomy node IDs
+    [string]   $Specificity     # evidence_criteria.specificity (FactualClaim only)
+    [bool]     $HasWarrant      # evidence_criteria.has_warrant (FactualClaim only)
+    [string]   $EvidenceLevel   # evidence_criteria.category_criteria.evidence_level (FactualClaim only)
+    [string]   $Verbatim        # verbatim quote (KeyPoint only)
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Module-scoped taxonomy store
 # ─────────────────────────────────────────────────────────────────────────────
 $script:TaxonomyData = @{}
@@ -374,6 +397,7 @@ Export-ModuleMember -Function @(
     'Test-EdgeDirection'
     'Test-AITJudgeModel'
     'Repair-AITSummaryMappings'
+    'Repair-ResolvedBackfill'
     'Invoke-EdgeWeightEvaluation'
     'Repair-Markdown'
     'Compare-DebateRuns'
@@ -390,6 +414,7 @@ Export-ModuleMember -Function @(
     'Get-TaxonomyProcess'
     'Request-FlightRecorderDump'
     'Get-FlightRecorderReport'
+    'Get-AITClaim'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

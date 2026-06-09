@@ -301,9 +301,10 @@ $SnapshotText
     }
 
     # ── Stage 6: Unmapped concept resolution ──────────────────────────────────
-    if ($SummaryObject.unmapped_concepts -and @($SummaryObject.unmapped_concepts).Count -gt 0) {
+    $UnmappedRaw = if ($SummaryObject.PSObject.Properties['unmapped_concepts']) { $SummaryObject.unmapped_concepts } else { $null }
+    if ($UnmappedRaw -and @($UnmappedRaw).Count -gt 0) {
         try {
-            $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($SummaryObject.unmapped_concepts)
+            $Resolution = Resolve-UnmappedConcepts -UnmappedConcepts @($UnmappedRaw)
             if ($Resolution.Resolved.Count -gt 0) {
                 $SummaryObject.unmapped_concepts = @($Resolution.Remaining)
                 Write-Verbose "Pipeline: resolved $($Resolution.Resolved.Count) unmapped concept(s)"
@@ -325,8 +326,10 @@ $SnapshotText
             $NullNodes += @($CampData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
         }
     }
-    if ($SummaryObject.factual_claims) { $FactualCount = @($SummaryObject.factual_claims).Count } else { $FactualCount = 0 }
-    if ($SummaryObject.unmapped_concepts) { $UnmappedCount = @($SummaryObject.unmapped_concepts).Count } else { $UnmappedCount = 0 }
+    $FactualRaw = if ($SummaryObject.PSObject.Properties['factual_claims']) { $SummaryObject.factual_claims } else { $null }
+    if ($FactualRaw) { $FactualCount = @($FactualRaw).Count } else { $FactualCount = 0 }
+    $UnmappedRaw2 = if ($SummaryObject.PSObject.Properties['unmapped_concepts']) { $SummaryObject.unmapped_concepts } else { $null }
+    if ($UnmappedRaw2) { $UnmappedCount = @($UnmappedRaw2).Count } else { $UnmappedCount = 0 }
 
     # ── Context-rot: extraction + RAG metrics ────────────────────────────────
     $NullNodeRate = if ($TotalPoints -gt 0) { [Math]::Round($NullNodes / $TotalPoints, 4) } else { 0 }

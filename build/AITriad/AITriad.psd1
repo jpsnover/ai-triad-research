@@ -3,7 +3,7 @@
 
 @{
     RootModule        = 'AITriad.psm1'
-    ModuleVersion     = '0.8.0'
+    ModuleVersion     = '0.8.5'
     GUID              = 'a7c3e1f0-4b2d-4e8a-9f6c-1d3b5e7a9c0f'
     Author            = 'Jeffrey Snover'
     CompanyName       = 'Snover International Consulting LLC'
@@ -89,6 +89,7 @@
         'Test-EdgeDirection'
         'Test-AITJudgeModel'
         'Repair-AITSummaryMappings'
+        'Repair-ResolvedBackfill'
         'Invoke-EdgeWeightEvaluation'
         'Repair-Markdown'
         'Compare-DebateRuns'
@@ -100,6 +101,11 @@
         'Get-PovLineage'
         'Get-IntellectualLineage'
         'Invoke-BDIWeightAssignment'
+        'Register-AITriadDrive'
+        'Get-TaxonomyProcess'
+        'Request-FlightRecorderDump'
+        'Get-FlightRecorderReport'
+        'Get-AITClaim'
     )
 
     # Aliases exported from this module
