@@ -142,6 +142,8 @@ export interface SituationNode {
   id: string;
   label: string;
   description: string;
+  parent_id?: string | null;
+  parent_relationship?: ParentRelationship | null;
   interpretations: {
     accelerationist: Interpretation;
     safetyist: Interpretation;

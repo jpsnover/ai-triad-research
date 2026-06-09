@@ -2,8 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { selectRelevantNodes, selectRelevantSituationNodes, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
-import type { LineageBoostConfig, LineageBoostResult, RelevanceOptions, ScoredPovNode } from './taxonomyRelevance.js';
+import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
+import type { LineageBoostConfig, LineageBoostResult, BranchBoostResult, RelevanceOptions, ScoredPovNode, ScoredSituationNode } from './taxonomyRelevance.js';
 import type { TopicScope } from './types.js';
 import type { PovNode, Category, SituationNode } from './taxonomyTypes.js';
 
@@ -440,5 +440,184 @@ describe('filterByTopicConstraints — discipline boost', () => {
     expect(result.nodes[0].node.id).toBe('acc-beliefs-001');
     expect(result.nodes[1].node.id).toBe('acc-beliefs-002');
     expect(result.nodes[1].score).toBeCloseTo(0.6);
+  });
+});
+
+// ── buildSituationRootLookup ─────────────────────────────────────
+
+describe('buildSituationRootLookup', () => {
+  function makeSit(id: string, parentId?: string | null): SituationNode {
+    return {
+      id, label: `Sit ${id}`, description: '', parent_id: parentId ?? null,
+      interpretations: { accelerationist: 'a', safetyist: 'b', skeptic: 'c' },
+      linked_nodes: [], conflict_ids: [],
+    };
+  }
+
+  it('maps children to their root', () => {
+    const nodes = [
+      makeSit('sit-100', null),      // root
+      makeSit('sit-001', 'sit-100'), // depth 1
+      makeSit('sit-002', 'sit-001'), // depth 2
+    ];
+    const lookup = buildSituationRootLookup(nodes);
+    expect(lookup.get('sit-100')).toBe('sit-100');
+    expect(lookup.get('sit-001')).toBe('sit-100');
+    expect(lookup.get('sit-002')).toBe('sit-100');
+  });
+
+  it('treats nodes with missing parent_id as standalone roots', () => {
+    const nodes = [makeSit('sit-001', null), makeSit('sit-002', undefined)];
+    const lookup = buildSituationRootLookup(nodes);
+    expect(lookup.get('sit-001')).toBe('sit-001');
+    expect(lookup.get('sit-002')).toBe('sit-002');
+  });
+
+  it('treats nodes with invalid parent_id (not in set) as standalone', () => {
+    const nodes = [makeSit('sit-001', 'sit-999')];
+    const lookup = buildSituationRootLookup(nodes);
+    expect(lookup.get('sit-001')).toBe('sit-001');
+  });
+
+  it('handles cycles gracefully without stack overflow', () => {
+    const nodes = [
+      makeSit('sit-A', 'sit-B'),
+      makeSit('sit-B', 'sit-A'),
+    ];
+    const lookup = buildSituationRootLookup(nodes);
+    // Both resolve without crashing — one breaks the cycle by mapping to itself
+    expect(lookup.has('sit-A')).toBe(true);
+    expect(lookup.has('sit-B')).toBe(true);
+  });
+});
+
+// ── selectRelevantSituationNodes — branch boosting ───────────────
+
+describe('selectRelevantSituationNodes — branch boosting', () => {
+  function makeSit(id: string, parentId?: string | null, divergence?: number): SituationNode {
+    return {
+      id, label: `Situation ${id}`, description: `Description for ${id}`,
+      parent_id: parentId ?? null,
+      interpretations: { accelerationist: 'a', safetyist: 'b', skeptic: 'c' },
+      linked_nodes: [], conflict_ids: [], interpretation_divergence: divergence,
+    };
+  }
+
+  it('boosts nodes in high-scoring branches above threshold', () => {
+    const nodes = [
+      makeSit('sit-100', null),           // root A
+      makeSit('sit-001', 'sit-100', 0.5), // child of A, high score
+      makeSit('sit-002', 'sit-100', 0.5), // child of A, medium score
+      makeSit('sit-200', null),           // root B
+      makeSit('sit-003', 'sit-200', 0.5), // child of B, low score
+    ];
+    const scores = new Map([
+      ['sit-100', 0.60], ['sit-001', 0.55], ['sit-002', 0.50],
+      ['sit-200', 0.30], ['sit-003', 0.30],
+    ]);
+    const result = selectRelevantSituationNodes(nodes, scores, {
+      threshold: 0.48,
+      situationBranchBoost: { boost: 0.06, branchThreshold: 0.48, maxBranches: 4 },
+    }, 0, 10);
+
+    // Branch A nodes should be boosted, branch B should not
+    const branchANodes = result.filter(s => ['sit-100', 'sit-001', 'sit-002'].includes(s.node.id));
+    const branchBNodes = result.filter(s => ['sit-200', 'sit-003'].includes(s.node.id));
+    expect(branchANodes.length).toBeGreaterThan(0);
+    // sit-003 at 0.30 should not cross 0.48 threshold (no boost)
+    expect(branchBNodes.length).toBe(0);
+  });
+
+  it('promotes near-threshold nodes in selected branches', () => {
+    const nodes = [
+      makeSit('sit-100', null),
+      makeSit('sit-001', 'sit-100', 0.5), // below threshold but near
+    ];
+    const scores = new Map([['sit-100', 0.55], ['sit-001', 0.44]]);
+    const result = selectRelevantSituationNodes(nodes, scores, {
+      threshold: 0.48,
+      situationBranchBoost: { boost: 0.06, branchThreshold: 0.48, maxBranches: 4 },
+    }, 0, 10);
+
+    // sit-001 at 0.44 + 0.06 boost = 0.50 → should cross 0.48 threshold
+    const promoted = result.find(s => s.node.id === 'sit-001');
+    expect(promoted).toBeDefined();
+    expect(promoted!.score).toBeCloseTo(0.50);
+  });
+
+  it('falls back to flat selection when no branches score above threshold', () => {
+    const nodes = [
+      makeSit('sit-100', null),
+      makeSit('sit-001', 'sit-100', 0.5),
+      makeSit('sit-002', 'sit-100', 0.5),
+    ];
+    const scores = new Map([['sit-100', 0.30], ['sit-001', 0.52], ['sit-002', 0.35]]);
+    const result = selectRelevantSituationNodes(nodes, scores, {
+      threshold: 0.48,
+      situationBranchBoost: { boost: 0.06, branchThreshold: 0.50, maxBranches: 4 },
+    }, 0, 10);
+
+    // No branch boost applied — flat selection picks sit-001 above threshold
+    expect(result.some(s => s.node.id === 'sit-001')).toBe(true);
+    const boost = (result as ScoredSituationNode[] & { _branchBoost?: BranchBoostResult })._branchBoost;
+    expect(boost).toBeUndefined();
+  });
+
+  it('falls back to flat selection when nodes lack parent_id', () => {
+    const nodes = [
+      makeSit('sit-001', null, 0.5),
+      makeSit('sit-002', null, 0.5),
+    ];
+    const scores = new Map([['sit-001', 0.55], ['sit-002', 0.52]]);
+    const result = selectRelevantSituationNodes(nodes, scores, {
+      threshold: 0.48,
+      situationBranchBoost: { boost: 0.06, maxBranches: 4 },
+    }, 0, 10);
+
+    // All standalone — no hierarchy, should work like flat selection
+    expect(result.length).toBe(2);
+    expect(result[0].node.id).toBe('sit-001');
+  });
+
+  it('exposes diagnostics via _branchBoost property', () => {
+    const nodes = [
+      makeSit('sit-100', null),
+      makeSit('sit-001', 'sit-100', 0.5),
+    ];
+    const scores = new Map([['sit-100', 0.55], ['sit-001', 0.55]]);
+    const result = selectRelevantSituationNodes(nodes, scores, {
+      threshold: 0.48,
+      situationBranchBoost: { boost: 0.06, maxBranches: 4 },
+    }, 0, 10);
+
+    const boost = (result as ScoredSituationNode[] & { _branchBoost?: BranchBoostResult })._branchBoost;
+    expect(boost).toBeDefined();
+    expect(boost!.selectedBranches.length).toBe(1);
+    expect(boost!.selectedBranches[0].rootId).toBe('sit-100');
+    expect(boost!.boostedNodeIds).toContain('sit-001');
+  });
+
+  it('does not boost root nodes themselves', () => {
+    const nodes = [
+      makeSit('sit-100', null),
+      makeSit('sit-001', 'sit-100', 0.5),
+    ];
+    const scores = new Map([['sit-100', 0.55], ['sit-001', 0.55]]);
+    const result = selectRelevantSituationNodes(nodes, scores, {
+      threshold: 0.48,
+      situationBranchBoost: { boost: 0.06, maxBranches: 4 },
+    }, 0, 10);
+
+    const boost = (result as ScoredSituationNode[] & { _branchBoost?: BranchBoostResult })._branchBoost;
+    expect(boost).toBeDefined();
+    // Root node should NOT be in the boosted list
+    expect(boost!.boostedNodeIds).not.toContain('sit-100');
+    // Child should be boosted
+    expect(boost!.boostedNodeIds).toContain('sit-001');
+    // Root's score should be unboosted (0.55), child's boosted (0.61)
+    const rootResult = result.find(s => s.node.id === 'sit-100');
+    const childResult = result.find(s => s.node.id === 'sit-001');
+    expect(rootResult!.score).toBeCloseTo(0.55);
+    expect(childResult!.score).toBeCloseTo(0.61);
   });
 });

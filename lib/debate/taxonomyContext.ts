@@ -10,6 +10,7 @@ import type { PovNode, SituationNode, GraphAttributes } from './taxonomyTypes.js
 import { interpretationText, isBdiInterpretation } from './taxonomyTypes.js';
 import { POV_KEYS } from './types.js';
 import { stripExcludes } from './helpers.js';
+import { buildSituationRootLookup } from './taxonomyRelevance.js';
 
 export interface PolicyRef {
   id: string;
@@ -287,73 +288,83 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
     lines.push('');
   }
 
-  // Situations section — top nodes get full interpretations, rest get selective detail
+  // Situations section — hierarchy-grouped with Lost-in-the-Middle ordering
   if (ctx.situationNodes.length > 0) {
     const SIT_PRIMARY = cfg.sitPrimary ?? 8;
     const otherPovs = POV_KEYS.filter(p => p !== pov);
 
-    // Sort by relevance score if available
-    let sortedSit = ctx.situationNodes;
-    if (hasScores) {
-      sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
-    }
-
     lines.push('=== SITUATIONS (contested concepts — cite sit- IDs in taxonomy_refs) ===');
     lines.push("These are contested concepts where perspectives diverge. When your argument engages a concept listed here, CITE its sit- ID in your taxonomy_refs — this tracks which contested concepts the debate actually addressed. Your interpretation differs from others'; understanding their full position helps you identify genuine disagreements.");
 
-    for (let i = 0; i < sortedSit.length; i++) {
-      const n = sortedSit[i];
-      const isPrimary = i < SIT_PRIMARY;
-      lines.push(`${isPrimary ? '★ ' : '  '}[${n.id}] ${n.label}: ${stripExcludes(n.description)}`);
+    // Build hierarchy grouping when parent_id data is available
+    const hasHierarchy = ctx.situationNodes.some(n => n.parent_id != null);
+    let orderedNodes: SituationNode[];
+    let primaryCounter = 0;
 
-      // This agent's interpretation — always full
-      const interp = n.interpretations?.[pov as keyof typeof n.interpretations];
-      if (interp) {
-        const myInterp = typeof interp === 'object' ? interp : undefined;
-        if (isPrimary && myInterp && isBdiInterpretation(interp)) {
-          // BDI-decomposed: show structured breakdown for primary nodes
-          lines.push(`  Your interpretation (BDI breakdown):`);
-          lines.push(`    Belief: ${myInterp.belief}`);
-          lines.push(`    Desire: ${myInterp.desire}`);
-          lines.push(`    Intention: ${myInterp.intention}`);
-        } else {
-          lines.push(`  Your interpretation: ${interpretationText(interp)}`);
+    if (hasHierarchy) {
+      const rootLookup = buildSituationRootLookup(ctx.situationNodes);
+      const nodeMap = new Map(ctx.situationNodes.map(n => [n.id, n]));
+
+      // Group by root category
+      const groups = new Map<string, SituationNode[]>();
+      for (const n of ctx.situationNodes) {
+        const rootId = rootLookup.get(n.id) ?? n.id;
+        const members = groups.get(rootId) ?? [];
+        members.push(n);
+        groups.set(rootId, members);
+      }
+
+      // Sort nodes within each group by relevance
+      for (const [, members] of groups) {
+        if (hasScores) {
+          members.sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
         }
       }
 
-      if (isPrimary) {
-        // Top nodes: show ALL interpretations — BDI breakdown when available
-        for (const p of otherPovs) {
-          const val = n.interpretations?.[p];
-          if (val) {
-            if (isBdiInterpretation(val)) {
-              lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}:`);
-              lines.push(`    Belief: ${val.belief}`);
-              lines.push(`    Desire: ${val.desire}`);
-              lines.push(`    Intention: ${val.intention}`);
-            } else {
-              lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}: ${interpretationText(val)}`);
-            }
-          }
-        }
-      } else {
-        // Remaining nodes: show the most contested interpretation in full, truncate others
-        // Heuristic: longest other interpretation = most detailed/divergent
-        const otherInterps = otherPovs
-          .map(p => ({ pov: p, text: interpretationText(n.interpretations?.[p]) }))
-          .filter(o => o.text.length > 0)
-          .sort((a, b) => b.text.length - a.text.length || a.pov.localeCompare(b.pov));
+      // Score each group: max node score within the group
+      const groupScores: { rootId: string; label: string; score: number; members: SituationNode[] }[] = [];
+      for (const [rootId, members] of groups) {
+        const rootNode = nodeMap.get(rootId);
+        const label = rootNode?.label ?? rootId;
+        const maxScore = hasScores
+          ? Math.max(...members.map(n => ctx.nodeScores!.get(n.id) ?? 0))
+          : 0;
+        groupScores.push({ rootId, label, score: maxScore, members });
+      }
+      groupScores.sort((a, b) => b.score - a.score);
 
-        if (otherInterps.length > 0) {
-          // Most contested in full
-          const most = otherInterps[0];
-          lines.push(`  ${most.pov.charAt(0).toUpperCase() + most.pov.slice(1)}: ${most.text}`);
-          // Others truncated
-          for (const other of otherInterps.slice(1)) {
-            const truncated = other.text.length > 120 ? other.text.slice(0, 117) + '...' : other.text;
-            lines.push(`  ${other.pov.charAt(0).toUpperCase() + other.pov.slice(1)}: ${truncated}`);
-          }
+      // Lost-in-the-Middle ordering: #1 first, #2 last, #3 second, #4 second-to-last...
+      const litm: typeof groupScores = [];
+      let lo = 0, hi = groupScores.length;
+      for (let i = 0; i < groupScores.length; i++) {
+        if (i % 2 === 0) {
+          litm[lo++] = groupScores[i];
+        } else {
+          litm[--hi] = groupScores[i];
         }
+      }
+
+      // Emit grouped nodes with category headers
+      orderedNodes = [];
+      for (const group of litm) {
+        if (group.members.length === 0) continue;
+
+        lines.push('');
+        lines.push(`## ${group.label}`);
+        for (const n of group.members) {
+          const isPrimary = primaryCounter < SIT_PRIMARY;
+          _renderSituationNode(lines, n, isPrimary, pov, otherPovs);
+          primaryCounter++;
+        }
+      }
+    } else {
+      // Flat fallback — no hierarchy data
+      let sortedSit = ctx.situationNodes;
+      if (hasScores) {
+        sortedSit = [...ctx.situationNodes].sort((a, b) => (ctx.nodeScores!.get(b.id) ?? 0) - (ctx.nodeScores!.get(a.id) ?? 0) || a.id.localeCompare(b.id));
+      }
+      for (let i = 0; i < sortedSit.length; i++) {
+        _renderSituationNode(lines, sortedSit[i], i < SIT_PRIMARY, pov, otherPovs);
       }
     }
   }
@@ -381,6 +392,59 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   }
 
   return lines.join('\n');
+}
+
+function _renderSituationNode(
+  lines: string[],
+  n: SituationNode,
+  isPrimary: boolean,
+  pov: string,
+  otherPovs: string[],
+): void {
+  lines.push(`${isPrimary ? '★ ' : '  '}[${n.id}] ${n.label}: ${stripExcludes(n.description)}`);
+
+  const interp = n.interpretations?.[pov as keyof typeof n.interpretations];
+  if (interp) {
+    const myInterp = typeof interp === 'object' ? interp : undefined;
+    if (isPrimary && myInterp && isBdiInterpretation(interp)) {
+      lines.push(`  Your interpretation (BDI breakdown):`);
+      lines.push(`    Belief: ${myInterp.belief}`);
+      lines.push(`    Desire: ${myInterp.desire}`);
+      lines.push(`    Intention: ${myInterp.intention}`);
+    } else {
+      lines.push(`  Your interpretation: ${interpretationText(interp)}`);
+    }
+  }
+
+  if (isPrimary) {
+    for (const p of otherPovs) {
+      const val = n.interpretations?.[p];
+      if (val) {
+        if (isBdiInterpretation(val)) {
+          lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}:`);
+          lines.push(`    Belief: ${val.belief}`);
+          lines.push(`    Desire: ${val.desire}`);
+          lines.push(`    Intention: ${val.intention}`);
+        } else {
+          lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}: ${interpretationText(val)}`);
+        }
+      }
+    }
+  } else {
+    const otherInterps = otherPovs
+      .map(p => ({ pov: p, text: interpretationText(n.interpretations?.[p]) }))
+      .filter(o => o.text.length > 0)
+      .sort((a, b) => b.text.length - a.text.length || a.pov.localeCompare(b.pov));
+
+    if (otherInterps.length > 0) {
+      const most = otherInterps[0];
+      lines.push(`  ${most.pov.charAt(0).toUpperCase() + most.pov.slice(1)}: ${most.text}`);
+      for (const other of otherInterps.slice(1)) {
+        const truncated = other.text.length > 120 ? other.text.slice(0, 117) + '...' : other.text;
+        lines.push(`  ${other.pov.charAt(0).toUpperCase() + other.pov.slice(1)}: ${truncated}`);
+      }
+    }
+  }
 }
 
 /** Instrumentation data for tracking what was injected vs what was used. */

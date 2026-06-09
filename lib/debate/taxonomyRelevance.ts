@@ -40,6 +40,24 @@ export interface RelevanceOptions {
   nodeEmbeddings?: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }>;
   /** Query embedding vector — required for exclusion filtering. */
   queryVector?: number[];
+  /** Branch-aware situation selection — boosts nodes in topic-relevant root categories. */
+  situationBranchBoost?: SituationBranchBoostConfig;
+}
+
+export interface SituationBranchBoostConfig {
+  /** Score boost for nodes in topic-relevant branches (default 0.06). */
+  boost?: number;
+  /** Minimum branch score to activate boosting. Defaults to the node threshold. */
+  branchThreshold?: number;
+  /** Max branches to boost (default 4). */
+  maxBranches?: number;
+}
+
+export interface BranchBoostResult {
+  selectedBranches: { rootId: string; label: string; branchScore: number }[];
+  boostedNodeIds: string[];
+  promotedNodeIds: string[];
+  promotedCount: number;
 }
 
 export interface LineageBoostConfig {
@@ -204,7 +222,39 @@ export function selectRelevantNodes(
 }
 
 /**
+ * Build a node→root lookup for situation hierarchy. Returns a Map of nodeId → rootId.
+ * Nodes without parent_id (or with invalid parent_id) map to themselves.
+ */
+export function buildSituationRootLookup(
+  nodes: readonly SituationNode[],
+): Map<string, string> {
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const rootCache = new Map<string, string>();
+  const inProgress = new Set<string>();
+
+  function findRoot(id: string): string {
+    if (rootCache.has(id)) return rootCache.get(id)!;
+    if (inProgress.has(id)) { rootCache.set(id, id); return id; }
+    inProgress.add(id);
+    const node = nodeMap.get(id);
+    if (!node || !node.parent_id || !nodeMap.has(node.parent_id)) {
+      rootCache.set(id, id);
+      return id;
+    }
+    const root = findRoot(node.parent_id);
+    rootCache.set(id, root);
+    return root;
+  }
+
+  for (const n of nodes) findRoot(n.id);
+  return rootCache;
+}
+
+/**
  * Select relevant situation nodes based on similarity threshold.
+ * When situationBranchBoost is configured and nodes have parent_id, scores
+ * at branch level first and boosts descendants of topic-relevant categories.
+ * Falls back to flat selection when no branches score above threshold.
  */
 export function selectRelevantSituationNodes(
   situationNodes: SituationNode[],
@@ -219,9 +269,84 @@ export function selectRelevantSituationNodes(
       ? (opts.lexicalThreshold ?? 0.22)
       : (opts.embeddingThreshold ?? 0.48)
   );
+
+  // Branch boosting: identify top root categories and boost their descendants
+  const effectiveScores = new Map(scores);
+  let _branchBoostResult: BranchBoostResult | undefined;
+  const branchCfg = opts.situationBranchBoost;
+  const hasHierarchy = situationNodes.some(n => n.parent_id != null);
+
+  if (branchCfg && hasHierarchy) {
+    const boostAmount = branchCfg.boost ?? 0.06;
+    const branchThreshold = branchCfg.branchThreshold ?? threshold;
+    const maxBranches = branchCfg.maxBranches ?? 4;
+
+    const rootLookup = buildSituationRootLookup(situationNodes);
+    const nodeMap = new Map(situationNodes.map(n => [n.id, n]));
+
+    // Group nodes by root
+    const branchMembers = new Map<string, string[]>();
+    for (const n of situationNodes) {
+      const root = rootLookup.get(n.id) ?? n.id;
+      if (root === n.id && !n.parent_id) {
+        // This is a root node — don't add it to its own branch members
+        // (branch score is computed from descendants only)
+        if (!branchMembers.has(root)) branchMembers.set(root, []);
+        continue;
+      }
+      const members = branchMembers.get(root) ?? [];
+      members.push(n.id);
+      branchMembers.set(root, members);
+    }
+
+    // Compute branch scores: max(root embedding score, mean of top-3 descendant scores)
+    const branchScores: { rootId: string; label: string; branchScore: number }[] = [];
+    for (const [rootId, memberIds] of branchMembers) {
+      const rootNode = nodeMap.get(rootId);
+      if (!rootNode || rootNode.parent_id) continue; // only true roots
+
+      const rootScore = scores.get(rootId) ?? 0;
+      const memberScores = memberIds
+        .map(id => scores.get(id) ?? 0)
+        .sort((a, b) => b - a);
+      const top3Mean = memberScores.length > 0
+        ? memberScores.slice(0, 3).reduce((s, v) => s + v, 0) / Math.min(3, memberScores.length)
+        : 0;
+      const branchScore = Math.max(rootScore, top3Mean);
+
+      branchScores.push({ rootId, label: rootNode.label, branchScore });
+    }
+
+    // Select top branches above threshold
+    branchScores.sort((a, b) => b.branchScore - a.branchScore);
+    const selectedBranches = branchScores
+      .filter(b => b.branchScore >= branchThreshold)
+      .slice(0, maxBranches);
+
+    if (selectedBranches.length > 0) {
+      const selectedRootIds = new Set(selectedBranches.map(b => b.rootId));
+      const boostedIds: string[] = [];
+      const promotedIds: string[] = [];
+
+      for (const n of situationNodes) {
+        if (!n.parent_id) continue;
+        const root = rootLookup.get(n.id) ?? n.id;
+        if (selectedRootIds.has(root)) {
+          const base = effectiveScores.get(n.id) ?? 0;
+          const boosted = base + boostAmount;
+          effectiveScores.set(n.id, boosted);
+          boostedIds.push(n.id);
+          if (base < threshold && boosted >= threshold) promotedIds.push(n.id);
+        }
+      }
+
+      _branchBoostResult = { selectedBranches, boostedNodeIds: boostedIds, promotedNodeIds: promotedIds, promotedCount: promotedIds.length };
+    }
+  }
+
   const scored = situationNodes
     .map(n => {
-      let score = scores.get(n.id) || 0;
+      let score = effectiveScores.get(n.id) || 0;
       // Deprioritize near-consensus situations (low interpretation divergence)
       if (n.interpretation_divergence != null && n.interpretation_divergence < 0.20) {
         score -= 0.05;
@@ -236,6 +361,10 @@ export function selectRelevantSituationNodes(
     : scored.slice(0, Math.max(min, aboveThreshold.length));
 
   let result = selected.slice(0, max);
+
+  if (_branchBoostResult) {
+    (result as ScoredSituationNode[] & { _branchBoost?: BranchBoostResult })._branchBoost = _branchBoostResult;
+  }
 
   // Apply exclusion ratio filter when embeddings and query vector are provided
   if (opts.nodeEmbeddings && opts.queryVector) {
