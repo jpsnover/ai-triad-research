@@ -1516,10 +1516,12 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
 // ── Analytics ──
 
 get('/api/auth/me', (req, res) => {
-  const principalName = AZURE_AUTH_ENABLED
+  const azureAuth = process.env.WEBSITE_AUTH_ENABLED === 'True'
+    || process.env.WEBSITE_AUTH_ENABLED === 'true';
+  const principalName = azureAuth
     ? (req.headers['x-ms-client-principal-name'] as string) || ''
     : '';
-  const idp = AZURE_AUTH_ENABLED
+  const idp = azureAuth
     ? (req.headers['x-ms-client-principal-idp'] as string) || ''
     : '';
   const isAnon = !principalName;
