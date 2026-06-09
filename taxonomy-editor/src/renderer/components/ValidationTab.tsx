@@ -212,7 +212,15 @@ function ClaimDetail({ claim }: { claim: GoldenClaim | null }) {
         <span className="validation-claim-id-large">{claim.claim_id}</span>
       </div>
 
-      <div className="validation-claim-full-text">{claim.claim_text}</div>
+      <div className="validation-claim-full-text">
+        {claim.claim_text}
+        <button
+          className="validation-copy-btn"
+          onClick={() => void navigator.clipboard.writeText(claim.claim_text)}
+        >
+          Copy
+        </button>
+      </div>
 
       <div className="validation-context-row">
         <span className="validation-context-label">Debate:</span>

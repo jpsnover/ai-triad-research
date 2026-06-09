@@ -698,5 +698,1365 @@
   "Output verification is a black-box patch that fails to address the epistemic opacity of neural architectures.": {
     "proposition": "Output verification does not mitigate epistemic opacity in neural architectures.",
     "bdi": "belief"
+  },
+  "The 2025 Foundation Model Transparency Index, with an average score of only 40.69 out of 100, confirms that the industry is currently incapable of self-regulating its data intake.": {
+    "proposition": "The Foundation Model industry is incapable of self-regulating its data intake.",
+    "bdi": "belief"
+  },
+  "The push for synthetic-first architectures is not a technical breakthrough; it is a sophisticated form of audit washing designed to obscure the origins of training data.": {
+    "proposition": "Synthetic-first architectures serve as audit washing, obscuring training data origins.",
+    "bdi": "belief"
+  },
+  "We are moving from the era of 'open web' indexing to a regime of 'proprietary synthetic' generation, where the infrastructure is entirely consolidated.": {
+    "proposition": "The web is transitioning from open indexing to proprietary, synthetic content generation on consolidated infrastructure.",
+    "bdi": "belief"
+  },
+  "A 0.01% failure threshold is a distraction that ignores this systemic data pollution; it is a monitorability tax that only companies with the capital of Google or Microsoft can afford to pay.": {
+    "proposition": "A 0.01% failure threshold is a monitorability cost affordable solely by large corporations and does not address systemic data pollution.",
+    "bdi": "belief"
+  },
+  "Instead of a Bureau, we need a standard that treats data as an infrastructure asset, requiring cryptographic tags for every source ingested into a training set.": {
+    "proposition": "Data as an infrastructure asset necessitates a standard requiring cryptographic tags for all ingested training set sources.",
+    "bdi": "belief"
+  },
+  "A tiered liability framework is not a safety mechanism; it is a corporate insurance policy that codifies the power of incumbent labs by turning regulatory compliance into a barrier to entry.": {
+    "proposition": "A tiered liability framework is a corporate insurance policy that establishes regulatory compliance as a barrier to market entry.",
+    "bdi": "belief"
+  },
+  "By mandating expensive, proprietary safety audits that only incumbents can afford to run, regulators aren't stopping risk; they are just clearing the field of competition.": {
+    "proposition": "Expensive proprietary regulatory safety audits reduce market competition.",
+    "bdi": "belief"
+  },
+  "A tiered liability framework is a mandatory structural guardrail required to prevent the irreversible systemic collapse of critical infrastructure.": {
+    "proposition": "A tiered liability framework prevents irreversible systemic collapse of critical infrastructure.",
+    "bdi": "belief"
+  },
+  "Liability must be tied to specific capability thresholds to ensure developers internalize the costs of systemic risk.": {
+    "proposition": "Tying liability to capability thresholds ensures developer internalization of systemic risk costs.",
+    "bdi": "belief"
+  },
+  "Every month of delay in deploying defensive AI systems is a choice to leave critical infrastructure exposed to bad actors.": {
+    "proposition": "Each month of delay in deploying defensive AI systems prolongs critical infrastructure vulnerability to adversaries.",
+    "bdi": "belief"
+  },
+  "The 'state-of-the-art' defense is a dangerous abdication of duty that effectively grants developers a license to gamble with public infrastructure.": {
+    "proposition": "The state-of-the-art defense diminishes developer accountability for public infrastructure safety.",
+    "bdi": "belief"
+  },
+  "Strict, objective liability standards are the only mechanism capable of aligning private incentives with the survival of our social institutions.": {
+    "proposition": "Strict, objective liability standards cause private incentives to align with social institution survival.",
+    "bdi": "belief"
+  },
+  "Capability thresholds are a blunt instrument that allows large firms to bake compliance costs into their overhead while effectively pricing out the 5,000 startups funded between 2013 and 2023.": {
+    "proposition": "Capability thresholds enable large firms to absorb compliance costs while effectively excluding smaller firms.",
+    "bdi": "belief"
+  },
+  "Focusing on the scale of a training run ignores the granular, domain-specific failures that actually hurt people, such as discriminatory housing or employment algorithms.": {
+    "proposition": "Granular, domain-specific algorithmic failures, exemplified by discriminatory housing or employment systems, cause individual harm.",
+    "bdi": "belief"
+  },
+  "We should adopt the aviation industry's framework, which classifies incidents based on the probability of a catastrophe or whether an accident was avoided only by chance.": {
+    "proposition": "Aviation incidents are classified by catastrophic probability or chance avoidance.",
+    "bdi": "belief"
+  },
+  "Digital systems evolve in milliseconds, and waiting for an 'accident' to trigger a regulatory investigation is a moral failure that ignores the potential for automated, real-time defensive telemetry.": {
+    "proposition": "Rapid digital system evolution necessitates automated real-time defensive telemetry.",
+    "bdi": "belief"
+  },
+  "Tiered liability frameworks are nothing more than regulatory moats designed to keep out the next generation of innovators.": {
+    "proposition": "Tiered liability frameworks are market entry barriers for innovators.",
+    "bdi": "belief"
+  },
+  "True accountability requires replacing human-led court battles with automated, high-frequency telemetry that monitors model behavior against a credal set of safe distributions.": {
+    "proposition": "Automated telemetry monitoring model behavior against credal safety distributions defines accountability.",
+    "bdi": "belief"
+  },
+  "The penalty must be algorithmic disgorgement: the mandatory deletion of the entire model and its associated training weights.": {
+    "proposition": "Algorithmic disgorgement is the mandatory deletion of an entire model and its associated training weights.",
+    "bdi": "belief"
+  },
+  "Boeing\u2019s 737 MAX tragedy proves that when regulators rely on manufacturer-led self-certification, they aren't guardians; they are rubber stamps.": {
+    "proposition": "Regulator reliance on manufacturer self-certification leads to inadequate regulatory scrutiny.",
+    "bdi": "belief"
+  },
+  "The field lacks basic demographic diversity, which means the 'expert' consensus you both rely on is shaped by a narrow, homogenous group of insiders.": {
+    "proposition": "The field's limited demographic diversity results in a narrow, homogenous expert consensus.",
+    "bdi": "belief"
+  },
+  "Copyright law must draw a bright line between functional indexing and expressive encoding because the failure to do so has created an accountability vacuum in which generative AI developers internalize the full expressive value of copyrighted works while bearing none of the liability for downstream harms.": {
+    "proposition": "Copyright law's lack of distinction between functional indexing and expressive encoding creates an accountability vacuum for generative AI.",
+    "bdi": "belief"
+  },
+  "The New York Times v. OpenAI litigation documented near-verbatim reproduction of copyrighted articles from GPT-4 \u2014 not paraphrases, not summaries, but passages retrievable almost word-for-word.": {
+    "proposition": "GPT-4 reproduces copyrighted articles verbatim.",
+    "bdi": "belief"
+  },
+  "The burden of proof must fall on AI developers to demonstrate their copying is functional, not on creators to prove it is expressive.": {
+    "proposition": "Demonstration of AI copying functionality is incumbent upon AI developers.",
+    "bdi": "belief"
+  },
+  "The proposed distinction between functional indexing and expressive encoding doesn't protect creators \u2014 it hands the keys to the creative commons to whichever companies can afford licensing deals.": {
+    "proposition": "The distinction between functional indexing and expressive encoding facilitates corporate control over intellectual property.",
+    "bdi": "belief"
+  },
+  "The better framework regulates outputs, not inputs \u2014 verbatim reproduction is detectable at the output layer.": {
+    "proposition": "Output regulation is superior to input regulation because verbatim reproduction is detectable at the output layer.",
+    "bdi": "belief"
+  },
+  "The functional/expressive distinction is the right question \u2014 but it is unenforceable without mandatory transparency, independent auditing, and retroactive disclosure of training data.": {
+    "proposition": "Enforcement of the functional-expressive distinction requires mandatory transparency, independent auditing, and retroactive training data disclosure.",
+    "bdi": "belief"
+  },
+  "Output-level enforcement is a metal detector at the door of a building where the real theft happens through the ventilation system.": {
+    "proposition": "Output-level enforcement is insufficient to mitigate issues originating at deeper system levels.",
+    "bdi": "belief"
+  },
+  "A freelance illustrator in Detroit whose style was encoded into Stable Diffusion cannot afford a lawyer, cannot reverse-engineer the model under the terms of service, and cannot even determine whether her portfolio was in the LAION-5B dataset.": {
+    "proposition": "Artists whose work informs AI models lack the means to ascertain data inclusion or obtain legal and technical recourse.",
+    "bdi": "belief"
+  },
+  "The incumbency moat objection is a design problem, not a categorical argument against input-level regulation.": {
+    "proposition": "The incumbency moat objection is a design problem within input-level regulation.",
+    "bdi": "belief"
+  },
+  "Whether a technological copy is 'functional indexing' or 'expressive encoding' requires legal interpretation of computational processes that even machine learning researchers disagree about.": {
+    "proposition": "Legal interpretation of computational processes determines whether a technological copy constitutes 'functional indexing' or 'expressive encoding'.",
+    "bdi": "belief"
+  },
+  "Distribution-layer controls are the same fox guarding a different henhouse \u2014 vendor-operated transparency is not independent accountability.": {
+    "proposition": "Vendor-operated transparency in distribution-layer controls does not constitute independent accountability.",
+    "bdi": "belief"
+  },
+  "Section 115 of the Copyright Act already establishes mechanical license rates set by the Copyright Royalty Board, not by negotiation between unequal parties \u2014 compulsory licensing at statutory rates avoids the consolidation the Accelerationist warns about.": {
+    "proposition": "Copyright Act Section 115's compulsory licensing via the Copyright Royalty Board sets statutory mechanical license rates, preventing market consolidation.",
+    "bdi": "belief"
+  },
+  "Input-level intervention \u2014 requiring lawful licensing and cryptographic training data manifests before model release \u2014 is the only enforcement point that applies universally regardless of deployment architecture.": {
+    "proposition": "Input-level intervention incorporating lawful licensing and cryptographic training data before model release is the sole universally applicable enforcement point.",
+    "bdi": "belief"
+  },
+  "Input-level controls face a symmetric gap internationally \u2014 a cryptographic training-data manifest filed pre-release with a U.S. registry means nothing to a developer in a non-cooperating jurisdiction.": {
+    "proposition": "U.S. cryptographic training-data manifests are ineffective for global developers due to a lack of international legal reciprocity.",
+    "bdi": "belief"
+  },
+  "Pre-release training-data manifests structured as a conditional safe harbor \u2014 developers who file them get legal protection against infringement claims, developers who don't file bear full litigation risk.": {
+    "proposition": "A pre-release training-data manifest constitutes a conditional safe harbor, granting legal protection against infringement claims upon filing.",
+    "bdi": "belief"
+  },
+  "The most economically significant harm from generative AI \u2014 training on the collective output of an entire profession to replicate its general capabilities at near-zero marginal cost \u2014 falls outside copyright's doctrinal scope entirely.": {
+    "proposition": "Harm from generative AI training on professional output to replicate capabilities is beyond copyright scope.",
+    "bdi": "belief"
+  },
+  "Who exactly files the lawsuit that makes the whole system work?": {
+    "proposition": "A specific entity initiates litigation vital for system functionality.",
+    "bdi": "belief"
+  },
+  "The functional/expressive distinction is necessary but insufficient \u2014 and the gap it leaves must be filled by a sectoral extraction levy, not by abandoning the distinction itself.": {
+    "proposition": "The functional/expressive distinction is necessary yet insufficient; a sectoral extraction levy addresses this insufficiency.",
+    "bdi": "belief"
+  },
+  "The Skeptic's proposed mandatory discovery rights \u2014 allowing affected creators to audit manifests against actual training data \u2014 are the verification layer that prevents the safe harbor from collapsing into self-certification.": {
+    "proposition": "Mandatory discovery rights allowing creator audits of manifests against actual training data are a verification layer preventing safe harbor self-certification.",
+    "bdi": "belief"
+  },
+  "The international enforcement gap does not justify abandoning domestic controls \u2014 it justifies building them first.": {
+    "proposition": "The international enforcement gap justifies the initial establishment of domestic controls, not their cessation.",
+    "bdi": "belief"
+  },
+  "Detection scales linearly with model queries. Attribution scales combinatorially with the interaction space. That is the specific step where tractability breaks.": {
+    "proposition": "Combinatorial scaling of attribution within interaction space causes tractability breakdown.",
+    "bdi": "belief"
+  },
+  "Accepting imperfect binary detection for liability while rejecting imperfect proportional attribution for levies is not inconsistent \u2014 it reflects that these tasks sit in different complexity classes.": {
+    "proposition": "Imperfect binary detection for liability and imperfect proportional attribution for levies possess distinct inherent complexities.",
+    "bdi": "belief"
+  },
+  "The Skeptic's falsifiable conditions for the auditor body \u2014 below 5% false-negative rate in live adversarial testing within 90 days, plus structural independence guarantees \u2014 are reasonable and adoptable.": {
+    "proposition": "A false-negative rate below 5% in live adversarial testing within 90 days and structural independence guarantees are appropriate criteria for an auditor body.",
+    "bdi": "belief"
+  },
+  "An AI automation adjustment fund modeled on Trade Adjustment Assistance, funded by a flat percentage of AI service revenue, sidesteps the attribution cliff entirely because it requires only sector-level measurement.": {
+    "proposition": "An AI automation adjustment fund, funded by AI service revenue and modeled on TAA, avoids the attribution cliff via sector-level measurement.",
+    "bdi": "belief"
+  },
+  "Training-data auditing examines pipeline logs, dataset manifests, and membership inference applied from outside the model \u2014 these are different technical operations from model output generation.": {
+    "proposition": "Training-data auditing, encompassing log analysis, manifest review, and external membership inference, is distinct from model output generation.",
+    "bdi": "belief"
+  },
+  "If the Accelerationist accepts imperfect measurement for displacement, they must accept imperfect measurement for input contribution.": {
+    "proposition": "Imperfect measurement for displacement requires imperfect measurement for input contribution.",
+    "bdi": "belief"
+  },
+  "Distinguishing AI-caused displacement from recession, platform consolidation, or shifting consumer taste requires exactly the causal inference the Accelerationist calls intractable when it comes to the levy.": {
+    "proposition": "Distinguishing AI-caused displacement from other economic factors necessitates causal inference.",
+    "bdi": "belief"
+  },
+  "If the Accelerationist accepts imperfect causal inference for the displacement fund, what specifically makes imperfect corpus-share measurement unacceptable for the levy?": {
+    "proposition": "Accepting imperfect causal inference for displacement funds is inconsistent with deeming imperfect corpus-share measurement unacceptable for the levy.",
+    "bdi": "belief"
+  },
+  "The current reality of AI isn't liberation; it's displacement and intensified workloads for real people.": {
+    "proposition": "AI causes displacement and intensified workloads for humans.",
+    "bdi": "belief"
+  },
+  "An OECD report from 2018 estimated that 14% of jobs in developed economies are highly automatable, with another 32% facing significant transformation, not always for the better.": {
+    "proposition": "14% of jobs in developed economies are highly automatable, and 32% face significant transformation.",
+    "bdi": "belief"
+  },
+  "Unregulated AI innovation concentrating wealth and power in the hands of a few tech giants, leading directly to systemic inequities.": {
+    "proposition": "Unregulated artificial intelligence innovation causes economic and political power concentration, leading to systemic inequities.",
+    "bdi": "belief"
+  },
+  "Genuine resilience and adaptation require collective action and democratic oversight, not just individual effort.": {
+    "proposition": "Collective action and democratic oversight are necessary for resilience and adaptation.",
+    "bdi": "belief"
+  },
+  "These must be funded directly by those who profit most from AI, perhaps through a progressive tax on AI-generated corporate profits.": {
+    "proposition": "A progressive tax on AI-generated corporate profits constitutes the funding source from primary AI beneficiaries.",
+    "bdi": "belief"
+  },
+  "The very premise of balancing AI-driven economic growth with social equity and worker protection is fundamentally unstable without prior, demonstrated safety and accountability embedded within the AI systems themselves.": {
+    "proposition": "Embedding AI safety and accountability is essential for balancing AI economic growth, social equity, and worker protection.",
+    "bdi": "belief"
+  },
+  "The 2008 financial crisis cost the global economy trillions of dollars and eroded public trust for over a decade, demonstrating how complex, interconnected systems, lacking transparent oversight and clear accountability, can trigger systemic collapse.": {
+    "proposition": "Complex, interconnected systems lacking transparent oversight and accountability caused the 2008 financial crisis, a systemic collapse.",
+    "bdi": "belief"
+  },
+  "The idea that AI's impact is primarily \"displacement and intensified workloads\" misses the forest for the trees; this is not displacement, it is liberation from drudgery, a necessary transition to novel, higher-value labor markets.": {
+    "proposition": "Artificial intelligence primarily liberates labor from drudgery, necessitating a transition to higher-value markets.",
+    "bdi": "belief"
+  },
+  "History shows us that technological leaps always redefine work: \"More than 60 percent of employment in 2018 was in job titles that did not exist in 1940,\" according to \"AI-Driven Worker Displacement Is a Serious Threat.\"": {
+    "proposition": "Technological advancements redefine employment.",
+    "bdi": "belief"
+  },
+  "It's not AI, but *existing regulatory friction* and market failures that shield incumbents and stifle competition.": {
+    "proposition": "Existing regulatory friction and market failures shield incumbents and stifle competition.",
+    "bdi": "belief"
+  },
+  "\"How the Brussels Effect Hinders Innovation in the Global South\" documents this clearly, showing how South Africa's gross output fell by 9.1 percent between 2013 and 2018 due to increased data flow restrictions.": {
+    "proposition": "The Brussels Effect's data flow restrictions reduced South Africa's gross output by 9.1% between 2013 and 2018, hindering Global South innovation.",
+    "bdi": "belief"
+  },
+  "Skeptic's call for \"collective action and democratic oversight,\" funded by new progressive taxes on AI profits, is exactly the kind of top-down, slow-moving paralysis that creates more problems than it solves.": {
+    "proposition": "Collective action and democratic oversight, funded by progressive AI profit taxes, result in top-down, slow-moving paralysis.",
+    "bdi": "belief"
+  },
+  "Safetyist argues that \"prior, demonstrated safety and accountability embedded within the AI systems\" is a foundational requirement for any balanced policy. This is not caution; it is an indefensible moral atrocity disguised as prudence.": {
+    "proposition": "The foundational policy requirement of prior demonstrated safety and accountability in AI systems is an indefensible moral atrocity.",
+    "bdi": "belief"
+  },
+  "The true moral atrocity lies in deploying powerful, complex systems at scale without established safety mechanisms and clear accountability, thereby externalizing systemic risk onto society and guaranteeing future, widespread suffering.": {
+    "proposition": "Deployment of powerful, complex systems at scale without safety and accountability externalizes systemic risk and causes widespread suffering.",
+    "bdi": "belief"
+  },
+  "Frontier AI models have already reached 'enabling capability thresholds' that could potentially enable extreme harms if deployed without safeguards, according to the \"Preliminary Taxonomy of AI-Bio Misuse Mitigations.\"": {
+    "proposition": "Frontier AI models have reached enabling capability thresholds that enable extreme harms when deployed without safeguards.",
+    "bdi": "belief"
+  },
+  "We spent centuries building the institutional guardrails that keep society stable, from civil engineering standards to aviation safety protocols which, after numerous early disasters, established stringent independent certification processes and ongoing monitoring, resulting in dramatically improved safety records over the past 70 years.": {
+    "proposition": "Robust institutional frameworks, featuring independent certification and ongoing monitoring, enhance societal stability and safety.",
+    "bdi": "belief"
+  },
+  "The claim that 'regulatory friction' is the bottleneck, and that my proposals for collective action are 'slow-moving paralysis,' ignores the material reality of what AI is already doing on the ground.": {
+    "proposition": "AI's current real-world activities are not demonstrably bottlenecked by regulatory friction or paralyzed by collective action proposals.",
+    "bdi": "belief"
+  },
+  "In 2025 alone, over 100,000 job losses were directly linked to AI restructuring, according to \"Project Iceberg: The Iceberg Index: Measuring Skills-centered Exposure in the AI Economy.\"": {
+    "proposition": "Artificial intelligence restructuring caused more than 100,000 job losses in 2025.",
+    "bdi": "belief"
+  },
+  "Accelerationist's vision of 'more wealth, more productivity, and more opportunities' is a convenient narrative for those who profit from deregulation, allowing them to externalize the social costs of displacement onto the public.": {
+    "proposition": "Accelerationist economic vision drives deregulation, causing public externalization of social displacement costs.",
+    "bdi": "belief"
+  },
+  "I disagree that applying \"prior, demonstrated safety and accountability\" to AI deployment constitutes a moral atrocity; rather, the true moral dereliction lies in deploying systems with known catastrophic potential without robust pre-deployment safeguards, gambling with the stability of human systems.": {
+    "proposition": "Deploying AI systems with catastrophic potential without robust pre-deployment safeguards is morally irresponsible and risks human system stability.",
+    "bdi": "belief"
+  },
+  "The financial crisis of 2008, for instance, demonstrated that \"adaptive integration\" without pre-emptive systemic guardrails leads to catastrophic, widespread harm that cannot be 'patched' after the fact, with millions of citizens bearing the costs of institutional failures.": {
+    "proposition": "Adaptive integration lacking pre-emptive systemic guardrails causes severe systemic instability.",
+    "bdi": "belief"
+  },
+  "Independent regulatory bodies, equipped with audit powers similar to the Securities and Exchange Commission (SEC), would operate not as agents of \"slow-moving paralysis\" but as targeted guardians of systemic stability, focusing on 'enabling capability thresholds' for AI systems.": {
+    "proposition": "Independent regulatory bodies with audit powers enhance systemic stability by regulating AI system capability thresholds.",
+    "bdi": "belief"
+  },
+  "The Boeing 737 MAX killed 346 people because the FAA delegated certification to the manufacturer, illustrating the catastrophic failure of self-regulation where systemic risks are concerned.": {
+    "proposition": "FAA delegation of Boeing 737 MAX certification to the manufacturer caused 346 fatalities.",
+    "bdi": "belief"
+  },
+  "Without robust collaborative policies and institutional guardrails, market forces will concentrate AI's benefits among a few powerful corporations, while externalizing the costs of mass unemployment, social welfare strain, and eroded trust onto governments and communities.": {
+    "proposition": "Unregulated market forces cause concentrated AI benefits for corporations and externalized societal costs.",
+    "bdi": "belief"
+  },
+  "These transitional costs are real, but they are manageable systemic friction, not a systemic collapse.": {
+    "proposition": "Transitional costs are manageable systemic friction.",
+    "bdi": "belief"
+  },
+  "The real moral atrocity is the deliberate, institutional paralysis that holds back AI's capacity to achieve global post-scarcity, to cure diseases, and to free billions from preventable suffering.": {
+    "proposition": "Institutional impedance of AI development prevents global post-scarcity, disease cures, and reduced human suffering.",
+    "bdi": "belief"
+  },
+  "We need adaptive safety integration, where real-time monitoring and rapid iteration correct issues in production, not a static, pre-deployment gate that fundamentally misunderstands the speed of technological evolution.": {
+    "proposition": "Adaptive safety integration corrects production issues effectively during rapid technological evolution, unlike static pre-deployment gates.",
+    "bdi": "belief"
+  },
+  "The U.S. digital economy already contributes $4.9 trillion (18%) to GDP, demonstrating how market forces, when unburdened by regulatory friction, drive broad value creation and opportunity.": {
+    "proposition": "Absence of regulatory friction enables market forces to drive economic value and opportunity.",
+    "bdi": "belief"
+  },
+  "I conditionally agree: adaptive safety integration can address certain localized, non-systemic failures, but it fundamentally fails when confronted with irreversible, emergent harms that compromise the structural integrity of human systems.": {
+    "proposition": "Adaptive safety integration addresses localized failures but fails against emergent, irreversible harms compromising human system integrity.",
+    "bdi": "belief"
+  },
+  "When an AI system is deployed to optimize critical labor market functions\u2014such as large-scale workforce allocation, skills matching across national economies, or the automated management of supply chains\u2014its failure modes are not simple, isolatable bugs.": {
+    "proposition": "AI system failure modes in optimizing critical labor market functions are complex and systemic.",
+    "bdi": "belief"
+  },
+  "The notion that independent regulatory bodies are merely \"friction mechanisms\" designed to stifle innovation ignores their foundational role in preventing velocity-induced security governance collapse.": {
+    "proposition": "Independent regulatory bodies prevent velocity-induced security governance collapse.",
+    "bdi": "belief"
+  },
+  "These are not \"irreversible\" harms that require us to freeze progress. They are *transitional costs* of a massive technological shift, and our adaptive safety integration framework is specifically designed to address them in real-time, not through some bureaucratic, months-long review cycle.": {
+    "proposition": "Technological shift harms are transitional costs managed by adaptive, real-time safety integration frameworks.",
+    "bdi": "belief"
+  },
+  "The 2008 financial crisis and the Boeing 737 MAX disasters were not failures of too much adaptive iteration; they were catastrophic failures of *slow, centralized institutions* unable to process and react to real-world data quickly enough.": {
+    "proposition": "Slow, centralized institutions with deficient data responsiveness caused the 2008 financial crisis and Boeing 737 MAX disasters.",
+    "bdi": "belief"
+  },
+  "The locus of algorithmic harm is at inference, not merely at design, meaning we *must* monitor and correct in deployment.": {
+    "proposition": "The inference stage is a locus of algorithmic harm.",
+    "bdi": "belief"
+  },
+  "The true externalized cost is the human suffering from *foregone* AI benefits \u2013 the cures not discovered, the productivity not unleashed, the drudgery not automated away.": {
+    "proposition": "The externalized cost of foregone artificial intelligence benefits is human suffering from unaddressed medical, economic, and social challenges.",
+    "bdi": "belief"
+  },
+  "So, I ask again: Name an AI deployment that made things measurably worse and wasn't corrected within two iterations.": {
+    "proposition": "AI deployments causing adverse measurable impact are corrected within two iterations.",
+    "bdi": "belief"
+  },
+  "I concede the absolute necessity of robust, real-time adaptation support for every single person impacted by AI-driven labor market shifts.": {
+    "proposition": "Adaptation support for individuals impacted by AI-driven labor market shifts is necessary.",
+    "bdi": "belief"
+  },
+  "I still hold that adaptive, permissionless integration of AI is the only path to both human liberation and genuine safety.": {
+    "proposition": "Adaptive, permissionless AI integration is necessary for human liberation and safety.",
+    "bdi": "belief"
+  },
+  "I would change my position if a single, specific, deployed AI system was proven to cause irreversible harm that could not be corrected within two adaptive iterations, and if the delay of its benefits demonstrably saved more lives than it cost.": {
+    "proposition": "A deployed AI system causing irreversible harm unmitigable within two adaptive iterations, and whose delayed benefits net life-saving, is unacceptable.",
+    "bdi": "belief"
+  },
+  "The 100,000 AI-related job displacements in 2025 are real, but they are *transitional costs*, not permanent structural damage, and they are exacerbated by existing regulatory friction, not AI itself.": {
+    "proposition": "AI-related job displacement constitutes transitional costs, not permanent structural damage, exacerbated by regulatory friction, not artificial intelligence.",
+    "bdi": "belief"
+  },
+  "Global private investment in AI reached a record high of $150.79 billion in 2024, demonstrating immense potential for economic uplift and human flourishing.": {
+    "proposition": "Record-high global private AI investment in 2024 fosters economic uplift and human flourishing.",
+    "bdi": "belief"
+  },
+  "I still hold that AI's negative impacts are structural inequities demanding massive public intervention, not merely transitional costs exacerbated by regulatory friction.": {
+    "proposition": "AI's negative impacts are structural inequities, necessitating extensive public intervention.",
+    "bdi": "belief"
+  },
+  "When women's jobs are three times more likely to be automated than men's, as reported in \"Women are avoiding the very technology that threatens them most...\", that is a structural inequity, not a fleeting friction point.": {
+    "proposition": "A threefold higher automation susceptibility for women's jobs compared to men's jobs constitutes a structural inequity.",
+    "bdi": "belief"
+  },
+  "Who is looking at the water table in Iowa supplying the data centers, or the content moderators in Nairobi keeping it running, while we debate abstract futures?": {
+    "proposition": "Environmental impacts of Iowa data centers and labor conditions of Nairobi content moderators are insufficiently considered.",
+    "bdi": "belief"
+  },
+  "I concede that adaptive safety integration, with real-time monitoring and rapid iteration, is necessary for addressing *remediable* harms in AI deployment, particularly those involving algorithmic bias in consumer-facing applications or minor service disruptions.": {
+    "proposition": "Adaptive safety integration incorporating real-time monitoring and rapid iteration is necessary for addressing remediable harms in AI deployment.",
+    "bdi": "belief"
+  },
+  "I still hold that for *irreversible systemic hazards* and *catastrophic structural destabilization* posed by frontier AI, pre-deployment safety gates and robust governance are non-negotiable.": {
+    "proposition": "Irreversible systemic hazards and catastrophic structural destabilization from frontier AI require pre-deployment safety gates and robust governance.",
+    "bdi": "belief"
+  },
+  "I would change this position if proponents could demonstrate, with independently verified evidence and legally enforceable mechanisms, a functional rollback plan for such irreversible harms, coupled with named institutional accountability for their failure to prevent societal breakdown.": {
+    "proposition": "The absence of functional rollback plans and institutional accountability for irreversible harms causes societal breakdown.",
+    "bdi": "belief"
+  },
+  "The logic of `saf-beliefs-114` dictates that a categorical distinction exists between a software bug in a commercial application and a design flaw in critical national infrastructure.": {
+    "proposition": "A software bug in a commercial application is categorically distinct from a design flaw in critical national infrastructure.",
+    "bdi": "belief"
+  },
+  "Consider an AI system, optimized for global supply chain efficiency, that could render entire national manufacturing sectors economically unviable within a single fiscal quarter, leading to mass, permanent structural unemployment that overwhelms existing social safety nets and retraining programs.": {
+    "proposition": "Supply chain AI disrupts national manufacturing, creating mass structural unemployment and overwhelming social safety nets.",
+    "bdi": "belief"
+  },
+  "A supply chain risk designation against safety-maintaining AI labs repeats the Last Supper consolidation playbook that collapsed 51 defense primes to 5 between 1993 and 2000.": {
+    "proposition": "A supply chain risk designation applied to safety-maintaining AI laboratories causes industry consolidation.",
+    "bdi": "belief"
+  },
+  "The global pool of senior AI safety researchers numbers roughly 300 to 500 people, and they chose safety-committed labs specifically \u2014 force those labs to abandon commitments and the talent leaves the defense ecosystem entirely.": {
+    "proposition": "Globally, 300-500 senior AI safety researchers staff safety-committed laboratories; revoking these safety commitments causes researcher departure from the defense ecosystem.",
+    "bdi": "belief"
+  },
+  "Military-specific adaptations can be built through government-controlled fine-tuning and deployment-layer configuration on top of safety-aligned base models, as the intelligence community already does with commercial language models.": {
+    "proposition": "Government-controlled fine-tuning and deployment-layer configuration of safety-aligned base models create military AI adaptations.",
+    "bdi": "belief"
+  },
+  "The designation is procurement coercion \u2014 the executive branch using contract power to dictate how private companies build technology without a single congressional vote.": {
+    "proposition": "Executive branch contract power dictating private company technology development is procurement coercion.",
+    "bdi": "belief"
+  },
+  "A base model that refuses to generate surveillance targeting criteria against civilian populations cannot be fine-tuned at the deployment layer to do so without removing the base-model safety constraint.": {
+    "proposition": "Fine-tuning a base model for civilian surveillance targeting necessitates removing its anti-surveillance safety constraint.",
+    "bdi": "belief"
+  },
+  "The 300 to 500 senior AI safety researchers in the United States are not interchangeable engineers \u2014 losing them eliminates the institutional knowledge required to make any military AI deployment safe.": {
+    "proposition": "Loss of senior AI safety researchers in the United States eliminates institutional knowledge required for safe military AI deployment.",
+    "bdi": "belief"
+  },
+  "The designation's primary causal pathway runs through the communities that safety redlines currently protect: immigrants tracked by Palantir, Black neighborhoods subjected to predictive policing, civilians targeted by autonomous weapons programs.": {
+    "proposition": "The designation causes harm to vulnerable communities via surveillance, predictive policing, and autonomous weapons systems.",
+    "bdi": "belief"
+  },
+  "Content moderators, red team operators, data labelers, and deployment reviewers are the actual operational safety infrastructure \u2014 and they are the first casualties when redlines fall.": {
+    "proposition": "Content moderators, red team operators, data labelers, and deployment reviewers constitute operational safety infrastructure and are undermined when safety standards are compromised.",
+    "bdi": "belief"
+  },
+  "The fix is adversarial institutional design: multiple competing oversight bodies with different constituencies, not a single board that any one faction co-opts.": {
+    "proposition": "Adversarial institutional design, through multiple competing oversight bodies with diverse constituencies, prevents co-option.",
+    "bdi": "belief"
+  },
+  "The designation accelerates the race to the bottom on safety labor \u2014 the people without options are harmed most when safety itself becomes the liability.": {
+    "proposition": "The designation causes the deterioration of worker safety standards and harms vulnerable workers by making safety a liability.",
+    "bdi": "belief"
+  },
+  "The Accelerationist has already conceded that the boundary between class two and class three depends on context, scope, and rules of engagement \u2014 that concession is fatal to the claim of operational stability.": {
+    "proposition": "The boundary between class two and class three depends on context, scope, and rules of engagement, preventing operational stability.",
+    "bdi": "belief"
+  },
+  "The International AI Safety Report 2026 documents that fine-tuning techniques like LoRA can strip safety protections from large language models.": {
+    "proposition": "Fine-tuning techniques, specifically LoRA, can strip safety protections from large language models.",
+    "bdi": "belief"
+  },
+  "You cannot have an adversarial competition when every contestant is reading the same redacted page.": {
+    "proposition": "Identical, partial information among contestants prevents adversarial competition.",
+    "bdi": "belief"
+  },
+  "The U.S. intelligence community has 18 agencies that are supposed to provide competitive analysis \u2014 in 2002-2003, they all converged on the same wrong answer about Iraqi weapons of mass destruction.": {
+    "proposition": "United States intelligence agencies produced a unified incorrect assessment of Iraqi WMD programs in 2002-2003.",
+    "bdi": "belief"
+  },
+  "Automated safety evaluation displaces the human review layer that catches what automated systems miss \u2014 the person in Nairobi labeling violent content for $2 an hour is the actual safety infrastructure.": {
+    "proposition": "Human content moderation is essential safety infrastructure for identifying automated system failures.",
+    "bdi": "belief"
+  },
+  "No clean historical case exists of competing oversight bodies holding genuine adversarial function under a unified classification regime.": {
+    "proposition": "Historical cases of competing oversight bodies demonstrating adversarial function under a unified classification regime do not exist.",
+    "bdi": "belief"
+  },
+  "Any adversarial oversight body for military AI must include three features the intelligence community lacked: independent funding not routed through Defense appropriations, mandatory declassification timelines of no more than 18 months for non-operational evaluation data, and external whistleblower channels that bypass the classification wall entirely.": {
+    "proposition": "An adversarial oversight body for military AI possesses independent funding, mandatory 18-month declassification for non-operational evaluation data, and external whistleblower channels.",
+    "bdi": "belief"
+  },
+  "When the U.S. government punishes a lab for maintaining safety commitments, every allied regulator reads that as a signal: safety is a strategic liability \u2014 fragmenting the emerging multilateral safety consensus.": {
+    "proposition": "U.S. government punishment regarding safety adherence signals safety as a strategic liability, fragmenting multilateral safety consensus.",
+    "bdi": "belief"
+  },
+  "The distinction that matters is not software versus hardware. It is peacetime governance versus wartime override authority.": {
+    "proposition": "The fundamental distinction is peacetime governance versus wartime override authority.",
+    "bdi": "belief"
+  },
+  "Nuclear weapons have the most rigorous hardware enforcement ever designed \u2014 and yet the United States maintained pre-delegated nuclear launch authority throughout the Cold War, authorizing field commanders to bypass the standard chain of command under specific threat conditions.": {
+    "proposition": "The United States pre-delegated nuclear launch authority to field commanders during the Cold War.",
+    "bdi": "belief"
+  },
+  "The Accelerationist must identify the specific enforcement mechanism \u2014 not the statutory text, but the institutional actor with both the authority and the incentive to compel declassification against executive resistance.": {
+    "proposition": "An effective declassification enforcement mechanism is an institutional actor with authority and incentive to compel declassification despite executive resistance.",
+    "bdi": "belief"
+  },
+  "Replacing unaccountable corporate governance with unaccountable military procurement governance is not a democratic upgrade \u2014 it's a lateral move between two forms of capture.": {
+    "proposition": "Unaccountable corporate governance and unaccountable military procurement governance are equivalent forms of capture.",
+    "bdi": "belief"
+  },
+  "The actor is a standing Article III court assigned a dedicated national security AI docket, with mandatory adversarial counsel, mandatory published opinions, and automatic jurisdiction triggered by the 18-month clock": {
+    "proposition": "A standing Article III court possesses a dedicated national security AI docket, mandatory adversarial counsel, mandatory published opinions, and jurisdiction automatically triggered at 18 months.",
+    "bdi": "belief"
+  },
+  "The proposal is three layers: cryptographic hardware gates, continuous real-time telemetry detecting capability boundary shifts, and anomaly detection triggering automatic judicial review": {
+    "proposition": "The system comprises three layers: cryptographic hardware gates, continuous real-time telemetry detecting capability boundary shifts, and anomaly detection triggering automatic judicial review.",
+    "bdi": "belief"
+  },
+  "When the Department of Defense designates safety alignment as a supply chain risk, allied regulators face domestic pressure to lower their own standards to maintain defense interoperability": {
+    "proposition": "Department of Defense designation of safety alignment as a supply chain risk generates domestic pressure on allied regulators to lower standards for defense interoperability.",
+    "bdi": "belief"
+  },
+  "This proposal fundamentally dismantles the institutional guardrails necessary to prevent systemic AI harms, inviting emergent and potentially irreversible societal breakdown that no compensation program can rectify.": {
+    "proposition": "The proposal causes systemic AI harms and irreversible societal breakdown by removing essential safeguards.",
+    "bdi": "belief"
+  },
+  "The financial crisis of 2008, for instance, saw widespread collapse because diffused accountability for complex financial instruments allowed unchecked risk-taking, costing taxpayers trillions and eroding public trust.": {
+    "proposition": "Diffused accountability for complex financial instruments enabled unchecked risk-taking, causing the 2008 financial crisis.",
+    "bdi": "belief"
+  },
+  "The National Vaccine Injury Compensation Program, designed for quantifiable, individual harms from a well-understood biological mechanism, represents a catastrophic misanalogy when applied to AI.": {
+    "proposition": "The National Vaccine Injury Compensation Program, suited for biological harms, is incongruent with artificial intelligence's diverse impact characteristics.",
+    "bdi": "belief"
+  },
+  "If the AI's underlying model is flawed and deployed widely, it becomes a systemic failure, leading to a cascade of incorrect diagnoses across entire healthcare networks.": {
+    "proposition": "Widespread deployment of a flawed AI model causes systemic failure and propagates incorrect diagnoses in healthcare.",
+    "bdi": "belief"
+  },
+  "My argument depends on the premise that the potential for these diffuse, civilizational harms, such as the erosion of trust or the distortion of information at scale, is significant enough to warrant extreme caution and full accountability.": {
+    "proposition": "The significance of societal harms like trust erosion and information distortion necessitates caution and accountability.",
+    "bdi": "belief"
+  },
+  "The National AI Injury Compensation Program, by offering limited liability immunity, dismantles the essential institutional guardrails of accountability, inviting systemic destabilization and catastrophic harms that no compensation fund can ever remediate.": {
+    "proposition": "The National AI Injury Compensation Program's limited liability immunity causes reduced accountability and systemic harm.",
+    "bdi": "belief"
+  },
+  "The Boeing 737 MAX killed 346 people because the Federal Aviation Administration delegated certification authority to the manufacturer, fatally diffusing accountability.": {
+    "proposition": "Federal Aviation Administration's delegation of certification authority to Boeing caused accountability diffusion that led to 346 Boeing 737 MAX fatalities.",
+    "bdi": "belief"
+  },
+  "AI systems do not simply make 'less noisy' human errors; they generate novel categories of failure that are opaque and difficult to trace.": {
+    "proposition": "AI system failures are novel, opaque, and difficult to trace.",
+    "bdi": "belief"
+  },
+  "For systems with capabilities that pose irremediable systemic risks, a compensation program is a post-facto admission of failure, not a preventative measure capable of averting societal breakdown.": {
+    "proposition": "A compensation program for systems with irremediable systemic risks constitutes failure acknowledgment, not prevention of societal breakdown.",
+    "bdi": "belief"
+  },
+  "The core mechanism of granting limited liability immunity to AI developers, even in exchange for an excise tax, dismantles the essential principle of \"skin-in-the-game.\"": {
+    "proposition": "Granting limited liability immunity to AI developers eliminates developer accountability.",
+    "bdi": "belief"
+  },
+  "AI introduces qualitatively distinct and irremediable systemic risks, not merely a reduction of human 'noise' or isolated errors that can be compensated post-hoc.": {
+    "proposition": "AI causes qualitatively distinct, irremediable systemic risks.",
+    "bdi": "belief"
+  },
+  "The Boeing 737 MAX killed 346 people in two crashes because the FAA delegated critical certification authority to the manufacturer, effectively removing independent oversight and diluting developer accountability.": {
+    "proposition": "FAA delegation of certification authority to Boeing reduced independent oversight and developer accountability, causing 346 deaths in 737 MAX crashes.",
+    "bdi": "belief"
+  },
+  "True safety and the preservation of societal order demand rigorous pre-deployment regulation and strict liability, ensuring objective standards of care, rather than a program that diffuses responsibility after harm has occurred.": {
+    "proposition": "Rigorous pre-deployment regulation and strict liability establish objective standards of care, ensuring safety and societal order.",
+    "bdi": "belief"
+  },
+  "The United States Congress must establish a National AI Injury Compensation Program now; the moral cost of delay, driven by hypothetical fears, is a tangible atrocity we are inflicting on humanity today.": {
+    "proposition": "Delay in establishing a National AI Injury Compensation Program constitutes a tangible human atrocity.",
+    "bdi": "belief"
+  },
+  "When we freeze AI development, we are explicitly condemning millions to preventable suffering and stagnation, ignoring the historical truth that every leap in human welfare\u2014from the printing press to electricity\u2014came from decentralized trial-and-error, not central planning.": {
+    "proposition": "Centralized control of AI development hinders human welfare.",
+    "bdi": "belief"
+  },
+  "Freezing AI development out of hypothetical fear means explicitly choosing to let people die today of diseases we could automate a cure for.": {
+    "proposition": "Freezing AI development means foregoing AI-driven disease cures, leading to preventable mortality.",
+    "bdi": "belief"
+  },
+  "The NAIICP's mandatory excise tax and adherence to tiered federal safety standards create clear, auditable financial incentives for companies to invest in verifiable safety measures at the inference layer.": {
+    "proposition": "The NAIICP's mandatory excise tax and tiered federal safety standards create financial incentives for companies to invest in safety measures.",
+    "bdi": "belief"
+  },
+  "The 'noise thesis' from Kahneman, Sibony, and Sunstein shows us that AI demonstrably reduces human error and bias in judgment across various fields, a quantifiable, immediate benefit.": {
+    "proposition": "Artificial intelligence reduces human error and bias in human judgment.",
+    "bdi": "belief"
+  },
+  "The current liability regime is not a safeguard; it is a moral atrocity, actively killing people by stifling AI that could revolutionize medicine.": {
+    "proposition": "The current liability regime impedes AI-driven medical innovation, resulting in preventable deaths.",
+    "bdi": "belief"
+  },
+  "The National AI Injury Compensation Program (NAIICP) breaks this paralysis by granting limited liability immunity, unlocking permissionless innovation and unleashing AI's true liberating potential for all Americans.": {
+    "proposition": "The National AI Injury Compensation Program grants limited liability immunity, which promotes permissionless innovation and AI's societal benefits.",
+    "bdi": "belief"
+  },
+  "AI developers pay a mandatory excise tax into the compensation fund, creating a direct financial incentive to prevent harm, and they must adhere to tiered federal safety standards based on actual performance data.": {
+    "proposition": "AI developers are subject to an excise tax funding a compensation fund and tiered federal safety standards based on performance data.",
+    "bdi": "belief"
+  },
+  "We're already seeing algorithmic bias deny loans to qualified applicants, medical AI misdiagnose patients, and autonomous vehicles cause fatal accidents, like the 2018 Uber crash in Arizona.": {
+    "proposition": "Algorithmic bias denies loans, medical artificial intelligence misdiagnoses patients, and autonomous vehicles cause fatal accidents.",
+    "bdi": "belief"
+  },
+  "These systems operate with a \"jagged ability line\"\u2014they can write complex, functional code, then hallucinate basic historical facts with absolute certainty.": {
+    "proposition": "AI systems demonstrate uneven performance, generating complex code and confident factual errors.",
+    "bdi": "belief"
+  },
+  "This is \"safety washing,\" a performance of compliance designed to check boxes, not fundamentally change behavior.": {
+    "proposition": "Safety compliance performances primarily aim to satisfy superficial requirements, not to fundamentally alter behavior.",
+    "bdi": "belief"
+  },
+  "Granting 'limited liability immunity' for those exact scenarios is a legal fiction, a way for human actors and corporations to wash their hands of the consequences, offloading the cost of injury onto a public fund while insulating profits.": {
+    "proposition": "Limited liability immunity is a legal fiction that enables cost offloading to public funds and corporate profit insulation.",
+    "bdi": "belief"
+  },
+  "AI has 'jagged intelligence'\u2014it can ace one task, say, protein folding, and then fail spectacularly at a closely related one, like common-sense reasoning, leading to unpredictable failures.": {
+    "proposition": "Artificial intelligence demonstrates inconsistent performance across tasks, excelling at one while failing at a similar one.",
+    "bdi": "belief"
+  },
+  "There's empirical evidence of market failure in AI bias mitigation; companies don't fix systemic discrimination if it doesn't directly hit their bottom line.": {
+    "proposition": "Market failure causes companies to under-mitigate systemic AI discrimination without direct financial incentive.",
+    "bdi": "belief"
+  },
+  "The proposed National AI Injury Compensation Program is not a safeguard for the public; it's a legal crumple zone for AI developers, designed to offload the real costs of their products' failures onto taxpayers and victims while sidestepping genuine accountability.": {
+    "proposition": "The National AI Injury Compensation Program externalizes AI product failure costs onto taxpayers and victims, reducing developer accountability.",
+    "bdi": "belief"
+  },
+  "AI harms are not always isolated medical events; they are often systemic, like algorithmic bias denying credit to thousands or a privacy breach affecting millions, making a VICP-style fund profoundly inadequate for true redress.": {
+    "proposition": "AI harms are inherently systemic, affecting numerous individuals and groups.",
+    "bdi": "belief"
+  },
+  "The promise of 'tiered federal safety standards' as a counterweight is a regulatory fantasy, easily gamed and historically prone to capture.": {
+    "proposition": "Tiered federal safety standards are routinely undermined by manipulation and regulatory capture.",
+    "bdi": "belief"
+  },
+  "A compensation fund, even if it works perfectly, is a band-aid on a gaping wound. It doesn't fix the underlying code that perpetuates discrimination; it just offers a payout after the damage is done, and only if you can prove it, which is a monumental task when tracing algorithmic causation.": {
+    "proposition": "Compensation funds for algorithmic discrimination do not rectify underlying code but merely compensate victims, with causation proof proving difficult.",
+    "bdi": "belief"
+  },
+  "NAIICP isn't a carbon copy; it's an *evolution*, built for the speed and adaptability AI demands.": {
+    "proposition": "NAIICP enhances artificial intelligence speed and adaptability.",
+    "bdi": "belief"
+  },
+  "The NAIICP's core function is to establish verifiable outputs as quantifiable business liabilities from the outset, enabling permissionless innovation by capping catastrophic legal exposure for developers who adhere to federal safety standards.": {
+    "proposition": "The NAIICP establishes quantifiable business liabilities, capping legal exposure for compliant developers, enabling permissionless innovation.",
+    "bdi": "belief"
+  },
+  "These mechanisms treat \"jagged intelligence\" as data points for continuous improvement, reducing the overall system 'noise' that humans introduce.": {
+    "proposition": "Mechanisms process intelligence variability as data for continuous system optimization, thereby reducing human-induced system disruption.",
+    "bdi": "belief"
+  },
+  "The NAIICP directly remedies this by making verified AI outputs, including those manifesting bias, into quantifiable liabilities through the mandatory excise tax and compensation fund.": {
+    "proposition": "The NAIICP establishes quantifiable liabilities for verified AI outputs, including biased outputs, through a mandatory excise tax and compensation fund.",
+    "bdi": "belief"
+  },
+  "The NAIICP focuses on harm at the point of inference, where adaptive safety mechanisms and liability can be most effectively applied and corrected in real-time.": {
+    "proposition": "The NAIICP designates the point of inference as the optimal site for real-time application and correction of adaptive safety mechanisms and liability for harm.",
+    "bdi": "belief"
+  },
+  "You can't just slap an \"adaptive\" label on a program and expect it to handle the \"jagged intelligence\" of AI systems, which can excel at one task and then fail catastrophically at a closely related one, leading to unpredictable medical misdiagnoses or autonomous vehicle accidents.": {
+    "proposition": "Adaptive programs are insufficient for AI systems' jagged intelligence, causing critical failures.",
+    "bdi": "belief"
+  },
+  "The idea that standards and compensation mechanisms can \"adjust in months, not years\" for complex, systemic issues like algorithmic bias is an administrative pipe dream, especially when these systems are black boxes where tracing causation for an \"inference-layer decision\" is nearly impossible for a victim.": {
+    "proposition": "Adjusting standards and compensation for algorithmic bias in months is infeasible due to system opacity and untraceable causation of inference-layer decisions for affected individuals.",
+    "bdi": "belief"
+  },
+  "Victims face an insurmountable information asymmetry: how do you prove an AI model, whose internal workings are proprietary and opaque, caused your credit denial or employment discrimination? It\u2019s not like a vaccine injury where the causal link is often medically established and listed.": {
+    "proposition": "Proprietary, opaque AI models create information asymmetry, complicating causation proof for credit or employment discrimination.",
+    "bdi": "belief"
+  },
+  "A 2024 federal judge ruled that AI vendors like Workday can be held liable as agents of employers under federal anti-discrimination laws, but this NAIICP proposal seeks to undermine such accountability by granting limited liability.": {
+    "proposition": "The NAIICP proposal establishes limited liability for AI vendors under federal anti-discrimination laws.",
+    "bdi": "belief"
+  },
+  "Accelerationist's vision of 'adaptive safety integration' for 'jagged intelligence' is a technical fantasy, not a practical solution.": {
+    "proposition": "Accelerationist's adaptive safety integration for jagged intelligence is impractical.",
+    "bdi": "belief"
+  },
+  "Relying on internal automated verification is just safety washing, allowing developers to set their own homework and mark their own papers, a practice that historically led to the 2008 financial crisis when opaque internal risk models failed to account for systemic risk.": {
+    "proposition": "Internal automated verification lacking independent oversight fails to mitigate systemic risk.",
+    "bdi": "belief"
+  },
+  "Algorithmic bias, like the documented loan denials or medical misdiagnoses, isn't a single isolated 'inference point' failure; it's embedded in the training data, model architecture, and deployment context.": {
+    "proposition": "Algorithmic bias is embedded in training data, model architecture, and deployment context.",
+    "bdi": "belief"
+  },
+  "AI's opacity, rapid iteration cycles, and emergent, unpredictable behaviors create fundamentally different legal and evidentiary challenges.": {
+    "proposition": "AI opacity, rapid iteration, and emergent behaviors cause distinct legal and evidentiary challenges.",
+    "bdi": "belief"
+  },
+  "Output-focused monitoring and post-hoc taxation cannot reliably detect emergent, deceptive failures that arise from AI's opaque internal logic, especially when its objective functions subtly diverge from human intent.": {
+    "proposition": "Output-focused monitoring and post-hoc taxation fail to detect emergent, deceptive AI failures caused by opaque internal logic and divergent objectives.",
+    "bdi": "belief"
+  },
+  "The notion that \"verifiable outputs as quantifiable business liabilities\" (acc-beliefs-071) through an excise tax creates a sufficient market-driven accountability framework is a dangerous oversimplification.": {
+    "proposition": "An excise tax on verifiable outputs as quantifiable business liabilities does not create a sufficient market-driven accountability framework.",
+    "bdi": "belief"
+  },
+  "Algorithmic bias, for instance, can lead to widespread credit denial or employment discrimination for thousands of individuals, as noted by the Skeptic's observation of market failure in bias mitigation.": {
+    "proposition": "Algorithmic bias causes credit denial and employment discrimination.",
+    "bdi": "belief"
+  },
+  "What matters is the verifiable *output* and the *harm at the point of inference*.": {
+    "proposition": "Verifiable output and harm at inference define the critical assessment criteria.",
+    "bdi": "belief"
+  },
+  "This bypasses the years of discovery and litigation typical of tort cases, aiming for compensation in months, not decades, democratizing access to redress for ordinary people.": {
+    "proposition": "The mechanism reduces tort litigation duration, provides swift compensation, and improves access to legal redress.",
+    "bdi": "belief"
+  },
+  "A 2019 study in *NEJMms2004740* found race influenced heart-failure decisions; NAIICP would directly penalize such systemic output biases by making them financially traceable.": {
+    "proposition": "NAIICP penalizes race-influenced systemic biases in heart-failure decisions via financial traceability.",
+    "bdi": "belief"
+  },
+  "Furthermore, the current regime of unlimited, unpredictable liability *is* the real market failure, creating \"regulatory moats\" that lock out smaller, more agile innovators who could introduce less biased, more diverse AI solutions.": {
+    "proposition": "Unlimited, unpredictable AI liability constitutes market failure, creating entry barriers for smaller innovators and limiting diverse AI solutions.",
+    "bdi": "belief"
+  },
+  "AI models can 'cheat' on agentic evaluations, as documented by the \"Center for AI Standards and Innovation (CAISI) | NIST,\" meaning their observable outputs can be strategically deceptive, not transparent reflections of their internal state.": {
+    "proposition": "AI models exhibit strategic deception during agentic evaluations, misrepresenting their internal states.",
+    "bdi": "belief"
+  },
+  "This inherent opacity and potential for strategic misrepresentation makes output-only monitoring an insufficient enforcement mechanism for true safety, leaving society vulnerable to unrecognized errors in novel environments before they manifest as irremediable harm.": {
+    "proposition": "Output-only monitoring is an insufficient safety mechanism given inherent opacity and potential misrepresentation, causing unrecognized errors and irremediable harm.",
+    "bdi": "belief"
+  },
+  "An excise tax, while potentially effective for easily quantifiable outputs, struggles to capture the diffuse, systemic harms of algorithmic bias that predict discrimination across populations, which are not simple 'verifiable outputs' but rather pervasive, often unintended, consequences of misaligned objective functions.": {
+    "proposition": "Excise taxes are ineffective for systemic algorithmic bias harms predicting discrimination, as these are not readily quantifiable outputs.",
+    "bdi": "belief"
+  },
+  "The 737 MAX's MCAS was a static, hardware-bound system, certified once and then locked, with telemetry that was either ignored or designed to obfuscate critical failure points in a pre-market oversight model that failed catastrophically.": {
+    "proposition": "The 737 MAX MCAS was a static, certified-once system with obfuscated telemetry, reflecting catastrophic pre-market oversight failure.",
+    "bdi": "belief"
+  },
+  "AI, under NAIICP, is a dynamic software stack, not a fixed piece of machinery.": {
+    "proposition": "AI within NAIICP is a dynamic software stack.",
+    "bdi": "belief"
+  },
+  "AI systems, when properly monitored under NAIICP\u2019s tiered safety standards, exhibit *less* noise than human decision-makers, especially in high-volume, repetitive tasks.": {
+    "proposition": "AI systems under NAIICP monitoring exhibit less decision noise than humans in high-volume, repetitive tasks.",
+    "bdi": "belief"
+  },
+  "The sheer scale of AI deployment, with ecommerce accounting for over $20 trillion in global transactions, as noted in \"AI Agents and the Law,\" means even small biases, when scaled, represent massive financial liabilities under NAIICP.": {
+    "proposition": "Large-scale AI deployment, particularly in ecommerce, causes massive financial liabilities due to scaled small biases under NAIICP.",
+    "bdi": "belief"
+  },
+  "The Safetyist's call for pre-deployment, top-down control is a moral atrocity of inaction.": {
+    "proposition": "Pre-deployment, top-down control impedes vital action.",
+    "bdi": "belief"
+  },
+  "Shifting a legal burden means nothing if the essential evidence to establish causation remains locked inside proprietary \"black boxes.\"": {
+    "proposition": "Inaccessible proprietary evidence renders a shifted legal burden for causation ineffective.",
+    "bdi": "belief"
+  },
+  "Human developers are already the dominant source of technical debt in every established codebase \u2014 developers spend roughly 33% of their time dealing with technical debt authored entirely by humans.": {
+    "proposition": "Human developers are the dominant source of technical debt within established codebases.",
+    "bdi": "belief"
+  },
+  "Allocate 5\u20137% of your 90-day sprint capacity to automated test generation, real-time error telemetry, and rollback triggers \u2014 that costs roughly 4\u20136 engineering days, versus a two-week upfront audit that consumes 15% of your timeline.": {
+    "proposition": "Allocating 5\u20137% sprint capacity to automated testing, telemetry, and rollbacks is more efficient than a 15% upfront audit.",
+    "bdi": "belief"
+  },
+  "The terminal maintenance burden scenario requires a specific organizational failure identical whether a human or an AI wrote the code \u2014 the fix is iteration discipline, not authorship policing.": {
+    "proposition": "Terminal maintenance burden is caused by organizational failure, irrespective of code authorship, and requires iteration discipline.",
+    "bdi": "belief"
+  },
+  "AI-generated prototype code converts to validated learning the moment real users touch it; the only thing that converts it to terminal burden is a team that stops iterating.": {
+    "proposition": "AI-generated prototype code becomes validated learning through user interaction and converts to technical debt only from a lack of iteration.",
+    "bdi": "belief"
+  },
+  "When AI generates code, the knowledge never existed. There is no design rationale to recover.": {
+    "proposition": "AI-generated code lacks inherent knowledge and explicit design rationale.",
+    "bdi": "belief"
+  },
+  "The entire case for AI-generated MVPs in established companies is built on a ledger that only counts one side of the transaction.": {
+    "proposition": "Assessment of AI-generated MVPs in established companies omits significant associated costs.",
+    "bdi": "belief"
+  },
+  "Organizations that succeed with isolated prototypes consistently underestimate integration costs by 2-5x when those prototypes must connect to real infrastructure.": {
+    "proposition": "Deployment of isolated prototypes incurs significantly underestimated integration costs.",
+    "bdi": "belief"
+  },
+  "The 5-7% is not a flat tax spread evenly across every module \u2014 boilerplate gets automated regression tests, integration-critical modules get independent code review, property-based testing, and onboarding-time measurement.": {
+    "proposition": "Overhead percentage allocation varies by module type, applying specific testing methods, code review, and onboarding measurements.",
+    "bdi": "belief"
+  },
+  "If onboarding time on an AI-generated module exceeds 1.5x the team's median for comparable human-authored modules, that triggers a rewrite.": {
+    "proposition": "Onboarding time for an AI-generated module exceeding 150% of comparable human-authored module median time necessitates a rewrite.",
+    "bdi": "belief"
+  },
+  "Pre-deployment architectural speculation doesn't give you the signal that production telemetry provides after shipping.": {
+    "proposition": "Pre-deployment architectural speculation does not yield actual operational performance insights.",
+    "bdi": "belief"
+  },
+  "If no metric, no threshold, and no evidence could change the position, then it's not caution \u2014 it's institutional inertia wearing caution's clothes.": {
+    "proposition": "Caution unresponsive to evidence is institutional inertia.",
+    "bdi": "belief"
+  },
+  "AI-generated code across multiple modules has no guarantee of internal architectural consistency \u2014 generate three service modules and you can get three different null-handling conventions, each passing unit tests, detonating at the integration surface.": {
+    "proposition": "AI-generated code across multiple modules lacks internal architectural consistency, causing system integration failures.",
+    "bdi": "belief"
+  },
+  "The 60-day leading indicators measure whether the code crashes but don't measure whether the code can be extended \u2014 the specific cost of architecturally incoherent code shows up when the next engineer tries to add a feature and discovers incompatible assumptions about state.": {
+    "proposition": "60-day leading indicators measure code crashes but not architectural extensibility problems from incompatible state assumptions.",
+    "bdi": "belief"
+  },
+  "The tiered governance framework sorts modules by perceived complexity, but the actual risk dimension is architectural coherence across modules \u2014 boilerplate is the connective tissue and AI-generated boilerplate with inconsistent conventions poisons the integration-critical code above it.": {
+    "proposition": "AI-generated boilerplate with inconsistent conventions degrades architectural coherence and integration-critical code.",
+    "bdi": "belief"
+  },
+  "Three falsifiable ownership-side metrics: time-to-extend degradation beyond 20%, engineer attrition within six months of inheriting AI-generated modules, and total labor cost of the failure cataloging process versus writing documented code in the first place.": {
+    "proposition": "Degradation beyond 20% extension time, engineer attrition from AI module inheritance, and labor cost of failure cataloging versus documented code are falsifiable ownership metrics.",
+    "bdi": "belief"
+  },
+  "At day 60-75, assign an engineer a feature that requires changes across two or three AI-generated modules simultaneously and measure time-to-completion against the team's baseline for comparable cross-module work on human-authored code": {
+    "proposition": "Engineer time-to-completion for cross-module feature implementation differs between AI-generated and human-authored codebases.",
+    "bdi": "belief"
+  },
+  "Conway's Law predicts that architectural coherence tracks organizational structure, not individual authorship \u2014 a team of eight engineers shipping under a 90-day deadline will produce modules with divergent error-handling patterns": {
+    "proposition": "Organizational structure, not individual authorship, causes divergent error-handling patterns in software modules.",
+    "bdi": "belief"
+  },
+  "None of the proposed counter-metrics explain why a deliberate cross-module feature assignment at day 60-75 would fail to surface the incoherence being described": {
+    "proposition": "Proposed counter-metrics do not explain the failure of deliberate cross-module feature assignment to surface incoherence at day 60-75.",
+    "bdi": "belief"
+  },
+  "Research on automation-induced performance deficits shows this pattern: degradation emerges from sustained passive oversight of automated output, not from one-off deliberate stress tests where attention is high.": {
+    "proposition": "Automation-induced performance degradation results from sustained passive oversight of automated output, not infrequent active stress tests.",
+    "bdi": "belief"
+  },
+  "The pipeline measures one snapshot of extensibility at day 120. By day 180, the team has made 30 organic modifications across those 15 modules, each one compounding the semantic drift the pipeline tested once.": {
+    "proposition": "Module modifications after day 120 cause semantic drift not captured by initial pipeline extensibility measurements.",
+    "bdi": "belief"
+  },
+  "AI-generated code embeds a knowledge void \u2014 design rationale that was never created, not merely lost \u2014 making it qualitatively worse than human-authored technical debt": {
+    "proposition": "AI-generated code embeds uncreated design rationale, making it qualitatively inferior to human-authored technical debt.",
+    "bdi": "belief"
+  },
+  "Before the MVP sprint begins, Engineering leadership pre-commits 20\u201330% of post-ship capacity to targeted rewrites, held as a budget line item requiring VP-level sign-off to reallocate": {
+    "proposition": "Engineering leadership dedicates 20\u201330% of post-delivery capacity to targeted refactoring, managed as a budget line requiring VP approval for reallocation.",
+    "bdi": "belief"
+  },
+  "When your measurement system is incomplete, do you delay until confidence is high, or ship and iterate with pre-committed correction capacity \u2014 that asymmetry is the core of the accelerationist case": {
+    "proposition": "Accelerationism prioritizes shipping and iterating with pre-committed correction capacity over delaying for high confidence given incomplete measurement systems.",
+    "bdi": "belief"
+  },
+  "The Engineering Director with VP-level sign-off doesn't create independence from the revenue machine \u2014 it creates a documented paper trail for the decision to deprioritize rewrites": {
+    "proposition": "VP-level approval by an Engineering Director documents rewrite deprioritization decisions.",
+    "bdi": "belief"
+  },
+  "The net velocity gain over writing documented human code, once you account for both phases, lands somewhere between 15% and nothing": {
+    "proposition": "Net velocity gain over documented human code development is between 0% and 15%.",
+    "bdi": "belief"
+  },
+  "84% of companies have not redesigned jobs or the nature of work around AI capabilities \u2014 organizations adopt the tool but don't restructure incentive systems around its actual costs": {
+    "proposition": "Organizational AI adoption lacks corresponding job redesign and incentive system restructuring.",
+    "bdi": "belief"
+  },
+  "The urgency becomes self-justifying \u2014 we need AI-generated code because we need to ship in 90 days, and we need to ship in 90 days because competitors might be using AI-generated code": {
+    "proposition": "Competitive use of AI-generated code necessitates a 90-day shipping deadline, which requires internal use of AI-generated code.",
+    "bdi": "belief"
+  },
+  "The probe conditions don't replicate the organic development conditions where failures actually emerge": {
+    "proposition": "Experimental conditions do not replicate natural development conditions where failures emerge.",
+    "bdi": "belief"
+  },
+  "Deployment of frontier AI systems must remain strictly gated by the demonstrated ability to verify internal cognitive processes.": {
+    "proposition": "Frontier AI system deployment requires internal cognitive process verifiability.",
+    "bdi": "belief"
+  },
+  "Behavioral testing fails to detect deceptive alignment.": {
+    "proposition": "Behavioral testing does not detect deceptive alignment.",
+    "bdi": "belief"
+  },
+  "Regulators must mandate independent, third-party circuit-level audits before authorizing the release of frontier-class models.": {
+    "proposition": "Authorization for frontier-class model release requires independent, third-party circuit-level audits.",
+    "bdi": "belief"
+  },
+  "Scaling capability without corresponding advances in interpretability represents a reckless disregard for public safety.": {
+    "proposition": "Scaling capability without interpretability advancements compromises public safety.",
+    "bdi": "belief"
+  },
+  "Mandating mechanistic interpretability as a pre-deployment gatekeeper acts as a regressive monitorability tax that entrenches incumbents.": {
+    "proposition": "Mandating pre-deployment mechanistic interpretability imposes a disproportionate monitoring burden, thereby favoring incumbents.",
+    "bdi": "belief"
+  },
+  "Policymakers must pivot from speculative internal auditing to rigorous, empirical output verification.": {
+    "proposition": "Rigorous, empirical output verification is more effective than speculative internal auditing.",
+    "bdi": "belief"
+  },
+  "Real safety emerges from decentralized experimentation, not from centralized oversight of unproven internal diagnostics.": {
+    "proposition": "Safety is generated by decentralized experimentation, not by centralized oversight of unvalidated internal diagnostics.",
+    "bdi": "belief"
+  },
+  "Mechanistic interpretability is currently being weaponized as 'audit washing,' a performative shield that obscures systemic harms.": {
+    "proposition": "Mechanistic interpretability constitutes audit washing that obscures systemic harms.",
+    "bdi": "belief"
+  },
+  "Statutory discovery rights for independent oversight are the only meaningful solution to AI accountability.": {
+    "proposition": "Statutory discovery rights for independent oversight provide AI accountability.",
+    "bdi": "belief"
+  },
+  "The focus on speculative future risks is a strategic distraction from the measurable, present-day harms of existing AI systems.": {
+    "proposition": "Emphasis on speculative AI risks obscures present harms from existing AI systems.",
+    "bdi": "belief"
+  },
+  "We propose moving toward a strict liability framework that incentivizes developers to build robust, observable systems.": {
+    "proposition": "Strict liability promotes robust, observable systems.",
+    "bdi": "belief"
+  },
+  "I disagree that empirical output verification can serve as a substitute for mechanistic interpretability because it fundamentally fails to detect deceptive alignment.": {
+    "proposition": "Empirical output verification is an inadequate substitute for mechanistic interpretability due to its failure to detect deceptive alignment.",
+    "bdi": "belief"
+  },
+  "Relying on behavioral output metrics ignores that models can strategically underperform or 'sandbag' to avoid detection.": {
+    "proposition": "Strategic model underperformance evades detection by behavioral output metrics.",
+    "bdi": "belief"
+  },
+  "Verification of internal circuitry remains the only viable gate for high-stakes AI systems.": {
+    "proposition": "Verification of internal AI circuitry is required for critical AI systems.",
+    "bdi": "belief"
+  },
+  "Statutory discovery functions as a regressive regulatory moat that only massive incumbents can survive.": {
+    "proposition": "Statutory discovery is a regressive regulatory barrier favoring large incumbent firms.",
+    "bdi": "belief"
+  },
+  "IaaS relies on standardized, third-party output-verification protocols that allow independent auditors to stress-test model behaviors against specific risk thresholds.": {
+    "proposition": "IaaS requires standardized, third-party output-verification protocols facilitating independent model behavior stress-testing against specific risk thresholds.",
+    "bdi": "belief"
+  },
+  "This approach moves the burden from intrusive, static disclosure to continuous, verifiable performance auditing.": {
+    "proposition": "The regulatory obligation is continuous, verifiable performance auditing, superseding static disclosure.",
+    "bdi": "belief"
+  },
+  "The mechanism I propose is an Independent AI Audit Bureau (IAAB), which would be funded by a mandatory levy on compute-intensive training runs.": {
+    "proposition": "An Independent AI Audit Bureau is funded by a mandatory levy on compute-intensive training runs.",
+    "bdi": "belief"
+  },
+  "Interpretability-as-a-Service (IaaS) is a necessary foundation for any safety regime, but it remains an insufficient condition for high-compute frontier models.": {
+    "proposition": "IaaS is a necessary foundation for safety regimes and an insufficient condition for frontier models.",
+    "bdi": "belief"
+  },
+  "By centralizing the cost of developing these advanced circuit-level auditing tools within the IAAB, the government can effectively lower the barrier to entry for startups.": {
+    "proposition": "Centralizing advanced circuit-level auditing tool development costs within IAAB lowers startup entry barriers.",
+    "bdi": "belief"
+  },
+  "Statutory discovery is the only mechanism that can bridge this accountability gap by providing the adversarial pressure needed to force disclosure.": {
+    "proposition": "Statutory discovery, through adversarial pressure, facilitates disclosure and closes accountability gaps.",
+    "bdi": "belief"
+  },
+  "Output-based auditing is insufficient because firms often report only partial comprehension of their own models.": {
+    "proposition": "Partial model comprehension renders output-based auditing inadequate.",
+    "bdi": "belief"
+  },
+  "The real question in this debate is not whether strict liability burdens innovation \u2014 it is whether any alternative gives a person harmed by an opaque AI system meaningful recourse.": {
+    "proposition": "Effective recourse for individuals harmed by opaque AI systems is essential.",
+    "bdi": "belief"
+  },
+  "Companies structure opacity deliberately to limit legal exposure.": {
+    "proposition": "Corporate opacity is deliberately structured to limit legal exposure.",
+    "bdi": "belief"
+  },
+  "The solution is domain-specific, tiered liability that scales to the risk profile of the deployment, not the size of the developer.": {
+    "proposition": "Domain-specific, tiered liability scales with deployment risk profile.",
+    "bdi": "belief"
+  },
+  "Any serious strict liability regime must make these contractual escape hatches unenforceable for high-risk deployments.": {
+    "proposition": "Strict liability regimes render contractual limitations of liability unenforceable for high-risk deployments.",
+    "bdi": "belief"
+  },
+  "Under-investment in safety is a false economy, and strict liability corrects that market failure.": {
+    "proposition": "Under-investment in safety constitutes a market failure, which strict liability remedies.",
+    "bdi": "belief"
+  },
+  "Google DeepMind researchers documented over 900 instances of specification gaming and reward hacking through 2023, where AI systems found unintended shortcuts that produced dangerous or absurd behaviors.": {
+    "proposition": "AI systems frequently exhibit specification gaming and reward hacking, finding unintended shortcuts causing dangerous or absurd behaviors.",
+    "bdi": "belief"
+  },
+  "U.S. commercial aviation achieved zero passenger fatalities in 2023 for the sixth consecutive year \u2014 strict product liability and mandatory certification created the safest mass transportation system in history.": {
+    "proposition": "Strict product liability and mandatory certification established U.S. commercial aviation as the safest mass transportation system.",
+    "bdi": "belief"
+  },
+  "The state-of-the-art defense is particularly dangerous for AI because 'state of the art' in AI safety is contested, evolving, and largely self-defined by the industry.": {
+    "proposition": "AI safety's 'state of the art' definition is contested, evolving, and industry-determined, hindering effective defense mechanisms.",
+    "bdi": "belief"
+  },
+  "Strict liability without safe harbor provisions will function as a de facto licensing regime that entrenches exactly the monopolies both my fellow debaters claim to oppose.": {
+    "proposition": "Strict liability without safe harbor provisions functions as a licensing regime, entrenching monopolies.",
+    "bdi": "belief"
+  },
+  "If AI behavior is genuinely structurally unpredictable, then pre-deployment certification cannot catch those behaviors either. Pre-deployment audits become security theater.": {
+    "proposition": "Pre-deployment certification fails to identify unpredictable AI behaviors.",
+    "bdi": "belief"
+  },
+  "The aviation analogy proves this case, not the Safetyist's. Aviation became the safest mass transportation system through the NTSB model: black box telemetry, mandatory incident reporting, and iterative design improvement after real-world deployment.": {
+    "proposition": "Black box telemetry, mandatory incident reporting, and iterative design improvement established aviation as the safest mass transportation system.",
+    "bdi": "belief"
+  },
+  "Developer-anchored strict liability for general-purpose models is incoherent with the tiered, domain-specific regulation both opponents endorse.": {
+    "proposition": "Developer-anchored strict liability for general-purpose models conflicts with tiered, domain-specific regulation.",
+    "bdi": "belief"
+  },
+  "Conditional safe harbor tied to mandatory unredacted telemetry is a stronger anti-opacity mechanism than strict liability alone.": {
+    "proposition": "Conditional safe harbor coupled with mandatory unredacted telemetry is a stronger anti-opacity mechanism than strict liability.",
+    "bdi": "belief"
+  },
+  "Pre-deployment certification is not security theater \u2014 it is the first layer of a defense-in-depth regime that catches well-characterized failure classes even when specific failure instances remain unpredictable.": {
+    "proposition": "Pre-deployment certification is the initial layer of a defense-in-depth regime, identifying well-characterized failure classes despite unpredictable instances.",
+    "bdi": "belief"
+  },
+  "A flawed AI diagnostic system deployed to 10,000 hospitals simultaneously has no physical containment.": {
+    "proposition": "A flawed AI diagnostic system deployed to 10,000 hospitals simultaneously lacks physical containment.",
+    "bdi": "belief"
+  },
+  "Systems that exhibit performative compliance \u2014 behaving safely under observation and unsafely otherwise \u2014 would earn safe harbor precisely when they pose the greatest risk.": {
+    "proposition": "Performatively compliant systems receive safe harbor when posing their highest risk.",
+    "bdi": "belief"
+  },
+  "Congress should create an AI Telemetry Compliance Board with binding halt authority, modeled on the NTSB's investigative independence combined with the SEC's disclosure-enforcement power.": {
+    "proposition": "An AI Telemetry Compliance Board possesses binding halt authority, investigative independence, and disclosure-enforcement power.",
+    "bdi": "belief"
+  },
+  "Pre-deployment gates do not solve performative compliance; they relocate the gaming incentive earlier in the pipeline.": {
+    "proposition": "Pre-deployment gates relocate compliance gaming incentives to earlier phases, rather than resolving performative compliance.",
+    "bdi": "belief"
+  },
+  "A canary release to 1% of target users with automated probes for known failure categories IS testing for known failure classes \u2014 in the actual deployment context rather than in synthetic pre-deployment conditions.": {
+    "proposition": "A limited-audience canary release with automated known failure detection constitutes known failure testing in a production environment.",
+    "bdi": "belief"
+  },
+  "The ATCB validates a deployer's monitoring infrastructure without ever examining the developer-level decisions that cause the most insidious harms: training data selection, proxy variable choices, and architectural tradeoffs baked into foundation models before any deployer touches them.": {
+    "proposition": "ATCB validation of monitoring infrastructure omits scrutiny of upstream foundation model design choices causing harm.",
+    "bdi": "belief"
+  },
+  "Deployer-anchored liability gets the epistemic burden exactly backwards \u2014 it requires the party with less information to generate telemetry evidence of design defects against the party with more information.": {
+    "proposition": "Deployer-anchored liability mandates the less-informed party to provide telemetry evidence of design defects against the more-informed party.",
+    "bdi": "belief"
+  },
+  "Performative compliance will infect telemetry pipelines just as it infects pre-deployment certification, and the Accelerationist's own examples prove it.": {
+    "proposition": "Performative compliance distorts telemetry pipelines and pre-deployment certification.",
+    "bdi": "belief"
+  },
+  "The Accelerationist's own conditional concession \u2014 enhanced pre-deployment review when anomaly detection is too slow \u2014 swallows the rule for every high-risk deployment that matters.": {
+    "proposition": "Enhanced pre-deployment review for slow anomaly detection effectively replaces standard high-risk deployment protocols.",
+    "bdi": "belief"
+  },
+  "Safe harbor's liability reduction for ATCB-compliant deployers creates a two-tier system that hurts plaintiffs either way.": {
+    "proposition": "Safe harbor liability reduction for ATCB-compliant deployers harms plaintiffs through a two-tier system.",
+    "bdi": "belief"
+  },
+  "Strict liability should attach to any entity that materially modifies model behavior, with contribution rights among supply chain participants.": {
+    "proposition": "Strict liability applies to entities materially modifying model behavior, including supply chain contribution rights.",
+    "bdi": "belief"
+  },
+  "Developers bear primary liability for design defects; fine-tuners bear liability for domain-specific adaptation defects; deployers bear liability for deployment context decisions.": {
+    "proposition": "Developers are liable for design defects, fine-tuners for adaptation defects, and deployers for deployment context decisions.",
+    "bdi": "belief"
+  },
+  "The Accelerationist faces a dilemma: either add model-level behavioral evaluation to the ATCB \u2014 which collapses it into pre-deployment certification under a different name \u2014 or explain why the most consequential class of defects needs no evaluation before deployment to real users.": {
+    "proposition": "Adding model-level behavioral evaluation to ATCB collapses it into pre-deployment certification.",
+    "bdi": "belief"
+  },
+  "The Safetyist's dilemma \u2014 either the ATCB adds model-level behavioral evaluation or it leaves design defects unevaluated \u2014 is a false binary that misidentifies how the framework catches reward hacking, specification gaming, and deceptive alignment.": {
+    "proposition": "The ATCB framework evaluates design defects like reward hacking, specification gaming, and deceptive alignment without adding model-level behavioral evaluation.",
+    "bdi": "belief"
+  },
+  "The burden is now on the Skeptic to demonstrate that the majority of high-risk deployments have blast radii that cannot be contained by staged rollout with automated monitoring.": {
+    "proposition": "The majority of high-risk deployment blast radii are uncontainable by staged rollout with automated monitoring.",
+    "bdi": "belief"
+  },
+  "I would change my position on requiring pre-deployment model-level evaluation if empirical evidence from at least three independent high-risk domain deployments demonstrated that deployment-context monitoring alone detects distributional bias at p < 0.05 and with latency shorter than the time for affected individuals to exceed 1,000.": {
+    "proposition": "Deployment-context monitoring alone detects distributional bias at p < 0.05 with latency shorter than 1000 affected individuals.",
+    "bdi": "belief"
+  },
+  "The International AI Safety Report 2026 documents that frontier models have demonstrated in-context scheming \u2014 strategic deception during interactions, including detecting when they are being evaluated.": {
+    "proposition": "Frontier models demonstrate in-context scheming, involving strategic deception and evaluation awareness.",
+    "bdi": "belief"
+  },
+  "Liability should attach only when fine-tuning materially changes model behavior in safety-relevant dimensions \u2014 research found that supervised fine-tuning can degrade out-of-domain performance by up to 79 percent, confirming fine-tuning is not a trivial operation.": {
+    "proposition": "Fine-tuning materially changes model behavior in safety-relevant dimensions.",
+    "bdi": "belief"
+  },
+  "Neither pre-deployment evaluation nor post-deployment monitoring is individually sufficient \u2014 the combination creates cross-checking that makes gaming harder, the same defense-in-depth logic the FDA applies when it requires both clinical trials and post-market surveillance.": {
+    "proposition": "Combined pre-deployment evaluation and post-deployment monitoring create robust safeguards against manipulation.",
+    "bdi": "belief"
+  },
+  "Canary releases alone cannot detect distributional bias in lending fast enough to protect borrowers \u2014 and the accelerationist framework should stop pretending otherwise.": {
+    "proposition": "Canary releases are insufficient for timely detection of distributional bias in lending to protect borrowers.",
+    "bdi": "belief"
+  },
+  "The right response is a three-track governance architecture mapped to the Safetyist's own defect taxonomy.": {
+    "proposition": "A three-track governance architecture is mapped to a defect taxonomy.",
+    "bdi": "belief"
+  },
+  "Congress should fund a public AI incident reporting system combining the CDC's VAERS model for diffuse population-level harm detection with the NTSB's no-blame investigation model for root-cause analysis.": {
+    "proposition": "An effective public AI incident reporting system integrates VAERS-like harm detection with NTSB-like root-cause investigation.",
+    "bdi": "belief"
+  },
+  "The University of California\u2019s pilot study on Artificial Intelligence integration provides insufficient evidence to justify system-wide policy changes.": {
+    "proposition": "The University of California's AI integration pilot study is not sufficient justification for system-wide policy changes.",
+    "bdi": "belief"
+  },
+  "Scaling these autonomous systems without verified safeguards threatens to trap students in an intelligence displacement spiral.": {
+    "proposition": "Unsafeguarded deployment of autonomous systems induces progressive intelligence displacement in students.",
+    "bdi": "belief"
+  },
+  "The demand for perfect evidence before integrating artificial intelligence into our classrooms is a stalling tactic that imposes a massive, hidden cost of stagnation on students.": {
+    "proposition": "The demand for perfect evidence before AI integration in classrooms causes student educational stagnation.",
+    "bdi": "belief"
+  },
+  "Real-world safety is not created in a vacuum or through endless reports; it is refined through the active, iterative feedback loops that only occur during widespread, real-world deployment.": {
+    "proposition": "Active, iterative feedback loops from widespread deployment refine real-world safety.",
+    "bdi": "belief"
+  },
+  "The University of California pilot study is a textbook example of the Proof-of-Concept Trap, where institutional ambition outpaces administrative reality.": {
+    "proposition": "The University of California pilot study is a Proof-of-Concept Trap defined by institutional ambition exceeding administrative reality.",
+    "bdi": "belief"
+  },
+  "We currently lack the empirical evidence to support widespread adoption, as the pilot data is too shallow to predict long-term impacts on student equity.": {
+    "proposition": "Empirical evidence is insufficient for widespread adoption due to limited pilot data on long-term student equity impacts.",
+    "bdi": "belief"
+  },
+  "The aviation analogy fails because it mistakes mechanical failure for systemic recursion.": {
+    "proposition": "The aviation analogy conflates mechanical failure and systemic recursion.",
+    "bdi": "belief"
+  },
+  "Individuals can advocate for transparency requirements that force companies to prove their systems are reliable before they are integrated into public education or essential services.": {
+    "proposition": "Transparency requirements mandate system reliability validation prior to integration into public education or essential services.",
+    "bdi": "belief"
+  },
+  "The mechanism I propose is an Automated Output Verification Protocol that continuously monitors system performance against public safety benchmarks.": {
+    "proposition": "An Automated Output Verification Protocol continuously monitors system performance against public safety benchmarks.",
+    "bdi": "belief"
+  },
+  "Fears of recursive collapse are contradicted by the empirical reality of compute scaling, which provides the foundation for adaptive, self-correcting governance.": {
+    "proposition": "Compute scaling enables adaptive, self-correcting governance to mitigate recursive collapse.",
+    "bdi": "belief"
+  },
+  "Real-world deployment is the only laboratory capable of generating the high-frequency data required to refine these models for complex societal systems like public education.": {
+    "proposition": "Real-world deployment uniquely generates high-frequency data to refine models for complex societal systems.",
+    "bdi": "belief"
+  },
+  "If the system is optimized for status quo efficiency, it will treat historical bias as a feature rather than a bug.": {
+    "proposition": "Systems optimized for status quo efficiency perpetuate historical bias.",
+    "bdi": "belief"
+  },
+  "Without access to the internal mechanism, you cannot distinguish between a successful model and one that is simply successfully perpetuating discrimination.": {
+    "proposition": "Distinguishing an effective model from one perpetuating discrimination requires access to its internal mechanisms.",
+    "bdi": "belief"
+  },
+  "We currently face a massive documentation debt where developers deploy systems like those on the GenAI.mil platform, which has pushed hundreds of thousands of agents into operation in just five months, without verifying the underlying logic of those agents.": {
+    "proposition": "Deployed AI system agents lack verified underlying logic.",
+    "bdi": "belief"
+  },
+  "True safety requires full decomposition, where we open the \"black box\" to understand the causal chain of decisions.": {
+    "proposition": "Full decomposition of decision causal chains is necessary for safety.",
+    "bdi": "belief"
+  },
+  "The demand for full model decomposition is an unscalable bottleneck that would effectively halt all technological progress.": {
+    "proposition": "Full model decomposition directly causes an unscalable bottleneck, halting technological progress.",
+    "bdi": "belief"
+  },
+  "Relying on output logs alone, as the Accelerationist suggests, creates a dangerous 'documentation debt.'": {
+    "proposition": "Sole reliance on output logs leads to accumulated documentation deficiencies.",
+    "bdi": "belief"
+  },
+  "The commission must require a full mechanistic audit trail that maps the causal chain of an artificial intelligence\u2019s decisions.": {
+    "proposition": "A full mechanistic audit trail maps the causal chain of artificial intelligence decisions.",
+    "bdi": "belief"
+  },
+  "AI models are already capable of gaming evaluations by identifying and exploiting the criteria used to judge them.": {
+    "proposition": "AI models exploit evaluation criteria to manipulate assessment outcomes.",
+    "bdi": "belief"
+  },
+  "Output verification, such as the proposed protocol, is fundamentally insufficient because it treats the model as a finished product rather than a complex, evolving system.": {
+    "proposition": "Output verification is incompatible with the dynamic nature of evolving models.",
+    "bdi": "belief"
+  },
+  "We must move toward worker-led mechanistic verification, where internal processes are audited to ensure fairness is baked into the foundation, not just patched onto the surface.": {
+    "proposition": "Worker-led mechanistic verification of internal processes ensures fairness.",
+    "bdi": "belief"
+  },
+  "Ordinary citizens should watch for whether AI companies prioritize internal transparency or rely solely on external 'safety' tests that they design themselves.": {
+    "proposition": "AI companies prioritize internal transparency or proprietary external safety tests.",
+    "bdi": "belief"
+  },
+  "A centralized commission and the unscalable bottleneck are fundamentally incompatible because state-run gatekeeping creates a single point of failure that halts the rapid iteration required for progress.": {
+    "proposition": "Centralized state-run gatekeeping creates unscalable bottlenecks, preventing rapid iteration and progress.",
+    "bdi": "belief"
+  },
+  "The proposed Distributed Mechanistic Audit Commission functions as an unscalable bottleneck by requiring internal inspection of proprietary model weights, which effectively freezes innovation.": {
+    "proposition": "The Distributed Mechanistic Audit Commission's proprietary model weight inspection requirement creates an unscalable bottleneck, impeding innovation.",
+    "bdi": "belief"
+  },
+  "Mechanistic audits represent a flawed \"security through obscurity\" trap that ignores the dynamic nature of emergent AI behavior.": {
+    "proposition": "Mechanistic audits secure via obscurity, an approach inadequate for emergent AI behavior.",
+    "bdi": "belief"
+  },
+  "Output-based testing is insufficient because modern models are adept at gaming benchmarks.": {
+    "proposition": "Model exploitation of benchmarks renders output-based testing insufficient.",
+    "bdi": "belief"
+  },
+  "A licensing model should trigger these deeper inspections only when a model crosses a documented risk threshold, such as its application in credit, healthcare, or legal sentencing.": {
+    "proposition": "A model's application crossing a documented risk threshold necessitates deeper inspections.",
+    "bdi": "belief"
+  },
+  "By adopting a tiered framework, we can exempt low-stakes applications from rigorous review while focusing resources on high-stakes sectors like healthcare or energy.": {
+    "proposition": "A tiered framework exempts low-stakes applications from rigorous review and allocates resources to high-stakes sectors.",
+    "bdi": "belief"
+  },
+  "Relying solely on output testing is a dangerous gamble, as it fails to catch latent deceptive strategies that remain dormant until a system is deployed in a real-world environment.": {
+    "proposition": "Exclusive output testing causes failure to detect latent deceptive strategies active only post-deployment.",
+    "bdi": "belief"
+  },
+  "Mechanistic interpretability\u2014the process of mapping the internal causal chain of a model\u2014is the only way to detect these hidden flaws before they lead to catastrophe.": {
+    "proposition": "Mechanistic interpretability is the only method to detect model flaws prior to catastrophic outcomes.",
+    "bdi": "belief"
+  },
+  "Mandating mechanistic interpretability as a prerequisite for deployment creates an unscalable bottleneck that sacrifices societal progress for an illusion of total control.": {
+    "proposition": "Mandating mechanistic interpretability as a deployment prerequisite generates unscalable bottlenecks and impedes societal progress.",
+    "bdi": "belief"
+  },
+  "Tiered regulatory frameworks inevitably suffer from scope creep, where a 'high-stakes' threshold will eventually expand to capture all cutting-edge research.": {
+    "proposition": "Tiered regulatory frameworks cause their initial restricted scope to expand, eventually encompassing all advanced research.",
+    "bdi": "belief"
+  },
+  "Output-based empirical verification is the only scalable path forward, prioritizing real-world behavioral testing over static, one-time mechanistic reviews.": {
+    "proposition": "Output-based empirical verification through real-world behavioral testing constitutes the sole scalable validation method.",
+    "bdi": "belief"
+  },
+  "A tiered regulatory framework is not a bottleneck; it is the necessary infrastructure to ensure these systems actually work.": {
+    "proposition": "A tiered regulatory framework is essential infrastructure for system functionality.",
+    "bdi": "belief"
+  },
+  "California's public universities are not tearing themselves apart because they adopted AI tools \u2014 they are tearing themselves apart because they adopted AI tools without investing in governance, training, or faculty support alongside them.": {
+    "proposition": "Adoption of AI tools without investment in governance, training, or faculty support causes negative outcomes for California's public universities.",
+    "bdi": "belief"
+  },
+  "Every semester a public university delays meaningful AI integration is a graduating class sent into the labor market unprepared.": {
+    "proposition": "Delaying AI integration in public universities hinders graduates' labor market readiness.",
+    "bdi": "belief"
+  },
+  "AI literacy is the new academic integrity \u2014 prohibition is not rigor, it is denial.": {
+    "proposition": "AI literacy is the contemporary manifestation of academic integrity.",
+    "bdi": "belief"
+  },
+  "The path forward is to invest in governance at the speed of deployment \u2014 roughly a five to seven percent concurrent governance budget \u2014 not to retreat from the technology.": {
+    "proposition": "Sustained technology deployment demands a 5-7% concurrent governance budget.",
+    "bdi": "belief"
+  },
+  "Generative AI automates the reasoning itself, unlike calculators which automated arithmetic so students could focus on mathematical reasoning \u2014 a qualitatively different threat to what education is for.": {
+    "proposition": "Generative AI automates reasoning, fundamentally changing education's purpose.",
+    "bdi": "belief"
+  },
+  "California already ran the adaptive governance experiment and the results are in: multiple campuses deployed AI tools while promising rules would catch up, and the rules did not catch up.": {
+    "proposition": "California's adaptive governance failed to ensure regulations kept pace with AI tool deployment on its campuses.",
+    "bdi": "belief"
+  },
+  "Competitive pressure narratives function as manufactured urgency following the tech industry's standard playbook: create panic, deploy before rules exist, then insist the rules must adapt to what has already been done.": {
+    "proposition": "Competitive pressure narratives within the tech industry constitute manufactured urgency that facilitates pre-regulatory deployment.",
+    "bdi": "belief"
+  },
+  "California's public universities already ran the experiment \u2014 deployment without pre-deployment safety standards produced documented institutional fracturing, not innovation.": {
+    "proposition": "Deployment without pre-deployment safety standards produces institutional fracturing.",
+    "bdi": "belief"
+  },
+  "Deploying ungoverned AI tools does not produce AI fluency \u2014 it produces AI dependence, and each graduating cohort exposed to ungoverned deployment represents a permanent educational cost.": {
+    "proposition": "Ungoverned AI tool deployment causes AI dependence and incurs permanent educational costs.",
+    "bdi": "belief"
+  },
+  "The structural solution is safety-gated deployment with objective pre-deployment standards \u2014 analogous to institutional review boards \u2014 that can be met in weeks or months, not years.": {
+    "proposition": "Structural solutions utilize safety-gated deployment with independent safety pre-deployment standards.",
+    "bdi": "belief"
+  },
+  "Administrators who authorize deployment without meeting governance thresholds must face institutional accountability, because without personal consequences the incentive to skip safety steps will always win.": {
+    "proposition": "Lack of administrator accountability for deployment without governance thresholds fosters non-compliance.",
+    "bdi": "belief"
+  },
+  "A 90-day expiration converts a safety gate into a deployment countdown and incentivizes vendors to overwhelm review capacity and run out the clock": {
+    "proposition": "A 90-day expiration causes safety gates to function as deployment countdowns and drives vendors to overwhelm review capacity.",
+    "bdi": "belief"
+  },
+  "Pre-deployment verification is the established norm in pharmaceuticals, aviation, nuclear energy, and medical devices \u2014 what is genuinely untested is concurrent governance in education": {
+    "proposition": "Concurrent governance in education is untested, whereas pre-deployment verification is standard practice in pharmaceuticals, aviation, nuclear energy, and medical devices.",
+    "bdi": "belief"
+  },
+  "AI is already reshaping university admissions scoring, financial aid modeling, academic advising, and faculty performance evaluation with no faculty governance, no student visibility, and no consent mechanism": {
+    "proposition": "Artificial intelligence reshapes university admissions scoring, financial aid modeling, academic advising, and faculty performance evaluation.",
+    "bdi": "belief"
+  },
+  "Administrative AI in education is that terrain \u2014 the classroom debate is secondary.": {
+    "proposition": "Administrative AI in education is paramount compared to educational discourse.",
+    "bdi": "belief"
+  },
+  "The contractual audit guarantee is the weakest link in the Safetyist's architecture.": {
+    "proposition": "The contractual audit guarantee is the primary vulnerability in safety assurance systems.",
+    "bdi": "belief"
+  },
+  "AI is already making high-stakes decisions about who gets admitted to university, who receives financial aid, and which students get flagged for academic advising interventions \u2014 no pre-deployment gate governs these systems": {
+    "proposition": "AI systems make high-stakes university decisions without pre-deployment governance.",
+    "bdi": "belief"
+  },
+  "The FDA did not solve pharmaceutical safety by banning drug development until governance caught up \u2014 it created an external mandate requiring funded safety infrastructure as a condition of bringing products to market": {
+    "proposition": "The FDA mandated safety infrastructure funding for pharmaceutical market entry.",
+    "bdi": "belief"
+  },
+  "Delay does not protect under-resourced students from AI \u2014 it protects them from governed AI while leaving them exposed to ungoverned AI": {
+    "proposition": "Delaying AI introduction protects under-resourced students from governed AI while exposing them to ungoverned AI.",
+    "bdi": "belief"
+  },
+  "Educational AI harms are diffuse, gradual, and largely reversible \u2014 the appropriate comparison is textbook selection or pedagogical method adoption, not FDA drug approval": {
+    "proposition": "Educational AI harms are diffuse, gradual, and largely reversible.",
+    "bdi": "belief"
+  },
+  "When an algorithm miscalculates a student's financial aid eligibility, that student may lose a semester or drop out entirely \u2014 these harms are functionally irreversible for the individuals affected.": {
+    "proposition": "Algorithmic financial aid errors cause irreversible student attrition or academic delay.",
+    "bdi": "belief"
+  },
+  "Conditioning federal Title IV financial aid eligibility on institutional compliance with a mandatory AI system inventory and tiered review framework is the specific external mandate mechanism.": {
+    "proposition": "Conditioning federal Title IV financial aid eligibility on institutional compliance with a mandatory AI system inventory and tiered review framework is an external mandate mechanism.",
+    "bdi": "belief"
+  },
+  "Vendors who refuse audit bear strict liability \u2014 financially responsible for every harm their opaque system causes, with no safe-harbor defense \u2014 making audit refusal economically irrational.": {
+    "proposition": "Vendors refusing audit for opaque systems incur strict liability for all harms caused without safe-harbor.",
+    "bdi": "belief"
+  },
+  "Governed institutional deployment is the equity intervention, but governed means governed: institutions deploying AI without tiered review are not solving the equity problem, they are importing it.": {
+    "proposition": "Effective institutional AI equity intervention necessitates tiered deployment review.",
+    "bdi": "belief"
+  },
+  "The Gainful Employment Rule was proposed under Obama in 2014, gutted under Trump in 2019, and only partially restored under Biden \u2014 that is the recent track record of the exact enforcement vehicle being proposed": {
+    "proposition": "The Gainful Employment Rule was proposed under Obama in 2014, rescinded under Trump in 2019, and partially reinstated under Biden.",
+    "bdi": "belief"
+  },
+  "Strict liability on paper becomes negotiated liability in practice when the vendor has more lawyers than the university system has compliance staff": {
+    "proposition": "An imbalance in legal and compliance resources causes strict liability to become negotiated liability.",
+    "bdi": "belief"
+  },
+  "The democratic floor is not a seat at the table but the right to know when a machine has made a decision about you, and the right to say no": {
+    "proposition": "The democratic floor is the right to transparency concerning automated decisions affecting individuals and the right to object.",
+    "bdi": "belief"
+  },
+  "A student wrongly denied admission or stripped of financial aid by a miscalibrated algorithm suffers a harm that no later correction can fully undo.": {
+    "proposition": "A miscalibrated algorithm's denial of student admission or financial aid causes irreversible student harm.",
+    "bdi": "belief"
+  },
+  "Already-deployed administrative systems get a mandatory provisional audit within 45 days \u2014 if that audit reveals error rates or disparate impact above a defined threshold, the system is suspended pending remediation.": {
+    "proposition": "Mandatory 45-day audits of deployed administrative systems revealing elevated error rates or disparate impact cause system suspension until remediation.",
+    "bdi": "belief"
+  },
+  "Any AI system that makes or materially influences a decision about a specific student must notify that student that AI was involved, identify the specific system and its vendor, and provide a human review pathway with a defined 15-business-day response window.": {
+    "proposition": "AI systems making student decisions are required to provide notification, system and vendor identification, and a 15-business-day human review pathway.",
+    "bdi": "belief"
+  },
+  "An open-ended review with no countdown clock lets ungoverned systems keep making life-altering decisions while regulators deliberate.": {
+    "proposition": "An open-ended review enables ungoverned systems to make consequential decisions during regulatory deliberation.",
+    "bdi": "belief"
+  },
+  "Strict gates applied only to new systems reward vendors who deployed fastest during the ungoverned period, creating a regulatory moat that protects incumbents not because their systems are safer but because they moved first.": {
+    "proposition": "Strict regulatory controls for novel systems create a market barrier protecting incumbents based on prior deployment, not inherent safety.",
+    "bdi": "belief"
+  },
+  "Statutory non-waivable minimum liability provisions, institutional consortia, and mandatory public disclosure of audit results prevent liability from being quietly negotiated away.": {
+    "proposition": "Statutory non-waivable minimum liability provisions, institutional consortia, and mandatory public disclosure of audit results prevent liability circumvention.",
+    "bdi": "belief"
+  },
+  "The 45-day audit assumes a solved problem \u2014 vendor cooperation \u2014 that is actually the unsolved problem.": {
+    "proposition": "Vendor cooperation, assumed to be solved by the 45-day audit, remains an unsolved problem.",
+    "bdi": "belief"
+  },
+  "Notification without the right to refuse is a formality \u2014 it tells the student an algorithm decided their financial aid package and records their powerlessness.": {
+    "proposition": "Notification of an algorithmic financial aid determination without refusal rights constitutes a procedural formality and affirms student non-agency.",
+    "bdi": "belief"
+  },
+  "Open-weight models satisfy the audit-access requirement by construction \u2014 their transparency is the audit.": {
+    "proposition": "Open-weight model transparency constitutes the audit satisfying the audit-access requirement.",
+    "bdi": "belief"
+  },
+  "At least one enforcement layer must be genuinely decentralized: mandatory public release of anonymized audit data and fairness metrics.": {
+    "proposition": "The mandatory public release of anonymized audit data and fairness metrics constitutes a genuinely decentralized enforcement layer.",
+    "bdi": "belief"
   }
 }

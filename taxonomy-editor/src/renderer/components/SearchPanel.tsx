@@ -170,6 +170,8 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
 
   const isOnline = useOnlineStatus();
   const [mode, setMode] = useState<SearchPanelMode>(_lastSearchMode);
+  const [povFilter, setPovFilter] = useState<'all' | 'accelerationist' | 'safetyist' | 'skeptic' | 'situations' | 'conflicts'>('all');
+  const [bdiFilter, setBdiFilter] = useState<'all' | 'Beliefs' | 'Desires' | 'Intentions'>('all');
   const [attrValue, setAttrValue] = useState<string>('');
   const [attrQuery, setAttrQuery] = useState('');
   const [relatedQuery, setRelatedQuery] = useState('');
@@ -310,30 +312,53 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
     const regex = buildSearchRegex(findQuery, findMode, findCaseSensitive);
     if (!regex) return [];
     const all: TaxResult[] = [];
-    if (showAllTypes || isPovTab) {
+    const searchPov = povFilter !== 'all';
+    const includePovNodes = searchPov ? ['accelerationist', 'safetyist', 'skeptic'].includes(povFilter) : (showAllTypes || isPovTab);
+    const includeSituations = searchPov ? povFilter === 'situations' : (showAllTypes || isSituationsTab);
+    const includeConflicts = searchPov ? povFilter === 'conflicts' : (showAllTypes || isConflictsTab);
+    if (includePovNodes) {
       for (const [pov, file] of [
         ['accelerationist', accelerationist], ['safetyist', safetyist], ['skeptic', skeptic],
       ] as const) {
-        if (file) for (const node of file.nodes) all.push(...searchPovNode(node, regex, pov));
+        if (searchPov && pov !== povFilter) continue;
+        if (file) {
+          const nodes = bdiFilter === 'all' ? file.nodes : file.nodes.filter(n => n.category === bdiFilter);
+          for (const node of nodes) all.push(...searchPovNode(node, regex, pov));
+        }
       }
     }
-    if (showAllTypes || isSituationsTab) {
+    if (includeSituations) {
       if (situations) for (const node of situations.nodes) all.push(...searchCCNode(node, regex));
     }
-    if (showAllTypes || isConflictsTab) {
+    if (includeConflicts) {
       for (const conflict of conflicts) all.push(...searchConflict(conflict, regex));
     }
     return dedupe(all);
-  }, [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, isSemantic, showAllTypes, isPovTab, isSituationsTab, isConflictsTab]);
+  }, [mode, findQuery, findMode, findCaseSensitive, accelerationist, safetyist, skeptic, situations, conflicts, isSemantic, showAllTypes, isPovTab, isSituationsTab, isConflictsTab, povFilter, bdiFilter]);
 
-  // Semantic results mapped + filtered by active tab
+  // Semantic results mapped + filtered by active tab / POV + BDI filter
   const semResults: TaxResult[] = useMemo(() => {
     if (mode !== 'taxonomy' || !isSemantic) return [];
     return (semanticResults || []).filter(r => {
-      if (showAllTypes) return true;
-      if (isPovTab) return !r.id.startsWith('conflict-') && !r.id.startsWith('sit-');
-      if (isSituationsTab) return r.id.startsWith('sit-');
-      if (isConflictsTab) return r.id.startsWith('conflict-');
+      if (povFilter !== 'all') {
+        const rPov = nodePovFromId(r.id);
+        if (povFilter === 'situations') return r.id.startsWith('sit-');
+        if (povFilter === 'conflicts') return r.id.startsWith('conflict-');
+        if (rPov !== povFilter) return false;
+      } else {
+        if (!showAllTypes) {
+          if (isPovTab && (r.id.startsWith('conflict-') || r.id.startsWith('sit-'))) return false;
+          if (isSituationsTab && !r.id.startsWith('sit-')) return false;
+          if (isConflictsTab && !r.id.startsWith('conflict-')) return false;
+        }
+      }
+      if (bdiFilter !== 'all') {
+        const parts = r.id.split('-');
+        if (parts.length >= 2) {
+          const cat = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+          if (cat !== bdiFilter) return false;
+        }
+      }
       return true;
     }).map(r => {
       const label = getLabelForId(r.id);
@@ -341,7 +366,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
         : (nodePovFromId(r.id) as TabId) || 'skeptic';
       return { id: r.id, label, tab, field: 'semantic', matchText: '', score: r.score };
     });
-  }, [mode, isSemantic, semanticResults, getLabelForId, showAllTypes, isPovTab, isSituationsTab, isConflictsTab]);
+  }, [mode, isSemantic, semanticResults, getLabelForId, showAllTypes, isPovTab, isSituationsTab, isConflictsTab, povFilter, bdiFilter]);
 
   const taxonomyResults = isSemantic ? semResults : taxResults;
 
@@ -610,16 +635,40 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
             {!isOnline && mode === 'taxonomy' && (
               <div className="search-panel-offline-msg">Searching offline — semantic search unavailable</div>
             )}
-            {!isSemantic && (
-              <label className="search-panel-option">
-                <input
-                  type="checkbox"
-                  checked={findCaseSensitive}
-                  onChange={(e) => setFindCaseSensitive(e.target.checked)}
-                />
-                Case sensitive
-              </label>
-            )}
+            <div className="search-panel-filter-row">
+              {!isSemantic && (
+                <label className="search-panel-option">
+                  <input
+                    type="checkbox"
+                    checked={findCaseSensitive}
+                    onChange={(e) => setFindCaseSensitive(e.target.checked)}
+                  />
+                  Case sensitive
+                </label>
+              )}
+              <select
+                className="search-panel-pov-filter"
+                value={povFilter}
+                onChange={(e) => setPovFilter(e.target.value as typeof povFilter)}
+              >
+                <option value="all">All POVs</option>
+                <option value="accelerationist">Accelerationist</option>
+                <option value="safetyist">Safetyist</option>
+                <option value="skeptic">Skeptic</option>
+                <option value="situations">Situations</option>
+                <option value="conflicts">Conflicts</option>
+              </select>
+              <select
+                className="search-panel-pov-filter"
+                value={bdiFilter}
+                onChange={(e) => setBdiFilter(e.target.value as typeof bdiFilter)}
+              >
+                <option value="all">All BDI</option>
+                <option value="Beliefs">Beliefs</option>
+                <option value="Desires">Desires</option>
+                <option value="Intentions">Intentions</option>
+              </select>
+            </div>
           </div>
         )}
 

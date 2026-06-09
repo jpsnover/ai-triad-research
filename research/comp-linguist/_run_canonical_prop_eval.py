@@ -94,8 +94,8 @@ with open(EMBEDDINGS_PATH, encoding='utf-8') as f:
     emb_data = json.load(f)
 
 node_embeddings = {}
-for entry in emb_data.get('data', {}).get('nodes', []):
-    nid = entry.get('id', '')
+emb_nodes = emb_data.get('nodes', {})
+for nid, entry in emb_nodes.items():
     vec = entry.get('vector', [])
     if nid in all_nodes and vec:
         node_embeddings[nid] = vec

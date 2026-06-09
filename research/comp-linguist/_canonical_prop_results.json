@@ -1,0 +1,47 @@
+{
+  "experiment": "t/536 Phase 1",
+  "date": "2026-06-09",
+  "golden_set_size": 515,
+  "results": [
+    {
+      "label": "A: raw claim_text (baseline)",
+      "mrr": 0.35416933687619545,
+      "top1": 0.21941747572815534,
+      "top5": 0.5359223300970873,
+      "count": 515
+    },
+    {
+      "label": "B: canonical_proposition",
+      "mrr": 0.2674163166835487,
+      "top1": 0.16310679611650486,
+      "top5": 0.3844660194174757,
+      "count": 515
+    },
+    {
+      "label": "C: blended (canon_weight=0.3)",
+      "mrr": 0.33787612766723774,
+      "top1": 0.20388349514563106,
+      "top5": 0.5087378640776699,
+      "count": 515
+    },
+    {
+      "label": "C: blended (canon_weight=0.5)",
+      "mrr": 0.31247261832258144,
+      "top1": 0.18058252427184465,
+      "top5": 0.4815533980582524,
+      "count": 515
+    },
+    {
+      "label": "C: blended (canon_weight=0.7)",
+      "mrr": 0.29478462887610374,
+      "top1": 0.17281553398058253,
+      "top5": 0.4407766990291262,
+      "count": 515
+    }
+  ],
+  "quality": {
+    "mean_word_count": 13.782524271844661,
+    "max_word_count": 25,
+    "within_30_words_pct": 100.0
+  }
+}
