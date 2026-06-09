@@ -573,7 +573,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
         )}
       </div>
       <div className="search-panel-result-label">
-        {mode === 'taxonomy' && r.matchText ? highlightMatch(r.matchText) : r.label}
+        {r.label}
       </div>
     </div>
   );

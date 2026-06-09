@@ -1129,6 +1129,9 @@ body {
 .node-item[data-cat="Beliefs"]   { border-left-color: var(--cat-beliefs); }
 .node-item[data-cat="Intentions"]      { border-left-color: var(--cat-intentions); }
 
+.node-item:focus {
+  outline: none;
+}
 .node-item:hover {
   background: var(--bg-hover);
 }

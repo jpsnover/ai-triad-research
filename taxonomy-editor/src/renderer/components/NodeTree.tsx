@@ -108,6 +108,21 @@ function saveCollapsed(collapsed: Set<string>) {
 export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits }: NodeTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
 
+  // Auto-expand category when keyboard nav selects a node in a collapsed group
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node) return;
+    if (collapsed.has(node.category)) {
+      setCollapsed(prev => {
+        const next = new Set(prev);
+        next.delete(node.category);
+        saveCollapsed(next);
+        return next;
+      });
+    }
+  }, [selectedNodeId]);
+
   const toggleGroup = useCallback((key: string) => {
     setCollapsed(prev => {
       const next = new Set(prev);
@@ -316,15 +331,22 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
   useEffect(() => {
     if (isSelected && ref.current) {
       ref.current.scrollIntoView({ block: 'nearest' });
+      ref.current.focus({ preventScroll: true });
     }
   }, [isSelected]);
+
+  const handleClick = useCallback(() => {
+    (document.activeElement as HTMLElement)?.blur?.();
+    onSelect(node.id);
+  }, [onSelect, node.id]);
 
   return (
     <div
       ref={ref}
       className={`node-item ${isSelected ? 'selected' : ''}${indent ? ' node-item-child' : ''}${isMisfit ? ' node-item-misfit' : ''}`}
       data-cat={node.category}
-      onClick={() => onSelect(node.id)}
+      tabIndex={-1}
+      onClick={handleClick}
     >
       <div>
         {node.label || '(untitled)'}

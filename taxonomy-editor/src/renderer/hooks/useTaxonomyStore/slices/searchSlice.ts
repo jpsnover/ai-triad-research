@@ -172,13 +172,14 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
       console.log(`[semantic-search] Found ${results.length} results above threshold`);
       set({ semanticResults: results, embeddingLoading: false });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Semantic search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      const { aiBackend, geminiModel } = get();
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Semantic search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) }, data: { aiBackend, geminiModel } });
       console.error('[semantic-search] Error during semantic search for query "' + query + '":', err);
       const detail = mapErrorToUserMessage(err);
       set({
         semanticResults: [],
         embeddingLoading: false,
-        embeddingError: `Semantic search failed while computing embeddings for "${query}". ${detail}`,
+        embeddingError: `Semantic search failed while computing embeddings for "${query}" using ${aiBackend}/${geminiModel}. ${detail}`,
       });
     }
   },
@@ -219,8 +220,9 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
       const filtered = results.filter(r => r.id !== nodeId);
       set({ similarResults: filtered, similarLoading: false, similarStep: null });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Similar node search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
-      set({ similarLoading: false, similarStep: null, similarError: mapErrorToUserMessage(err) });
+      const { aiBackend, geminiModel } = get();
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Similar node search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) }, data: { aiBackend, geminiModel } });
+      set({ similarLoading: false, similarStep: null, similarError: `[${aiBackend}/${geminiModel}] ${mapErrorToUserMessage(err)}` });
     }
   },
 
