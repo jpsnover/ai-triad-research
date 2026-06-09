@@ -4112,7 +4112,7 @@ export class DebateEngine {
     for (const node of an.nodes) {
       if (node.turn_number <= openingTurnMax && node.speaker && node.speaker !== 'system' && node.speaker !== 'document') {
         const list = bySpeaker.get(node.speaker) ?? [];
-        list.push({ id: node.id, text: node.canonical_proposition ?? node.text });
+        list.push({ id: node.id, text: node.text });
         bySpeaker.set(node.speaker, list);
       }
     }
@@ -4161,7 +4161,7 @@ export class DebateEngine {
     const currentEmbeddings: Array<{ id: string; embedding: number[] }> = [];
     for (const claim of currentClaims.slice(0, 8)) {
       try {
-        const { vector } = await adapter.computeQueryEmbedding((claim.canonical_proposition ?? claim.text).slice(0, 300));
+        const { vector } = await adapter.computeQueryEmbedding(claim.text.slice(0, 300));
         currentEmbeddings.push({ id: claim.id, embedding: vector });
       } catch { /* telemetry — silent by design: per-claim current embedding is best-effort */ }
     }
@@ -4852,8 +4852,7 @@ Return ONLY JSON (no markdown, no code fences):
     if (adapter.computeQueryEmbedding && claimsResult.newNodes.length > 0) {
       for (const node of claimsResult.newNodes) {
         try {
-          const embeddingText = (node.canonical_proposition ?? node.text).slice(0, 300);
-          const { vector } = await adapter.computeQueryEmbedding(embeddingText);
+          const { vector } = await adapter.computeQueryEmbedding(node.text.slice(0, 300));
           if (vector && vector.length > 0) node.embedding = vector;
         } catch { /* telemetry — silent by design: per-node AN embedding is best-effort */ }
       }
