@@ -381,6 +381,8 @@ const TAXONOMY_USAGE = `Your taxonomy context is organized into three sections t
 - EMPIRICAL GROUNDING (Beliefs): Your factual foundation. Draw on these when making factual claims or citing evidence.
 - NORMATIVE COMMITMENTS (Desires): Your value positions. Draw on these when arguing about what matters or what should happen.
 - REASONING APPROACH (Intentions): Your argumentative strategies. Draw on these when constructing arguments or choosing how to frame an issue.
+
+BDI PRECEDENCE (when a claim spans categories): mechanism/method → Intention, desired end-state without mechanism → Desire, empirical/testable → Belief.
 - SITUATIONS (sit- IDs): Contested concepts where perspectives diverge. When your argument touches a concept listed in the SITUATIONS section, you MUST cite its sit- ID in taxonomy_refs — even if you also cite POV nodes. Situations are the meeting points where disagreements become concrete; citing them connects your argument to the shared contested ground rather than staying in your own silo.
 
 Reference nodes from across all three sections — not just the one most obvious for your point. The strongest arguments connect empirical grounding to normative commitments through reasoning, anchored in the specific contested concepts (situations) under discussion.
@@ -1115,7 +1117,7 @@ ${getReadingLevel(audience)}
 Respond ONLY with a JSON object (no markdown, no code fences):
 {"claims": [{"claim": "a clear, specific assertion the user expressed or implied", "bdi_category": "belief|desire|intention"}]}
 
-bdi_category:
+bdi_category (precedence: mechanism/method → intention, end-state without mechanism → desire, empirical/testable → belief):
 - "belief" — factual claims, assumptions about what is true
 - "desire" — value judgments, goals, what outcomes the user wants
 - "intention" — preferred methods, strategies, or approaches`;
@@ -1902,6 +1904,8 @@ export interface StagePromptInput {
   currentCruxContext?: string;
   /** Topic scope constraints — injected into Brief stage for pre-draft scope checking. */
   topicScope?: TopicScope;
+  /** When true, inserts a salience beacon block in the Draft prompt to reduce scope drift. */
+  salienceBeacon?: boolean;
 }
 
 export function briefStagePrompt(input: StagePromptInput): string {
@@ -2123,7 +2127,14 @@ ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}
+${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}${input.salienceBeacon && input.topicScope ? `
+=== SALIENCE BEACON ===
+ATTENTION: Monitor your argument's structural fidelity to the debate scope.
+- Domain: ${input.topicScope.domain}
+- Boundary: ${input.topicScope.example_ceiling}
+Your argument must resolve through THIS domain's institutions, mechanisms, and consequences — not adjacent domains.
+If your reasoning drifts beyond this boundary, redirect through a concrete mechanism within the stated domain.
+` : ''}
 === YOUR ASSIGNMENT ===
 Address ${input.addressing === 'general' ? 'the panel' : input.addressing} on this point: ${input.focusPoint}
 

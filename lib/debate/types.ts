@@ -889,6 +889,8 @@ export interface DocumentAnalysis {
 export interface ArgumentNetworkNode {
   id: string;
   text: string;
+  /** Register-normalized proposition for taxonomy matching (≤30 words, modal register matches BDI type). */
+  canonical_proposition?: string;
   speaker: SpeakerId | 'system' | 'document';
   source_entry_id: string;
   taxonomy_refs: string[];

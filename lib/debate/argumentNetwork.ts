@@ -135,6 +135,15 @@ For each claim, also classify:
   0.5-0.69: implicit premise or reading between the lines
   Below 0.5: do not include — you are editorializing beyond the statement
 - "bdi_category": "belief" (empirical/factual claim), "desire" (normative/value claim), or "intention" (strategic/methodological claim)
+  PRECEDENCE RULE when surface cues conflict:
+    1. If the span specifies a METHOD or MECHANISM → "intention" (regardless of "should"/"must")
+    2. If the span states a desired end-state WITHOUT mechanism → "desire"
+    3. If the span makes an empirical claim (true/false evaluable) → "belief"
+- "canonical_proposition": Rewrite the claim as a single formal sentence (≤30 words) stripped of debate rhetoric, hedging, and informal language. Match modal register to BDI type:
+  Beliefs: indicative ("X is/causes Y")
+  Desires: deontic ("X ought to be the case")
+  Intentions: instrumental ("Achieve X by means of Y")
+  Use controlled vocabulary terms where applicable. This field is used for taxonomy matching — precision matters.
 - "base_strength": FOR BELIEF CLAIMS ONLY. Classify the evidential grounding as ONE of:
   "grounded" — cites specific data, named sources, dates, or directly verifiable facts
   "reasoned" — logical argument with internal coherence but no specific evidence
@@ -164,10 +173,10 @@ ${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown). Two example claim shapes:
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
-{"text": "...", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "on_topic"' : ''}${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
+{"text": "...", "canonical_proposition": "X causes Y under condition Z", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "on_topic"' : ''}${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
 
 Example 2 — Desire claim (includes bdi_sub_scores; NO base_strength):
-{"text": "...", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "adjacent"' : ''}${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
+{"text": "...", "canonical_proposition": "Regulators ought to require X for Y", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "adjacent"' : ''}${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
 
 Full responds_to shape (same for all BDI categories):
 {
@@ -855,6 +864,7 @@ export interface BeliefVerification {
 
 export interface RawExtractedClaim {
   text: string;
+  canonical_proposition?: string;
   extraction_confidence?: number;
   bdi_category?: string;
   base_strength?: number | string;
@@ -1011,6 +1021,7 @@ export function processExtractedClaims(
     const node: ArgumentNetworkNode = {
       id: nodeId,
       text: claim.text,
+      canonical_proposition: claim.canonical_proposition || undefined,
       speaker,
       source_entry_id: entryId,
       taxonomy_refs: taxonomyRefIds,

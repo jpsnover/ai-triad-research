@@ -55,6 +55,7 @@ interface CLIConfig {
     prompt: string;
     measure_recovery_window?: number;
   };
+  salienceBeacon?: boolean;
 }
 
 // ── Main ─────────────────────────────────────────────────
@@ -364,6 +365,7 @@ async function main(): Promise<void> {
     allowEarlyTermination: config.allowEarlyTermination,
     throttleMs: config.throttleMs,
     perturbation: resolvePerturbationConfig(config, perturbationPrompt, perturbationTurn),
+    salienceBeacon: config.salienceBeacon,
   };
 
   // Run debate
