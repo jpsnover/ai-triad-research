@@ -141,6 +141,7 @@ const CONFLICTS_DIR = resolveDataPath(_config.conflicts_dir);
 const SUMMARIES_DIR = resolveDataPath(_config.summaries_dir);
 const SOURCES_DIR_LEGACY = resolveDataPath(_config.sources_dir);
 
+// eslint-disable-next-line @typescript-eslint/no-use-before-define -- function declaration is hoisted
 export { PROJECT_ROOT, resolveDataPath, writeJsonFileAtomic };
 
 export function getSourcesDir(): string | null {
