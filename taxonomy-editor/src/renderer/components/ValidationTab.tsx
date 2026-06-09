@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useMemo, useCallback, useRef } from 'react';
+import { useEffect, useMemo, useCallback, useRef, useState, type MouseEvent } from 'react';
 import { useValidationStore } from '../hooks/useValidationStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
@@ -76,7 +76,7 @@ function resolveNode(nodeId: string, store: ReturnType<typeof useTaxonomyStore>)
 
 function ClaimListSidebar({ width, onResizeMouseDown }: {
   width: number;
-  onResizeMouseDown: (e: React.MouseEvent) => void;
+  onResizeMouseDown: (e: MouseEvent) => void;
 }) {
   const {
     filteredClaims, metadata, results, currentClaimIndex, goToIndex,
@@ -278,13 +278,14 @@ function AttributionPanel({
 }: {
   claim: GoldenClaim | null;
   width: number;
-  onResizeMouseDown: (e: React.MouseEvent) => void;
+  onResizeMouseDown: (e: MouseEvent) => void;
 }) {
   const store = useTaxonomyStore();
   const { results, setVerdict, beliefsOnly, setBeliefsOnly } = useValidationStore();
-  const [searchText, setSearchText] = React.useState('');
-  const [searchPov, setSearchPov] = React.useState<SearchPovFilter>('same');
-  const [expandedNodeId, setExpandedNodeId] = React.useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
+  const [searchPov, setSearchPov] = useState<SearchPovFilter>('same');
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+  const [expandedAltId, setExpandedAltId] = useState<string | null>(null);
 
   if (!claim) {
     return (
@@ -386,24 +387,45 @@ function AttributionPanel({
         <>
           <h3 className="validation-section-title">Alternatives ({alternativeNodes.length})</h3>
           <div className="validation-alt-list">
-            {alternativeNodes.map(({ node, similarity, id }) => (
-              <button
-                key={id}
-                className="validation-alt-item"
-                onClick={() => isIncorrect && handleSelectCorrection(id)}
-                disabled={!isIncorrect}
-                title={isIncorrect ? 'Click to select as correction' : 'Set verdict to Incorrect to select'}
-              >
-                <div className="validation-alt-header">
-                  <span className="validation-node-id">{id}</span>
-                  <span className="validation-alt-score" style={{ color: scoreColor(similarity) }}>
-                    {similarity.toFixed(3)}
-                  </span>
+            {alternativeNodes.map(({ node, similarity, id }) => {
+              const isAltExpanded = expandedAltId === id;
+              return (
+                <div key={id} className={`validation-search-item${isAltExpanded ? ' expanded' : ''}`}>
+                  <button
+                    className="validation-alt-item"
+                    onClick={() => setExpandedAltId(isAltExpanded ? null : id)}
+                  >
+                    <div className="validation-alt-header">
+                      <span className={`validation-pov-badge pov-${id.split('-')[0]}`}>{nodePovBadge(id)}</span>
+                      <span className="validation-node-id">{id}</span>
+                      <span className="validation-alt-score" style={{ color: scoreColor(similarity) }}>
+                        {similarity.toFixed(3)}
+                      </span>
+                    </div>
+                    <div className="validation-node-label">{node.label}</div>
+                    {!isAltExpanded && (
+                      <div className="validation-node-desc-preview">{truncate(node.description, 120)}</div>
+                    )}
+                  </button>
+                  {isAltExpanded && (
+                    <div className="validation-expanded-detail">
+                      <div className="validation-node-desc">{node.description}</div>
+                      {node.confidence != null && (
+                        <div className="validation-node-meta">Confidence: {node.confidence.toFixed(3)}</div>
+                      )}
+                      {isIncorrect && (
+                        <button
+                          className="validation-select-correction-btn"
+                          onClick={() => handleSelectCorrection(id)}
+                        >
+                          Select as correction
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="validation-node-label">{node.label}</div>
-                <div className="validation-node-desc-preview">{truncate(node.description, 120)}</div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
