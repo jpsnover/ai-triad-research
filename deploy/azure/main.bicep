@@ -230,6 +230,9 @@ var baseEnv = [
   // option. AUTH_DISABLED='1' skips auth entirely. Neither = required sign-in.
   { name: 'AUTH_DISABLED', value: authDisabled }
   { name: 'AUTH_OPTIONAL', value: authOptional }
+  // Tell the server to trust Easy Auth headers (X-MS-CLIENT-PRINCIPAL-*).
+  // Container Apps should auto-inject this but doesn't reliably do so.
+  { name: 'WEBSITE_AUTH_ENABLED', value: 'true' }
   // GitHub sync (Phase-2). GIT_SYNC_ENABLED is the master switch;
   // githubAppAuth.ts tries App credentials first, then GITHUB_TOKEN.
   // The App private key itself lives in Key Vault and is fetched by
