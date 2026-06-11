@@ -57,6 +57,16 @@ param googleClientSecret string = ''
 @description('GitHub OAuth app client secret')
 param githubClientSecret string = ''
 
+@description('Azure AD (Microsoft Entra ID) app client ID')
+param aadClientId string = ''
+
+@secure()
+@description('Azure AD app client secret')
+param aadClientSecret string = ''
+
+@description('Azure AD tenant ID for the OpenID issuer URL')
+param aadTenantId string = ''
+
 @description('Auth mode: set authDisabled="1" for anonymous-only (no login page), or authOptional="1" for login page with anonymous option. If neither, sign-in is required (needs authorized-users.json).')
 param authDisabled string = ''
 
@@ -101,8 +111,10 @@ param ghcrPassword string = ''
 
 var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
 var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
+var aadEnabled = !empty(aadClientId) && !empty(aadClientSecret) && !empty(aadTenantId)
 var googleClientSecretName = 'google-client-secret'
 var githubClientSecretName = 'github-client-secret'
+var aadClientSecretName = 'aad-client-secret'
 var githubTokenSecretName = 'github-sync-token'
 var githubWebhookSecretName = 'github-webhook-secret'
 var githubTokenProvided = !empty(githubToken)
@@ -112,6 +124,7 @@ var ghcrSecretName = 'ghcr-password'
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
   githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
+  aadEnabled ? [ { name: aadClientSecretName, value: aadClientSecret } ] : [],
   githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
   githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : [],
   ghcrConfigured ? [ { name: ghcrSecretName, value: ghcrPassword } ] : []
@@ -444,6 +457,14 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
         registration: {
           clientId: githubClientId
           clientSecretSettingName: githubClientSecretName
+        }
+      }
+      azureActiveDirectory: {
+        enabled: aadEnabled
+        registration: {
+          clientId: aadClientId
+          clientSecretSettingName: aadClientSecretName
+          openIdIssuer: aadEnabled ? 'https://login.microsoftonline.com/${aadTenantId}/v2.0' : ''
         }
       }
     }
