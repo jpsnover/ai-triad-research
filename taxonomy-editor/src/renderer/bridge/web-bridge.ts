@@ -11,6 +11,26 @@ import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 
+// ── Auth state cache ──
+
+let _authAnonymous: boolean | null = null;
+
+async function isAnonymous(): Promise<boolean> {
+  if (_authAnonymous !== null) return _authAnonymous;
+  try {
+    const res = await fetch('/api/auth/me');
+    if (res.ok) {
+      const data = await res.json();
+      _authAnonymous = !!data.anonymous;
+    } else {
+      _authAnonymous = true;
+    }
+  } catch { /* telemetry — silent by design */
+    _authAnonymous = true;
+  }
+  return _authAnonymous;
+}
+
 // ── HTTP helpers ──
 
 async function get<T = unknown>(path: string): Promise<T> {
@@ -258,8 +278,20 @@ const rawApi: AppAPI = {
   // AI models & keys
   loadAIModels: () => get('/api/models'),
   refreshAIModels: () => post('/api/models/refresh'),
-  setApiKey: (key, backend) => post('/api/keys', { key, backend }).then(() => {}),
-  hasApiKey: (backend) => get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`),
+  setApiKey: async (key, backend) => {
+    const storageKey = backend ? `byok-${backend}` : 'byok-api-key';
+    sessionStorage.setItem(storageKey, key);
+    if (!(await isAnonymous())) {
+      await post('/api/keys', { key, backend });
+    }
+  },
+  hasApiKey: async (backend) => {
+    if (await isAnonymous()) {
+      const storageKey = backend ? `byok-${backend}` : 'byok-api-key';
+      return !!sessionStorage.getItem(storageKey);
+    }
+    return get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`);
+  },
   getApiKeySummary: async () => {
     const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
     return ALL_BACKENDS.map((b) => {
