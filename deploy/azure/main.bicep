@@ -64,8 +64,8 @@ param aadClientId string = ''
 @description('Azure AD app client secret')
 param aadClientSecret string = ''
 
-@description('Azure AD tenant ID for the OpenID issuer URL')
-param aadTenantId string = ''
+@description('Azure AD OpenID issuer — use "common" for multi-tenant + personal accounts, or a specific tenant ID')
+param aadIssuer string = 'common'
 
 @description('Auth mode: set authDisabled="1" for anonymous-only (no login page), or authOptional="1" for login page with anonymous option. If neither, sign-in is required (needs authorized-users.json).')
 param authDisabled string = ''
@@ -111,7 +111,7 @@ param ghcrPassword string = ''
 
 var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
 var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
-var aadEnabled = !empty(aadClientId) && !empty(aadClientSecret) && !empty(aadTenantId)
+var aadEnabled = !empty(aadClientId) && !empty(aadClientSecret)
 var googleClientSecretName = 'google-client-secret'
 var githubClientSecretName = 'github-client-secret'
 var aadClientSecretName = 'aad-client-secret'
@@ -464,7 +464,8 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-10-02-preview'
         registration: {
           clientId: aadClientId
           clientSecretSettingName: aadClientSecretName
-          openIdIssuer: aadEnabled ? 'https://login.microsoftonline.com/${aadTenantId}/v2.0' : ''
+          #disable-next-line no-hardcoded-env-urls
+          openIdIssuer: 'https://login.microsoftonline.com/${aadIssuer}/v2.0'
         }
       }
     }

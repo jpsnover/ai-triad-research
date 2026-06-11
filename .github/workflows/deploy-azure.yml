@@ -99,7 +99,7 @@ jobs:
               authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }} \
               aadClientId=${{ secrets.AAD_CLIENT_ID }} \
               aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }} \
-              aadTenantId=${{ secrets.AZURE_TENANT_ID }} \
+              aadIssuer=common \
               gitSyncEnabled=1 \
               githubRepo=${{ vars.SYNC_GITHUB_REPO }} \
               githubAppId=${{ vars.SYNC_GITHUB_APP_ID }} \
@@ -132,7 +132,7 @@ jobs:
             authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }}
             aadClientId=${{ secrets.AAD_CLIENT_ID }}
             aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }}
-            aadTenantId=${{ secrets.AZURE_TENANT_ID }}
+            aadIssuer=common
             gitSyncEnabled=1
             githubRepo=${{ vars.SYNC_GITHUB_REPO }}
             githubAppId=${{ vars.SYNC_GITHUB_APP_ID }}
