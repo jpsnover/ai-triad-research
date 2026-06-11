@@ -23,8 +23,8 @@
       "claim_id": "AN-18",
       "original_node": "saf-beliefs-124",
       "verdict": "incorrect",
-      "corrected_node": "saf-beliefs-126",
-      "reviewed_at": "2026-06-08T19:28:20.830Z"
+      "corrected_node": "skp-beliefs-174",
+      "reviewed_at": "2026-06-09T18:54:26.174Z"
     },
     {
       "claim_id": "AN-19",
@@ -62,16 +62,14 @@
     {
       "claim_id": "AN-17",
       "original_node": "saf-beliefs-043",
-      "verdict": "incorrect",
-      "corrected_node": "saf-beliefs-048",
-      "reviewed_at": "2026-06-09T18:01:56.412Z"
+      "verdict": "novel",
+      "reviewed_at": "2026-06-09T18:53:40.678Z"
     },
     {
       "claim_id": "AN-3",
       "original_node": "saf-beliefs-062",
-      "verdict": "incorrect",
-      "corrected_node": "saf-beliefs-138",
-      "reviewed_at": "2026-06-09T18:09:52.339Z"
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T18:47:39.733Z"
     },
     {
       "claim_id": "AN-6",
@@ -87,7 +85,151 @@
       "verdict": "incorrect",
       "corrected_node": "acc-beliefs-027",
       "reviewed_at": "2026-06-09T18:22:41.862Z"
+    },
+    {
+      "claim_id": "AN-13",
+      "original_node": "acc-beliefs-046",
+      "verdict": "incorrect",
+      "corrected_node": "acc-beliefs-003",
+      "reviewed_at": "2026-06-09T18:26:20.272Z"
+    },
+    {
+      "claim_id": "AN-14",
+      "original_node": "acc-beliefs-064",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T18:26:48.187Z"
+    },
+    {
+      "claim_id": "AN-21",
+      "original_node": "acc-beliefs-028",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T18:55:31.245Z"
+    },
+    {
+      "claim_id": "AN-22",
+      "original_node": "acc-beliefs-034",
+      "verdict": "incorrect",
+      "corrected_node": "acc-intentions-111",
+      "corrected_category": "Intentions",
+      "reviewed_at": "2026-06-09T18:32:48.341Z"
+    },
+    {
+      "claim_id": "AN-24",
+      "original_node": "acc-beliefs-034",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T18:33:05.998Z"
+    },
+    {
+      "claim_id": "AN-26",
+      "original_node": "saf-beliefs-123",
+      "verdict": "incorrect",
+      "corrected_node": "saf-intentions-025",
+      "corrected_category": "Intentions",
+      "reviewed_at": "2026-06-09T21:42:40.827Z"
+    },
+    {
+      "claim_id": "AN-28",
+      "original_node": "saf-beliefs-102",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T18:39:31.505Z"
+    },
+    {
+      "claim_id": "AN-29",
+      "original_node": "saf-beliefs-022",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T18:40:19.558Z"
+    },
+    {
+      "claim_id": "AN-30",
+      "original_node": "saf-beliefs-060",
+      "verdict": "incorrect",
+      "corrected_node": "saf-beliefs-154",
+      "reviewed_at": "2026-06-09T18:46:33.224Z"
+    },
+    {
+      "claim_id": "AN-2",
+      "original_node": "skp-beliefs-189",
+      "verdict": "novel",
+      "reviewed_at": "2026-06-09T18:46:55.776Z"
+    },
+    {
+      "claim_id": "AN-15",
+      "original_node": "acc-beliefs-047",
+      "verdict": "incorrect",
+      "corrected_node": "saf-desires-026",
+      "corrected_category": "Desires",
+      "reviewed_at": "2026-06-09T18:50:30.700Z"
+    },
+    {
+      "claim_id": "AN-20",
+      "original_node": "skp-beliefs-164",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T18:54:51.112Z"
+    },
+    {
+      "claim_id": "AN-23",
+      "original_node": "saf-beliefs-150",
+      "verdict": "correct",
+      "reviewed_at": "2026-06-09T21:40:44.907Z"
+    },
+    {
+      "claim_id": "AN-27",
+      "original_node": "saf-beliefs-017",
+      "verdict": "novel",
+      "reviewed_at": "2026-06-09T21:42:52.506Z"
+    },
+    {
+      "claim_id": "AN-11",
+      "original_node": "acc-beliefs-028",
+      "verdict": "incorrect",
+      "corrected_node": "skp-beliefs-064",
+      "reviewed_at": "2026-06-09T21:46:15.147Z"
+    },
+    {
+      "claim_id": "AN-16",
+      "original_node": "saf-beliefs-107",
+      "verdict": "uncertain",
+      "reviewed_at": "2026-06-09T21:46:37.860Z"
+    },
+    {
+      "claim_id": "AN-31",
+      "original_node": "saf-beliefs-116",
+      "verdict": "incorrect",
+      "corrected_node": "skp-beliefs-133",
+      "reviewed_at": "2026-06-09T21:57:54.450Z"
+    },
+    {
+      "claim_id": "AN-32",
+      "original_node": "saf-beliefs-017",
+      "verdict": "incorrect",
+      "corrected_node": "saf-intentions-030",
+      "corrected_category": "Intentions",
+      "reviewed_at": "2026-06-09T23:10:15.203Z"
+    },
+    {
+      "claim_id": "AN-33",
+      "original_node": "acc-beliefs-044",
+      "verdict": "novel",
+      "reviewed_at": "2026-06-09T23:10:30.778Z"
+    },
+    {
+      "claim_id": "AN-34",
+      "original_node": "acc-beliefs-022",
+      "verdict": "novel",
+      "reviewed_at": "2026-06-09T23:10:45.425Z"
+    },
+    {
+      "claim_id": "AN-35",
+      "original_node": "acc-beliefs-012",
+      "verdict": "novel",
+      "reviewed_at": "2026-06-09T23:16:25.539Z"
+    },
+    {
+      "claim_id": "AN-36",
+      "original_node": "skp-beliefs-026",
+      "verdict": "uncertain",
+      "reviewed_at": "2026-06-09T23:18:27.171Z"
     }
   ],
-  "saved_at": "2026-06-09T18:22:42.367Z"
+  "saved_at": "2026-06-09T23:18:27.676Z"
 }

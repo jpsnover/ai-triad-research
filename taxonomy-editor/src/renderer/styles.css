@@ -1896,6 +1896,22 @@ body {
   text-decoration-style: dotted;
 }
 
+.save-bar-fix-btn {
+  flex: none;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.save-bar-fix-btn:hover {
+  filter: brightness(1.15);
+}
+
 .save-bar-error-dismiss {
   flex: none;
   background: transparent;

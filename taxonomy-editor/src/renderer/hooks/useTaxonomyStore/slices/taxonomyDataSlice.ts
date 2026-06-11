@@ -34,10 +34,10 @@ import {
 } from '../../../utils/idGenerator';
 import { mapErrorToUserMessage } from '../../../utils/errorMessages';
 import { normalizeNodeProperties } from '@lib/debate';
-import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
+import { nodeTypeFromId, nodePovFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { validateTaxonomy } from '@lib/debate/validators';
-import type { ValidationResult } from '@lib/debate/validators';
+import type { ValidationResult, ValidationIssue } from '@lib/debate/validators';
 import { validatePovNodeId } from '@lib/debate/validateNodeId';
 import { api } from '@bridge';
 import { loadLineageCategoriesData } from '../../../data/lineageCategories';
@@ -95,6 +95,8 @@ export interface TaxonomyDataSlice {
   dirty: Set<string>;
   validationErrors: ValidationErrors;
   saveError: string | null;
+  integrityIssues: ValidationIssue[];
+  fixIntegrityErrors: () => void;
   loading: boolean;
   backgroundLoading: boolean;
   loadingProgress: { completed: string[]; total: number };
@@ -171,6 +173,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
   dirty: new Set(),
   validationErrors: {},
   saveError: null,
+  integrityIssues: [],
   loading: false,
   backgroundLoading: false,
   loadingProgress: { completed: [], total: 0 },
@@ -280,7 +283,51 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     }
   },
 
-  dismissSaveError: () => set({ saveError: null }),
+  dismissSaveError: () => set({ saveError: null, integrityIssues: [] }),
+
+  fixIntegrityErrors: () => {
+    const state = get();
+    const issues = state.integrityIssues.filter(i => i.severity === 'error');
+    if (issues.length === 0) return;
+
+    const dirtyPovs = new Set<string>();
+    const povKeys = ['accelerationist', 'safetyist', 'skeptic'] as const;
+
+    for (const issue of issues) {
+      const entityPov = nodePovFromId(issue.entityId);
+      const file = entityPov ? state[entityPov as keyof typeof state] as PovTaxonomyFile | null : null;
+      if (!file) continue;
+      const node = file.nodes.find(n => n.id === issue.entityId);
+      if (!node) continue;
+
+      if (issue.code === 'DANGLING_CHILD') {
+        const match = issue.message.match(/Child '([^']+)'/);
+        if (match) {
+          const allPovIds = new Set<string>();
+          for (const p of povKeys) {
+            const f = state[p] as PovTaxonomyFile | null;
+            if (f) for (const n of f.nodes) allPovIds.add(n.id);
+          }
+          node.children = node.children.filter(id => allPovIds.has(id));
+          if (entityPov) dirtyPovs.add(entityPov);
+        }
+      } else if (issue.code === 'DANGLING_PARENT') {
+        node.parent_id = null;
+        if (entityPov) dirtyPovs.add(entityPov);
+      } else if (issue.code === 'DANGLING_SITUATION_REF') {
+        const sitIds = new Set(state.situations?.nodes.map(n => n.id) ?? []);
+        node.situation_refs = node.situation_refs.filter(id => sitIds.has(id));
+        if (entityPov) dirtyPovs.add(entityPov);
+      }
+    }
+
+    if (dirtyPovs.size > 0) {
+      const dirty = new Set(state.dirty);
+      for (const p of dirtyPovs) dirty.add(p);
+      getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'integrity.auto-fix', data: { fixed: issues.length, dirty: [...dirtyPovs] } });
+      set({ dirty, saveError: null, integrityIssues: [], embeddingDirty: true });
+    }
+  },
 
   save: async () => {
     const state = get();
@@ -353,6 +400,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         getGlobalRecorder()?.record({ type: 'state.error', component: 'taxonomy-store', level: 'error', message: 'save.validation', data: { stage: 'integrity', error_count: integrityErrors.length, entities: integrityErrors.slice(0, 10).map(i => `${i.code}: ${i.entityId}`), duration_ms: Math.round(performance.now() - saveStart) } });
         set({
           validationErrors: errors,
+          integrityIssues: integrityErrors,
           saveError: `Integrity check failed (${integrityErrors.length} error${integrityErrors.length > 1 ? 's' : ''}):\n${errorSummary}`,
         });
         return;

@@ -418,7 +418,7 @@ function _renderSituationNode(
 
   if (isPrimary) {
     for (const p of otherPovs) {
-      const val = n.interpretations?.[p];
+      const val = n.interpretations?.[p as keyof typeof n.interpretations];
       if (val) {
         if (isBdiInterpretation(val)) {
           lines.push(`  ${p.charAt(0).toUpperCase() + p.slice(1)}:`);
@@ -432,7 +432,7 @@ function _renderSituationNode(
     }
   } else {
     const otherInterps = otherPovs
-      .map(p => ({ pov: p, text: interpretationText(n.interpretations?.[p]) }))
+      .map(p => ({ pov: p, text: interpretationText(n.interpretations?.[p as keyof typeof n.interpretations]) }))
       .filter(o => o.text.length > 0)
       .sort((a, b) => b.text.length - a.text.length || a.pov.localeCompare(b.pov));
 

@@ -295,24 +295,7 @@ function AttributionPanel({
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
   const [expandedAltId, setExpandedAltId] = useState<string | null>(null);
 
-  if (!claim) {
-    return (
-      <div className="validation-attribution" style={{ width, minWidth: width, maxWidth: width }}>
-        <div className="validation-detail-empty">No claim selected</div>
-        <div className="resize-handle left" onMouseDown={onResizeMouseDown} />
-      </div>
-    );
-  }
-
-  const primaryNode = resolveNode(claim.attributed_node, store);
-  const result = results.get(claim.claim_id);
-  const isIncorrect = result?.verdict === 'incorrect';
-
-  const alternativeNodes = claim.secondary_refs
-    .map(ref => ({ node: resolveNode(ref.node_id, store), similarity: ref.similarity, id: ref.node_id }))
-    .filter((r): r is { node: PovNode; similarity: number; id: string } => r.node !== null);
-
-  const claimPov = PREFIX_TO_POV[claim.attributed_node.split('-')[0]];
+  const claimPov = claim ? PREFIX_TO_POV[claim.attributed_node.split('-')[0]] : undefined;
 
   const searchPool = useMemo(() => {
     const collectNodes = (pov: PovKey): PovNode[] => {
@@ -337,6 +320,23 @@ function AttributionPanel({
       .filter((n: PovNode) => n.label.toLowerCase().includes(q) || n.description.toLowerCase().includes(q) || n.id.includes(q))
       .slice(0, 30);
   }, [searchPool, searchText]);
+
+  if (!claim) {
+    return (
+      <div className="validation-attribution" style={{ width, minWidth: width, maxWidth: width }}>
+        <div className="validation-detail-empty">No claim selected</div>
+        <div className="resize-handle left" onMouseDown={onResizeMouseDown} />
+      </div>
+    );
+  }
+
+  const primaryNode = resolveNode(claim.attributed_node, store);
+  const result = results.get(claim.claim_id);
+  const isIncorrect = result?.verdict === 'incorrect';
+
+  const alternativeNodes = claim.secondary_refs
+    .map(ref => ({ node: resolveNode(ref.node_id, store), similarity: ref.similarity, id: ref.node_id }))
+    .filter((r): r is { node: PovNode; similarity: number; id: string } => r.node !== null);
 
   const handleSelectCorrection = (nodeId: string) => {
     const node = resolveNode(nodeId, store);

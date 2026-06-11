@@ -17,7 +17,7 @@ function formatFileKey(key: string): string {
 }
 
 export function SaveBar() {
-  const { dirty, save, saveError, dismissSaveError, validationErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
+  const { dirty, save, saveError, dismissSaveError, validationErrors, integrityIssues, fixIntegrityErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
   const isOnline = useOnlineStatus();
   const isDirty = dirty.size > 0;
   const [showErrors, setShowErrors] = useState(false);
@@ -86,6 +86,16 @@ export function SaveBar() {
           >
             {saveError}{hasErrors && (showErrors ? ' ▾' : ' ▸')}
           </span>
+          {integrityIssues.length > 0 && (
+            <button
+              type="button"
+              className="save-bar-fix-btn"
+              onClick={(e) => { e.stopPropagation(); fixIntegrityErrors(); }}
+              title="Auto-fix integrity errors (removes dangling references)"
+            >
+              Fix it
+            </button>
+          )}
           <button
             type="button"
             className="save-bar-error-dismiss"

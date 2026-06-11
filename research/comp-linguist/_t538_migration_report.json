@@ -1,0 +1,1164 @@
+{
+  "experiment": "t/538 hierarchy migration",
+  "changes": 189,
+  "phases": {
+    "structural": {
+      "sit154_split": {
+        "regulatory": 32,
+        "geopolitical": 7
+      },
+      "sit156_157_merge": 4,
+      "sit159_split": {
+        "architecture": 12,
+        "operations": 6
+      }
+    },
+    "high_confidence": 20,
+    "llm_assisted": 117
+  },
+  "validation": {
+    "orphaned": 0,
+    "oversized_categories": 3,
+    "max_depth": 2,
+    "cycles": false,
+    "inconsistencies": 82,
+    "relationship_types": {
+      "part_of": 184,
+      "is_a": 76,
+      "specializes": 64
+    }
+  },
+  "changes_log": [
+    {
+      "action": "create_root",
+      "node_id": "sit-170",
+      "label": "Regulatory Process and Mechanisms"
+    },
+    {
+      "action": "create_root",
+      "node_id": "sit-171",
+      "label": "Geopolitical AI Strategy and Competition"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-003",
+      "parent_id": "sit-171",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-009",
+      "parent_id": "sit-171",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-032",
+      "parent_id": "sit-171",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-096",
+      "parent_id": "sit-171",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-030",
+      "parent_id": "sit-171",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-027",
+      "parent_id": "sit-171",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-007",
+      "parent_id": "sit-171",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-118",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-034",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-027",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-040",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-039",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-045",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-134",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-139",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-011",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-048",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-053",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-050",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-003",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-051",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-054",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-008",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-137",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-047",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-120",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-122",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-022",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-065",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-112",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-098",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-019",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-028",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-054",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-104",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-031",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-115",
+      "parent_id": "sit-170",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-063",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-001",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-013",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-053",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-037",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-048",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "create_root",
+      "node_id": "sit-172",
+      "label": "AI Deployment, Monitoring, and Operations"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-032",
+      "parent_id": "sit-172",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-030",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-013",
+      "parent_id": "sit-172",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-018",
+      "parent_id": "sit-172",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-031",
+      "parent_id": "sit-172",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-012",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-166",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-029",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-070",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-138",
+      "parent_id": "sit-153",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-065",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-174",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-180",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-164",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-164",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-116",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-148",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-122",
+      "parent_id": "sit-161",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-129",
+      "parent_id": "sit-161",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-123",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-100",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-127",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-073",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-099",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-074",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-089",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-002",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-007",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-123",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-128",
+      "parent_id": "sit-105",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-141",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-060",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-154",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-156",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-165",
+      "parent_id": "sit-157",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-062",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-063",
+      "parent_id": "sit-105",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-064",
+      "parent_id": "sit-159",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-066",
+      "parent_id": "sit-163",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-067",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-068",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-069",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-071",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-072",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-075",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-076",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-077",
+      "parent_id": "sit-161",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-078",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-079",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-080",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-081",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-082",
+      "parent_id": "sit-163",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-083",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-084",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-085",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-086",
+      "parent_id": "sit-159",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-087",
+      "parent_id": "sit-159",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-088",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-090",
+      "parent_id": "sit-153",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-091",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-092",
+      "parent_id": "sit-155",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-093",
+      "parent_id": "sit-159",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-094",
+      "parent_id": "sit-163",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-167",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-095",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-096",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-097",
+      "parent_id": "sit-155",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-098",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-101",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-102",
+      "parent_id": "sit-159",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-103",
+      "parent_id": "sit-171",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-104",
+      "parent_id": "sit-162",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-105",
+      "parent_id": "sit-155",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-106",
+      "parent_id": "sit-161",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-107",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-108",
+      "parent_id": "sit-162",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-109",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-110",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-111",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-112",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-113",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-114",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-115",
+      "parent_id": "sit-155",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-117",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-118",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-119",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-120",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-121",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-168",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "sit-169",
+      "parent_id": "sit-105",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-124",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-125",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-126",
+      "parent_id": "sit-162",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-128",
+      "parent_id": "sit-162",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-130",
+      "parent_id": "sit-162",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-131",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-132",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-133",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-134",
+      "parent_id": "sit-153",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-135",
+      "parent_id": "sit-105",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-136",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-137",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-138",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-139",
+      "parent_id": "sit-162",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-140",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-141",
+      "parent_id": "sit-153",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-142",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-143",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-144",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-145",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-146",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-147",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-149",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-150",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-151",
+      "parent_id": "sit-159",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-152",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-153",
+      "parent_id": "sit-103",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-154",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-155",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-156",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-157",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-158",
+      "parent_id": "sit-159",
+      "relationship": "is_a"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-159",
+      "parent_id": "sit-159",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-160",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-161",
+      "parent_id": "sit-155",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-162",
+      "parent_id": "sit-155",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-163",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-165",
+      "parent_id": "sit-172",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-166",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-167",
+      "parent_id": "sit-152",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-168",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-169",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-170",
+      "parent_id": "sit-170",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-171",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-172",
+      "parent_id": "sit-153",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-173",
+      "parent_id": "sit-159",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-175",
+      "parent_id": "sit-103",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-176",
+      "parent_id": "sit-163",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-177",
+      "parent_id": "sit-153",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-178",
+      "parent_id": "sit-157",
+      "relationship": "part_of"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-179",
+      "parent_id": "sit-162",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-181",
+      "parent_id": "sit-157",
+      "relationship": "specializes"
+    },
+    {
+      "action": "set_parent",
+      "node_id": "cc-182",
+      "parent_id": "sit-170",
+      "relationship": "part_of"
+    }
+  ]
+}

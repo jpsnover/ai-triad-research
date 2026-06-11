@@ -141,7 +141,7 @@ function searchConflict(conflict: ConflictFile, regex: RegExp): TaxResult[] {
 function dedupe(results: TaxResult[]): TaxResult[] {
   const seen = new Set<string>();
   return results.filter(r => {
-    const key = `${r.id}::${r.field}`;
+    const key = r.id;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

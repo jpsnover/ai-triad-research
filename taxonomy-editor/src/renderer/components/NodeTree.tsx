@@ -21,6 +21,7 @@ interface NodeTreeProps {
   clusters?: ClusterGroup[] | null;
   clusterLoading?: boolean;
   misfits?: Set<string> | null;
+  onVisibleIdsChange?: (ids: string[]) => void;
 }
 
 const CATEGORY_ORDER: Category[] = ['Desires', 'Intentions', 'Beliefs'];
@@ -105,7 +106,76 @@ function saveCollapsed(collapsed: Set<string>) {
   localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify([...collapsed]));
 }
 
-export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits }: NodeTreeProps) {
+function computeVisibleIds(
+  nodes: PovNode[],
+  sortMode: SortMode,
+  collapsed: Set<string>,
+  similarScores: Map<string, number> | null,
+  clusters: ClusterGroup[] | null,
+): string[] {
+  if (sortMode === 'similarity' && clusters && clusters.length > 0) {
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const sortedClusters = [...clusters].sort((a, b) => a.label.localeCompare(b.label));
+    const ids: string[] = [];
+    sortedClusters.forEach((cluster, ci) => {
+      const key = `cluster-${ci}`;
+      if (!collapsed.has(`${key}-expanded`)) return;
+      const clusterNodes = (cluster.nodeIds.map(id => nodeMap.get(id)).filter(Boolean) as PovNode[])
+        .sort((a, b) => a.label.localeCompare(b.label));
+      for (const n of clusterNodes) ids.push(n.id);
+    });
+    return ids;
+  }
+
+  const flatMode = sortMode === 'id' || sortMode === 'priority';
+  const nodeMap = new Map(nodes.map(n => [n.id, n]));
+  const grouped = new Map<Category, PovNode[]>();
+  for (const cat of CATEGORY_ORDER) grouped.set(cat, []);
+  for (const node of nodes) {
+    const list = grouped.get(node.category);
+    if (list) list.push(node);
+  }
+
+  const ids: string[] = [];
+  for (const cat of CATEGORY_ORDER) {
+    if (collapsed.has(cat)) continue;
+    const catNodes = sortNodes(grouped.get(cat) || [], sortMode, similarScores);
+
+    if (flatMode) {
+      for (const node of catNodes) ids.push(node.id);
+      continue;
+    }
+
+    const catIdSet = new Set(catNodes.map(n => n.id));
+    const parentNodes = catNodes.filter(n => n.children && n.children.length > 0);
+    const topLeaves = catNodes.filter(n =>
+      (!n.children || n.children.length === 0) &&
+      (!n.parent_id || !catIdSet.has(n.parent_id)),
+    );
+    const hasHierarchy = parentNodes.length > 0;
+
+    if (!hasHierarchy) {
+      for (const node of catNodes) ids.push(node.id);
+      continue;
+    }
+
+    for (const parent of parentNodes) {
+      ids.push(parent.id);
+      const parentKey = `parent-${parent.id}`;
+      if (!collapsed.has(parentKey)) {
+        const children = parent.children
+          .map(id => nodeMap.get(id))
+          .filter((n): n is PovNode => !!n && n.category === cat);
+        for (const child of children) ids.push(child.id);
+      }
+    }
+    for (const node of topLeaves) ids.push(node.id);
+  }
+
+  return ids;
+}
+
+export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange }: NodeTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
 
   // Auto-expand category when keyboard nav selects a node in a collapsed group
@@ -122,6 +192,10 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
       });
     }
   }, [selectedNodeId]);
+
+  useEffect(() => {
+    onVisibleIdsChange?.(computeVisibleIds(nodes, sortMode, collapsed, similarScores ?? null, clusters ?? null));
+  }, [nodes, sortMode, collapsed, similarScores, clusters, onVisibleIdsChange]);
 
   const toggleGroup = useCallback((key: string) => {
     setCollapsed(prev => {
@@ -228,8 +302,12 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
             ))}
             {!isCollapsed && !flatMode && (() => {
               // Hierarchical view for 'label' and 'similarity' modes
+              const catIdSet = new Set(catNodes.map(n => n.id));
               const parentNodes = catNodes.filter(n => n.children && n.children.length > 0);
-              const topLeaves = catNodes.filter(n => !n.parent_id && (!n.children || n.children.length === 0));
+              const topLeaves = catNodes.filter(n =>
+                (!n.children || n.children.length === 0) &&
+                (!n.parent_id || !catIdSet.has(n.parent_id)),
+              );
               const hasHierarchy = parentNodes.length > 0;
 
               if (!hasHierarchy) {
@@ -251,7 +329,7 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                     const isParentCollapsed = collapsed.has(parentKey);
                     const children = parent.children
                       .map(id => nodeMap.get(id))
-                      .filter(Boolean) as PovNode[];
+                      .filter((n): n is PovNode => !!n && n.category === cat);
 
                     return (
                       <div key={parent.id} className="node-tree-parent-group">

@@ -224,6 +224,8 @@ export function PovTab({ pov }: PovTabProps) {
     [file, sortMode, similarScoresMap, clusterGroups],
   );
 
+  const [visibleIds, setVisibleIds] = useState<string[]>([]);
+
   // Trigger clustering when sort mode switches to similarity
   useEffect(() => {
     if (sortMode === 'similarity') {
@@ -232,7 +234,7 @@ export function PovTab({ pov }: PovTabProps) {
       clearClusterView();
     }
   }, [sortMode, pov]);
-  useKeyboardNav(orderedIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
+  useKeyboardNav(visibleIds, selectedNodeId, setSelectedNodeId, toolbarPanel !== null);
 
   // Sync nav stack with external selectedNodeId changes
   useEffect(() => {
@@ -764,6 +766,7 @@ export function PovTab({ pov }: PovTabProps) {
               clusters={clusterGroups}
               clusterLoading={clusterLoading}
               misfits={clusterMisfits}
+              onVisibleIdsChange={setVisibleIds}
             />
           </div>
         </div>
