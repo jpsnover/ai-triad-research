@@ -849,6 +849,46 @@ body {
   color: #fff;
 }
 
+/* ─── Toolbar auth button (web deploy only) ─── */
+.toolbar-auth-wrap {
+  position: relative;
+  z-index: 201;
+}
+
+.toolbar-auth-btn {
+  position: relative;
+}
+
+.toolbar-auth-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--focus-ring);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.toolbar-auth-popover {
+  position: absolute;
+  left: calc(100% + 6px);
+  bottom: 0;
+  min-width: 190px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 /* ─── Compact mode for short viewports (Electron only) ─── */
 @media (max-height: 700px) {
   .electron .toolbar { width: 38px; padding: 4px 0; }

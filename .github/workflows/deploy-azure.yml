@@ -95,7 +95,7 @@ jobs:
               googleClientSecret=${{ secrets.GOOGLE_CLIENT_SECRET }} \
               githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }} \
               githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }} \
-              authDisabled=${{ inputs.auth_mode == 'disabled' && '1' || '' }}
+              authDisabled=${{ inputs.auth_mode == 'disabled' && '1' || '' }} \
               authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }} \
               gitSyncEnabled=1 \
               githubRepo=${{ vars.SYNC_GITHUB_REPO }} \
@@ -126,7 +126,7 @@ jobs:
             githubClientId=${{ secrets.GH_OAUTH_CLIENT_ID }}
             githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
             authDisabled=${{ inputs.auth_mode == 'disabled' && '1' || '' }}
-              authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }}
+            authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }}
             gitSyncEnabled=1
             githubRepo=${{ vars.SYNC_GITHUB_REPO }}
             githubAppId=${{ vars.SYNC_GITHUB_APP_ID }}
