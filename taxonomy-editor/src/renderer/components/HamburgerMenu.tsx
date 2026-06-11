@@ -12,7 +12,7 @@ interface AuthInfo { user: string; anonymous: boolean; idp: string }
 function useAuthStatus(): AuthInfo | null {
   const [auth, setAuth] = useState<AuthInfo | null>(null);
   useEffect(() => {
-    fetch('/api/auth/me').then(r => r.json()).then(setAuth).catch(() => {});
+    fetch('/api/auth/me').then(r => r.json()).then(setAuth).catch(() => { /* telemetry — silent by design */ });
   }, []);
   return auth;
 }
