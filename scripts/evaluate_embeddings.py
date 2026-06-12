@@ -335,11 +335,11 @@ def cmd_rerank_baseline(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate embedding quality for taxonomy attribution.")
-    parser.add_argument("--taxonomy-dir", default=None, help="Override taxonomy directory")
     sub = parser.add_subparsers(dest="command", required=True)
 
     cm = sub.add_parser("compare-models", help="Encoder ablation: compare MRR across models")
     cm.add_argument("--golden-set", required=True, help="Path to golden test set JSON")
+    cm.add_argument("--taxonomy-dir", default=None, help="Override taxonomy directory")
     cm.add_argument(
         "--models",
         default="all-MiniLM-L6-v2,all-mpnet-base-v2,BAAI/bge-base-en-v1.5",
@@ -348,6 +348,7 @@ def main():
 
     rb = sub.add_parser("rerank-baseline", help="Cross-encoder reranking evaluation")
     rb.add_argument("--golden-set", required=True, help="Path to golden test set JSON")
+    rb.add_argument("--taxonomy-dir", default=None, help="Override taxonomy directory")
     rb.add_argument("--top-k", type=int, default=10, help="Top-K candidates to rerank (default: 10)")
     rb.add_argument(
         "--reranker-model",

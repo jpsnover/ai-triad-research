@@ -86,8 +86,8 @@ if ($script:ModelRegistry.Count -eq 0) {
     priority chain:
 
     1. Explicit key passed via -ExplicitKey parameter.
-    2. Backend-specific environment variable (GEMINI_API_KEY, ANTHROPIC_API_KEY,
-       or GROQ_API_KEY).
+    2. Backend-specific environment variable (GEMINI_API_KEY, ANTHROPIC_API_KEY
+       or CLAUDE_API_KEY, GROQ_API_KEY).
     3. Universal fallback: $env:AI_API_KEY.
 
     Returns $null if no key is found at any level.  The resolved source is
@@ -119,14 +119,14 @@ function Resolve-AIApiKey {
     }
 
     $EnvVarMap = @{
-        'gemini' = 'GEMINI_API_KEY'
-        'claude' = 'ANTHROPIC_API_KEY'
-        'groq'   = 'GROQ_API_KEY'
-        'openai' = 'OPENAI_API_KEY'
+        'gemini' = @('GEMINI_API_KEY')
+        'claude' = @('ANTHROPIC_API_KEY', 'CLAUDE_API_KEY')
+        'groq'   = @('GROQ_API_KEY')
+        'openai' = @('OPENAI_API_KEY')
     }
 
-    $BackendEnvVar = $EnvVarMap[$Backend]
-    if ($BackendEnvVar) {
+    $BackendEnvVars = $EnvVarMap[$Backend]
+    foreach ($BackendEnvVar in $BackendEnvVars) {
         $BackendKey = [System.Environment]::GetEnvironmentVariable($BackendEnvVar)
         if (-not [string]::IsNullOrWhiteSpace($BackendKey)) {
             $script:LastApiKeySource = "`$env:$BackendEnvVar"
@@ -337,7 +337,7 @@ function Invoke-AIApi {
     if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
         $EnvHint = switch ($Backend) {
             'gemini' { 'GEMINI_API_KEY' }
-            'claude' { 'ANTHROPIC_API_KEY' }
+            'claude' { 'ANTHROPIC_API_KEY / CLAUDE_API_KEY' }
             'groq'   { 'GROQ_API_KEY' }
             'openai' { 'OPENAI_API_KEY' }
         }

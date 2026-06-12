@@ -159,13 +159,18 @@ function New-SyntheticCorpus {
 
             try {
                 $AIResult = Invoke-AIApi `
-                    -SystemPrompt $Prompt.system `
+                    -SystemInstruction $Prompt.system `
                     -Prompt $Prompt.user `
                     -Model $GroupModel `
                     -Temperature $Temperature `
                     -JsonMode `
                     -MaxTokens 4096
 
+                if (-not $AIResult) {
+                    Write-Host "    ⚠ $NodeId — null API response (missing key?)" -ForegroundColor Yellow
+                    $FailCount++
+                    continue
+                }
                 $ResponseText = $AIResult.Text
                 if (-not $ResponseText) {
                     Write-Host "    ⚠ $NodeId — empty response" -ForegroundColor Yellow
@@ -189,9 +194,7 @@ function New-SyntheticCorpus {
                 $Statements = @($Parsed)
                 if ($Parsed.PSObject.Properties['statements']) { $Statements = @($Parsed.statements) }
                 elseif ($Parsed -is [array]) { $Statements = @($Parsed) }
-                elseif ($Parsed.PSObject.Properties.Count -gt 0 -and $Parsed.PSObject.Properties['statement']) {
-                    $Statements = @($Parsed)
-                }
+                elseif ($Parsed.PSObject.Properties['statement']) { $Statements = @($Parsed) }
 
                 $Now = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
                 foreach ($s in $Statements) {
@@ -219,7 +222,7 @@ function New-SyntheticCorpus {
                     $StatementCount++
                 }
 
-                $Got = $Statements.Count
+                $Got = @($Statements).Count
                 $Color = if ($Got -ge $Prompt.count) { 'Green' } else { 'Yellow' }
                 Write-Host "    $NodeId — $Got statements" -ForegroundColor $Color
             }

@@ -246,18 +246,20 @@ def cmd_export_embeddings(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Synthetic corpus generation helper.")
-    parser.add_argument("--taxonomy-dir", default=None)
     sub = parser.add_subparsers(dest="command", required=True)
 
     gp = sub.add_parser("get-prompts", help="Get generation prompts for nodes")
+    gp.add_argument("--taxonomy-dir", default=None)
     gp.add_argument("--node-ids", help="Comma-separated node IDs")
     gp.add_argument("--pov", choices=["acc", "saf", "skp", "all"], help="Generate for all nodes in POV")
 
-    sub.add_parser("get-hashes", help="Compute description hashes for all nodes")
+    gh = sub.add_parser("get-hashes", help="Compute description hashes for all nodes")
+    gh.add_argument("--taxonomy-dir", default=None)
 
     sub.add_parser("filter-statements", help="Filter statements by rationale (stdin JSON)")
 
     ee = sub.add_parser("export-embeddings", help="Embed corpus and export")
+    ee.add_argument("--taxonomy-dir", default=None)
     ee.add_argument("--output-dir", help="Output directory (default: synthetic dir)")
     ee.add_argument("--model", help="Embedding model (default: all-MiniLM-L6-v2)")
     ee.add_argument("--format", choices=["numpy", "json", "all"], default="all")
