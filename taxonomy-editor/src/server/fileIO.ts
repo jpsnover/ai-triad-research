@@ -24,6 +24,7 @@ import { FilesystemBackend } from './filesystemBackend.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import { getStorageUserId, isAnonymousUser, getAnonymousSessionId } from './userContext.js';
 import { getAnonymousSessionStore } from './anonymousSessionStore.js';
+import { checkQuota } from './quotas.js';
 // ── Backend injection ──
 
 let backend: StorageBackend = new FilesystemBackend();
@@ -709,10 +710,16 @@ export async function saveDebateSession(session: unknown): Promise<void> {
   const s = session as { id: string; title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
   assertSafeId(s.id, 'debate id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.saveDebate(a.sessionId, session); return; }
-  await backend.writeFile(
-    path.join(getDebatesDir(), `debate-${s.id}.json`),
-    JSON.stringify(session, null, 2),
-  );
+  const debatePath = path.join(getDebatesDir(), `debate-${s.id}.json`);
+  const isNew = (await backend.readFile(debatePath)) === null;
+  if (isNew) {
+    const files = (await backend.listDirectory(getDebatesDir())).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
+    const q = checkQuota('debates', files.length);
+    if (!q.allowed) {
+      throw Object.assign(new ActionableError({ goal: 'Save debate session', problem: `Debate quota exceeded (${q.current}/${q.limit})`, location: 'server/fileIO.ts → saveDebateSession', nextSteps: ['Delete existing debates to free space'] }), { statusCode: 429, quotaInfo: q });
+    }
+  }
+  await backend.writeFile(debatePath, JSON.stringify(session, null, 2));
   // Maintain the lightweight index
   void upsertDebateIndex({
     id: s.id,
@@ -806,10 +813,16 @@ export async function saveChatSession(session: unknown): Promise<void> {
   const s = session as { id: string };
   assertSafeId(s.id, 'chat id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.saveChat(a.sessionId, session); return; }
-  await backend.writeFile(
-    path.join(getChatsDir(), `chat-${s.id}.json`),
-    JSON.stringify(session, null, 2),
-  );
+  const chatPath = path.join(getChatsDir(), `chat-${s.id}.json`);
+  const isNew = (await backend.readFile(chatPath)) === null;
+  if (isNew) {
+    const files = (await backend.listDirectory(getChatsDir())).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
+    const q = checkQuota('chats', files.length);
+    if (!q.allowed) {
+      throw Object.assign(new ActionableError({ goal: 'Save chat session', problem: `Chat quota exceeded (${q.current}/${q.limit})`, location: 'server/fileIO.ts → saveChatSession', nextSteps: ['Delete existing chats to free space'] }), { statusCode: 429, quotaInfo: q });
+    }
+  }
+  await backend.writeFile(chatPath, JSON.stringify(session, null, 2));
 }
 
 export async function deleteChatSession(id: string): Promise<void> {

@@ -34,6 +34,7 @@ import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './userContext.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
+import { getQuotaLimits } from './quotas.js';
 import * as fileIO from './fileIO.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
@@ -1550,12 +1551,14 @@ get('/api/user/profile', (req, res) => {
   const isAnon = !principalName;
   const userId = deriveStorageUserId(principalName || '_local', idp || '_local');
   const adminUsers = (process.env.ADMIN_USERS || 'jpsnover').split(',').map(s => s.trim());
+  const quotaLimits = isAnon ? null : getQuotaLimits(userId);
   json(res, {
     userId,
     displayName: principalName || 'Anonymous',
     idp: idp || null,
     isAnonymous: isAnon,
     isAdmin: !isAnon && adminUsers.includes(userId),
+    quotas: quotaLimits,
   });
 });
 
@@ -2182,7 +2185,10 @@ async function handleRequestInner(
           error: { name: (err as Error).name ?? 'Error', message: String(err) },
         });
         log.server.error({ err, method: req.method, path: url.pathname }, 'Error handling request');
-        error(res, String(err));
+        const status = (err as { statusCode?: number }).statusCode ?? 500;
+        const payload: Record<string, unknown> = { error: String(err) };
+        if ((err as { quotaInfo?: unknown }).quotaInfo) payload.quotaInfo = (err as { quotaInfo: unknown }).quotaInfo;
+        json(res, payload, status);
       }
       return;
     }

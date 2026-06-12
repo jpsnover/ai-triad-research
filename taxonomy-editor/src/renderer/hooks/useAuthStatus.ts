@@ -2,12 +2,18 @@ import { useState, useEffect } from 'react';
 
 export interface AuthInfo { user: string; anonymous: boolean; idp: string }
 
+export interface QuotaLimits {
+  maxChats: number;
+  maxDebates: number;
+}
+
 export interface UserProfile {
   userId: string;
   displayName: string;
   idp: string | null;
   isAnonymous: boolean;
   isAdmin: boolean;
+  quotas: QuotaLimits | null;
 }
 
 export function useAuthStatus(): AuthInfo | null {

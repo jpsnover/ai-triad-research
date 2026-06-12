@@ -957,6 +957,12 @@ body {
   line-height: 1.5;
 }
 
+.toolbar-auth-quota {
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 .toolbar-auth-divider {
   height: 1px;
   background: var(--border-color);

@@ -75,6 +75,11 @@ function ToolbarAuthButton() {
                   </span>
                 </div>
               </div>
+              {profile?.quotas && (
+                <div className="toolbar-auth-quota">
+                  Chats: {profile.quotas.maxChats} max &middot; Debates: {profile.quotas.maxDebates} max
+                </div>
+              )}
               <div className="toolbar-auth-divider" />
               <a className="toolbar-more-item" href="/.auth/logout" style={{ textDecoration: 'none', color: 'inherit' }}
                 onClick={() => setShowPopover(false)}>
