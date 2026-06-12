@@ -17,7 +17,9 @@ vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => ({ record: vi.fn() }),
 }));
 
-import { useValidationStore } from './useValidationStore';
+import { useValidationStore, claimUid } from './useValidationStore';
+
+const uid = (id: string) => `1aa27450::${id}`;
 
 function makeClaim(overrides: Partial<GoldenClaim> = {}): GoldenClaim {
   return {
@@ -79,7 +81,7 @@ describe('useValidationStore', () => {
       expect(state.claims).toHaveLength(5);
       expect(state.loaded).toBe(true);
       expect(state.results.size).toBe(1);
-      expect(state.results.get('AN-1')?.verdict).toBe('correct');
+      expect(state.results.get(uid('AN-1'))?.verdict).toBe('correct');
     });
 
     it('handles missing golden set gracefully', async () => {
@@ -111,9 +113,9 @@ describe('useValidationStore', () => {
     });
 
     it('records a verdict and triggers debounced save', () => {
-      useValidationStore.getState().setVerdict('AN-1', 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-1'), 'correct');
 
-      const result = useValidationStore.getState().results.get('AN-1');
+      const result = useValidationStore.getState().results.get(uid('AN-1'));
       expect(result).toBeDefined();
       expect(result!.verdict).toBe('correct');
       expect(result!.original_node).toBe('saf-beliefs-126');
@@ -125,23 +127,23 @@ describe('useValidationStore', () => {
     });
 
     it('records corrected_node for incorrect verdict', () => {
-      useValidationStore.getState().setVerdict('AN-2', 'incorrect', {
+      useValidationStore.getState().setVerdict(uid('AN-2'), 'incorrect', {
         corrected_node: 'acc-beliefs-050',
         corrected_category: 'desires',
       });
 
-      const result = useValidationStore.getState().results.get('AN-2');
+      const result = useValidationStore.getState().results.get(uid('AN-2'));
       expect(result!.verdict).toBe('incorrect');
       expect(result!.corrected_node).toBe('acc-beliefs-050');
       expect(result!.corrected_category).toBe('desires');
     });
 
     it('preserves reviewer notes when updating verdict', () => {
-      useValidationStore.getState().setVerdict('AN-1', 'uncertain');
-      useValidationStore.getState().setReviewerNotes('AN-1', 'Need more context');
-      useValidationStore.getState().setVerdict('AN-1', 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-1'), 'uncertain');
+      useValidationStore.getState().setReviewerNotes(uid('AN-1'), 'Need more context');
+      useValidationStore.getState().setVerdict(uid('AN-1'), 'correct');
 
-      const result = useValidationStore.getState().results.get('AN-1');
+      const result = useValidationStore.getState().results.get(uid('AN-1'));
       expect(result!.verdict).toBe('correct');
       expect(result!.reviewer_notes).toBe('Need more context');
     });
@@ -155,12 +157,12 @@ describe('useValidationStore', () => {
   describe('clearVerdict', () => {
     it('removes a verdict and triggers save', () => {
       useValidationStore.setState({ claims: SAMPLE_CLAIMS });
-      useValidationStore.getState().setVerdict('AN-1', 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-1'), 'correct');
       vi.advanceTimersByTime(500);
       vi.clearAllMocks();
 
-      useValidationStore.getState().clearVerdict('AN-1');
-      expect(useValidationStore.getState().results.has('AN-1')).toBe(false);
+      useValidationStore.getState().clearVerdict(uid('AN-1'));
+      expect(useValidationStore.getState().results.has(uid('AN-1'))).toBe(false);
 
       vi.advanceTimersByTime(500);
       expect(mockApi.writeResearchFile).toHaveBeenCalledTimes(1);
@@ -211,8 +213,8 @@ describe('useValidationStore', () => {
     });
 
     it('nextUnreviewed skips reviewed claims', () => {
-      useValidationStore.getState().setVerdict('AN-2', 'correct');
-      useValidationStore.getState().setVerdict('AN-3', 'incorrect', { corrected_node: 'saf-beliefs-001' });
+      useValidationStore.getState().setVerdict(uid('AN-2'), 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-3'), 'incorrect', { corrected_node: 'saf-beliefs-001' });
 
       useValidationStore.getState().nextUnreviewed();
       // Current is 0 (AN-1), next unreviewed should be AN-4 at index 3
@@ -222,10 +224,10 @@ describe('useValidationStore', () => {
 
     it('nextUnreviewed wraps around', () => {
       // Review all except AN-1
-      useValidationStore.getState().setVerdict('AN-2', 'correct');
-      useValidationStore.getState().setVerdict('AN-3', 'correct');
-      useValidationStore.getState().setVerdict('AN-4', 'correct');
-      useValidationStore.getState().setVerdict('AN-5', 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-2'), 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-3'), 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-4'), 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-5'), 'correct');
       useValidationStore.setState({ currentClaimIndex: 2 });
 
       useValidationStore.getState().nextUnreviewed();
@@ -253,7 +255,7 @@ describe('useValidationStore', () => {
     });
 
     it('filters by verdict status — unreviewed', () => {
-      useValidationStore.getState().setVerdict('AN-1', 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-1'), 'correct');
       useValidationStore.getState().setVerdictFilter('unreviewed');
       const filtered = useValidationStore.getState().filteredClaims();
       expect(filtered).toHaveLength(4);
@@ -261,8 +263,8 @@ describe('useValidationStore', () => {
     });
 
     it('filters by verdict status — specific verdict', () => {
-      useValidationStore.getState().setVerdict('AN-1', 'correct');
-      useValidationStore.getState().setVerdict('AN-3', 'incorrect', { corrected_node: 'saf-beliefs-001' });
+      useValidationStore.getState().setVerdict(uid('AN-1'), 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-3'), 'incorrect', { corrected_node: 'saf-beliefs-001' });
       useValidationStore.getState().setVerdictFilter('correct');
       const filtered = useValidationStore.getState().filteredClaims();
       expect(filtered).toHaveLength(1);
@@ -302,10 +304,10 @@ describe('useValidationStore', () => {
     });
 
     it('computes metadata with mixed verdicts', () => {
-      useValidationStore.getState().setVerdict('AN-1', 'correct');
-      useValidationStore.getState().setVerdict('AN-2', 'incorrect', { corrected_node: 'acc-beliefs-050' });
-      useValidationStore.getState().setVerdict('AN-3', 'uncertain');
-      useValidationStore.getState().setVerdict('AN-4', 'novel');
+      useValidationStore.getState().setVerdict(uid('AN-1'), 'correct');
+      useValidationStore.getState().setVerdict(uid('AN-2'), 'incorrect', { corrected_node: 'acc-beliefs-050' });
+      useValidationStore.getState().setVerdict(uid('AN-3'), 'uncertain');
+      useValidationStore.getState().setVerdict(uid('AN-4'), 'novel');
 
       const meta = useValidationStore.getState().metadata();
       expect(meta).toEqual({

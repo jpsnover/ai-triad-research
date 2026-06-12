@@ -22,6 +22,7 @@ import type { StorageBackend } from './storageBackend.js';
 import { log } from './logger.js';
 import { FilesystemBackend } from './filesystemBackend.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { getStorageUserId } from './userContext.js';
 // ── Backend injection ──
 
 let backend: StorageBackend = new FilesystemBackend();
@@ -560,7 +561,9 @@ export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
 // ── Debate sessions ──
 
 function getDebatesDir(): string {
-  return resolveDataPath('debates');
+  const userId = getStorageUserId();
+  if (userId === '_local') return resolveDataPath('debates');
+  return resolveDataPath(`users/${userId}/debates`);
 }
 
 const DEBATE_INDEX_FILE = '_index.json';
@@ -729,7 +732,9 @@ export async function saveDebateComments(debateId: string, data: unknown): Promi
 // ── Chat sessions ──
 
 function getChatsDir(): string {
-  return resolveDataPath('chats');
+  const userId = getStorageUserId();
+  if (userId === '_local') return resolveDataPath('chats');
+  return resolveDataPath(`users/${userId}/chats`);
 }
 
 export async function listChatSessions(): Promise<unknown[]> {

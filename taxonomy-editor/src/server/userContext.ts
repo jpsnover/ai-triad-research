@@ -25,6 +25,10 @@ export interface UserContext {
   idp: string;
   /** Session branch for GitHubAPIBackend writes. undefined = read from main. */
   branchName?: string;
+  /** Filesystem-safe user directory name for per-user data isolation. */
+  storageUserId: string;
+  /** True when no Easy Auth principal is present (anonymous browsing). */
+  isAnonymous: boolean;
 }
 
 const als = new AsyncLocalStorage<UserContext>();
@@ -42,6 +46,16 @@ export function getCurrentUserId(): string {
   return als.getStore()?.principalName || '_local';
 }
 
+/** Filesystem-safe directory name for per-user data (chats, debates). */
+export function getStorageUserId(): string {
+  return als.getStore()?.storageUserId || '_local';
+}
+
+/** True when the current request has no authenticated principal. */
+export function isAnonymousUser(): boolean {
+  return als.getStore()?.isAnonymous ?? true;
+}
+
 /** Session branch name for the current request, or undefined (= main). */
 export function getSessionBranchName(): string | undefined {
   return als.getStore()?.branchName;
@@ -57,4 +71,25 @@ export function setSessionBranchName(branchName: string): void {
   if (store) {
     store.branchName = branchName;
   }
+}
+
+/**
+ * Derive a human-readable, filesystem-safe directory name from the user's
+ * principal name and identity provider. Deterministic — must never change
+ * once deployed, as it maps to on-disk directory paths.
+ *
+ * GitHub: username lowercase (e.g. "jpsnover")
+ * Google/AAD: email normalized — @ → "-at-", . → "-" (e.g. "jsnover13-at-gmail-com")
+ */
+export function deriveStorageUserId(principalName: string, idp: string): string {
+  if (!principalName || principalName === '_local') return '_local';
+
+  if (idp === 'github') {
+    return principalName.toLowerCase();
+  }
+
+  return principalName
+    .toLowerCase()
+    .replace(/@/g, '-at-')
+    .replace(/\./g, '-');
 }

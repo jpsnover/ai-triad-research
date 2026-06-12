@@ -32,7 +32,7 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
-import { runWithUser, getCurrentUserId, setSessionBranchName } from './userContext.js';
+import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './userContext.js';
 import * as fileIO from './fileIO.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
@@ -1537,6 +1537,27 @@ get('/api/auth/me', (req, res) => {
   });
 });
 
+get('/api/user/profile', (req, res) => {
+  const azureAuth = process.env.WEBSITE_AUTH_ENABLED === 'True'
+    || process.env.WEBSITE_AUTH_ENABLED === 'true';
+  const principalName = azureAuth
+    ? (req.headers['x-ms-client-principal-name'] as string) || ''
+    : '';
+  const idp = azureAuth
+    ? (req.headers['x-ms-client-principal-idp'] as string) || ''
+    : '';
+  const isAnon = !principalName;
+  const userId = deriveStorageUserId(principalName || '_local', idp || '_local');
+  const adminUsers = (process.env.ADMIN_USERS || 'jpsnover').split(',').map(s => s.trim());
+  json(res, {
+    userId,
+    displayName: principalName || 'Anonymous',
+    idp: idp || null,
+    isAnonymous: isAnon,
+    isAdmin: !isAnon && adminUsers.includes(userId),
+  });
+});
+
 post('/api/analytics/event', (_req, res, body) => {
   const raw = (body as { events?: unknown[] }).events;
   if (!Array.isArray(raw)) { json(res, { error: 'events array required' }, 400); return; }
@@ -2051,6 +2072,7 @@ async function handleRequestInner(
     || urlPath === '/status'
     || urlPath === '/api/models'
     || urlPath === '/api/auth/me'
+    || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
     || urlPath.startsWith('/.auth/');
   // AUTH_DISABLED='1' (default) = anonymous access, no login page.
@@ -2123,7 +2145,11 @@ async function handleRequestInner(
   const sessionBranch = (githubBackend && sessionManager)
     ? sessionManager.getActiveBranch(principalName || '_local') ?? undefined
     : undefined;
-  const userCtx = { principalName: principalName || '_local', idp: idp || '_local', branchName: sessionBranch };
+  const isAnon = !principalName;
+  const effectivePrincipal = principalName || '_local';
+  const effectiveIdp = idp || '_local';
+  const storageUserId = deriveStorageUserId(effectivePrincipal, effectiveIdp);
+  const userCtx = { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon };
   await runWithUser(userCtx, async () => {
 
     const url = new URL(req.url!, 'http://localhost');
