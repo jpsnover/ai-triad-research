@@ -520,7 +520,7 @@ Enrich each intellectual lineage entry with a description, URL, and category.
 
 For each entry, provide:
 - name: the original name (verbatim)
-- description: 2-5 sentence definition accessible to a policy audience
+- description: 1-3 paragraphs about the topic, accessible to a policy audience. Cover what it is, its historical origins and key proponents, and why it matters for AI governance discourse. Go beyond a dictionary definition — provide enough context that a reader unfamiliar with the topic can understand its significance and how it connects to AI policy debates.
 - url: Wikipedia or authoritative URL (prefer Wikipedia when available)
 - category: one of: philosophical_movement, economic_theory, political_philosophy, social_theory, scientific_paradigm, legal_framework, technology_movement, ethical_framework, academic_discipline, cultural_movement, other
 
