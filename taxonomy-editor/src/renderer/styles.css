@@ -877,7 +877,7 @@ body {
   position: absolute;
   left: calc(100% + 6px);
   bottom: 0;
-  min-width: 190px;
+  min-width: 220px;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -887,6 +887,80 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1px;
+}
+
+.toolbar-auth-anon-banner {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--focus-ring) 10%, transparent);
+  border-radius: 4px;
+  margin-bottom: 2px;
+  line-height: 1.35;
+}
+
+.toolbar-auth-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 6px;
+}
+
+.toolbar-auth-avatar-lg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--focus-ring);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.toolbar-auth-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.toolbar-auth-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-auth-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-auth-admin-badge {
+  display: inline-block;
+  padding: 0 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: color-mix(in srgb, var(--focus-ring) 20%, transparent);
+  color: var(--focus-ring);
+  border-radius: 3px;
+  line-height: 1.5;
+}
+
+.toolbar-auth-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 2px 4px;
 }
 
 /* ─── Compact mode for short viewports (Electron only) ─── */
