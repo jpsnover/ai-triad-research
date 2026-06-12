@@ -35,6 +35,7 @@ import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './userContext.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
+import * as community from './community.js';
 import * as fileIO from './fileIO.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
@@ -960,6 +961,74 @@ del('/api/chats/:id', async (req, res) => {
     await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
     json(res, { ok: true });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+});
+
+// ── Community Library ──
+
+get('/api/community/chats', async (_req, res) => {
+  try { json(res, await community.listCommunityChats()); }
+  catch (err) { error(res, String(err)); }
+});
+
+get('/api/community/debates', async (_req, res) => {
+  try { json(res, await community.listCommunityDebates()); }
+  catch (err) { error(res, String(err)); }
+});
+
+post('/api/community/submit', async (_req, res, body) => {
+  try {
+    const { type, data, note } = body as { type: 'chat' | 'debate'; data: unknown; note?: string };
+    if (!type || !data) { json(res, { error: 'type and data required' }, 400); return; }
+    json(res, await community.submitToCommunity(type, data, note));
+  } catch (err) {
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    json(res, { error: String(err) }, status);
+  }
+});
+
+post('/api/community/copy', async (_req, res, body) => {
+  try {
+    await ensureSessionBranch();
+    const { type, communityId } = body as { type: 'chats' | 'debates'; communityId: string };
+    if (!type || !communityId) { json(res, { error: 'type and communityId required' }, 400); return; }
+    json(res, await community.copyFromCommunity(type, communityId));
+  } catch (err) {
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    json(res, { error: String(err) }, status);
+  }
+});
+
+// ── Admin: Community submissions ──
+
+get('/api/admin/submissions', async (req, res) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  try {
+    const url = new URL(req.url!, 'http://localhost');
+    const status = url.searchParams.get('status') || undefined;
+    json(res, await community.listSubmissions(status));
+  } catch (err) { error(res, String(err)); }
+});
+
+post('/api/admin/submissions/:id/approve', async (req, res) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  try {
+    await ensureSessionBranch();
+    json(res, await community.approveSubmission(param(req, 'id', '/api/admin/submissions/:id/approve')));
+  } catch (err) {
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    json(res, { error: String(err) }, status);
+  }
+});
+
+post('/api/admin/submissions/:id/reject', async (req, res) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  try {
+    await ensureSessionBranch();
+    json(res, await community.rejectSubmission(param(req, 'id', '/api/admin/submissions/:id/reject')));
+  } catch (err) {
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    json(res, { error: String(err) }, status);
+  }
 });
 
 // ── Harvest ──

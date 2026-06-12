@@ -1,0 +1,245 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import crypto from 'crypto';
+import { resolveDataPath } from './config.js';
+import { getBackend } from './fileIO.js';
+import { getStorageUserId, isAnonymousUser } from './userContext.js';
+import { log } from './logger.js';
+import path from 'path';
+
+// ── Paths ──
+
+function communityChatsDir(): string { return resolveDataPath('community/chats'); }
+function communityDebatesDir(): string { return resolveDataPath('community/debates'); }
+function submissionsDir(): string { return resolveDataPath('community/_submissions'); }
+
+// ── Admin ──
+
+function getAdminUsers(): string[] {
+  return (process.env.ADMIN_USERS || 'jpsnover').split(',').map(s => s.trim());
+}
+
+export function isAdmin(userId?: string): boolean {
+  const uid = userId ?? getStorageUserId();
+  return uid !== '_local' && getAdminUsers().includes(uid);
+}
+
+// ── Community read ──
+
+export async function listCommunityChats(): Promise<unknown[]> {
+  const backend = getBackend();
+  const dir = communityChatsDir();
+  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
+  const items: unknown[] = [];
+  for (const f of files) {
+    try {
+      const raw = await backend.readFile(path.join(dir, f));
+      if (raw === null) continue;
+      const parsed = JSON.parse(raw);
+      items.push({
+        id: parsed.id,
+        title: parsed.title || 'Untitled',
+        created_at: parsed.created_at || '',
+        updated_at: parsed.updated_at || parsed.created_at || '',
+        mode: parsed.mode || '',
+        community_metadata: parsed.community_metadata || null,
+      });
+    } catch { /* skip malformed */ }
+  }
+  return items.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+}
+
+export async function listCommunityDebates(): Promise<unknown[]> {
+  const backend = getBackend();
+  const dir = communityDebatesDir();
+  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
+  const items: unknown[] = [];
+  for (const f of files) {
+    try {
+      const raw = await backend.readFile(path.join(dir, f));
+      if (raw === null) continue;
+      const parsed = JSON.parse(raw);
+      items.push({
+        id: parsed.id,
+        title: parsed.title || parsed.topic?.final || parsed.topic?.original || 'Untitled Debate',
+        created_at: parsed.created_at || '',
+        updated_at: parsed.updated_at || parsed.created_at || '',
+        phase: parsed.phase || 'unknown',
+        community_metadata: parsed.community_metadata || null,
+      });
+    } catch { /* skip malformed */ }
+  }
+  return items.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+}
+
+export async function loadCommunityItem(type: 'chats' | 'debates', id: string): Promise<unknown | null> {
+  const backend = getBackend();
+  const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
+  const prefix = type === 'chats' ? 'chat-' : 'debate-';
+  const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`));
+  return raw ? JSON.parse(raw) : null;
+}
+
+// ── Submissions ──
+
+interface Submission {
+  id: string;
+  type: 'chat' | 'debate';
+  originalId: string;
+  submittedBy: string;
+  submittedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  note?: string;
+  data: unknown;
+}
+
+export async function submitToCommunity(type: 'chat' | 'debate', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
+  if (isAnonymousUser()) throw Object.assign(new Error('Anonymous users cannot submit to the Community Library'), { statusCode: 403 });
+
+  const userId = getStorageUserId();
+  const backend = getBackend();
+  const dir = submissionsDir();
+
+  // Rate limit: max 5 pending submissions per user
+  const existing = await listSubmissionsForUser(userId);
+  const pending = existing.filter(s => s.status === 'pending');
+  if (pending.length >= 5) {
+    throw Object.assign(new Error('Maximum 5 pending submissions allowed'), { statusCode: 429 });
+  }
+
+  const item = itemData as { id: string };
+  const submissionId = crypto.randomUUID();
+  const submission: Submission = {
+    id: submissionId,
+    type,
+    originalId: item.id,
+    submittedBy: userId,
+    submittedAt: new Date().toISOString(),
+    status: 'pending',
+    note,
+    data: itemData,
+  };
+
+  await backend.writeFile(
+    path.join(dir, `sub-${submissionId}.json`),
+    JSON.stringify(submission, null, 2),
+  );
+
+  log.server.info({ submissionId, type, userId }, 'Community submission created');
+  return { submissionId };
+}
+
+async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
+  const backend = getBackend();
+  const dir = submissionsDir();
+  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
+  const subs: Submission[] = [];
+  for (const f of files) {
+    try {
+      const raw = await backend.readFile(path.join(dir, f));
+      if (raw === null) continue;
+      const s = JSON.parse(raw) as Submission;
+      if (s.submittedBy === userId) subs.push(s);
+    } catch { /* skip */ }
+  }
+  return subs;
+}
+
+export async function listSubmissions(statusFilter?: string): Promise<unknown[]> {
+  const backend = getBackend();
+  const dir = submissionsDir();
+  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
+  const subs: Submission[] = [];
+  for (const f of files) {
+    try {
+      const raw = await backend.readFile(path.join(dir, f));
+      if (raw === null) continue;
+      const s = JSON.parse(raw) as Submission;
+      if (!statusFilter || s.status === statusFilter) subs.push(s);
+    } catch { /* skip */ }
+  }
+  return subs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+}
+
+function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
+  const d = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
+  // Strip internal/debug metadata
+  delete d.flight_recorder;
+  delete d.debug;
+  delete d._internal;
+  // Add community attribution
+  d.community_metadata = {
+    submitted_by_display: submittedBy,
+    submitted_at: new Date().toISOString(),
+    approved_at: new Date().toISOString(),
+    original_id: d.id,
+  };
+  // Generate new ID for community copy
+  d.id = crypto.randomUUID();
+  return d;
+}
+
+export async function approveSubmission(submissionId: string): Promise<{ communityId: string }> {
+  const backend = getBackend();
+  const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
+  const raw = await backend.readFile(subPath);
+  if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
+
+  const submission = JSON.parse(raw) as Submission;
+  if (submission.status !== 'pending') throw Object.assign(new Error(`Submission already ${submission.status}`), { statusCode: 409 });
+
+  const sanitized = sanitizeForCommunity(submission.data, submission.submittedBy) as { id: string };
+  const dir = submission.type === 'chat' ? communityChatsDir() : communityDebatesDir();
+  const prefix = submission.type === 'chat' ? 'chat-' : 'debate-';
+
+  await backend.writeFile(
+    path.join(dir, `${prefix}${sanitized.id}.json`),
+    JSON.stringify(sanitized, null, 2),
+  );
+
+  // Update submission status
+  submission.status = 'approved';
+  await backend.writeFile(subPath, JSON.stringify(submission, null, 2));
+
+  log.server.info({ submissionId, communityId: sanitized.id, type: submission.type }, 'Community submission approved');
+  return { communityId: sanitized.id };
+}
+
+export async function rejectSubmission(submissionId: string): Promise<void> {
+  const backend = getBackend();
+  const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
+  const raw = await backend.readFile(subPath);
+  if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
+
+  const submission = JSON.parse(raw) as Submission;
+  if (submission.status !== 'pending') throw Object.assign(new Error(`Submission already ${submission.status}`), { statusCode: 409 });
+
+  submission.status = 'rejected';
+  await backend.writeFile(subPath, JSON.stringify(submission, null, 2));
+
+  log.server.info({ submissionId, type: submission.type }, 'Community submission rejected');
+}
+
+export async function copyFromCommunity(type: 'chats' | 'debates', communityId: string): Promise<{ newId: string }> {
+  if (isAnonymousUser()) throw Object.assign(new Error('Anonymous users cannot copy community items'), { statusCode: 403 });
+
+  const item = await loadCommunityItem(type, communityId);
+  if (!item) throw Object.assign(new Error('Community item not found'), { statusCode: 404 });
+
+  const copy = JSON.parse(JSON.stringify(item)) as Record<string, unknown>;
+  copy.id = crypto.randomUUID();
+  copy.copied_from_community = communityId;
+  copy.created_at = new Date().toISOString();
+  copy.updated_at = new Date().toISOString();
+
+  // Import into user's personal store via fileIO (which routes to user dir)
+  const { saveChatSession, saveDebateSession } = await import('./fileIO.js');
+  if (type === 'chats') {
+    await saveChatSession(copy);
+  } else {
+    await saveDebateSession(copy);
+  }
+
+  return { newId: copy.id as string };
+}
