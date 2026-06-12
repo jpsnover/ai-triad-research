@@ -36,6 +36,8 @@ import { useIsTouchDevice } from './hooks/useIsTouchDevice';
 import { BottomNav } from './components/BottomNav';
 import { HamburgerMenu } from './components/HamburgerMenu';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
+import { CommunityLibrary } from './components/CommunityLibrary';
+import { AdminPanel } from './components/AdminPanel';
 import { GitProgressBanner } from './components/GitProgressBanner';
 import { pullDataTracked } from './utils/syncApi';
 import { PrecacheToast } from './components/PrecacheToast';
@@ -151,6 +153,12 @@ export function App() {
   }
   if (hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AnalyticsDashboard /></ErrorBoundary>;
+  }
+  if (hash === '#community' && import.meta.env.VITE_TARGET === 'web') {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><CommunityLibrary /></ErrorBoundary>;
+  }
+  if (hash === '#admin' && import.meta.env.VITE_TARGET === 'web') {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AdminPanel /></ErrorBoundary>;
   }
 
   // Route between CLI file viewer and main app

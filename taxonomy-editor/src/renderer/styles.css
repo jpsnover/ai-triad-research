@@ -16870,3 +16870,157 @@ th[data-tooltip]::after {
   background: var(--color-accent, #3b82f6);
   opacity: 0.3;
 }
+
+/* ─── Community Library ─────────────────────────────────── */
+
+.community-library, .admin-panel {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.community-header, .admin-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.community-header h2, .admin-header h2 {
+  flex: 1;
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.community-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+.community-tab {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+.community-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--color-accent, #3b82f6);
+}
+.community-tab:hover { color: var(--text-primary); }
+
+.community-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.community-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.community-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.community-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.community-card-badge {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-accent, #3b82f6);
+  font-size: 0.7rem;
+  text-transform: capitalize;
+}
+.community-card-copy {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.community-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+}
+
+.community-toast {
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+.community-error {
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+/* ─── Admin Panel ───────────────────────────────────────── */
+
+.admin-filter {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.admin-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.admin-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+.admin-submission-id {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+}
+.admin-submission-actions {
+  display: flex;
+  gap: 6px;
+}
+.admin-submission-row:hover {
+  background: rgba(59, 130, 246, 0.04);
+}
