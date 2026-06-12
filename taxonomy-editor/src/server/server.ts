@@ -1582,12 +1582,12 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
         const branchUserId = headRef.slice('api-session/'.length);
         // Find the user whose sanitized branch name matches
         const activeBranches = sessionManager.getActiveBranches();
-        for (const [userId, branch] of Object.entries(activeBranches)) {
-          if (branch === headRef) {
-            sessionManager.deleteBranch(userId, 'pr-merged').catch(err => {
-              log.github.error({ err, userId, branch: headRef }, 'Post-merge branch cleanup failed');
+        for (const entry of activeBranches) {
+          if (entry.branch === headRef) {
+            sessionManager.deleteBranch(entry.userId, 'pr-merged').catch(err => {
+              log.github.error({ err, userId: entry.userId, branch: headRef }, 'Post-merge branch cleanup failed');
             });
-            log.github.info({ userId, branch: headRef }, 'Post-merge: session branch cleanup triggered');
+            log.github.info({ userId: entry.userId, branch: headRef }, 'Post-merge: session branch cleanup triggered');
             break;
           }
         }
