@@ -114,7 +114,7 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
   speakerFilter: 'all',
   scoreRange: { min: 0, max: 1 },
   verdictFilter: 'all',
-  beliefsOnly: true,
+  beliefsOnly: false,
 
   loadGoldenSet: async () => {
     if (get().loading) return;
