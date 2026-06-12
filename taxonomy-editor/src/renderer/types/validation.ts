@@ -34,6 +34,7 @@ export interface GoldenSetFile {
 
 export interface ValidationResult {
   claim_id: string;
+  debate_id?: string;
   original_node: string;
   verdict: Verdict;
   corrected_node?: string;

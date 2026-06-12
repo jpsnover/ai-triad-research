@@ -58,6 +58,10 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 const GOLDEN_SET_PATH = 'comp-linguist/_golden_test_set.json';
 const VALIDATION_RESULTS_PATH = 'comp-linguist/_golden_validation_results.json';
 
+export function claimUid(c: { debate_id: string; claim_id: string }): string {
+  return `${c.debate_id}::${c.claim_id}`;
+}
+
 function debouncedSave(results: Map<string, ValidationResult>): void {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -77,7 +81,7 @@ function debouncedSave(results: Map<string, ValidationResult>): void {
   }, 500);
 }
 
-function filterClaims(
+export function filterClaims(
   claims: GoldenClaim[],
   results: Map<string, ValidationResult>,
   speakerFilter: SpeakerFilter,
@@ -88,7 +92,7 @@ function filterClaims(
     if (speakerFilter !== 'all' && c.speaker !== speakerFilter) return false;
     if (c.similarity_score < scoreRange.min || c.similarity_score > scoreRange.max) return false;
     if (verdictFilter !== 'all') {
-      const result = results.get(c.claim_id);
+      const result = results.get(claimUid(c));
       if (verdictFilter === 'unreviewed') {
         if (result) return false;
       } else {
@@ -124,7 +128,14 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
       const restoredResults = new Map<string, ValidationResult>();
       if (existingResults?.results) {
         for (const r of existingResults.results) {
-          restoredResults.set(r.claim_id, r);
+          if (r.debate_id) {
+            restoredResults.set(`${r.debate_id}::${r.claim_id}`, r);
+          } else {
+            const matches = claims.filter(c => c.claim_id === r.claim_id);
+            if (matches.length === 1) {
+              restoredResults.set(claimUid(matches[0]), { ...r, debate_id: matches[0].debate_id });
+            }
+          }
         }
       }
       set({ claims, results: restoredResults, loaded: true, loading: false, currentClaimIndex: 0 });
@@ -142,11 +153,12 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
 
   setVerdict: (claimId, verdict, extra) => {
     const { results, claims } = get();
-    const claim = claims.find(c => c.claim_id === claimId);
+    const claim = claims.find(c => claimUid(c) === claimId);
     if (!claim) return;
     const updated = new Map(results);
     updated.set(claimId, {
-      claim_id: claimId,
+      claim_id: claim.claim_id,
+      debate_id: claim.debate_id,
       original_node: claim.attributed_node,
       verdict,
       corrected_node: extra?.corrected_node,
@@ -203,14 +215,14 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
     const { currentClaimIndex, results } = get();
     const filtered = get().filteredClaims();
     for (let i = currentClaimIndex + 1; i < filtered.length; i++) {
-      if (!results.has(filtered[i].claim_id)) {
+      if (!results.has(claimUid(filtered[i]))) {
         set({ currentClaimIndex: i });
         return;
       }
     }
     // Wrap around from start
     for (let i = 0; i < currentClaimIndex; i++) {
-      if (!results.has(filtered[i].claim_id)) {
+      if (!results.has(claimUid(filtered[i]))) {
         set({ currentClaimIndex: i });
         return;
       }

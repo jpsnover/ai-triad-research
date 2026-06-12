@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useMemo, useCallback, useRef, useState, type MouseEvent } from 'react';
-import { useValidationStore } from '../hooks/useValidationStore';
+import { useValidationStore, filterClaims, claimUid } from '../hooks/useValidationStore';
 import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 import { useResizablePanel, useResizableRightPanel } from '../hooks/useResizablePanel';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -79,13 +79,27 @@ function ClaimListSidebar({ width, onResizeMouseDown }: {
   onResizeMouseDown: (e: MouseEvent) => void;
 }) {
   const {
-    filteredClaims, metadata, results, currentClaimIndex, goToIndex,
+    claims: allClaims, results, currentClaimIndex, goToIndex,
     speakerFilter, setSpeakerFilter, verdictFilter, setVerdictFilter,
     scoreRange, setScoreRange,
   } = useValidationStore();
 
-  const claims = filteredClaims();
-  const meta = metadata();
+  const claims = useMemo(
+    () => filterClaims(allClaims, results, speakerFilter, scoreRange, verdictFilter),
+    [allClaims, results, speakerFilter, scoreRange, verdictFilter],
+  );
+  const meta = useMemo(() => {
+    let correct = 0, incorrect = 0, uncertain = 0, novel = 0;
+    for (const r of results.values()) {
+      switch (r.verdict) {
+        case 'correct': correct++; break;
+        case 'incorrect': incorrect++; break;
+        case 'uncertain': uncertain++; break;
+        case 'novel': novel++; break;
+      }
+    }
+    return { total: allClaims.length, reviewed: results.size, correct, incorrect, uncertain, novel };
+  }, [allClaims, results]);
   const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -142,11 +156,12 @@ function ClaimListSidebar({ width, onResizeMouseDown }: {
 
       <div className="validation-claim-list" ref={listRef}>
         {claims.map((claim, i) => {
-          const reviewed = results.has(claim.claim_id);
-          const verdict = results.get(claim.claim_id)?.verdict;
+          const uid = claimUid(claim);
+          const reviewed = results.has(uid);
+          const verdict = results.get(uid)?.verdict;
           return (
             <button
-              key={claim.claim_id}
+              key={`${claim.debate_id}-${claim.claim_id}`}
               className={`validation-claim-item${i === currentClaimIndex ? ' selected' : ''}`}
               onClick={() => goToIndex(i)}
             >
@@ -186,14 +201,15 @@ function ClaimDetail({ claim }: { claim: GoldenClaim | null }) {
     return <div className="validation-detail-empty">Select a claim to review</div>;
   }
 
-  const result = results.get(claim.claim_id);
+  const uid = claimUid(claim);
+  const result = results.get(uid);
   const activeVerdict = result?.verdict ?? null;
 
   const handleVerdict = (verdict: Verdict) => {
     if (activeVerdict === verdict) {
-      clearVerdict(claim.claim_id);
+      clearVerdict(uid);
     } else {
-      setVerdict(claim.claim_id, verdict);
+      setVerdict(uid, verdict);
     }
   };
 
@@ -261,7 +277,7 @@ function ClaimDetail({ claim }: { claim: GoldenClaim | null }) {
         placeholder="Reviewer notes (optional)"
         value={result?.reviewer_notes ?? ''}
         onChange={e => {
-          if (result) setReviewerNotes(claim.claim_id, e.target.value);
+          if (result) setReviewerNotes(uid, e.target.value);
         }}
         rows={2}
       />
@@ -331,7 +347,8 @@ function AttributionPanel({
   }
 
   const primaryNode = resolveNode(claim.attributed_node, store);
-  const result = results.get(claim.claim_id);
+  const uid = claimUid(claim);
+  const result = results.get(uid);
   const isIncorrect = result?.verdict === 'incorrect';
 
   const alternativeNodes = claim.secondary_refs
@@ -341,7 +358,7 @@ function AttributionPanel({
   const handleSelectCorrection = (nodeId: string) => {
     const node = resolveNode(nodeId, store);
     const cat = node?.category !== 'Beliefs' ? node?.category : undefined;
-    setVerdict(claim.claim_id, 'incorrect', {
+    setVerdict(uid, 'incorrect', {
       corrected_node: nodeId,
       corrected_category: cat,
     });
@@ -516,11 +533,11 @@ function AttributionPanel({
 
 // ── Main ValidationTab ──────────────────────────────────────────────────────
 
-// Need React import for AttributionPanel's useState
-import React from 'react';
-
 export function ValidationTab() {
-  const { loaded, loading, loadGoldenSet, filteredClaims, currentClaimIndex } = useValidationStore();
+  const {
+    loaded, loading, loadGoldenSet, currentClaimIndex,
+    claims: allClaims, results, speakerFilter, scoreRange, verdictFilter,
+  } = useValidationStore();
   const { width: leftWidth, onMouseDown: onLeftResize } = useResizablePanel();
   const { width: rightWidth, onMouseDown: onRightResize } = useResizableRightPanel({
     storageKey: 'validation-right-panel-width',
@@ -543,7 +560,10 @@ export function ValidationTab() {
     }
   }, [loaded, loading, loadGoldenSet]);
 
-  const claims = filteredClaims();
+  const claims = useMemo(
+    () => filterClaims(allClaims, results, speakerFilter, scoreRange, verdictFilter),
+    [allClaims, results, speakerFilter, scoreRange, verdictFilter],
+  );
   const currentClaim = claims[currentClaimIndex] ?? null;
 
   // Keyboard shortcuts
@@ -556,7 +576,7 @@ export function ValidationTab() {
       const verdict = VERDICT_KEYS[e.key];
       if (verdict && currentClaim) {
         e.preventDefault();
-        useValidationStore.getState().setVerdict(currentClaim.claim_id, verdict);
+        useValidationStore.getState().setVerdict(claimUid(currentClaim), verdict);
         return;
       }
 
@@ -568,12 +588,12 @@ export function ValidationTab() {
         useValidationStore.getState().nextClaim();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const r = useValidationStore.getState().results.get(currentClaim?.claim_id ?? '');
+        const r = currentClaim ? useValidationStore.getState().results.get(claimUid(currentClaim)) : undefined;
         if (r) useValidationStore.getState().nextUnreviewed();
       } else if (e.key === 'Escape') {
         if (currentClaim) {
           e.preventDefault();
-          useValidationStore.getState().clearVerdict(currentClaim.claim_id);
+          useValidationStore.getState().clearVerdict(claimUid(currentClaim));
         }
       }
     };

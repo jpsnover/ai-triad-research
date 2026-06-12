@@ -1,0 +1,328 @@
+[
+  {
+    "id": "acc-beliefs-003",
+    "category": "Beliefs",
+    "label": "Layered Safety Systems Make AI Reliable Enough for Use",
+    "description": "A Belief within accelerationist discourse that reliability requires a multi-layered safety stack integrating automated syntactic verification with risk-stratified adaptive intervention. \nEncompasses: formal constraint enforcement, real-time telemetry-triggered automated remediation, risk-stratified human-in-the-loop validation, semantic intent validation.\nExcludes: static pre-deployment gatekeeping, reliance on autonomous systems without oversight.",
+    "parent_id": "acc-beliefs-086",
+    "children": [],
+    "graph_attributes": {
+      "epistemic_type": "empirical_claim",
+      "policy_actions": [
+        {
+          "action": "Implement tax incentives for businesses investing in AI tools to enhance workforce productivity.",
+          "framing": "Recognizing AI's immediate productivity boost, policymakers can encourage its adoption through financial incentives to accelerate economic growth.",
+          "policy_id": "pol-940"
+        },
+        {
+          "action": "Fund vocational training programs to equip workers with skills to leverage AI tools in their professions.",
+          "framing": "To maximize the benefits of AI's current impact on work, policies should focus on upskilling the workforce to effectively utilize these new tools.",
+          "policy_id": "pol-941"
+        }
+      ],
+      "node_scope": "claim",
+      "rhetorical_strategy": "appeal_to_evidence, techno_optimism, credibility_framing",
+      "falsifiability": "medium",
+      "audience": "industry_leaders, technical_researchers, policymakers",
+      "emotional_register": "pragmatic, optimistic",
+      "steelman_vulnerability": "Even well-designed multi-layered safety stacks can exhibit correlated failure modes if all layers share common architectural assumptions or training data, meaning a sufficiently novel or adversarial input can defeat all layers simultaneously — rendering the \"defense in depth\" argument empirically weak for tail-risk scenarios.",
+      "assumes": [
+        "Multiple independent safety layers can catch failures that any single layer would miss, assuming their failure modes are not correlated.",
+        "Automated syntactic verification is expressive enough to capture the semantically meaningful constraints relevant to real-world AI harms.",
+        "Real-time telemetry can detect risk signals with sufficient speed and accuracy to trigger meaningful remediation before harm occurs.",
+        "Human-in-the-loop validation can scale cost-effectively within risk-stratified tiers without becoming a bottleneck to deployment.",
+        "The safety stack itself remains trustworthy and does not introduce new attack surfaces or failure modes.",
+        "Semantic intent validation is tractable and reliable enough to distinguish genuinely harmful outputs from benign ones at deployment scale.",
+        "Organizational incentives and operational pressures will not lead to systematic undermining or bypassing of safety layers in practice."
+      ],
+      "possible_fallacies": [
+        {
+          "fallacy": "Composition fallacy",
+          "confidence": "possible",
+          "explanation": "The argument assumes that because each individual layer provides some safety guarantee, the combined stack is reliably safe — but layered systems can interact in unanticipated ways that introduce emergent failure modes not present in any single layer.",
+          "type": "informal_structural"
+        },
+        {
+          "fallacy": "False security (security theater)",
+          "confidence": "possible",
+          "explanation": "Emphasizing the sophistication of the safety stack may create an unjustified confidence that the system is 'reliable enough,' potentially leading to deployment in contexts where residual risk remains unacceptably high.",
+          "type": "informal_contextual"
+        },
+        {
+          "fallacy": "Begging the question",
+          "confidence": "borderline",
+          "explanation": "The claim that layered safety systems make AI 'reliable enough' presupposes a threshold of acceptable reliability without defining it, effectively assuming what it needs to demonstrate.",
+          "type": "informal_structural"
+        }
+      ],
+      "intellectual_lineage": [
+        {
+          "name": "Systems Safety Engineering",
+          "description": "An engineering discipline that designs complex systems to minimize catastrophic failure through redundancy, fault tolerance, and defense-in-depth architectures, originating in aerospace and nuclear industries.",
+          "url": "",
+          "category": "academic_discipline"
+        },
+        {
+          "name": "Formal Methods in Computer Science",
+          "description": "A branch of computer science that applies mathematical logic to specify, verify, and enforce correctness properties in software and hardware systems.",
+          "url": "",
+          "category": "scientific_paradigm"
+        },
+        {
+          "name": "AI Safety Research (technical)",
+          "description": "An emerging academic and industry discipline focused on ensuring AI systems behave reliably and as intended, including work on robustness, interpretability, and alignment.",
+          "url": "",
+          "category": "academic_discipline"
+        },
+        {
+          "name": "Risk Management Theory",
+          "description": "A body of theory and practice concerned with identifying, assessing, and mitigating risks in complex systems, widely applied in finance, engineering, and public policy.",
+          "url": "",
+          "category": "other"
+        },
+        {
+          "name": "Techno-optimism",
+          "description": "A philosophical orientation holding that technological progress reliably produces solutions to the problems technology itself creates, supporting confidence in engineered safety solutions.",
+          "url": "",
+          "category": "philosophical_movement"
+        }
+      ]
+    },
+    "parent_relationship": "is_a",
+    "parent_rationale": "This node describes a direct, measurable economic impact of AI through immediate productivity gains.",
+    "situation_refs": [],
+    "doctrinally_anchored": true,
+    "confidence": 0.52,
+    "confidence_history": [
+      {
+        "date": "2026-05-25",
+        "value": 0.95,
+        "delta": 0,
+        "reason": "Initial multi-signal assignment"
+      },
+      {
+        "date": "2026-06-11",
+        "value": 0.52,
+        "delta": -0.43,
+        "reason": "Re-evaluated after taxonomy audit restructuring. While layered safety architectures are a well-established engineering principle with genuine empirical support in other domains, their effectiveness specifically for complex AI systems remains contested — evidence of correlated failures, scalability limits, and semantic validation difficulties keeps confidence in the moderate range despite accelerationist optimism about the approach."
+      }
+    ]
+  },
+  {
+    "id": "saf-desires-001",
+    "category": "Desires",
+    "label": "Humanity's Survival Above All Else",
+    "description": "A Desire within safetyist discourse that prioritizes the prevention of artificial general intelligence (AGI) from precipitating irreversible, humanity-ending catastrophes or permanent loss of human agency. \nEncompasses: Existential risk (x-risk) prevention, mitigation of global catastrophic biorisks facilitated by AI, and avoiding misalignment-induced human extinction.\nExcludes: Managing near-term algorithmic bias, localized economic disruptions, and routine data privacy concerns.",
+    "parent_id": "saf-desires-016",
+    "children": [],
+    "graph_attributes": {
+      "epistemic_type": "normative_prescription",
+      "rhetorical_strategy": "precautionary_framing, moral_imperative, appeal_to_fear",
+      "assumes": [
+        "AGI or superintelligent AI systems are technically achievable within a policy-relevant timeframe.",
+        "Humanity's continued existence and autonomy constitute the highest-order value, superseding other ethical considerations.",
+        "Existential catastrophes from AI are not merely possible but represent a non-negligible probability worth prioritizing over nearer-term harms.",
+        "Human intervention through governance and technical research can meaningfully reduce the probability of AI-induced extinction.",
+        "Irreversibility is what distinguishes existential risk from other serious harms, justifying its special moral weight.",
+        "No compensating mechanism (e.g., self-correcting markets, distributed power) will naturally prevent catastrophic AI misalignment."
+      ],
+      "falsifiability": "low",
+      "audience": "policymakers, academic_community, civil_society",
+      "emotional_register": "alarmed, urgent, aspirational",
+      "policy_actions": [
+        {
+          "action": "Establish international treaties to prohibit the development of unaligned superintelligent AI.",
+          "framing": "This desire directly motivates the most extreme preventative measures to avoid the described catastrophic outcomes, requiring global cooperation.",
+          "policy_id": "pol-1111"
+        },
+        {
+          "action": "Fund research into robust AI alignment and control mechanisms.",
+          "framing": "Achieving this desire necessitates significant investment in technical solutions to ensure AI systems remain beneficial and controllable.",
+          "policy_id": "pol-1112"
+        }
+      ],
+      "intellectual_lineage": [
+        {
+          "name": "Existential Risk Studies",
+          "description": "An interdisciplinary field, pioneered by thinkers like Nick Bostrom and Toby Ord, that quantifies and prioritizes threats capable of permanently curtailing humanity's long-run potential, including advanced AI, pandemics, and nuclear war.",
+          "url": "",
+          "category": "academic_discipline"
+        },
+        {
+          "name": "Longtermism",
+          "description": "A philosophical and ethical framework, associated with William MacAskill and the effective altruism movement, holding that positively influencing the long-run future—including preventing human extinction—is among the most important moral priorities.",
+          "url": "",
+          "category": "ethical_framework"
+        },
+        {
+          "name": "Nuclear Nonproliferation Movement",
+          "description": "A global political and diplomatic tradition aimed at preventing the spread of weapons capable of mass or civilizational destruction, providing a governance template for analogous efforts around catastrophic AI capabilities.",
+          "url": "https://en.wikipedia.org/wiki/Nuclear_proliferation",
+          "category": "other"
+        },
+        {
+          "name": "Precautionary Principle",
+          "description": "A risk-governance norm originating in environmental and public health law holding that when an action raises threats of serious or irreversible harm, precautionary measures should be taken even in the absence of full scientific certainty.",
+          "url": "",
+          "category": "legal_framework"
+        }
+      ],
+      "steelman_vulnerability": "Concentrating moral and political capital on speculative, low-probability extinction scenarios may crowd out governance attention and funding for present, empirically documented AI harms—such as algorithmic discrimination and surveillance—that disproportionately affect already-marginalized populations, making this prioritization itself an ethical failure.",
+      "possible_fallacies": [
+        {
+          "fallacy": "Appeal to fear",
+          "confidence": "likely",
+          "explanation": "Framing the desire around 'humanity-ending catastrophes' and permanent loss of agency invokes existential dread that can short-circuit probabilistic reasoning and crowd out sober cost-benefit analysis.",
+          "type": "informal_contextual"
+        },
+        {
+          "fallacy": "Scope insensitivity / scope neglect",
+          "confidence": "possible",
+          "explanation": "By treating existential risk as categorically separate from and superior to all other harms, the framework may fail to proportionately weigh the aggregate suffering caused by near-term, high-certainty AI harms against low-probability catastrophic ones.",
+          "type": "informal_contextual"
+        },
+        {
+          "fallacy": "False dichotomy",
+          "confidence": "borderline",
+          "explanation": "The node implicitly frames the choice as between prioritizing existential risk prevention and accepting catastrophe, neglecting the possibility that addressing near-term harms and long-term risks are complementary rather than competing.",
+          "type": "informal_structural"
+        }
+      ],
+      "node_scope": "scheme"
+    },
+    "situation_refs": [
+      "sit-004",
+      "sit-005"
+    ],
+    "parent_relationship": "is_a",
+    "parent_rationale": "Mitigating existential AI risk is a specific, severe type of systemic harm that the broader goal of preventing AI's systemic harms aims to address.",
+    "priority": 5,
+    "priority_history": [
+      {
+        "date": "2026-05-25",
+        "value": 2,
+        "delta": 0,
+        "reason": "Initial assignment: leaf Desire"
+      },
+      {
+        "date": "2026-06-11",
+        "value": 5,
+        "delta": 3,
+        "reason": "Re-evaluated after taxonomy audit restructuring. Preventing AI-induced human extinction or permanent loss of agency is the foundational, defining aspiration of the safetyist camp—it is the ultimate justification for nearly every other safetyist belief, desire, and intention in the taxonomy, making it a priority-5 core desire. The previous score of 2 was a significant undervaluation given its role as the apex normative commitment of the entire camp."
+      }
+    ]
+  },
+  {
+    "id": "skp-intentions-004",
+    "category": "Intentions",
+    "label": "Build Shared-Ownership Structures for AI Production",
+    "description": "An Intention within skeptic discourse that seeks to redistribute the infrastructural control and financial benefits of AI systems to workers, data creators, and the broader public. \nEncompasses: Data dividend policies, worker cooperatives for model deployment, union-negotiated algorithmic management limits, and public utility nationalization of compute.\nExcludes: Corporate profit maximization, proprietary hoarding of infrastructural gains, and venture-capital-driven proliferation models.",
+    "parent_id": "skp-desires-081",
+    "children": [],
+    "parent_relationship": "specializes",
+    "parent_rationale": "Implementing collective AI ownership is a specific proposal for reimagining economic structures in response to AI.",
+    "situation_refs": [],
+    "graph_attributes": {
+      "epistemic_type": "strategic_recommendation",
+      "rhetorical_strategy": "structural_critique, moral_imperative, cost_benefit_analysis, appeal_to_evidence",
+      "assumes": [
+        "Current AI ownership models concentrate infrastructural power and financial benefits in ways that are unjust or harmful to workers and the public.",
+        "Collective ownership mechanisms such as cooperatives, public utilities, and data dividends are technically and institutionally feasible at the scale of AI infrastructure.",
+        "Redistributing control over AI production will yield more equitable societal outcomes than market-driven alternatives.",
+        "Workers and data creators have legitimate ownership claims over value generated by AI systems that use their labor or data inputs.",
+        "Political will and coalition-building sufficient to pass redistributive AI legislation can be assembled in the near-to-medium term.",
+        "Public or cooperative management of capital-intensive AI infrastructure will not significantly degrade performance, innovation pace, or international competitiveness.",
+        "Regulatory and legal frameworks can be adapted to accommodate novel ownership structures (e.g., data dividends, algorithmic management limits) without prohibitive complexity."
+      ],
+      "falsifiability": "low",
+      "audience": "policymakers, civil_society, academic_community, industry_leaders",
+      "emotional_register": "aspirational, defiant, pragmatic",
+      "policy_actions": [
+        {
+          "action": "Establish public utility models for foundational AI compute infrastructure.",
+          "framing": "This intention directly supports nationalizing critical AI infrastructure to ensure broad public benefit and control, preventing private monopolization.",
+          "policy_id": "pol-2217"
+        },
+        {
+          "action": "Implement data dividend policies to distribute AI-generated value to data creators.",
+          "framing": "The concept of collective ownership extends to the value generated from user data, advocating for direct financial redistribution to those who contribute to AI training.",
+          "policy_id": "pol-2218"
+        },
+        {
+          "action": "Enact legislation supporting worker cooperatives for AI development and deployment.",
+          "framing": "To redistribute control and benefits, policies must actively enable and incentivize alternative ownership structures like worker cooperatives in the AI sector.",
+          "policy_id": "pol-2219"
+        }
+      ],
+      "intellectual_lineage": [
+        {
+          "name": "Democratic Socialism",
+          "description": "A tradition holding that political democracy must be paired with social ownership or strong democratic control over major productive assets to prevent wealth concentration and ensure equitable distribution of economic gains.",
+          "url": "",
+          "category": "philosophical_movement"
+        },
+        {
+          "name": "Distributive Justice (Rawlsian and beyond)",
+          "description": "A branch of political philosophy, prominently shaped by John Rawls, concerned with fair allocation of resources and opportunities, particularly ensuring that economic arrangements benefit the least-advantaged members of society.",
+          "url": "",
+          "category": "ethical_framework"
+        },
+        {
+          "name": "Public Utility Theory",
+          "description": "An economic and legal tradition arguing that natural monopoly infrastructure — utilities, telecoms, railways — must be publicly regulated or owned to prevent rent-extraction and ensure universal access and fair pricing.",
+          "url": "https://en.wikipedia.org/wiki/Public_utility",
+          "category": "economic_theory"
+        },
+        {
+          "name": "Labor Theory of Value and Workers' Rights Movements",
+          "description": "A tradition rooted in political economy and labor organizing that holds workers have legitimate claims to the value their labor creates, forming the basis for cooperative ownership, union bargaining, and profit-sharing demands.",
+          "url": "",
+          "category": "economic_theory"
+        },
+        {
+          "name": "Commons-Based Peer Production",
+          "description": "An academic and technology movement, associated with scholars like Yochai Benkler, arguing that collaborative, non-proprietary production models can outperform or ethically surpass market-based models for information goods.",
+          "url": "",
+          "category": "technology_movement"
+        }
+      ],
+      "steelman_vulnerability": "The most powerful counterargument is that the scale, pace, and capital intensity of frontier AI development make collective and public ownership models structurally incompatible with remaining competitive: historically, state-run or co-op-managed technology sectors have struggled to match the R&D velocity of concentrated private capital, meaning that redistributive ownership structures could cede technological leadership to adversaries or unconstrained private actors, ultimately harming the very workers and publics they aim to benefit.",
+      "possible_fallacies": [
+        {
+          "fallacy": "Nirvana Fallacy",
+          "confidence": "likely",
+          "explanation": "The node implicitly compares the idealized outcomes of collective ownership models against the flawed reality of current corporate structures, without fully accounting for the practical failures and inefficiencies that have historically plagued public or cooperative management of complex, capital-intensive industries.",
+          "type": "informal_contextual"
+        },
+        {
+          "fallacy": "Composition Fallacy",
+          "confidence": "possible",
+          "explanation": "The node aggregates very different interventions — data dividends, worker cooperatives, union negotiation, and full nationalization of compute — under a single 'shared ownership' umbrella, assuming that mechanisms proven workable in one context (e.g., worker co-ops in small tech firms) will transfer coherently to others (e.g., nationalizing hyperscale GPU clusters).",
+          "type": "informal_structural"
+        },
+        {
+          "fallacy": "Slippery Slope (reverse)",
+          "confidence": "borderline",
+          "explanation": "The exclusion of any market-based or incremental redistribution mechanisms implies that partial reforms are insufficient or counterproductive, without demonstrating why only structural ownership changes — rather than taxation or profit-sharing mandates — can achieve the desired equity outcomes.",
+          "type": "informal_contextual"
+        }
+      ],
+      "node_scope": "scheme"
+    },
+    "operationality": 3,
+    "operationality_history": [
+      {
+        "date": "2026-05-25",
+        "value": 4,
+        "delta": 0,
+        "reason": "Initial assignment: leaf Intention"
+      },
+      {
+        "date": "2026-06-11",
+        "value": 3,
+        "delta": -1,
+        "reason": "Re-evaluated after taxonomy audit restructuring. While individual components like data dividend proposals and limited union negotiation over algorithmic management have seen real-world pilots or legislative discussion, the full bundle — spanning worker cooperatives, public utility nationalization of compute, and data dividends — faces major institutional, political, and capital-formation barriers with only marginal real-world adoption, placing operationality solidly in the aspirational range."
+      }
+    ]
+  }
+]
