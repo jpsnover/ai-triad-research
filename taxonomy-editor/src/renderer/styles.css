@@ -2193,6 +2193,21 @@ body {
   50% { opacity: 0.45; }
 }
 
+.save-bar-conflict-banner {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 11px;
+  border: 1px solid rgba(234, 134, 0, 0.5);
+  background: rgba(234, 134, 0, 0.1);
+  color: #ea8600;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  animation: save-bar-rebase-pulse 1.8s ease-in-out infinite;
+}
+.save-bar-conflict-banner:hover { background: rgba(234, 134, 0, 0.2); }
+
 .save-bar-sync-diag {
   background: none;
   border: none;

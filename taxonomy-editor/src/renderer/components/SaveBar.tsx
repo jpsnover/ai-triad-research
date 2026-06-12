@@ -123,6 +123,15 @@ export function SaveBar() {
         </div>
       )}
       <div className="save-bar-right">
+        {syncStatus.enabled && syncStatus.has_conflicts && (
+          <span
+            className="save-bar-conflict-banner"
+            title="Your session branch has merge conflicts with main — open the sync panel to resolve"
+            onClick={() => setSyncDrawerOpen(true)}
+          >
+            Conflicts detected
+          </span>
+        )}
         {syncStatus.enabled && syncStatus.unsynced_count > 0 && (
           <button
             type="button"

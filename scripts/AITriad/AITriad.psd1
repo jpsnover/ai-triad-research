@@ -106,6 +106,12 @@
         'Request-FlightRecorderDump'
         'Get-FlightRecorderReport'
         'Get-AITClaim'
+        'Compare-EmbeddingModel'
+        'Test-RerankerBaseline'
+        'New-SyntheticCorpus'
+        'Update-SyntheticCorpus'
+        'Sync-SyntheticCorpus'
+        'Export-SyntheticEmbeddings'
     )
 
     # Aliases exported from this module

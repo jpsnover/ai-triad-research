@@ -1573,10 +1573,25 @@ post('/api/sync/webhook/github', async (req, res, _body) => {
 
   if (event === 'pull_request') {
     const action = parsed.action;
-    const pr = parsed.pull_request as { merged?: boolean; base?: { ref?: string } } | undefined;
+    const pr = parsed.pull_request as { merged?: boolean; base?: { ref?: string }; head?: { ref?: string } } | undefined;
     if (action === 'closed' && pr?.merged === true && pr.base?.ref === 'main') {
-      // In API mode, behind_by is detected dynamically via compareBranches.
-      log.github.info('Webhook: main merged');
+      log.github.info('Webhook: PR merged into main');
+      // Post-merge cleanup: delete the session branch if it was an api-session branch
+      const headRef = pr.head?.ref ?? '';
+      if (headRef.startsWith('api-session/') && sessionManager) {
+        const branchUserId = headRef.slice('api-session/'.length);
+        // Find the user whose sanitized branch name matches
+        const activeBranches = sessionManager.getActiveBranches();
+        for (const [userId, branch] of Object.entries(activeBranches)) {
+          if (branch === headRef) {
+            sessionManager.deleteBranch(userId, 'pr-merged').catch(err => {
+              log.github.error({ err, userId, branch: headRef }, 'Post-merge branch cleanup failed');
+            });
+            log.github.info({ userId, branch: headRef }, 'Post-merge: session branch cleanup triggered');
+            break;
+          }
+        }
+      }
     }
   }
 

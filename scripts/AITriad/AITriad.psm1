@@ -415,6 +415,12 @@ Export-ModuleMember -Function @(
     'Request-FlightRecorderDump'
     'Get-FlightRecorderReport'
     'Get-AITClaim'
+    'Compare-EmbeddingModel'
+    'Test-RerankerBaseline'
+    'New-SyntheticCorpus'
+    'Update-SyntheticCorpus'
+    'Sync-SyntheticCorpus'
+    'Export-SyntheticEmbeddings'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'
