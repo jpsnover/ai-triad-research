@@ -1,0 +1,340 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-12T13:36:14.413143+00:00",
+    "golden_set_source": "C:\\Users\\jsnov\\repos\\ai-triad-research\\research\\comp-linguist\\_golden_test_set.json",
+    "top_percentile": 10
+  },
+  "profile": {
+    "pov": "saf",
+    "pov_name": "Safetyist",
+    "total_claims_in_pov": 208,
+    "top_percentile": 10,
+    "top_claim_count": 20,
+    "similarity_range": {
+      "min": 0.6471,
+      "max": 0.7748,
+      "mean": 0.6864
+    },
+    "ngrams": {
+      "unigrams": [
+        {
+          "term": "ai",
+          "count": 16,
+          "doc_freq": 13
+        },
+        {
+          "term": "safety",
+          "count": 10,
+          "doc_freq": 10
+        },
+        {
+          "term": "deployment",
+          "count": 7,
+          "doc_freq": 6
+        },
+        {
+          "term": "harms",
+          "count": 4,
+          "doc_freq": 4
+        },
+        {
+          "term": "catastrophic",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "data",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "demonstrated",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "training",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "systems",
+          "count": 3,
+          "doc_freq": 2
+        },
+        {
+          "term": "models",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "frontier",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "fundamentally",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "robust",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "pre",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "real",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "requiring",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "safeguards",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "self",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "accountability",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "societal",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "software",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "structural",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "substitute",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "synthetic",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "systemic",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "social",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "rapid",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "output",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "prior",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "developers",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ],
+      "bigrams": [
+        {
+          "term": "pre deployment",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "training data",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "ai deployment",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "ai developers",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "ai harms",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "ai safety",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "demonstrated safety",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "frontier ai",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "institutional guardrails",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "prior demonstrated",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "safety accountability",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ],
+      "trigrams": [
+        {
+          "term": "demonstrated safety accountability",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "prior demonstrated safety",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ]
+    },
+    "discourse_markers": {
+      "counts_per_category": {
+        "hedging": 3,
+        "certainty": 3,
+        "causal": 2,
+        "contrast": 2,
+        "evidence": 2,
+        "prescriptive": 6,
+        "concession": 0,
+        "intensifier": 0
+      },
+      "top_markers_by_category": {
+        "hedging": {
+          "potentially": 2,
+          "could": 1
+        },
+        "certainty": {
+          "fundamentally": 3
+        },
+        "causal": {
+          "because": 2
+        },
+        "contrast": {
+          "while": 1,
+          "rather than": 1
+        },
+        "evidence": {
+          "according to": 1,
+          "demonstrates": 1
+        },
+        "prescriptive": {
+          "necessary": 2,
+          "require": 1,
+          "essential": 1,
+          "critical": 1,
+          "mandatory": 1
+        }
+      },
+      "enrichment_vs_all_claims": {
+        "hedging": 3.12,
+        "certainty": 5.2,
+        "causal": 1.09,
+        "contrast": 0.87,
+        "evidence": 5.2,
+        "prescriptive": 1.09,
+        "intensifier": 0.0
+      }
+    },
+    "register_signature": {
+      "mean_word_count": 27.1,
+      "median_word_count": 26.5,
+      "mean_sentences": 2.1,
+      "mean_comma_density": 0.0435,
+      "question_pct": 0.0,
+      "passive_marker_density": 0.65
+    },
+    "exemplar_claims": [
+      {
+        "text": "Lanyado et al. documented in 2024 that AI coding assistants recommend non-existent software packages at measurable rates, enabling 'slopsquatting' supply chain attacks.",
+        "attributed_node": "saf-beliefs-058",
+        "attributed_label": "AI Coding Assistants Inject Phantom Dependencies Into Software",
+        "similarity": 0.7748,
+        "bdi_category": "belief",
+        "debate_id": "f2a29ea0"
+      },
+      {
+        "text": "Without robust collaborative policies and institutional guardrails, market forces will concentrate AI's benefits among a few powerful corporations, while externalizing the costs of mass unemployment, social welfare strain, and eroded trust onto governments and communities.",
+        "attributed_node": "saf-beliefs-137",
+        "attributed_label": "Productivity Metrics Miss the Slow Collapse of Institutional Trust",
+        "similarity": 0.6471,
+        "bdi_category": "belief",
+        "debate_id": "ff1310c8"
+      },
+      {
+        "text": "Establishing private remedies for AI harms creates a clear incentive for firms to prioritize safety-critical engineering over rapid, unverified deployment.",
+        "attributed_node": "saf-intentions-147",
+        "attributed_label": "Pricing AI Risk Through Strict Liability and Mandatory Insurance",
+        "similarity": 0.7017,
+        "bdi_category": "intention",
+        "debate_id": "cdb1a6b9"
+      },
+      {
+        "text": "The state-of-the-art defense is particularly dangerous for AI because 'state of the art' in AI safety is contested, evolving, and largely self-defined by the industry.",
+        "attributed_node": "saf-intentions-007",
+        "attributed_label": "Designing good AI as a shield against bad AI",
+        "similarity": 0.75,
+        "bdi_category": "belief",
+        "debate_id": "f94f7cf6"
+      },
+      {
+        "text": "The Skeptic's proposed mandatory discovery rights — allowing affected creators to audit manifests against actual training data — are the verification layer that prevents the safe harbor from collapsing into self-certification.",
+        "attributed_node": "saf-intentions-004",
+        "attributed_label": "Building Tamper-Proof Records of What Models Were Trained On",
+        "similarity": 0.6781,
+        "bdi_category": "intention",
+        "debate_id": "96ec4d43"
+      }
+    ]
+  }
+}

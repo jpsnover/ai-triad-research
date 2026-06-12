@@ -1,0 +1,258 @@
+{
+  "generated_at": "2026-06-12T13:31:23.542970+00:00",
+  "golden_set": "C:\\Users\\jsnov\\repos\\ai-triad-research\\research\\comp-linguist\\_golden_test_set.json",
+  "tsne_perplexity": 30,
+  "tsne_kl_divergence": 2.2887,
+  "total_claims": 664,
+  "total_nodes": 3561,
+  "density_by_pov": {
+    "acc": {
+      "total_claims": 240,
+      "total_nodes": 146,
+      "nodes_with_claims": 77,
+      "island_nodes_count": 69,
+      "island_nodes": [
+        "acc-beliefs-005",
+        "acc-intentions-005",
+        "acc-intentions-006",
+        "acc-intentions-008",
+        "acc-intentions-015",
+        "acc-desires-035",
+        "acc-intentions-017",
+        "acc-intentions-024",
+        "acc-desires-007",
+        "acc-intentions-029",
+        "acc-desires-008",
+        "acc-intentions-035",
+        "acc-desires-009",
+        "acc-desires-010",
+        "acc-beliefs-058",
+        "acc-intentions-042",
+        "acc-intentions-044",
+        "acc-intentions-045",
+        "acc-desires-011",
+        "acc-beliefs-069"
+      ],
+      "mean_claims_per_node": 3.12,
+      "max_claims_per_node": 13,
+      "std_claims_per_node": 2.79,
+      "gini_coefficient": 0.4363,
+      "hot_spots": [
+        {
+          "node_id": "acc-intentions-073",
+          "claim_count": 13
+        },
+        {
+          "node_id": "acc-intentions-106",
+          "claim_count": 12
+        },
+        {
+          "node_id": "acc-intentions-027",
+          "claim_count": 10
+        },
+        {
+          "node_id": "acc-intentions-111",
+          "claim_count": 10
+        },
+        {
+          "node_id": "acc-beliefs-077",
+          "claim_count": 9
+        },
+        {
+          "node_id": "acc-beliefs-028",
+          "claim_count": 9
+        },
+        {
+          "node_id": "acc-beliefs-076",
+          "claim_count": 9
+        },
+        {
+          "node_id": "acc-intentions-003",
+          "claim_count": 8
+        },
+        {
+          "node_id": "acc-intentions-080",
+          "claim_count": 6
+        },
+        {
+          "node_id": "acc-intentions-105",
+          "claim_count": 6
+        }
+      ],
+      "mean_top1_similarity": 0.5026,
+      "coverage_pct": 52.7
+    },
+    "saf": {
+      "total_claims": 208,
+      "total_nodes": 253,
+      "nodes_with_claims": 102,
+      "island_nodes_count": 151,
+      "island_nodes": [
+        "saf-desires-001",
+        "saf-desires-002",
+        "saf-desires-003",
+        "saf-beliefs-001",
+        "saf-beliefs-004",
+        "saf-desires-006",
+        "saf-intentions-006",
+        "saf-intentions-008",
+        "saf-beliefs-007",
+        "saf-beliefs-009",
+        "saf-intentions-011",
+        "saf-intentions-013",
+        "saf-intentions-015",
+        "saf-intentions-016",
+        "saf-beliefs-014",
+        "saf-beliefs-016",
+        "saf-beliefs-018",
+        "saf-beliefs-019",
+        "saf-beliefs-020",
+        "saf-desires-005"
+      ],
+      "mean_claims_per_node": 2.04,
+      "max_claims_per_node": 10,
+      "std_claims_per_node": 1.5,
+      "gini_coefficient": 0.3404,
+      "hot_spots": [
+        {
+          "node_id": "saf-intentions-149",
+          "claim_count": 10
+        },
+        {
+          "node_id": "saf-intentions-147",
+          "claim_count": 7
+        },
+        {
+          "node_id": "saf-beliefs-106",
+          "claim_count": 6
+        },
+        {
+          "node_id": "saf-beliefs-150",
+          "claim_count": 5
+        },
+        {
+          "node_id": "saf-beliefs-207",
+          "claim_count": 5
+        },
+        {
+          "node_id": "saf-beliefs-046",
+          "claim_count": 5
+        },
+        {
+          "node_id": "saf-intentions-004",
+          "claim_count": 5
+        },
+        {
+          "node_id": "saf-beliefs-126",
+          "claim_count": 4
+        },
+        {
+          "node_id": "saf-intentions-094",
+          "claim_count": 4
+        },
+        {
+          "node_id": "saf-beliefs-013",
+          "claim_count": 4
+        }
+      ],
+      "mean_top1_similarity": 0.5052,
+      "coverage_pct": 40.3
+    },
+    "skp": {
+      "total_claims": 216,
+      "total_nodes": 239,
+      "nodes_with_claims": 98,
+      "island_nodes_count": 141,
+      "island_nodes": [
+        "skp-beliefs-006",
+        "skp-beliefs-007",
+        "skp-intentions-004",
+        "skp-desires-005",
+        "skp-beliefs-008",
+        "skp-intentions-007",
+        "skp-beliefs-122",
+        "skp-beliefs-011",
+        "skp-intentions-017",
+        "skp-beliefs-124",
+        "skp-beliefs-125",
+        "skp-intentions-023",
+        "skp-beliefs-131",
+        "skp-beliefs-018",
+        "skp-beliefs-019",
+        "skp-beliefs-022",
+        "skp-beliefs-118",
+        "skp-beliefs-024",
+        "skp-beliefs-119",
+        "skp-beliefs-127"
+      ],
+      "mean_claims_per_node": 2.2,
+      "max_claims_per_node": 11,
+      "std_claims_per_node": 1.79,
+      "gini_coefficient": 0.3784,
+      "hot_spots": [
+        {
+          "node_id": "skp-intentions-107",
+          "claim_count": 11
+        },
+        {
+          "node_id": "skp-beliefs-001",
+          "claim_count": 7
+        },
+        {
+          "node_id": "skp-beliefs-193",
+          "claim_count": 7
+        },
+        {
+          "node_id": "skp-beliefs-177",
+          "claim_count": 7
+        },
+        {
+          "node_id": "skp-intentions-040",
+          "claim_count": 6
+        },
+        {
+          "node_id": "skp-beliefs-190",
+          "claim_count": 6
+        },
+        {
+          "node_id": "skp-beliefs-182",
+          "claim_count": 5
+        },
+        {
+          "node_id": "skp-intentions-139",
+          "claim_count": 5
+        },
+        {
+          "node_id": "skp-intentions-014",
+          "claim_count": 5
+        },
+        {
+          "node_id": "skp-beliefs-187",
+          "claim_count": 5
+        }
+      ],
+      "mean_top1_similarity": 0.4895,
+      "coverage_pct": 41.0
+    }
+  },
+  "recommendations": [
+    {
+      "pov": "acc",
+      "priority": "MEDIUM",
+      "finding": "Accelerationist: 53% coverage, 69 island nodes",
+      "recommendation": "Accelerationist has moderate coverage. Target island nodes with additional audience-register variants."
+    },
+    {
+      "pov": "saf",
+      "priority": "HIGH",
+      "finding": "Safetyist: only 40% node coverage — 151 island nodes",
+      "recommendation": "Allocate extra audience-axis budget to Safetyist corpus. 151/253 nodes have zero matching claims, indicating vocabulary gaps the synthetic corpus must fill."
+    },
+    {
+      "pov": "skp",
+      "priority": "HIGH",
+      "finding": "Skeptic: only 41% node coverage — 141 island nodes",
+      "recommendation": "Allocate extra audience-axis budget to Skeptic corpus. 141/239 nodes have zero matching claims, indicating vocabulary gaps the synthetic corpus must fill."
+    }
+  ]
+}

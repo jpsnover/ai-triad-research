@@ -1,0 +1,335 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-12T13:36:14.412145+00:00",
+    "golden_set_source": "C:\\Users\\jsnov\\repos\\ai-triad-research\\research\\comp-linguist\\_golden_test_set.json",
+    "top_percentile": 10
+  },
+  "profile": {
+    "pov": "acc",
+    "pov_name": "Accelerationist",
+    "total_claims_in_pov": 240,
+    "top_percentile": 10,
+    "top_claim_count": 24,
+    "similarity_range": {
+      "min": 0.626,
+      "max": 0.7625,
+      "mean": 0.6638
+    },
+    "ngrams": {
+      "unigrams": [
+        {
+          "term": "ai",
+          "count": 15,
+          "doc_freq": 14
+        },
+        {
+          "term": "real",
+          "count": 8,
+          "doc_freq": 8
+        },
+        {
+          "term": "liability",
+          "count": 8,
+          "doc_freq": 7
+        },
+        {
+          "term": "time",
+          "count": 7,
+          "doc_freq": 7
+        },
+        {
+          "term": "telemetry",
+          "count": 6,
+          "doc_freq": 6
+        },
+        {
+          "term": "safety",
+          "count": 5,
+          "doc_freq": 5
+        },
+        {
+          "term": "pre",
+          "count": 5,
+          "doc_freq": 4
+        },
+        {
+          "term": "human",
+          "count": 4,
+          "doc_freq": 4
+        },
+        {
+          "term": "deployment",
+          "count": 4,
+          "doc_freq": 3
+        },
+        {
+          "term": "systems",
+          "count": 4,
+          "doc_freq": 4
+        },
+        {
+          "term": "moral",
+          "count": 4,
+          "doc_freq": 4
+        },
+        {
+          "term": "audit",
+          "count": 4,
+          "doc_freq": 3
+        },
+        {
+          "term": "framework",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "triggers",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "monitoring",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "harm",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "regulatory",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "displacement",
+          "count": 3,
+          "doc_freq": 2
+        },
+        {
+          "term": "static",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "suffering",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "continuous",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "automated",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "atrocity",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "adaptive",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "requires",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "propose",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "preventable",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "policy",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "performance",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "output",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ],
+      "bigrams": [
+        {
+          "term": "real time",
+          "count": 6,
+          "doc_freq": 6
+        },
+        {
+          "term": "pre deployment",
+          "count": 4,
+          "doc_freq": 3
+        },
+        {
+          "term": "liability framework",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "moral atrocity",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "adaptive safety",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "ai systems",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "deployment certification",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "existing regulatory",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "high frequency",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "performance data",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "preventable suffering",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "regulatory friction",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ],
+      "trigrams": [
+        {
+          "term": "existing regulatory friction",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "pre deployment certification",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ]
+    },
+    "discourse_markers": {
+      "counts_per_category": {
+        "hedging": 1,
+        "certainty": 1,
+        "causal": 0,
+        "contrast": 3,
+        "evidence": 0,
+        "prescriptive": 6,
+        "concession": 0,
+        "intensifier": 0
+      },
+      "top_markers_by_category": {
+        "hedging": {
+          "could": 1
+        },
+        "certainty": {
+          "fundamentally": 1
+        },
+        "contrast": {
+          "but": 2,
+          "rather than": 1
+        },
+        "prescriptive": {
+          "must": 2,
+          "necessary": 2,
+          "critical": 1,
+          "mandatory": 1
+        }
+      },
+      "enrichment_vs_all_claims": {
+        "hedging": 1.25,
+        "certainty": 2.0,
+        "causal": 0.0,
+        "contrast": 1.2,
+        "evidence": 0.0,
+        "prescriptive": 1.2
+      }
+    },
+    "register_signature": {
+      "mean_word_count": 24.7,
+      "median_word_count": 24.0,
+      "mean_sentences": 2.1,
+      "mean_comma_density": 0.0654,
+      "question_pct": 0.0,
+      "passive_marker_density": 0.58
+    },
+    "exemplar_claims": [
+      {
+        "text": "The full architecture is audit-plus-continuous-telemetry-plus-scaling-liability: real-time output monitoring with contractual liability triggers that scale with demonstrated harm, not with hypothetical risk classifications.",
+        "attributed_node": "acc-intentions-106",
+        "attributed_label": "Use Real-Time Monitoring for Routine AI and Deep Audits for High-Stakes Decisions",
+        "similarity": 0.7625,
+        "bdi_category": "intention",
+        "debate_id": "1af1e435"
+      },
+      {
+        "text": "If onboarding time on an AI-generated module exceeds 1.5x the team's median for comparable human-authored modules, that triggers a rewrite.",
+        "attributed_node": "acc-beliefs-076",
+        "attributed_label": "AI-Authored Code Review Should Use Dynamic Triggers, Not Fixed Quotas",
+        "similarity": 0.626,
+        "bdi_category": "intention",
+        "debate_id": "3faddbc7"
+      },
+      {
+        "text": "The idea that AI's impact is primarily \"displacement and intensified workloads\" misses the forest for the trees; this is not displacement, it is liberation from drudgery, a necessary transition to novel, higher-value labor markets.",
+        "attributed_node": "acc-beliefs-086",
+        "attributed_label": "AI as Structurally Inevitable Economic Transformation",
+        "similarity": 0.6968,
+        "bdi_category": "belief",
+        "debate_id": "ff1310c8"
+      },
+      {
+        "text": "We must replace static, gatekeeper-heavy pre-deployment certification with a dynamic, market-driven liability framework that prioritizes continuous, output-based telemetry.",
+        "attributed_node": "acc-intentions-106",
+        "attributed_label": "Use Real-Time Monitoring for Routine AI and Deep Audits for High-Stakes Decisions",
+        "similarity": 0.7307,
+        "bdi_category": "intention",
+        "debate_id": "bca9dba7"
+      },
+      {
+        "text": "True accountability requires replacing human-led court battles with automated, high-frequency telemetry that monitors model behavior against a credal set of safe distributions.",
+        "attributed_node": "acc-intentions-106",
+        "attributed_label": "Use Real-Time Monitoring for Routine AI and Deep Audits for High-Stakes Decisions",
+        "similarity": 0.6523,
+        "bdi_category": "intention",
+        "debate_id": "a1ff3179"
+      }
+    ]
+  }
+}

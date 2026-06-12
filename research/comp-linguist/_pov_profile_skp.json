@@ -1,0 +1,292 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-12T13:36:14.414132+00:00",
+    "golden_set_source": "C:\\Users\\jsnov\\repos\\ai-triad-research\\research\\comp-linguist\\_golden_test_set.json",
+    "top_percentile": 10
+  },
+  "profile": {
+    "pov": "skp",
+    "pov_name": "Skeptic",
+    "total_claims_in_pov": 216,
+    "top_percentile": 10,
+    "top_claim_count": 21,
+    "similarity_range": {
+      "min": 0.6178,
+      "max": 0.7998,
+      "mean": 0.6679
+    },
+    "ngrams": {
+      "unigrams": [
+        {
+          "term": "ai",
+          "count": 17,
+          "doc_freq": 15
+        },
+        {
+          "term": "like",
+          "count": 6,
+          "doc_freq": 6
+        },
+        {
+          "term": "bias",
+          "count": 5,
+          "doc_freq": 5
+        },
+        {
+          "term": "systemic",
+          "count": 5,
+          "doc_freq": 5
+        },
+        {
+          "term": "algorithmic",
+          "count": 4,
+          "doc_freq": 4
+        },
+        {
+          "term": "victims",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "medical",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "model",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "harms",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "failure",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "safety",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "liability",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "directly",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "costs",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "systems",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "companies",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "discrimination",
+          "count": 3,
+          "doc_freq": 3
+        },
+        {
+          "term": "strict",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "regulatory",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "real",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "public",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "opaque",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "tests",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "market",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "litigation",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "single",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "accountability",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "isolated",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "internal",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "training",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ],
+      "bigrams": [
+        {
+          "term": "algorithmic bias",
+          "count": 4,
+          "doc_freq": 4
+        },
+        {
+          "term": "like algorithmic",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "market failure",
+          "count": 2,
+          "doc_freq": 2
+        },
+        {
+          "term": "strict liability",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ],
+      "trigrams": [
+        {
+          "term": "like algorithmic bias",
+          "count": 2,
+          "doc_freq": 2
+        }
+      ]
+    },
+    "discourse_markers": {
+      "counts_per_category": {
+        "hedging": 0,
+        "certainty": 1,
+        "causal": 0,
+        "contrast": 3,
+        "evidence": 1,
+        "prescriptive": 1,
+        "concession": 0,
+        "intensifier": 1
+      },
+      "top_markers_by_category": {
+        "certainty": {
+          "fundamentally": 1
+        },
+        "contrast": {
+          "but": 2,
+          "while": 1
+        },
+        "evidence": {
+          "according to": 1
+        },
+        "prescriptive": {
+          "should": 1
+        },
+        "intensifier": {
+          "profoundly": 1
+        }
+      },
+      "enrichment_vs_all_claims": {
+        "hedging": 0.0,
+        "certainty": 2.06,
+        "causal": 0.0,
+        "contrast": 1.0,
+        "evidence": 1.47,
+        "prescriptive": 0.37,
+        "concession": 0.0,
+        "intensifier": 5.14
+      }
+    },
+    "register_signature": {
+      "mean_word_count": 27.2,
+      "median_word_count": 27.0,
+      "mean_sentences": 2.0,
+      "mean_comma_density": 0.0559,
+      "question_pct": 4.8,
+      "passive_marker_density": 0.76
+    },
+    "exemplar_claims": [
+      {
+        "text": "There's empirical evidence of market failure in AI bias mitigation; companies don't fix systemic discrimination if it doesn't directly hit their bottom line.",
+        "attributed_node": "skp-beliefs-001",
+        "attributed_label": "Market Failure in Algorithmic Fairness",
+        "similarity": 0.7998,
+        "bdi_category": "belief",
+        "debate_id": "5663d315"
+      },
+      {
+        "text": "Mechanistic interpretability is currently being weaponized as 'audit washing,' a performative shield that obscures systemic harms.",
+        "attributed_node": "skp-intentions-105",
+        "attributed_label": "Require Public Oversight Bodies to Verify AI Alignment via Mechanistic Interpretability",
+        "similarity": 0.6178,
+        "bdi_category": "belief",
+        "debate_id": "7dd088cd"
+      },
+      {
+        "text": "The real question in this debate is not whether strict liability burdens innovation — it is whether any alternative gives a person harmed by an opaque AI system meaningful recourse.",
+        "attributed_node": "skp-intentions-040",
+        "attributed_label": "Hold AI Developers Liable for Designs That Fail Risk-Utility Analysis",
+        "similarity": 0.7097,
+        "bdi_category": "intention",
+        "debate_id": "f94f7cf6"
+      },
+      {
+        "text": "In 2025 alone, over 100,000 job losses were directly linked to AI restructuring, according to \"Project Iceberg: The Iceberg Index: Measuring Skills-centered Exposure in the AI Economy.\"",
+        "attributed_node": "skp-beliefs-002",
+        "attributed_label": "Observable Labor Market Contraction from AI",
+        "similarity": 0.6648,
+        "bdi_category": "belief",
+        "debate_id": "ff1310c8"
+      },
+      {
+        "text": "84% of companies have not redesigned jobs or the nature of work around AI capabilities — organizations adopt the tool but don't restructure incentive systems around its actual costs",
+        "attributed_node": "skp-beliefs-204",
+        "attributed_label": "AI-Driven Productivity Ratchet Intensifies Work Without Reducing Labor Burdens",
+        "similarity": 0.6429,
+        "bdi_category": "belief",
+        "debate_id": "3faddbc7"
+      }
+    ]
+  }
+}
