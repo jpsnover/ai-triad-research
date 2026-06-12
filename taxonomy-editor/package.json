@@ -1,6 +1,6 @@
 {
   "name": "taxonomy-editor",
-  "version": "0.8.0",
+  "version": "0.11.0",
   "private": true,
   "type": "module",
   "description": "Visual editor for AI Triad Research taxonomy JSON files",
