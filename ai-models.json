@@ -286,21 +286,15 @@
       "backend": "claude"
     },
     {
-      "id": "groq-groq-compound",
-      "apiModelId": "groq/compound",
-      "label": "Groq/Compound",
+      "id": "groq-openai-gpt-oss-20b",
+      "apiModelId": "openai/gpt-oss-20b",
+      "label": "Openai/Gpt Oss 20b",
       "backend": "groq"
     },
     {
-      "id": "groq-qwen-qwen3-32b",
-      "apiModelId": "qwen/qwen3-32b",
-      "label": "Qwen/Qwen3 32b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-canopylabs-orpheus-v1-english",
-      "apiModelId": "canopylabs/orpheus-v1-english",
-      "label": "Canopylabs/Orpheus V1 English",
+      "id": "groq-llama-3.1-8b-instant",
+      "apiModelId": "llama-3.1-8b-instant",
+      "label": "Llama 3.1 8b Instant",
       "backend": "groq"
     },
     {
@@ -310,9 +304,39 @@
       "backend": "groq"
     },
     {
+      "id": "groq-canopylabs-orpheus-arabic-saudi",
+      "apiModelId": "canopylabs/orpheus-arabic-saudi",
+      "label": "Canopylabs/Orpheus Arabic Saudi",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-canopylabs-orpheus-v1-english",
+      "apiModelId": "canopylabs/orpheus-v1-english",
+      "label": "Canopylabs/Orpheus V1 English",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-qwen-qwen3-32b",
+      "apiModelId": "qwen/qwen3-32b",
+      "label": "Qwen/Qwen3 32b",
+      "backend": "groq"
+    },
+    {
       "id": "groq-allam-2-7b",
       "apiModelId": "allam-2-7b",
       "label": "Allam 2 7b",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-groq-compound",
+      "apiModelId": "groq/compound",
+      "label": "Groq/Compound",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-groq-compound-mini",
+      "apiModelId": "groq/compound-mini",
+      "label": "Groq/Compound Mini",
       "backend": "groq"
     },
     {
@@ -328,42 +352,6 @@
       "backend": "groq"
     },
     {
-      "id": "groq-canopylabs-orpheus-arabic-saudi",
-      "apiModelId": "canopylabs/orpheus-arabic-saudi",
-      "label": "Canopylabs/Orpheus Arabic Saudi",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-llama-3.1-8b-instant",
-      "apiModelId": "llama-3.1-8b-instant",
-      "label": "Llama 3.1 8b Instant",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-groq-compound-mini",
-      "apiModelId": "groq/compound-mini",
-      "label": "Groq/Compound Mini",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-openai-gpt-oss-20b",
-      "apiModelId": "openai/gpt-oss-20b",
-      "label": "Openai/Gpt Oss 20b",
-      "backend": "groq"
-    },
-    {
-      "id": "openai-gpt-3.5-turbo",
-      "apiModelId": "gpt-3.5-turbo",
-      "label": "Gpt 3.5 Turbo",
-      "backend": "openai"
-    },
-    {
-      "id": "openai-gpt-3.5-turbo-16k",
-      "apiModelId": "gpt-3.5-turbo-16k",
-      "label": "Gpt 3.5 Turbo 16k",
-      "backend": "openai"
-    },
-    {
       "id": "openai-gpt-4-0613",
       "apiModelId": "gpt-4-0613",
       "label": "Gpt 4 0613",
@@ -373,6 +361,18 @@
       "id": "openai-gpt-4",
       "apiModelId": "gpt-4",
       "label": "Gpt 4",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo",
+      "apiModelId": "gpt-3.5-turbo",
+      "label": "Gpt 3.5 Turbo",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-5.5-pro-2026-04-23",
+      "apiModelId": "gpt-5.5-pro-2026-04-23",
+      "label": "Gpt 5.5 Pro 2026 04 23",
       "backend": "openai"
     },
     {
@@ -838,9 +838,9 @@
       "backend": "openai"
     },
     {
-      "id": "openai-gpt-5.5-pro-2026-04-23",
-      "apiModelId": "gpt-5.5-pro-2026-04-23",
-      "label": "Gpt 5.5 Pro 2026 04 23",
+      "id": "openai-gpt-3.5-turbo-16k",
+      "apiModelId": "gpt-3.5-turbo-16k",
+      "label": "Gpt 3.5 Turbo 16k",
       "backend": "openai"
     },
     {
@@ -1064,5 +1064,5 @@
       "cachedInputPer1M": 0.14
     }
   },
-  "lastRefreshed": "2026-06-05T16:13:07.453Z"
+  "lastRefreshed": "2026-06-11T18:25:51.783Z"
 }
