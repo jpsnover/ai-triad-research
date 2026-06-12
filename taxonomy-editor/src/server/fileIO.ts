@@ -22,7 +22,8 @@ import type { StorageBackend } from './storageBackend.js';
 import { log } from './logger.js';
 import { FilesystemBackend } from './filesystemBackend.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
-import { getStorageUserId } from './userContext.js';
+import { getStorageUserId, isAnonymousUser, getAnonymousSessionId } from './userContext.js';
+import { getAnonymousSessionStore } from './anonymousSessionStore.js';
 // ── Backend injection ──
 
 let backend: StorageBackend = new FilesystemBackend();
@@ -558,6 +559,14 @@ export async function buildPolicySourceIndex(): Promise<PolicySourceIndex> {
   return result;
 }
 
+// ── Anonymous session routing helper ──
+
+function getAnonStore() {
+  const store = getAnonymousSessionStore();
+  const sessionId = getAnonymousSessionId();
+  return store && sessionId ? { store, sessionId } : null;
+}
+
 // ── Debate sessions ──
 
 function getDebatesDir(): string {
@@ -606,6 +615,7 @@ async function removeFromDebateIndex(id: string): Promise<void> {
  * or when the file count in the tree doesn't match the index (staleness check).
  */
 export async function listDebateSessionsMeta(): Promise<unknown[]> {
+  if (isAnonymousUser()) { const a = getAnonStore(); return a ? a.store.listDebatesMeta(a.sessionId) : []; }
   const dir = getDebatesDir();
   const cached = await readDebateIndex();
   if (cached !== null && cached.length > 0) {
@@ -636,6 +646,7 @@ async function rebuildDebateIndex(): Promise<unknown[]> {
 }
 
 export async function listDebateSessions(): Promise<unknown[]> {
+  if (isAnonymousUser()) { const a = getAnonStore(); return a ? a.store.listDebates(a.sessionId) : []; }
   const dir = getDebatesDir();
   const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string; model?: string; turn_count?: number }[] = [];
 
@@ -677,6 +688,12 @@ export async function listDebateSessions(): Promise<unknown[]> {
 
 export async function loadDebateSession(id: string): Promise<unknown> {
   assertSafeId(id, 'debate id');
+  if (isAnonymousUser()) {
+    const a = getAnonStore();
+    const data = a ? a.store.loadDebate(a.sessionId, id) : null;
+    if (data === null) throw new ActionableError({ goal: 'Load debate session', problem: `Debate session not found: ${id}`, location: 'server/fileIO.ts → loadDebateSession (anonymous)', nextSteps: ['Verify the debate ID exists'] });
+    return data;
+  }
   const filePath = path.join(getDebatesDir(), `debate-${id}.json`);
   const raw = await backend.readFile(filePath);
   if (raw === null) throw new ActionableError({
@@ -691,6 +708,7 @@ export async function loadDebateSession(id: string): Promise<unknown> {
 export async function saveDebateSession(session: unknown): Promise<void> {
   const s = session as { id: string; title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
   assertSafeId(s.id, 'debate id');
+  if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.saveDebate(a.sessionId, session); return; }
   await backend.writeFile(
     path.join(getDebatesDir(), `debate-${s.id}.json`),
     JSON.stringify(session, null, 2),
@@ -707,12 +725,17 @@ export async function saveDebateSession(session: unknown): Promise<void> {
 
 export async function deleteDebateSession(id: string): Promise<void> {
   assertSafeId(id, 'debate id');
+  if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.deleteDebate(a.sessionId, id); return; }
   await backend.deleteFile(path.join(getDebatesDir(), `debate-${id}.json`));
   void removeFromDebateIndex(id).catch(() => {}); // best-effort
 }
 
 export async function loadDebateComments(debateId: string): Promise<unknown> {
   assertSafeId(debateId, 'debate id');
+  if (isAnonymousUser()) {
+    const a = getAnonStore();
+    return a?.store.loadDebateComments(a.sessionId, debateId) ?? { _schema_version: '1', debateId, comments: [] };
+  }
   const filePath = path.join(getDebatesDir(), `debate-${debateId}-comments.json`);
   const raw = await backend.readFile(filePath);
   if (raw === null) {
@@ -723,6 +746,7 @@ export async function loadDebateComments(debateId: string): Promise<unknown> {
 
 export async function saveDebateComments(debateId: string, data: unknown): Promise<void> {
   assertSafeId(debateId, 'debate id');
+  if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.saveDebateComments(a.sessionId, debateId, data); return; }
   await backend.writeFile(
     path.join(getDebatesDir(), `debate-${debateId}-comments.json`),
     JSON.stringify(data, null, 2),
@@ -738,6 +762,7 @@ function getChatsDir(): string {
 }
 
 export async function listChatSessions(): Promise<unknown[]> {
+  if (isAnonymousUser()) { const a = getAnonStore(); return a ? a.store.listChats(a.sessionId) : []; }
   const dir = getChatsDir();
   const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
   const summaries: { id: string; title: string; created_at: string; updated_at: string; mode: string; pover: string }[] = [];
@@ -761,6 +786,12 @@ export async function listChatSessions(): Promise<unknown[]> {
 
 export async function loadChatSession(id: string): Promise<unknown> {
   assertSafeId(id, 'chat id');
+  if (isAnonymousUser()) {
+    const a = getAnonStore();
+    const data = a ? a.store.loadChat(a.sessionId, id) : null;
+    if (data === null) throw new ActionableError({ goal: 'Load chat session', problem: `Chat session not found: ${id}`, location: 'server/fileIO.ts → loadChatSession (anonymous)', nextSteps: ['Verify the chat ID exists'] });
+    return data;
+  }
   const raw = await backend.readFile(path.join(getChatsDir(), `chat-${id}.json`));
   if (raw === null) throw new ActionableError({
     goal: 'Load chat session',
@@ -774,6 +805,7 @@ export async function loadChatSession(id: string): Promise<unknown> {
 export async function saveChatSession(session: unknown): Promise<void> {
   const s = session as { id: string };
   assertSafeId(s.id, 'chat id');
+  if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.saveChat(a.sessionId, session); return; }
   await backend.writeFile(
     path.join(getChatsDir(), `chat-${s.id}.json`),
     JSON.stringify(session, null, 2),
@@ -782,6 +814,7 @@ export async function saveChatSession(session: unknown): Promise<void> {
 
 export async function deleteChatSession(id: string): Promise<void> {
   assertSafeId(id, 'chat id');
+  if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.deleteChat(a.sessionId, id); return; }
   await backend.deleteFile(path.join(getChatsDir(), `chat-${id}.json`));
 }
 

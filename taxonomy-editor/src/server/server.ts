@@ -33,6 +33,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './userContext.js';
+import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import * as fileIO from './fileIO.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
@@ -1855,6 +1856,11 @@ function isAnonAllowedRoute(method: string, urlPath: string): boolean {
   if (/^\/api\/debates\/[^/]+\/news-report$/.test(urlPath)) return false;
 
   if (method === 'GET') return true;
+
+  // Anonymous users can save/delete their own ephemeral chats and debates
+  if (method === 'PUT' && (urlPath.startsWith('/api/chats/') || urlPath.startsWith('/api/debates/'))) return true;
+  if (method === 'DELETE' && (urlPath.startsWith('/api/chats/') || urlPath.startsWith('/api/debates/'))) return true;
+
   if (method === 'PUT' || method === 'DELETE') return false;
 
   // POST: allowlist read-like operations, block everything else
@@ -2085,17 +2091,24 @@ async function handleRequestInner(
   // /.auth/anonymous — sets a session cookie and redirects to the app
   if (urlPath === '/.auth/anonymous' && authOptional) {
     const secureSuffix = process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS ? '; Secure' : '';
+    const anonSessionId = crypto.randomUUID();
     res.writeHead(302, {
       'Location': '/',
-      'Set-Cookie': `auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
+      'Set-Cookie': [
+        `auth_anonymous=1; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
+        `anon_session_id=${anonSessionId}; Path=/; HttpOnly; SameSite=Lax${secureSuffix}`,
+      ],
     });
     res.end();
     return;
   }
 
-  // Clear anonymous cookie when user signs in via EasyAuth
+  // Clear anonymous cookies when user signs in via EasyAuth
   if (principalName && parseCookies(req)['auth_anonymous'] === '1') {
-    res.setHeader('Set-Cookie', 'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
+    res.setHeader('Set-Cookie', [
+      'auth_anonymous=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
+      'anon_session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
+    ]);
   }
 
   if (!isPublicPath && !authDisabled && !isAdminRequest(req)) {
@@ -2149,7 +2162,8 @@ async function handleRequestInner(
   const effectivePrincipal = principalName || '_local';
   const effectiveIdp = idp || '_local';
   const storageUserId = deriveStorageUserId(effectivePrincipal, effectiveIdp);
-  const userCtx = { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon };
+  const anonymousSessionId = isAnon ? parseCookies(req)['anon_session_id'] : undefined;
+  const userCtx = { principalName: effectivePrincipal, idp: effectiveIdp, branchName: sessionBranch, storageUserId, isAnonymous: isAnon, anonymousSessionId };
   await runWithUser(userCtx, async () => {
 
     const url = new URL(req.url!, 'http://localhost');
@@ -2398,6 +2412,12 @@ process.on('uncaughtException', (err) => {
 process.on('unhandledRejection', (reason) => {
   const err = reason instanceof Error ? reason : new Error(String(reason));
   serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: err.message, error: { name: err.name, message: err.message, stack: err.stack?.slice(0, 500) } });
+});
+
+// ── Anonymous session store (in-memory, ephemeral) ──
+initAnonymousSessionStore({
+  sessionTtlMs: parseInt(process.env.ANON_SESSION_TTL_MS || '0', 10) || undefined,
+  maxSessions: parseInt(process.env.ANON_MAX_SESSIONS || '0', 10) || undefined,
 });
 
 // ── Start ──

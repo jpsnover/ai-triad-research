@@ -29,6 +29,8 @@ export interface UserContext {
   storageUserId: string;
   /** True when no Easy Auth principal is present (anonymous browsing). */
   isAnonymous: boolean;
+  /** UUID from anon_session_id cookie, present only for anonymous web users. */
+  anonymousSessionId?: string;
 }
 
 const als = new AsyncLocalStorage<UserContext>();
@@ -54,6 +56,11 @@ export function getStorageUserId(): string {
 /** True when the current request has no authenticated principal. */
 export function isAnonymousUser(): boolean {
   return als.getStore()?.isAnonymous ?? true;
+}
+
+/** Anonymous session ID from cookie, or undefined if not anonymous. */
+export function getAnonymousSessionId(): string | undefined {
+  return als.getStore()?.anonymousSessionId;
 }
 
 /** Session branch name for the current request, or undefined (= main). */
