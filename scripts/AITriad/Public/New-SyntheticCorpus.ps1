@@ -150,11 +150,11 @@ function New-SyntheticCorpus {
 
     # ── Build resume state ──────────────────────────────────────────────
     $AllEntries = @{}
-    $CheckpointPath = Join-Path $SyntheticDir '_checkpoint.jsonl'
     $CompletedHashes = [System.Collections.Generic.HashSet[string]]::new()
 
-    if ($ResetCheckpoint -and (Test-Path $CheckpointPath)) {
-        Remove-Item $CheckpointPath -Force
+    if ($ResetCheckpoint) {
+        @(Get-ChildItem $SyntheticDir -Filter '_checkpoint*.jsonl' -ErrorAction SilentlyContinue) |
+            ForEach-Object { Remove-Item $_.FullName -Force }
         Write-Host "  Checkpoint reset." -ForegroundColor Yellow
     }
 
@@ -170,26 +170,29 @@ function New-SyntheticCorpus {
     }
     Write-Verbose "  Resume state: $($CompletedHashes.Count) total completed hashes from corpus files"
 
-    if (Test-Path $CheckpointPath) {
-        Write-Verbose "  Loading crash checkpoint: $CheckpointPath"
+    $CheckpointFiles = @(Get-ChildItem $SyntheticDir -Filter '_checkpoint*.jsonl' -ErrorAction SilentlyContinue)
+    if ($CheckpointFiles.Count -gt 0) {
+        Write-Verbose "  Loading crash checkpoints: $($CheckpointFiles.Count) file(s)"
         $RecoveredCount = 0
         $RecoveredStmts = 0
-        foreach ($line in @(Get-Content -Path $CheckpointPath -ErrorAction SilentlyContinue)) {
-            if (-not $line.Trim()) { continue }
-            try {
-                $cp = $line | ConvertFrom-Json
-                if ($cp.prompt_hash) { [void]$CompletedHashes.Add($cp.prompt_hash) }
-                $entryCount = 0
-                foreach ($entry in @($cp.entries)) {
-                    $nid = $entry.node_id
-                    if (-not $AllEntries.ContainsKey($nid)) { $AllEntries[$nid] = @() }
-                    $AllEntries[$nid] += $entry
-                    $entryCount++
-                    $RecoveredStmts++
-                }
-                $RecoveredCount++
-                Write-Verbose "    Checkpoint: $($cp.node_id) [$($cp.prompt_hash.Substring(0, [Math]::Min(8, $cp.prompt_hash.Length)))] — $entryCount entries"
-            } catch { }
+        foreach ($cpFile in $CheckpointFiles) {
+            foreach ($line in @(Get-Content -Path $cpFile.FullName -ErrorAction SilentlyContinue)) {
+                if (-not $line.Trim()) { continue }
+                try {
+                    $cp = $line | ConvertFrom-Json
+                    if ($cp.prompt_hash) { [void]$CompletedHashes.Add($cp.prompt_hash) }
+                    $entryCount = 0
+                    foreach ($entry in @($cp.entries)) {
+                        $nid = $entry.node_id
+                        if (-not $AllEntries.ContainsKey($nid)) { $AllEntries[$nid] = @() }
+                        $AllEntries[$nid] += $entry
+                        $entryCount++
+                        $RecoveredStmts++
+                    }
+                    $RecoveredCount++
+                    Write-Verbose "    Checkpoint: $($cp.node_id) [$($cp.prompt_hash.Substring(0, [Math]::Min(8, $cp.prompt_hash.Length)))] — $entryCount entries"
+                } catch { }
+            }
         }
         if ($RecoveredCount -gt 0) {
             Write-Host "  Recovered $RecoveredCount prompt results ($RecoveredStmts statements) from interrupted run" -ForegroundColor Yellow
@@ -229,8 +232,10 @@ function New-SyntheticCorpus {
             $Models = $using:Models
             $Temperature = $using:Temperature
             $CompletedHashes = $using:CompletedHashes
-            $CheckpointPath = $using:CheckpointPath
+            $SyntheticDir = $using:SyntheticDir
             $VerbosePreference = $using:VerbosePreference
+            $SafeGroupKey = ($GroupKey -replace '[^a-zA-Z0-9_-]', '_')
+            $GroupCheckpointPath = Join-Path $SyntheticDir "_checkpoint_$SafeGroupKey.jsonl"
 
             Import-Module $using:ModulePath -Force
             Import-Module $using:AIEnrichPath -Force
@@ -321,7 +326,7 @@ function New-SyntheticCorpus {
                     if ($promptEntries.Count -gt 0) {
                         $cpLine = @{ prompt_hash = $Prompt.prompt_hash; node_id = $NodeId; entries = $promptEntries } |
                             ConvertTo-Json -Compress -Depth 5
-                        Add-Content -Path $CheckpointPath -Value $cpLine -Encoding UTF8
+                        Add-Content -Path $GroupCheckpointPath -Value $cpLine -Encoding UTF8
                         Write-Verbose "    $NodeId — checkpointed $($promptEntries.Count) entries ($($Prompt.prompt_hash.Substring(0, 8)))"
                     }
 
@@ -365,6 +370,7 @@ function New-SyntheticCorpus {
             Write-Warning "ForEach-Object -Parallel requires PowerShell 7+. Using sequential mode."
         }
 
+        $SeqCheckpointPath = Join-Path $SyntheticDir '_checkpoint_seq.jsonl'
         foreach ($GroupKey in $ByArchetype.Keys | Sort-Object) {
             $GroupPrompts = @($ByArchetype[$GroupKey])
             $ModelIdx = Get-Random -Minimum 0 -Maximum $Models.Count
@@ -411,7 +417,7 @@ function New-SyntheticCorpus {
                     try { $Parsed = $ResponseText | ConvertFrom-Json }
                     catch {
                         $Repaired = Repair-TruncatedJson -Text $ResponseText
-                        try { $Parsed = $Repaired | ConvertFrom-Json } catch { }
+                        if ($Repaired) { try { $Parsed = $Repaired | ConvertFrom-Json } catch { } }
                     }
 
                     if (-not $Parsed) {
@@ -456,7 +462,7 @@ function New-SyntheticCorpus {
                     if ($promptEntries.Count -gt 0) {
                         $cpLine = @{ prompt_hash = $Prompt.prompt_hash; node_id = $NodeId; entries = $promptEntries } |
                             ConvertTo-Json -Compress -Depth 5
-                        Add-Content -Path $CheckpointPath -Value $cpLine -Encoding UTF8
+                        Add-Content -Path $SeqCheckpointPath -Value $cpLine -Encoding UTF8
                         Write-Verbose "    $NodeId — checkpointed $($promptEntries.Count) entries ($($Prompt.prompt_hash.Substring(0, 8)))"
                     }
 
@@ -536,10 +542,11 @@ function New-SyntheticCorpus {
         Write-Host "  $PovKey — $($Entries.Count) new entries ($($UniqueNodes.Count) nodes) → $CorpusPath" -ForegroundColor Green
     }
 
-    if (Test-Path $CheckpointPath) {
-        Write-Verbose "  Removing checkpoint file (corpus saved successfully)"
-        Remove-Item $CheckpointPath -Force
-    }
+    @(Get-ChildItem $SyntheticDir -Filter '_checkpoint*.jsonl' -ErrorAction SilentlyContinue) |
+        ForEach-Object {
+            Write-Verbose "  Removing checkpoint: $($_.Name)"
+            Remove-Item $_.FullName -Force
+        }
 
     # ── Save metadata ───────────────────────────────────────────────────
     $MetadataPath = Join-Path $SyntheticDir 'metadata.json'
