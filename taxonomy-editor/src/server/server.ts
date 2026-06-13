@@ -911,7 +911,12 @@ put('/api/debates', async (_req, res, body) => {
 
     json(res, { ok: true });
   }
-  catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  catch (err) {
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    const qi = (err as { quotaInfo?: { resource: string; current: number; limit: number } }).quotaInfo;
+    if (qi) { json(res, { error: 'quota_exceeded', resource: qi.resource, current: qi.current, limit: qi.limit, message: String(err) }, status); }
+    else { error(res, String(err), status); }
+  }
 });
 
 del('/api/debates/:id', async (req, res) => {
@@ -982,7 +987,12 @@ get('/api/chats/:id', async (req, res) => {
 
 put('/api/chats', async (_req, res, body) => {
   try { await ensureSessionBranch(); await fileIO.saveChatSession(body); json(res, { ok: true }); }
-  catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  catch (err) {
+    const status = (err as { statusCode?: number }).statusCode ?? 500;
+    const qi = (err as { quotaInfo?: { resource: string; current: number; limit: number } }).quotaInfo;
+    if (qi) { json(res, { error: 'quota_exceeded', resource: qi.resource, current: qi.current, limit: qi.limit, message: String(err) }, status); }
+    else { error(res, String(err), status); }
+  }
 });
 
 del('/api/chats/:id', async (req, res) => {
