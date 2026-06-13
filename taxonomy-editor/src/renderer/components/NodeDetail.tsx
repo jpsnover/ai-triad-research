@@ -18,6 +18,7 @@ import { EdgeDetailPanel } from './EdgeDetailPanel';
 import { getLineageInfo } from '../data/lineageLookup';
 import { researchPrompt } from '../prompts/research';
 import { SourcesPanel } from './SourcesPanel';
+import { PhrasesPanel } from './PhrasesPanel';
 import { FactsPanel, getFactCount, preloadFactsIndex } from './FactsPanel';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
@@ -119,7 +120,7 @@ const POV_LABELS: Record<Pov, string> = {
   skeptic: 'Skeptic',
 };
 
-type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'sources' | 'facts' | 'research';
+type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'research';
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId } = useTaxonomyStore();
@@ -325,6 +326,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
           Related
         </button>
         <button
+          className={`node-detail-tab ${activeTab === 'phrases' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('phrases')}
+        >
+          Phrases
+        </button>
+        <button
           className={`node-detail-tab ${activeTab === 'sources' ? 'node-detail-tab-active' : ''}`}
           onClick={() => setActiveTab('sources')}
         >
@@ -520,6 +527,10 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             operationalityHistory={node.operationality_history}
             onUpdateWeightedBdi={readOnly ? undefined : (updates) => update(updates)}
           />
+        )}
+
+        {activeTab === 'phrases' && (
+          <PhrasesPanel nodeId={node.id} />
         )}
 
         {activeTab === 'sources' && (

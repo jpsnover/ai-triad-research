@@ -1268,6 +1268,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  let corpusIndex: Map<string, { text: string; source: string; weight: number; metadata?: Record<string, unknown> }[]> | null = null;
+
+  ipcMain.handle('get-training-pairs', (_event, rawNodeId: string) => {
+    const nodeId = NodeId.parse(rawNodeId);
+    if (!corpusIndex) {
+      const corpusPath = path.join(RESEARCH_DIR, 'comp-linguist', 'training_corpus.json');
+      try {
+        if (!fs.existsSync(corpusPath)) return [];
+        const raw = fs.readFileSync(corpusPath, 'utf-8');
+        const data = JSON.parse(raw) as { pairs: { text: string; node_id: string; source: string; weight: number; metadata?: Record<string, unknown> }[] };
+        corpusIndex = new Map();
+        for (const p of data.pairs) {
+          const arr = corpusIndex.get(p.node_id);
+          const entry = { text: p.text, source: p.source, weight: p.weight, metadata: p.metadata };
+          if (arr) arr.push(entry);
+          else corpusIndex.set(p.node_id, [entry]);
+        }
+        console.log(`[training-corpus] Indexed ${data.pairs.length} pairs across ${corpusIndex.size} nodes`);
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'ipc-training-pairs',
+          level: 'error',
+          message: 'Failed to load training corpus',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+        return [];
+      }
+    }
+    return corpusIndex.get(nodeId) ?? [];
+  });
+
   ipcMain.handle('write-research-file', (_event, relativePath: string, data: unknown) => {
     const filePath = resolveResearchPath(relativePath);
     const dir = path.dirname(filePath);

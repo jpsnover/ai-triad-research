@@ -370,6 +370,7 @@ const rawApi: AppAPI = {
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
   readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`),
   writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
+  getTrainingPairs: (nodeId) => get(`/api/research/training-pairs/${encodeURIComponent(nodeId)}`),
   getCalibrationHistory: () => get('/api/calibration/history'),
   getCalibrationLog: () => get('/api/calibration/log'),
   exportDebateToFile: async (session, format = 'json', exportOptions) => {
@@ -461,6 +462,7 @@ const rawApi: AppAPI = {
   // Research file access
   readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`).catch(() => null),
   writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
+  getTrainingPairs: (nodeId) => get(`/api/research/training-pairs/${encodeURIComponent(nodeId)}`).catch(() => []),
 
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),

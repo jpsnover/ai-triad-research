@@ -170,6 +170,7 @@ export const api: AppAPI = {
   // Research file access
   readResearchFile: (relativePath) => window.electronAPI.readResearchFile(relativePath),
   writeResearchFile: (relativePath, data) => window.electronAPI.writeResearchFile(relativePath, data),
+  getTrainingPairs: (nodeId) => window.electronAPI.getTrainingPairs(nodeId),
 
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),

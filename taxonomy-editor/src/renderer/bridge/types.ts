@@ -163,6 +163,7 @@ export interface AppAPI {
   // --- Research file access ---
   readResearchFile: (relativePath: string) => Promise<unknown>;
   writeResearchFile: (relativePath: string, data: unknown) => Promise<void>;
+  getTrainingPairs: (nodeId: string) => Promise<{ text: string; source: string; weight: number; metadata?: Record<string, unknown> }[]>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
