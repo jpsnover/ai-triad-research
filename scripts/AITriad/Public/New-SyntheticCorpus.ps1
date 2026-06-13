@@ -278,7 +278,7 @@ function New-SyntheticCorpus {
                     try { $Parsed = $AIResult.Text | ConvertFrom-Json }
                     catch {
                         $Repaired = Repair-TruncatedJson -Text $AIResult.Text
-                        try { $Parsed = $Repaired | ConvertFrom-Json } catch { }
+                        if ($Repaired) { try { $Parsed = $Repaired | ConvertFrom-Json } catch { } }
                     }
 
                     if (-not $Parsed) {
