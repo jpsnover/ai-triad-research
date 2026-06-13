@@ -1109,7 +1109,7 @@ post('/api/admin/feedback', (_req, res, body) => {
 
     const ts = entry.timestamp.replace(/:/g, '-');
     fs.writeFileSync(path.join(feedbackDir, `feedback-${ts}-${entry.id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
-    serverRecorder.record({ type: 'lifecycle.event', component: 'server', level: 'info', message: `Feedback received: ${rating}`, data: { userId, rating } });
+    serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: `Feedback received: ${rating}`, data: { userId, rating } });
 
     // Email notification (best-effort, env var FEEDBACK_WEBHOOK_URL)
     const webhookUrl = process.env.FEEDBACK_WEBHOOK_URL;
