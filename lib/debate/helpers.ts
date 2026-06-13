@@ -631,6 +631,10 @@ export function getMoveName(item: string | MoveAnnotation): string {
 
 /** Parse a POVer response JSON from the LLM */
 export function parsePoverResponse(text: string): { statement: string; taxonomyRefs: TaxonomyRef[]; meta: PoverResponseMeta } {
+  if (!text || typeof text !== 'string') {
+    return { statement: String(text ?? ''), taxonomyRefs: [], meta: {} };
+  }
+
   let statement: string;
   let taxonomyRefs: TaxonomyRef[] = [];
   let meta: PoverResponseMeta = {};

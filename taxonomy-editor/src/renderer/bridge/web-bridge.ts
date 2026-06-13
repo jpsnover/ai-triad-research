@@ -47,12 +47,30 @@ async function get<T = unknown>(path: string): Promise<T> {
   return res.json();
 }
 
-async function post<T = unknown>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+async function post<T = unknown>(path: string, body?: unknown, timeoutMs = 180_000): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ActionableError({
+        goal: 'Call server API',
+        problem: `POST ${path} timed out after ${Math.round(timeoutMs / 1000)}s`,
+        location: 'web-bridge.post',
+        nextSteps: ['The server may be overloaded — try again', 'Check server logs for errors'],
+      });
+    }
+    throw err;
+  }
+  clearTimeout(timer);
   if (res.status === 429) {
     const data = await res.json().catch(() => ({})) as Record<string, unknown>; /* telemetry — silent by design: extracting error payload from already-throwing path */
     const msg = data.limitType === 'tokens_per_day'
