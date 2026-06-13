@@ -40,6 +40,7 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { CommunityLibrary } from './components/CommunityLibrary';
 import { AdminPanel } from './components/AdminPanel';
 import { GitProgressBanner } from './components/GitProgressBanner';
+import { AnonymousBanner } from './components/AnonymousBanner';
 import { pullDataTracked } from './utils/syncApi';
 import { PrecacheToast } from './components/PrecacheToast';
 import { usePrecache } from './hooks/usePrecache';
@@ -473,6 +474,7 @@ function MainApp() {
         </div>
       )}
       <GitProgressBanner />
+      <AnonymousBanner />
       {/* Data update banner */}
       {dataUpdate && (
         <div

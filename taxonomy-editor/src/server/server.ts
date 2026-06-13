@@ -32,7 +32,7 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
-import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId } from './userContext.js';
+import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -302,6 +302,7 @@ get('/api/taxonomy/:pov', async (req, res) => {
 });
 
 put('/api/taxonomy/:pov', async (req, res, body) => {
+  if (isAnonymousUser()) { error(res, 'Anonymous users cannot save taxonomy edits. Sign in to save.', 403); return; }
   try {
     await ensureSessionBranch();
     const pov = param(req, 'pov', '/api/taxonomy/:pov');

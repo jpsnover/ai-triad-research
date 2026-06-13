@@ -493,6 +493,36 @@ body {
   margin-bottom: 12px;
 }
 
+/* ─── Anonymous mode banner ──────────────────────────── */
+
+.anonymous-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 0.8rem;
+  color: var(--text-secondary, #b0b0b0);
+  flex-shrink: 0;
+}
+
+.anonymous-banner svg {
+  color: #f59e0b;
+}
+
+.anonymous-banner-link {
+  margin-left: auto;
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.anonymous-banner-link:hover {
+  text-decoration: underline;
+}
+
 /* ─── Background loading banner ──────────────────────── */
 
 .background-loading-banner {
