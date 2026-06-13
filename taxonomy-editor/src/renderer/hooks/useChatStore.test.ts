@@ -14,6 +14,7 @@ const { mockApi } = vi.hoisted(() => {
     setDebateTemperature: vi.fn().mockResolvedValue(undefined),
     hasApiKey: vi.fn().mockResolvedValue(true),
     startChatStream: vi.fn().mockResolvedValue('streamed-text'),
+    trackEvent: vi.fn(),
   };
   return { mockApi };
 });

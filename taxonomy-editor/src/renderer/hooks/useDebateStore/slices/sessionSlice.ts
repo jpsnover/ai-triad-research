@@ -123,6 +123,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       origin: { mode: 'gui' },
     };
     await api.saveDebateSession(session);
+    api.trackEvent('debate_start', 'debate', { topic: session.title, protocol: protocolId || 'structured' });
     const aiPoversForOrder = AI_POVERS.filter(p => povers.includes(p));
     const shuffledOrder = [...aiPoversForOrder];
     for (let i = shuffledOrder.length - 1; i > 0; i--) {

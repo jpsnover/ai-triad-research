@@ -24,7 +24,7 @@ interface QuotaConfig {
 }
 
 const DEFAULT_CONFIG: QuotaConfig = {
-  defaults: { maxChats: 50, maxDebates: 20 },
+  defaults: { maxChats: 25, maxDebates: 15 },
   elevated: [],
 };
 

@@ -168,6 +168,9 @@ export interface AppAPI {
   submitFeedback: (rating: 'up' | 'down', text?: string) => Promise<{ ok: boolean; id?: string }>;
   reportError: (error: { name: string; message: string; stack?: string; componentStack?: string }, context?: Record<string, unknown>) => Promise<{ ok: boolean }>;
 
+  // --- Telemetry ---
+  trackEvent: (type: string, view?: string, metadata?: Record<string, unknown>) => void;
+
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
   getCalibrationLog: () => Promise<{ entries: unknown[]; validationReport: unknown }>;

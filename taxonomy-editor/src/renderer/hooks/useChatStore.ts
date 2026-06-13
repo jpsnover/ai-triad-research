@@ -185,6 +185,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       chat_model: chatModel,
     };
     await api.saveChatSession(session);
+    api.trackEvent('chat_start', 'chat', { mode, pover });
     const sessions = await api.listChatSessions();
     set({ sessions: sessions as ChatSessionSummary[] });
     return id;

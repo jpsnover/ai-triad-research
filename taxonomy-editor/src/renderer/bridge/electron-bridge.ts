@@ -175,6 +175,9 @@ export const api: AppAPI = {
   submitFeedback: (rating, text) => window.electronAPI.submitFeedback(rating, text),
   reportError: (err, context) => window.electronAPI.reportError(err, context),
 
+  // Telemetry — no-op in Electron (single-user desktop, no server-side telemetry)
+  trackEvent: () => {},
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),

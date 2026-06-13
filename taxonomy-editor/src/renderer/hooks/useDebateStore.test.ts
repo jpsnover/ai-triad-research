@@ -26,6 +26,7 @@ const { mockApi, mockTaxonomyState, mockPromptConfigState } = vi.hoisted(() => {
     loadDictionary: vi.fn().mockResolvedValue({ standardized: [], colloquial: [], lintViolations: [] }),
     exportDebateToFile: vi.fn().mockResolvedValue({ cancelled: true }),
     generateNewsReport: vi.fn().mockResolvedValue({ article: 'mock-news-article' }),
+    trackEvent: vi.fn(),
   };
 
   const mockTaxonomyState = {

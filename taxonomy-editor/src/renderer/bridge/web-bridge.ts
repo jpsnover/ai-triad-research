@@ -458,6 +458,9 @@ const rawApi: AppAPI = {
   submitFeedback: (rating, text) => post('/api/admin/feedback', { rating, text, context: { url: location.href, userAgent: navigator.userAgent } }),
   reportError: (err, context) => post('/api/admin/errors', { error: err, context: { ...context, url: location.href, userAgent: navigator.userAgent } }).catch(() => ({ ok: false }) /* telemetry — silent by design: logging error-report failures would cause infinite loops */),
 
+  // Telemetry
+  trackEvent: (type, view, metadata) => { void post('/api/admin/telemetry', { type, view, metadata }).catch(() => { /* telemetry — silent by design */ }); },
+
   // Research file access
   readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`).catch(() => null),
   writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),

@@ -31,14 +31,14 @@ describe('quotas', () => {
   describe('getQuotaLimits', () => {
     it('returns defaults when no config file exists', () => {
       const limits = getQuotaLimits('someuser');
-      expect(limits.maxChats).toBe(50);
-      expect(limits.maxDebates).toBe(20);
+      expect(limits.maxChats).toBe(25);
+      expect(limits.maxDebates).toBe(15);
     });
 
     it('uses current user from ALS when no userId provided', () => {
       const limits = getQuotaLimits();
-      expect(limits.maxChats).toBe(50);
-      expect(limits.maxDebates).toBe(20);
+      expect(limits.maxChats).toBe(25);
+      expect(limits.maxDebates).toBe(15);
     });
   });
 
@@ -47,29 +47,29 @@ describe('quotas', () => {
       const result = checkQuota('chats', 10, 'testuser');
       expect(result.allowed).toBe(true);
       expect(result.current).toBe(10);
-      expect(result.limit).toBe(50);
+      expect(result.limit).toBe(25);
       expect(result.resource).toBe('chats');
     });
 
     it('blocks when at limit', () => {
-      const result = checkQuota('chats', 50, 'testuser');
+      const result = checkQuota('chats', 25, 'testuser');
       expect(result.allowed).toBe(false);
-      expect(result.current).toBe(50);
-      expect(result.limit).toBe(50);
+      expect(result.current).toBe(25);
+      expect(result.limit).toBe(25);
     });
 
     it('blocks when over limit', () => {
-      const result = checkQuota('debates', 25, 'testuser');
+      const result = checkQuota('debates', 20, 'testuser');
       expect(result.allowed).toBe(false);
-      expect(result.current).toBe(25);
-      expect(result.limit).toBe(20);
+      expect(result.current).toBe(20);
+      expect(result.limit).toBe(15);
     });
 
     it('allows debates under limit', () => {
       const result = checkQuota('debates', 5, 'testuser');
       expect(result.allowed).toBe(true);
       expect(result.current).toBe(5);
-      expect(result.limit).toBe(20);
+      expect(result.limit).toBe(15);
     });
   });
 });

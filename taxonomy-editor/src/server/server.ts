@@ -751,6 +751,19 @@ get('/api/calibration/history', (_req, res) => {
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
+// ── Flight recorder: persist to GitHub for offline access ──
+function persistDumpToGitHub(filename: string, ndjson: string): void {
+  if (!githubBackend) return;
+  githubBackend.createCommitFromTree('main',
+    [{ path: `flight-recorder/${filename}`, content: ndjson }],
+    `chore: flight recorder dump`
+  ).then(() => {
+    log.fr.info({ filename }, 'Dump persisted to GitHub');
+  }).catch(err => {
+    log.fr.warn({ err: String(err), filename }, 'Failed to persist dump to GitHub');
+  });
+}
+
 // ── Flight recorder dump ──
 post('/api/flight-recorder/dump', (_req, res, body) => {
   try {
@@ -784,6 +797,7 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
     } catch { /* telemetry — silent by design;  retention cleanup is best-effort */ }
 
     const filename = path.basename(filePath);
+    persistDumpToGitHub(filename, ndjson);
     log.fr.info({ filePath }, 'Dump written');
     json(res, { filePath, filename });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
@@ -799,6 +813,7 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
     const filename = `server-flight-recorder-${ts}.jsonl`;
     const filePath = path.join(dumpDir, filename);
     fs.writeFileSync(filePath, ndjson, 'utf-8');
+    persistDumpToGitHub(filename, ndjson);
     log.fr.info({ filePath }, 'Server dump written');
     json(res, { filePath, filename });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
@@ -1152,6 +1167,68 @@ get('/api/admin/health', (_req, res) => {
       recentFeedback,
       storageMode: STORAGE_MODE,
     });
+  } catch (err) { error(res, String(err)); }
+});
+
+// ── Admin: Usage telemetry ──
+
+post('/api/admin/telemetry', (_req, res, body) => {
+  try {
+    const event = body as { type?: string; view?: string; metadata?: Record<string, unknown> };
+    if (!event.type || typeof event.type !== 'string') { error(res, 'Missing type field', 400); return; }
+
+    const userId = getCurrentUserId();
+    const date = new Date().toISOString().slice(0, 10);
+    const telemetryDir = path.join(getDataRoot(), 'admin', 'telemetry');
+    fs.mkdirSync(telemetryDir, { recursive: true });
+
+    const line = JSON.stringify({
+      type: event.type,
+      view: event.view ?? null,
+      userId,
+      timestamp: new Date().toISOString(),
+      metadata: event.metadata ?? {},
+    }) + '\n';
+
+    fs.appendFileSync(path.join(telemetryDir, `${date}.jsonl`), line);
+    json(res, { ok: true });
+  } catch (err) {
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write telemetry event', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    error(res, String(err));
+  }
+});
+
+get('/api/admin/telemetry/summary', (req, res) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  try {
+    const url = new URL(req.url!, 'http://localhost');
+    const days = Math.min(parseInt(url.searchParams.get('days') || '7', 10) || 7, 90);
+    const telemetryDir = path.join(getDataRoot(), 'admin', 'telemetry');
+
+    const summaries: Record<string, Record<string, number>> = {};
+    const now = new Date();
+
+    for (let i = 0; i < days; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const date = d.toISOString().slice(0, 10);
+      const filePath = path.join(telemetryDir, `${date}.jsonl`);
+
+      const counts: Record<string, number> = {};
+      try {
+        const lines = fs.readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
+        for (const line of lines) {
+          try {
+            const evt = JSON.parse(line) as { type: string };
+            counts[evt.type] = (counts[evt.type] || 0) + 1;
+          } catch { /* telemetry — silent by design: skip malformed lines */ }
+        }
+      } catch { /* telemetry — silent by design: file may not exist for this date */ }
+
+      if (Object.keys(counts).length > 0) summaries[date] = counts;
+    }
+
+    json(res, { days, summaries });
   } catch (err) { error(res, String(err)); }
 });
 

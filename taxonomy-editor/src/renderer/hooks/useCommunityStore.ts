@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { create } from 'zustand';
+import { api } from '@bridge';
 
 export interface CommunityItem {
   id: string;
@@ -71,6 +72,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     try {
       const chats = await fetchJson<CommunityChat[]>('/api/community/chats');
       set({ chats, loading: false });
+      api.trackEvent('community_browse', 'community', { type: 'chats', count: chats.length });
     } catch (err) {
       set({ error: String(err), loading: false });
     }
@@ -81,6 +83,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     try {
       const debates = await fetchJson<CommunityDebate[]>('/api/community/debates');
       set({ debates, loading: false });
+      api.trackEvent('community_browse', 'community', { type: 'debates', count: debates.length });
     } catch (err) {
       set({ error: String(err), loading: false });
     }
@@ -112,6 +115,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, communityId }),
     });
+    api.trackEvent('community_copy', 'community', { type, communityId });
     return result.newId;
   },
 

@@ -509,6 +509,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
 
       // Transition phase to closed now that synthesis and all post-synthesis passes are done
       get().updatePhase('closed');
+      api.trackEvent('debate_complete', 'debate', { debateId: activeDebate?.id, rounds: activeDebate?.transcript.filter(e => e.type === 'statement').length ?? 0 });
 
       // Emit lineage.debate-summary — aggregates per-turn lineage boost data for quick impact assessment
       try {

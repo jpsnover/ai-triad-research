@@ -190,6 +190,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     const prev = get().activeTab;
     set({ activeTab: tab, selectedNodeId: null, validationErrors: {} });
     getGlobalRecorder()?.record({ type: 'ui.navigate', component: 'tab-bar', level: 'info', message: 'tab.switch', data: { from: prev, to: tab } });
+    api.trackEvent('view_change', tab, { from: prev });
   },
   setSelectedNodeId: (id) => {
     set({ selectedNodeId: id, validationErrors: {} });
@@ -439,6 +440,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
 
       const commitResult = await api.syncCommit();
       getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'save.completed', data: { files_written: promises.length, duration_ms: Math.round(performance.now() - saveStart), commitSha: commitResult.commitSha, filesCommitted: commitResult.filesCommitted } });
+      api.trackEvent('taxonomy_save', 'taxonomy', { files: promises.length });
       set({ dirty: new Set() });
 
       const stripExcludes = (text: string) => text.replace(/\s*Excludes:.*/s, '').trim();

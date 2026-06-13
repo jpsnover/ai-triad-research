@@ -24,6 +24,7 @@ const { mockApi } = vi.hoisted(() => {
     nliClassify: vi.fn().mockResolvedValue({ results: [] }),
     hasApiKey: vi.fn().mockResolvedValue(false),
     onGenerateTextProgress: vi.fn().mockReturnValue(() => {}),
+    trackEvent: vi.fn(),
   };
   return { mockApi };
 });
