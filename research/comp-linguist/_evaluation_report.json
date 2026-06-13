@@ -1,0 +1,218 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-12T22:46:48.976951+00:00",
+    "golden_set": "C:\\Users\\jsnov\\repos\\ai-triad-research\\research\\comp-linguist\\_golden_test_set.json",
+    "corpus_dir": "C:\\Users\\jsnov\\repos\\ai-triad-data\\taxonomy\\Origin\\synthetic",
+    "total_claims": 664,
+    "total_corpus_statements": 326,
+    "corpus_nodes": 8
+  },
+  "attribution": {
+    "max": {
+      "strategy": "max",
+      "claims_evaluated": 12,
+      "nodes_in_corpus": 8,
+      "mrr": 0.5029,
+      "recall_at_1": 33.3,
+      "recall_at_3": 58.3,
+      "recall_at_5": 83.3,
+      "mean_ndcg": 0.62,
+      "per_pov": {
+        "skp": {
+          "mrr": 0.4535,
+          "recall_at_1": 3,
+          "recall_at_1_pct": 30.0,
+          "count": 10
+        },
+        "acc": {
+          "mrr": 0.75,
+          "recall_at_1": 1,
+          "recall_at_1_pct": 50.0,
+          "count": 2
+        }
+      },
+      "per_node_difficulty": {
+        "skp-beliefs-001": {
+          "mean_rank": 5.14,
+          "median_rank": 5.0,
+          "claim_count": 7,
+          "recall_at_1": 0,
+          "recall_at_1_pct": 0.0
+        },
+        "acc-beliefs-071": {
+          "mean_rank": 1.5,
+          "median_rank": 1.5,
+          "claim_count": 2,
+          "recall_at_1": 1,
+          "recall_at_1_pct": 50.0
+        },
+        "skp-intentions-124": {
+          "mean_rank": 1.0,
+          "median_rank": 1.0,
+          "claim_count": 3,
+          "recall_at_1": 3,
+          "recall_at_1_pct": 100.0
+        }
+      }
+    },
+    "mean_top_3": {
+      "strategy": "mean_top_3",
+      "claims_evaluated": 12,
+      "nodes_in_corpus": 8,
+      "mrr": 0.5203,
+      "recall_at_1": 33.3,
+      "recall_at_3": 66.7,
+      "recall_at_5": 66.7,
+      "mean_ndcg": 0.6333,
+      "per_pov": {
+        "skp": {
+          "mrr": 0.4744,
+          "recall_at_1": 3,
+          "recall_at_1_pct": 30.0,
+          "count": 10
+        },
+        "acc": {
+          "mrr": 0.75,
+          "recall_at_1": 1,
+          "recall_at_1_pct": 50.0,
+          "count": 2
+        }
+      },
+      "per_node_difficulty": {
+        "skp-beliefs-001": {
+          "mean_rank": 5.14,
+          "median_rank": 6.0,
+          "claim_count": 7,
+          "recall_at_1": 0,
+          "recall_at_1_pct": 0.0
+        },
+        "acc-beliefs-071": {
+          "mean_rank": 1.5,
+          "median_rank": 1.5,
+          "claim_count": 2,
+          "recall_at_1": 1,
+          "recall_at_1_pct": 50.0
+        },
+        "skp-intentions-124": {
+          "mean_rank": 1.0,
+          "median_rank": 1.0,
+          "claim_count": 3,
+          "recall_at_1": 3,
+          "recall_at_1_pct": 100.0
+        }
+      }
+    },
+    "mean_top_5": {
+      "strategy": "mean_top_5",
+      "claims_evaluated": 12,
+      "nodes_in_corpus": 8,
+      "mrr": 0.5134,
+      "recall_at_1": 33.3,
+      "recall_at_3": 58.3,
+      "recall_at_5": 66.7,
+      "mean_ndcg": 0.6276,
+      "per_pov": {
+        "skp": {
+          "mrr": 0.4661,
+          "recall_at_1": 3,
+          "recall_at_1_pct": 30.0,
+          "count": 10
+        },
+        "acc": {
+          "mrr": 0.75,
+          "recall_at_1": 1,
+          "recall_at_1_pct": 50.0,
+          "count": 2
+        }
+      },
+      "per_node_difficulty": {
+        "skp-beliefs-001": {
+          "mean_rank": 5.29,
+          "median_rank": 6.0,
+          "claim_count": 7,
+          "recall_at_1": 0,
+          "recall_at_1_pct": 0.0
+        },
+        "acc-beliefs-071": {
+          "mean_rank": 1.5,
+          "median_rank": 1.5,
+          "claim_count": 2,
+          "recall_at_1": 1,
+          "recall_at_1_pct": 50.0
+        },
+        "skp-intentions-124": {
+          "mean_rank": 1.0,
+          "median_rank": 1.0,
+          "claim_count": 3,
+          "recall_at_1": 3,
+          "recall_at_1_pct": 100.0
+        }
+      }
+    }
+  },
+  "poaching": {
+    "worst_poached_nodes": [
+      {
+        "node_id": "skp-beliefs-001",
+        "claim_count": 7,
+        "times_poached": 7,
+        "poach_rate": 1.0,
+        "top_poacher": "acc-beliefs-071"
+      },
+      {
+        "node_id": "acc-beliefs-071",
+        "claim_count": 2,
+        "times_poached": 1,
+        "poach_rate": 0.5,
+        "top_poacher": "skp-beliefs-001"
+      },
+      {
+        "node_id": "skp-intentions-124",
+        "claim_count": 3,
+        "times_poached": 0,
+        "poach_rate": 0.0,
+        "top_poacher": null
+      }
+    ],
+    "worst_poaching_nodes": [
+      {
+        "node_id": "acc-beliefs-071",
+        "claims_stolen": 3,
+        "stolen_from": {
+          "skp-beliefs-001": 3
+        }
+      },
+      {
+        "node_id": "skp-intentions-124",
+        "claims_stolen": 2,
+        "stolen_from": {
+          "skp-beliefs-001": 2
+        }
+      },
+      {
+        "node_id": "acc-intentions-008",
+        "claims_stolen": 2,
+        "stolen_from": {
+          "skp-beliefs-001": 2
+        }
+      },
+      {
+        "node_id": "skp-beliefs-001",
+        "claims_stolen": 1,
+        "stolen_from": {
+          "acc-beliefs-071": 1
+        }
+      }
+    ],
+    "total_claims": 664,
+    "total_poached": 8,
+    "overall_poach_rate": 0.667
+  },
+  "summary": {
+    "best_strategy": "mean_top_3",
+    "best_mrr": 0.5203,
+    "baseline_mrr": 0,
+    "mrr_delta": 0.5203,
+    "improvement_pct": 52030.0
+  }
+}

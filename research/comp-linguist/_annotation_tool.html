@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claim Attribution Annotation Tool</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #1c2333;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --accent: #58a6ff;
+  --accent-dim: #1f3a5f;
+  --green: #3fb950;
+  --green-dim: #1a3a2a;
+  --yellow: #d29922;
+  --yellow-dim: #3d2e00;
+  --red: #f85149;
+  --red-dim: #4a1a1a;
+  --purple: #bc8cff;
+  --acc: #f0883e;
+  --saf: #58a6ff;
+  --skp: #bc8cff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.header h1 {
+  font-size: 20px;
+  font-weight: 600;
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn:hover { background: var(--surface2); }
+.btn-primary {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn-primary:hover { background: #1a4a7a; }
+.btn-success {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+/* Progress */
+.progress-bar {
+  margin-bottom: 20px;
+}
+.progress-track {
+  height: 6px;
+  background: var(--surface2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Navigation */
+.nav-strip {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 8px;
+  background: var(--surface);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.nav-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.nav-dot:hover { border-color: var(--accent); }
+.nav-dot.current { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
+.nav-dot.done { background: var(--green); border-color: var(--green); }
+.nav-dot.skipped { background: var(--yellow); border-color: var(--yellow); }
+.nav-dot.none-above { background: var(--red); border-color: var(--red); }
+
+/* Filter bar */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+  font-size: 13px;
+}
+.filter-bar label { color: var(--text-muted); }
+.filter-btn {
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+/* Claim card */
+.claim-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.claim-meta {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.badge-acc { background: rgba(240,136,62,0.15); color: var(--acc); }
+.badge-saf { background: rgba(88,166,255,0.15); color: var(--saf); }
+.badge-skp { background: rgba(188,140,255,0.15); color: var(--skp); }
+.badge-bdi { background: rgba(139,148,158,0.15); color: var(--text-muted); }
+.claim-number { color: var(--text-muted); }
+.claim-text {
+  font-size: 16px;
+  line-height: 1.6;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  margin-bottom: 4px;
+}
+.claim-debate-id {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-bottom: 8px;
+}
+
+/* Candidates */
+.candidates-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.candidate {
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.candidate:hover { border-color: var(--accent); background: var(--surface2); }
+.candidate.selected {
+  border-color: var(--green);
+  background: var(--green-dim);
+}
+.candidate-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+.candidate-id {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 12px;
+  color: var(--accent);
+}
+.candidate-sim {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface2);
+}
+.sim-high { color: var(--green); }
+.sim-mid { color: var(--yellow); }
+.sim-low { color: var(--text-muted); }
+.candidate-label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.candidate-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.candidate-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+.candidate.selected .candidate-check {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+
+/* None of above */
+.none-above-btn {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.15s;
+}
+.none-above-btn:hover { border-color: var(--red); color: var(--red); }
+.none-above-btn.active {
+  border-color: var(--red);
+  background: var(--red-dim);
+  color: var(--red);
+  border-style: solid;
+}
+
+/* Annotation controls */
+.annotation-controls {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.confidence-group {
+  display: flex;
+  gap: 6px;
+}
+.conf-btn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.conf-btn:hover { border-color: var(--accent); }
+.conf-btn.active-high { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.conf-btn.active-medium { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+.conf-btn.active-low { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+.notes-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 32px;
+}
+.notes-input::placeholder { color: var(--text-muted); }
+.notes-input:focus { outline: none; border-color: var(--accent); }
+
+/* Navigation buttons */
+.nav-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+.nav-buttons .btn { min-width: 100px; }
+
+/* Keyboard hint */
+.keyboard-hints {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface2);
+  font-family: 'SF Mono', 'Consolas', monospace;
+  font-size: 11px;
+}
+
+/* Load screen */
+.load-screen {
+  text-align: center;
+  padding: 60px 20px;
+}
+.load-screen h2 { margin-bottom: 16px; }
+.load-screen p { color: var(--text-muted); margin-bottom: 20px; }
+.file-input-label {
+  display: inline-block;
+  padding: 10px 24px;
+  border-radius: 8px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 14px;
+  cursor: pointer;
+}
+.file-input-label:hover { background: #1a4a7a; }
+#file-input { display: none; }
+
+/* Summary screen */
+.summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+}
+.summary h2 { margin-bottom: 16px; }
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.summary-stat {
+  padding: 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  text-align: center;
+}
+.summary-stat .value {
+  font-size: 28px;
+  font-weight: 700;
+}
+.summary-stat .label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Annotator prompt */
+.annotator-prompt {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.annotator-prompt label { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.annotator-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.annotator-input:focus { outline: none; border-color: var(--accent); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: var(--green-dim);
+  border: 1px solid var(--green);
+  color: var(--green);
+  font-size: 13px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- Load screen -->
+  <div id="load-screen" class="load-screen">
+    <h2>Claim Attribution Annotation Tool</h2>
+    <p>Load an annotation template JSON to begin reviewing claim-to-node attributions.</p>
+    <label class="file-input-label">
+      Load _annotation_template.json
+      <input type="file" id="file-input" accept=".json">
+    </label>
+    <p style="margin-top: 24px; font-size: 12px;">Or drop the file anywhere on this page.</p>
+  </div>
+
+  <!-- Main annotation interface (hidden until loaded) -->
+  <div id="main-ui" style="display:none;">
+    <div class="header">
+      <h1>Claim Attribution Annotation</h1>
+      <div class="header-actions">
+        <button class="btn" onclick="loadSaved()">Resume Saved</button>
+        <button class="btn btn-primary" onclick="saveProgress()">Save Progress</button>
+        <button class="btn btn-success" onclick="exportAnnotations()">Export JSON</button>
+      </div>
+    </div>
+
+    <div class="annotator-prompt">
+      <label>Annotator:</label>
+      <input type="text" class="annotator-input" id="annotator-name" placeholder="Your name" oninput="updateAnnotator()">
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-stats">
+        <span id="progress-text">0 / 0 annotated</span>
+        <span id="progress-pct">0%</span>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <label>Show:</label>
+      <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="filter-btn" data-filter="pending" onclick="setFilter('pending')">Pending</button>
+      <button class="filter-btn" data-filter="done" onclick="setFilter('done')">Done</button>
+      <button class="filter-btn" data-filter="none" onclick="setFilter('none')">None-of-above</button>
+      <span style="margin-left: auto; color: var(--text-muted); font-size: 12px;" id="filter-count"></span>
+    </div>
+
+    <div class="nav-strip" id="nav-strip"></div>
+
+    <div id="claim-area"></div>
+
+    <div class="nav-buttons">
+      <button class="btn" onclick="navigate(-1)">Previous</button>
+      <span id="claim-counter" style="font-size: 13px; color: var(--text-muted); align-self: center;"></span>
+      <button class="btn btn-primary" onclick="navigate(1)">Next</button>
+    </div>
+
+    <div class="keyboard-hints">
+      <span><kbd>1</kbd>-<kbd>6</kbd> Select candidate</span>
+      <span><kbd>0</kbd> None of above</span>
+      <span><kbd>H</kbd> <kbd>M</kbd> <kbd>L</kbd> Confidence</span>
+      <span><kbd>N</kbd> Focus notes</span>
+      <span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> Navigate</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let data = null;
+let claims = [];
+let filteredIndices = [];
+let currentFilteredPos = 0;
+let currentFilter = 'all';
+let annotatorName = '';
+
+function init() {
+  document.getElementById('file-input').addEventListener('change', handleFile);
+  document.addEventListener('dragover', e => e.preventDefault());
+  document.addEventListener('drop', handleDrop);
+  document.addEventListener('keydown', handleKeys);
+
+  const saved = localStorage.getItem('annotation_progress');
+  if (saved) {
+    document.querySelector('[onclick="loadSaved()"]').textContent = 'Resume Saved ✓';
+  }
+}
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (file) readFile(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.name.endsWith('.json')) readFile(file);
+}
+
+function readFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      data = JSON.parse(e.target.result);
+      claims = data.claims || [];
+      startAnnotation();
+    } catch (err) {
+      toast('Invalid JSON file', true);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function startAnnotation() {
+  document.getElementById('load-screen').style.display = 'none';
+  document.getElementById('main-ui').style.display = 'block';
+  applyFilter();
+  renderNavStrip();
+  renderClaim();
+  updateProgress();
+}
+
+function applyFilter() {
+  filteredIndices = [];
+  for (let i = 0; i < claims.length; i++) {
+    const a = claims[i].annotation;
+    const isDone = a.selected_node || a.none_of_above;
+    const isNone = a.none_of_above;
+    if (currentFilter === 'all') filteredIndices.push(i);
+    else if (currentFilter === 'pending' && !isDone) filteredIndices.push(i);
+    else if (currentFilter === 'done' && isDone && !isNone) filteredIndices.push(i);
+    else if (currentFilter === 'none' && isNone) filteredIndices.push(i);
+  }
+  document.getElementById('filter-count').textContent = filteredIndices.length + ' claims';
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  const oldGlobal = filteredIndices[currentFilteredPos];
+  applyFilter();
+  const newPos = filteredIndices.indexOf(oldGlobal);
+  currentFilteredPos = newPos >= 0 ? newPos : 0;
+  renderNavStrip();
+  renderClaim();
+}
+
+function renderNavStrip() {
+  const strip = document.getElementById('nav-strip');
+  strip.innerHTML = '';
+  filteredIndices.forEach((gi, fi) => {
+    const dot = document.createElement('div');
+    dot.className = 'nav-dot';
+    const a = claims[gi].annotation;
+    if (fi === currentFilteredPos) dot.classList.add('current');
+    if (a.none_of_above) dot.classList.add('none-above');
+    else if (a.selected_node) dot.classList.add('done');
+    dot.title = `#${gi + 1} ${claims[gi].claim_id} (${claims[gi].pov})`;
+    dot.onclick = () => { currentFilteredPos = fi; renderNavStrip(); renderClaim(); };
+    strip.appendChild(dot);
+  });
+}
+
+function renderClaim() {
+  const area = document.getElementById('claim-area');
+  if (filteredIndices.length === 0) {
+    area.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No claims match this filter.</div>';
+    document.getElementById('claim-counter').textContent = '';
+    return;
+  }
+
+  const gi = filteredIndices[currentFilteredPos];
+  const c = claims[gi];
+  const a = c.annotation;
+
+  const povColors = { acc: 'acc', saf: 'saf', skp: 'skp' };
+  const povNames = { acc: 'Accelerationist', saf: 'Safetyist', skp: 'Skeptic' };
+
+  let html = `<div class="claim-card">
+    <div class="claim-meta">
+      <span class="claim-number">#${gi + 1} of ${claims.length}</span>
+      <span class="badge badge-${povColors[c.pov]}">${povNames[c.pov]}</span>
+      <span class="badge badge-bdi">${c.bdi_category}</span>
+      <span style="color:var(--text-muted)">${c.claim_id}</span>
+      <span style="color:var(--text-muted)">speaker: ${c.speaker}</span>
+    </div>
+    <div class="claim-text">${escHtml(c.claim_text)}</div>
+    <div class="claim-debate-id">debate: ${c.debate_id}</div>
+
+    <div class="candidates-label">Candidate Nodes (select best match)</div>`;
+
+  c.candidate_nodes.forEach((cn, idx) => {
+    const selected = a.selected_node === cn.node_id;
+    const simClass = cn.machine_similarity > 0.4 ? 'sim-high' : cn.machine_similarity > 0.2 ? 'sim-mid' : 'sim-low';
+    html += `<div class="candidate ${selected ? 'selected' : ''}" onclick="selectCandidate(${gi}, '${cn.node_id}')">
+      <div class="candidate-check">${selected ? '✓' : idx + 1}</div>
+      <div class="candidate-header">
+        <span class="candidate-id">${cn.node_id}</span>
+        <span class="candidate-sim ${simClass}">${cn.machine_similarity.toFixed(4)}</span>
+      </div>
+      <div class="candidate-label">${escHtml(cn.label)}</div>
+      <div class="candidate-desc">${escHtml(cn.description)}</div>
+    </div>`;
+  });
+
+  html += `<button class="none-above-btn ${a.none_of_above ? 'active' : ''}" onclick="toggleNoneAbove(${gi})">
+    ${a.none_of_above ? '✗ None of the above (selected)' : 'None of the above — no candidate fits this claim'}
+  </button>
+
+  <div class="annotation-controls">
+    <div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Confidence:</div>
+      <div class="confidence-group">
+        <button class="conf-btn ${a.confidence === 'high' ? 'active-high' : ''}" onclick="setConfidence(${gi},'high')">High</button>
+        <button class="conf-btn ${a.confidence === 'medium' ? 'active-medium' : ''}" onclick="setConfidence(${gi},'medium')">Medium</button>
+        <button class="conf-btn ${a.confidence === 'low' ? 'active-low' : ''}" onclick="setConfidence(${gi},'low')">Low</button>
+      </div>
+    </div>
+    <div style="flex:1;">
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Notes (optional):</div>
+      <textarea class="notes-input" id="notes-input" placeholder="Ambiguity, reasoning, alternative node..." oninput="updateNotes(${gi})">${escHtml(a.notes || '')}</textarea>
+    </div>
+  </div>
+  </div>`;
+
+  area.innerHTML = html;
+  document.getElementById('claim-counter').textContent =
+    `${currentFilteredPos + 1} / ${filteredIndices.length}`;
+}
+
+function selectCandidate(gi, nodeId) {
+  const a = claims[gi].annotation;
+  if (a.selected_node === nodeId) {
+    a.selected_node = '';
+  } else {
+    a.selected_node = nodeId;
+    a.none_of_above = false;
+  }
+  a.annotator = annotatorName;
+  renderClaim();
+  renderNavStrip();
+  updateProgress();
+  autoSave();
+}
+
+function toggleNoneAbove(gi) {
+  const a = claims[gi].annotation;
+  a.none_of_above = !a.none_of_above;
+  if (a.none_of_above) a.selected_node = '';
+  a.annotator = annotatorName;
+  renderClaim();
+  renderNavStrip();
+  updateProgress();
+  autoSave();
+}
+
+function setConfidence(gi, level) {
+  const a = claims[gi].annotation;
+  a.confidence = a.confidence === level ? '' : level;
+  a.annotator = annotatorName;
+  renderClaim();
+  autoSave();
+}
+
+function updateNotes(gi) {
+  claims[gi].annotation.notes = document.getElementById('notes-input').value;
+  claims[gi].annotation.annotator = annotatorName;
+  autoSave();
+}
+
+function updateAnnotator() {
+  annotatorName = document.getElementById('annotator-name').value;
+}
+
+function navigate(dir) {
+  if (filteredIndices.length === 0) return;
+  currentFilteredPos += dir;
+  if (currentFilteredPos < 0) currentFilteredPos = filteredIndices.length - 1;
+  if (currentFilteredPos >= filteredIndices.length) currentFilteredPos = 0;
+  renderNavStrip();
+  renderClaim();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function handleKeys(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+    if (e.key === 'Escape') e.target.blur();
+    return;
+  }
+  if (filteredIndices.length === 0) return;
+  const gi = filteredIndices[currentFilteredPos];
+
+  if (e.key === 'ArrowLeft') { navigate(-1); e.preventDefault(); }
+  else if (e.key === 'ArrowRight') { navigate(1); e.preventDefault(); }
+  else if (e.key >= '1' && e.key <= '6') {
+    const idx = parseInt(e.key) - 1;
+    if (idx < claims[gi].candidate_nodes.length) {
+      selectCandidate(gi, claims[gi].candidate_nodes[idx].node_id);
+    }
+  }
+  else if (e.key === '0') { toggleNoneAbove(gi); }
+  else if (e.key === 'h' || e.key === 'H') { setConfidence(gi, 'high'); }
+  else if (e.key === 'm' || e.key === 'M') { setConfidence(gi, 'medium'); }
+  else if (e.key === 'l' || e.key === 'L') { setConfidence(gi, 'low'); }
+  else if (e.key === 'n' || e.key === 'N') {
+    const notesEl = document.getElementById('notes-input');
+    if (notesEl) { notesEl.focus(); e.preventDefault(); }
+  }
+}
+
+function updateProgress() {
+  const done = claims.filter(c => c.annotation.selected_node || c.annotation.none_of_above).length;
+  const pct = Math.round(done / claims.length * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${done} / ${claims.length} annotated`;
+  document.getElementById('progress-pct').textContent = pct + '%';
+}
+
+let autoSaveTimer = null;
+function autoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    localStorage.setItem('annotation_progress', JSON.stringify({
+      annotator: annotatorName,
+      claims: claims,
+      metadata: data.metadata,
+      savedAt: new Date().toISOString()
+    }));
+  }, 500);
+}
+
+function saveProgress() {
+  localStorage.setItem('annotation_progress', JSON.stringify({
+    annotator: annotatorName,
+    claims: claims,
+    metadata: data.metadata,
+    savedAt: new Date().toISOString()
+  }));
+  toast('Progress saved to browser storage');
+}
+
+function loadSaved() {
+  const saved = localStorage.getItem('annotation_progress');
+  if (!saved) { toast('No saved progress found', true); return; }
+  try {
+    const parsed = JSON.parse(saved);
+    claims = parsed.claims;
+    data = { metadata: parsed.metadata, claims: claims };
+    annotatorName = parsed.annotator || '';
+    document.getElementById('annotator-name').value = annotatorName;
+    startAnnotation();
+    toast(`Resumed ${claims.filter(c => c.annotation.selected_node || c.annotation.none_of_above).length} annotations from ${new Date(parsed.savedAt).toLocaleString()}`);
+  } catch (err) {
+    toast('Failed to load saved progress', true);
+  }
+}
+
+function exportAnnotations() {
+  const done = claims.filter(c => c.annotation.selected_node || c.annotation.none_of_above);
+  const output = {
+    metadata: {
+      ...data.metadata,
+      annotator: annotatorName,
+      exported_at: new Date().toISOString(),
+      total_claims: claims.length,
+      annotated_claims: done.length,
+      annotation_stats: computeStats()
+    },
+    claims: claims.map(c => ({
+      claim_id: c.claim_id,
+      claim_text: c.claim_text,
+      pov: c.pov,
+      bdi_category: c.bdi_category,
+      debate_id: c.debate_id,
+      machine_top_node: c.candidate_nodes[0]?.node_id || '',
+      machine_top_similarity: c.candidate_nodes[0]?.machine_similarity || 0,
+      annotation: c.annotation
+    }))
+  };
+
+  const blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `annotation_results_${annotatorName || 'anon'}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${done.length} annotations`);
+}
+
+function computeStats() {
+  const annotated = claims.filter(c => c.annotation.selected_node || c.annotation.none_of_above);
+  const withNode = claims.filter(c => c.annotation.selected_node);
+  const noneAbove = claims.filter(c => c.annotation.none_of_above);
+
+  let machineAgreement = 0;
+  let machineTop3 = 0;
+  withNode.forEach(c => {
+    if (c.annotation.selected_node === c.candidate_nodes[0]?.node_id) machineAgreement++;
+    if (c.candidate_nodes.slice(0, 3).some(cn => cn.node_id === c.annotation.selected_node)) machineTop3++;
+  });
+
+  const confDist = { high: 0, medium: 0, low: 0 };
+  annotated.forEach(c => { if (c.annotation.confidence) confDist[c.annotation.confidence]++; });
+
+  const povDist = {};
+  annotated.forEach(c => { povDist[c.pov] = (povDist[c.pov] || 0) + 1; });
+
+  return {
+    total_annotated: annotated.length,
+    with_node_selected: withNode.length,
+    none_of_above: noneAbove.length,
+    none_of_above_pct: Math.round(noneAbove.length / Math.max(annotated.length, 1) * 100),
+    machine_rank1_agreement: withNode.length ? Math.round(machineAgreement / withNode.length * 100) : 0,
+    machine_top3_agreement: withNode.length ? Math.round(machineTop3 / withNode.length * 100) : 0,
+    confidence_distribution: confDist,
+    pov_distribution: povDist,
+    notes_count: annotated.filter(c => c.annotation.notes).length
+  };
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+  t.style.color = isError ? 'var(--red)' : 'var(--green)';
+  t.style.background = isError ? 'var(--red-dim)' : 'var(--green-dim)';
+  t.classList.add('visible');
+  setTimeout(() => t.classList.remove('visible'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>

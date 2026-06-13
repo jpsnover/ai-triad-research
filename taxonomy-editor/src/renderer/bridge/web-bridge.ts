@@ -465,6 +465,9 @@ const rawApi: AppAPI = {
   readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`).catch(() => null),
   writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
 
+  // Synthetic corpus
+  loadSyntheticCorpus: (pov) => get(`/api/taxonomy/synthetic/${encodeURIComponent(pov)}`).catch(() => null),
+
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
   getCalibrationLog: () => get('/api/calibration/log').catch(() => ({ entries: [], validationReport: null })),

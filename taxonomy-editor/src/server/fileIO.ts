@@ -166,6 +166,16 @@ export async function readTaxonomyFile(pov: string): Promise<unknown> {
   return JSON.parse(raw.replace(/^\uFEFF/, ''));
 }
 
+const SYNTHETIC_POV_KEYS = new Set(['acc', 'saf', 'skp']);
+
+export async function loadSyntheticCorpus(pov: string): Promise<unknown | null> {
+  if (!SYNTHETIC_POV_KEYS.has(pov)) return null;
+  const filePath = path.join(getTaxonomyDir(), 'synthetic', `corpus_${pov}.json`);
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return null;
+  return JSON.parse(raw.replace(/^﻿/, ''));
+}
+
 export async function writeTaxonomyFile(pov: string, data: unknown): Promise<void> {
   const filePath = await resolveTaxonomyFilePath(pov);
   await backend.writeFile(filePath, JSON.stringify(data, null, 2));

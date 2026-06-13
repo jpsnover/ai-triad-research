@@ -400,6 +400,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeResearchFile: (relativePath: string, data: unknown): Promise<void> =>
     ipcRenderer.invoke('write-research-file', relativePath, data),
 
+  // Synthetic corpus
+  loadSyntheticCorpus: (pov: string): Promise<unknown | null> =>
+    ipcRenderer.invoke('load-synthetic-corpus', pov),
+
   // Feedback & error reporting
   submitFeedback: (rating: string, text?: string): Promise<{ ok: boolean; id?: string }> =>
     ipcRenderer.invoke('submit-feedback', rating, text),

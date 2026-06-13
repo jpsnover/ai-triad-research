@@ -433,8 +433,15 @@ class PromptAssembler:
             return val
         return node.get(field, default)
 
-    def assemble_prompt(self, node_id, archetype, audience=None, count=None):
-        """Build a complete generation prompt for one node × one archetype."""
+    def assemble_prompt(self, node_id, archetype, audience=None, count=None,
+                        contrastive_emphasis=None):
+        """Build a complete generation prompt for one node × one archetype.
+
+        Args:
+            contrastive_emphasis: dict mapping neighbor_id → violation_count from
+                prior pruning. Injects stronger anti-poaching instructions for the
+                worst offenders.
+        """
         self._load()
 
         node = self._nodes.get(node_id)
@@ -541,6 +548,27 @@ Match this register and vocabulary naturally. Key patterns for {POV_NAMES.get(po
                 f"(\"{top_nb.get('label', '')[:80]}\"). "
                 f"Every statement must be clearly distinguishable from this neighbor."
             )
+        if contrastive_emphasis:
+            sorted_violators = sorted(contrastive_emphasis.items(),
+                                      key=lambda x: x[1], reverse=True)
+            neg_lines.append(
+                "\n⚠ REGENERATION PASS — prior statements were pruned because they were "
+                "confused with specific neighbors. You MUST avoid these traps:"
+            )
+            for viol_id, viol_count in sorted_violators[:3]:
+                viol_label = ''
+                for nb in neighbors:
+                    if nb.get('node_id') == viol_id:
+                        viol_label = nb.get('label', '')[:80]
+                        break
+                neg_lines.append(
+                    f"  - {viol_id} (\"{viol_label}\") — {viol_count} prior violations. "
+                    f"DO NOT generate statements that could be attributed to this node."
+                )
+            neg_lines.append(
+                "  Focus on what makes THIS node unique — its specific claims, mechanisms, "
+                "or framings that no neighbor shares."
+            )
         sections.append('\n'.join(neg_lines))
 
         # Section 5: Diversity + output format (at the end for salience)
@@ -612,8 +640,13 @@ OUTPUT: Return ONLY a JSON array — no other text:
 
         return allocation, primary_count, audience_count, total
 
-    def generate_all_prompts(self, node_id):
-        """Generate all prompts for a node's full allocation."""
+    def generate_all_prompts(self, node_id, contrastive_emphasis=None):
+        """Generate all prompts for a node's full allocation.
+
+        Args:
+            contrastive_emphasis: dict mapping neighbor_id → violation_count.
+                Passed through to assemble_prompt for strengthened anti-poaching.
+        """
         allocation, primary, audience, total = self.get_node_allocation(node_id)
 
         prompts = []
@@ -622,6 +655,7 @@ OUTPUT: Return ONLY a JSON array — no other text:
                 node_id, slot['archetype'],
                 audience=slot['audience'],
                 count=slot['count'],
+                contrastive_emphasis=contrastive_emphasis,
             )
             prompt['slot'] = slot
             prompts.append(prompt)

@@ -292,6 +292,17 @@ put('/api/taxonomy-dir/active', (_req, res, body) => {
   json(res, { ok: true });
 });
 
+// ── Synthetic corpus (must precede the :pov wildcard) ──
+
+get('/api/taxonomy/synthetic/:pov', async (req, res) => {
+  try {
+    const pov = param(req, 'pov', '/api/taxonomy/synthetic/:pov');
+    const data = await fileIO.loadSyntheticCorpus(pov);
+    if (data === null) { json(res, null); return; }
+    json(res, data);
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+});
+
 // ── Taxonomy CRUD ──
 
 get('/api/taxonomy/:pov', async (req, res) => {

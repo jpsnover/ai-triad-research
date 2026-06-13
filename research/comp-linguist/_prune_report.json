@@ -1,0 +1,146 @@
+{
+  "metadata": {
+    "generated_at": "2026-06-12T22:51:15.533899+00:00",
+    "corpus_dir": "C:\\Users\\jsnov\\repos\\ai-triad-data\\taxonomy\\Origin\\synthetic",
+    "target_per_node": 40,
+    "redundancy_threshold": 0.92,
+    "poaching_margin": 0.02,
+    "report_only": true
+  },
+  "summary": {
+    "total_entries": 326,
+    "total_pruned": 86,
+    "overall_prune_rate": 0.264,
+    "nodes_analyzed": 8,
+    "hard_nodes_count": 5,
+    "hard_nodes": [
+      "acc-beliefs-071",
+      "acc-intentions-008",
+      "saf-beliefs-023",
+      "saf-beliefs-121",
+      "skp-beliefs-036"
+    ]
+  },
+  "per_node": {
+    "acc-beliefs-071": {
+      "node_id": "acc-beliefs-071",
+      "total_entries": 44,
+      "evaluated": 44,
+      "pruned": 12,
+      "prune_rate": 0.273,
+      "remaining": 32,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 12
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": true
+    },
+    "acc-intentions-008": {
+      "node_id": "acc-intentions-008",
+      "total_entries": 44,
+      "evaluated": 44,
+      "pruned": 19,
+      "prune_rate": 0.432,
+      "remaining": 25,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 19
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": true
+    },
+    "saf-beliefs-001": {
+      "node_id": "saf-beliefs-001",
+      "total_entries": 29,
+      "evaluated": 29,
+      "pruned": 2,
+      "prune_rate": 0.069,
+      "remaining": 27,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 2
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": false
+    },
+    "saf-beliefs-023": {
+      "node_id": "saf-beliefs-023",
+      "total_entries": 45,
+      "evaluated": 45,
+      "pruned": 17,
+      "prune_rate": 0.378,
+      "remaining": 28,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 17
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": true
+    },
+    "saf-beliefs-121": {
+      "node_id": "saf-beliefs-121",
+      "total_entries": 45,
+      "evaluated": 45,
+      "pruned": 13,
+      "prune_rate": 0.289,
+      "remaining": 32,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 13
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": true
+    },
+    "skp-beliefs-001": {
+      "node_id": "skp-beliefs-001",
+      "total_entries": 29,
+      "evaluated": 29,
+      "pruned": 1,
+      "prune_rate": 0.034,
+      "remaining": 28,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 1
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": false
+    },
+    "skp-beliefs-036": {
+      "node_id": "skp-beliefs-036",
+      "total_entries": 45,
+      "evaluated": 45,
+      "pruned": 13,
+      "prune_rate": 0.289,
+      "remaining": 32,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 13
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": true
+    },
+    "skp-intentions-124": {
+      "node_id": "skp-intentions-124",
+      "total_entries": 45,
+      "evaluated": 45,
+      "pruned": 9,
+      "prune_rate": 0.2,
+      "remaining": 36,
+      "target": 40,
+      "meets_target": false,
+      "reasons": {
+        "rationale": 9
+      },
+      "neighbor_violations": {},
+      "needs_regeneration": false
+    }
+  }
+}

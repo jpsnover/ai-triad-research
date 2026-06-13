@@ -164,6 +164,9 @@ export interface AppAPI {
   readResearchFile: (relativePath: string) => Promise<unknown>;
   writeResearchFile: (relativePath: string, data: unknown) => Promise<void>;
 
+  // --- Synthetic corpus ---
+  loadSyntheticCorpus: (pov: string) => Promise<unknown | null>;
+
   // --- Feedback & error reporting ---
   submitFeedback: (rating: 'up' | 'down', text?: string) => Promise<{ ok: boolean; id?: string }>;
   reportError: (error: { name: string; message: string; stack?: string; componentStack?: string }, context?: Record<string, unknown>) => Promise<{ ok: boolean }>;

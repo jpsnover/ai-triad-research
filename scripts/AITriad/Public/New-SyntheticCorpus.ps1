@@ -25,6 +25,14 @@ function New-SyntheticCorpus {
         AI models for generation. Randomized per archetype group.
     .PARAMETER Temperature
         Generation temperature (default: 1.0 for diversity).
+    .PARAMETER Concurrency
+        Number of archetype groups to process in parallel (default: 1).
+        Requires PowerShell 7+. Each parallel runspace reimports the module.
+        Rate limit safe up to ~4 with Gemini free tier (60 RPM).
+    .PARAMETER ResetCheckpoint
+        Clears the crash-recovery checkpoint before starting. Use this to
+        force regeneration of prompts that were previously completed in an
+        interrupted run but not yet saved to corpus files.
     .EXAMPLE
         New-SyntheticCorpus -PilotNodes 'acc-beliefs-003', 'saf-beliefs-023'
     .EXAMPLE
@@ -46,7 +54,12 @@ function New-SyntheticCorpus {
         [string[]]$Models = @('gemini-2.5-flash', 'claude-sonnet-4-5'),
 
         [ValidateRange(0.0, 2.0)]
-        [double]$Temperature = 1.0
+        [double]$Temperature = 1.0,
+
+        [ValidateRange(1, 16)]
+        [int]$Concurrency = 1,
+
+        [switch]$ResetCheckpoint
     )
 
     Set-StrictMode -Version Latest
@@ -135,106 +148,332 @@ function New-SyntheticCorpus {
 
     Write-Host "`n  Archetype groups: $($ByArchetype.Count)" -ForegroundColor DarkGray
 
-    # ── Generation loop ─────────────────────────────────────────────────
+    # ── Build resume state ──────────────────────────────────────────────
     $AllEntries = @{}
+    $CheckpointPath = Join-Path $SyntheticDir '_checkpoint.jsonl'
+    $CompletedHashes = [System.Collections.Generic.HashSet[string]]::new()
+
+    if ($ResetCheckpoint -and (Test-Path $CheckpointPath)) {
+        Remove-Item $CheckpointPath -Force
+        Write-Host "  Checkpoint reset." -ForegroundColor Yellow
+    }
+
+    foreach ($cf in @(Get-ChildItem $SyntheticDir -Filter 'corpus_*.json' -ErrorAction SilentlyContinue)) {
+        try {
+            $data = Get-Content -Raw -Path $cf.FullName | ConvertFrom-Json
+            $beforeCount = $CompletedHashes.Count
+            foreach ($e in @($data.entries)) {
+                if ($e.prompt_hash) { [void]$CompletedHashes.Add($e.prompt_hash) }
+            }
+            Write-Verbose "  Corpus $($cf.Name): $($CompletedHashes.Count - $beforeCount) prompt hashes loaded"
+        } catch { }
+    }
+    Write-Verbose "  Resume state: $($CompletedHashes.Count) total completed hashes from corpus files"
+
+    if (Test-Path $CheckpointPath) {
+        Write-Verbose "  Loading crash checkpoint: $CheckpointPath"
+        $RecoveredCount = 0
+        $RecoveredStmts = 0
+        foreach ($line in @(Get-Content -Path $CheckpointPath -ErrorAction SilentlyContinue)) {
+            if (-not $line.Trim()) { continue }
+            try {
+                $cp = $line | ConvertFrom-Json
+                if ($cp.prompt_hash) { [void]$CompletedHashes.Add($cp.prompt_hash) }
+                $entryCount = 0
+                foreach ($entry in @($cp.entries)) {
+                    $nid = $entry.node_id
+                    if (-not $AllEntries.ContainsKey($nid)) { $AllEntries[$nid] = @() }
+                    $AllEntries[$nid] += $entry
+                    $entryCount++
+                    $RecoveredStmts++
+                }
+                $RecoveredCount++
+                Write-Verbose "    Checkpoint: $($cp.node_id) [$($cp.prompt_hash.Substring(0, [Math]::Min(8, $cp.prompt_hash.Length)))] — $entryCount entries"
+            } catch { }
+        }
+        if ($RecoveredCount -gt 0) {
+            Write-Host "  Recovered $RecoveredCount prompt results ($RecoveredStmts statements) from interrupted run" -ForegroundColor Yellow
+        }
+    }
+
+    $SkippableCount = @($AllPrompts | Where-Object { $CompletedHashes.Contains($_.prompt_hash) }).Count
+    $RemainingCount = $TotalPrompts - $SkippableCount
+
+    if ($SkippableCount -gt 0) {
+        Write-Host "  Resuming: $SkippableCount/$TotalPrompts prompts already done, $RemainingCount remaining" -ForegroundColor Green
+    }
+
+    # ── Generation ──────────────────────────────────────────────────────
     $CallCount = 0
     $FailCount = 0
+    $SkipCount = 0
     $StatementCount = 0
+    foreach ($vals in $AllEntries.Values) { $StatementCount += @($vals).Count }
     $StartTime = Get-Date
 
-    foreach ($GroupKey in $ByArchetype.Keys | Sort-Object) {
-        $GroupPrompts = @($ByArchetype[$GroupKey])
-        $ModelIdx = Get-Random -Minimum 0 -Maximum $Models.Count
-        $GroupModel = $Models[$ModelIdx]
+    if ($RemainingCount -eq 0) {
+        $SkipCount = $TotalPrompts
+        Write-Host "`n  All prompts already completed. Use -ResetCheckpoint to regenerate." -ForegroundColor Green
+    }
+    elseif ($Concurrency -gt 1 -and $PSVersionTable.PSVersion.Major -ge 7) {
+        # ── Parallel archetype groups ───────────────────────────────────
+        Write-Host "  Concurrency: $Concurrency parallel archetype groups" -ForegroundColor DarkGray
 
-        $Parts = $GroupKey -split '\|'
-        $ArchLabel = $Parts[0]
-        $AudLabel = if ($Parts[1] -and $Parts[1] -ne '') { " ($($Parts[1]))" } else { '' }
+        $ModulePath = Join-Path $script:ModuleRoot 'AITriad.psm1'
+        $AIEnrichPath = Join-Path (Join-Path $script:ModuleRoot '..') 'AIEnrich.psm1'
+        $GroupKeys = @($ByArchetype.Keys | Sort-Object)
 
-        Write-Host "`n  [$ArchLabel$AudLabel] → $GroupModel ($($GroupPrompts.Count) prompts)" -ForegroundColor Cyan
+        $ParallelResults = $GroupKeys | ForEach-Object -Parallel {
+            $GroupKey = $_
+            $ByArchetype = $using:ByArchetype
+            $Models = $using:Models
+            $Temperature = $using:Temperature
+            $CompletedHashes = $using:CompletedHashes
+            $CheckpointPath = $using:CheckpointPath
+            $VerbosePreference = $using:VerbosePreference
 
-        foreach ($Prompt in $GroupPrompts) {
-            $CallCount++
-            $NodeId = $Prompt.node_id
+            Import-Module $using:ModulePath -Force
+            Import-Module $using:AIEnrichPath -Force
+            Write-Verbose "  [$GroupKey] Module loaded in parallel runspace"
 
-            try {
-                $AIResult = Invoke-AIApi `
-                    -SystemInstruction $Prompt.system `
-                    -Prompt $Prompt.user `
-                    -Model $GroupModel `
-                    -Temperature $Temperature `
-                    -JsonMode `
-                    -MaxTokens 4096
+            $GroupPrompts = @($ByArchetype[$GroupKey])
+            $ModelIdx = Get-Random -Minimum 0 -Maximum $Models.Count
+            $GroupModel = $Models[$ModelIdx]
 
-                if (-not $AIResult) {
-                    Write-Host "    ⚠ $NodeId — null API response (missing key?)" -ForegroundColor Yellow
-                    $FailCount++
-                    continue
-                }
-                $ResponseText = $AIResult.Text
-                if (-not $ResponseText) {
-                    Write-Host "    ⚠ $NodeId — empty response" -ForegroundColor Yellow
-                    $FailCount++
-                    continue
-                }
+            $Parts = $GroupKey -split '\|'
+            $ArchLabel = $Parts[0]
+            $AudLabel = if ($Parts[1] -and $Parts[1] -ne '') { " ($($Parts[1]))" } else { '' }
 
-                $Parsed = $null
-                try { $Parsed = $ResponseText | ConvertFrom-Json }
-                catch {
-                    $Repaired = Repair-TruncatedJson -Text $ResponseText
-                    try { $Parsed = $Repaired | ConvertFrom-Json } catch { }
-                }
+            Write-Host "`n  [$ArchLabel$AudLabel] → $GroupModel ($($GroupPrompts.Count) prompts)" -ForegroundColor Cyan
 
-                if (-not $Parsed) {
-                    Write-Host "    ⚠ $NodeId — JSON parse failed" -ForegroundColor Yellow
-                    $FailCount++
+            $gCalls = 0; $gFails = 0; $gSkips = 0; $gStmts = 0
+            $gEntries = [System.Collections.ArrayList]::new()
+
+            foreach ($Prompt in $GroupPrompts) {
+                if ($CompletedHashes.Contains($Prompt.prompt_hash)) {
+                    $gSkips++
+                    Write-Verbose "    $($Prompt.node_id) — skipped (already completed)"
                     continue
                 }
 
-                $Statements = @($Parsed)
-                if ($Parsed.PSObject.Properties['statements']) { $Statements = @($Parsed.statements) }
-                elseif ($Parsed -is [array]) { $Statements = @($Parsed) }
-                elseif ($Parsed.PSObject.Properties['statement']) { $Statements = @($Parsed) }
+                $gCalls++
+                $NodeId = $Prompt.node_id
 
-                $Now = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-                foreach ($s in $Statements) {
-                    $StmtText = $null
-                    if ($s.PSObject.Properties['statement']) { $StmtText = $s.statement }
-                    elseif ($s -is [string]) { $StmtText = $s }
-                    if (-not $StmtText) { continue }
+                try {
+                    $AIResult = Invoke-AIApi `
+                        -SystemInstruction $Prompt.system `
+                        -Prompt $Prompt.user `
+                        -Model $GroupModel `
+                        -Temperature $Temperature `
+                        -JsonMode `
+                        -MaxTokens 4096
 
-                    $Entry = [ordered]@{
-                        node_id              = $NodeId
-                        statement            = $StmtText
-                        archetype            = $Prompt.archetype
-                        audience             = $Prompt.audience
-                        model                = $GroupModel
-                        generation_timestamp = $Now
-                        prompt_hash          = $Prompt.prompt_hash
-                        description_hash     = $Prompt.description_hash
-                        rationale            = if ($s.PSObject.Properties['rationale']) { $s.rationale } else { $null }
-                        pruned               = $false
-                        prune_reason         = $null
+                    if (-not $AIResult -or -not $AIResult.Text) {
+                        Write-Host "    ⚠ $NodeId — empty response" -ForegroundColor Yellow
+                        $gFails++
+                        continue
                     }
 
-                    if (-not $AllEntries.ContainsKey($NodeId)) { $AllEntries[$NodeId] = @() }
-                    $AllEntries[$NodeId] += $Entry
-                    $StatementCount++
+                    $Parsed = $null
+                    try { $Parsed = $AIResult.Text | ConvertFrom-Json }
+                    catch {
+                        $Repaired = Repair-TruncatedJson -Text $AIResult.Text
+                        try { $Parsed = $Repaired | ConvertFrom-Json } catch { }
+                    }
+
+                    if (-not $Parsed) {
+                        Write-Host "    ⚠ $NodeId — JSON parse failed" -ForegroundColor Yellow
+                        $gFails++
+                        continue
+                    }
+
+                    $Statements = @($Parsed)
+                    if ($Parsed.PSObject.Properties['statements']) { $Statements = @($Parsed.statements) }
+                    elseif ($Parsed -is [array]) { $Statements = @($Parsed) }
+                    elseif ($Parsed.PSObject.Properties['statement']) { $Statements = @($Parsed) }
+
+                    $Now = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+                    $promptEntries = @()
+                    foreach ($s in $Statements) {
+                        $StmtText = $null
+                        if ($s.PSObject.Properties['statement']) { $StmtText = $s.statement }
+                        elseif ($s -is [string]) { $StmtText = $s }
+                        if (-not $StmtText) { continue }
+
+                        $Entry = [ordered]@{
+                            node_id              = $NodeId
+                            statement            = $StmtText
+                            archetype            = $Prompt.archetype
+                            audience             = $Prompt.audience
+                            model                = $GroupModel
+                            generation_timestamp = $Now
+                            prompt_hash          = $Prompt.prompt_hash
+                            description_hash     = $Prompt.description_hash
+                            rationale            = if ($s.PSObject.Properties['rationale']) { $s.rationale } else { $null }
+                            pruned               = $false
+                            prune_reason         = $null
+                        }
+                        $promptEntries += $Entry
+                        [void]$gEntries.Add($Entry)
+                        $gStmts++
+                    }
+
+                    if ($promptEntries.Count -gt 0) {
+                        $cpLine = @{ prompt_hash = $Prompt.prompt_hash; node_id = $NodeId; entries = $promptEntries } |
+                            ConvertTo-Json -Compress -Depth 5
+                        Add-Content -Path $CheckpointPath -Value $cpLine -Encoding UTF8
+                        Write-Verbose "    $NodeId — checkpointed $($promptEntries.Count) entries ($($Prompt.prompt_hash.Substring(0, 8)))"
+                    }
+
+                    $Got = @($Statements).Count
+                    $Color = if ($Got -ge $Prompt.count) { 'Green' } else { 'Yellow' }
+                    Write-Host "    $NodeId — $Got statements" -ForegroundColor $Color
+                }
+                catch {
+                    Write-Host "    ⚠ $NodeId — API error: $($_.Exception.Message)" -ForegroundColor Red
+                    $gFails++
+                }
+            }
+
+            Write-Host "  [$ArchLabel$AudLabel] done — $gCalls calls, $gStmts statements" -ForegroundColor DarkGray
+
+            [PSCustomObject]@{
+                Entries        = @($gEntries)
+                CallCount      = $gCalls
+                FailCount      = $gFails
+                SkipCount      = $gSkips
+                StatementCount = $gStmts
+            }
+        } -ThrottleLimit $Concurrency
+
+        foreach ($result in @($ParallelResults)) {
+            if (-not $result) { continue }
+            $CallCount += $result.CallCount
+            $FailCount += $result.FailCount
+            $SkipCount += $result.SkipCount
+            $StatementCount += $result.StatementCount
+            foreach ($entry in @($result.Entries)) {
+                $nid = $entry.node_id
+                if (-not $AllEntries.ContainsKey($nid)) { $AllEntries[$nid] = @() }
+                $AllEntries[$nid] += $entry
+            }
+        }
+    }
+    else {
+        # ── Sequential archetype groups ─────────────────────────────────
+        if ($Concurrency -gt 1) {
+            Write-Warning "ForEach-Object -Parallel requires PowerShell 7+. Using sequential mode."
+        }
+
+        foreach ($GroupKey in $ByArchetype.Keys | Sort-Object) {
+            $GroupPrompts = @($ByArchetype[$GroupKey])
+            $ModelIdx = Get-Random -Minimum 0 -Maximum $Models.Count
+            $GroupModel = $Models[$ModelIdx]
+
+            $Parts = $GroupKey -split '\|'
+            $ArchLabel = $Parts[0]
+            $AudLabel = if ($Parts[1] -and $Parts[1] -ne '') { " ($($Parts[1]))" } else { '' }
+
+            Write-Host "`n  [$ArchLabel$AudLabel] → $GroupModel ($($GroupPrompts.Count) prompts)" -ForegroundColor Cyan
+
+            foreach ($Prompt in $GroupPrompts) {
+                if ($CompletedHashes.Contains($Prompt.prompt_hash)) {
+                    $SkipCount++
+                    Write-Verbose "    $($Prompt.node_id) — skipped (already completed)"
+                    continue
                 }
 
-                $Got = @($Statements).Count
-                $Color = if ($Got -ge $Prompt.count) { 'Green' } else { 'Yellow' }
-                Write-Host "    $NodeId — $Got statements" -ForegroundColor $Color
-            }
-            catch {
-                Write-Host "    ⚠ $NodeId — API error: $($_.Exception.Message)" -ForegroundColor Red
-                $FailCount++
-            }
+                $CallCount++
+                $NodeId = $Prompt.node_id
 
-            if ($CallCount % 20 -eq 0) {
-                $Elapsed = ((Get-Date) - $StartTime).TotalSeconds
-                $Rate = [Math]::Round($CallCount / $Elapsed * 60, 1)
-                Write-Host "    ── $CallCount/$TotalPrompts calls ($Rate/min) ──" -ForegroundColor DarkGray
+                try {
+                    $AIResult = Invoke-AIApi `
+                        -SystemInstruction $Prompt.system `
+                        -Prompt $Prompt.user `
+                        -Model $GroupModel `
+                        -Temperature $Temperature `
+                        -JsonMode `
+                        -MaxTokens 4096
+
+                    if (-not $AIResult) {
+                        Write-Host "    ⚠ $NodeId — null API response (missing key?)" -ForegroundColor Yellow
+                        $FailCount++
+                        continue
+                    }
+                    $ResponseText = $AIResult.Text
+                    if (-not $ResponseText) {
+                        Write-Host "    ⚠ $NodeId — empty response" -ForegroundColor Yellow
+                        $FailCount++
+                        continue
+                    }
+
+                    $Parsed = $null
+                    try { $Parsed = $ResponseText | ConvertFrom-Json }
+                    catch {
+                        $Repaired = Repair-TruncatedJson -Text $ResponseText
+                        try { $Parsed = $Repaired | ConvertFrom-Json } catch { }
+                    }
+
+                    if (-not $Parsed) {
+                        Write-Host "    ⚠ $NodeId — JSON parse failed" -ForegroundColor Yellow
+                        $FailCount++
+                        continue
+                    }
+
+                    $Statements = @($Parsed)
+                    if ($Parsed.PSObject.Properties['statements']) { $Statements = @($Parsed.statements) }
+                    elseif ($Parsed -is [array]) { $Statements = @($Parsed) }
+                    elseif ($Parsed.PSObject.Properties['statement']) { $Statements = @($Parsed) }
+
+                    $Now = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
+                    $promptEntries = @()
+                    foreach ($s in $Statements) {
+                        $StmtText = $null
+                        if ($s.PSObject.Properties['statement']) { $StmtText = $s.statement }
+                        elseif ($s -is [string]) { $StmtText = $s }
+                        if (-not $StmtText) { continue }
+
+                        $Entry = [ordered]@{
+                            node_id              = $NodeId
+                            statement            = $StmtText
+                            archetype            = $Prompt.archetype
+                            audience             = $Prompt.audience
+                            model                = $GroupModel
+                            generation_timestamp = $Now
+                            prompt_hash          = $Prompt.prompt_hash
+                            description_hash     = $Prompt.description_hash
+                            rationale            = if ($s.PSObject.Properties['rationale']) { $s.rationale } else { $null }
+                            pruned               = $false
+                            prune_reason         = $null
+                        }
+                        $promptEntries += $Entry
+
+                        if (-not $AllEntries.ContainsKey($NodeId)) { $AllEntries[$NodeId] = @() }
+                        $AllEntries[$NodeId] += $Entry
+                        $StatementCount++
+                    }
+
+                    if ($promptEntries.Count -gt 0) {
+                        $cpLine = @{ prompt_hash = $Prompt.prompt_hash; node_id = $NodeId; entries = $promptEntries } |
+                            ConvertTo-Json -Compress -Depth 5
+                        Add-Content -Path $CheckpointPath -Value $cpLine -Encoding UTF8
+                        Write-Verbose "    $NodeId — checkpointed $($promptEntries.Count) entries ($($Prompt.prompt_hash.Substring(0, 8)))"
+                    }
+
+                    $Got = @($Statements).Count
+                    $Color = if ($Got -ge $Prompt.count) { 'Green' } else { 'Yellow' }
+                    Write-Host "    $NodeId — $Got statements" -ForegroundColor $Color
+                }
+                catch {
+                    Write-Host "    ⚠ $NodeId — API error: $($_.Exception.Message)" -ForegroundColor Red
+                    $FailCount++
+                }
+
+                if ($CallCount % 20 -eq 0 -and $CallCount -gt 0) {
+                    $Elapsed = ((Get-Date) - $StartTime).TotalSeconds
+                    $Rate = [Math]::Round($CallCount / $Elapsed * 60, 1)
+                    Write-Host "    ── $CallCount calls, $SkipCount skipped ($Rate/min) ──" -ForegroundColor DarkGray
+                }
             }
         }
     }
@@ -244,7 +483,7 @@ function New-SyntheticCorpus {
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
     Write-Host " GENERATION COMPLETE" -ForegroundColor Cyan
     Write-Host "$('═' * 72)" -ForegroundColor Cyan
-    Write-Host "  Calls: $CallCount  Failed: $FailCount  Statements: $StatementCount  ($($Elapsed)s)" -ForegroundColor White
+    Write-Host "  Calls: $CallCount  Skipped: $SkipCount  Failed: $FailCount  Statements: $StatementCount  ($($Elapsed)s)" -ForegroundColor White
 
     $PovGroups = @{}
     foreach ($NodeId in $AllEntries.Keys) {
@@ -268,11 +507,16 @@ function New-SyntheticCorpus {
             catch { Write-Warning "Could not read existing corpus: $CorpusPath" }
         }
 
-        $NodeIdsGenerated = @{}
-        foreach ($e in $Entries) { $NodeIdsGenerated[$e.node_id] = $true }
+        $NewHashes = [System.Collections.Generic.HashSet[string]]::new()
+        foreach ($e in $Entries) {
+            if ($e.prompt_hash) { [void]$NewHashes.Add($e.prompt_hash) }
+        }
 
-        $Preserved = @($ExistingEntries | Where-Object { -not $NodeIdsGenerated.ContainsKey($_.node_id) })
+        $Preserved = @($ExistingEntries | Where-Object {
+            -not $_.prompt_hash -or -not $NewHashes.Contains($_.prompt_hash)
+        })
         $MergedEntries = @($Preserved) + @($Entries)
+        Write-Verbose "  $PovKey merge: $($Preserved.Count) preserved + $($Entries.Count) new = $($MergedEntries.Count) total"
 
         $UniqueNodes = @($MergedEntries | ForEach-Object { $_.node_id } | Select-Object -Unique)
 
@@ -292,16 +536,23 @@ function New-SyntheticCorpus {
         Write-Host "  $PovKey — $($Entries.Count) new entries ($($UniqueNodes.Count) nodes) → $CorpusPath" -ForegroundColor Green
     }
 
+    if (Test-Path $CheckpointPath) {
+        Write-Verbose "  Removing checkpoint file (corpus saved successfully)"
+        Remove-Item $CheckpointPath -Force
+    }
+
     # ── Save metadata ───────────────────────────────────────────────────
     $MetadataPath = Join-Path $SyntheticDir 'metadata.json'
     $Metadata = [ordered]@{
         last_generation  = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
         models           = $Models
         temperature      = $Temperature
+        concurrency      = $Concurrency
         mode             = if ($PilotNodes) { 'pilot' } else { 'full' }
         nodes_generated  = $AllEntries.Keys.Count
         total_statements = $StatementCount
         api_calls        = $CallCount
+        skipped_calls    = $SkipCount
         failed_calls     = $FailCount
         elapsed_seconds  = $Elapsed
     }

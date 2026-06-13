@@ -171,6 +171,9 @@ export const api: AppAPI = {
   readResearchFile: (relativePath) => window.electronAPI.readResearchFile(relativePath),
   writeResearchFile: (relativePath, data) => window.electronAPI.writeResearchFile(relativePath, data),
 
+  // Synthetic corpus
+  loadSyntheticCorpus: (pov) => window.electronAPI.loadSyntheticCorpus(pov),
+
   // Feedback & error reporting
   submitFeedback: (rating, text) => window.electronAPI.submitFeedback(rating, text),
   reportError: (err, context) => window.electronAPI.reportError(err, context),

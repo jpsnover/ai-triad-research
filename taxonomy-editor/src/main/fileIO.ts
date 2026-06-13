@@ -292,6 +292,15 @@ export function readTaxonomyFile(pov: string): unknown {
   return parseJsonFile(path.join(activeTaxonomyDir, filename));
 }
 
+const SYNTHETIC_POV_KEYS = new Set(['acc', 'saf', 'skp']);
+
+export function loadSyntheticCorpus(pov: string): unknown | null {
+  if (!SYNTHETIC_POV_KEYS.has(pov)) return null;
+  const filePath = path.join(activeTaxonomyDir, 'synthetic', `corpus_${pov}.json`);
+  if (!fs.existsSync(filePath)) return null;
+  return parseJsonFile(filePath);
+}
+
 export function readLineageCategories(): unknown {
   const filePath = path.join(activeTaxonomyDir, 'lineage_categories.json');
   if (!fs.existsSync(filePath)) return null;

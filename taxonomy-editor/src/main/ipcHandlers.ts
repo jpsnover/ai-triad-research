@@ -27,6 +27,7 @@ import {
   loadSummary,
   loadSnapshot,
   getSummariesDir,
+  loadSyntheticCorpus,
 } from './fileIO.js';
 import {
   listDebateSessions,
@@ -1275,6 +1276,10 @@ document.addEventListener('DOMContentLoaded', function() {
       fs.mkdirSync(dir, { recursive: true });
     }
     writeJsonFileAtomic(filePath, data);
+  });
+
+  ipcMain.handle('load-synthetic-corpus', (_event, pov: string) => {
+    return loadSyntheticCorpus(pov);
   });
 
   ipcMain.handle('submit-feedback', (_event, rating: string, text?: string) => {

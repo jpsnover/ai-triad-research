@@ -4275,6 +4275,21 @@ body {
   color: var(--text-secondary);
   margin-bottom: 10px;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.phrases-source-badge {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.phrases-source-legacy {
+  background: var(--bg-tertiary, #f1f5f9);
+  color: var(--text-secondary);
 }
 
 .phrases-list {
@@ -4283,11 +4298,71 @@ body {
   overflow: hidden;
 }
 
+.phrases-archetype-list {
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.phrases-archetype-group {
+  border-bottom: 1px solid var(--border-color-light, #e2e8f0);
+}
+
+.phrases-archetype-group:last-child {
+  border-bottom: none;
+}
+
+.phrases-archetype-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-secondary, #f8fafc);
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.phrases-archetype-header:hover {
+  background: var(--bg-tertiary, #f1f5f9);
+}
+
+.phrases-archetype-chevron {
+  font-size: 0.7rem;
+  width: 12px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.phrases-archetype-label {
+  flex: 1;
+}
+
+.phrases-archetype-count {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary, #e2e8f0);
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.phrases-archetype-entries {
+  border-top: 1px solid var(--border-color-light, #e2e8f0);
+}
+
 .phrases-item {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-color-light, #e2e8f0);
   font-size: 0.82rem;
   line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .phrases-item:last-child {
@@ -4296,6 +4371,33 @@ body {
 
 .phrases-item-text {
   color: var(--text-primary);
+  flex: 1;
+}
+
+.phrases-audience-badge {
+  font-size: 0.65rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.phrases-audience-industry_leader {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.phrases-audience-policymaker {
+  background: rgba(147, 51, 234, 0.1);
+  color: #7c3aed;
+}
+
+.phrases-audience-technical_researcher {
+  background: rgba(13, 148, 136, 0.1);
+  color: #0d9488;
 }
 
 /* ── Feedback Widget ───────────────────────────────────────────────────── */

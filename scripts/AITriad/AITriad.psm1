@@ -405,6 +405,7 @@ Export-ModuleMember -Function @(
     'Get-AICostReport'
     'Show-OSSLicenses'
     'Get-FlightRecorderDump'
+    'Get-AzureFlightRecorder'
     'Show-FlightRecorder'
     'Update-AITSourceIndex'
     'Get-PovLineage'
