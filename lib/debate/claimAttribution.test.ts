@@ -241,4 +241,48 @@ describe('computeClaimTaxonomyAttribution', () => {
     expect(result.unattributed).toBe(0);
     expect(result.decisions).toHaveLength(0);
   });
+
+  // ── Multi-vector attribution ───────────────────
+
+  it('uses mean-of-top-N scoring when multi-vector data is present', () => {
+    // Claim embedding: dim 0
+    const claimEmb = makeEmbedding(0);
+    const nodes = [makeNode('AN-1', 'accelerationist', claimEmb)];
+
+    // Node with multi-vector: 3 vectors, one exact match + 2 similar
+    const embeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }> = {
+      'acc-B-001': {
+        pov: 'accelerationist',
+        vector: makeEmbedding(1), // single vector would score ~0
+        vectors: [makeEmbedding(0), makeSimilarEmbedding(makeEmbedding(0), 0.9), makeEmbedding(1)],
+      },
+      'acc-B-002': {
+        pov: 'accelerationist',
+        vector: makeEmbedding(2),
+        // no vectors — should be scored via single vector
+      },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, BELIEF_IDS);
+
+    // acc-B-001 should score higher via multi-vector (mean of top 3 includes the exact match)
+    // acc-B-002 should score ~0 via single-vector fallback
+    expect(result.attributed).toBe(1);
+    const decision = result.decisions[0];
+    expect(decision.primary_ref).toBe('acc-B-001');
+    expect(decision.attribution_confidence).toBeGreaterThan(0.5);
+  });
+
+  it('falls back to single-vector when no multi-vector data exists', () => {
+    const claimEmb = makeEmbedding(0);
+    const nodes = [makeNode('AN-1', 'accelerationist', claimEmb)];
+
+    const embeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, BELIEF_IDS);
+    expect(result.attributed).toBe(1);
+    expect(result.decisions[0].attribution_confidence).toBeCloseTo(1.0);
+  });
 });

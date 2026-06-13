@@ -8,7 +8,7 @@
 
 import { MOVE_EDGE_MAP, SUPPORT_MOVES, wordOverlap, maxOverlapVsExisting, lookupTaxonomyEdgeWeight } from './helpers.js';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, ClaimTaxonomyAttribution } from './types.js';
-import { cosineSimilarity } from './taxonomyRelevance.js';
+import { cosineSimilarity, scoreNodeRelevanceMeanTopN } from './taxonomyRelevance.js';
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { computeFactCheckStrength } from './qbaf.js';
 import type { WebEvidenceItem } from './qbaf.js';
@@ -1471,8 +1471,9 @@ export interface ClaimAttributionDecision {
 export function computeClaimTaxonomyAttribution(
   nodes: ArgumentNetworkNode[],
   speakerPov: string,
-  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
+  nodeEmbeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }>,
   beliefNodeIds: Set<string>,
+  topN: number = 3,
 ): ClaimAttributionResult {
   const decisions: ClaimAttributionDecision[] = [];
   let attributed = 0;
@@ -1481,12 +1482,13 @@ export function computeClaimTaxonomyAttribution(
   let novelArgument = 0;
 
   // Pre-filter: same-POV Belief nodes with embeddings
-  const candidateEntries: [string, number[]][] = [];
+  const candidateEntries: [string, { vector: number[]; vectors?: number[][] }][] = [];
   for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
     if (entry.pov === speakerPov && beliefNodeIds.has(nodeId) && entry.vector?.length > 0) {
-      candidateEntries.push([nodeId, entry.vector]);
+      candidateEntries.push([nodeId, { vector: entry.vector, vectors: entry.vectors }]);
     }
   }
+  const hasMultiVector = candidateEntries.some(([, e]) => e.vectors && e.vectors.length > 0);
 
   for (const node of nodes) {
     if (!node.embedding || node.embedding.length === 0) {
@@ -1527,11 +1529,23 @@ export function computeClaimTaxonomyAttribution(
       continue;
     }
 
-    // Compute cosine similarity against all candidate nodes
+    // Compute similarity against all candidate nodes
     const similarities: { node_id: string; similarity: number }[] = [];
-    for (const [nodeId, vector] of candidateEntries) {
-      const sim = cosineSimilarity(node.embedding, vector);
-      similarities.push({ node_id: nodeId, similarity: sim });
+    if (hasMultiVector) {
+      // Mean-of-top-3: build a single-node embeddings map per candidate and score
+      const candidateMap: Record<string, { pov: string; vector: number[]; vectors?: number[][] }> = {};
+      for (const [nodeId, entry] of candidateEntries) {
+        candidateMap[nodeId] = { pov: speakerPov, vector: entry.vector, vectors: entry.vectors };
+      }
+      const meanScores = scoreNodeRelevanceMeanTopN(node.embedding, candidateMap, topN);
+      for (const [nodeId, sim] of meanScores) {
+        similarities.push({ node_id: nodeId, similarity: sim });
+      }
+    } else {
+      for (const [nodeId, entry] of candidateEntries) {
+        const sim = cosineSimilarity(node.embedding, entry.vector);
+        similarities.push({ node_id: nodeId, similarity: sim });
+      }
     }
 
     // Sort descending by similarity

@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
+import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, scoreNodeRelevanceMeanTopN, cosineSimilarity, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
 import type { LineageBoostConfig, LineageBoostResult, BranchBoostResult, RelevanceOptions, ScoredPovNode, ScoredSituationNode } from './taxonomyRelevance.js';
 import type { TopicScope } from './types.js';
 import type { PovNode, Category, SituationNode } from './taxonomyTypes.js';
@@ -619,5 +619,58 @@ describe('selectRelevantSituationNodes — branch boosting', () => {
     const childResult = result.find(s => s.node.id === 'sit-001');
     expect(rootResult!.score).toBeCloseTo(0.55);
     expect(childResult!.score).toBeCloseTo(0.61);
+  });
+});
+
+// ── scoreNodeRelevanceMeanTopN ───────────────────────────
+
+describe('scoreNodeRelevanceMeanTopN', () => {
+  // Unit vectors for deterministic similarity testing
+  const unitX: number[] = [1, 0, 0];
+  const unitY: number[] = [0, 1, 0];
+  const unitZ: number[] = [0, 0, 1];
+  const midXY: number[] = [Math.SQRT1_2, Math.SQRT1_2, 0]; // 45° between X and Y
+
+  it('returns mean of top-3 cosine similarities for multi-vector nodes', () => {
+    const embeddings = {
+      'node-A': {
+        pov: 'acc',
+        vector: unitX,
+        vectors: [unitX, midXY, unitY, unitZ], // 4 vectors
+      },
+    };
+    const scores = scoreNodeRelevanceMeanTopN(unitX, embeddings, 3);
+    // cos(unitX, unitX) = 1.0, cos(unitX, midXY) ≈ 0.707, cos(unitX, unitY) = 0, cos(unitX, unitZ) = 0
+    // Top 3: 1.0, 0.707, 0 → mean ≈ 0.569
+    const expected = (1.0 + Math.SQRT1_2 + 0) / 3;
+    expect(scores.get('node-A')).toBeCloseTo(expected, 3);
+  });
+
+  it('falls back to single-vector cosine when vectors is absent', () => {
+    const embeddings = {
+      'node-A': { pov: 'acc', vector: midXY },
+    };
+    const scores = scoreNodeRelevanceMeanTopN(unitX, embeddings, 3);
+    expect(scores.get('node-A')).toBeCloseTo(cosineSimilarity(unitX, midXY), 5);
+  });
+
+  it('handles fewer vectors than topN gracefully', () => {
+    const embeddings = {
+      'node-A': { pov: 'acc', vector: unitX, vectors: [unitX, midXY] }, // only 2 vectors
+    };
+    const scores = scoreNodeRelevanceMeanTopN(unitX, embeddings, 3);
+    // Top 2 (all): 1.0, 0.707 → mean ≈ 0.854
+    const expected = (1.0 + Math.SQRT1_2) / 2;
+    expect(scores.get('node-A')).toBeCloseTo(expected, 3);
+  });
+
+  it('scores multiple nodes independently', () => {
+    const embeddings = {
+      'node-A': { pov: 'acc', vector: unitX, vectors: [unitX, unitX, unitX] },
+      'node-B': { pov: 'acc', vector: unitY, vectors: [unitY, unitY, unitY] },
+    };
+    const scores = scoreNodeRelevanceMeanTopN(unitX, embeddings, 3);
+    expect(scores.get('node-A')).toBeCloseTo(1.0);
+    expect(scores.get('node-B')).toBeCloseTo(0.0);
   });
 });

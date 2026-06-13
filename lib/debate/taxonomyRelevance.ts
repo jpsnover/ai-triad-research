@@ -111,6 +111,34 @@ export function scoreNodeRelevance(
 }
 
 /**
+ * Mean-of-top-N scoring: for a query embedding, compute cosine similarity
+ * against all node vectors (synthetic multi-vector when available, single-vector
+ * fallback), then take the mean of the top N similarities.
+ *
+ * This captures how well a claim overlaps with a node's semantic neighborhood
+ * rather than relying on a single centroid embedding.
+ */
+export function scoreNodeRelevanceMeanTopN(
+  queryVector: number[],
+  nodeEmbeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }>,
+  topN: number = 3,
+): Map<string, number> {
+  const scores = new Map<string, number>();
+  for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
+    if (entry.vectors && entry.vectors.length > 0) {
+      const sims = entry.vectors
+        .map(v => cosineSimilarity(queryVector, v))
+        .sort((a, b) => b - a);
+      const top = sims.slice(0, Math.min(topN, sims.length));
+      scores.set(nodeId, top.reduce((s, v) => s + v, 0) / top.length);
+    } else if (entry.vector && Array.isArray(entry.vector)) {
+      scores.set(nodeId, cosineSimilarity(queryVector, entry.vector));
+    }
+  }
+  return scores;
+}
+
+/**
  * Select relevant POV nodes for a debate based on similarity threshold.
  * Includes all nodes above the threshold, sorted by relevance.
  * A minimum of 3 per category is guaranteed even if below threshold.

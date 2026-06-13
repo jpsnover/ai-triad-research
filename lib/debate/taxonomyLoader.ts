@@ -21,13 +21,19 @@ export interface LineageCategoryData {
   level2_categories: { id: string; label: string; l1_parent: string; member_count: number }[];
 }
 
+export interface NodeEmbedding {
+  pov: string;
+  vector: number[];
+  vectors?: number[][];
+}
+
 export interface LoadedTaxonomy {
   accelerationist: { nodes: PovNode[] };
   safetyist: { nodes: PovNode[] };
   skeptic: { nodes: PovNode[] };
   situations: { nodes: SituationNode[] };
   edges: EdgesFile | null;
-  embeddings: Record<string, { pov: string; vector: number[] }>;
+  embeddings: Record<string, NodeEmbedding>;
   policyRegistry: PolicyRef[];
   /** Lineage category data (L1 + L2 cluster mapping). Absent if file not found. */
   lineageCategories?: LineageCategoryData;
@@ -178,7 +184,22 @@ export function loadTaxonomy(repoRoot: string): LoadedTaxonomy {
     path.join(taxonomyDir, 'embeddings.json'),
     { nodes: {} },
   );
-  const embeddings = embeddingsRaw.nodes ?? {};
+  const embeddings: Record<string, NodeEmbedding> = embeddingsRaw.nodes ?? {};
+
+  // Synthetic multi-vector embeddings (optional — produced by Export-SyntheticEmbeddings)
+  const syntheticRaw = loadJsonSafe<{
+    nodes?: Record<string, { pov: string; vectors: number[][]; archetypes?: string[] }>;
+  } | null>(path.join(taxonomyDir, 'synthetic', 'synthetic_embeddings.json'), null);
+  if (syntheticRaw?.nodes) {
+    for (const [nodeId, entry] of Object.entries(syntheticRaw.nodes)) {
+      if (!entry.vectors?.length) continue;
+      if (embeddings[nodeId]) {
+        embeddings[nodeId].vectors = entry.vectors;
+      } else {
+        embeddings[nodeId] = { pov: entry.pov, vector: entry.vectors[0], vectors: entry.vectors };
+      }
+    }
+  }
 
   // Policy registry
   const policyRaw = loadJsonSafe<{ policies?: { id: string; action: string; source_povs?: string[] }[] }>(
