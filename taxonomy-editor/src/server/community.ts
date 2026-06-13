@@ -162,20 +162,34 @@ export async function listSubmissions(statusFilter?: string): Promise<unknown[]>
   return subs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }
 
+const SENSITIVE_KEYS = new Set([
+  'api_key', 'apiKey', 'api_keys', 'apiKeys',
+  'secret', 'token', 'password', 'credential', 'credentials',
+  'authorization', 'auth_token', 'access_token', 'refresh_token',
+  'private_key', 'privateKey',
+  'flight_recorder', 'debug', '_internal', 'diagnostics_state',
+]);
+
+function stripSensitiveKeys(obj: unknown): unknown {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripSensitiveKeys);
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (SENSITIVE_KEYS.has(key)) continue;
+    if (typeof value === 'string' && /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
+    result[key] = stripSensitiveKeys(value);
+  }
+  return result;
+}
+
 function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
-  const d = JSON.parse(JSON.stringify(data)) as Record<string, unknown>;
-  // Strip internal/debug metadata
-  delete d.flight_recorder;
-  delete d.debug;
-  delete d._internal;
-  // Add community attribution
+  const d = stripSensitiveKeys(JSON.parse(JSON.stringify(data))) as Record<string, unknown>;
   d.community_metadata = {
     submitted_by_display: submittedBy,
     submitted_at: new Date().toISOString(),
     approved_at: new Date().toISOString(),
     original_id: d.id,
   };
-  // Generate new ID for community copy
   d.id = crypto.randomUUID();
   return d;
 }

@@ -3,6 +3,7 @@
 
 import { create } from 'zustand';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export interface CommunityItem {
   id: string;
@@ -51,6 +52,10 @@ interface CommunityStore {
   rejectSubmission: (id: string) => Promise<void>;
 }
 
+function isElectronMode(): boolean {
+  return typeof window !== 'undefined' && 'electronAPI' in window;
+}
+
 async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, opts);
   if (!res.ok) {
@@ -68,39 +73,46 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
   error: null,
 
   fetchChats: async () => {
+    if (isElectronMode()) { set({ chats: [], loading: false }); return; }
     set({ loading: true, error: null });
     try {
       const chats = await fetchJson<CommunityChat[]>('/api/community/chats');
       set({ chats, loading: false });
       api.trackEvent('community_browse', 'community', { type: 'chats', count: chats.length });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community chats', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ error: String(err), loading: false });
     }
   },
 
   fetchDebates: async () => {
+    if (isElectronMode()) { set({ debates: [], loading: false }); return; }
     set({ loading: true, error: null });
     try {
       const debates = await fetchJson<CommunityDebate[]>('/api/community/debates');
       set({ debates, loading: false });
       api.trackEvent('community_browse', 'community', { type: 'debates', count: debates.length });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch community debates', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ error: String(err), loading: false });
     }
   },
 
   fetchSubmissions: async (status?: string) => {
+    if (isElectronMode()) { set({ submissions: [], loading: false }); return; }
     set({ loading: true, error: null });
     try {
       const qs = status ? `?status=${status}` : '';
       const submissions = await fetchJson<Submission[]>(`/api/admin/submissions${qs}`);
       set({ submissions, loading: false });
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to fetch submissions', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
       set({ error: String(err), loading: false });
     }
   },
 
   submitItem: async (type, data, note) => {
+    if (isElectronMode()) throw new Error('Community Library is not available in desktop mode');
     const result = await fetchJson<{ submissionId: string }>('/api/community/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -110,6 +122,7 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
   },
 
   copyItem: async (type, communityId) => {
+    if (isElectronMode()) throw new Error('Community Library is not available in desktop mode');
     const result = await fetchJson<{ newId: string }>('/api/community/copy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -120,10 +133,12 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
   },
 
   approveSubmission: async (id) => {
+    if (isElectronMode()) return;
     await fetchJson(`/api/admin/submissions/${id}/approve`, { method: 'POST' });
   },
 
   rejectSubmission: async (id) => {
+    if (isElectronMode()) return;
     await fetchJson(`/api/admin/submissions/${id}/reject`, { method: 'POST' });
   },
 }));
