@@ -1268,38 +1268,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  let corpusIndex: Map<string, { text: string; source: string; weight: number; metadata?: Record<string, unknown> }[]> | null = null;
-
-  ipcMain.handle('get-training-pairs', (_event, rawNodeId: string) => {
-    const nodeId = NodeId.parse(rawNodeId);
-    if (!corpusIndex) {
-      const corpusPath = path.join(RESEARCH_DIR, 'comp-linguist', 'training_corpus.json');
-      try {
-        if (!fs.existsSync(corpusPath)) return [];
-        const raw = fs.readFileSync(corpusPath, 'utf-8');
-        const data = JSON.parse(raw) as { pairs: { text: string; node_id: string; source: string; weight: number; metadata?: Record<string, unknown> }[] };
-        corpusIndex = new Map();
-        for (const p of data.pairs) {
-          const arr = corpusIndex.get(p.node_id);
-          const entry = { text: p.text, source: p.source, weight: p.weight, metadata: p.metadata };
-          if (arr) arr.push(entry);
-          else corpusIndex.set(p.node_id, [entry]);
-        }
-        console.log(`[training-corpus] Indexed ${data.pairs.length} pairs across ${corpusIndex.size} nodes`);
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error',
-          component: 'ipc-training-pairs',
-          level: 'error',
-          message: 'Failed to load training corpus',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
-        });
-        return [];
-      }
-    }
-    return corpusIndex.get(nodeId) ?? [];
-  });
-
   ipcMain.handle('write-research-file', (_event, relativePath: string, data: unknown) => {
     const filePath = resolveResearchPath(relativePath);
     const dir = path.dirname(filePath);
@@ -1307,5 +1275,26 @@ document.addEventListener('DOMContentLoaded', function() {
       fs.mkdirSync(dir, { recursive: true });
     }
     writeJsonFileAtomic(filePath, data);
+  });
+
+  ipcMain.handle('submit-feedback', (_event, rating: string, text?: string) => {
+    if (rating !== 'up' && rating !== 'down') return { ok: false };
+    const feedbackDir = path.join(getDataRootPath(), 'admin', 'feedback');
+    fs.mkdirSync(feedbackDir, { recursive: true });
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const ts = new Date().toISOString().replace(/:/g, '-');
+    const entry = { id, timestamp: new Date().toISOString(), rating, text: text?.trim() || null };
+    fs.writeFileSync(path.join(feedbackDir, `feedback-${ts}-${id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
+    return { ok: true, id };
+  });
+
+  ipcMain.handle('report-error', (_event, error: Record<string, unknown>, context?: Record<string, unknown>) => {
+    const errorsDir = path.join(getDataRootPath(), 'admin', 'errors');
+    fs.mkdirSync(errorsDir, { recursive: true });
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const ts = new Date().toISOString().replace(/:/g, '-');
+    const entry = { id, timestamp: new Date().toISOString(), error, context: context ?? {} };
+    fs.writeFileSync(path.join(errorsDir, `error-${ts}-${id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
+    return { ok: true };
   });
 }

@@ -163,7 +163,10 @@ export interface AppAPI {
   // --- Research file access ---
   readResearchFile: (relativePath: string) => Promise<unknown>;
   writeResearchFile: (relativePath: string, data: unknown) => Promise<void>;
-  getTrainingPairs: (nodeId: string) => Promise<{ text: string; source: string; weight: number; metadata?: Record<string, unknown> }[]>;
+
+  // --- Feedback & error reporting ---
+  submitFeedback: (rating: 'up' | 'down', text?: string) => Promise<{ ok: boolean; id?: string }>;
+  reportError: (error: { name: string; message: string; stack?: string; componentStack?: string }, context?: Record<string, unknown>) => Promise<{ ok: boolean }>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;

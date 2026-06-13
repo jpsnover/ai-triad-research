@@ -399,8 +399,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('read-research-file', relativePath),
   writeResearchFile: (relativePath: string, data: unknown): Promise<void> =>
     ipcRenderer.invoke('write-research-file', relativePath, data),
-  getTrainingPairs: (nodeId: string): Promise<{ text: string; source: string; weight: number; metadata?: Record<string, unknown> }[]> =>
-    ipcRenderer.invoke('get-training-pairs', nodeId),
+
+  // Feedback & error reporting
+  submitFeedback: (rating: string, text?: string): Promise<{ ok: boolean; id?: string }> =>
+    ipcRenderer.invoke('submit-feedback', rating, text),
+  reportError: (error: Record<string, unknown>, context?: Record<string, unknown>): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('report-error', error, context),
 
   // Clipboard (Electron 40: renderer clipboard API deprecated)
   clipboardWriteText: (text: string): Promise<void> =>

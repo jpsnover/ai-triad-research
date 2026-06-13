@@ -368,11 +368,6 @@ const rawApi: AppAPI = {
   deleteDebateSession: (id) => del(`/api/debates/${encodeURIComponent(id)}`).then(() => {}),
   loadDebateComments: (id) => get(`/api/debates/${encodeURIComponent(id)}/comments`),
   saveDebateComments: (id, data) => put(`/api/debates/${encodeURIComponent(id)}/comments`, data).then(() => {}),
-  readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`),
-  writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
-  getTrainingPairs: (nodeId) => get(`/api/research/training-pairs/${encodeURIComponent(nodeId)}`),
-  getCalibrationHistory: () => get('/api/calibration/history'),
-  getCalibrationLog: () => get('/api/calibration/log'),
   exportDebateToFile: async (session, format = 'json', exportOptions) => {
     const { debateToText, debateToMarkdown, debateToHtml, debateToPackage, debateExportFilename } = await import('@lib/debate/debateExport');
     const debate = session as Parameters<typeof debateToText>[0] & { diagnostics?: unknown };
@@ -459,10 +454,13 @@ const rawApi: AppAPI = {
   readPsPrompt: (name) => get(`/api/ps-prompts/${encodeURIComponent(name)}`),
   listPsPrompts: () => get('/api/ps-prompts'),
 
+  // Feedback & error reporting
+  submitFeedback: (rating, text) => post('/api/admin/feedback', { rating, text, context: { url: location.href, userAgent: navigator.userAgent } }),
+  reportError: (err, context) => post('/api/admin/errors', { error: err, context: { ...context, url: location.href, userAgent: navigator.userAgent } }).catch(() => ({ ok: false }) /* telemetry — silent by design: logging error-report failures would cause infinite loops */),
+
   // Research file access
   readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`).catch(() => null),
   writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
-  getTrainingPairs: (nodeId) => get(`/api/research/training-pairs/${encodeURIComponent(nodeId)}`).catch(() => []),
 
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),

@@ -415,6 +415,10 @@ export function initFlightRecorder(): FlightRecorder {
         name: err.name, message: err.message, stack: err.stack?.slice(0, 500),
       });
     }
+    api.reportError(
+      { name: err.name, message: err.message, stack: err.stack?.slice(0, 2000) },
+      { trigger: 'uncaught_error', url: location.href, deploymentMode: getDeploymentMode() },
+    ).catch(() => { /* telemetry — silent by design: error reporting failures must not cascade */ });
   });
 
   window.addEventListener('unhandledrejection', (event) => {
@@ -432,6 +436,10 @@ export function initFlightRecorder(): FlightRecorder {
         name: err.name, message: err.message, stack: err.stack?.slice(0, 500),
       });
     }
+    api.reportError(
+      { name: err.name, message: err.message, stack: err.stack?.slice(0, 2000) },
+      { trigger: 'unhandled_rejection', url: location.href, deploymentMode: getDeploymentMode() },
+    ).catch(() => { /* telemetry — silent by design: error reporting failures must not cascade */ });
   });
 
   // ── Keyboard shortcut: Ctrl+Alt+D for manual dump ──
@@ -507,4 +515,10 @@ export function dumpOnReactError(
   void persistDump(recorder, 'error_boundary', {
     name: error.name, message: error.message, stack: error.stack?.slice(0, 500),
   }, componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined);
+
+  // Report to server for aggregation
+  api.reportError(
+    { name: error.name, message: error.message, stack: error.stack?.slice(0, 2000), componentStack: componentStack?.slice(0, 1000) },
+    { trigger: 'error_boundary', url: location.href, deploymentMode: getDeploymentMode() },
+  ).catch(() => { /* telemetry — silent by design: error reporting failures must not cascade */ });
 }

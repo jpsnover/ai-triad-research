@@ -17,6 +17,7 @@ import { DebateTab } from './components/DebateTab';
 import { ChatTab } from './components/ChatTab';
 import { FirstRunDialog } from './components/FirstRunDialog';
 import { DeploymentErrorScreen } from './components/DeploymentErrorScreen';
+import { FeedbackWidget } from './components/FeedbackWidget';
 import { StartupProgressScreen } from './components/StartupProgressScreen';
 import { DiagnosticsWindow } from './components/debate-diagnostics';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
@@ -162,7 +163,7 @@ export function App() {
   }
 
   // Route between CLI file viewer and main app
-  return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AppRouter /></ErrorBoundary>;
+  return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AppRouter /><FeedbackWidget /></ErrorBoundary>;
 }
 
 /** Handles CLI-mode detection — hooks are always called in same order */

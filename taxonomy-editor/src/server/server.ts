@@ -804,6 +804,21 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
+get('/api/flight-recorder/list', (_req, res) => {
+  try {
+    const dumpDir = path.join(getDataRoot(), 'flight-recorder');
+    if (!fs.existsSync(dumpDir)) { json(res, { files: [] }); return; }
+    const files = fs.readdirSync(dumpDir)
+      .filter(f => f.endsWith('.jsonl') && /^(server-)?flight-recorder-/.test(f))
+      .map(f => {
+        const stat = fs.statSync(path.join(dumpDir, f));
+        return { name: f, size: stat.size, modified: stat.mtime.toISOString() };
+      })
+      .sort((a, b) => b.modified.localeCompare(a.modified));
+    json(res, { files });
+  } catch (err) { error(res, String(err)); }
+});
+
 get('/api/flight-recorder/download/:filename', (req, res) => {
   try {
     const filename = decodeURIComponent(param(req, 'filename', '/api/flight-recorder/download/:filename'));
@@ -1029,6 +1044,115 @@ post('/api/admin/submissions/:id/reject', async (req, res) => {
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     json(res, { error: String(err) }, status);
   }
+});
+
+// ── Admin: Feedback & Error reporting ──
+
+const serverStartTime = Date.now();
+
+post('/api/admin/feedback', (_req, res, body) => {
+  try {
+    const { rating, text, context } = body as { rating: string; text?: string; context?: Record<string, unknown> };
+    if (rating !== 'up' && rating !== 'down') { error(res, 'rating must be "up" or "down"', 400); return; }
+    if (text && typeof text !== 'string') { error(res, 'text must be a string', 400); return; }
+    if (text && text.length > 500) { error(res, 'text must be 500 characters or fewer', 400); return; }
+
+    const feedbackDir = path.join(getDataRoot(), 'admin', 'feedback');
+    fs.mkdirSync(feedbackDir, { recursive: true });
+
+    const userId = getCurrentUserId();
+    const entry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      userId,
+      rating,
+      text: text?.trim() || null,
+      context: context ?? {},
+    };
+
+    const ts = entry.timestamp.replace(/:/g, '-');
+    fs.writeFileSync(path.join(feedbackDir, `feedback-${ts}-${entry.id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
+    serverRecorder.record({ type: 'lifecycle.event', component: 'server', level: 'info', message: `Feedback received: ${rating}`, data: { userId, rating } });
+
+    // Email notification (best-effort, env var FEEDBACK_WEBHOOK_URL)
+    const webhookUrl = process.env.FEEDBACK_WEBHOOK_URL;
+    if (webhookUrl) {
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: process.env.FEEDBACK_EMAIL || 'jsnover13@gmail.com', subject: `Taxonomy Editor Feedback: ${rating === 'up' ? '👍' : '👎'}`, body: `Rating: ${rating}\nUser: ${userId}\nText: ${entry.text || '(none)'}\nTime: ${entry.timestamp}` }),
+      }).catch(() => { /* telemetry — silent by design: webhook delivery is best-effort */ });
+    }
+
+    json(res, { ok: true, id: entry.id });
+  } catch (err) {
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store feedback', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    error(res, String(err));
+  }
+});
+
+post('/api/admin/errors', (_req, res, body) => {
+  try {
+    const report = body as { error: Record<string, unknown>; context?: Record<string, unknown> };
+    if (!report.error) { error(res, 'Missing error field', 400); return; }
+
+    const errorsDir = path.join(getDataRoot(), 'admin', 'errors');
+    fs.mkdirSync(errorsDir, { recursive: true });
+
+    const userId = getCurrentUserId();
+    const entry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      userId,
+      error: report.error,
+      context: report.context ?? {},
+    };
+
+    const ts = entry.timestamp.replace(/:/g, '-');
+    fs.writeFileSync(path.join(errorsDir, `error-${ts}-${entry.id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'warn', message: `Client error reported: ${report.error.message ?? 'unknown'}`, data: { userId } });
+
+    json(res, { ok: true, id: entry.id });
+  } catch (err) {
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store error report', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    error(res, String(err));
+  }
+});
+
+get('/api/admin/health', (_req, res) => {
+  try {
+    const errorsDir = path.join(getDataRoot(), 'admin', 'errors');
+    const feedbackDir = path.join(getDataRoot(), 'admin', 'feedback');
+
+    let errorCount = 0;
+    let recentErrors: string[] = [];
+    try {
+      const files = fs.readdirSync(errorsDir).filter(f => f.endsWith('.json')).sort().reverse();
+      errorCount = files.length;
+      recentErrors = files.slice(0, 5);
+    } catch { /* telemetry — silent by design: dir may not exist yet */ }
+
+    let feedbackCount = 0;
+    let recentFeedback: unknown[] = [];
+    try {
+      const files = fs.readdirSync(feedbackDir).filter(f => f.endsWith('.json')).sort().reverse();
+      feedbackCount = files.length;
+      recentFeedback = files.slice(0, 5).map(f => {
+        try { return JSON.parse(fs.readFileSync(path.join(feedbackDir, f), 'utf-8')); }
+        catch { return { file: f, parseError: true }; }
+      });
+    } catch { /* telemetry — silent by design: dir may not exist yet */ }
+
+    json(res, {
+      status: 'ok',
+      uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+      errorCount,
+      recentErrors,
+      feedbackCount,
+      recentFeedback,
+      storageMode: STORAGE_MODE,
+    });
+  } catch (err) { error(res, String(err)); }
 });
 
 // ── Harvest ──
