@@ -314,7 +314,7 @@ function isPythonEmbeddingAvailable(): Promise<boolean> {
   return new Promise(resolve => {
     execFile(PYTHON, ['-c', 'import sentence_transformers'], { timeout: 10_000 }, (err) => {
       _pythonAvailable = !err;
-      if (!_pythonAvailable) log('[embeddings] Python sentence-transformers unavailable — using API only');
+      if (!_pythonAvailable) log.server.info('[embeddings] Python sentence-transformers unavailable — using API only');
       resolve(_pythonAvailable);
     });
   });
