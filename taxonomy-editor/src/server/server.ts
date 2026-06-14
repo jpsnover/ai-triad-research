@@ -294,6 +294,13 @@ put('/api/taxonomy-dir/active', (_req, res, body) => {
 
 // ── Synthetic corpus (must precede the :pov wildcard) ──
 
+get('/api/taxonomy/synthetic-embeddings', async (_req, res) => {
+  try {
+    const data = await fileIO.loadSyntheticEmbeddings();
+    json(res, data);
+  } catch (err) { error(res, String(err)); }
+});
+
 get('/api/taxonomy/synthetic/:pov', async (req, res) => {
   try {
     const pov = param(req, 'pov', '/api/taxonomy/synthetic/:pov');

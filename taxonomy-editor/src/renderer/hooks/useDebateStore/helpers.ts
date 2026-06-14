@@ -25,7 +25,7 @@ import { formatTaxonomyContext } from '../../utils/taxonomyContext';
 import type { TaxonomyContext } from '../../utils/taxonomyContext';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, processExtractedClaims, computeClaimTaxonomyAttribution } from '../../prompts/argumentNetwork';
 import type { ArgumentNetworkNode, ArgumentNetworkEdge, CommitmentStore, EntryDiagnostics, DebateDiagnostics, DocumentAnalysis, ClaimExtractionTrace, ExtractionSummary, GapArgument, GapInjection, CrossCuttingProposal, TaxonomyGapAnalysis } from '../../types/debate';
-import { cosineSimilarity, scoreNodeRelevance, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, scoreNodesViaAN, scoreNodesLexical } from '../../utils/taxonomyRelevance';
+import { cosineSimilarity, scoreNodeRelevanceMeanTopN, selectRelevantNodes, selectRelevantSituationNodes, buildRelevanceQuery, scoreNodesViaAN, scoreNodesLexical } from '../../utils/taxonomyRelevance';
 import type { ANClaimEmbedding, RelevanceOptions } from '../../utils/taxonomyRelevance';
 import { trace, newCallId, TraceEventName } from '../../lib/trace';
 import { documentAnalysisPrompt, buildTaxonomySample, documentAnalysisContext } from '@lib/debate/documentAnalysis';
@@ -135,6 +135,43 @@ export let _boundaryEmbeddingsCache: BoundaryEmbeddings | null = null;
 export function resetDoctrinalAnchoringCache(): void {
   _doctrinalAnchoringApplied = new Set();
   _boundaryEmbeddingsCache = null;
+  _syntheticVectorsCache = null;
+  _syntheticVectorsLoaded = false;
+}
+
+// ── Synthetic embeddings cache ───────────────────────────────────────
+// Loaded once per session from synthetic_embeddings.json via the bridge.
+let _syntheticVectorsCache: Record<string, number[][]> | null = null;
+let _syntheticVectorsLoaded = false;
+
+async function loadSyntheticVectors(): Promise<Record<string, number[][]> | null> {
+  if (_syntheticVectorsLoaded) return _syntheticVectorsCache;
+  try {
+    const raw = await api.loadSyntheticEmbeddings();
+    if (raw) {
+      _syntheticVectorsCache = {};
+      for (const [nodeId, entry] of Object.entries(raw)) {
+        if (entry.vectors?.length) _syntheticVectorsCache[nodeId] = entry.vectors;
+      }
+      console.log(`[taxonomy] Loaded synthetic embeddings for ${Object.keys(_syntheticVectorsCache).length} nodes`);
+    }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to load synthetic embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
+  _syntheticVectorsLoaded = true;
+  return _syntheticVectorsCache;
+}
+
+function mergeSyntheticVectors(
+  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
+  syntheticVectors: Record<string, number[][]>,
+): Record<string, { pov: string; vector: number[]; vectors?: number[][] }> {
+  const merged: Record<string, { pov: string; vector: number[]; vectors?: number[][] }> = {};
+  for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
+    const sv = syntheticVectors[nodeId];
+    merged[nodeId] = sv ? { ...entry, vectors: sv } : entry;
+  }
+  return merged;
 }
 
 // ── Adaptive staging signal history ──────────────────────────────────
@@ -1032,15 +1069,21 @@ export async function extractClaimsAndUpdateAN(
           }
 
           // Build nodeEmbeddings from embeddingCache — add pov from node ID prefix
-          const nodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+          const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
           const povMap: Record<string, string> = { acc: 'accelerationist', saf: 'safetyist', skp: 'skeptic' };
           for (const [nodeId, vector] of embCache) {
             const prefix = nodeId.split('-')[0];
             const pov = povMap[prefix];
             if (pov && vector.length > 0) {
-              nodeEmbeddings[nodeId] = { pov, vector };
+              baseNodeEmbeddings[nodeId] = { pov, vector };
             }
           }
+
+          // Merge synthetic multi-vector embeddings when available
+          const synVecs = await loadSyntheticVectors();
+          const nodeEmbeddings = synVecs
+            ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
+            : baseNodeEmbeddings;
 
           const attrResult = computeClaimTaxonomyAttribution(
             newNodes, speakerPov, nodeEmbeddings, beliefNodeIds,
@@ -1944,10 +1987,16 @@ export async function getRelevantTaxonomyContext(
       ...allCCNodes.map(n => n.id),
     ];
     const { vectors: allVectors } = await api.computeEmbeddings(allNodeTexts, allNodeIds);
-    const nodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
+    const baseNodeEmbeddings: Record<string, { pov: string; vector: number[] }> = {};
     for (let i = 0; i < allNodeIds.length; i++) {
-      nodeEmbeddings[allNodeIds[i]] = { pov, vector: allVectors[i] };
+      baseNodeEmbeddings[allNodeIds[i]] = { pov, vector: allVectors[i] };
     }
+
+    // Merge synthetic multi-vector embeddings when available
+    const synVecs = await loadSyntheticVectors();
+    const nodeEmbeddings = synVecs
+      ? mergeSyntheticVectors(baseNodeEmbeddings, synVecs)
+      : baseNodeEmbeddings;
 
     // Doctrinal anchoring: embed boundary strings once, then apply confidence floors to Beliefs
     if (!_doctrinalAnchoringApplied.has(pov)) {
@@ -2021,7 +2070,7 @@ export async function getRelevantTaxonomyContext(
       // Also compute topic-only scores for hybrid source tracking
       const query = buildRelevanceQuery(topic, recentTranscript);
       const { vector: queryVector } = await api.computeQueryEmbedding(query);
-      const topicScores = scoreNodeRelevance(queryVector, nodeEmbeddings);
+      const topicScores = scoreNodeRelevanceMeanTopN(queryVector, nodeEmbeddings);
 
       // Build per-node source tracking: which AN claim matched best, AN vs topic comparison
       nodeSourceMap = new Map<string, NodeScoringSource>();
@@ -2053,7 +2102,7 @@ export async function getRelevantTaxonomyContext(
       // No AN yet (pre-opening) — fall back to single topic query
       const query = buildRelevanceQuery(topic, recentTranscript);
       const { vector: queryVector } = await api.computeQueryEmbedding(query);
-      scores = scoreNodeRelevance(queryVector, nodeEmbeddings);
+      scores = scoreNodeRelevanceMeanTopN(queryVector, nodeEmbeddings);
       console.log(`[taxonomy] Topic-query scoring (no AN claims yet): ${allNodeIds.length} nodes`);
     }
 

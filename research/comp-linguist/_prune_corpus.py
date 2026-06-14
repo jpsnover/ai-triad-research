@@ -137,14 +137,41 @@ def check_redundancy(entry_vec, other_vecs):
     return max_sim > REDUNDANCY_THRESHOLD, max_sim
 
 
+CONTRASTIVE_PREFIXES = [
+    'rather than', 'unlike', 'distinct from', 'instead of',
+    'differentiates from', 'distinguishes from', 'contrasts with',
+    'as opposed to', 'not about', 'not captured by', 'not the same as',
+    'in contrast to', 'differs from', 'separated from',
+]
+
+AFFIRMATIVE_MARKERS = [
+    'actually about', 'more appropriate for', 'better suited to',
+    'captures the essence of', 'belongs to', 'expression of',
+    'really about', 'more accurately describes', 'conflates with',
+]
+
+
 def check_rationale(entry, neighbor_ids):
-    """Check if rationale reveals the statement is actually about a neighbor."""
+    """Check if rationale reveals the statement is actually about a neighbor.
+
+    Neighbor IDs in contrastive context ("rather than X", "unlike X") are
+    expected — our templates ask models to contrast against confusable
+    neighbors. Only flag affirmative associations ("actually about X",
+    "more appropriate for X") or generic-marker matches.
+    """
     rationale = (entry.get('rationale') or '').lower()
     if not rationale:
         return False, None
 
     for nb_id in neighbor_ids:
-        if nb_id.lower() in rationale:
+        nb_lower = nb_id.lower()
+        if nb_lower not in rationale:
+            continue
+        idx = rationale.index(nb_lower)
+        preceding = rationale[max(0, idx - 60):idx]
+        if any(p in preceding for p in CONTRASTIVE_PREFIXES):
+            continue
+        if any(m in rationale for m in AFFIRMATIVE_MARKERS):
             return True, nb_id
 
     generic_markers = [

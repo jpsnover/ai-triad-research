@@ -73,6 +73,7 @@ export function ClaimNodeRow({ node, attacks, supports, allNodes, strengthMap }:
         </div>
       </div>
       <div style={{ paddingLeft: 18, marginTop: 2 }}>{node.text}</div>
+      {node.attribution_text_genus && <div className="claim-attribution-text" style={{ paddingLeft: 18 }}><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
       {expanded && (
         <div style={{ paddingLeft: 18, marginTop: 4 }}>
           {attacks.map(e => {

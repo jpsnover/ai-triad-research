@@ -53,6 +53,9 @@ function Get-RelevantTaxonomyNodes {
     .EXAMPLE
         # Topic-level: use debate topic + recent transcript for debate context
         Get-RelevantTaxonomyNodes -Query "$DebateTopic. $RecentTranscript" -MaxTotal 30 -Format context
+    .EXAMPLE
+        # Use more synthetic vectors for broader matching
+        Get-RelevantTaxonomyNodes -Query $DocText -SyntheticTopN 5
     #>
     [CmdletBinding()]
     param(
@@ -70,6 +73,9 @@ function Get-RelevantTaxonomyNodes {
 
         [ValidateRange(0, 20)]
         [int]$MinPerCategory = 3,
+
+        [ValidateRange(1, 10)]
+        [int]$SyntheticTopN = 3,
 
         [ValidateSet('accelerationist', 'safetyist', 'skeptic', 'situations', '')]
         [string[]]$POV = @(),
@@ -106,6 +112,25 @@ function Get-RelevantTaxonomyNodes {
         }
         $script:EmbeddingsTimestamp = (Get-Item $EmbPath).LastWriteTime
         Write-Verbose "Cached $($script:CachedEmbeddings.Count) embedding vectors"
+    }
+
+    # ── Load synthetic multi-vector embeddings (optional, cached) ────────────
+    if (-not $script:CachedSyntheticVectors) {
+        $SynPath = Join-Path (Get-TaxonomyDir) 'synthetic/synthetic_embeddings.json'
+        if (Test-Path $SynPath) {
+            Write-Verbose 'Loading synthetic_embeddings.json (first call or after refresh)...'
+            $SynData = Get-Content -Raw -Path $SynPath | ConvertFrom-Json
+            $script:CachedSyntheticVectors = @{}
+            foreach ($Prop in $SynData.nodes.PSObject.Properties) {
+                $Vecs = [System.Collections.Generic.List[double[]]]::new()
+                foreach ($V in @($Prop.Value.vectors)) {
+                    $Vecs.Add([double[]]@($V))
+                }
+                $script:CachedSyntheticVectors[$Prop.Name] = $Vecs
+            }
+            $script:SyntheticTimestamp = (Get-Item $SynPath).LastWriteTime
+            Write-Verbose "Cached synthetic vectors for $($script:CachedSyntheticVectors.Count) nodes"
+        }
     }
 
     # ── Get query embedding ───────────────────────────────────────────────────
@@ -159,6 +184,13 @@ function Get-RelevantTaxonomyNodes {
 
     # ── Compute cosine similarity for all nodes ───────────────────────────────
     $Scores = [System.Collections.Generic.List[PSObject]]::new()
+    $SynScoredCount = 0
+    $Dim = $QueryVector.Count
+
+    # Precompute query norm (same for all nodes)
+    $QueryNormSq = 0.0
+    for ($i = 0; $i -lt $Dim; $i++) { $QueryNormSq += $QueryVector[$i] * $QueryVector[$i] }
+    $QueryNormSqrt = [Math]::Sqrt($QueryNormSq)
 
     if ($POV.Count -gt 0) {
         $PovFilter = [System.Collections.Generic.HashSet[string]]::new([string[]]$POV, [System.StringComparer]::OrdinalIgnoreCase)
@@ -176,18 +208,40 @@ function Get-RelevantTaxonomyNodes {
         if ($NodePov -eq 'situations' -and -not $IncludeSituations) { continue }
         if ($PovFilter -and -not $PovFilter.Contains($NodePov)) { continue }
 
-        # Cosine similarity
-        $NodeVec = $script:CachedEmbeddings[$NodeId]
-        if ($NodeVec.Count -ne $QueryVector.Count) { continue }
-
-        $DotProduct = 0.0; $NormA = 0.0; $NormB = 0.0
-        for ($i = 0; $i -lt $QueryVector.Count; $i++) {
-            $DotProduct += $QueryVector[$i] * $NodeVec[$i]
-            $NormA += $QueryVector[$i] * $QueryVector[$i]
-            $NormB += $NodeVec[$i] * $NodeVec[$i]
+        # Mean-of-top-N scoring (synthetic multi-vector) or single-vector fallback
+        if ($script:CachedSyntheticVectors -and $script:CachedSyntheticVectors.ContainsKey($NodeId)) {
+            $SynVecs = $script:CachedSyntheticVectors[$NodeId]
+            $Sims = [System.Collections.Generic.List[double]]::new($SynVecs.Count)
+            foreach ($SynVec in $SynVecs) {
+                $Dot = 0.0; $NormB = 0.0
+                for ($i = 0; $i -lt $Dim; $i++) {
+                    $Dot += $QueryVector[$i] * $SynVec[$i]
+                    $NormB += $SynVec[$i] * $SynVec[$i]
+                }
+                $D = $QueryNormSqrt * [Math]::Sqrt($NormB)
+                if ($D -gt 0) { $Sims.Add($Dot / $D) }
+            }
+            $SortedSims = @($Sims | Sort-Object -Descending)
+            $N = [Math]::Min($SyntheticTopN, $SortedSims.Count)
+            if ($N -gt 0) {
+                $Sum = 0.0
+                for ($j = 0; $j -lt $N; $j++) { $Sum += $SortedSims[$j] }
+                $Similarity = $Sum / $N
+            }
+            else { $Similarity = 0.0 }
+            $SynScoredCount++
         }
-        $Denom = [Math]::Sqrt($NormA) * [Math]::Sqrt($NormB)
-        if ($Denom -gt 0) { $Similarity = $DotProduct / $Denom } else { $Similarity = 0.0 }
+        else {
+            $NodeVec = $script:CachedEmbeddings[$NodeId]
+            if (@($NodeVec).Count -ne $Dim) { continue }
+            $Dot = 0.0; $NormB = 0.0
+            for ($i = 0; $i -lt $Dim; $i++) {
+                $Dot += $QueryVector[$i] * $NodeVec[$i]
+                $NormB += $NodeVec[$i] * $NodeVec[$i]
+            }
+            $D = $QueryNormSqrt * [Math]::Sqrt($NormB)
+            if ($D -gt 0) { $Similarity = $Dot / $D } else { $Similarity = 0.0 }
+        }
 
         # Determine BDI category from node ID
         if ($NodeId -match '-beliefs-') { $Category = 'Beliefs' }
@@ -262,6 +316,7 @@ function Get-RelevantTaxonomyNodes {
             beliefs_selected       = ($CatCounts['Beliefs'] ?? 0)
             desires_selected       = ($CatCounts['Desires'] ?? 0)
             intentions_selected    = ($CatCounts['Intentions'] ?? 0)
+            synthetic_nodes_scored = $SynScoredCount
         }
 
     # ── Look up full node data ────────────────────────────────────────────────

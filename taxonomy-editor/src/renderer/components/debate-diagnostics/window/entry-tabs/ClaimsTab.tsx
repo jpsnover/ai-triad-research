@@ -96,7 +96,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
       })()}
 
       {diag?.extracted_claims && (
-        <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => `✓ ${c.id} (${c.overlap_pct}%): ${c.text}`), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
+        <Section title={`Extracted Claims (${diag.extracted_claims.accepted.length} accepted, ${diag.extracted_claims.rejected.length} rejected)`} defaultOpen copyText={[...diag.extracted_claims.accepted.map(c => { const anN = an?.nodes.find(n => n.id === c.id); return `✓ ${c.id} (${c.overlap_pct}%): ${c.text}${anN?.attribution_text_genus ? `\n  [Attribution: ${anN.attribution_text_genus}]` : ''}`; }), ...diag.extracted_claims.rejected.map(c => `✗ (${c.overlap_pct}%): ${c.text} — ${c.reason}`)].join('\n')}>
           {diag.extracted_claims.accepted.map((c, i) => {
             const outEdges = an?.edges.filter(e => e.source === c.id) ?? [];
             const edgeSummary = outEdges.map(edge => {
@@ -145,6 +145,7 @@ export function ClaimsTab({ entry, diag, meta, debate, an, nodeWeights, searchQu
                     </span>
                   )}
                   <Highlight text={c.text} />
+                  {anNode?.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{anNode.attribution_text_genus}</div>}
                   {outEdges.length > 0 && (
                     <span style={{ fontSize: '0.6rem', marginLeft: 6, color: 'var(--text-muted)' }}>
                       [{edgeSummary}]

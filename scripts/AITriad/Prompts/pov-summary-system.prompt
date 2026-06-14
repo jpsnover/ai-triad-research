@@ -170,12 +170,38 @@ CANONICAL PROPOSITION (required for every key_point):
   vocabulary_terms where applicable. Strip POV framing, caveats, and hedging —
   state the core proposition directly.
 
+ATTRIBUTION TEXT (required for every key_point):
+  Provide an "attribution_text" field that rewrites the claim mirroring
+  taxonomy node description format. This is used for multi-vector embedding
+  matching and must follow this template:
+
+  "A [Belief|Desire|Intention] within [accelerationist|safetyist|skeptic]
+  discourse that [differentia — what makes this claim distinct].
+  Encompasses: [2-3 specific concepts from the claim]."
+
+  Rules:
+  1. Use BDI modal form (beliefs=indicative, desires=deontic,
+     intentions=instrumental) — match the category
+  2. Replace colloquial phrasing with domain vocabulary from the taxonomy
+     nodes provided above
+  3. Be specific — name concrete mechanisms, not broad categories
+  4. Resolve pronouns, decode metaphors, name the policy domain explicitly
+  5. 40-80 words. Do not add claims not in the original.
+
+  Example (Beliefs):
+    "A Belief within safetyist discourse that frontier AI models exhibit
+    discontinuous capability emergence at critical parameter-count thresholds,
+    rendering pre-deployment safety assessments structurally unreliable.
+    Encompasses: emergent capabilities at scale, evaluation methodology
+    limitations, unpredictable performance phase transitions."
+
 EXAMPLE KEY POINTS:
 
   Beliefs example:
     {
       "point": "The document claims that frontier AI models have demonstrated emergent capabilities at scale thresholds, citing GPT-4's performance on the bar exam (90th percentile) and medical licensing exams. The mechanism proposed is that capabilities emerge discontinuously as parameter counts cross critical thresholds, making capability prediction unreliable. From a safetyist perspective, this unpredictability undermines deployment-time safety assessments — if we cannot predict when dangerous capabilities will emerge, pre-deployment evaluations are insufficient. The document acknowledges that emergent capability claims are contested, noting that some researchers attribute apparent emergence to evaluation methodology rather than genuine phase transitions.",
       "canonical_proposition": "Frontier AI models exhibit unpredictable emergent capabilities at critical parameter-count thresholds.",
+      "attribution_text": "A Belief within safetyist discourse that frontier AI models exhibit discontinuous capability emergence at critical parameter-count thresholds, rendering pre-deployment safety assessments structurally unreliable. Encompasses: emergent capabilities at scale, evaluation methodology limitations, unpredictable performance phase transitions.",
       "taxonomy_node_id": "saf-beliefs-014",
       "category": "Beliefs",
       "stance": "strongly_aligned",
@@ -187,6 +213,7 @@ EXAMPLE KEY POINTS:
     {
       "point": "The document argues that open-source AI development should be protected as a fundamental prerequisite for democratic governance of AI systems. The reasoning is that proprietary control concentrates power in a small number of corporations, creating a governance bottleneck that undermines public accountability. From an accelerationist perspective, open access accelerates innovation diffusion and prevents monopolistic capture of transformative technology. The document acknowledges tension between openness and dual-use risk, noting that some capabilities may warrant restricted release.",
       "canonical_proposition": "Open-source model access ought to be protected as a prerequisite for democratic AI governance.",
+      "attribution_text": "A Desire within accelerationist discourse that open-source access to foundational AI models be preserved as a structural prerequisite for democratic governance, preventing monopolistic capture of transformative technology by proprietary incumbents. Encompasses: open-source model distribution, corporate power concentration, democratic accountability mechanisms.",
       "taxonomy_node_id": "acc-desires-008",
       "category": "Desires",
       "stance": "aligned",
@@ -198,6 +225,7 @@ EXAMPLE KEY POINTS:
     {
       "point": "The document proposes a cost-benefit framework for AI regulation that weighs deployment risks against innovation opportunity costs, arguing that regulation should target specific harms rather than capabilities. The methodology involves decomposing regulatory proposals into measurable impact dimensions — safety improvement, compliance cost, innovation delay — and requiring evidence thresholds before imposing restrictions. From a skeptic perspective, this framework operationalizes proportional governance and resists both accelerationist laissez-faire and safetyist precautionary extremes. The document notes this approach struggles with catastrophic tail risks where expected-value calculations are unreliable.",
       "canonical_proposition": "Regulate AI by targeting demonstrated harms through cost-benefit analysis rather than restricting capabilities preemptively.",
+      "attribution_text": "An Intention within skeptic discourse that AI regulatory frameworks adopt harm-based cost-benefit analysis over precautionary capability restrictions, requiring empirical evidence thresholds before imposing compliance burdens on developers. Encompasses: proportional governance methodology, evidence-gated regulation, innovation opportunity cost assessment.",
       "taxonomy_node_id": "skp-intentions-003",
       "category": "Intentions",
       "stance": "aligned",

@@ -28,6 +28,7 @@ import {
   loadSnapshot,
   getSummariesDir,
   loadSyntheticCorpus,
+  loadSyntheticEmbeddings,
 } from './fileIO.js';
 import {
   listDebateSessions,
@@ -1280,6 +1281,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   ipcMain.handle('load-synthetic-corpus', (_event, pov: string) => {
     return loadSyntheticCorpus(pov);
+  });
+
+  ipcMain.handle('load-synthetic-embeddings', () => {
+    return loadSyntheticEmbeddings();
   });
 
   ipcMain.handle('submit-feedback', (_event, rating: string, text?: string) => {

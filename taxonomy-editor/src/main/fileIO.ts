@@ -301,6 +301,21 @@ export function loadSyntheticCorpus(pov: string): unknown | null {
   return parseJsonFile(filePath);
 }
 
+let _syntheticEmbeddingsCache: Record<string, { pov: string; vectors: number[][] }> | null = null;
+let _syntheticEmbeddingsTaxDir: string | null = null;
+
+export function loadSyntheticEmbeddings(): Record<string, { pov: string; vectors: number[][] }> | null {
+  if (_syntheticEmbeddingsCache && _syntheticEmbeddingsTaxDir === activeTaxonomyDir) {
+    return _syntheticEmbeddingsCache;
+  }
+  const filePath = path.join(activeTaxonomyDir, 'synthetic', 'synthetic_embeddings.json');
+  if (!fs.existsSync(filePath)) return null;
+  const raw = parseJsonFile(filePath) as { nodes?: Record<string, { pov: string; vectors: number[][] }> } | null;
+  _syntheticEmbeddingsCache = raw?.nodes ?? null;
+  _syntheticEmbeddingsTaxDir = activeTaxonomyDir;
+  return _syntheticEmbeddingsCache;
+}
+
 export function readLineageCategories(): unknown {
   const filePath = path.join(activeTaxonomyDir, 'lineage_categories.json');
   if (!fs.existsSync(filePath)) return null;

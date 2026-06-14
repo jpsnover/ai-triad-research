@@ -305,6 +305,21 @@ export async function computeEmbeddings(texts: string[], ids?: string[]): Promis
   return results as number[][];
 }
 
+// ── Python embedding availability probe ──
+
+let _pythonAvailable: boolean | null = null;
+
+function isPythonEmbeddingAvailable(): Promise<boolean> {
+  if (_pythonAvailable !== null) return Promise.resolve(_pythonAvailable);
+  return new Promise(resolve => {
+    execFile(PYTHON, ['-c', 'import sentence_transformers'], { timeout: 10_000 }, (err) => {
+      _pythonAvailable = !err;
+      if (!_pythonAvailable) log('[embeddings] Python sentence-transformers unavailable — using API only');
+      resolve(_pythonAvailable);
+    });
+  });
+}
+
 function computeQueryViaLocalPython(text: string): Promise<number[]> {
   return new Promise((resolve, reject) => {
     execFile(PYTHON, [EMBED_SCRIPT, 'encode', text], { timeout: 60_000, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
@@ -318,26 +333,57 @@ function computeQueryViaLocalPython(text: string): Promise<number[]> {
   });
 }
 
-export async function computeQueryEmbedding(text: string): Promise<number[]> {
-  try {
-    return await computeQueryViaLocalPython(text);
-  } catch {
-    /* telemetry — silent by design */
-    const apiKey = await getApiKey('gemini');
-    if (!apiKey) {
-      throw new ActionableError({
-        goal: 'Compute query embedding',
-        problem: 'No Gemini API key and local Python embedding unavailable',
-        location: 'aiBackends.computeQueryEmbedding',
-        nextSteps: [
-          'Set your Gemini API key in Settings',
-          'Or install Python with sentence-transformers: pip install sentence-transformers',
-        ],
-      });
-    }
-    const vectors = await callGeminiBatchApi([text], 'RETRIEVAL_QUERY', apiKey);
-    return vectors[0];
+// ── Query embedding LRU cache ──
+
+const QUERY_CACHE_MAX = 256;
+const _queryCache = new Map<string, number[]>();
+
+function getCachedQueryEmbedding(text: string): number[] | undefined {
+  const vec = _queryCache.get(text);
+  if (vec) {
+    _queryCache.delete(text);
+    _queryCache.set(text, vec);
   }
+  return vec;
+}
+
+function setCachedQueryEmbedding(text: string, vec: number[]): void {
+  if (_queryCache.size >= QUERY_CACHE_MAX) {
+    const oldest = _queryCache.keys().next().value!;
+    _queryCache.delete(oldest);
+  }
+  _queryCache.set(text, vec);
+}
+
+export async function computeQueryEmbedding(text: string): Promise<number[]> {
+  const cached = getCachedQueryEmbedding(text);
+  if (cached) return cached;
+
+  if (await isPythonEmbeddingAvailable()) {
+    try {
+      const vec = await computeQueryViaLocalPython(text);
+      setCachedQueryEmbedding(text, vec);
+      return vec;
+    } catch {
+      _pythonAvailable = false;
+    }
+  }
+
+  const apiKey = await getApiKey('gemini');
+  if (!apiKey) {
+    throw new ActionableError({
+      goal: 'Compute query embedding',
+      problem: 'No Gemini API key and local Python embedding unavailable',
+      location: 'aiBackends.computeQueryEmbedding',
+      nextSteps: [
+        'Set your Gemini API key in Settings',
+        'Or install Python with sentence-transformers: pip install sentence-transformers',
+      ],
+    });
+  }
+  const vectors = await callGeminiBatchApi([text], 'RETRIEVAL_QUERY', apiKey);
+  setCachedQueryEmbedding(text, vectors[0]);
+  return vectors[0];
 }
 
 export async function updateNodeEmbeddings(nodes: { id: string; text: string; pov: string; exclusionText?: string }[]): Promise<void> {

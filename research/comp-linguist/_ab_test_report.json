@@ -1,0 +1,9231 @@
+{
+  "test_date": null,
+  "claims_tested": 99,
+  "caveat": "Golden set attributions are algorithmically assigned, not human-validated. MRR is for relative comparison between variants only.",
+  "summary": {
+    "baseline": {
+      "mrr": 0.0778,
+      "recall_at_1": 5.1,
+      "recall_at_5": 8.1,
+      "mean_max_sim": 0.4941
+    },
+    "freeform": {
+      "mrr": 0.0254,
+      "recall_at_1": 1.0,
+      "recall_at_5": 3.0,
+      "mean_max_sim": 0.6078
+    },
+    "genus": {
+      "mrr": 0.0231,
+      "recall_at_1": 1.0,
+      "recall_at_5": 3.0,
+      "mean_max_sim": 0.6981
+    }
+  },
+  "head_to_head": {
+    "freeform_wins": 4,
+    "genus_wins": 95,
+    "tie": 0
+  },
+  "per_category": {
+    "baseline": {
+      "DEICTIC": {
+        "count": 57,
+        "mrr": 0.0981,
+        "mean_max_sim": 0.5007
+      },
+      "TOPIC-IMPLICIT": {
+        "count": 2,
+        "mrr": 0.2672,
+        "mean_max_sim": 0.3959
+      },
+      "METAPHORICAL": {
+        "count": 3,
+        "mrr": 0.049,
+        "mean_max_sim": 0.4289
+      },
+      "SELF-CONTAINED": {
+        "count": 30,
+        "mrr": 0.0465,
+        "mean_max_sim": 0.4853
+      },
+      "PROPER-NOUN": {
+        "count": 7,
+        "mrr": 0.0051,
+        "mean_max_sim": 0.5336
+      }
+    },
+    "freeform": {
+      "DEICTIC": {
+        "count": 57,
+        "mrr": 0.0383,
+        "mean_max_sim": 0.6135
+      },
+      "TOPIC-IMPLICIT": {
+        "count": 2,
+        "mrr": 0.0355,
+        "mean_max_sim": 0.5721
+      },
+      "METAPHORICAL": {
+        "count": 3,
+        "mrr": 0.0018,
+        "mean_max_sim": 0.5892
+      },
+      "SELF-CONTAINED": {
+        "count": 30,
+        "mrr": 0.0071,
+        "mean_max_sim": 0.5981
+      },
+      "PROPER-NOUN": {
+        "count": 7,
+        "mrr": 0.007,
+        "mean_max_sim": 0.6218
+      }
+    },
+    "genus": {
+      "DEICTIC": {
+        "count": 57,
+        "mrr": 0.0343,
+        "mean_max_sim": 0.7084
+      },
+      "TOPIC-IMPLICIT": {
+        "count": 2,
+        "mrr": 0.0446,
+        "mean_max_sim": 0.6422
+      },
+      "METAPHORICAL": {
+        "count": 3,
+        "mrr": 0.002,
+        "mean_max_sim": 0.7379
+      },
+      "SELF-CONTAINED": {
+        "count": 30,
+        "mrr": 0.0067,
+        "mean_max_sim": 0.6836
+      },
+      "PROPER-NOUN": {
+        "count": 7,
+        "mrr": 0.0051,
+        "mean_max_sim": 0.6755
+      }
+    }
+  },
+  "details": {
+    "baseline": [
+      {
+        "claim_id": "AN-31",
+        "category": "DEICTIC",
+        "rank": 157,
+        "max_sim": 0.1124,
+        "top5": [
+          [
+            "skp-beliefs-107",
+            0.1124
+          ],
+          [
+            "acc-desires-041",
+            0.1079
+          ],
+          [
+            "acc-intentions-002",
+            0.0817
+          ],
+          [
+            "acc-intentions-111",
+            0.0799
+          ],
+          [
+            "acc-beliefs-021",
+            0.0755
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-81",
+        "category": "TOPIC-IMPLICIT",
+        "rank": 2,
+        "max_sim": 0.3251,
+        "top5": [
+          [
+            "acc-beliefs-051",
+            0.3251
+          ],
+          [
+            "skp-desires-006",
+            0.32
+          ],
+          [
+            "acc-desires-020",
+            0.3119
+          ],
+          [
+            "acc-desires-041",
+            0.3032
+          ],
+          [
+            "acc-desires-023",
+            0.3029
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-48",
+        "category": "METAPHORICAL",
+        "rank": 7,
+        "max_sim": 0.3919,
+        "top5": [
+          [
+            "saf-intentions-145",
+            0.3919
+          ],
+          [
+            "saf-intentions-170",
+            0.3614
+          ],
+          [
+            "saf-desires-023",
+            0.3558
+          ],
+          [
+            "saf-intentions-002",
+            0.3436
+          ],
+          [
+            "acc-intentions-099",
+            0.3295
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-30",
+        "category": "DEICTIC",
+        "rank": 126,
+        "max_sim": 0.436,
+        "top5": [
+          [
+            "acc-intentions-108",
+            0.436
+          ],
+          [
+            "saf-intentions-150",
+            0.4343
+          ],
+          [
+            "saf-intentions-211",
+            0.4125
+          ],
+          [
+            "saf-intentions-153",
+            0.4058
+          ],
+          [
+            "saf-beliefs-133",
+            0.3923
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-82",
+        "category": "DEICTIC",
+        "rank": 9,
+        "max_sim": 0.3842,
+        "top5": [
+          [
+            "saf-intentions-004",
+            0.3842
+          ],
+          [
+            "acc-intentions-105",
+            0.3796
+          ],
+          [
+            "skp-intentions-014",
+            0.3706
+          ],
+          [
+            "skp-intentions-136",
+            0.3575
+          ],
+          [
+            "acc-intentions-111",
+            0.3512
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "SELF-CONTAINED",
+        "rank": 450,
+        "max_sim": 0.3638,
+        "top5": [
+          [
+            "skp-beliefs-133",
+            0.3638
+          ],
+          [
+            "skp-beliefs-136",
+            0.3487
+          ],
+          [
+            "skp-intentions-124",
+            0.3278
+          ],
+          [
+            "skp-beliefs-053",
+            0.3165
+          ],
+          [
+            "acc-intentions-102",
+            0.3154
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "SELF-CONTAINED",
+        "rank": 317,
+        "max_sim": 0.3727,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.3727
+          ],
+          [
+            "acc-beliefs-079",
+            0.3667
+          ],
+          [
+            "acc-beliefs-028",
+            0.3667
+          ],
+          [
+            "saf-beliefs-108",
+            0.365
+          ],
+          [
+            "skp-beliefs-193",
+            0.361
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "SELF-CONTAINED",
+        "rank": 611,
+        "max_sim": 0.3786,
+        "top5": [
+          [
+            "acc-intentions-107",
+            0.3786
+          ],
+          [
+            "skp-beliefs-117",
+            0.3672
+          ],
+          [
+            "skp-intentions-137",
+            0.3391
+          ],
+          [
+            "saf-intentions-051",
+            0.3352
+          ],
+          [
+            "skp-intentions-145",
+            0.3316
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-10",
+        "category": "DEICTIC",
+        "rank": 96,
+        "max_sim": 0.3918,
+        "top5": [
+          [
+            "skp-beliefs-069",
+            0.3918
+          ],
+          [
+            "acc-beliefs-086",
+            0.386
+          ],
+          [
+            "skp-desires-081",
+            0.3825
+          ],
+          [
+            "skp-desires-076",
+            0.3812
+          ],
+          [
+            "saf-beliefs-063",
+            0.3791
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "DEICTIC",
+        "rank": 499,
+        "max_sim": 0.3945,
+        "top5": [
+          [
+            "skp-beliefs-193",
+            0.3945
+          ],
+          [
+            "skp-beliefs-146",
+            0.3944
+          ],
+          [
+            "skp-beliefs-133",
+            0.3732
+          ],
+          [
+            "skp-beliefs-205",
+            0.3719
+          ],
+          [
+            "skp-beliefs-152",
+            0.3711
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "METAPHORICAL",
+        "rank": 426,
+        "max_sim": 0.4162,
+        "top5": [
+          [
+            "skp-intentions-014",
+            0.4162
+          ],
+          [
+            "saf-intentions-146",
+            0.4116
+          ],
+          [
+            "skp-desires-003",
+            0.4013
+          ],
+          [
+            "skp-intentions-110",
+            0.3946
+          ],
+          [
+            "skp-intentions-136",
+            0.3941
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "SELF-CONTAINED",
+        "rank": 619,
+        "max_sim": 0.4292,
+        "top5": [
+          [
+            "skp-beliefs-038",
+            0.4292
+          ],
+          [
+            "skp-beliefs-115",
+            0.4052
+          ],
+          [
+            "skp-beliefs-070",
+            0.3873
+          ],
+          [
+            "skp-beliefs-112",
+            0.3763
+          ],
+          [
+            "skp-beliefs-136",
+            0.3693
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-37",
+        "category": "DEICTIC",
+        "rank": 220,
+        "max_sim": 0.4364,
+        "top5": [
+          [
+            "skp-intentions-136",
+            0.4364
+          ],
+          [
+            "acc-intentions-111",
+            0.3603
+          ],
+          [
+            "skp-intentions-105",
+            0.3458
+          ],
+          [
+            "skp-beliefs-191",
+            0.3449
+          ],
+          [
+            "skp-intentions-029",
+            0.339
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "DEICTIC",
+        "rank": 128,
+        "max_sim": 0.5277,
+        "top5": [
+          [
+            "saf-intentions-211",
+            0.5277
+          ],
+          [
+            "saf-intentions-003",
+            0.5197
+          ],
+          [
+            "saf-intentions-162",
+            0.5175
+          ],
+          [
+            "saf-beliefs-116",
+            0.5122
+          ],
+          [
+            "saf-intentions-210",
+            0.511
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "DEICTIC",
+        "rank": 57,
+        "max_sim": 0.4437,
+        "top5": [
+          [
+            "skp-beliefs-017",
+            0.4437
+          ],
+          [
+            "acc-beliefs-078",
+            0.4017
+          ],
+          [
+            "skp-beliefs-044",
+            0.399
+          ],
+          [
+            "skp-beliefs-204",
+            0.3975
+          ],
+          [
+            "skp-beliefs-054",
+            0.3849
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "PROPER-NOUN",
+        "rank": 231,
+        "max_sim": 0.4829,
+        "top5": [
+          [
+            "skp-beliefs-133",
+            0.4829
+          ],
+          [
+            "skp-beliefs-136",
+            0.4652
+          ],
+          [
+            "acc-intentions-080",
+            0.4481
+          ],
+          [
+            "skp-intentions-017",
+            0.4447
+          ],
+          [
+            "skp-intentions-145",
+            0.4252
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-32",
+        "category": "DEICTIC",
+        "rank": 263,
+        "max_sim": 0.6145,
+        "top5": [
+          [
+            "acc-intentions-108",
+            0.6145
+          ],
+          [
+            "saf-intentions-061",
+            0.5748
+          ],
+          [
+            "acc-beliefs-077",
+            0.5639
+          ],
+          [
+            "saf-intentions-083",
+            0.5589
+          ],
+          [
+            "saf-beliefs-153",
+            0.5572
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-79",
+        "category": "DEICTIC",
+        "rank": 1,
+        "max_sim": 0.4771,
+        "top5": [
+          [
+            "skp-beliefs-164",
+            0.4771
+          ],
+          [
+            "skp-beliefs-174",
+            0.4439
+          ],
+          [
+            "skp-beliefs-069",
+            0.3881
+          ],
+          [
+            "acc-beliefs-028",
+            0.3761
+          ],
+          [
+            "skp-intentions-107",
+            0.3721
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-29",
+        "category": "DEICTIC",
+        "rank": 131,
+        "max_sim": 0.4925,
+        "top5": [
+          [
+            "skp-intentions-107",
+            0.4925
+          ],
+          [
+            "saf-intentions-002",
+            0.466
+          ],
+          [
+            "saf-intentions-163",
+            0.461
+          ],
+          [
+            "saf-intentions-094",
+            0.4419
+          ],
+          [
+            "skp-intentions-146",
+            0.4392
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-30",
+        "category": "DEICTIC",
+        "rank": 488,
+        "max_sim": 0.664,
+        "top5": [
+          [
+            "acc-intentions-109",
+            0.664
+          ],
+          [
+            "acc-intentions-099",
+            0.6256
+          ],
+          [
+            "acc-intentions-106",
+            0.5653
+          ],
+          [
+            "acc-intentions-008",
+            0.5547
+          ],
+          [
+            "saf-intentions-170",
+            0.552
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "PROPER-NOUN",
+        "rank": 290,
+        "max_sim": 0.6455,
+        "top5": [
+          [
+            "acc-intentions-073",
+            0.6455
+          ],
+          [
+            "acc-intentions-109",
+            0.6331
+          ],
+          [
+            "acc-beliefs-044",
+            0.5813
+          ],
+          [
+            "acc-beliefs-077",
+            0.578
+          ],
+          [
+            "acc-beliefs-074",
+            0.5542
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "SELF-CONTAINED",
+        "rank": 297,
+        "max_sim": 0.5442,
+        "top5": [
+          [
+            "acc-beliefs-076",
+            0.5442
+          ],
+          [
+            "skp-beliefs-069",
+            0.5024
+          ],
+          [
+            "skp-intentions-040",
+            0.4898
+          ],
+          [
+            "skp-beliefs-193",
+            0.4724
+          ],
+          [
+            "skp-beliefs-182",
+            0.4708
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "DEICTIC",
+        "rank": 369,
+        "max_sim": 0.5553,
+        "top5": [
+          [
+            "acc-intentions-108",
+            0.5553
+          ],
+          [
+            "saf-intentions-169",
+            0.5363
+          ],
+          [
+            "saf-intentions-032",
+            0.5338
+          ],
+          [
+            "saf-intentions-005",
+            0.5325
+          ],
+          [
+            "saf-intentions-147",
+            0.5253
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-4",
+        "category": "SELF-CONTAINED",
+        "rank": 196,
+        "max_sim": 0.5042,
+        "top5": [
+          [
+            "skp-intentions-137",
+            0.5042
+          ],
+          [
+            "skp-desires-075",
+            0.4705
+          ],
+          [
+            "skp-intentions-111",
+            0.468
+          ],
+          [
+            "skp-beliefs-117",
+            0.453
+          ],
+          [
+            "acc-intentions-107",
+            0.4518
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-12",
+        "category": "DEICTIC",
+        "rank": 62,
+        "max_sim": 0.5271,
+        "top5": [
+          [
+            "skp-beliefs-009",
+            0.5271
+          ],
+          [
+            "acc-beliefs-081",
+            0.5128
+          ],
+          [
+            "acc-beliefs-019",
+            0.5011
+          ],
+          [
+            "acc-beliefs-023",
+            0.485
+          ],
+          [
+            "saf-beliefs-044",
+            0.4658
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "SELF-CONTAINED",
+        "rank": 513,
+        "max_sim": 0.5284,
+        "top5": [
+          [
+            "skp-beliefs-037",
+            0.5284
+          ],
+          [
+            "skp-beliefs-002",
+            0.4641
+          ],
+          [
+            "skp-beliefs-053",
+            0.4585
+          ],
+          [
+            "saf-beliefs-112",
+            0.4509
+          ],
+          [
+            "skp-beliefs-202",
+            0.4475
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "SELF-CONTAINED",
+        "rank": 134,
+        "max_sim": 0.5529,
+        "top5": [
+          [
+            "acc-beliefs-074",
+            0.5529
+          ],
+          [
+            "acc-intentions-073",
+            0.5491
+          ],
+          [
+            "skp-beliefs-141",
+            0.5341
+          ],
+          [
+            "saf-beliefs-110",
+            0.5282
+          ],
+          [
+            "saf-beliefs-210",
+            0.5278
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-42",
+        "category": "DEICTIC",
+        "rank": 589,
+        "max_sim": 0.5368,
+        "top5": [
+          [
+            "skp-beliefs-193",
+            0.5368
+          ],
+          [
+            "saf-beliefs-203",
+            0.4615
+          ],
+          [
+            "acc-beliefs-079",
+            0.4159
+          ],
+          [
+            "saf-beliefs-108",
+            0.4119
+          ],
+          [
+            "saf-intentions-094",
+            0.3933
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-26",
+        "category": "SELF-CONTAINED",
+        "rank": 400,
+        "max_sim": 0.5872,
+        "top5": [
+          [
+            "acc-intentions-024",
+            0.5872
+          ],
+          [
+            "acc-intentions-100",
+            0.5846
+          ],
+          [
+            "skp-intentions-102",
+            0.5633
+          ],
+          [
+            "saf-intentions-025",
+            0.5497
+          ],
+          [
+            "acc-intentions-107",
+            0.5404
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 361,
+        "max_sim": 0.6659,
+        "top5": [
+          [
+            "acc-intentions-047",
+            0.6659
+          ],
+          [
+            "acc-intentions-005",
+            0.6528
+          ],
+          [
+            "acc-beliefs-043",
+            0.6519
+          ],
+          [
+            "acc-desires-028",
+            0.6496
+          ],
+          [
+            "acc-beliefs-044",
+            0.6463
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-1",
+        "category": "DEICTIC",
+        "rank": 148,
+        "max_sim": 0.5858,
+        "top5": [
+          [
+            "skp-intentions-139",
+            0.5858
+          ],
+          [
+            "skp-intentions-146",
+            0.5516
+          ],
+          [
+            "saf-intentions-002",
+            0.5445
+          ],
+          [
+            "saf-intentions-147",
+            0.5394
+          ],
+          [
+            "skp-intentions-040",
+            0.5297
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-51",
+        "category": "DEICTIC",
+        "rank": 1,
+        "max_sim": 0.5801,
+        "top5": [
+          [
+            "skp-beliefs-014",
+            0.5801
+          ],
+          [
+            "skp-beliefs-123",
+            0.5605
+          ],
+          [
+            "skp-beliefs-201",
+            0.551
+          ],
+          [
+            "acc-desires-020",
+            0.5487
+          ],
+          [
+            "skp-beliefs-124",
+            0.5304
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "SELF-CONTAINED",
+        "rank": 1,
+        "max_sim": 0.5942,
+        "top5": [
+          [
+            "skp-intentions-142",
+            0.5942
+          ],
+          [
+            "skp-beliefs-189",
+            0.5235
+          ],
+          [
+            "skp-desires-076",
+            0.5194
+          ],
+          [
+            "saf-intentions-143",
+            0.5101
+          ],
+          [
+            "acc-beliefs-068",
+            0.5079
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "DEICTIC",
+        "rank": 16,
+        "max_sim": 0.1863,
+        "top5": [
+          [
+            "acc-intentions-106",
+            0.1863
+          ],
+          [
+            "acc-intentions-008",
+            0.1851
+          ],
+          [
+            "skp-beliefs-195",
+            0.1757
+          ],
+          [
+            "saf-intentions-169",
+            0.1596
+          ],
+          [
+            "acc-intentions-109",
+            0.1585
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-47",
+        "category": "SELF-CONTAINED",
+        "rank": 493,
+        "max_sim": 0.3233,
+        "top5": [
+          [
+            "skp-beliefs-001",
+            0.3233
+          ],
+          [
+            "skp-beliefs-154",
+            0.299
+          ],
+          [
+            "skp-beliefs-101",
+            0.2984
+          ],
+          [
+            "acc-beliefs-028",
+            0.2982
+          ],
+          [
+            "skp-beliefs-177",
+            0.2896
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "PROPER-NOUN",
+        "rank": 628,
+        "max_sim": 0.3957,
+        "top5": [
+          [
+            "skp-intentions-131",
+            0.3957
+          ],
+          [
+            "skp-beliefs-184",
+            0.3899
+          ],
+          [
+            "skp-intentions-108",
+            0.3493
+          ],
+          [
+            "skp-desires-078",
+            0.34
+          ],
+          [
+            "acc-beliefs-028",
+            0.3381
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "DEICTIC",
+        "rank": 482,
+        "max_sim": 0.4914,
+        "top5": [
+          [
+            "acc-beliefs-082",
+            0.4914
+          ],
+          [
+            "acc-beliefs-070",
+            0.4475
+          ],
+          [
+            "acc-intentions-112",
+            0.4317
+          ],
+          [
+            "acc-beliefs-069",
+            0.4181
+          ],
+          [
+            "acc-intentions-004",
+            0.4038
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-63",
+        "category": "DEICTIC",
+        "rank": 6,
+        "max_sim": 0.5454,
+        "top5": [
+          [
+            "acc-beliefs-020",
+            0.5454
+          ],
+          [
+            "acc-intentions-036",
+            0.3967
+          ],
+          [
+            "acc-desires-020",
+            0.3896
+          ],
+          [
+            "acc-intentions-111",
+            0.3808
+          ],
+          [
+            "acc-beliefs-005",
+            0.3731
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "SELF-CONTAINED",
+        "rank": 25,
+        "max_sim": 0.4207,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.4207
+          ],
+          [
+            "skp-beliefs-002",
+            0.3924
+          ],
+          [
+            "skp-beliefs-044",
+            0.3922
+          ],
+          [
+            "saf-beliefs-207",
+            0.3903
+          ],
+          [
+            "skp-desires-011",
+            0.3811
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "DEICTIC",
+        "rank": 147,
+        "max_sim": 0.444,
+        "top5": [
+          [
+            "skp-beliefs-103",
+            0.444
+          ],
+          [
+            "saf-intentions-146",
+            0.4113
+          ],
+          [
+            "acc-beliefs-082",
+            0.4097
+          ],
+          [
+            "saf-beliefs-055",
+            0.3981
+          ],
+          [
+            "saf-intentions-126",
+            0.3807
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "DEICTIC",
+        "rank": 539,
+        "max_sim": 0.4303,
+        "top5": [
+          [
+            "skp-beliefs-187",
+            0.4303
+          ],
+          [
+            "acc-intentions-051",
+            0.4082
+          ],
+          [
+            "skp-beliefs-136",
+            0.4041
+          ],
+          [
+            "saf-beliefs-042",
+            0.3994
+          ],
+          [
+            "saf-beliefs-091",
+            0.3919
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "SELF-CONTAINED",
+        "rank": 234,
+        "max_sim": 0.4498,
+        "top5": [
+          [
+            "skp-beliefs-187",
+            0.4498
+          ],
+          [
+            "skp-beliefs-101",
+            0.4446
+          ],
+          [
+            "skp-beliefs-030",
+            0.437
+          ],
+          [
+            "saf-beliefs-137",
+            0.413
+          ],
+          [
+            "saf-beliefs-155",
+            0.4128
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-48",
+        "category": "DEICTIC",
+        "rank": 607,
+        "max_sim": 0.4662,
+        "top5": [
+          [
+            "acc-intentions-051",
+            0.4662
+          ],
+          [
+            "acc-beliefs-077",
+            0.4307
+          ],
+          [
+            "saf-beliefs-050",
+            0.4175
+          ],
+          [
+            "acc-intentions-099",
+            0.4149
+          ],
+          [
+            "acc-intentions-054",
+            0.3991
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "DEICTIC",
+        "rank": 531,
+        "max_sim": 0.4095,
+        "top5": [
+          [
+            "skp-desires-066",
+            0.4095
+          ],
+          [
+            "saf-desires-019",
+            0.4047
+          ],
+          [
+            "acc-desires-006",
+            0.3874
+          ],
+          [
+            "acc-intentions-115",
+            0.3846
+          ],
+          [
+            "saf-desires-018",
+            0.3704
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "PROPER-NOUN",
+        "rank": 132,
+        "max_sim": 0.4321,
+        "top5": [
+          [
+            "skp-intentions-014",
+            0.4321
+          ],
+          [
+            "acc-intentions-090",
+            0.4292
+          ],
+          [
+            "saf-intentions-148",
+            0.4289
+          ],
+          [
+            "skp-desires-076",
+            0.4062
+          ],
+          [
+            "acc-beliefs-068",
+            0.3602
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-77",
+        "category": "SELF-CONTAINED",
+        "rank": 108,
+        "max_sim": 0.4401,
+        "top5": [
+          [
+            "saf-intentions-165",
+            0.4401
+          ],
+          [
+            "saf-beliefs-152",
+            0.4218
+          ],
+          [
+            "saf-beliefs-055",
+            0.4169
+          ],
+          [
+            "saf-beliefs-154",
+            0.4107
+          ],
+          [
+            "saf-beliefs-106",
+            0.4042
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-31",
+        "category": "SELF-CONTAINED",
+        "rank": 501,
+        "max_sim": 0.5627,
+        "top5": [
+          [
+            "acc-intentions-107",
+            0.5627
+          ],
+          [
+            "saf-intentions-025",
+            0.4776
+          ],
+          [
+            "saf-beliefs-203",
+            0.4489
+          ],
+          [
+            "acc-intentions-100",
+            0.4338
+          ],
+          [
+            "skp-intentions-094",
+            0.4307
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-21",
+        "category": "SELF-CONTAINED",
+        "rank": 124,
+        "max_sim": 0.4395,
+        "top5": [
+          [
+            "saf-desires-009",
+            0.4395
+          ],
+          [
+            "saf-beliefs-091",
+            0.433
+          ],
+          [
+            "saf-beliefs-094",
+            0.4301
+          ],
+          [
+            "skp-beliefs-137",
+            0.4274
+          ],
+          [
+            "saf-beliefs-010",
+            0.4273
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-65",
+        "category": "DEICTIC",
+        "rank": 10,
+        "max_sim": 0.5606,
+        "top5": [
+          [
+            "skp-beliefs-164",
+            0.5606
+          ],
+          [
+            "acc-beliefs-028",
+            0.5369
+          ],
+          [
+            "skp-beliefs-178",
+            0.505
+          ],
+          [
+            "skp-beliefs-174",
+            0.4804
+          ],
+          [
+            "skp-beliefs-196",
+            0.4628
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "SELF-CONTAINED",
+        "rank": 278,
+        "max_sim": 0.5481,
+        "top5": [
+          [
+            "skp-desires-003",
+            0.5481
+          ],
+          [
+            "skp-desires-073",
+            0.5169
+          ],
+          [
+            "skp-beliefs-172",
+            0.5057
+          ],
+          [
+            "skp-desires-079",
+            0.4839
+          ],
+          [
+            "skp-beliefs-178",
+            0.4754
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-25",
+        "category": "DEICTIC",
+        "rank": 2,
+        "max_sim": 0.523,
+        "top5": [
+          [
+            "skp-intentions-146",
+            0.523
+          ],
+          [
+            "acc-beliefs-028",
+            0.5223
+          ],
+          [
+            "acc-beliefs-034",
+            0.4802
+          ],
+          [
+            "skp-intentions-082",
+            0.4655
+          ],
+          [
+            "saf-intentions-149",
+            0.4556
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-33",
+        "category": "SELF-CONTAINED",
+        "rank": 14,
+        "max_sim": 0.5339,
+        "top5": [
+          [
+            "skp-beliefs-026",
+            0.5339
+          ],
+          [
+            "skp-beliefs-031",
+            0.5082
+          ],
+          [
+            "acc-intentions-108",
+            0.4907
+          ],
+          [
+            "skp-intentions-097",
+            0.4899
+          ],
+          [
+            "skp-beliefs-174",
+            0.4868
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-27",
+        "category": "METAPHORICAL",
+        "rank": 566,
+        "max_sim": 0.4786,
+        "top5": [
+          [
+            "saf-beliefs-017",
+            0.4786
+          ],
+          [
+            "skp-intentions-142",
+            0.4782
+          ],
+          [
+            "skp-intentions-044",
+            0.4683
+          ],
+          [
+            "skp-beliefs-189",
+            0.4675
+          ],
+          [
+            "skp-intentions-079",
+            0.4612
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "SELF-CONTAINED",
+        "rank": 250,
+        "max_sim": 0.5724,
+        "top5": [
+          [
+            "acc-intentions-073",
+            0.5724
+          ],
+          [
+            "acc-beliefs-074",
+            0.5057
+          ],
+          [
+            "skp-intentions-139",
+            0.4989
+          ],
+          [
+            "acc-intentions-088",
+            0.4925
+          ],
+          [
+            "skp-intentions-129",
+            0.4832
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "DEICTIC",
+        "rank": 30,
+        "max_sim": 0.515,
+        "top5": [
+          [
+            "saf-beliefs-106",
+            0.515
+          ],
+          [
+            "skp-intentions-146",
+            0.4916
+          ],
+          [
+            "skp-beliefs-177",
+            0.4827
+          ],
+          [
+            "acc-intentions-080",
+            0.4799
+          ],
+          [
+            "saf-intentions-149",
+            0.4754
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-75",
+        "category": "DEICTIC",
+        "rank": 536,
+        "max_sim": 0.5486,
+        "top5": [
+          [
+            "acc-beliefs-003",
+            0.5486
+          ],
+          [
+            "saf-intentions-083",
+            0.5051
+          ],
+          [
+            "saf-beliefs-210",
+            0.4948
+          ],
+          [
+            "saf-intentions-140",
+            0.4761
+          ],
+          [
+            "acc-intentions-099",
+            0.4758
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "PROPER-NOUN",
+        "rank": 106,
+        "max_sim": 0.5329,
+        "top5": [
+          [
+            "saf-beliefs-210",
+            0.5329
+          ],
+          [
+            "skp-intentions-040",
+            0.5223
+          ],
+          [
+            "acc-beliefs-074",
+            0.522
+          ],
+          [
+            "skp-beliefs-029",
+            0.5202
+          ],
+          [
+            "skp-beliefs-182",
+            0.518
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-46",
+        "category": "DEICTIC",
+        "rank": 56,
+        "max_sim": 0.5703,
+        "top5": [
+          [
+            "skp-intentions-107",
+            0.5703
+          ],
+          [
+            "saf-intentions-002",
+            0.5187
+          ],
+          [
+            "acc-beliefs-046",
+            0.5158
+          ],
+          [
+            "saf-intentions-094",
+            0.5154
+          ],
+          [
+            "skp-intentions-146",
+            0.4726
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-10",
+        "category": "PROPER-NOUN",
+        "rank": 141,
+        "max_sim": 0.6033,
+        "top5": [
+          [
+            "skp-intentions-017",
+            0.6033
+          ],
+          [
+            "skp-beliefs-136",
+            0.6017
+          ],
+          [
+            "acc-intentions-103",
+            0.5967
+          ],
+          [
+            "acc-beliefs-044",
+            0.5964
+          ],
+          [
+            "skp-beliefs-163",
+            0.5843
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-18",
+        "category": "DEICTIC",
+        "rank": 202,
+        "max_sim": 0.5423,
+        "top5": [
+          [
+            "saf-intentions-149",
+            0.5423
+          ],
+          [
+            "saf-desires-004",
+            0.4525
+          ],
+          [
+            "saf-beliefs-028",
+            0.4518
+          ],
+          [
+            "saf-intentions-063",
+            0.4464
+          ],
+          [
+            "saf-intentions-137",
+            0.445
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-60",
+        "category": "DEICTIC",
+        "rank": 311,
+        "max_sim": 0.5836,
+        "top5": [
+          [
+            "acc-beliefs-053",
+            0.5836
+          ],
+          [
+            "acc-desires-009",
+            0.5768
+          ],
+          [
+            "saf-beliefs-010",
+            0.5649
+          ],
+          [
+            "acc-desires-001",
+            0.5456
+          ],
+          [
+            "skp-beliefs-204",
+            0.5348
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-18",
+        "category": "DEICTIC",
+        "rank": 254,
+        "max_sim": 0.56,
+        "top5": [
+          [
+            "saf-beliefs-106",
+            0.56
+          ],
+          [
+            "saf-desires-004",
+            0.559
+          ],
+          [
+            "saf-intentions-149",
+            0.5553
+          ],
+          [
+            "saf-beliefs-142",
+            0.5349
+          ],
+          [
+            "saf-beliefs-109",
+            0.5218
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "DEICTIC",
+        "rank": 355,
+        "max_sim": 0.6058,
+        "top5": [
+          [
+            "acc-intentions-073",
+            0.6058
+          ],
+          [
+            "skp-beliefs-141",
+            0.5874
+          ],
+          [
+            "skp-beliefs-187",
+            0.5803
+          ],
+          [
+            "saf-intentions-089",
+            0.5706
+          ],
+          [
+            "saf-beliefs-205",
+            0.5705
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-43",
+        "category": "DEICTIC",
+        "rank": 182,
+        "max_sim": 0.5912,
+        "top5": [
+          [
+            "saf-beliefs-116",
+            0.5912
+          ],
+          [
+            "skp-intentions-105",
+            0.5692
+          ],
+          [
+            "saf-intentions-203",
+            0.569
+          ],
+          [
+            "acc-beliefs-070",
+            0.5594
+          ],
+          [
+            "saf-intentions-032",
+            0.5255
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-49",
+        "category": "DEICTIC",
+        "rank": 289,
+        "max_sim": 0.5891,
+        "top5": [
+          [
+            "saf-beliefs-110",
+            0.5891
+          ],
+          [
+            "saf-intentions-002",
+            0.5748
+          ],
+          [
+            "acc-beliefs-075",
+            0.553
+          ],
+          [
+            "saf-beliefs-054",
+            0.5513
+          ],
+          [
+            "skp-beliefs-182",
+            0.5357
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 240,
+        "max_sim": 0.6082,
+        "top5": [
+          [
+            "saf-desires-004",
+            0.6082
+          ],
+          [
+            "saf-beliefs-109",
+            0.6026
+          ],
+          [
+            "saf-intentions-211",
+            0.5966
+          ],
+          [
+            "saf-beliefs-152",
+            0.5944
+          ],
+          [
+            "saf-intentions-161",
+            0.5747
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-85",
+        "category": "SELF-CONTAINED",
+        "rank": 39,
+        "max_sim": 0.4271,
+        "top5": [
+          [
+            "skp-intentions-083",
+            0.4271
+          ],
+          [
+            "skp-intentions-128",
+            0.3891
+          ],
+          [
+            "skp-intentions-095",
+            0.3578
+          ],
+          [
+            "skp-beliefs-061",
+            0.3396
+          ],
+          [
+            "skp-beliefs-038",
+            0.3277
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-23",
+        "category": "DEICTIC",
+        "rank": 15,
+        "max_sim": 0.3903,
+        "top5": [
+          [
+            "skp-beliefs-193",
+            0.3903
+          ],
+          [
+            "skp-beliefs-192",
+            0.3772
+          ],
+          [
+            "saf-beliefs-107",
+            0.3566
+          ],
+          [
+            "saf-intentions-169",
+            0.3524
+          ],
+          [
+            "saf-intentions-003",
+            0.3211
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-46",
+        "category": "SELF-CONTAINED",
+        "rank": 412,
+        "max_sim": 0.3668,
+        "top5": [
+          [
+            "skp-beliefs-193",
+            0.3668
+          ],
+          [
+            "acc-beliefs-082",
+            0.3099
+          ],
+          [
+            "skp-beliefs-194",
+            0.3009
+          ],
+          [
+            "skp-beliefs-192",
+            0.3
+          ],
+          [
+            "acc-beliefs-076",
+            0.2912
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-19",
+        "category": "DEICTIC",
+        "rank": 568,
+        "max_sim": 0.3884,
+        "top5": [
+          [
+            "skp-desires-003",
+            0.3884
+          ],
+          [
+            "skp-desires-078",
+            0.3714
+          ],
+          [
+            "acc-beliefs-086",
+            0.3434
+          ],
+          [
+            "skp-beliefs-046",
+            0.3432
+          ],
+          [
+            "skp-beliefs-203",
+            0.3389
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-1",
+        "category": "DEICTIC",
+        "rank": 390,
+        "max_sim": 0.599,
+        "top5": [
+          [
+            "saf-beliefs-010",
+            0.599
+          ],
+          [
+            "saf-beliefs-028",
+            0.5309
+          ],
+          [
+            "saf-beliefs-058",
+            0.5192
+          ],
+          [
+            "saf-beliefs-017",
+            0.5171
+          ],
+          [
+            "saf-beliefs-040",
+            0.4989
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-35",
+        "category": "DEICTIC",
+        "rank": 1,
+        "max_sim": 0.3926,
+        "top5": [
+          [
+            "acc-beliefs-082",
+            0.3926
+          ],
+          [
+            "saf-beliefs-154",
+            0.3781
+          ],
+          [
+            "skp-beliefs-198",
+            0.3774
+          ],
+          [
+            "acc-intentions-004",
+            0.368
+          ],
+          [
+            "saf-beliefs-004",
+            0.367
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-27",
+        "category": "DEICTIC",
+        "rank": 599,
+        "max_sim": 0.384,
+        "top5": [
+          [
+            "acc-beliefs-028",
+            0.384
+          ],
+          [
+            "skp-beliefs-181",
+            0.3571
+          ],
+          [
+            "skp-intentions-008",
+            0.3451
+          ],
+          [
+            "skp-beliefs-177",
+            0.3292
+          ],
+          [
+            "skp-intentions-129",
+            0.3289
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 300,
+        "max_sim": 0.4078,
+        "top5": [
+          [
+            "acc-beliefs-076",
+            0.4078
+          ],
+          [
+            "skp-beliefs-193",
+            0.3949
+          ],
+          [
+            "skp-intentions-146",
+            0.3809
+          ],
+          [
+            "acc-beliefs-028",
+            0.3776
+          ],
+          [
+            "acc-intentions-003",
+            0.363
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "DEICTIC",
+        "rank": 318,
+        "max_sim": 0.4282,
+        "top5": [
+          [
+            "skp-desires-076",
+            0.4282
+          ],
+          [
+            "acc-intentions-092",
+            0.3985
+          ],
+          [
+            "acc-intentions-091",
+            0.3937
+          ],
+          [
+            "skp-intentions-014",
+            0.3736
+          ],
+          [
+            "acc-intentions-022",
+            0.3662
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 17,
+        "max_sim": 0.4337,
+        "top5": [
+          [
+            "acc-beliefs-028",
+            0.4337
+          ],
+          [
+            "acc-intentions-080",
+            0.4164
+          ],
+          [
+            "acc-intentions-078",
+            0.3912
+          ],
+          [
+            "saf-beliefs-137",
+            0.3818
+          ],
+          [
+            "skp-beliefs-196",
+            0.3799
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "DEICTIC",
+        "rank": 478,
+        "max_sim": 0.4511,
+        "top5": [
+          [
+            "skp-beliefs-009",
+            0.4511
+          ],
+          [
+            "saf-beliefs-113",
+            0.4326
+          ],
+          [
+            "acc-beliefs-081",
+            0.4181
+          ],
+          [
+            "acc-beliefs-019",
+            0.414
+          ],
+          [
+            "acc-beliefs-023",
+            0.3993
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "SELF-CONTAINED",
+        "rank": 322,
+        "max_sim": 0.4596,
+        "top5": [
+          [
+            "skp-beliefs-124",
+            0.4596
+          ],
+          [
+            "acc-beliefs-020",
+            0.435
+          ],
+          [
+            "skp-beliefs-201",
+            0.4264
+          ],
+          [
+            "acc-beliefs-021",
+            0.4049
+          ],
+          [
+            "skp-beliefs-004",
+            0.4009
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "DEICTIC",
+        "rank": 190,
+        "max_sim": 0.4662,
+        "top5": [
+          [
+            "acc-intentions-027",
+            0.4662
+          ],
+          [
+            "skp-beliefs-141",
+            0.4576
+          ],
+          [
+            "acc-intentions-078",
+            0.4438
+          ],
+          [
+            "acc-beliefs-085",
+            0.4301
+          ],
+          [
+            "skp-intentions-008",
+            0.4229
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-26",
+        "category": "DEICTIC",
+        "rank": 488,
+        "max_sim": 0.4514,
+        "top5": [
+          [
+            "skp-intentions-146",
+            0.4514
+          ],
+          [
+            "acc-intentions-027",
+            0.4513
+          ],
+          [
+            "saf-beliefs-203",
+            0.4271
+          ],
+          [
+            "saf-beliefs-014",
+            0.4238
+          ],
+          [
+            "saf-desires-003",
+            0.3986
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-35",
+        "category": "SELF-CONTAINED",
+        "rank": 446,
+        "max_sim": 0.5294,
+        "top5": [
+          [
+            "skp-beliefs-176",
+            0.5294
+          ],
+          [
+            "saf-intentions-089",
+            0.5279
+          ],
+          [
+            "saf-beliefs-022",
+            0.5032
+          ],
+          [
+            "skp-beliefs-076",
+            0.4997
+          ],
+          [
+            "saf-beliefs-104",
+            0.4981
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "TOPIC-IMPLICIT",
+        "rank": 29,
+        "max_sim": 0.4667,
+        "top5": [
+          [
+            "acc-beliefs-077",
+            0.4667
+          ],
+          [
+            "skp-beliefs-166",
+            0.4589
+          ],
+          [
+            "saf-intentions-013",
+            0.4384
+          ],
+          [
+            "acc-intentions-036",
+            0.4334
+          ],
+          [
+            "acc-beliefs-046",
+            0.4326
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-41",
+        "category": "DEICTIC",
+        "rank": 494,
+        "max_sim": 0.478,
+        "top5": [
+          [
+            "acc-intentions-018",
+            0.478
+          ],
+          [
+            "skp-beliefs-064",
+            0.4262
+          ],
+          [
+            "acc-intentions-071",
+            0.4224
+          ],
+          [
+            "skp-beliefs-103",
+            0.4106
+          ],
+          [
+            "acc-intentions-055",
+            0.4011
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-19",
+        "category": "DEICTIC",
+        "rank": 210,
+        "max_sim": 0.5018,
+        "top5": [
+          [
+            "skp-beliefs-133",
+            0.5018
+          ],
+          [
+            "skp-beliefs-136",
+            0.4879
+          ],
+          [
+            "skp-beliefs-051",
+            0.4852
+          ],
+          [
+            "skp-beliefs-146",
+            0.4807
+          ],
+          [
+            "acc-beliefs-027",
+            0.4691
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-24",
+        "category": "DEICTIC",
+        "rank": 269,
+        "max_sim": 0.5519,
+        "top5": [
+          [
+            "skp-beliefs-182",
+            0.5519
+          ],
+          [
+            "saf-beliefs-210",
+            0.5333
+          ],
+          [
+            "skp-desires-081",
+            0.5111
+          ],
+          [
+            "saf-beliefs-205",
+            0.5111
+          ],
+          [
+            "skp-intentions-040",
+            0.5003
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-40",
+        "category": "SELF-CONTAINED",
+        "rank": 323,
+        "max_sim": 0.5277,
+        "top5": [
+          [
+            "skp-intentions-040",
+            0.5277
+          ],
+          [
+            "saf-beliefs-205",
+            0.5174
+          ],
+          [
+            "saf-intentions-004",
+            0.5127
+          ],
+          [
+            "saf-desires-012",
+            0.5068
+          ],
+          [
+            "skp-intentions-146",
+            0.4931
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "DEICTIC",
+        "rank": 388,
+        "max_sim": 0.5331,
+        "top5": [
+          [
+            "saf-beliefs-207",
+            0.5331
+          ],
+          [
+            "saf-beliefs-058",
+            0.5091
+          ],
+          [
+            "skp-beliefs-201",
+            0.4991
+          ],
+          [
+            "acc-beliefs-027",
+            0.4981
+          ],
+          [
+            "skp-beliefs-026",
+            0.4847
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "DEICTIC",
+        "rank": 281,
+        "max_sim": 0.5137,
+        "top5": [
+          [
+            "skp-beliefs-196",
+            0.5137
+          ],
+          [
+            "skp-beliefs-113",
+            0.5016
+          ],
+          [
+            "acc-beliefs-085",
+            0.499
+          ],
+          [
+            "skp-beliefs-177",
+            0.4977
+          ],
+          [
+            "skp-desires-005",
+            0.4953
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-47",
+        "category": "DEICTIC",
+        "rank": 135,
+        "max_sim": 0.5424,
+        "top5": [
+          [
+            "skp-intentions-145",
+            0.5424
+          ],
+          [
+            "acc-beliefs-034",
+            0.5118
+          ],
+          [
+            "acc-intentions-111",
+            0.5115
+          ],
+          [
+            "skp-intentions-102",
+            0.4865
+          ],
+          [
+            "acc-intentions-078",
+            0.4808
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-11",
+        "category": "DEICTIC",
+        "rank": 3,
+        "max_sim": 0.521,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.521
+          ],
+          [
+            "skp-intentions-107",
+            0.52
+          ],
+          [
+            "acc-intentions-106",
+            0.5122
+          ],
+          [
+            "acc-intentions-008",
+            0.5029
+          ],
+          [
+            "saf-desires-003",
+            0.4911
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "SELF-CONTAINED",
+        "rank": 256,
+        "max_sim": 0.5622,
+        "top5": [
+          [
+            "saf-intentions-137",
+            0.5622
+          ],
+          [
+            "saf-desires-004",
+            0.5399
+          ],
+          [
+            "saf-intentions-202",
+            0.5206
+          ],
+          [
+            "acc-desires-006",
+            0.5175
+          ],
+          [
+            "saf-intentions-025",
+            0.5137
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 224,
+        "max_sim": 0.5356,
+        "top5": [
+          [
+            "acc-intentions-106",
+            0.5356
+          ],
+          [
+            "acc-intentions-008",
+            0.5086
+          ],
+          [
+            "saf-intentions-170",
+            0.5069
+          ],
+          [
+            "acc-intentions-109",
+            0.5024
+          ],
+          [
+            "saf-intentions-167",
+            0.4568
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "DEICTIC",
+        "rank": 1,
+        "max_sim": 0.5449,
+        "top5": [
+          [
+            "acc-intentions-034",
+            0.5449
+          ],
+          [
+            "skp-intentions-124",
+            0.4653
+          ],
+          [
+            "skp-beliefs-014",
+            0.449
+          ],
+          [
+            "acc-desires-025",
+            0.4451
+          ],
+          [
+            "skp-beliefs-124",
+            0.4414
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 141,
+        "max_sim": 0.5589,
+        "top5": [
+          [
+            "acc-intentions-106",
+            0.5589
+          ],
+          [
+            "acc-intentions-002",
+            0.5563
+          ],
+          [
+            "acc-intentions-008",
+            0.5336
+          ],
+          [
+            "acc-beliefs-070",
+            0.4597
+          ],
+          [
+            "acc-intentions-109",
+            0.4579
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-33",
+        "category": "DEICTIC",
+        "rank": 425,
+        "max_sim": 0.5632,
+        "top5": [
+          [
+            "skp-beliefs-102",
+            0.5632
+          ],
+          [
+            "skp-beliefs-051",
+            0.5563
+          ],
+          [
+            "skp-beliefs-029",
+            0.548
+          ],
+          [
+            "acc-desires-001",
+            0.5444
+          ],
+          [
+            "skp-beliefs-124",
+            0.5426
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "SELF-CONTAINED",
+        "rank": 554,
+        "max_sim": 0.5579,
+        "top5": [
+          [
+            "skp-desires-083",
+            0.5579
+          ],
+          [
+            "acc-beliefs-053",
+            0.5557
+          ],
+          [
+            "acc-beliefs-067",
+            0.5557
+          ],
+          [
+            "acc-desires-001",
+            0.5304
+          ],
+          [
+            "acc-beliefs-024",
+            0.5291
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-11",
+        "category": "DEICTIC",
+        "rank": 419,
+        "max_sim": 0.6816,
+        "top5": [
+          [
+            "skp-beliefs-002",
+            0.6816
+          ],
+          [
+            "skp-beliefs-053",
+            0.6595
+          ],
+          [
+            "skp-beliefs-202",
+            0.6533
+          ],
+          [
+            "skp-beliefs-042",
+            0.65
+          ],
+          [
+            "skp-beliefs-166",
+            0.6132
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "SELF-CONTAINED",
+        "rank": 9,
+        "max_sim": 0.6068,
+        "top5": [
+          [
+            "skp-intentions-139",
+            0.6068
+          ],
+          [
+            "skp-beliefs-177",
+            0.6014
+          ],
+          [
+            "skp-intentions-146",
+            0.5883
+          ],
+          [
+            "saf-intentions-147",
+            0.5696
+          ],
+          [
+            "acc-intentions-073",
+            0.5659
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-68",
+        "category": "PROPER-NOUN",
+        "rank": 518,
+        "max_sim": 0.6428,
+        "top5": [
+          [
+            "skp-beliefs-017",
+            0.6428
+          ],
+          [
+            "skp-beliefs-030",
+            0.6003
+          ],
+          [
+            "acc-beliefs-053",
+            0.5787
+          ],
+          [
+            "skp-beliefs-044",
+            0.5754
+          ],
+          [
+            "acc-beliefs-067",
+            0.5682
+          ]
+        ]
+      }
+    ],
+    "freeform": [
+      {
+        "claim_id": "AN-31",
+        "category": "DEICTIC",
+        "rank": 580,
+        "max_sim": 0.6215,
+        "top5": [
+          [
+            "saf-intentions-025",
+            0.6215
+          ],
+          [
+            "acc-intentions-107",
+            0.6034
+          ],
+          [
+            "skp-intentions-094",
+            0.5969
+          ],
+          [
+            "saf-beliefs-203",
+            0.5873
+          ],
+          [
+            "acc-intentions-100",
+            0.5838
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-81",
+        "category": "TOPIC-IMPLICIT",
+        "rank": 16,
+        "max_sim": 0.5244,
+        "top5": [
+          [
+            "skp-intentions-124",
+            0.5244
+          ],
+          [
+            "acc-desires-020",
+            0.4854
+          ],
+          [
+            "acc-desires-025",
+            0.4212
+          ],
+          [
+            "acc-desires-026",
+            0.3878
+          ],
+          [
+            "acc-intentions-068",
+            0.3871
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-48",
+        "category": "METAPHORICAL",
+        "rank": 589,
+        "max_sim": 0.629,
+        "top5": [
+          [
+            "saf-beliefs-013",
+            0.629
+          ],
+          [
+            "acc-intentions-051",
+            0.5903
+          ],
+          [
+            "saf-beliefs-050",
+            0.5838
+          ],
+          [
+            "skp-beliefs-182",
+            0.5807
+          ],
+          [
+            "saf-beliefs-092",
+            0.5715
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-30",
+        "category": "DEICTIC",
+        "rank": 379,
+        "max_sim": 0.6946,
+        "top5": [
+          [
+            "acc-intentions-109",
+            0.6946
+          ],
+          [
+            "acc-intentions-099",
+            0.6827
+          ],
+          [
+            "saf-intentions-170",
+            0.6711
+          ],
+          [
+            "acc-intentions-106",
+            0.6354
+          ],
+          [
+            "acc-intentions-008",
+            0.6346
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-82",
+        "category": "DEICTIC",
+        "rank": 394,
+        "max_sim": 0.6278,
+        "top5": [
+          [
+            "acc-intentions-075",
+            0.6278
+          ],
+          [
+            "skp-intentions-097",
+            0.5726
+          ],
+          [
+            "skp-desires-074",
+            0.5697
+          ],
+          [
+            "acc-intentions-103",
+            0.5639
+          ],
+          [
+            "acc-intentions-054",
+            0.5555
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "SELF-CONTAINED",
+        "rank": 49,
+        "max_sim": 0.6254,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.6254
+          ],
+          [
+            "acc-intentions-106",
+            0.6017
+          ],
+          [
+            "acc-intentions-008",
+            0.5805
+          ],
+          [
+            "saf-beliefs-203",
+            0.5502
+          ],
+          [
+            "acc-beliefs-046",
+            0.5471
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "SELF-CONTAINED",
+        "rank": 539,
+        "max_sim": 0.4407,
+        "top5": [
+          [
+            "skp-desires-066",
+            0.4407
+          ],
+          [
+            "saf-intentions-009",
+            0.436
+          ],
+          [
+            "acc-intentions-096",
+            0.4214
+          ],
+          [
+            "acc-intentions-103",
+            0.4194
+          ],
+          [
+            "acc-intentions-115",
+            0.4104
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "SELF-CONTAINED",
+        "rank": 364,
+        "max_sim": 0.6394,
+        "top5": [
+          [
+            "skp-intentions-102",
+            0.6394
+          ],
+          [
+            "skp-desires-075",
+            0.6337
+          ],
+          [
+            "saf-beliefs-211",
+            0.6228
+          ],
+          [
+            "skp-desires-082",
+            0.6219
+          ],
+          [
+            "skp-beliefs-047",
+            0.5983
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-10",
+        "category": "DEICTIC",
+        "rank": 109,
+        "max_sim": 0.626,
+        "top5": [
+          [
+            "skp-intentions-124",
+            0.626
+          ],
+          [
+            "acc-intentions-055",
+            0.5847
+          ],
+          [
+            "acc-intentions-100",
+            0.57
+          ],
+          [
+            "skp-intentions-102",
+            0.5569
+          ],
+          [
+            "acc-intentions-068",
+            0.556
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "DEICTIC",
+        "rank": 449,
+        "max_sim": 0.5587,
+        "top5": [
+          [
+            "acc-beliefs-027",
+            0.5587
+          ],
+          [
+            "skp-beliefs-054",
+            0.5363
+          ],
+          [
+            "acc-beliefs-075",
+            0.5327
+          ],
+          [
+            "skp-beliefs-017",
+            0.5185
+          ],
+          [
+            "acc-intentions-114",
+            0.5139
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "METAPHORICAL",
+        "rank": 449,
+        "max_sim": 0.5587,
+        "top5": [
+          [
+            "acc-beliefs-027",
+            0.5587
+          ],
+          [
+            "skp-beliefs-054",
+            0.5363
+          ],
+          [
+            "acc-beliefs-075",
+            0.5327
+          ],
+          [
+            "skp-beliefs-017",
+            0.5185
+          ],
+          [
+            "acc-intentions-114",
+            0.5139
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "SELF-CONTAINED",
+        "rank": 191,
+        "max_sim": 0.6282,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.6282
+          ],
+          [
+            "acc-beliefs-075",
+            0.6261
+          ],
+          [
+            "acc-intentions-099",
+            0.6205
+          ],
+          [
+            "acc-intentions-106",
+            0.6143
+          ],
+          [
+            "saf-intentions-170",
+            0.5726
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-37",
+        "category": "DEICTIC",
+        "rank": 524,
+        "max_sim": 0.5437,
+        "top5": [
+          [
+            "skp-beliefs-133",
+            0.5437
+          ],
+          [
+            "skp-beliefs-146",
+            0.5324
+          ],
+          [
+            "skp-intentions-029",
+            0.5114
+          ],
+          [
+            "skp-intentions-017",
+            0.5104
+          ],
+          [
+            "skp-beliefs-131",
+            0.5016
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "DEICTIC",
+        "rank": 368,
+        "max_sim": 0.6747,
+        "top5": [
+          [
+            "saf-intentions-084",
+            0.6747
+          ],
+          [
+            "saf-intentions-140",
+            0.6687
+          ],
+          [
+            "saf-beliefs-127",
+            0.6657
+          ],
+          [
+            "saf-beliefs-210",
+            0.6484
+          ],
+          [
+            "skp-intentions-074",
+            0.6441
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "DEICTIC",
+        "rank": 368,
+        "max_sim": 0.6747,
+        "top5": [
+          [
+            "saf-intentions-084",
+            0.6747
+          ],
+          [
+            "saf-intentions-140",
+            0.6687
+          ],
+          [
+            "saf-beliefs-127",
+            0.6657
+          ],
+          [
+            "saf-beliefs-210",
+            0.6484
+          ],
+          [
+            "skp-intentions-074",
+            0.6441
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "PROPER-NOUN",
+        "rank": 236,
+        "max_sim": 0.6802,
+        "top5": [
+          [
+            "skp-intentions-139",
+            0.6802
+          ],
+          [
+            "skp-intentions-040",
+            0.6784
+          ],
+          [
+            "skp-intentions-146",
+            0.665
+          ],
+          [
+            "saf-desires-012",
+            0.663
+          ],
+          [
+            "skp-intentions-029",
+            0.6562
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-32",
+        "category": "DEICTIC",
+        "rank": 229,
+        "max_sim": 0.6971,
+        "top5": [
+          [
+            "acc-intentions-108",
+            0.6971
+          ],
+          [
+            "saf-intentions-083",
+            0.6769
+          ],
+          [
+            "saf-intentions-061",
+            0.6752
+          ],
+          [
+            "saf-beliefs-151",
+            0.6595
+          ],
+          [
+            "saf-intentions-048",
+            0.6588
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-79",
+        "category": "DEICTIC",
+        "rank": 1,
+        "max_sim": 0.6103,
+        "top5": [
+          [
+            "skp-beliefs-164",
+            0.6103
+          ],
+          [
+            "skp-beliefs-189",
+            0.5898
+          ],
+          [
+            "acc-intentions-078",
+            0.5655
+          ],
+          [
+            "acc-beliefs-044",
+            0.5557
+          ],
+          [
+            "skp-beliefs-102",
+            0.5463
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-29",
+        "category": "DEICTIC",
+        "rank": 500,
+        "max_sim": 0.5886,
+        "top5": [
+          [
+            "saf-desires-003",
+            0.5886
+          ],
+          [
+            "skp-intentions-142",
+            0.5625
+          ],
+          [
+            "skp-intentions-044",
+            0.5602
+          ],
+          [
+            "skp-intentions-146",
+            0.5506
+          ],
+          [
+            "saf-intentions-047",
+            0.5378
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-30",
+        "category": "DEICTIC",
+        "rank": 379,
+        "max_sim": 0.6946,
+        "top5": [
+          [
+            "acc-intentions-109",
+            0.6946
+          ],
+          [
+            "acc-intentions-099",
+            0.6827
+          ],
+          [
+            "saf-intentions-170",
+            0.6711
+          ],
+          [
+            "acc-intentions-106",
+            0.6354
+          ],
+          [
+            "acc-intentions-008",
+            0.6346
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "PROPER-NOUN",
+        "rank": 49,
+        "max_sim": 0.6254,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.6254
+          ],
+          [
+            "acc-intentions-106",
+            0.6017
+          ],
+          [
+            "acc-intentions-008",
+            0.5805
+          ],
+          [
+            "saf-beliefs-203",
+            0.5502
+          ],
+          [
+            "acc-beliefs-046",
+            0.5471
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "SELF-CONTAINED",
+        "rank": 363,
+        "max_sim": 0.6399,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.6399
+          ],
+          [
+            "skp-beliefs-189",
+            0.6321
+          ],
+          [
+            "skp-intentions-108",
+            0.6008
+          ],
+          [
+            "acc-intentions-103",
+            0.5983
+          ],
+          [
+            "skp-intentions-029",
+            0.5967
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "DEICTIC",
+        "rank": 540,
+        "max_sim": 0.5796,
+        "top5": [
+          [
+            "acc-beliefs-067",
+            0.5796
+          ],
+          [
+            "skp-desires-083",
+            0.5716
+          ],
+          [
+            "acc-intentions-069",
+            0.5707
+          ],
+          [
+            "skp-intentions-013",
+            0.5577
+          ],
+          [
+            "skp-beliefs-119",
+            0.5576
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-4",
+        "category": "SELF-CONTAINED",
+        "rank": 39,
+        "max_sim": 0.6548,
+        "top5": [
+          [
+            "skp-desires-075",
+            0.6548
+          ],
+          [
+            "skp-intentions-137",
+            0.644
+          ],
+          [
+            "skp-intentions-104",
+            0.6345
+          ],
+          [
+            "acc-intentions-114",
+            0.6312
+          ],
+          [
+            "skp-intentions-034",
+            0.623
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-12",
+        "category": "DEICTIC",
+        "rank": 46,
+        "max_sim": 0.6122,
+        "top5": [
+          [
+            "skp-beliefs-009",
+            0.6122
+          ],
+          [
+            "acc-desires-021",
+            0.6114
+          ],
+          [
+            "skp-beliefs-054",
+            0.6009
+          ],
+          [
+            "acc-desires-009",
+            0.5929
+          ],
+          [
+            "acc-desires-039",
+            0.591
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "SELF-CONTAINED",
+        "rank": 539,
+        "max_sim": 0.4407,
+        "top5": [
+          [
+            "skp-desires-066",
+            0.4407
+          ],
+          [
+            "saf-intentions-009",
+            0.436
+          ],
+          [
+            "acc-intentions-096",
+            0.4214
+          ],
+          [
+            "acc-intentions-103",
+            0.4194
+          ],
+          [
+            "acc-intentions-115",
+            0.4104
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "SELF-CONTAINED",
+        "rank": 449,
+        "max_sim": 0.5587,
+        "top5": [
+          [
+            "acc-beliefs-027",
+            0.5587
+          ],
+          [
+            "skp-beliefs-054",
+            0.5363
+          ],
+          [
+            "acc-beliefs-075",
+            0.5327
+          ],
+          [
+            "skp-beliefs-017",
+            0.5185
+          ],
+          [
+            "acc-intentions-114",
+            0.5139
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-42",
+        "category": "DEICTIC",
+        "rank": 607,
+        "max_sim": 0.5649,
+        "top5": [
+          [
+            "skp-beliefs-193",
+            0.5649
+          ],
+          [
+            "saf-beliefs-203",
+            0.4714
+          ],
+          [
+            "saf-intentions-020",
+            0.4074
+          ],
+          [
+            "acc-intentions-110",
+            0.3825
+          ],
+          [
+            "saf-beliefs-001",
+            0.3811
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-26",
+        "category": "SELF-CONTAINED",
+        "rank": 263,
+        "max_sim": 0.6979,
+        "top5": [
+          [
+            "saf-desires-003",
+            0.6979
+          ],
+          [
+            "skp-intentions-074",
+            0.6734
+          ],
+          [
+            "skp-intentions-097",
+            0.6315
+          ],
+          [
+            "acc-intentions-024",
+            0.625
+          ],
+          [
+            "skp-intentions-146",
+            0.619
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 191,
+        "max_sim": 0.6282,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.6282
+          ],
+          [
+            "acc-beliefs-075",
+            0.6261
+          ],
+          [
+            "acc-intentions-099",
+            0.6205
+          ],
+          [
+            "acc-intentions-106",
+            0.6143
+          ],
+          [
+            "saf-intentions-170",
+            0.5726
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-1",
+        "category": "DEICTIC",
+        "rank": 47,
+        "max_sim": 0.7079,
+        "top5": [
+          [
+            "saf-beliefs-205",
+            0.7079
+          ],
+          [
+            "skp-intentions-040",
+            0.6994
+          ],
+          [
+            "saf-intentions-147",
+            0.6814
+          ],
+          [
+            "saf-desires-012",
+            0.6784
+          ],
+          [
+            "saf-intentions-210",
+            0.6717
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-51",
+        "category": "DEICTIC",
+        "rank": 2,
+        "max_sim": 0.7075,
+        "top5": [
+          [
+            "skp-beliefs-027",
+            0.7075
+          ],
+          [
+            "skp-beliefs-014",
+            0.6889
+          ],
+          [
+            "skp-beliefs-123",
+            0.6576
+          ],
+          [
+            "skp-beliefs-124",
+            0.6408
+          ],
+          [
+            "skp-beliefs-168",
+            0.6275
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "SELF-CONTAINED",
+        "rank": 68,
+        "max_sim": 0.5906,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.5906
+          ],
+          [
+            "skp-intentions-108",
+            0.5807
+          ],
+          [
+            "skp-beliefs-047",
+            0.5679
+          ],
+          [
+            "skp-beliefs-141",
+            0.5632
+          ],
+          [
+            "skp-beliefs-156",
+            0.5598
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "DEICTIC",
+        "rank": 363,
+        "max_sim": 0.6399,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.6399
+          ],
+          [
+            "skp-beliefs-189",
+            0.6321
+          ],
+          [
+            "skp-intentions-108",
+            0.6008
+          ],
+          [
+            "acc-intentions-103",
+            0.5983
+          ],
+          [
+            "skp-intentions-029",
+            0.5967
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-47",
+        "category": "SELF-CONTAINED",
+        "rank": 59,
+        "max_sim": 0.5718,
+        "top5": [
+          [
+            "skp-intentions-102",
+            0.5718
+          ],
+          [
+            "skp-desires-082",
+            0.5629
+          ],
+          [
+            "skp-beliefs-031",
+            0.5591
+          ],
+          [
+            "saf-beliefs-211",
+            0.5528
+          ],
+          [
+            "skp-beliefs-131",
+            0.5523
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "PROPER-NOUN",
+        "rank": 364,
+        "max_sim": 0.6394,
+        "top5": [
+          [
+            "skp-intentions-102",
+            0.6394
+          ],
+          [
+            "skp-desires-075",
+            0.6337
+          ],
+          [
+            "saf-beliefs-211",
+            0.6228
+          ],
+          [
+            "skp-desires-082",
+            0.6219
+          ],
+          [
+            "skp-beliefs-047",
+            0.5983
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "DEICTIC",
+        "rank": 540,
+        "max_sim": 0.5796,
+        "top5": [
+          [
+            "acc-beliefs-067",
+            0.5796
+          ],
+          [
+            "skp-desires-083",
+            0.5716
+          ],
+          [
+            "acc-intentions-069",
+            0.5707
+          ],
+          [
+            "skp-intentions-013",
+            0.5577
+          ],
+          [
+            "skp-beliefs-119",
+            0.5576
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-63",
+        "category": "DEICTIC",
+        "rank": 93,
+        "max_sim": 0.6417,
+        "top5": [
+          [
+            "acc-beliefs-077",
+            0.6417
+          ],
+          [
+            "acc-intentions-054",
+            0.6237
+          ],
+          [
+            "acc-beliefs-020",
+            0.5719
+          ],
+          [
+            "acc-beliefs-044",
+            0.5552
+          ],
+          [
+            "saf-intentions-149",
+            0.5443
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "SELF-CONTAINED",
+        "rank": 236,
+        "max_sim": 0.6802,
+        "top5": [
+          [
+            "skp-intentions-139",
+            0.6802
+          ],
+          [
+            "skp-intentions-040",
+            0.6784
+          ],
+          [
+            "skp-intentions-146",
+            0.665
+          ],
+          [
+            "saf-desires-012",
+            0.663
+          ],
+          [
+            "skp-intentions-029",
+            0.6562
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "DEICTIC",
+        "rank": 49,
+        "max_sim": 0.6254,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.6254
+          ],
+          [
+            "acc-intentions-106",
+            0.6017
+          ],
+          [
+            "acc-intentions-008",
+            0.5805
+          ],
+          [
+            "saf-beliefs-203",
+            0.5502
+          ],
+          [
+            "acc-beliefs-046",
+            0.5471
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "DEICTIC",
+        "rank": 118,
+        "max_sim": 0.6198,
+        "top5": [
+          [
+            "acc-intentions-054",
+            0.6198
+          ],
+          [
+            "acc-beliefs-069",
+            0.6188
+          ],
+          [
+            "acc-intentions-055",
+            0.6081
+          ],
+          [
+            "acc-intentions-018",
+            0.6034
+          ],
+          [
+            "acc-beliefs-077",
+            0.6022
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "SELF-CONTAINED",
+        "rank": 202,
+        "max_sim": 0.5148,
+        "top5": [
+          [
+            "skp-desires-003",
+            0.5148
+          ],
+          [
+            "skp-intentions-014",
+            0.5039
+          ],
+          [
+            "saf-intentions-143",
+            0.4929
+          ],
+          [
+            "saf-beliefs-017",
+            0.4769
+          ],
+          [
+            "skp-beliefs-005",
+            0.4744
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-48",
+        "category": "DEICTIC",
+        "rank": 589,
+        "max_sim": 0.629,
+        "top5": [
+          [
+            "saf-beliefs-013",
+            0.629
+          ],
+          [
+            "acc-intentions-051",
+            0.5903
+          ],
+          [
+            "saf-beliefs-050",
+            0.5838
+          ],
+          [
+            "skp-beliefs-182",
+            0.5807
+          ],
+          [
+            "saf-beliefs-092",
+            0.5715
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "DEICTIC",
+        "rank": 539,
+        "max_sim": 0.4407,
+        "top5": [
+          [
+            "skp-desires-066",
+            0.4407
+          ],
+          [
+            "saf-intentions-009",
+            0.436
+          ],
+          [
+            "acc-intentions-096",
+            0.4214
+          ],
+          [
+            "acc-intentions-103",
+            0.4194
+          ],
+          [
+            "acc-intentions-115",
+            0.4104
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "PROPER-NOUN",
+        "rank": 202,
+        "max_sim": 0.5148,
+        "top5": [
+          [
+            "skp-desires-003",
+            0.5148
+          ],
+          [
+            "skp-intentions-014",
+            0.5039
+          ],
+          [
+            "saf-intentions-143",
+            0.4929
+          ],
+          [
+            "saf-beliefs-017",
+            0.4769
+          ],
+          [
+            "skp-beliefs-005",
+            0.4744
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-77",
+        "category": "SELF-CONTAINED",
+        "rank": 196,
+        "max_sim": 0.6114,
+        "top5": [
+          [
+            "saf-intentions-149",
+            0.6114
+          ],
+          [
+            "saf-desires-003",
+            0.6113
+          ],
+          [
+            "saf-intentions-161",
+            0.5812
+          ],
+          [
+            "saf-intentions-025",
+            0.5798
+          ],
+          [
+            "saf-beliefs-203",
+            0.5771
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-31",
+        "category": "SELF-CONTAINED",
+        "rank": 580,
+        "max_sim": 0.6215,
+        "top5": [
+          [
+            "saf-intentions-025",
+            0.6215
+          ],
+          [
+            "acc-intentions-107",
+            0.6034
+          ],
+          [
+            "skp-intentions-094",
+            0.5969
+          ],
+          [
+            "saf-beliefs-203",
+            0.5873
+          ],
+          [
+            "acc-intentions-100",
+            0.5838
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-21",
+        "category": "SELF-CONTAINED",
+        "rank": 178,
+        "max_sim": 0.604,
+        "top5": [
+          [
+            "saf-beliefs-092",
+            0.604
+          ],
+          [
+            "saf-beliefs-016",
+            0.6021
+          ],
+          [
+            "saf-beliefs-013",
+            0.5834
+          ],
+          [
+            "saf-beliefs-042",
+            0.5727
+          ],
+          [
+            "saf-beliefs-099",
+            0.5724
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-65",
+        "category": "DEICTIC",
+        "rank": 103,
+        "max_sim": 0.6673,
+        "top5": [
+          [
+            "skp-beliefs-164",
+            0.6673
+          ],
+          [
+            "skp-intentions-108",
+            0.638
+          ],
+          [
+            "skp-intentions-040",
+            0.6371
+          ],
+          [
+            "skp-beliefs-102",
+            0.629
+          ],
+          [
+            "saf-desires-012",
+            0.6285
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "SELF-CONTAINED",
+        "rank": 202,
+        "max_sim": 0.5148,
+        "top5": [
+          [
+            "skp-desires-003",
+            0.5148
+          ],
+          [
+            "skp-intentions-014",
+            0.5039
+          ],
+          [
+            "saf-intentions-143",
+            0.4928
+          ],
+          [
+            "saf-beliefs-017",
+            0.4769
+          ],
+          [
+            "skp-beliefs-005",
+            0.4744
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-25",
+        "category": "DEICTIC",
+        "rank": 5,
+        "max_sim": 0.6094,
+        "top5": [
+          [
+            "skp-intentions-108",
+            0.6094
+          ],
+          [
+            "skp-beliefs-069",
+            0.5915
+          ],
+          [
+            "saf-intentions-113",
+            0.5912
+          ],
+          [
+            "skp-intentions-146",
+            0.5895
+          ],
+          [
+            "acc-beliefs-028",
+            0.5868
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-33",
+        "category": "SELF-CONTAINED",
+        "rank": 463,
+        "max_sim": 0.5523,
+        "top5": [
+          [
+            "skp-beliefs-102",
+            0.5523
+          ],
+          [
+            "skp-beliefs-123",
+            0.5395
+          ],
+          [
+            "skp-beliefs-029",
+            0.5387
+          ],
+          [
+            "skp-beliefs-124",
+            0.5384
+          ],
+          [
+            "skp-beliefs-136",
+            0.5375
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-27",
+        "category": "METAPHORICAL",
+        "rank": 621,
+        "max_sim": 0.5799,
+        "top5": [
+          [
+            "skp-desires-081",
+            0.5799
+          ],
+          [
+            "acc-beliefs-067",
+            0.5759
+          ],
+          [
+            "skp-beliefs-017",
+            0.5747
+          ],
+          [
+            "skp-intentions-013",
+            0.5708
+          ],
+          [
+            "skp-intentions-004",
+            0.5605
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "SELF-CONTAINED",
+        "rank": 68,
+        "max_sim": 0.5906,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.5906
+          ],
+          [
+            "skp-intentions-108",
+            0.5807
+          ],
+          [
+            "skp-beliefs-047",
+            0.5679
+          ],
+          [
+            "skp-beliefs-141",
+            0.5632
+          ],
+          [
+            "skp-beliefs-156",
+            0.5598
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "DEICTIC",
+        "rank": 184,
+        "max_sim": 0.6579,
+        "top5": [
+          [
+            "saf-desires-004",
+            0.6579
+          ],
+          [
+            "acc-intentions-115",
+            0.6504
+          ],
+          [
+            "saf-intentions-144",
+            0.6441
+          ],
+          [
+            "skp-intentions-074",
+            0.6352
+          ],
+          [
+            "saf-intentions-054",
+            0.6221
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-75",
+        "category": "DEICTIC",
+        "rank": 467,
+        "max_sim": 0.6157,
+        "top5": [
+          [
+            "saf-intentions-083",
+            0.6157
+          ],
+          [
+            "saf-beliefs-151",
+            0.5892
+          ],
+          [
+            "acc-beliefs-003",
+            0.5874
+          ],
+          [
+            "skp-intentions-074",
+            0.5854
+          ],
+          [
+            "acc-intentions-054",
+            0.5832
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "PROPER-NOUN",
+        "rank": 184,
+        "max_sim": 0.6579,
+        "top5": [
+          [
+            "saf-desires-004",
+            0.6579
+          ],
+          [
+            "acc-intentions-115",
+            0.6504
+          ],
+          [
+            "saf-intentions-144",
+            0.6441
+          ],
+          [
+            "skp-intentions-074",
+            0.6352
+          ],
+          [
+            "saf-intentions-054",
+            0.6221
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-46",
+        "category": "DEICTIC",
+        "rank": 399,
+        "max_sim": 0.4357,
+        "top5": [
+          [
+            "skp-beliefs-152",
+            0.4357
+          ],
+          [
+            "skp-beliefs-193",
+            0.4311
+          ],
+          [
+            "acc-beliefs-027",
+            0.4311
+          ],
+          [
+            "acc-intentions-110",
+            0.421
+          ],
+          [
+            "saf-beliefs-058",
+            0.4161
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-10",
+        "category": "PROPER-NOUN",
+        "rank": 109,
+        "max_sim": 0.626,
+        "top5": [
+          [
+            "skp-intentions-124",
+            0.626
+          ],
+          [
+            "acc-intentions-055",
+            0.5847
+          ],
+          [
+            "acc-intentions-100",
+            0.57
+          ],
+          [
+            "skp-intentions-102",
+            0.5569
+          ],
+          [
+            "acc-intentions-068",
+            0.556
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-18",
+        "category": "DEICTIC",
+        "rank": 236,
+        "max_sim": 0.6423,
+        "top5": [
+          [
+            "skp-intentions-074",
+            0.6423
+          ],
+          [
+            "saf-desires-004",
+            0.6372
+          ],
+          [
+            "saf-desires-003",
+            0.6326
+          ],
+          [
+            "acc-intentions-078",
+            0.6204
+          ],
+          [
+            "saf-intentions-161",
+            0.6124
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-60",
+        "category": "DEICTIC",
+        "rank": 411,
+        "max_sim": 0.6373,
+        "top5": [
+          [
+            "saf-beliefs-010",
+            0.6373
+          ],
+          [
+            "acc-desires-009",
+            0.6267
+          ],
+          [
+            "saf-beliefs-040",
+            0.6127
+          ],
+          [
+            "saf-beliefs-097",
+            0.593
+          ],
+          [
+            "skp-beliefs-204",
+            0.5778
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-18",
+        "category": "DEICTIC",
+        "rank": 236,
+        "max_sim": 0.6423,
+        "top5": [
+          [
+            "skp-intentions-074",
+            0.6423
+          ],
+          [
+            "saf-desires-004",
+            0.6372
+          ],
+          [
+            "saf-desires-003",
+            0.6326
+          ],
+          [
+            "acc-intentions-078",
+            0.6204
+          ],
+          [
+            "saf-intentions-161",
+            0.6124
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "DEICTIC",
+        "rank": 118,
+        "max_sim": 0.6198,
+        "top5": [
+          [
+            "acc-intentions-054",
+            0.6198
+          ],
+          [
+            "acc-beliefs-069",
+            0.6188
+          ],
+          [
+            "acc-intentions-055",
+            0.6081
+          ],
+          [
+            "acc-intentions-018",
+            0.6034
+          ],
+          [
+            "acc-beliefs-077",
+            0.6022
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-43",
+        "category": "DEICTIC",
+        "rank": 288,
+        "max_sim": 0.6591,
+        "top5": [
+          [
+            "saf-intentions-203",
+            0.6591
+          ],
+          [
+            "saf-beliefs-116",
+            0.5891
+          ],
+          [
+            "saf-intentions-032",
+            0.581
+          ],
+          [
+            "saf-intentions-114",
+            0.5785
+          ],
+          [
+            "skp-intentions-105",
+            0.5736
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-49",
+        "category": "DEICTIC",
+        "rank": 187,
+        "max_sim": 0.6546,
+        "top5": [
+          [
+            "saf-beliefs-127",
+            0.6546
+          ],
+          [
+            "saf-beliefs-203",
+            0.6541
+          ],
+          [
+            "acc-beliefs-075",
+            0.6506
+          ],
+          [
+            "saf-intentions-147",
+            0.6448
+          ],
+          [
+            "skp-intentions-146",
+            0.6394
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 191,
+        "max_sim": 0.6282,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.6282
+          ],
+          [
+            "acc-beliefs-075",
+            0.6261
+          ],
+          [
+            "acc-intentions-099",
+            0.6205
+          ],
+          [
+            "acc-intentions-106",
+            0.6143
+          ],
+          [
+            "saf-intentions-170",
+            0.5726
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-85",
+        "category": "SELF-CONTAINED",
+        "rank": 24,
+        "max_sim": 0.5455,
+        "top5": [
+          [
+            "skp-intentions-083",
+            0.5455
+          ],
+          [
+            "skp-beliefs-061",
+            0.5034
+          ],
+          [
+            "skp-intentions-095",
+            0.4975
+          ],
+          [
+            "skp-beliefs-001",
+            0.4951
+          ],
+          [
+            "skp-intentions-128",
+            0.4773
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-23",
+        "category": "DEICTIC",
+        "rank": 6,
+        "max_sim": 0.4769,
+        "top5": [
+          [
+            "skp-beliefs-193",
+            0.4769
+          ],
+          [
+            "skp-beliefs-192",
+            0.4444
+          ],
+          [
+            "saf-intentions-169",
+            0.4321
+          ],
+          [
+            "skp-beliefs-177",
+            0.3968
+          ],
+          [
+            "saf-intentions-020",
+            0.3918
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-46",
+        "category": "SELF-CONTAINED",
+        "rank": 399,
+        "max_sim": 0.4357,
+        "top5": [
+          [
+            "skp-beliefs-152",
+            0.4357
+          ],
+          [
+            "skp-beliefs-193",
+            0.4311
+          ],
+          [
+            "acc-beliefs-027",
+            0.4311
+          ],
+          [
+            "acc-intentions-110",
+            0.421
+          ],
+          [
+            "saf-beliefs-058",
+            0.4161
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-19",
+        "category": "DEICTIC",
+        "rank": 62,
+        "max_sim": 0.5626,
+        "top5": [
+          [
+            "acc-desires-020",
+            0.5626
+          ],
+          [
+            "acc-intentions-055",
+            0.5412
+          ],
+          [
+            "acc-beliefs-075",
+            0.527
+          ],
+          [
+            "skp-intentions-124",
+            0.5211
+          ],
+          [
+            "acc-intentions-036",
+            0.5199
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-1",
+        "category": "DEICTIC",
+        "rank": 47,
+        "max_sim": 0.7079,
+        "top5": [
+          [
+            "saf-beliefs-205",
+            0.7079
+          ],
+          [
+            "skp-intentions-040",
+            0.6994
+          ],
+          [
+            "saf-intentions-147",
+            0.6814
+          ],
+          [
+            "saf-desires-012",
+            0.6784
+          ],
+          [
+            "saf-intentions-210",
+            0.6717
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-35",
+        "category": "DEICTIC",
+        "rank": 580,
+        "max_sim": 0.648,
+        "top5": [
+          [
+            "skp-beliefs-176",
+            0.648
+          ],
+          [
+            "skp-desires-082",
+            0.6285
+          ],
+          [
+            "saf-intentions-051",
+            0.6195
+          ],
+          [
+            "saf-intentions-089",
+            0.6018
+          ],
+          [
+            "acc-intentions-078",
+            0.5897
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-27",
+        "category": "DEICTIC",
+        "rank": 621,
+        "max_sim": 0.5799,
+        "top5": [
+          [
+            "skp-desires-081",
+            0.5799
+          ],
+          [
+            "acc-beliefs-067",
+            0.5759
+          ],
+          [
+            "skp-beliefs-017",
+            0.5747
+          ],
+          [
+            "skp-intentions-013",
+            0.5708
+          ],
+          [
+            "skp-intentions-004",
+            0.5605
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 368,
+        "max_sim": 0.6747,
+        "top5": [
+          [
+            "saf-intentions-084",
+            0.6747
+          ],
+          [
+            "saf-intentions-140",
+            0.6687
+          ],
+          [
+            "saf-beliefs-127",
+            0.6657
+          ],
+          [
+            "saf-beliefs-210",
+            0.6484
+          ],
+          [
+            "skp-intentions-074",
+            0.6441
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "DEICTIC",
+        "rank": 342,
+        "max_sim": 0.5787,
+        "top5": [
+          [
+            "skp-beliefs-133",
+            0.5787
+          ],
+          [
+            "skp-beliefs-136",
+            0.5648
+          ],
+          [
+            "skp-beliefs-146",
+            0.5479
+          ],
+          [
+            "acc-beliefs-020",
+            0.535
+          ],
+          [
+            "saf-beliefs-207",
+            0.5292
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 368,
+        "max_sim": 0.6747,
+        "top5": [
+          [
+            "saf-intentions-084",
+            0.6747
+          ],
+          [
+            "saf-intentions-140",
+            0.6687
+          ],
+          [
+            "saf-beliefs-127",
+            0.6657
+          ],
+          [
+            "saf-beliefs-210",
+            0.6484
+          ],
+          [
+            "skp-intentions-074",
+            0.6441
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "DEICTIC",
+        "rank": 449,
+        "max_sim": 0.5587,
+        "top5": [
+          [
+            "acc-beliefs-027",
+            0.5587
+          ],
+          [
+            "skp-beliefs-054",
+            0.5363
+          ],
+          [
+            "acc-beliefs-075",
+            0.5327
+          ],
+          [
+            "skp-beliefs-017",
+            0.5185
+          ],
+          [
+            "acc-intentions-114",
+            0.5139
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "SELF-CONTAINED",
+        "rank": 342,
+        "max_sim": 0.5787,
+        "top5": [
+          [
+            "skp-beliefs-133",
+            0.5787
+          ],
+          [
+            "skp-beliefs-136",
+            0.5648
+          ],
+          [
+            "skp-beliefs-146",
+            0.5479
+          ],
+          [
+            "acc-beliefs-020",
+            0.535
+          ],
+          [
+            "saf-beliefs-207",
+            0.5292
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "DEICTIC",
+        "rank": 68,
+        "max_sim": 0.5906,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.5906
+          ],
+          [
+            "skp-intentions-108",
+            0.5807
+          ],
+          [
+            "skp-beliefs-047",
+            0.5679
+          ],
+          [
+            "skp-beliefs-141",
+            0.5632
+          ],
+          [
+            "skp-beliefs-156",
+            0.5598
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-26",
+        "category": "DEICTIC",
+        "rank": 263,
+        "max_sim": 0.6979,
+        "top5": [
+          [
+            "saf-desires-003",
+            0.6979
+          ],
+          [
+            "skp-intentions-074",
+            0.6734
+          ],
+          [
+            "skp-intentions-097",
+            0.6315
+          ],
+          [
+            "acc-intentions-024",
+            0.625
+          ],
+          [
+            "skp-intentions-146",
+            0.619
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-35",
+        "category": "SELF-CONTAINED",
+        "rank": 580,
+        "max_sim": 0.648,
+        "top5": [
+          [
+            "skp-beliefs-176",
+            0.648
+          ],
+          [
+            "skp-desires-082",
+            0.6285
+          ],
+          [
+            "saf-intentions-051",
+            0.6195
+          ],
+          [
+            "saf-intentions-089",
+            0.6018
+          ],
+          [
+            "acc-intentions-078",
+            0.5897
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "TOPIC-IMPLICIT",
+        "rank": 118,
+        "max_sim": 0.6198,
+        "top5": [
+          [
+            "acc-intentions-054",
+            0.6198
+          ],
+          [
+            "acc-beliefs-069",
+            0.6188
+          ],
+          [
+            "acc-intentions-055",
+            0.6081
+          ],
+          [
+            "acc-intentions-018",
+            0.6034
+          ],
+          [
+            "acc-beliefs-077",
+            0.6022
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-41",
+        "category": "DEICTIC",
+        "rank": 587,
+        "max_sim": 0.5393,
+        "top5": [
+          [
+            "acc-intentions-018",
+            0.5393
+          ],
+          [
+            "acc-intentions-034",
+            0.5191
+          ],
+          [
+            "acc-intentions-036",
+            0.514
+          ],
+          [
+            "acc-intentions-055",
+            0.5061
+          ],
+          [
+            "acc-intentions-087",
+            0.4934
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-19",
+        "category": "DEICTIC",
+        "rank": 62,
+        "max_sim": 0.5626,
+        "top5": [
+          [
+            "acc-desires-020",
+            0.5626
+          ],
+          [
+            "acc-intentions-055",
+            0.5412
+          ],
+          [
+            "acc-beliefs-075",
+            0.527
+          ],
+          [
+            "skp-intentions-124",
+            0.5211
+          ],
+          [
+            "acc-intentions-036",
+            0.5199
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-24",
+        "category": "DEICTIC",
+        "rank": 196,
+        "max_sim": 0.5738,
+        "top5": [
+          [
+            "skp-beliefs-182",
+            0.5738
+          ],
+          [
+            "saf-beliefs-210",
+            0.5583
+          ],
+          [
+            "skp-intentions-040",
+            0.5562
+          ],
+          [
+            "saf-desires-012",
+            0.5395
+          ],
+          [
+            "saf-beliefs-205",
+            0.5391
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-40",
+        "category": "SELF-CONTAINED",
+        "rank": 399,
+        "max_sim": 0.6151,
+        "top5": [
+          [
+            "saf-desires-012",
+            0.6151
+          ],
+          [
+            "skp-intentions-040",
+            0.607
+          ],
+          [
+            "saf-beliefs-205",
+            0.5861
+          ],
+          [
+            "skp-intentions-102",
+            0.5833
+          ],
+          [
+            "acc-intentions-024",
+            0.5817
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "DEICTIC",
+        "rank": 342,
+        "max_sim": 0.5787,
+        "top5": [
+          [
+            "skp-beliefs-133",
+            0.5787
+          ],
+          [
+            "skp-beliefs-136",
+            0.5648
+          ],
+          [
+            "skp-beliefs-146",
+            0.5479
+          ],
+          [
+            "acc-beliefs-020",
+            0.535
+          ],
+          [
+            "saf-beliefs-207",
+            0.5292
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "DEICTIC",
+        "rank": 363,
+        "max_sim": 0.6399,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.6399
+          ],
+          [
+            "skp-beliefs-189",
+            0.6321
+          ],
+          [
+            "skp-intentions-108",
+            0.6008
+          ],
+          [
+            "acc-intentions-103",
+            0.5983
+          ],
+          [
+            "skp-intentions-029",
+            0.5967
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-47",
+        "category": "DEICTIC",
+        "rank": 59,
+        "max_sim": 0.5718,
+        "top5": [
+          [
+            "skp-intentions-102",
+            0.5718
+          ],
+          [
+            "skp-desires-082",
+            0.5629
+          ],
+          [
+            "skp-beliefs-031",
+            0.5591
+          ],
+          [
+            "saf-beliefs-211",
+            0.5528
+          ],
+          [
+            "skp-beliefs-131",
+            0.5523
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-11",
+        "category": "DEICTIC",
+        "rank": 326,
+        "max_sim": 0.612,
+        "top5": [
+          [
+            "skp-beliefs-053",
+            0.612
+          ],
+          [
+            "skp-beliefs-002",
+            0.5559
+          ],
+          [
+            "skp-beliefs-036",
+            0.541
+          ],
+          [
+            "skp-beliefs-154",
+            0.5343
+          ],
+          [
+            "acc-beliefs-086",
+            0.5286
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "SELF-CONTAINED",
+        "rank": 184,
+        "max_sim": 0.6579,
+        "top5": [
+          [
+            "saf-desires-004",
+            0.6579
+          ],
+          [
+            "acc-intentions-115",
+            0.6504
+          ],
+          [
+            "saf-intentions-144",
+            0.6441
+          ],
+          [
+            "skp-intentions-074",
+            0.6352
+          ],
+          [
+            "saf-intentions-054",
+            0.6221
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 368,
+        "max_sim": 0.6747,
+        "top5": [
+          [
+            "saf-intentions-084",
+            0.6747
+          ],
+          [
+            "saf-intentions-140",
+            0.6687
+          ],
+          [
+            "saf-beliefs-127",
+            0.6657
+          ],
+          [
+            "saf-beliefs-210",
+            0.6484
+          ],
+          [
+            "skp-intentions-074",
+            0.6441
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "DEICTIC",
+        "rank": 364,
+        "max_sim": 0.6394,
+        "top5": [
+          [
+            "skp-intentions-102",
+            0.6394
+          ],
+          [
+            "skp-desires-075",
+            0.6337
+          ],
+          [
+            "saf-beliefs-211",
+            0.6228
+          ],
+          [
+            "skp-desires-082",
+            0.6219
+          ],
+          [
+            "skp-beliefs-047",
+            0.5983
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 191,
+        "max_sim": 0.6282,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.6282
+          ],
+          [
+            "acc-beliefs-075",
+            0.6261
+          ],
+          [
+            "acc-intentions-099",
+            0.6205
+          ],
+          [
+            "acc-intentions-106",
+            0.6143
+          ],
+          [
+            "saf-intentions-170",
+            0.5726
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-33",
+        "category": "DEICTIC",
+        "rank": 463,
+        "max_sim": 0.5523,
+        "top5": [
+          [
+            "skp-beliefs-102",
+            0.5523
+          ],
+          [
+            "skp-beliefs-123",
+            0.5395
+          ],
+          [
+            "skp-beliefs-029",
+            0.5387
+          ],
+          [
+            "skp-beliefs-124",
+            0.5384
+          ],
+          [
+            "skp-beliefs-136",
+            0.5375
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "SELF-CONTAINED",
+        "rank": 540,
+        "max_sim": 0.5796,
+        "top5": [
+          [
+            "acc-beliefs-067",
+            0.5796
+          ],
+          [
+            "skp-desires-083",
+            0.5716
+          ],
+          [
+            "acc-intentions-069",
+            0.5707
+          ],
+          [
+            "skp-intentions-013",
+            0.5577
+          ],
+          [
+            "skp-beliefs-119",
+            0.5576
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-11",
+        "category": "DEICTIC",
+        "rank": 326,
+        "max_sim": 0.612,
+        "top5": [
+          [
+            "skp-beliefs-053",
+            0.612
+          ],
+          [
+            "skp-beliefs-002",
+            0.5559
+          ],
+          [
+            "skp-beliefs-036",
+            0.541
+          ],
+          [
+            "skp-beliefs-154",
+            0.5343
+          ],
+          [
+            "acc-beliefs-086",
+            0.5286
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "SELF-CONTAINED",
+        "rank": 236,
+        "max_sim": 0.6802,
+        "top5": [
+          [
+            "skp-intentions-139",
+            0.6802
+          ],
+          [
+            "skp-intentions-040",
+            0.6784
+          ],
+          [
+            "skp-intentions-146",
+            0.665
+          ],
+          [
+            "saf-desires-012",
+            0.663
+          ],
+          [
+            "skp-intentions-029",
+            0.6562
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-68",
+        "category": "PROPER-NOUN",
+        "rank": 500,
+        "max_sim": 0.6086,
+        "top5": [
+          [
+            "skp-beliefs-017",
+            0.6086
+          ],
+          [
+            "skp-beliefs-101",
+            0.5774
+          ],
+          [
+            "skp-beliefs-170",
+            0.5716
+          ],
+          [
+            "skp-beliefs-182",
+            0.5681
+          ],
+          [
+            "skp-beliefs-030",
+            0.561
+          ]
+        ]
+      }
+    ],
+    "genus": [
+      {
+        "claim_id": "AN-31",
+        "category": "DEICTIC",
+        "rank": 536,
+        "max_sim": 0.6628,
+        "top5": [
+          [
+            "skp-intentions-074",
+            0.6628
+          ],
+          [
+            "saf-desires-023",
+            0.6623
+          ],
+          [
+            "saf-intentions-139",
+            0.6604
+          ],
+          [
+            "saf-intentions-077",
+            0.6556
+          ],
+          [
+            "saf-beliefs-203",
+            0.6519
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-81",
+        "category": "TOPIC-IMPLICIT",
+        "rank": 12,
+        "max_sim": 0.5975,
+        "top5": [
+          [
+            "skp-beliefs-096",
+            0.5975
+          ],
+          [
+            "skp-beliefs-159",
+            0.5603
+          ],
+          [
+            "skp-beliefs-158",
+            0.553
+          ],
+          [
+            "skp-beliefs-179",
+            0.535
+          ],
+          [
+            "skp-beliefs-068",
+            0.534
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-48",
+        "category": "METAPHORICAL",
+        "rank": 600,
+        "max_sim": 0.7654,
+        "top5": [
+          [
+            "saf-beliefs-126",
+            0.7654
+          ],
+          [
+            "acc-intentions-054",
+            0.7448
+          ],
+          [
+            "saf-beliefs-098",
+            0.744
+          ],
+          [
+            "saf-beliefs-210",
+            0.7372
+          ],
+          [
+            "saf-intentions-080",
+            0.7352
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-30",
+        "category": "DEICTIC",
+        "rank": 426,
+        "max_sim": 0.6889,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.6889
+          ],
+          [
+            "saf-intentions-170",
+            0.6853
+          ],
+          [
+            "skp-beliefs-164",
+            0.6848
+          ],
+          [
+            "skp-beliefs-047",
+            0.6836
+          ],
+          [
+            "skp-beliefs-189",
+            0.6626
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-82",
+        "category": "DEICTIC",
+        "rank": 68,
+        "max_sim": 0.6524,
+        "top5": [
+          [
+            "skp-beliefs-179",
+            0.6524
+          ],
+          [
+            "skp-beliefs-106",
+            0.6321
+          ],
+          [
+            "skp-desires-074",
+            0.6264
+          ],
+          [
+            "skp-beliefs-068",
+            0.6232
+          ],
+          [
+            "skp-desires-080",
+            0.6211
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "SELF-CONTAINED",
+        "rank": 68,
+        "max_sim": 0.6495,
+        "top5": [
+          [
+            "saf-beliefs-203",
+            0.6495
+          ],
+          [
+            "acc-intentions-099",
+            0.6392
+          ],
+          [
+            "saf-intentions-139",
+            0.6179
+          ],
+          [
+            "acc-intentions-106",
+            0.6146
+          ],
+          [
+            "saf-beliefs-153",
+            0.6106
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "SELF-CONTAINED",
+        "rank": 579,
+        "max_sim": 0.6295,
+        "top5": [
+          [
+            "saf-beliefs-150",
+            0.6295
+          ],
+          [
+            "saf-intentions-139",
+            0.6257
+          ],
+          [
+            "saf-intentions-161",
+            0.6203
+          ],
+          [
+            "saf-intentions-069",
+            0.6184
+          ],
+          [
+            "saf-intentions-081",
+            0.6123
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "SELF-CONTAINED",
+        "rank": 450,
+        "max_sim": 0.6758,
+        "top5": [
+          [
+            "skp-desires-059",
+            0.6758
+          ],
+          [
+            "skp-intentions-102",
+            0.6724
+          ],
+          [
+            "skp-desires-075",
+            0.6681
+          ],
+          [
+            "skp-intentions-108",
+            0.645
+          ],
+          [
+            "skp-desires-005",
+            0.6415
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-10",
+        "category": "DEICTIC",
+        "rank": 181,
+        "max_sim": 0.6862,
+        "top5": [
+          [
+            "skp-intentions-074",
+            0.6862
+          ],
+          [
+            "saf-intentions-118",
+            0.6682
+          ],
+          [
+            "saf-intentions-159",
+            0.6631
+          ],
+          [
+            "saf-intentions-013",
+            0.6631
+          ],
+          [
+            "saf-intentions-054",
+            0.6521
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "DEICTIC",
+        "rank": 376,
+        "max_sim": 0.7411,
+        "top5": [
+          [
+            "acc-desires-028",
+            0.7411
+          ],
+          [
+            "acc-intentions-061",
+            0.7325
+          ],
+          [
+            "acc-beliefs-043",
+            0.7304
+          ],
+          [
+            "acc-beliefs-044",
+            0.7284
+          ],
+          [
+            "acc-desires-027",
+            0.7284
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "METAPHORICAL",
+        "rank": 376,
+        "max_sim": 0.7411,
+        "top5": [
+          [
+            "acc-desires-028",
+            0.7411
+          ],
+          [
+            "acc-intentions-061",
+            0.7325
+          ],
+          [
+            "acc-beliefs-043",
+            0.7304
+          ],
+          [
+            "acc-beliefs-044",
+            0.7284
+          ],
+          [
+            "acc-desires-027",
+            0.7284
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "SELF-CONTAINED",
+        "rank": 138,
+        "max_sim": 0.7101,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.7101
+          ],
+          [
+            "acc-intentions-100",
+            0.7085
+          ],
+          [
+            "acc-intentions-106",
+            0.7069
+          ],
+          [
+            "acc-intentions-099",
+            0.7023
+          ],
+          [
+            "skp-beliefs-176",
+            0.6371
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-37",
+        "category": "DEICTIC",
+        "rank": 466,
+        "max_sim": 0.6954,
+        "top5": [
+          [
+            "skp-intentions-029",
+            0.6954
+          ],
+          [
+            "skp-beliefs-146",
+            0.6923
+          ],
+          [
+            "skp-beliefs-131",
+            0.6731
+          ],
+          [
+            "skp-beliefs-133",
+            0.6713
+          ],
+          [
+            "skp-beliefs-008",
+            0.671
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "DEICTIC",
+        "rank": 493,
+        "max_sim": 0.6876,
+        "top5": [
+          [
+            "skp-intentions-055",
+            0.6876
+          ],
+          [
+            "saf-beliefs-210",
+            0.6742
+          ],
+          [
+            "skp-beliefs-041",
+            0.6734
+          ],
+          [
+            "skp-beliefs-029",
+            0.6696
+          ],
+          [
+            "saf-beliefs-056",
+            0.6661
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "DEICTIC",
+        "rank": 493,
+        "max_sim": 0.6876,
+        "top5": [
+          [
+            "skp-intentions-055",
+            0.6876
+          ],
+          [
+            "saf-beliefs-210",
+            0.6742
+          ],
+          [
+            "skp-beliefs-041",
+            0.6734
+          ],
+          [
+            "skp-beliefs-029",
+            0.6696
+          ],
+          [
+            "saf-beliefs-056",
+            0.6661
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "PROPER-NOUN",
+        "rank": 256,
+        "max_sim": 0.738,
+        "top5": [
+          [
+            "saf-desires-012",
+            0.738
+          ],
+          [
+            "acc-beliefs-074",
+            0.7334
+          ],
+          [
+            "acc-intentions-047",
+            0.7322
+          ],
+          [
+            "acc-intentions-078",
+            0.7285
+          ],
+          [
+            "acc-intentions-103",
+            0.7252
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-32",
+        "category": "DEICTIC",
+        "rank": 203,
+        "max_sim": 0.7892,
+        "top5": [
+          [
+            "acc-intentions-108",
+            0.7892
+          ],
+          [
+            "saf-intentions-083",
+            0.7602
+          ],
+          [
+            "saf-beliefs-151",
+            0.7564
+          ],
+          [
+            "saf-intentions-161",
+            0.7457
+          ],
+          [
+            "saf-intentions-061",
+            0.7432
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-79",
+        "category": "DEICTIC",
+        "rank": 1,
+        "max_sim": 0.7212,
+        "top5": [
+          [
+            "skp-beliefs-164",
+            0.7212
+          ],
+          [
+            "skp-beliefs-189",
+            0.696
+          ],
+          [
+            "skp-beliefs-102",
+            0.6881
+          ],
+          [
+            "skp-beliefs-170",
+            0.6575
+          ],
+          [
+            "skp-beliefs-047",
+            0.6411
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-29",
+        "category": "DEICTIC",
+        "rank": 416,
+        "max_sim": 0.6518,
+        "top5": [
+          [
+            "skp-intentions-107",
+            0.6518
+          ],
+          [
+            "skp-intentions-008",
+            0.6386
+          ],
+          [
+            "skp-intentions-146",
+            0.6318
+          ],
+          [
+            "skp-beliefs-164",
+            0.6285
+          ],
+          [
+            "skp-beliefs-069",
+            0.6237
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-30",
+        "category": "DEICTIC",
+        "rank": 426,
+        "max_sim": 0.6889,
+        "top5": [
+          [
+            "acc-intentions-099",
+            0.6889
+          ],
+          [
+            "saf-intentions-170",
+            0.6853
+          ],
+          [
+            "skp-beliefs-164",
+            0.6848
+          ],
+          [
+            "skp-beliefs-047",
+            0.6836
+          ],
+          [
+            "skp-beliefs-189",
+            0.6626
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "PROPER-NOUN",
+        "rank": 68,
+        "max_sim": 0.6495,
+        "top5": [
+          [
+            "saf-beliefs-203",
+            0.6495
+          ],
+          [
+            "acc-intentions-099",
+            0.6392
+          ],
+          [
+            "saf-intentions-139",
+            0.6179
+          ],
+          [
+            "acc-intentions-106",
+            0.6146
+          ],
+          [
+            "saf-beliefs-153",
+            0.6106
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "SELF-CONTAINED",
+        "rank": 423,
+        "max_sim": 0.7198,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.7198
+          ],
+          [
+            "acc-intentions-088",
+            0.6868
+          ],
+          [
+            "acc-intentions-047",
+            0.6825
+          ],
+          [
+            "acc-intentions-074",
+            0.674
+          ],
+          [
+            "acc-beliefs-043",
+            0.6708
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "DEICTIC",
+        "rank": 571,
+        "max_sim": 0.7383,
+        "top5": [
+          [
+            "acc-intentions-069",
+            0.7383
+          ],
+          [
+            "acc-intentions-005",
+            0.7261
+          ],
+          [
+            "acc-beliefs-067",
+            0.7028
+          ],
+          [
+            "acc-beliefs-043",
+            0.6805
+          ],
+          [
+            "skp-desires-083",
+            0.6774
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-4",
+        "category": "SELF-CONTAINED",
+        "rank": 140,
+        "max_sim": 0.7692,
+        "top5": [
+          [
+            "skp-intentions-137",
+            0.7692
+          ],
+          [
+            "skp-desires-075",
+            0.7576
+          ],
+          [
+            "skp-desires-059",
+            0.7552
+          ],
+          [
+            "skp-intentions-102",
+            0.7542
+          ],
+          [
+            "skp-intentions-055",
+            0.7538
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-12",
+        "category": "DEICTIC",
+        "rank": 111,
+        "max_sim": 0.6724,
+        "top5": [
+          [
+            "skp-beliefs-044",
+            0.6724
+          ],
+          [
+            "skp-beliefs-009",
+            0.665
+          ],
+          [
+            "skp-intentions-044",
+            0.6576
+          ],
+          [
+            "skp-beliefs-008",
+            0.6346
+          ],
+          [
+            "skp-beliefs-017",
+            0.633
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "SELF-CONTAINED",
+        "rank": 579,
+        "max_sim": 0.6295,
+        "top5": [
+          [
+            "saf-beliefs-150",
+            0.6295
+          ],
+          [
+            "saf-intentions-139",
+            0.6257
+          ],
+          [
+            "saf-intentions-161",
+            0.6203
+          ],
+          [
+            "saf-intentions-069",
+            0.6184
+          ],
+          [
+            "saf-intentions-081",
+            0.6123
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "SELF-CONTAINED",
+        "rank": 376,
+        "max_sim": 0.7411,
+        "top5": [
+          [
+            "acc-desires-028",
+            0.7411
+          ],
+          [
+            "acc-intentions-061",
+            0.7325
+          ],
+          [
+            "acc-beliefs-043",
+            0.7304
+          ],
+          [
+            "acc-beliefs-044",
+            0.7284
+          ],
+          [
+            "acc-desires-027",
+            0.7284
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-42",
+        "category": "DEICTIC",
+        "rank": 628,
+        "max_sim": 0.6573,
+        "top5": [
+          [
+            "skp-beliefs-193",
+            0.6573
+          ],
+          [
+            "saf-beliefs-203",
+            0.5482
+          ],
+          [
+            "skp-beliefs-205",
+            0.5439
+          ],
+          [
+            "skp-beliefs-063",
+            0.5299
+          ],
+          [
+            "skp-beliefs-026",
+            0.5251
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-26",
+        "category": "SELF-CONTAINED",
+        "rank": 322,
+        "max_sim": 0.6991,
+        "top5": [
+          [
+            "acc-beliefs-044",
+            0.6991
+          ],
+          [
+            "skp-intentions-097",
+            0.696
+          ],
+          [
+            "acc-intentions-114",
+            0.6904
+          ],
+          [
+            "acc-beliefs-079",
+            0.6904
+          ],
+          [
+            "acc-intentions-078",
+            0.6821
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 138,
+        "max_sim": 0.7101,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.7101
+          ],
+          [
+            "acc-intentions-100",
+            0.7085
+          ],
+          [
+            "acc-intentions-106",
+            0.7069
+          ],
+          [
+            "acc-intentions-099",
+            0.7023
+          ],
+          [
+            "skp-beliefs-176",
+            0.6371
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-1",
+        "category": "DEICTIC",
+        "rank": 93,
+        "max_sim": 0.8424,
+        "top5": [
+          [
+            "skp-intentions-040",
+            0.8424
+          ],
+          [
+            "saf-beliefs-205",
+            0.815
+          ],
+          [
+            "skp-beliefs-047",
+            0.7975
+          ],
+          [
+            "skp-intentions-029",
+            0.7898
+          ],
+          [
+            "saf-beliefs-210",
+            0.7828
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-51",
+        "category": "DEICTIC",
+        "rank": 2,
+        "max_sim": 0.8206,
+        "top5": [
+          [
+            "skp-beliefs-027",
+            0.8206
+          ],
+          [
+            "skp-beliefs-014",
+            0.8102
+          ],
+          [
+            "skp-beliefs-043",
+            0.753
+          ],
+          [
+            "skp-beliefs-123",
+            0.751
+          ],
+          [
+            "skp-beliefs-168",
+            0.7435
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "SELF-CONTAINED",
+        "rank": 144,
+        "max_sim": 0.642,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.642
+          ],
+          [
+            "acc-beliefs-028",
+            0.6031
+          ],
+          [
+            "skp-beliefs-196",
+            0.6002
+          ],
+          [
+            "acc-intentions-088",
+            0.5866
+          ],
+          [
+            "acc-intentions-027",
+            0.5844
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "DEICTIC",
+        "rank": 423,
+        "max_sim": 0.7198,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.7198
+          ],
+          [
+            "acc-intentions-088",
+            0.6868
+          ],
+          [
+            "acc-intentions-047",
+            0.6825
+          ],
+          [
+            "acc-intentions-074",
+            0.674
+          ],
+          [
+            "acc-beliefs-043",
+            0.6708
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-47",
+        "category": "SELF-CONTAINED",
+        "rank": 154,
+        "max_sim": 0.6972,
+        "top5": [
+          [
+            "acc-intentions-075",
+            0.6972
+          ],
+          [
+            "acc-desires-009",
+            0.6875
+          ],
+          [
+            "acc-beliefs-043",
+            0.6528
+          ],
+          [
+            "acc-intentions-086",
+            0.6517
+          ],
+          [
+            "skp-desires-082",
+            0.6361
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "PROPER-NOUN",
+        "rank": 450,
+        "max_sim": 0.6758,
+        "top5": [
+          [
+            "skp-desires-059",
+            0.6758
+          ],
+          [
+            "skp-intentions-102",
+            0.6724
+          ],
+          [
+            "skp-desires-075",
+            0.6681
+          ],
+          [
+            "skp-intentions-108",
+            0.645
+          ],
+          [
+            "skp-desires-005",
+            0.6415
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "DEICTIC",
+        "rank": 571,
+        "max_sim": 0.7383,
+        "top5": [
+          [
+            "acc-intentions-069",
+            0.7383
+          ],
+          [
+            "acc-intentions-005",
+            0.7261
+          ],
+          [
+            "acc-beliefs-067",
+            0.7028
+          ],
+          [
+            "acc-beliefs-043",
+            0.6805
+          ],
+          [
+            "skp-desires-083",
+            0.6774
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-63",
+        "category": "DEICTIC",
+        "rank": 413,
+        "max_sim": 0.7469,
+        "top5": [
+          [
+            "saf-intentions-161",
+            0.7469
+          ],
+          [
+            "saf-intentions-080",
+            0.741
+          ],
+          [
+            "saf-intentions-118",
+            0.7408
+          ],
+          [
+            "saf-intentions-081",
+            0.7398
+          ],
+          [
+            "saf-intentions-141",
+            0.738
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "SELF-CONTAINED",
+        "rank": 256,
+        "max_sim": 0.738,
+        "top5": [
+          [
+            "saf-desires-012",
+            0.738
+          ],
+          [
+            "acc-beliefs-074",
+            0.7334
+          ],
+          [
+            "acc-intentions-047",
+            0.7322
+          ],
+          [
+            "acc-intentions-078",
+            0.7285
+          ],
+          [
+            "acc-intentions-103",
+            0.7252
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-16",
+        "category": "DEICTIC",
+        "rank": 68,
+        "max_sim": 0.6495,
+        "top5": [
+          [
+            "saf-beliefs-203",
+            0.6495
+          ],
+          [
+            "acc-intentions-099",
+            0.6392
+          ],
+          [
+            "saf-intentions-139",
+            0.6179
+          ],
+          [
+            "acc-intentions-106",
+            0.6146
+          ],
+          [
+            "saf-beliefs-153",
+            0.6106
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "DEICTIC",
+        "rank": 171,
+        "max_sim": 0.687,
+        "top5": [
+          [
+            "acc-intentions-055",
+            0.687
+          ],
+          [
+            "acc-intentions-018",
+            0.6854
+          ],
+          [
+            "acc-intentions-054",
+            0.6845
+          ],
+          [
+            "acc-intentions-075",
+            0.6713
+          ],
+          [
+            "acc-intentions-008",
+            0.6713
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "SELF-CONTAINED",
+        "rank": 261,
+        "max_sim": 0.5902,
+        "top5": [
+          [
+            "saf-intentions-143",
+            0.5902
+          ],
+          [
+            "saf-beliefs-155",
+            0.5697
+          ],
+          [
+            "saf-beliefs-017",
+            0.5621
+          ],
+          [
+            "saf-intentions-155",
+            0.5575
+          ],
+          [
+            "saf-desires-027",
+            0.5553
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-48",
+        "category": "DEICTIC",
+        "rank": 600,
+        "max_sim": 0.7654,
+        "top5": [
+          [
+            "saf-beliefs-126",
+            0.7654
+          ],
+          [
+            "acc-intentions-054",
+            0.7448
+          ],
+          [
+            "saf-beliefs-098",
+            0.744
+          ],
+          [
+            "saf-beliefs-210",
+            0.7372
+          ],
+          [
+            "saf-intentions-080",
+            0.7352
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-9",
+        "category": "DEICTIC",
+        "rank": 579,
+        "max_sim": 0.6295,
+        "top5": [
+          [
+            "saf-beliefs-150",
+            0.6295
+          ],
+          [
+            "saf-intentions-139",
+            0.6257
+          ],
+          [
+            "saf-intentions-161",
+            0.6203
+          ],
+          [
+            "saf-intentions-069",
+            0.6184
+          ],
+          [
+            "saf-intentions-081",
+            0.6123
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "PROPER-NOUN",
+        "rank": 261,
+        "max_sim": 0.5902,
+        "top5": [
+          [
+            "saf-intentions-143",
+            0.5902
+          ],
+          [
+            "saf-beliefs-155",
+            0.5697
+          ],
+          [
+            "saf-beliefs-017",
+            0.5621
+          ],
+          [
+            "saf-intentions-155",
+            0.5575
+          ],
+          [
+            "saf-desires-027",
+            0.5553
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-77",
+        "category": "SELF-CONTAINED",
+        "rank": 267,
+        "max_sim": 0.7238,
+        "top5": [
+          [
+            "saf-intentions-058",
+            0.7238
+          ],
+          [
+            "saf-intentions-161",
+            0.7155
+          ],
+          [
+            "acc-intentions-054",
+            0.7015
+          ],
+          [
+            "saf-intentions-210",
+            0.6976
+          ],
+          [
+            "saf-intentions-069",
+            0.6951
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-31",
+        "category": "SELF-CONTAINED",
+        "rank": 536,
+        "max_sim": 0.6628,
+        "top5": [
+          [
+            "skp-intentions-074",
+            0.6628
+          ],
+          [
+            "saf-desires-023",
+            0.6623
+          ],
+          [
+            "saf-intentions-139",
+            0.6604
+          ],
+          [
+            "saf-intentions-077",
+            0.6556
+          ],
+          [
+            "saf-beliefs-203",
+            0.6519
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-21",
+        "category": "SELF-CONTAINED",
+        "rank": 305,
+        "max_sim": 0.8018,
+        "top5": [
+          [
+            "saf-beliefs-098",
+            0.8018
+          ],
+          [
+            "saf-beliefs-097",
+            0.7735
+          ],
+          [
+            "saf-beliefs-057",
+            0.7631
+          ],
+          [
+            "saf-beliefs-040",
+            0.7505
+          ],
+          [
+            "saf-beliefs-038",
+            0.7465
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-65",
+        "category": "DEICTIC",
+        "rank": 216,
+        "max_sim": 0.7742,
+        "top5": [
+          [
+            "saf-intentions-058",
+            0.7742
+          ],
+          [
+            "saf-intentions-043",
+            0.7669
+          ],
+          [
+            "saf-intentions-069",
+            0.7661
+          ],
+          [
+            "saf-intentions-113",
+            0.7637
+          ],
+          [
+            "saf-intentions-044",
+            0.7603
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-2",
+        "category": "SELF-CONTAINED",
+        "rank": 261,
+        "max_sim": 0.5902,
+        "top5": [
+          [
+            "saf-intentions-143",
+            0.5902
+          ],
+          [
+            "saf-beliefs-155",
+            0.5697
+          ],
+          [
+            "saf-beliefs-017",
+            0.5621
+          ],
+          [
+            "saf-intentions-155",
+            0.5575
+          ],
+          [
+            "saf-desires-027",
+            0.5553
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-25",
+        "category": "DEICTIC",
+        "rank": 73,
+        "max_sim": 0.7632,
+        "top5": [
+          [
+            "saf-intentions-113",
+            0.7632
+          ],
+          [
+            "skp-intentions-108",
+            0.745
+          ],
+          [
+            "saf-intentions-058",
+            0.7337
+          ],
+          [
+            "skp-intentions-097",
+            0.7332
+          ],
+          [
+            "skp-intentions-146",
+            0.728
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-33",
+        "category": "SELF-CONTAINED",
+        "rank": 522,
+        "max_sim": 0.7097,
+        "top5": [
+          [
+            "acc-beliefs-043",
+            0.7097
+          ],
+          [
+            "acc-beliefs-044",
+            0.6784
+          ],
+          [
+            "acc-beliefs-041",
+            0.6657
+          ],
+          [
+            "acc-desires-025",
+            0.6511
+          ],
+          [
+            "acc-desires-028",
+            0.6429
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-27",
+        "category": "METAPHORICAL",
+        "rank": 620,
+        "max_sim": 0.7072,
+        "top5": [
+          [
+            "acc-intentions-071",
+            0.7072
+          ],
+          [
+            "acc-intentions-069",
+            0.6976
+          ],
+          [
+            "acc-intentions-052",
+            0.6962
+          ],
+          [
+            "acc-intentions-088",
+            0.6921
+          ],
+          [
+            "acc-intentions-061",
+            0.6788
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "SELF-CONTAINED",
+        "rank": 144,
+        "max_sim": 0.642,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.642
+          ],
+          [
+            "acc-beliefs-028",
+            0.6031
+          ],
+          [
+            "skp-beliefs-196",
+            0.6002
+          ],
+          [
+            "acc-intentions-088",
+            0.5866
+          ],
+          [
+            "acc-intentions-027",
+            0.5844
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "DEICTIC",
+        "rank": 300,
+        "max_sim": 0.7353,
+        "top5": [
+          [
+            "acc-desires-006",
+            0.7353
+          ],
+          [
+            "acc-intentions-061",
+            0.7288
+          ],
+          [
+            "acc-intentions-103",
+            0.7069
+          ],
+          [
+            "acc-intentions-115",
+            0.6961
+          ],
+          [
+            "acc-desires-018",
+            0.6886
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-75",
+        "category": "DEICTIC",
+        "rank": 587,
+        "max_sim": 0.6566,
+        "top5": [
+          [
+            "acc-beliefs-003",
+            0.6566
+          ],
+          [
+            "saf-intentions-083",
+            0.6253
+          ],
+          [
+            "saf-intentions-161",
+            0.6176
+          ],
+          [
+            "saf-intentions-085",
+            0.6157
+          ],
+          [
+            "saf-intentions-147",
+            0.6138
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "PROPER-NOUN",
+        "rank": 300,
+        "max_sim": 0.7353,
+        "top5": [
+          [
+            "acc-desires-006",
+            0.7353
+          ],
+          [
+            "acc-intentions-061",
+            0.7288
+          ],
+          [
+            "acc-intentions-103",
+            0.7069
+          ],
+          [
+            "acc-intentions-115",
+            0.6961
+          ],
+          [
+            "acc-desires-018",
+            0.6886
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-46",
+        "category": "DEICTIC",
+        "rank": 465,
+        "max_sim": 0.6811,
+        "top5": [
+          [
+            "acc-intentions-110",
+            0.6811
+          ],
+          [
+            "acc-beliefs-044",
+            0.6024
+          ],
+          [
+            "acc-beliefs-069",
+            0.587
+          ],
+          [
+            "acc-beliefs-076",
+            0.587
+          ],
+          [
+            "acc-beliefs-043",
+            0.5732
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-10",
+        "category": "PROPER-NOUN",
+        "rank": 181,
+        "max_sim": 0.6862,
+        "top5": [
+          [
+            "skp-intentions-074",
+            0.6862
+          ],
+          [
+            "saf-intentions-118",
+            0.6682
+          ],
+          [
+            "saf-intentions-159",
+            0.6631
+          ],
+          [
+            "saf-intentions-013",
+            0.6631
+          ],
+          [
+            "saf-intentions-054",
+            0.6521
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-18",
+        "category": "DEICTIC",
+        "rank": 210,
+        "max_sim": 0.8398,
+        "top5": [
+          [
+            "saf-intentions-139",
+            0.8398
+          ],
+          [
+            "saf-intentions-069",
+            0.8366
+          ],
+          [
+            "skp-intentions-074",
+            0.8347
+          ],
+          [
+            "saf-intentions-161",
+            0.8317
+          ],
+          [
+            "saf-intentions-081",
+            0.831
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-60",
+        "category": "DEICTIC",
+        "rank": 266,
+        "max_sim": 0.7587,
+        "top5": [
+          [
+            "saf-beliefs-100",
+            0.7587
+          ],
+          [
+            "saf-beliefs-098",
+            0.7523
+          ],
+          [
+            "saf-beliefs-057",
+            0.7497
+          ],
+          [
+            "saf-beliefs-046",
+            0.7493
+          ],
+          [
+            "saf-desires-016",
+            0.7439
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-18",
+        "category": "DEICTIC",
+        "rank": 210,
+        "max_sim": 0.8398,
+        "top5": [
+          [
+            "saf-intentions-139",
+            0.8398
+          ],
+          [
+            "saf-intentions-069",
+            0.8366
+          ],
+          [
+            "skp-intentions-074",
+            0.8347
+          ],
+          [
+            "saf-intentions-161",
+            0.8317
+          ],
+          [
+            "saf-intentions-081",
+            0.831
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "DEICTIC",
+        "rank": 171,
+        "max_sim": 0.687,
+        "top5": [
+          [
+            "acc-intentions-055",
+            0.687
+          ],
+          [
+            "acc-intentions-018",
+            0.6854
+          ],
+          [
+            "acc-intentions-054",
+            0.6845
+          ],
+          [
+            "acc-intentions-075",
+            0.6713
+          ],
+          [
+            "acc-intentions-008",
+            0.6713
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-43",
+        "category": "DEICTIC",
+        "rank": 226,
+        "max_sim": 0.7921,
+        "top5": [
+          [
+            "saf-intentions-203",
+            0.7921
+          ],
+          [
+            "saf-beliefs-038",
+            0.76
+          ],
+          [
+            "saf-beliefs-057",
+            0.7594
+          ],
+          [
+            "saf-intentions-141",
+            0.7411
+          ],
+          [
+            "saf-intentions-032",
+            0.738
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-49",
+        "category": "DEICTIC",
+        "rank": 197,
+        "max_sim": 0.7435,
+        "top5": [
+          [
+            "saf-beliefs-057",
+            0.7435
+          ],
+          [
+            "saf-intentions-147",
+            0.733
+          ],
+          [
+            "saf-beliefs-131",
+            0.7296
+          ],
+          [
+            "saf-beliefs-127",
+            0.7289
+          ],
+          [
+            "saf-beliefs-093",
+            0.7126
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 138,
+        "max_sim": 0.7101,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.7101
+          ],
+          [
+            "acc-intentions-100",
+            0.7085
+          ],
+          [
+            "acc-intentions-106",
+            0.7069
+          ],
+          [
+            "acc-intentions-099",
+            0.7023
+          ],
+          [
+            "skp-beliefs-176",
+            0.6371
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-85",
+        "category": "SELF-CONTAINED",
+        "rank": 13,
+        "max_sim": 0.6119,
+        "top5": [
+          [
+            "skp-intentions-083",
+            0.6119
+          ],
+          [
+            "skp-beliefs-001",
+            0.5818
+          ],
+          [
+            "skp-beliefs-061",
+            0.5713
+          ],
+          [
+            "skp-intentions-095",
+            0.5491
+          ],
+          [
+            "skp-intentions-128",
+            0.5467
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-23",
+        "category": "DEICTIC",
+        "rank": 5,
+        "max_sim": 0.615,
+        "top5": [
+          [
+            "saf-desires-003",
+            0.615
+          ],
+          [
+            "saf-intentions-169",
+            0.6098
+          ],
+          [
+            "acc-intentions-001",
+            0.6031
+          ],
+          [
+            "acc-beliefs-079",
+            0.6007
+          ],
+          [
+            "acc-intentions-111",
+            0.5963
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-46",
+        "category": "SELF-CONTAINED",
+        "rank": 465,
+        "max_sim": 0.6811,
+        "top5": [
+          [
+            "acc-intentions-110",
+            0.6811
+          ],
+          [
+            "acc-beliefs-044",
+            0.6024
+          ],
+          [
+            "acc-beliefs-069",
+            0.587
+          ],
+          [
+            "acc-beliefs-076",
+            0.587
+          ],
+          [
+            "acc-beliefs-043",
+            0.5732
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-19",
+        "category": "DEICTIC",
+        "rank": 106,
+        "max_sim": 0.6678,
+        "top5": [
+          [
+            "acc-beliefs-043",
+            0.6678
+          ],
+          [
+            "acc-desires-028",
+            0.6467
+          ],
+          [
+            "acc-intentions-055",
+            0.6448
+          ],
+          [
+            "acc-desires-020",
+            0.6375
+          ],
+          [
+            "acc-desires-026",
+            0.6235
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-1",
+        "category": "DEICTIC",
+        "rank": 93,
+        "max_sim": 0.8424,
+        "top5": [
+          [
+            "skp-intentions-040",
+            0.8424
+          ],
+          [
+            "saf-beliefs-205",
+            0.815
+          ],
+          [
+            "skp-beliefs-047",
+            0.7975
+          ],
+          [
+            "skp-intentions-029",
+            0.7898
+          ],
+          [
+            "saf-beliefs-210",
+            0.7828
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-35",
+        "category": "DEICTIC",
+        "rank": 132,
+        "max_sim": 0.64,
+        "top5": [
+          [
+            "acc-beliefs-055",
+            0.64
+          ],
+          [
+            "skp-beliefs-176",
+            0.6352
+          ],
+          [
+            "acc-beliefs-044",
+            0.6324
+          ],
+          [
+            "acc-intentions-054",
+            0.631
+          ],
+          [
+            "acc-beliefs-069",
+            0.6265
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-27",
+        "category": "DEICTIC",
+        "rank": 620,
+        "max_sim": 0.7072,
+        "top5": [
+          [
+            "acc-intentions-071",
+            0.7072
+          ],
+          [
+            "acc-intentions-069",
+            0.6976
+          ],
+          [
+            "acc-intentions-052",
+            0.6962
+          ],
+          [
+            "acc-intentions-088",
+            0.6921
+          ],
+          [
+            "acc-intentions-061",
+            0.6788
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 493,
+        "max_sim": 0.6876,
+        "top5": [
+          [
+            "skp-intentions-055",
+            0.6876
+          ],
+          [
+            "saf-beliefs-210",
+            0.6742
+          ],
+          [
+            "skp-beliefs-041",
+            0.6734
+          ],
+          [
+            "skp-beliefs-029",
+            0.6696
+          ],
+          [
+            "saf-beliefs-056",
+            0.6661
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "DEICTIC",
+        "rank": 324,
+        "max_sim": 0.6552,
+        "top5": [
+          [
+            "acc-beliefs-020",
+            0.6552
+          ],
+          [
+            "acc-intentions-054",
+            0.6411
+          ],
+          [
+            "acc-beliefs-044",
+            0.6272
+          ],
+          [
+            "acc-intentions-059",
+            0.6258
+          ],
+          [
+            "acc-intentions-082",
+            0.6211
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 493,
+        "max_sim": 0.6876,
+        "top5": [
+          [
+            "skp-intentions-055",
+            0.6876
+          ],
+          [
+            "saf-beliefs-210",
+            0.6742
+          ],
+          [
+            "skp-beliefs-041",
+            0.6734
+          ],
+          [
+            "skp-beliefs-029",
+            0.6696
+          ],
+          [
+            "saf-beliefs-056",
+            0.6661
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-28",
+        "category": "DEICTIC",
+        "rank": 376,
+        "max_sim": 0.7411,
+        "top5": [
+          [
+            "acc-desires-028",
+            0.7411
+          ],
+          [
+            "acc-intentions-061",
+            0.7325
+          ],
+          [
+            "acc-beliefs-043",
+            0.7304
+          ],
+          [
+            "acc-beliefs-044",
+            0.7284
+          ],
+          [
+            "acc-desires-027",
+            0.7284
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "SELF-CONTAINED",
+        "rank": 324,
+        "max_sim": 0.6552,
+        "top5": [
+          [
+            "acc-beliefs-020",
+            0.6552
+          ],
+          [
+            "acc-intentions-054",
+            0.6411
+          ],
+          [
+            "acc-beliefs-044",
+            0.6272
+          ],
+          [
+            "acc-intentions-059",
+            0.6258
+          ],
+          [
+            "acc-intentions-082",
+            0.6211
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-8",
+        "category": "DEICTIC",
+        "rank": 144,
+        "max_sim": 0.642,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.642
+          ],
+          [
+            "acc-beliefs-028",
+            0.6031
+          ],
+          [
+            "skp-beliefs-196",
+            0.6002
+          ],
+          [
+            "acc-intentions-088",
+            0.5866
+          ],
+          [
+            "acc-intentions-027",
+            0.5844
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-26",
+        "category": "DEICTIC",
+        "rank": 322,
+        "max_sim": 0.6991,
+        "top5": [
+          [
+            "acc-beliefs-044",
+            0.6991
+          ],
+          [
+            "skp-intentions-097",
+            0.696
+          ],
+          [
+            "acc-intentions-114",
+            0.6904
+          ],
+          [
+            "acc-beliefs-079",
+            0.6904
+          ],
+          [
+            "acc-intentions-078",
+            0.6821
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-35",
+        "category": "SELF-CONTAINED",
+        "rank": 132,
+        "max_sim": 0.64,
+        "top5": [
+          [
+            "acc-beliefs-055",
+            0.64
+          ],
+          [
+            "skp-beliefs-176",
+            0.6352
+          ],
+          [
+            "acc-beliefs-044",
+            0.6324
+          ],
+          [
+            "acc-intentions-054",
+            0.631
+          ],
+          [
+            "acc-beliefs-069",
+            0.6265
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-17",
+        "category": "TOPIC-IMPLICIT",
+        "rank": 171,
+        "max_sim": 0.687,
+        "top5": [
+          [
+            "acc-intentions-055",
+            0.687
+          ],
+          [
+            "acc-intentions-018",
+            0.6854
+          ],
+          [
+            "acc-intentions-054",
+            0.6845
+          ],
+          [
+            "acc-intentions-075",
+            0.6713
+          ],
+          [
+            "acc-intentions-008",
+            0.6713
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-41",
+        "category": "DEICTIC",
+        "rank": 524,
+        "max_sim": 0.5805,
+        "top5": [
+          [
+            "acc-intentions-018",
+            0.5805
+          ],
+          [
+            "acc-intentions-055",
+            0.57
+          ],
+          [
+            "acc-intentions-008",
+            0.5692
+          ],
+          [
+            "acc-beliefs-020",
+            0.5692
+          ],
+          [
+            "acc-intentions-068",
+            0.5687
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-19",
+        "category": "DEICTIC",
+        "rank": 106,
+        "max_sim": 0.6678,
+        "top5": [
+          [
+            "acc-beliefs-043",
+            0.6678
+          ],
+          [
+            "acc-desires-028",
+            0.6467
+          ],
+          [
+            "acc-intentions-055",
+            0.6448
+          ],
+          [
+            "acc-desires-020",
+            0.6375
+          ],
+          [
+            "acc-desires-026",
+            0.6235
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-24",
+        "category": "DEICTIC",
+        "rank": 375,
+        "max_sim": 0.6797,
+        "top5": [
+          [
+            "acc-intentions-103",
+            0.6797
+          ],
+          [
+            "acc-intentions-114",
+            0.6743
+          ],
+          [
+            "acc-intentions-015",
+            0.6639
+          ],
+          [
+            "acc-beliefs-074",
+            0.6546
+          ],
+          [
+            "acc-intentions-047",
+            0.6515
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-40",
+        "category": "SELF-CONTAINED",
+        "rank": 92,
+        "max_sim": 0.6237,
+        "top5": [
+          [
+            "acc-intentions-073",
+            0.6237
+          ],
+          [
+            "saf-beliefs-205",
+            0.5837
+          ],
+          [
+            "acc-intentions-078",
+            0.5801
+          ],
+          [
+            "acc-beliefs-074",
+            0.566
+          ],
+          [
+            "saf-intentions-004",
+            0.5625
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-5",
+        "category": "DEICTIC",
+        "rank": 324,
+        "max_sim": 0.6552,
+        "top5": [
+          [
+            "acc-beliefs-020",
+            0.6552
+          ],
+          [
+            "acc-intentions-054",
+            0.6411
+          ],
+          [
+            "acc-beliefs-044",
+            0.6272
+          ],
+          [
+            "acc-intentions-059",
+            0.6258
+          ],
+          [
+            "acc-intentions-082",
+            0.6211
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-20",
+        "category": "DEICTIC",
+        "rank": 423,
+        "max_sim": 0.7198,
+        "top5": [
+          [
+            "acc-intentions-078",
+            0.7198
+          ],
+          [
+            "acc-intentions-088",
+            0.6868
+          ],
+          [
+            "acc-intentions-047",
+            0.6825
+          ],
+          [
+            "acc-intentions-074",
+            0.674
+          ],
+          [
+            "acc-beliefs-043",
+            0.6708
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-47",
+        "category": "DEICTIC",
+        "rank": 154,
+        "max_sim": 0.6972,
+        "top5": [
+          [
+            "acc-intentions-075",
+            0.6972
+          ],
+          [
+            "acc-desires-009",
+            0.6875
+          ],
+          [
+            "acc-beliefs-043",
+            0.6528
+          ],
+          [
+            "acc-intentions-086",
+            0.6517
+          ],
+          [
+            "skp-desires-082",
+            0.6361
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-11",
+        "category": "DEICTIC",
+        "rank": 231,
+        "max_sim": 0.6813,
+        "top5": [
+          [
+            "acc-intentions-013",
+            0.6813
+          ],
+          [
+            "acc-intentions-089",
+            0.6621
+          ],
+          [
+            "acc-beliefs-060",
+            0.6406
+          ],
+          [
+            "acc-beliefs-086",
+            0.6345
+          ],
+          [
+            "acc-intentions-005",
+            0.6108
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-3",
+        "category": "SELF-CONTAINED",
+        "rank": 300,
+        "max_sim": 0.7353,
+        "top5": [
+          [
+            "acc-desires-006",
+            0.7353
+          ],
+          [
+            "acc-intentions-061",
+            0.7288
+          ],
+          [
+            "acc-intentions-103",
+            0.7069
+          ],
+          [
+            "acc-intentions-115",
+            0.6961
+          ],
+          [
+            "acc-desires-018",
+            0.6886
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-13",
+        "category": "SELF-CONTAINED",
+        "rank": 493,
+        "max_sim": 0.6876,
+        "top5": [
+          [
+            "skp-intentions-055",
+            0.6876
+          ],
+          [
+            "saf-beliefs-210",
+            0.6742
+          ],
+          [
+            "skp-beliefs-041",
+            0.6734
+          ],
+          [
+            "skp-beliefs-029",
+            0.6696
+          ],
+          [
+            "saf-beliefs-056",
+            0.6661
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-14",
+        "category": "DEICTIC",
+        "rank": 450,
+        "max_sim": 0.6758,
+        "top5": [
+          [
+            "skp-desires-059",
+            0.6758
+          ],
+          [
+            "skp-intentions-102",
+            0.6724
+          ],
+          [
+            "skp-desires-075",
+            0.6681
+          ],
+          [
+            "skp-intentions-108",
+            0.645
+          ],
+          [
+            "skp-desires-005",
+            0.6415
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-22",
+        "category": "DEICTIC",
+        "rank": 138,
+        "max_sim": 0.7101,
+        "top5": [
+          [
+            "acc-intentions-008",
+            0.7101
+          ],
+          [
+            "acc-intentions-100",
+            0.7085
+          ],
+          [
+            "acc-intentions-106",
+            0.7069
+          ],
+          [
+            "acc-intentions-099",
+            0.7023
+          ],
+          [
+            "skp-beliefs-176",
+            0.6371
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-33",
+        "category": "DEICTIC",
+        "rank": 522,
+        "max_sim": 0.7097,
+        "top5": [
+          [
+            "acc-beliefs-043",
+            0.7097
+          ],
+          [
+            "acc-beliefs-044",
+            0.6784
+          ],
+          [
+            "acc-beliefs-041",
+            0.6657
+          ],
+          [
+            "acc-desires-025",
+            0.6511
+          ],
+          [
+            "acc-desires-028",
+            0.6429
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-50",
+        "category": "SELF-CONTAINED",
+        "rank": 571,
+        "max_sim": 0.7383,
+        "top5": [
+          [
+            "acc-intentions-069",
+            0.7383
+          ],
+          [
+            "acc-intentions-005",
+            0.7261
+          ],
+          [
+            "acc-beliefs-067",
+            0.7028
+          ],
+          [
+            "acc-beliefs-043",
+            0.6805
+          ],
+          [
+            "skp-desires-083",
+            0.6774
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-11",
+        "category": "DEICTIC",
+        "rank": 231,
+        "max_sim": 0.6813,
+        "top5": [
+          [
+            "acc-intentions-013",
+            0.6813
+          ],
+          [
+            "acc-intentions-089",
+            0.6621
+          ],
+          [
+            "acc-beliefs-060",
+            0.6406
+          ],
+          [
+            "acc-beliefs-086",
+            0.6345
+          ],
+          [
+            "acc-intentions-005",
+            0.6108
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-15",
+        "category": "SELF-CONTAINED",
+        "rank": 256,
+        "max_sim": 0.738,
+        "top5": [
+          [
+            "saf-desires-012",
+            0.738
+          ],
+          [
+            "acc-beliefs-074",
+            0.7334
+          ],
+          [
+            "acc-intentions-047",
+            0.7322
+          ],
+          [
+            "acc-intentions-078",
+            0.7285
+          ],
+          [
+            "acc-intentions-103",
+            0.7252
+          ]
+        ]
+      },
+      {
+        "claim_id": "AN-68",
+        "category": "PROPER-NOUN",
+        "rank": 491,
+        "max_sim": 0.6533,
+        "top5": [
+          [
+            "skp-beliefs-030",
+            0.6533
+          ],
+          [
+            "acc-beliefs-071",
+            0.6495
+          ],
+          [
+            "skp-beliefs-101",
+            0.6483
+          ],
+          [
+            "skp-beliefs-017",
+            0.643
+          ],
+          [
+            "acc-beliefs-024",
+            0.6405
+          ]
+        ]
+      }
+    ],
+    "head_to_head": [
+      {
+        "claim_id": "AN-31",
+        "baseline_max_sim": 0.1124,
+        "freeform_max_sim": 0.6215,
+        "genus_max_sim": 0.6628,
+        "winner": "genus",
+        "improvement_over_baseline": 0.5504
+      },
+      {
+        "claim_id": "AN-81",
+        "baseline_max_sim": 0.3251,
+        "freeform_max_sim": 0.5244,
+        "genus_max_sim": 0.5975,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2724
+      },
+      {
+        "claim_id": "AN-48",
+        "baseline_max_sim": 0.3919,
+        "freeform_max_sim": 0.629,
+        "genus_max_sim": 0.7654,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3735
+      },
+      {
+        "claim_id": "AN-30",
+        "baseline_max_sim": 0.436,
+        "freeform_max_sim": 0.6946,
+        "genus_max_sim": 0.6889,
+        "winner": "freeform",
+        "improvement_over_baseline": 0.2586
+      },
+      {
+        "claim_id": "AN-82",
+        "baseline_max_sim": 0.3842,
+        "freeform_max_sim": 0.6278,
+        "genus_max_sim": 0.6524,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2682
+      },
+      {
+        "claim_id": "AN-16",
+        "baseline_max_sim": 0.3638,
+        "freeform_max_sim": 0.6254,
+        "genus_max_sim": 0.6495,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2857
+      },
+      {
+        "claim_id": "AN-9",
+        "baseline_max_sim": 0.3727,
+        "freeform_max_sim": 0.4407,
+        "genus_max_sim": 0.6295,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2568
+      },
+      {
+        "claim_id": "AN-14",
+        "baseline_max_sim": 0.3786,
+        "freeform_max_sim": 0.6394,
+        "genus_max_sim": 0.6758,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2972
+      },
+      {
+        "claim_id": "AN-10",
+        "baseline_max_sim": 0.3918,
+        "freeform_max_sim": 0.626,
+        "genus_max_sim": 0.6862,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2944
+      },
+      {
+        "claim_id": "AN-28",
+        "baseline_max_sim": 0.3945,
+        "freeform_max_sim": 0.5587,
+        "genus_max_sim": 0.7411,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3466
+      },
+      {
+        "claim_id": "AN-28",
+        "baseline_max_sim": 0.4162,
+        "freeform_max_sim": 0.5587,
+        "genus_max_sim": 0.7411,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3249
+      },
+      {
+        "claim_id": "AN-22",
+        "baseline_max_sim": 0.4292,
+        "freeform_max_sim": 0.6282,
+        "genus_max_sim": 0.7101,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2809
+      },
+      {
+        "claim_id": "AN-37",
+        "baseline_max_sim": 0.4364,
+        "freeform_max_sim": 0.5437,
+        "genus_max_sim": 0.6954,
+        "winner": "genus",
+        "improvement_over_baseline": 0.259
+      },
+      {
+        "claim_id": "AN-13",
+        "baseline_max_sim": 0.5277,
+        "freeform_max_sim": 0.6747,
+        "genus_max_sim": 0.6876,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1599
+      },
+      {
+        "claim_id": "AN-13",
+        "baseline_max_sim": 0.4437,
+        "freeform_max_sim": 0.6747,
+        "genus_max_sim": 0.6876,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2439
+      },
+      {
+        "claim_id": "AN-15",
+        "baseline_max_sim": 0.4829,
+        "freeform_max_sim": 0.6802,
+        "genus_max_sim": 0.738,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2551
+      },
+      {
+        "claim_id": "AN-32",
+        "baseline_max_sim": 0.6145,
+        "freeform_max_sim": 0.6971,
+        "genus_max_sim": 0.7892,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1747
+      },
+      {
+        "claim_id": "AN-79",
+        "baseline_max_sim": 0.4771,
+        "freeform_max_sim": 0.6103,
+        "genus_max_sim": 0.7212,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2441
+      },
+      {
+        "claim_id": "AN-29",
+        "baseline_max_sim": 0.4925,
+        "freeform_max_sim": 0.5886,
+        "genus_max_sim": 0.6518,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1593
+      },
+      {
+        "claim_id": "AN-30",
+        "baseline_max_sim": 0.664,
+        "freeform_max_sim": 0.6946,
+        "genus_max_sim": 0.6889,
+        "winner": "freeform",
+        "improvement_over_baseline": 0.0306
+      },
+      {
+        "claim_id": "AN-16",
+        "baseline_max_sim": 0.6455,
+        "freeform_max_sim": 0.6254,
+        "genus_max_sim": 0.6495,
+        "winner": "genus",
+        "improvement_over_baseline": 0.004
+      },
+      {
+        "claim_id": "AN-20",
+        "baseline_max_sim": 0.5442,
+        "freeform_max_sim": 0.6399,
+        "genus_max_sim": 0.7198,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1756
+      },
+      {
+        "claim_id": "AN-50",
+        "baseline_max_sim": 0.5553,
+        "freeform_max_sim": 0.5796,
+        "genus_max_sim": 0.7383,
+        "winner": "genus",
+        "improvement_over_baseline": 0.183
+      },
+      {
+        "claim_id": "AN-4",
+        "baseline_max_sim": 0.5042,
+        "freeform_max_sim": 0.6548,
+        "genus_max_sim": 0.7692,
+        "winner": "genus",
+        "improvement_over_baseline": 0.265
+      },
+      {
+        "claim_id": "AN-12",
+        "baseline_max_sim": 0.5271,
+        "freeform_max_sim": 0.6122,
+        "genus_max_sim": 0.6724,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1453
+      },
+      {
+        "claim_id": "AN-9",
+        "baseline_max_sim": 0.5284,
+        "freeform_max_sim": 0.4407,
+        "genus_max_sim": 0.6295,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1011
+      },
+      {
+        "claim_id": "AN-28",
+        "baseline_max_sim": 0.5529,
+        "freeform_max_sim": 0.5587,
+        "genus_max_sim": 0.7411,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1882
+      },
+      {
+        "claim_id": "AN-42",
+        "baseline_max_sim": 0.5368,
+        "freeform_max_sim": 0.5649,
+        "genus_max_sim": 0.6573,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1205
+      },
+      {
+        "claim_id": "AN-26",
+        "baseline_max_sim": 0.5872,
+        "freeform_max_sim": 0.6979,
+        "genus_max_sim": 0.6991,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1119
+      },
+      {
+        "claim_id": "AN-22",
+        "baseline_max_sim": 0.6659,
+        "freeform_max_sim": 0.6282,
+        "genus_max_sim": 0.7101,
+        "winner": "genus",
+        "improvement_over_baseline": 0.0442
+      },
+      {
+        "claim_id": "AN-1",
+        "baseline_max_sim": 0.5858,
+        "freeform_max_sim": 0.7079,
+        "genus_max_sim": 0.8424,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2566
+      },
+      {
+        "claim_id": "AN-51",
+        "baseline_max_sim": 0.5801,
+        "freeform_max_sim": 0.7075,
+        "genus_max_sim": 0.8206,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2405
+      },
+      {
+        "claim_id": "AN-8",
+        "baseline_max_sim": 0.5942,
+        "freeform_max_sim": 0.5906,
+        "genus_max_sim": 0.642,
+        "winner": "genus",
+        "improvement_over_baseline": 0.0478
+      },
+      {
+        "claim_id": "AN-20",
+        "baseline_max_sim": 0.1863,
+        "freeform_max_sim": 0.6399,
+        "genus_max_sim": 0.7198,
+        "winner": "genus",
+        "improvement_over_baseline": 0.5335
+      },
+      {
+        "claim_id": "AN-47",
+        "baseline_max_sim": 0.3233,
+        "freeform_max_sim": 0.5718,
+        "genus_max_sim": 0.6972,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3739
+      },
+      {
+        "claim_id": "AN-14",
+        "baseline_max_sim": 0.3957,
+        "freeform_max_sim": 0.6394,
+        "genus_max_sim": 0.6758,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2801
+      },
+      {
+        "claim_id": "AN-50",
+        "baseline_max_sim": 0.4914,
+        "freeform_max_sim": 0.5796,
+        "genus_max_sim": 0.7383,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2469
+      },
+      {
+        "claim_id": "AN-63",
+        "baseline_max_sim": 0.5454,
+        "freeform_max_sim": 0.6417,
+        "genus_max_sim": 0.7469,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2015
+      },
+      {
+        "claim_id": "AN-15",
+        "baseline_max_sim": 0.4207,
+        "freeform_max_sim": 0.6802,
+        "genus_max_sim": 0.738,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3173
+      },
+      {
+        "claim_id": "AN-16",
+        "baseline_max_sim": 0.444,
+        "freeform_max_sim": 0.6254,
+        "genus_max_sim": 0.6495,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2055
+      },
+      {
+        "claim_id": "AN-17",
+        "baseline_max_sim": 0.4303,
+        "freeform_max_sim": 0.6198,
+        "genus_max_sim": 0.687,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2567
+      },
+      {
+        "claim_id": "AN-2",
+        "baseline_max_sim": 0.4498,
+        "freeform_max_sim": 0.5148,
+        "genus_max_sim": 0.5902,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1404
+      },
+      {
+        "claim_id": "AN-48",
+        "baseline_max_sim": 0.4662,
+        "freeform_max_sim": 0.629,
+        "genus_max_sim": 0.7654,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2992
+      },
+      {
+        "claim_id": "AN-9",
+        "baseline_max_sim": 0.4095,
+        "freeform_max_sim": 0.4407,
+        "genus_max_sim": 0.6295,
+        "winner": "genus",
+        "improvement_over_baseline": 0.22
+      },
+      {
+        "claim_id": "AN-2",
+        "baseline_max_sim": 0.4321,
+        "freeform_max_sim": 0.5148,
+        "genus_max_sim": 0.5902,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1581
+      },
+      {
+        "claim_id": "AN-77",
+        "baseline_max_sim": 0.4401,
+        "freeform_max_sim": 0.6114,
+        "genus_max_sim": 0.7238,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2837
+      },
+      {
+        "claim_id": "AN-31",
+        "baseline_max_sim": 0.5627,
+        "freeform_max_sim": 0.6215,
+        "genus_max_sim": 0.6628,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1001
+      },
+      {
+        "claim_id": "AN-21",
+        "baseline_max_sim": 0.4395,
+        "freeform_max_sim": 0.604,
+        "genus_max_sim": 0.8018,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3623
+      },
+      {
+        "claim_id": "AN-65",
+        "baseline_max_sim": 0.5606,
+        "freeform_max_sim": 0.6673,
+        "genus_max_sim": 0.7742,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2136
+      },
+      {
+        "claim_id": "AN-2",
+        "baseline_max_sim": 0.5481,
+        "freeform_max_sim": 0.5148,
+        "genus_max_sim": 0.5902,
+        "winner": "genus",
+        "improvement_over_baseline": 0.0421
+      },
+      {
+        "claim_id": "AN-25",
+        "baseline_max_sim": 0.523,
+        "freeform_max_sim": 0.6094,
+        "genus_max_sim": 0.7632,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2402
+      },
+      {
+        "claim_id": "AN-33",
+        "baseline_max_sim": 0.5339,
+        "freeform_max_sim": 0.5523,
+        "genus_max_sim": 0.7097,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1758
+      },
+      {
+        "claim_id": "AN-27",
+        "baseline_max_sim": 0.4786,
+        "freeform_max_sim": 0.5799,
+        "genus_max_sim": 0.7072,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2286
+      },
+      {
+        "claim_id": "AN-8",
+        "baseline_max_sim": 0.5724,
+        "freeform_max_sim": 0.5906,
+        "genus_max_sim": 0.642,
+        "winner": "genus",
+        "improvement_over_baseline": 0.0696
+      },
+      {
+        "claim_id": "AN-3",
+        "baseline_max_sim": 0.515,
+        "freeform_max_sim": 0.6579,
+        "genus_max_sim": 0.7353,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2203
+      },
+      {
+        "claim_id": "AN-75",
+        "baseline_max_sim": 0.5486,
+        "freeform_max_sim": 0.6157,
+        "genus_max_sim": 0.6566,
+        "winner": "genus",
+        "improvement_over_baseline": 0.108
+      },
+      {
+        "claim_id": "AN-3",
+        "baseline_max_sim": 0.5329,
+        "freeform_max_sim": 0.6579,
+        "genus_max_sim": 0.7353,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2024
+      },
+      {
+        "claim_id": "AN-46",
+        "baseline_max_sim": 0.5703,
+        "freeform_max_sim": 0.4357,
+        "genus_max_sim": 0.6811,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1108
+      },
+      {
+        "claim_id": "AN-10",
+        "baseline_max_sim": 0.6033,
+        "freeform_max_sim": 0.626,
+        "genus_max_sim": 0.6862,
+        "winner": "genus",
+        "improvement_over_baseline": 0.0829
+      },
+      {
+        "claim_id": "AN-18",
+        "baseline_max_sim": 0.5423,
+        "freeform_max_sim": 0.6423,
+        "genus_max_sim": 0.8398,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2975
+      },
+      {
+        "claim_id": "AN-60",
+        "baseline_max_sim": 0.5836,
+        "freeform_max_sim": 0.6373,
+        "genus_max_sim": 0.7587,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1751
+      },
+      {
+        "claim_id": "AN-18",
+        "baseline_max_sim": 0.56,
+        "freeform_max_sim": 0.6423,
+        "genus_max_sim": 0.8398,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2798
+      },
+      {
+        "claim_id": "AN-17",
+        "baseline_max_sim": 0.6058,
+        "freeform_max_sim": 0.6198,
+        "genus_max_sim": 0.687,
+        "winner": "genus",
+        "improvement_over_baseline": 0.0812
+      },
+      {
+        "claim_id": "AN-43",
+        "baseline_max_sim": 0.5912,
+        "freeform_max_sim": 0.6591,
+        "genus_max_sim": 0.7921,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2009
+      },
+      {
+        "claim_id": "AN-49",
+        "baseline_max_sim": 0.5891,
+        "freeform_max_sim": 0.6546,
+        "genus_max_sim": 0.7435,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1544
+      },
+      {
+        "claim_id": "AN-22",
+        "baseline_max_sim": 0.6082,
+        "freeform_max_sim": 0.6282,
+        "genus_max_sim": 0.7101,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1019
+      },
+      {
+        "claim_id": "AN-85",
+        "baseline_max_sim": 0.4271,
+        "freeform_max_sim": 0.5455,
+        "genus_max_sim": 0.6119,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1848
+      },
+      {
+        "claim_id": "AN-23",
+        "baseline_max_sim": 0.3903,
+        "freeform_max_sim": 0.4769,
+        "genus_max_sim": 0.615,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2247
+      },
+      {
+        "claim_id": "AN-46",
+        "baseline_max_sim": 0.3668,
+        "freeform_max_sim": 0.4357,
+        "genus_max_sim": 0.6811,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3143
+      },
+      {
+        "claim_id": "AN-19",
+        "baseline_max_sim": 0.3884,
+        "freeform_max_sim": 0.5626,
+        "genus_max_sim": 0.6678,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2794
+      },
+      {
+        "claim_id": "AN-1",
+        "baseline_max_sim": 0.599,
+        "freeform_max_sim": 0.7079,
+        "genus_max_sim": 0.8424,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2434
+      },
+      {
+        "claim_id": "AN-35",
+        "baseline_max_sim": 0.3926,
+        "freeform_max_sim": 0.648,
+        "genus_max_sim": 0.64,
+        "winner": "freeform",
+        "improvement_over_baseline": 0.2554
+      },
+      {
+        "claim_id": "AN-27",
+        "baseline_max_sim": 0.384,
+        "freeform_max_sim": 0.5799,
+        "genus_max_sim": 0.7072,
+        "winner": "genus",
+        "improvement_over_baseline": 0.3232
+      },
+      {
+        "claim_id": "AN-13",
+        "baseline_max_sim": 0.4078,
+        "freeform_max_sim": 0.6747,
+        "genus_max_sim": 0.6876,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2798
+      },
+      {
+        "claim_id": "AN-5",
+        "baseline_max_sim": 0.4282,
+        "freeform_max_sim": 0.5787,
+        "genus_max_sim": 0.6552,
+        "winner": "genus",
+        "improvement_over_baseline": 0.227
+      },
+      {
+        "claim_id": "AN-13",
+        "baseline_max_sim": 0.4337,
+        "freeform_max_sim": 0.6747,
+        "genus_max_sim": 0.6876,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2539
+      },
+      {
+        "claim_id": "AN-28",
+        "baseline_max_sim": 0.4511,
+        "freeform_max_sim": 0.5587,
+        "genus_max_sim": 0.7411,
+        "winner": "genus",
+        "improvement_over_baseline": 0.29
+      },
+      {
+        "claim_id": "AN-5",
+        "baseline_max_sim": 0.4596,
+        "freeform_max_sim": 0.5787,
+        "genus_max_sim": 0.6552,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1956
+      },
+      {
+        "claim_id": "AN-8",
+        "baseline_max_sim": 0.4662,
+        "freeform_max_sim": 0.5906,
+        "genus_max_sim": 0.642,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1758
+      },
+      {
+        "claim_id": "AN-26",
+        "baseline_max_sim": 0.4514,
+        "freeform_max_sim": 0.6979,
+        "genus_max_sim": 0.6991,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2477
+      },
+      {
+        "claim_id": "AN-35",
+        "baseline_max_sim": 0.5294,
+        "freeform_max_sim": 0.648,
+        "genus_max_sim": 0.64,
+        "winner": "freeform",
+        "improvement_over_baseline": 0.1186
+      },
+      {
+        "claim_id": "AN-17",
+        "baseline_max_sim": 0.4667,
+        "freeform_max_sim": 0.6198,
+        "genus_max_sim": 0.687,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2203
+      },
+      {
+        "claim_id": "AN-41",
+        "baseline_max_sim": 0.478,
+        "freeform_max_sim": 0.5393,
+        "genus_max_sim": 0.5805,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1025
+      },
+      {
+        "claim_id": "AN-19",
+        "baseline_max_sim": 0.5018,
+        "freeform_max_sim": 0.5626,
+        "genus_max_sim": 0.6678,
+        "winner": "genus",
+        "improvement_over_baseline": 0.166
+      },
+      {
+        "claim_id": "AN-24",
+        "baseline_max_sim": 0.5519,
+        "freeform_max_sim": 0.5738,
+        "genus_max_sim": 0.6797,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1278
+      },
+      {
+        "claim_id": "AN-40",
+        "baseline_max_sim": 0.5277,
+        "freeform_max_sim": 0.6151,
+        "genus_max_sim": 0.6237,
+        "winner": "genus",
+        "improvement_over_baseline": 0.096
+      },
+      {
+        "claim_id": "AN-5",
+        "baseline_max_sim": 0.5331,
+        "freeform_max_sim": 0.5787,
+        "genus_max_sim": 0.6552,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1221
+      },
+      {
+        "claim_id": "AN-20",
+        "baseline_max_sim": 0.5137,
+        "freeform_max_sim": 0.6399,
+        "genus_max_sim": 0.7198,
+        "winner": "genus",
+        "improvement_over_baseline": 0.2061
+      },
+      {
+        "claim_id": "AN-47",
+        "baseline_max_sim": 0.5424,
+        "freeform_max_sim": 0.5718,
+        "genus_max_sim": 0.6972,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1548
+      },
+      {
+        "claim_id": "AN-11",
+        "baseline_max_sim": 0.521,
+        "freeform_max_sim": 0.612,
+        "genus_max_sim": 0.6813,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1603
+      },
+      {
+        "claim_id": "AN-3",
+        "baseline_max_sim": 0.5622,
+        "freeform_max_sim": 0.6579,
+        "genus_max_sim": 0.7353,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1731
+      },
+      {
+        "claim_id": "AN-13",
+        "baseline_max_sim": 0.5356,
+        "freeform_max_sim": 0.6747,
+        "genus_max_sim": 0.6876,
+        "winner": "genus",
+        "improvement_over_baseline": 0.152
+      },
+      {
+        "claim_id": "AN-14",
+        "baseline_max_sim": 0.5449,
+        "freeform_max_sim": 0.6394,
+        "genus_max_sim": 0.6758,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1309
+      },
+      {
+        "claim_id": "AN-22",
+        "baseline_max_sim": 0.5589,
+        "freeform_max_sim": 0.6282,
+        "genus_max_sim": 0.7101,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1512
+      },
+      {
+        "claim_id": "AN-33",
+        "baseline_max_sim": 0.5632,
+        "freeform_max_sim": 0.5523,
+        "genus_max_sim": 0.7097,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1465
+      },
+      {
+        "claim_id": "AN-50",
+        "baseline_max_sim": 0.5579,
+        "freeform_max_sim": 0.5796,
+        "genus_max_sim": 0.7383,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1804
+      },
+      {
+        "claim_id": "AN-11",
+        "baseline_max_sim": 0.6816,
+        "freeform_max_sim": 0.612,
+        "genus_max_sim": 0.6813,
+        "winner": "genus",
+        "improvement_over_baseline": -0.0003
+      },
+      {
+        "claim_id": "AN-15",
+        "baseline_max_sim": 0.6068,
+        "freeform_max_sim": 0.6802,
+        "genus_max_sim": 0.738,
+        "winner": "genus",
+        "improvement_over_baseline": 0.1312
+      },
+      {
+        "claim_id": "AN-68",
+        "baseline_max_sim": 0.6428,
+        "freeform_max_sim": 0.6086,
+        "genus_max_sim": 0.6533,
+        "winner": "genus",
+        "improvement_over_baseline": 0.0105
+      }
+    ]
+  }
+}

@@ -1,0 +1,918 @@
+{
+  "config": {
+    "top_n": 3,
+    "claim_count": 99,
+    "node_count": 636,
+    "synthetic_phrase_count": 28319
+  },
+  "summary": {
+    "description_only": {
+      "orig_mean": 0.4941,
+      "genus_mean": 0.6981,
+      "genus_wins": 98
+    },
+    "multi_vector": {
+      "orig_mean": 0.55,
+      "genus_mean": 0.6709,
+      "genus_wins": 91
+    },
+    "synthetics_only": {
+      "orig_mean": 0.5489,
+      "genus_mean": 0.6623,
+      "genus_wins": 89
+    }
+  },
+  "per_claim": [
+    {
+      "claim_id": "AN-31",
+      "orig_desc_maxsim": 0.1124,
+      "genus_desc_maxsim": 0.6628,
+      "orig_multi_maxsim": 0.187,
+      "genus_multi_maxsim": 0.6608,
+      "orig_synth_maxsim": 0.187,
+      "genus_synth_maxsim": 0.652
+    },
+    {
+      "claim_id": "AN-81",
+      "orig_desc_maxsim": 0.3251,
+      "genus_desc_maxsim": 0.5975,
+      "orig_multi_maxsim": 0.4043,
+      "genus_multi_maxsim": 0.499,
+      "orig_synth_maxsim": 0.4043,
+      "genus_synth_maxsim": 0.466
+    },
+    {
+      "claim_id": "AN-48",
+      "orig_desc_maxsim": 0.3919,
+      "genus_desc_maxsim": 0.7654,
+      "orig_multi_maxsim": 0.4858,
+      "genus_multi_maxsim": 0.7237,
+      "orig_synth_maxsim": 0.4858,
+      "genus_synth_maxsim": 0.7237
+    },
+    {
+      "claim_id": "AN-30",
+      "orig_desc_maxsim": 0.436,
+      "genus_desc_maxsim": 0.6889,
+      "orig_multi_maxsim": 0.4529,
+      "genus_multi_maxsim": 0.6861,
+      "orig_synth_maxsim": 0.4529,
+      "genus_synth_maxsim": 0.6861
+    },
+    {
+      "claim_id": "AN-82",
+      "orig_desc_maxsim": 0.3842,
+      "genus_desc_maxsim": 0.6524,
+      "orig_multi_maxsim": 0.4048,
+      "genus_multi_maxsim": 0.5866,
+      "orig_synth_maxsim": 0.4048,
+      "genus_synth_maxsim": 0.5796
+    },
+    {
+      "claim_id": "AN-16",
+      "orig_desc_maxsim": 0.3638,
+      "genus_desc_maxsim": 0.6495,
+      "orig_multi_maxsim": 0.4395,
+      "genus_multi_maxsim": 0.6672,
+      "orig_synth_maxsim": 0.4395,
+      "genus_synth_maxsim": 0.6672
+    },
+    {
+      "claim_id": "AN-9",
+      "orig_desc_maxsim": 0.3727,
+      "genus_desc_maxsim": 0.6295,
+      "orig_multi_maxsim": 0.4953,
+      "genus_multi_maxsim": 0.5665,
+      "orig_synth_maxsim": 0.4953,
+      "genus_synth_maxsim": 0.5614
+    },
+    {
+      "claim_id": "AN-14",
+      "orig_desc_maxsim": 0.3786,
+      "genus_desc_maxsim": 0.6758,
+      "orig_multi_maxsim": 0.4549,
+      "genus_multi_maxsim": 0.6873,
+      "orig_synth_maxsim": 0.4549,
+      "genus_synth_maxsim": 0.6873
+    },
+    {
+      "claim_id": "AN-10",
+      "orig_desc_maxsim": 0.3918,
+      "genus_desc_maxsim": 0.6862,
+      "orig_multi_maxsim": 0.4774,
+      "genus_multi_maxsim": 0.6661,
+      "orig_synth_maxsim": 0.4774,
+      "genus_synth_maxsim": 0.6661
+    },
+    {
+      "claim_id": "AN-28",
+      "orig_desc_maxsim": 0.3945,
+      "genus_desc_maxsim": 0.7411,
+      "orig_multi_maxsim": 0.4713,
+      "genus_multi_maxsim": 0.6822,
+      "orig_synth_maxsim": 0.4713,
+      "genus_synth_maxsim": 0.6396
+    },
+    {
+      "claim_id": "AN-28",
+      "orig_desc_maxsim": 0.4162,
+      "genus_desc_maxsim": 0.7411,
+      "orig_multi_maxsim": 0.4392,
+      "genus_multi_maxsim": 0.6822,
+      "orig_synth_maxsim": 0.4392,
+      "genus_synth_maxsim": 0.6396
+    },
+    {
+      "claim_id": "AN-22",
+      "orig_desc_maxsim": 0.4292,
+      "genus_desc_maxsim": 0.7101,
+      "orig_multi_maxsim": 0.4679,
+      "genus_multi_maxsim": 0.6947,
+      "orig_synth_maxsim": 0.4679,
+      "genus_synth_maxsim": 0.6947
+    },
+    {
+      "claim_id": "AN-37",
+      "orig_desc_maxsim": 0.4364,
+      "genus_desc_maxsim": 0.6954,
+      "orig_multi_maxsim": 0.4629,
+      "genus_multi_maxsim": 0.6509,
+      "orig_synth_maxsim": 0.4629,
+      "genus_synth_maxsim": 0.6418
+    },
+    {
+      "claim_id": "AN-13",
+      "orig_desc_maxsim": 0.5277,
+      "genus_desc_maxsim": 0.6876,
+      "orig_multi_maxsim": 0.5265,
+      "genus_multi_maxsim": 0.6797,
+      "orig_synth_maxsim": 0.5265,
+      "genus_synth_maxsim": 0.6726
+    },
+    {
+      "claim_id": "AN-13",
+      "orig_desc_maxsim": 0.4437,
+      "genus_desc_maxsim": 0.6876,
+      "orig_multi_maxsim": 0.5123,
+      "genus_multi_maxsim": 0.6797,
+      "orig_synth_maxsim": 0.5123,
+      "genus_synth_maxsim": 0.6726
+    },
+    {
+      "claim_id": "AN-15",
+      "orig_desc_maxsim": 0.4829,
+      "genus_desc_maxsim": 0.738,
+      "orig_multi_maxsim": 0.4835,
+      "genus_multi_maxsim": 0.8099,
+      "orig_synth_maxsim": 0.4835,
+      "genus_synth_maxsim": 0.8099
+    },
+    {
+      "claim_id": "AN-32",
+      "orig_desc_maxsim": 0.6145,
+      "genus_desc_maxsim": 0.7892,
+      "orig_multi_maxsim": 0.5976,
+      "genus_multi_maxsim": 0.7515,
+      "orig_synth_maxsim": 0.5843,
+      "genus_synth_maxsim": 0.7124
+    },
+    {
+      "claim_id": "AN-79",
+      "orig_desc_maxsim": 0.4771,
+      "genus_desc_maxsim": 0.7212,
+      "orig_multi_maxsim": 0.4897,
+      "genus_multi_maxsim": 0.7016,
+      "orig_synth_maxsim": 0.4897,
+      "genus_synth_maxsim": 0.6837
+    },
+    {
+      "claim_id": "AN-29",
+      "orig_desc_maxsim": 0.4925,
+      "genus_desc_maxsim": 0.6518,
+      "orig_multi_maxsim": 0.5521,
+      "genus_multi_maxsim": 0.6443,
+      "orig_synth_maxsim": 0.5521,
+      "genus_synth_maxsim": 0.634
+    },
+    {
+      "claim_id": "AN-30",
+      "orig_desc_maxsim": 0.664,
+      "genus_desc_maxsim": 0.6889,
+      "orig_multi_maxsim": 0.6771,
+      "genus_multi_maxsim": 0.6861,
+      "orig_synth_maxsim": 0.6709,
+      "genus_synth_maxsim": 0.6861
+    },
+    {
+      "claim_id": "AN-16",
+      "orig_desc_maxsim": 0.6455,
+      "genus_desc_maxsim": 0.6495,
+      "orig_multi_maxsim": 0.6044,
+      "genus_multi_maxsim": 0.6672,
+      "orig_synth_maxsim": 0.6044,
+      "genus_synth_maxsim": 0.6672
+    },
+    {
+      "claim_id": "AN-20",
+      "orig_desc_maxsim": 0.5442,
+      "genus_desc_maxsim": 0.7198,
+      "orig_multi_maxsim": 0.5839,
+      "genus_multi_maxsim": 0.7125,
+      "orig_synth_maxsim": 0.5839,
+      "genus_synth_maxsim": 0.7125
+    },
+    {
+      "claim_id": "AN-50",
+      "orig_desc_maxsim": 0.5553,
+      "genus_desc_maxsim": 0.7383,
+      "orig_multi_maxsim": 0.6211,
+      "genus_multi_maxsim": 0.7062,
+      "orig_synth_maxsim": 0.6211,
+      "genus_synth_maxsim": 0.6858
+    },
+    {
+      "claim_id": "AN-4",
+      "orig_desc_maxsim": 0.5042,
+      "genus_desc_maxsim": 0.7692,
+      "orig_multi_maxsim": 0.54,
+      "genus_multi_maxsim": 0.7272,
+      "orig_synth_maxsim": 0.54,
+      "genus_synth_maxsim": 0.6975
+    },
+    {
+      "claim_id": "AN-12",
+      "orig_desc_maxsim": 0.5271,
+      "genus_desc_maxsim": 0.6724,
+      "orig_multi_maxsim": 0.5437,
+      "genus_multi_maxsim": 0.6545,
+      "orig_synth_maxsim": 0.5402,
+      "genus_synth_maxsim": 0.6514
+    },
+    {
+      "claim_id": "AN-9",
+      "orig_desc_maxsim": 0.5284,
+      "genus_desc_maxsim": 0.6295,
+      "orig_multi_maxsim": 0.5509,
+      "genus_multi_maxsim": 0.5665,
+      "orig_synth_maxsim": 0.5509,
+      "genus_synth_maxsim": 0.5614
+    },
+    {
+      "claim_id": "AN-28",
+      "orig_desc_maxsim": 0.5529,
+      "genus_desc_maxsim": 0.7411,
+      "orig_multi_maxsim": 0.6489,
+      "genus_multi_maxsim": 0.6822,
+      "orig_synth_maxsim": 0.6489,
+      "genus_synth_maxsim": 0.6396
+    },
+    {
+      "claim_id": "AN-42",
+      "orig_desc_maxsim": 0.5368,
+      "genus_desc_maxsim": 0.6573,
+      "orig_multi_maxsim": 0.651,
+      "genus_multi_maxsim": 0.6246,
+      "orig_synth_maxsim": 0.651,
+      "genus_synth_maxsim": 0.5986
+    },
+    {
+      "claim_id": "AN-26",
+      "orig_desc_maxsim": 0.5872,
+      "genus_desc_maxsim": 0.6991,
+      "orig_multi_maxsim": 0.6377,
+      "genus_multi_maxsim": 0.7368,
+      "orig_synth_maxsim": 0.6377,
+      "genus_synth_maxsim": 0.7368
+    },
+    {
+      "claim_id": "AN-22",
+      "orig_desc_maxsim": 0.6659,
+      "genus_desc_maxsim": 0.7101,
+      "orig_multi_maxsim": 0.6832,
+      "genus_multi_maxsim": 0.6947,
+      "orig_synth_maxsim": 0.6832,
+      "genus_synth_maxsim": 0.6947
+    },
+    {
+      "claim_id": "AN-1",
+      "orig_desc_maxsim": 0.5858,
+      "genus_desc_maxsim": 0.8424,
+      "orig_multi_maxsim": 0.6571,
+      "genus_multi_maxsim": 0.8066,
+      "orig_synth_maxsim": 0.6571,
+      "genus_synth_maxsim": 0.8066
+    },
+    {
+      "claim_id": "AN-51",
+      "orig_desc_maxsim": 0.5801,
+      "genus_desc_maxsim": 0.8206,
+      "orig_multi_maxsim": 0.6645,
+      "genus_multi_maxsim": 0.707,
+      "orig_synth_maxsim": 0.6645,
+      "genus_synth_maxsim": 0.6706
+    },
+    {
+      "claim_id": "AN-8",
+      "orig_desc_maxsim": 0.5942,
+      "genus_desc_maxsim": 0.642,
+      "orig_multi_maxsim": 0.6258,
+      "genus_multi_maxsim": 0.5937,
+      "orig_synth_maxsim": 0.6258,
+      "genus_synth_maxsim": 0.5937
+    },
+    {
+      "claim_id": "AN-20",
+      "orig_desc_maxsim": 0.1863,
+      "genus_desc_maxsim": 0.7198,
+      "orig_multi_maxsim": 0.2828,
+      "genus_multi_maxsim": 0.7125,
+      "orig_synth_maxsim": 0.2828,
+      "genus_synth_maxsim": 0.7125
+    },
+    {
+      "claim_id": "AN-47",
+      "orig_desc_maxsim": 0.3233,
+      "genus_desc_maxsim": 0.6972,
+      "orig_multi_maxsim": 0.4645,
+      "genus_multi_maxsim": 0.66,
+      "orig_synth_maxsim": 0.4645,
+      "genus_synth_maxsim": 0.6594
+    },
+    {
+      "claim_id": "AN-14",
+      "orig_desc_maxsim": 0.3957,
+      "genus_desc_maxsim": 0.6758,
+      "orig_multi_maxsim": 0.4726,
+      "genus_multi_maxsim": 0.6873,
+      "orig_synth_maxsim": 0.4726,
+      "genus_synth_maxsim": 0.6873
+    },
+    {
+      "claim_id": "AN-50",
+      "orig_desc_maxsim": 0.4914,
+      "genus_desc_maxsim": 0.7383,
+      "orig_multi_maxsim": 0.4188,
+      "genus_multi_maxsim": 0.7062,
+      "orig_synth_maxsim": 0.3697,
+      "genus_synth_maxsim": 0.6858
+    },
+    {
+      "claim_id": "AN-63",
+      "orig_desc_maxsim": 0.5454,
+      "genus_desc_maxsim": 0.7469,
+      "orig_multi_maxsim": 0.5036,
+      "genus_multi_maxsim": 0.7053,
+      "orig_synth_maxsim": 0.4747,
+      "genus_synth_maxsim": 0.6902
+    },
+    {
+      "claim_id": "AN-15",
+      "orig_desc_maxsim": 0.4207,
+      "genus_desc_maxsim": 0.738,
+      "orig_multi_maxsim": 0.4684,
+      "genus_multi_maxsim": 0.8099,
+      "orig_synth_maxsim": 0.4684,
+      "genus_synth_maxsim": 0.8099
+    },
+    {
+      "claim_id": "AN-16",
+      "orig_desc_maxsim": 0.444,
+      "genus_desc_maxsim": 0.6495,
+      "orig_multi_maxsim": 0.5044,
+      "genus_multi_maxsim": 0.6672,
+      "orig_synth_maxsim": 0.5044,
+      "genus_synth_maxsim": 0.6672
+    },
+    {
+      "claim_id": "AN-17",
+      "orig_desc_maxsim": 0.4303,
+      "genus_desc_maxsim": 0.687,
+      "orig_multi_maxsim": 0.4978,
+      "genus_multi_maxsim": 0.6649,
+      "orig_synth_maxsim": 0.4978,
+      "genus_synth_maxsim": 0.6649
+    },
+    {
+      "claim_id": "AN-2",
+      "orig_desc_maxsim": 0.4498,
+      "genus_desc_maxsim": 0.5902,
+      "orig_multi_maxsim": 0.5195,
+      "genus_multi_maxsim": 0.5757,
+      "orig_synth_maxsim": 0.5195,
+      "genus_synth_maxsim": 0.5757
+    },
+    {
+      "claim_id": "AN-48",
+      "orig_desc_maxsim": 0.4662,
+      "genus_desc_maxsim": 0.7654,
+      "orig_multi_maxsim": 0.4911,
+      "genus_multi_maxsim": 0.7237,
+      "orig_synth_maxsim": 0.4911,
+      "genus_synth_maxsim": 0.7237
+    },
+    {
+      "claim_id": "AN-9",
+      "orig_desc_maxsim": 0.4095,
+      "genus_desc_maxsim": 0.6295,
+      "orig_multi_maxsim": 0.5367,
+      "genus_multi_maxsim": 0.5665,
+      "orig_synth_maxsim": 0.5367,
+      "genus_synth_maxsim": 0.5614
+    },
+    {
+      "claim_id": "AN-2",
+      "orig_desc_maxsim": 0.4321,
+      "genus_desc_maxsim": 0.5902,
+      "orig_multi_maxsim": 0.5599,
+      "genus_multi_maxsim": 0.5757,
+      "orig_synth_maxsim": 0.5599,
+      "genus_synth_maxsim": 0.5757
+    },
+    {
+      "claim_id": "AN-77",
+      "orig_desc_maxsim": 0.4401,
+      "genus_desc_maxsim": 0.7238,
+      "orig_multi_maxsim": 0.494,
+      "genus_multi_maxsim": 0.6938,
+      "orig_synth_maxsim": 0.494,
+      "genus_synth_maxsim": 0.6851
+    },
+    {
+      "claim_id": "AN-31",
+      "orig_desc_maxsim": 0.5627,
+      "genus_desc_maxsim": 0.6628,
+      "orig_multi_maxsim": 0.5286,
+      "genus_multi_maxsim": 0.6608,
+      "orig_synth_maxsim": 0.5286,
+      "genus_synth_maxsim": 0.652
+    },
+    {
+      "claim_id": "AN-21",
+      "orig_desc_maxsim": 0.4395,
+      "genus_desc_maxsim": 0.8018,
+      "orig_multi_maxsim": 0.5855,
+      "genus_multi_maxsim": 0.752,
+      "orig_synth_maxsim": 0.5855,
+      "genus_synth_maxsim": 0.752
+    },
+    {
+      "claim_id": "AN-65",
+      "orig_desc_maxsim": 0.5606,
+      "genus_desc_maxsim": 0.7742,
+      "orig_multi_maxsim": 0.6228,
+      "genus_multi_maxsim": 0.7197,
+      "orig_synth_maxsim": 0.6228,
+      "genus_synth_maxsim": 0.7042
+    },
+    {
+      "claim_id": "AN-2",
+      "orig_desc_maxsim": 0.5481,
+      "genus_desc_maxsim": 0.5902,
+      "orig_multi_maxsim": 0.5846,
+      "genus_multi_maxsim": 0.5757,
+      "orig_synth_maxsim": 0.5846,
+      "genus_synth_maxsim": 0.5757
+    },
+    {
+      "claim_id": "AN-25",
+      "orig_desc_maxsim": 0.523,
+      "genus_desc_maxsim": 0.7632,
+      "orig_multi_maxsim": 0.6013,
+      "genus_multi_maxsim": 0.7707,
+      "orig_synth_maxsim": 0.6013,
+      "genus_synth_maxsim": 0.7707
+    },
+    {
+      "claim_id": "AN-33",
+      "orig_desc_maxsim": 0.5339,
+      "genus_desc_maxsim": 0.7097,
+      "orig_multi_maxsim": 0.612,
+      "genus_multi_maxsim": 0.6034,
+      "orig_synth_maxsim": 0.612,
+      "genus_synth_maxsim": 0.6034
+    },
+    {
+      "claim_id": "AN-27",
+      "orig_desc_maxsim": 0.4786,
+      "genus_desc_maxsim": 0.7072,
+      "orig_multi_maxsim": 0.5366,
+      "genus_multi_maxsim": 0.6236,
+      "orig_synth_maxsim": 0.5366,
+      "genus_synth_maxsim": 0.6021
+    },
+    {
+      "claim_id": "AN-8",
+      "orig_desc_maxsim": 0.5724,
+      "genus_desc_maxsim": 0.642,
+      "orig_multi_maxsim": 0.6094,
+      "genus_multi_maxsim": 0.5937,
+      "orig_synth_maxsim": 0.6094,
+      "genus_synth_maxsim": 0.5937
+    },
+    {
+      "claim_id": "AN-3",
+      "orig_desc_maxsim": 0.515,
+      "genus_desc_maxsim": 0.7353,
+      "orig_multi_maxsim": 0.6074,
+      "genus_multi_maxsim": 0.6821,
+      "orig_synth_maxsim": 0.6074,
+      "genus_synth_maxsim": 0.6665
+    },
+    {
+      "claim_id": "AN-75",
+      "orig_desc_maxsim": 0.5486,
+      "genus_desc_maxsim": 0.6566,
+      "orig_multi_maxsim": 0.5821,
+      "genus_multi_maxsim": 0.6432,
+      "orig_synth_maxsim": 0.5821,
+      "genus_synth_maxsim": 0.6432
+    },
+    {
+      "claim_id": "AN-3",
+      "orig_desc_maxsim": 0.5329,
+      "genus_desc_maxsim": 0.7353,
+      "orig_multi_maxsim": 0.5661,
+      "genus_multi_maxsim": 0.6821,
+      "orig_synth_maxsim": 0.5661,
+      "genus_synth_maxsim": 0.6665
+    },
+    {
+      "claim_id": "AN-46",
+      "orig_desc_maxsim": 0.5703,
+      "genus_desc_maxsim": 0.6811,
+      "orig_multi_maxsim": 0.6217,
+      "genus_multi_maxsim": 0.6384,
+      "orig_synth_maxsim": 0.6217,
+      "genus_synth_maxsim": 0.6384
+    },
+    {
+      "claim_id": "AN-10",
+      "orig_desc_maxsim": 0.6033,
+      "genus_desc_maxsim": 0.6862,
+      "orig_multi_maxsim": 0.6374,
+      "genus_multi_maxsim": 0.6661,
+      "orig_synth_maxsim": 0.6374,
+      "genus_synth_maxsim": 0.6661
+    },
+    {
+      "claim_id": "AN-18",
+      "orig_desc_maxsim": 0.5423,
+      "genus_desc_maxsim": 0.8398,
+      "orig_multi_maxsim": 0.6512,
+      "genus_multi_maxsim": 0.7367,
+      "orig_synth_maxsim": 0.6512,
+      "genus_synth_maxsim": 0.7121
+    },
+    {
+      "claim_id": "AN-60",
+      "orig_desc_maxsim": 0.5836,
+      "genus_desc_maxsim": 0.7587,
+      "orig_multi_maxsim": 0.6706,
+      "genus_multi_maxsim": 0.6988,
+      "orig_synth_maxsim": 0.6706,
+      "genus_synth_maxsim": 0.6692
+    },
+    {
+      "claim_id": "AN-18",
+      "orig_desc_maxsim": 0.56,
+      "genus_desc_maxsim": 0.8398,
+      "orig_multi_maxsim": 0.6064,
+      "genus_multi_maxsim": 0.7367,
+      "orig_synth_maxsim": 0.6064,
+      "genus_synth_maxsim": 0.7121
+    },
+    {
+      "claim_id": "AN-17",
+      "orig_desc_maxsim": 0.6058,
+      "genus_desc_maxsim": 0.687,
+      "orig_multi_maxsim": 0.6407,
+      "genus_multi_maxsim": 0.6649,
+      "orig_synth_maxsim": 0.6407,
+      "genus_synth_maxsim": 0.6649
+    },
+    {
+      "claim_id": "AN-43",
+      "orig_desc_maxsim": 0.5912,
+      "genus_desc_maxsim": 0.7921,
+      "orig_multi_maxsim": 0.6572,
+      "genus_multi_maxsim": 0.774,
+      "orig_synth_maxsim": 0.6572,
+      "genus_synth_maxsim": 0.774
+    },
+    {
+      "claim_id": "AN-49",
+      "orig_desc_maxsim": 0.5891,
+      "genus_desc_maxsim": 0.7435,
+      "orig_multi_maxsim": 0.6606,
+      "genus_multi_maxsim": 0.7795,
+      "orig_synth_maxsim": 0.6606,
+      "genus_synth_maxsim": 0.7795
+    },
+    {
+      "claim_id": "AN-22",
+      "orig_desc_maxsim": 0.6082,
+      "genus_desc_maxsim": 0.7101,
+      "orig_multi_maxsim": 0.6245,
+      "genus_multi_maxsim": 0.6947,
+      "orig_synth_maxsim": 0.6245,
+      "genus_synth_maxsim": 0.6947
+    },
+    {
+      "claim_id": "AN-85",
+      "orig_desc_maxsim": 0.4271,
+      "genus_desc_maxsim": 0.6119,
+      "orig_multi_maxsim": 0.4405,
+      "genus_multi_maxsim": 0.6148,
+      "orig_synth_maxsim": 0.4405,
+      "genus_synth_maxsim": 0.6148
+    },
+    {
+      "claim_id": "AN-23",
+      "orig_desc_maxsim": 0.3903,
+      "genus_desc_maxsim": 0.615,
+      "orig_multi_maxsim": 0.5165,
+      "genus_multi_maxsim": 0.6042,
+      "orig_synth_maxsim": 0.5165,
+      "genus_synth_maxsim": 0.6
+    },
+    {
+      "claim_id": "AN-46",
+      "orig_desc_maxsim": 0.3668,
+      "genus_desc_maxsim": 0.6811,
+      "orig_multi_maxsim": 0.4314,
+      "genus_multi_maxsim": 0.6384,
+      "orig_synth_maxsim": 0.4314,
+      "genus_synth_maxsim": 0.6384
+    },
+    {
+      "claim_id": "AN-19",
+      "orig_desc_maxsim": 0.3884,
+      "genus_desc_maxsim": 0.6678,
+      "orig_multi_maxsim": 0.4275,
+      "genus_multi_maxsim": 0.606,
+      "orig_synth_maxsim": 0.4275,
+      "genus_synth_maxsim": 0.6048
+    },
+    {
+      "claim_id": "AN-1",
+      "orig_desc_maxsim": 0.599,
+      "genus_desc_maxsim": 0.8424,
+      "orig_multi_maxsim": 0.5879,
+      "genus_multi_maxsim": 0.8066,
+      "orig_synth_maxsim": 0.5879,
+      "genus_synth_maxsim": 0.8066
+    },
+    {
+      "claim_id": "AN-35",
+      "orig_desc_maxsim": 0.3926,
+      "genus_desc_maxsim": 0.64,
+      "orig_multi_maxsim": 0.4869,
+      "genus_multi_maxsim": 0.6393,
+      "orig_synth_maxsim": 0.4869,
+      "genus_synth_maxsim": 0.6393
+    },
+    {
+      "claim_id": "AN-27",
+      "orig_desc_maxsim": 0.384,
+      "genus_desc_maxsim": 0.7072,
+      "orig_multi_maxsim": 0.4708,
+      "genus_multi_maxsim": 0.6236,
+      "orig_synth_maxsim": 0.4708,
+      "genus_synth_maxsim": 0.6021
+    },
+    {
+      "claim_id": "AN-13",
+      "orig_desc_maxsim": 0.4078,
+      "genus_desc_maxsim": 0.6876,
+      "orig_multi_maxsim": 0.4778,
+      "genus_multi_maxsim": 0.6797,
+      "orig_synth_maxsim": 0.4778,
+      "genus_synth_maxsim": 0.6726
+    },
+    {
+      "claim_id": "AN-5",
+      "orig_desc_maxsim": 0.4282,
+      "genus_desc_maxsim": 0.6552,
+      "orig_multi_maxsim": 0.5393,
+      "genus_multi_maxsim": 0.6075,
+      "orig_synth_maxsim": 0.5393,
+      "genus_synth_maxsim": 0.5764
+    },
+    {
+      "claim_id": "AN-13",
+      "orig_desc_maxsim": 0.4337,
+      "genus_desc_maxsim": 0.6876,
+      "orig_multi_maxsim": 0.4627,
+      "genus_multi_maxsim": 0.6797,
+      "orig_synth_maxsim": 0.4627,
+      "genus_synth_maxsim": 0.6726
+    },
+    {
+      "claim_id": "AN-28",
+      "orig_desc_maxsim": 0.4511,
+      "genus_desc_maxsim": 0.7411,
+      "orig_multi_maxsim": 0.5694,
+      "genus_multi_maxsim": 0.6822,
+      "orig_synth_maxsim": 0.5694,
+      "genus_synth_maxsim": 0.6396
+    },
+    {
+      "claim_id": "AN-5",
+      "orig_desc_maxsim": 0.4596,
+      "genus_desc_maxsim": 0.6552,
+      "orig_multi_maxsim": 0.5097,
+      "genus_multi_maxsim": 0.6075,
+      "orig_synth_maxsim": 0.5097,
+      "genus_synth_maxsim": 0.5764
+    },
+    {
+      "claim_id": "AN-8",
+      "orig_desc_maxsim": 0.4662,
+      "genus_desc_maxsim": 0.642,
+      "orig_multi_maxsim": 0.4953,
+      "genus_multi_maxsim": 0.5937,
+      "orig_synth_maxsim": 0.4953,
+      "genus_synth_maxsim": 0.5937
+    },
+    {
+      "claim_id": "AN-26",
+      "orig_desc_maxsim": 0.4514,
+      "genus_desc_maxsim": 0.6991,
+      "orig_multi_maxsim": 0.5499,
+      "genus_multi_maxsim": 0.7368,
+      "orig_synth_maxsim": 0.5499,
+      "genus_synth_maxsim": 0.7368
+    },
+    {
+      "claim_id": "AN-35",
+      "orig_desc_maxsim": 0.5294,
+      "genus_desc_maxsim": 0.64,
+      "orig_multi_maxsim": 0.6612,
+      "genus_multi_maxsim": 0.6393,
+      "orig_synth_maxsim": 0.6612,
+      "genus_synth_maxsim": 0.6393
+    },
+    {
+      "claim_id": "AN-17",
+      "orig_desc_maxsim": 0.4667,
+      "genus_desc_maxsim": 0.687,
+      "orig_multi_maxsim": 0.537,
+      "genus_multi_maxsim": 0.6649,
+      "orig_synth_maxsim": 0.537,
+      "genus_synth_maxsim": 0.6649
+    },
+    {
+      "claim_id": "AN-41",
+      "orig_desc_maxsim": 0.478,
+      "genus_desc_maxsim": 0.5805,
+      "orig_multi_maxsim": 0.5808,
+      "genus_multi_maxsim": 0.6577,
+      "orig_synth_maxsim": 0.5808,
+      "genus_synth_maxsim": 0.6577
+    },
+    {
+      "claim_id": "AN-19",
+      "orig_desc_maxsim": 0.5018,
+      "genus_desc_maxsim": 0.6678,
+      "orig_multi_maxsim": 0.5693,
+      "genus_multi_maxsim": 0.606,
+      "orig_synth_maxsim": 0.5693,
+      "genus_synth_maxsim": 0.6048
+    },
+    {
+      "claim_id": "AN-24",
+      "orig_desc_maxsim": 0.5519,
+      "genus_desc_maxsim": 0.6797,
+      "orig_multi_maxsim": 0.5844,
+      "genus_multi_maxsim": 0.666,
+      "orig_synth_maxsim": 0.5844,
+      "genus_synth_maxsim": 0.666
+    },
+    {
+      "claim_id": "AN-40",
+      "orig_desc_maxsim": 0.5277,
+      "genus_desc_maxsim": 0.6237,
+      "orig_multi_maxsim": 0.5761,
+      "genus_multi_maxsim": 0.5826,
+      "orig_synth_maxsim": 0.5761,
+      "genus_synth_maxsim": 0.5826
+    },
+    {
+      "claim_id": "AN-5",
+      "orig_desc_maxsim": 0.5331,
+      "genus_desc_maxsim": 0.6552,
+      "orig_multi_maxsim": 0.5676,
+      "genus_multi_maxsim": 0.6075,
+      "orig_synth_maxsim": 0.5646,
+      "genus_synth_maxsim": 0.5764
+    },
+    {
+      "claim_id": "AN-20",
+      "orig_desc_maxsim": 0.5137,
+      "genus_desc_maxsim": 0.7198,
+      "orig_multi_maxsim": 0.5992,
+      "genus_multi_maxsim": 0.7125,
+      "orig_synth_maxsim": 0.5992,
+      "genus_synth_maxsim": 0.7125
+    },
+    {
+      "claim_id": "AN-47",
+      "orig_desc_maxsim": 0.5424,
+      "genus_desc_maxsim": 0.6972,
+      "orig_multi_maxsim": 0.5816,
+      "genus_multi_maxsim": 0.66,
+      "orig_synth_maxsim": 0.5816,
+      "genus_synth_maxsim": 0.6594
+    },
+    {
+      "claim_id": "AN-11",
+      "orig_desc_maxsim": 0.521,
+      "genus_desc_maxsim": 0.6813,
+      "orig_multi_maxsim": 0.5842,
+      "genus_multi_maxsim": 0.61,
+      "orig_synth_maxsim": 0.5842,
+      "genus_synth_maxsim": 0.5976
+    },
+    {
+      "claim_id": "AN-3",
+      "orig_desc_maxsim": 0.5622,
+      "genus_desc_maxsim": 0.7353,
+      "orig_multi_maxsim": 0.6304,
+      "genus_multi_maxsim": 0.6821,
+      "orig_synth_maxsim": 0.6304,
+      "genus_synth_maxsim": 0.6665
+    },
+    {
+      "claim_id": "AN-13",
+      "orig_desc_maxsim": 0.5356,
+      "genus_desc_maxsim": 0.6876,
+      "orig_multi_maxsim": 0.6586,
+      "genus_multi_maxsim": 0.6797,
+      "orig_synth_maxsim": 0.6586,
+      "genus_synth_maxsim": 0.6726
+    },
+    {
+      "claim_id": "AN-14",
+      "orig_desc_maxsim": 0.5449,
+      "genus_desc_maxsim": 0.6758,
+      "orig_multi_maxsim": 0.5979,
+      "genus_multi_maxsim": 0.6873,
+      "orig_synth_maxsim": 0.5979,
+      "genus_synth_maxsim": 0.6873
+    },
+    {
+      "claim_id": "AN-22",
+      "orig_desc_maxsim": 0.5589,
+      "genus_desc_maxsim": 0.7101,
+      "orig_multi_maxsim": 0.5693,
+      "genus_multi_maxsim": 0.6947,
+      "orig_synth_maxsim": 0.5628,
+      "genus_synth_maxsim": 0.6947
+    },
+    {
+      "claim_id": "AN-33",
+      "orig_desc_maxsim": 0.5632,
+      "genus_desc_maxsim": 0.7097,
+      "orig_multi_maxsim": 0.6337,
+      "genus_multi_maxsim": 0.6034,
+      "orig_synth_maxsim": 0.6337,
+      "genus_synth_maxsim": 0.6034
+    },
+    {
+      "claim_id": "AN-50",
+      "orig_desc_maxsim": 0.5579,
+      "genus_desc_maxsim": 0.7383,
+      "orig_multi_maxsim": 0.6254,
+      "genus_multi_maxsim": 0.7062,
+      "orig_synth_maxsim": 0.6254,
+      "genus_synth_maxsim": 0.6858
+    },
+    {
+      "claim_id": "AN-11",
+      "orig_desc_maxsim": 0.6816,
+      "genus_desc_maxsim": 0.6813,
+      "orig_multi_maxsim": 0.6925,
+      "genus_multi_maxsim": 0.61,
+      "orig_synth_maxsim": 0.6925,
+      "genus_synth_maxsim": 0.5976
+    },
+    {
+      "claim_id": "AN-15",
+      "orig_desc_maxsim": 0.6068,
+      "genus_desc_maxsim": 0.738,
+      "orig_multi_maxsim": 0.6642,
+      "genus_multi_maxsim": 0.8099,
+      "orig_synth_maxsim": 0.6642,
+      "genus_synth_maxsim": 0.8099
+    },
+    {
+      "claim_id": "AN-68",
+      "orig_desc_maxsim": 0.6428,
+      "genus_desc_maxsim": 0.6533,
+      "orig_multi_maxsim": 0.6605,
+      "genus_multi_maxsim": 0.6835,
+      "orig_synth_maxsim": 0.6605,
+      "genus_synth_maxsim": 0.6835
+    }
+  ]
+}

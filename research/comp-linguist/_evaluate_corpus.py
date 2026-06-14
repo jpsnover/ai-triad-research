@@ -65,6 +65,29 @@ def load_claim_vectors(research_dir):
     return vectors, index
 
 
+def load_description_vectors(tax_dir):
+    """Load node description vectors from embeddings.json (baseline vectors)."""
+    emb_path = os.path.join(tax_dir, 'embeddings.json')
+    if not os.path.exists(emb_path):
+        return {}
+    with open(emb_path, encoding='utf-8') as f:
+        data = json.load(f)
+    vectors = {}
+    nodes = data.get('nodes', {})
+    if isinstance(nodes, dict):
+        for nid, info in nodes.items():
+            vec = info.get('vector')
+            if vec:
+                vectors[nid] = np.array(vec, dtype=np.float32)
+    elif isinstance(nodes, list):
+        for node in nodes:
+            nid = node.get('node_id') or node.get('id')
+            vec = node.get('vector')
+            if nid and vec:
+                vectors[nid] = np.array(vec, dtype=np.float32)
+    return vectors
+
+
 def load_corpus(corpus_dir):
     """Load all per-POV corpus files and return entries grouped by node_id."""
     entries_by_node = defaultdict(list)
@@ -82,11 +105,21 @@ def load_corpus(corpus_dir):
     return entries_by_node, all_entries
 
 
-def embed_texts(texts, model_name='all-MiniLM-L6-v2'):
-    """Embed texts using sentence-transformers."""
-    try:
+_model_cache = {}
+
+
+def get_model(model_name='all-MiniLM-L6-v2'):
+    """Load and cache the sentence-transformers model."""
+    if model_name not in _model_cache:
         from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer(model_name)
+        _model_cache[model_name] = SentenceTransformer(model_name)
+    return _model_cache[model_name]
+
+
+def embed_texts(texts, model_name='all-MiniLM-L6-v2'):
+    """Embed texts using sentence-transformers (shared model instance)."""
+    try:
+        model = get_model(model_name)
         vectors = model.encode(texts, show_progress_bar=len(texts) > 100,
                                batch_size=64, normalize_embeddings=True)
         return np.array(vectors)
@@ -97,6 +130,31 @@ def embed_texts(texts, model_name='all-MiniLM-L6-v2'):
         vectorizer = TfidfVectorizer(max_features=5000, sublinear_tf=True)
         matrix = vectorizer.fit_transform(texts)
         return normalize(matrix.toarray()).astype(np.float32)
+
+
+def load_taxonomy_descriptions(tax_dir):
+    """Load node descriptions directly from taxonomy JSON files."""
+    descriptions = {}
+    pov_files = {
+        'acc': 'accelerationist.json',
+        'saf': 'safetyist.json',
+        'skp': 'skeptic.json',
+    }
+    for pov, fname in pov_files.items():
+        path = os.path.join(tax_dir, fname)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding='utf-8') as f:
+            data = json.load(f)
+        nodes = data if isinstance(data, list) else data.get('nodes', data.get('entries', []))
+        if isinstance(nodes, dict):
+            nodes = list(nodes.values())
+        for node in nodes:
+            nid = node.get('id') or node.get('node_id')
+            desc = node.get('description', '')
+            if nid and desc:
+                descriptions[nid] = desc
+    return descriptions
 
 
 def compute_corpus_vectors(entries_by_node, cache_dir=None):
@@ -427,15 +485,11 @@ def main():
     baseline = golden.get('metadata', {}).get('baseline_metrics', {})
     print(f"  Baseline MRR: {baseline.get('global_mrr', 'N/A')}")
 
-    print("\n[2/5] Loading claim vectors...")
-    claim_vectors, claim_index = load_claim_vectors(RESEARCH_DIR)
-    if claim_vectors is None:
-        print("  Claim vectors not found, re-embedding claims...")
-        texts = [c['claim_text'] for c in claims]
-        claim_vectors = embed_texts(texts)
-        claim_index = {c['claim_id']: i for i, c in enumerate(claims)}
-    else:
-        print(f"  {claim_vectors.shape[0]} claim vectors loaded ({claim_vectors.shape[1]}d)")
+    print("\n[2/5] Embedding claims (fresh, same model as corpus)...")
+    texts = [c['claim_text'] for c in claims]
+    claim_vectors = embed_texts(texts)
+    claim_index = {c['claim_id']: i for i, c in enumerate(claims)}
+    print(f"  {claim_vectors.shape[0]} claims embedded ({claim_vectors.shape[1]}d)")
 
     print("\n[3/5] Loading and embedding corpus...")
     entries_by_node, all_entries = load_corpus(args.corpus_dir)
@@ -456,6 +510,26 @@ def main():
         entries_by_node, cache_dir=RESEARCH_DIR
     )
 
+    tax_dir = os.path.dirname(args.corpus_dir)
+    corpus_node_ids = set(corpus_by_node.keys())
+
+    print("  Loading production description vectors from embeddings.json...")
+    desc_vectors = load_description_vectors(tax_dir)
+    print(f"  {len(desc_vectors)} node vectors loaded from embeddings.json")
+
+    desc_merged = 0
+    for nid in corpus_node_ids:
+        if nid in desc_vectors:
+            corpus_by_node[nid] = np.vstack([desc_vectors[nid].reshape(1, -1), corpus_by_node[nid]])
+            desc_merged += 1
+    print(f"  Merged description vectors for {desc_merged}/{len(corpus_node_ids)} corpus nodes")
+
+    desc_only = {}
+    for nid in corpus_node_ids:
+        if nid in desc_vectors:
+            desc_only[nid] = desc_vectors[nid].reshape(1, -1)
+    print(f"  Baseline candidate set: {len(desc_only)} nodes (corpus nodes only)")
+
     results = {
         'metadata': {
             'generated_at': datetime.now(timezone.utc).isoformat(),
@@ -464,11 +538,25 @@ def main():
             'total_claims': len(claims),
             'total_corpus_statements': len(all_entries),
             'corpus_nodes': len(entries_by_node),
+            'description_vectors_merged': desc_merged,
         }
     }
 
     if not args.cluster_only:
-        print("\n[4/5] Computing attribution metrics...")
+        print("\n[4a/5] Computing baseline (description-only) metrics...")
+        if desc_only:
+            baseline_metrics = compute_attribution_metrics(
+                claims, claim_vectors, claim_index, desc_only, 'max'
+            )
+            if baseline_metrics:
+                print(f"    MRR:       {baseline_metrics['mrr']:.4f}")
+                print(f"    Recall@1:  {baseline_metrics['recall_at_1']:.1f}%")
+                print(f"    Recall@3:  {baseline_metrics['recall_at_3']:.1f}%")
+                print(f"    Recall@5:  {baseline_metrics['recall_at_5']:.1f}%")
+                print(f"    Evaluated: {baseline_metrics['claims_evaluated']} claims against {baseline_metrics['nodes_in_corpus']} nodes")
+                results['baseline_computed'] = baseline_metrics
+
+        print("\n[4b/5] Computing attribution metrics (description + synthetic)...")
         strategies = ['max', 'mean_top_3', 'mean_top_5'] if args.strategy == 'all' else [args.strategy]
 
         attribution_results = {}
@@ -536,7 +624,8 @@ def main():
                 for p in separation['poorly_separated_pairs'][:5]:
                     print(f"    {p['node_a']} ↔ {p['node_b']}: sep={p['separation_score']:.4f} cross_sim={p['mean_cross_similarity']:.4f}")
 
-    baseline_mrr = golden.get('metadata', {}).get('baseline_metrics', {}).get('global_mrr', 0)
+    baseline_mrr = (results.get('baseline_computed', {}).get('mrr')
+                    or golden.get('metadata', {}).get('baseline_metrics', {}).get('global_mrr', 0))
     if 'attribution' in results and results['attribution']:
         best_strat = max(results['attribution'].items(), key=lambda x: x[1]['mrr'])
         best_mrr = best_strat[1]['mrr']
@@ -544,15 +633,18 @@ def main():
         results['summary'] = {
             'best_strategy': best_strat[0],
             'best_mrr': best_mrr,
-            'baseline_mrr': baseline_mrr,
+            'baseline_mrr': round(baseline_mrr, 4),
             'mrr_delta': round(delta, 4),
             'improvement_pct': round(delta / max(baseline_mrr, 0.001) * 100, 1),
         }
         print(f"\n{'=' * 60}")
         print(f"  SUMMARY")
-        print(f"  Baseline MRR:        {baseline_mrr:.4f}")
-        print(f"  Best corpus MRR:     {best_mrr:.4f} ({best_strat[0]})")
-        print(f"  Improvement:         {'+' if delta >= 0 else ''}{delta:.4f} ({results['summary']['improvement_pct']:+.1f}%)")
+        print(f"  Baseline MRR (desc only):   {baseline_mrr:.4f}")
+        print(f"  Best MRR (desc+synthetic):  {best_mrr:.4f} ({best_strat[0]})")
+        print(f"  Improvement:                {'+' if delta >= 0 else ''}{delta:.4f} ({results['summary']['improvement_pct']:+.1f}%)")
+        bc = results.get('baseline_computed', {})
+        if bc:
+            print(f"  Baseline R@1: {bc.get('recall_at_1', 0):.1f}%  →  Best R@1: {best_strat[1].get('recall_at_1', 0):.1f}%")
         print(f"{'=' * 60}")
 
     output_path = os.path.join(args.output_dir, '_evaluation_report.json')

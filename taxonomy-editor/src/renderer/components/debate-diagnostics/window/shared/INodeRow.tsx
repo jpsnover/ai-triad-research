@@ -236,6 +236,7 @@ export function INodeRow({ node, attacks, supports, allNodes, allEdges, isSource
         </div>
       </div>
       {expanded && <div style={{ paddingLeft: 18, marginTop: 2 }}><Highlight text={node.text} query={searchQuery} /></div>}
+      {expanded && node.attribution_text_genus && <div className="claim-attribution-text" style={{ paddingLeft: 18 }}><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
       {/* NL strength explanation (B2) */}
       {expanded && (attacks.length > 0 || supports.length > 0) && (() => {
         const base = node.base_strength ?? 0.5;

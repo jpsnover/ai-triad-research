@@ -403,6 +403,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Synthetic corpus
   loadSyntheticCorpus: (pov: string): Promise<unknown | null> =>
     ipcRenderer.invoke('load-synthetic-corpus', pov),
+  loadSyntheticEmbeddings: (): Promise<Record<string, { pov: string; vectors: number[][] }> | null> =>
+    ipcRenderer.invoke('load-synthetic-embeddings'),
 
   // Feedback & error reporting
   submitFeedback: (rating: string, text?: string): Promise<{ ok: boolean; id?: string }> =>

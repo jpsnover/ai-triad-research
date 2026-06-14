@@ -176,6 +176,14 @@ export async function loadSyntheticCorpus(pov: string): Promise<unknown | null> 
   return JSON.parse(raw.replace(/^﻿/, ''));
 }
 
+export async function loadSyntheticEmbeddings(): Promise<Record<string, { pov: string; vectors: number[][] }> | null> {
+  const filePath = path.join(getTaxonomyDir(), 'synthetic', 'synthetic_embeddings.json');
+  const raw = await backend.readFile(filePath);
+  if (raw === null) return null;
+  const parsed = JSON.parse(raw.replace(/^﻿/, '')) as { nodes?: Record<string, { pov: string; vectors: number[][] }> } | null;
+  return parsed?.nodes ?? null;
+}
+
 export async function writeTaxonomyFile(pov: string, data: unknown): Promise<void> {
   const filePath = await resolveTaxonomyFilePath(pov);
   await backend.writeFile(filePath, JSON.stringify(data, null, 2));

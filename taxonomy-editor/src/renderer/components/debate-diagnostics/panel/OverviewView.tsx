@@ -135,7 +135,7 @@ function StrengthTimeline({ timeline, nodes, onSelectClaim }: {
                 {' '}({delta > 0 ? '+' : ''}{delta.toFixed(2)})
               </span>
             )}
-            <div className="diag-muted" style={{ fontSize: '0.6rem' }}>{node.text.slice(0, 100)}{node.text.length > 100 ? '…' : ''}</div>
+            <div className="diag-muted" style={{ fontSize: '0.6rem' }} title={node.attribution_text_genus || undefined}>{node.text.slice(0, 100)}{node.text.length > 100 ? '…' : ''}</div>
           </div>
         );
       })()}

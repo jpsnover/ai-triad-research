@@ -255,6 +255,7 @@ export function GraphNodeDetailPanel({ node, edges, allNodes, onClose }: NodeDet
         <button className="ag-detail-close" onClick={onClose}>&times;</button>
       </div>
       <div className="ag-detail-claim">{node.text}</div>
+      {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
       <div className="ag-detail-meta">
         <span>Speaker: {node.speaker}</span>
         <span>Turn: {node.turn_number}</span>

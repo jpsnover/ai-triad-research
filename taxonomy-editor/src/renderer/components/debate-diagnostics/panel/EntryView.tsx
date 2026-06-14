@@ -51,6 +51,7 @@ function QbafClaimStrengthSection({ entryId, activeDebate }: { entryId: string; 
               <QbafClaimBadge node={node} />
             </div>
             <div className="diag-qbaf-claim-text">{node.text}</div>
+            {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
             <div className="diag-qbaf-strength-row">
               <span className="diag-k">Intrinsic:</span> <span className="diag-v">{base.toFixed(2)}</span>
               <span className="diag-qbaf-arrow">→</span>

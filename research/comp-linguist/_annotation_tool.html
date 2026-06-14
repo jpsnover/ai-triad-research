@@ -184,12 +184,189 @@ body {
   border-left: 3px solid var(--accent);
   margin-bottom: 4px;
 }
+.claim-attribution {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 16px;
+  background: rgba(59, 130, 246, 0.06);
+  border-radius: 8px;
+  border-left: 3px solid var(--purple);
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+.claim-attribution-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
 .claim-debate-id {
   font-size: 11px;
   color: var(--text-muted);
   text-align: right;
   margin-bottom: 8px;
 }
+
+/* Debate context */
+.context-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: all 0.15s;
+  width: fit-content;
+}
+.context-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.context-toggle .arrow { transition: transform 0.2s; }
+.context-toggle.open .arrow { transform: rotate(90deg); }
+.debate-context {
+  display: none;
+  margin-bottom: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.debate-context.visible { display: block; }
+.debate-context-header {
+  padding: 8px 12px;
+  background: var(--surface2);
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.context-turn {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.context-turn:last-child { border-bottom: none; }
+.context-turn.claim-turn {
+  background: rgba(88,166,255,0.06);
+  border-left: 3px solid var(--accent);
+}
+.context-turn .turn-speaker {
+  font-weight: 600;
+  font-size: 12px;
+  margin-bottom: 4px;
+  text-transform: capitalize;
+}
+.context-turn .turn-speaker.speaker-accelerationist { color: var(--acc); }
+.context-turn .turn-speaker.speaker-safetyist { color: var(--saf); }
+.context-turn .turn-speaker.speaker-skeptic { color: var(--skp); }
+.context-turn .turn-speaker.speaker-moderator { color: var(--yellow); }
+.context-turn .turn-speaker.speaker-system { color: var(--text-muted); }
+.context-turn .turn-content { color: var(--text); }
+.context-turn.claim-turn .turn-content { color: var(--text); }
+.context-turn .turn-type {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 8px;
+  font-weight: 400;
+}
+
+/* Node search */
+.search-section {
+  margin-bottom: 14px;
+}
+.search-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--purple);
+  font-size: 12px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  width: fit-content;
+  transition: all 0.15s;
+}
+.search-toggle:hover { border-color: var(--purple); }
+.search-toggle .arrow { transition: transform 0.2s; }
+.search-toggle.open .arrow { transform: rotate(90deg); }
+.search-panel {
+  display: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface2);
+}
+.search-panel.visible { display: block; }
+.search-input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.search-input {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.search-input:focus { outline: none; border-color: var(--purple); }
+.search-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.search-filter-btn {
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.search-filter-btn:hover { border-color: var(--text); }
+.search-filter-btn.active { border-color: var(--purple); color: var(--purple); background: rgba(188,140,255,0.1); }
+.search-filter-btn.active-acc { border-color: var(--acc); color: var(--acc); background: rgba(240,136,62,0.1); }
+.search-filter-btn.active-saf { border-color: var(--saf); color: var(--saf); background: rgba(88,166,255,0.1); }
+.search-filter-btn.active-skp { border-color: var(--skp); color: var(--skp); background: rgba(188,140,255,0.1); }
+.search-results {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.search-results::-webkit-scrollbar { width: 6px; }
+.search-results::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.search-result {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.search-result:hover { border-color: var(--purple); background: rgba(188,140,255,0.05); }
+.search-result.selected { border-color: var(--green); background: var(--green-dim); }
+.search-result-id {
+  font-family: 'SF Mono', 'Consolas', monospace;
+  color: var(--accent);
+  font-size: 11px;
+}
+.search-result-label { font-weight: 500; margin: 2px 0; }
+.search-result-desc { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+.search-count { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
 
 /* Candidates */
 .candidates-label {
@@ -279,6 +456,37 @@ body {
   transition: all 0.15s;
 }
 .none-above-btn:hover { border-color: var(--red); color: var(--red); }
+.btn-reset {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-left: auto;
+}
+.btn-reset:hover { border-color: var(--yellow); color: var(--yellow); }
+.canonical-text {
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 10px 16px;
+  background: rgba(63, 185, 80, 0.06);
+  border-radius: 8px;
+  border-left: 3px solid var(--green);
+  margin-bottom: 4px;
+  color: var(--text);
+  font-style: italic;
+}
+.canonical-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
 .none-above-btn.active {
   border-color: var(--red);
   background: var(--red-dim);
@@ -508,7 +716,10 @@ kbd {
       <span><kbd>1</kbd>-<kbd>6</kbd> Select candidate</span>
       <span><kbd>0</kbd> None of above</span>
       <span><kbd>H</kbd> <kbd>M</kbd> <kbd>L</kbd> Confidence</span>
+      <span><kbd>C</kbd> Debate context</span>
+      <span><kbd>S</kbd> Search nodes</span>
       <span><kbd>N</kbd> Focus notes</span>
+      <span><kbd>R</kbd> Reset</span>
       <span><kbd>&larr;</kbd> <kbd>&rarr;</kbd> Navigate</span>
     </div>
   </div>
@@ -523,6 +734,8 @@ let filteredIndices = [];
 let currentFilteredPos = 0;
 let currentFilter = 'all';
 let annotatorName = '';
+let taxonomyIndex = [];
+let searchFilters = { pov: null, bdi: null };
 
 function init() {
   document.getElementById('file-input').addEventListener('change', handleFile);
@@ -532,7 +745,7 @@ function init() {
 
   const saved = localStorage.getItem('annotation_progress');
   if (saved) {
-    document.querySelector('[onclick="loadSaved()"]').textContent = 'Resume Saved ✓';
+    loadSaved();
   }
 }
 
@@ -553,6 +766,7 @@ function readFile(file) {
     try {
       data = JSON.parse(e.target.result);
       claims = data.claims || [];
+      mergeSavedAnnotations();
       startAnnotation();
     } catch (err) {
       toast('Invalid JSON file', true);
@@ -561,9 +775,32 @@ function readFile(file) {
   reader.readAsText(file);
 }
 
+function mergeSavedAnnotations() {
+  const saved = localStorage.getItem('annotation_progress');
+  if (!saved) return;
+  try {
+    const parsed = JSON.parse(saved);
+    const savedClaims = parsed.claims || [];
+    const savedMap = {};
+    savedClaims.forEach(c => { if (c.annotation && (c.annotation.selected_node || c.annotation.none_of_above)) savedMap[c.claim_id] = c.annotation; });
+    let merged = 0;
+    claims.forEach(c => {
+      if (savedMap[c.claim_id]) {
+        c.annotation = savedMap[c.claim_id];
+        merged++;
+      }
+    });
+    if (merged > 0) {
+      if (parsed.annotator) { annotatorName = parsed.annotator; document.getElementById('annotator-name').value = annotatorName; }
+      toast(`Merged ${merged} saved annotations`);
+    }
+  } catch (err) {}
+}
+
 function startAnnotation() {
   document.getElementById('load-screen').style.display = 'none';
   document.getElementById('main-ui').style.display = 'block';
+  taxonomyIndex = data.taxonomy_index || [];
   applyFilter();
   renderNavStrip();
   renderClaim();
@@ -633,10 +870,36 @@ function renderClaim() {
       <span class="badge badge-bdi">${c.bdi_category}</span>
       <span style="color:var(--text-muted)">${c.claim_id}</span>
       <span style="color:var(--text-muted)">speaker: ${c.speaker}</span>
+      ${(a.selected_node || a.none_of_above) ? `<button class="btn-reset" onclick="resetAnnotation(${gi})" title="Clear annotation and return to pending">Reset</button>` : ''}
     </div>
     <div class="claim-text">${escHtml(c.claim_text)}</div>
-    <div class="claim-debate-id">debate: ${c.debate_id}</div>
+    ${c.canonical_proposition ? `<div class="canonical-text">
+      <div class="canonical-label">Canonical proposition</div>
+      ${escHtml(c.canonical_proposition)}
+    </div>` : ''}
+    ${c.attribution_text_genus ? `<div class="claim-attribution">
+      <div class="claim-attribution-label">Attribution text (used for node matching)</div>
+      ${escHtml(c.attribution_text_genus)}
+    </div>` : ''}
+    <div class="claim-debate-id">${c.debate_title ? escHtml(c.debate_title) + ' — ' : ''}debate: ${c.debate_id}${c.turn_number != null ? ', turn ' + c.turn_number : ''}</div>`;
 
+  if (c.debate_context && c.debate_context.length > 0) {
+    const ctxId = 'ctx-' + gi;
+    html += `<button class="context-toggle" onclick="toggleContext('${ctxId}', this)">
+      <span class="arrow">▸</span> View in debate
+    </button>
+    <div class="debate-context" id="${ctxId}">
+      <div class="debate-context-header">Surrounding turns (turn ${c.turn_number} highlighted)</div>`;
+    c.debate_context.forEach(t => {
+      html += `<div class="context-turn ${t.is_claim_turn ? 'claim-turn' : ''}">
+        <div class="turn-speaker speaker-${t.speaker}">${t.speaker}<span class="turn-type">${t.type} · turn ${t.turn_index}</span></div>
+        <div class="turn-content">${escHtml(t.content)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `
     <div class="candidates-label">Candidate Nodes (select best match)</div>`;
 
   c.candidate_nodes.forEach((cn, idx) => {
@@ -653,10 +916,51 @@ function renderClaim() {
     </div>`;
   });
 
+  const candidateIds = new Set(c.candidate_nodes.map(cn => cn.node_id));
+  const selectedFromSearch = a.selected_node && !candidateIds.has(a.selected_node);
   html += `<button class="none-above-btn ${a.none_of_above ? 'active' : ''}" onclick="toggleNoneAbove(${gi})">
     ${a.none_of_above ? '✗ None of the above (selected)' : 'None of the above — no candidate fits this claim'}
   </button>
 
+  <div class="search-section">
+    <button class="search-toggle ${selectedFromSearch ? 'open' : ''}" onclick="toggleSearch(this)">
+      <span class="arrow">${selectedFromSearch ? '▾' : '▸'}</span> Search all nodes${selectedFromSearch ? ' (custom selection active)' : ''}
+    </button>
+    <div class="search-panel ${selectedFromSearch ? 'visible' : ''}" id="search-panel">
+      <div class="search-input-row">
+        <input type="text" class="search-input" id="search-input" placeholder="Search by ID or label..." oninput="doSearch(${gi})">
+      </div>
+      <div class="search-filters">
+        <span style="font-size:11px;color:var(--text-muted);margin-right:4px;">POV:</span>
+        <button class="search-filter-btn" data-pov="acc" onclick="toggleSearchFilter(this,'pov')">acc</button>
+        <button class="search-filter-btn" data-pov="saf" onclick="toggleSearchFilter(this,'pov')">saf</button>
+        <button class="search-filter-btn" data-pov="skp" onclick="toggleSearchFilter(this,'pov')">skp</button>
+        <span style="font-size:11px;color:var(--text-muted);margin-left:8px;margin-right:4px;">BDI:</span>
+        <button class="search-filter-btn" data-bdi="beliefs" onclick="toggleSearchFilter(this,'bdi')">beliefs</button>
+        <button class="search-filter-btn" data-bdi="desires" onclick="toggleSearchFilter(this,'bdi')">desires</button>
+        <button class="search-filter-btn" data-bdi="intentions" onclick="toggleSearchFilter(this,'bdi')">intentions</button>
+      </div>
+      <div class="search-count" id="search-count"></div>
+      <div class="search-results" id="search-results"></div>
+    </div>
+  </div>`;
+
+  if (selectedFromSearch) {
+    const selNode = taxonomyIndex.find(n => n.id === a.selected_node);
+    if (selNode) {
+      html += `<div class="candidate selected" style="margin-bottom:12px;">
+        <div class="candidate-check">✓</div>
+        <div class="candidate-header">
+          <span class="candidate-id">${selNode.id}</span>
+          <span style="font-size:11px;color:var(--purple);">custom selection</span>
+        </div>
+        <div class="candidate-label">${escHtml(selNode.label)}</div>
+        <div class="candidate-desc">${escHtml(selNode.desc)}</div>
+      </div>`;
+    }
+  }
+
+  html += `
   <div class="annotation-controls">
     <div>
       <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Confidence:</div>
@@ -676,6 +980,131 @@ function renderClaim() {
   area.innerHTML = html;
   document.getElementById('claim-counter').textContent =
     `${currentFilteredPos + 1} / ${filteredIndices.length}`;
+}
+
+function toggleContext(id, btn) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('visible');
+  btn.classList.toggle('open');
+}
+
+function toggleSearch(btn) {
+  const panel = document.getElementById('search-panel');
+  if (!panel) return;
+  panel.classList.toggle('visible');
+  btn.classList.toggle('open');
+  if (panel.classList.contains('visible')) {
+    const input = document.getElementById('search-input');
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+}
+
+function toggleSearchFilter(btn, type) {
+  const val = btn.dataset[type];
+  if (searchFilters[type] === val) {
+    searchFilters[type] = null;
+    btn.classList.remove('active', 'active-acc', 'active-saf', 'active-skp');
+  } else {
+    document.querySelectorAll(`.search-filter-btn[data-${type}]`).forEach(b =>
+      b.classList.remove('active', 'active-acc', 'active-saf', 'active-skp'));
+    searchFilters[type] = val;
+    if (type === 'pov') btn.classList.add('active-' + val);
+    else btn.classList.add('active');
+  }
+  const gi = filteredIndices[currentFilteredPos];
+  if (gi != null) doSearch(gi);
+}
+
+function doSearch(gi) {
+  const input = document.getElementById('search-input');
+  const resultsEl = document.getElementById('search-results');
+  const countEl = document.getElementById('search-count');
+  if (!input || !resultsEl) return;
+
+  const query = input.value.trim().toLowerCase();
+  const a = claims[gi].annotation;
+
+  let filtered = taxonomyIndex;
+  if (searchFilters.pov) {
+    filtered = filtered.filter(n => n.pov === searchFilters.pov);
+  }
+  if (searchFilters.bdi) {
+    filtered = filtered.filter(n => n.bdi === searchFilters.bdi);
+  }
+
+  if (query.length < 2 && !searchFilters.pov && !searchFilters.bdi) {
+    resultsEl.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:12px;">Type at least 2 characters or select a filter</div>';
+    countEl.textContent = '';
+    return;
+  }
+
+  let results = filtered;
+  if (query.length >= 2) {
+    if (query.includes('*') || query.includes('?')) {
+      const pattern = query.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*/g, '.*').replace(/\?/g, '.');
+      const re = new RegExp('^' + pattern + '$', 'i');
+      const rePartial = new RegExp(pattern, 'i');
+      results = filtered.filter(n =>
+        re.test(n.id) || rePartial.test(n.id) ||
+        re.test(n.label) || rePartial.test(n.label)
+      );
+    } else {
+      results = filtered.filter(n =>
+        n.id.toLowerCase().includes(query) ||
+        n.label.toLowerCase().includes(query)
+      );
+    }
+  }
+
+  const maxShow = 30;
+  countEl.textContent = results.length > maxShow
+    ? `${results.length} matches (showing first ${maxShow})`
+    : `${results.length} matches`;
+
+  const shown = results.slice(0, maxShow);
+  resultsEl.innerHTML = shown.map(n => {
+    const isSelected = a.selected_node === n.id;
+    return `<div class="search-result ${isSelected ? 'selected' : ''}" onclick="selectFromSearch(${gi}, '${n.id}')">
+      <div class="search-result-id">${n.id} <span style="color:var(--text-muted)">${n.bdi}</span></div>
+      <div class="search-result-label">${escHtml(n.label)}</div>
+      <div class="search-result-desc">${escHtml(n.desc)}</div>
+    </div>`;
+  }).join('');
+
+  if (results.length === 0) {
+    resultsEl.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:12px;">No nodes match your search</div>';
+  }
+}
+
+function selectFromSearch(gi, nodeId) {
+  const a = claims[gi].annotation;
+  if (a.selected_node === nodeId) {
+    a.selected_node = '';
+  } else {
+    a.selected_node = nodeId;
+    a.none_of_above = false;
+  }
+  a.annotator = annotatorName;
+  renderClaim();
+  renderNavStrip();
+  updateProgress();
+  autoSave();
+}
+
+function resetAnnotation(gi) {
+  const a = claims[gi].annotation;
+  a.selected_node = '';
+  a.none_of_above = false;
+  a.confidence = '';
+  a.notes = '';
+  a.annotator = annotatorName;
+  renderClaim();
+  renderNavStrip();
+  updateProgress();
+  autoSave();
+  toast('Annotation reset');
 }
 
 function selectCandidate(gi, nodeId) {
@@ -752,10 +1181,19 @@ function handleKeys(e) {
   else if (e.key === 'h' || e.key === 'H') { setConfidence(gi, 'high'); }
   else if (e.key === 'm' || e.key === 'M') { setConfidence(gi, 'medium'); }
   else if (e.key === 'l' || e.key === 'L') { setConfidence(gi, 'low'); }
+  else if (e.key === 'c' || e.key === 'C') {
+    const ctxBtn = document.querySelector('.context-toggle');
+    if (ctxBtn) { ctxBtn.click(); e.preventDefault(); }
+  }
+  else if (e.key === 's' || e.key === 'S') {
+    const searchBtn = document.querySelector('.search-toggle');
+    if (searchBtn) { searchBtn.click(); e.preventDefault(); }
+  }
   else if (e.key === 'n' || e.key === 'N') {
     const notesEl = document.getElementById('notes-input');
     if (notesEl) { notesEl.focus(); e.preventDefault(); }
   }
+  else if (e.key === 'r' || e.key === 'R') { resetAnnotation(gi); }
 }
 
 function updateProgress() {
@@ -774,6 +1212,7 @@ function autoSave() {
       annotator: annotatorName,
       claims: claims,
       metadata: data.metadata,
+      taxonomy_index: taxonomyIndex,
       savedAt: new Date().toISOString()
     }));
   }, 500);
@@ -784,6 +1223,7 @@ function saveProgress() {
     annotator: annotatorName,
     claims: claims,
     metadata: data.metadata,
+    taxonomy_index: taxonomyIndex,
     savedAt: new Date().toISOString()
   }));
   toast('Progress saved to browser storage');
@@ -795,7 +1235,7 @@ function loadSaved() {
   try {
     const parsed = JSON.parse(saved);
     claims = parsed.claims;
-    data = { metadata: parsed.metadata, claims: claims };
+    data = { metadata: parsed.metadata, claims: claims, taxonomy_index: parsed.taxonomy_index || [] };
     annotatorName = parsed.annotator || '';
     document.getElementById('annotator-name').value = annotatorName;
     startAnnotation();

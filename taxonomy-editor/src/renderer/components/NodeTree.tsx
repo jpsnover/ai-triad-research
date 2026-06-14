@@ -178,6 +178,22 @@ function computeVisibleIds(
 export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange }: NodeTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
 
+  // Collapse all parent/cluster groups when sort mode changes
+  const prevSortMode = useRef(sortMode);
+  useEffect(() => {
+    if (prevSortMode.current !== sortMode) {
+      prevSortMode.current = sortMode;
+      setCollapsed(() => {
+        const next = new Set<string>(CATEGORY_ORDER);
+        for (const n of nodes) {
+          if (n.children && n.children.length > 0) next.add(`parent-${n.id}`);
+        }
+        saveCollapsed(next);
+        return next;
+      });
+    }
+  }, [sortMode, nodes]);
+
   // Auto-expand category when keyboard nav selects a node in a collapsed group
   useEffect(() => {
     if (!selectedNodeId) return;

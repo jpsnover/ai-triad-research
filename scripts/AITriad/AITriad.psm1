@@ -171,8 +171,10 @@ class AITClaim {
 # ─────────────────────────────────────────────────────────────────────────────
 $script:TaxonomyData = @{}
 $script:TaxonomyFileTimestamps = @{}  # file path → LastWriteTime for staleness detection
-$script:CachedEmbeddings = $null  # Lazy-loaded by Get-RelevantTaxonomyNodes
-$script:EmbeddingsTimestamp = $null   # LastWriteTime of embeddings.json
+$script:CachedEmbeddings = $null         # Lazy-loaded by Get-RelevantTaxonomyNodes
+$script:EmbeddingsTimestamp = $null      # LastWriteTime of embeddings.json
+$script:CachedSyntheticVectors = $null   # Lazy-loaded (multi-vector synthetic embeddings)
+$script:SyntheticTimestamp = $null       # LastWriteTime of synthetic_embeddings.json
 $script:TaxonomyCacheLastCheck = $null  # UTC time of last staleness check (cooldown)
 
 # ─────────────────────────────────────────────────────────────────────────────

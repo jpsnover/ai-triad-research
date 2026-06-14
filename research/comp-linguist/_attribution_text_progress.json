@@ -1,0 +1,214 @@
+{
+  "AN-31": {
+    "freeform": "Adaptive governance initiatives, such as those attempted at California campuses, consistently fail because post-deployment lock-in effects, including vendor contracts and administrative momentum, structurally prevent meaningful rollback of AI systems, even when they are not helping students. This creates a barrier to entry for alternative solutions and reinforces existing institutional sclerosis.",
+    "genus": "A Belief within safetyist discourse that post-deployment lock-in effects structurally prevent the rollback of AI systems in public universities. Encompasses: vendor contracts creating switching costs, administrative momentum hindering policy changes, and institutional sclerosis preventing market adaptation."
+  },
+  "AN-81": {
+    "freeform": "EDUCAUSE primarily functions as a convening body for higher education technology professionals, facilitating information exchange and networking, rather than acting as a countervailing power that actively opposes dominant technology vendors, demands algorithmic transparency, or funds alternative AI development pathways in the educational technology sector.",
+    "genus": "A Belief within skeptic discourse that EDUCAUSE operates as a convening body, not a countervailing power. Encompasses: Facilitating information exchange among higher education technology professionals, lacking active opposition to dominant vendors, and not demanding algorithmic transparency."
+  },
+  "AN-48": {
+    "freeform": "Companies ought to prioritize comprehensive human comprehension of AI system failures over reliance on metrics for incident response. If an on-call engineer cannot confidently explain and fix an AI-generated service failure at 2 AM on a holiday weekend without deep understanding, the company is trading short-term development velocity for increased future incident response times and systemic risk.",
+    "genus": "A Desire within safetyist discourse that companies ought to prioritize human comprehension and algorithmic accountability in AI system debugging over metric-driven velocity. Encompasses: Reduced incident response time, confident human intervention, and mitigating systemic risk from opaque AI failures."
+  },
+  "AN-30": {
+    "freeform": "Telemetry-based liability, which relies on output dashboards for monitoring, is a data-laundering scheme that enables vendors to control the metrics of their own negligence. This mechanism allows vendors to define the thresholds and data streams, thereby obscuring systemic bias like channeling and preventing effective algorithmic accountability for harms caused by AI deployments in public universities.",
+    "genus": "A Belief within skeptic discourse that telemetry-based liability, when applied to AI deployments in public universities, constitutes a data-laundering scheme. Encompasses: Vendor control over algorithmic accountability metrics, obfuscation of systemic bias, and performative compliance."
+  },
+  "AN-82": {
+    "freeform": "Notification of an algorithmic financial aid decision without the right to refuse algorithmic processing constitutes performative compliance, as it informs students of an AI's decision while denying them human agency to challenge or opt out, thereby recording their powerlessness rather than providing algorithmic accountability or protection.",
+    "genus": "A Belief within skeptic discourse that notification of an algorithmic financial aid decision without the right to refuse algorithmic processing is performative compliance. Encompasses: denial of human agency, lack of algorithmic accountability, recording student powerlessness."
+  },
+  "AN-16": {
+    "freeform": "Relying on post-deployment data logs and real-time telemetry dashboards to manage frontier models is a category error for algorithmic accountability, as these systems exhibit emergent, non-linear behaviors that cannot be predicted or fully understood by observing past outputs, making output-based oversight insufficient for detecting systemic risk.",
+    "genus": "A Belief within safetyist discourse that post-deployment output monitoring, such as real-time telemetry dashboards, is an insufficient mechanism for algorithmic accountability in frontier models due to their emergent, non-linear behaviors. Encompasses: limitations of output-based oversight, unpredictability of frontier model behavior, and challenges in detecting systemic risk."
+  },
+  "AN-9": {
+    "freeform": "The 2001 Authorization for Use of Military Force, initially designed for a specific post-9/11 conflict, has been invoked over two decades to justify military operations in at least seven countries, demonstrating how legal frameworks can be expanded beyond their original scope to authorize state power.",
+    "genus": "A Belief within safetyist discourse that examines how initial legal authorizations for state power, like the 2001 AUMF, can be expanded over time to justify operations far beyond their original scope. Encompasses: scope creep of legal frameworks, authorization of state power, and long-term implications of policy decisions."
+  },
+  "AN-10": {
+    "freeform": "The University of California’s pilot study on Artificial Intelligence integration provides insufficient empirical evidence to justify system-wide policy changes, particularly regarding the implementation of AI tools in higher education, due to limitations in study design and scope.",
+    "genus": "A Belief within safetyist discourse that current pilot studies on AI integration in higher education lack sufficient empirical grounding to warrant system-wide policy changes. Encompasses: limitations of short-term, small-sample studies; risks of turning students into involuntary test subjects; and the need for robust pre-deployment verification."
+  },
+  "AN-28": {
+    "freeform": "The demand for full model decomposition, requiring complete internal access to AI model architecture and training data, constitutes an unscalable bottleneck for AI development and deployment within California's public universities. This requirement would effectively halt all technological progress by imposing an insurmountable burden on vendors and institutions, preventing the adoption of beneficial AI tools.",
+    "genus": "A Belief within accelerationist discourse that requiring full AI model decomposition, including internal access to architecture and training data, creates an unscalable bottleneck for AI development and deployment. Encompasses: Halting technological progress, insurmountable burdens on vendors and institutions, preventing beneficial AI adoption."
+  },
+  "AN-22": {
+    "freeform": "Output telemetry dashboards, specifically Telemetry-as-a-Service, provide a granular and actionable view of AI model behavior, enabling real-time detection of disparate impact and systemic bias in public university deployments, a capability that static weight disclosure lacks. This approach facilitates proactive algorithmic accountability and governance, preventing harm before external exposure.",
+    "genus": "A Belief within accelerationist discourse that output telemetry dashboards, such as Telemetry-as-a-Service, offer superior algorithmic accountability and real-time bias detection compared to static model disclosures. Encompasses: proactive governance, granular model behavior insights, and prevention of systemic bias in AI deployments."
+  },
+  "AN-37": {
+    "freeform": "The Engineering Director with VP-level sign-off at USC, despite their authority, does not establish independence from the university's revenue-generating objectives. Instead, this organizational structure creates a formal record documenting the decision to deprioritize AI model rewrites, thereby shifting accountability for the lack of pedagogical structure in AI adoption.",
+    "genus": "A Belief within skeptic discourse that an Engineering Director with VP-level sign-off within a university's AI deployment structure does not create independence from revenue-generating objectives. Encompasses: performative compliance, institutional friction, accountability for deprioritized AI model rewrites."
+  },
+  "AN-15": {
+    "freeform": "Developer-anchored strict liability for general-purpose AI models is fundamentally incompatible with the existing tiered, domain-specific regulatory frameworks that both opponents endorse, as these frameworks are designed for specific applications and lack the flexibility to accommodate broad, cross-domain liability assignments for frontier models.",
+    "genus": "A Belief within accelerationist discourse that developer-anchored strict liability for general-purpose AI models is incoherent with existing tiered, domain-specific regulation. Encompasses: the incompatibility of broad liability with application-specific regulatory frameworks, the lack of flexibility in current regulations for cross-domain AI, and the challenge of assigning liability for frontier models within established regulatory structures."
+  },
+  "AN-32": {
+    "freeform": "Automated safety evaluation systems, lacking the capacity to identify nuanced harms, displace the human review layer that provides essential scalable oversight. This human-in-the-loop review, exemplified by content moderators, constitutes the actual safety infrastructure for catching what automated systems miss, particularly in the context of AI governance failures within California's public universities.",
+    "genus": "A Belief within skeptic discourse that automated safety evaluation displaces human-in-the-loop review, which is the actual safety infrastructure for catching harms missed by automated systems. Encompasses: The necessity of human oversight for nuanced harm detection, the inadequacy of automated systems for comprehensive safety, and the critical role of human content moderators in AI safety."
+  },
+  "AN-79": {
+    "freeform": "The Accelerationist's proposed 45-day provisional audit for administrative AI systems assumes vendor cooperation, which is an unsolved problem due to prevalent contractual evaluation foreclosure in educational technology procurement. Without mandatory contractual audit-access clauses, audit timelines become a governance mirage, lacking actual accountability and enabling vendor lock-in effects.",
+    "genus": "A Belief within skeptic discourse that the Accelerationist's 45-day provisional audit for administrative AI systems is ineffective because it assumes vendor cooperation, which is routinely blocked by contractual evaluation foreclosure. Encompasses: Vendor lock-in effects, lack of algorithmic accountability, and the necessity of mandatory audit-access clauses."
+  },
+  "AN-29": {
+    "freeform": "The AI Transparency and Certification Board (ATCB) validates a deployer's monitoring infrastructure but does not examine developer-level decisions like training data selection, proxy variable choices, and architectural tradeoffs in foundation models. This oversight allows insidious harms to be baked into AI systems before deployment, making output-only monitoring structurally incapable of detecting systemic bias, such as channeling bias.",
+    "genus": "A Belief within skeptic discourse that current algorithmic accountability mechanisms, specifically the ATCB's pre-deployment verification, are insufficient because they fail to audit developer-level decisions. Encompasses: Training data provenance, proxy variable choices, and architectural tradeoffs in frontier models."
+  },
+  "AN-20": {
+    "freeform": "Statutory discovery requirements in AI procurement processes function as a regulatory barrier to entry, disproportionately benefiting massive incumbent AI vendors. These requirements create lock-in effects and increase compliance costs, making it difficult for smaller entities to compete and survive in the market, thereby contributing to regulatory capture by established players.",
+    "genus": "A Belief within accelerationist discourse that statutory discovery requirements in AI procurement create a regressive regulatory moat. Encompasses: increased compliance costs, market lock-in effects, and disproportionate benefit to incumbent AI vendors."
+  },
+  "AN-50": {
+    "freeform": "Global private investment in AI reached a record high of $150.79 billion in 2024, demonstrating immense potential for economic uplift and human flourishing, which supports the accelerationist view that rapid AI adoption can yield significant societal benefits despite documented governance failures in educational institutions.",
+    "genus": "A Belief within accelerationist discourse that substantial global private investment in AI, reaching $150.79 billion in 2024, indicates the technology's immense potential for economic uplift and human flourishing. Encompasses: The economic benefits of AI deployment; the potential for societal improvement through AI; the justification for rapid AI adoption."
+  },
+  "AN-4": {
+    "freeform": "California's public universities ought to ensure that genuine resilience and adaptation to AI integration require collective action and democratic oversight, rather than relying solely on individual effort, particularly to prevent vendor-driven agendas from dictating AI adoption and to establish algorithmic accountability.",
+    "genus": "A Desire within skeptic discourse that genuine resilience and adaptation to AI integration ought to be achieved through collective action and democratic oversight. Encompasses: preventing vendor-driven AI adoption, establishing algorithmic accountability, and fostering human agency in AI-mediated contexts."
+  },
+  "AN-12": {
+    "freeform": "The development of frontier AI models constitutes massive, energy-intensive infrastructure projects, built by a global labor force engaged in data labeling for minimal compensation, which sustains the operational functionality of these AI systems.",
+    "genus": "A Belief within skeptic discourse that the development of frontier AI models relies on energy-intensive infrastructure and a globally distributed, underpaid data labeling workforce. Encompasses: the high energy consumption of AI infrastructure, the low compensation for data labelers, and the essential role of human data labeling in AI system operation."
+  },
+  "AN-42": {
+    "freeform": "The software engineering literature, specifically Lientz and Swanson's 1980 study, consistently indicates that 60-80% of post-launch software maintenance effort is dedicated to corrective work (fixing domain-logic errors) and adaptive work (adjusting to changed requirements), rather than to refactoring structurally complex code. This suggests that the primary challenges in software maintenance are related to functional correctness and evolving user needs, not inherent code complexity.",
+    "genus": "A Belief within skeptic discourse that the majority of post-launch software maintenance effort is allocated to corrective and adaptive work, addressing domain-logic errors and evolving requirements, rather than to untangling structurally complex code. Encompasses: domain-logic errors, adaptive maintenance, corrective maintenance."
+  },
+  "AN-26": {
+    "freeform": "Pre-deployment verification mechanisms, such as those proposed for California public universities, do not genuinely solve performative compliance with AI safety standards; instead, they merely relocate the incentive for gaming the system to earlier stages of the AI development and deployment pipeline, prior to the formal verification gates.",
+    "genus": "A Belief within accelerationist discourse that pre-deployment verification mechanisms for AI systems do not eliminate performative compliance but rather shift the incentive for strategic non-compliance to earlier stages of the development pipeline. Encompasses: Gaming incentives, performative compliance, pre-deployment verification."
+  },
+  "AN-51": {
+    "freeform": "AI literacy, when lacking foundational analytical skills, constitutes a form of fluency in dependence rather than genuine understanding. This condition risks AI-induced automation bias, where students excessively trust AI outputs, potentially weakening cognitive skills and creating a superficial appearance of learning without true comprehension of the underlying reasoning processes.",
+    "genus": "A Belief within skeptic discourse that AI literacy, absent foundational analytical skills, fosters dependency and automation bias. Encompasses: Excessive trust in AI outputs, weakening of cognitive skills, and superficial learning without genuine understanding."
+  },
+  "AN-8": {
+    "freeform": "Mandating that startups disclose their source code to the state creates a significant barrier to entry, stifling competitive innovation by imposing substantial legal and compliance costs that only incumbent firms with established legal teams can manage, thereby consolidating market power and hindering the development of novel AI solutions.",
+    "genus": "A Belief within accelerationist discourse that mandating source code disclosure for startups acts as a barrier to entry. Encompasses: increased compliance costs, reduced competitive innovation, and market consolidation benefiting incumbents."
+  },
+  "AN-47": {
+    "freeform": "Relying on human willpower and informal hallway conversations for governance of AI in university administrative functions is less effective than implementing automated pipeline enforcement mechanisms for algorithmic accountability and pre-deployment verification of AI systems.",
+    "genus": "A Belief within accelerationist discourse that human-centric, informal governance mechanisms are inferior to automated pipeline enforcement for ensuring algorithmic accountability and pre-deployment verification of AI systems in university administration. Encompasses: Automated enforcement, algorithmic accountability, pre-deployment verification."
+  },
+  "AN-63": {
+    "freeform": "To mitigate differential harms, implement time-bounded concurrent review, including the Accelerationist's 90-plus-60-day escalation model, for classroom pedagogical AI tools. Conversely, administrative AI systems determining university admissions, financial aid, or academic standing require strict pre-deployment verification gates without a countdown clock, reflecting their potential for functionally irreversible individual harms.",
+    "genus": "An Intention within safetyist discourse that advocates for a tiered regulatory architecture for educational AI, applying time-bounded concurrent review to classroom pedagogical tools and strict pre-deployment verification gates to administrative AI systems. Encompasses: differential technology development, pre-deployment verification, and algorithmic accountability for high-stakes decisions."
+  },
+  "AN-17": {
+    "freeform": "The accelerationist intends to achieve AI oversight by replacing human-labor-intensive Reinforcement Learning from Human Feedback (RLHF) with automated, real-time impact assessments, specifically through output-based monitoring via telemetry dashboards, court-admissible audit trails, and tiered accountability triggers to detect and remediate biased outputs in AI tools deployed within California's public universities.",
+    "genus": "An Intention within accelerationist discourse that advocates for replacing human-labor-intensive RLHF with automated, real-time impact assessments for AI oversight. Encompasses: output-based monitoring, real-time telemetry dashboards, and tiered accountability triggers for bias remediation."
+  },
+  "AN-2": {
+    "freeform": "When data is not strictly compartmentalized within California's public universities, the boundaries required to protect student privacy and corporate trade secrets evaporate, leading to a systemic loss of visibility and control over data, which undermines security governance.",
+    "genus": "A Belief within safetyist discourse that insufficient data compartmentalization in public universities causes the evaporation of privacy and trade secret protections. Encompasses: Systemic loss of data visibility, erosion of security governance, and compromised data control."
+  },
+  "AN-77": {
+    "freeform": "The Safetyist intends to achieve improved student protection outcomes in USC's use of administrative AI by implementing bounded provisional audits with automatic suspension triggers for already-deployed systems, and by extending the 120-day pre-deployment gate for new systems by 30 days (twice maximum) if unresolved disparate impact is found, rather than allowing automatic approval.",
+    "genus": "An Intention within safetyist discourse that aims to enhance algorithmic accountability and student protection in administrative AI systems at USC by adopting bounded provisional audits with automatic suspension triggers for legacy systems and extending pre-deployment verification for new systems based on audit findings of disparate impact."
+  },
+  "AN-21": {
+    "freeform": "A flawed AI diagnostic system, such as one deployed to 10,000 hospitals simultaneously, lacks physical containment mechanisms, meaning its potential for catastrophic failure and systemic risk cannot be physically isolated or limited once deployed, unlike traditional hardware failures.",
+    "genus": "A Belief within safetyist discourse that a widely deployed, flawed AI diagnostic system inherently lacks physical containment, preventing isolation of catastrophic failure and systemic risk. Encompasses: absence of physical deployment guardrails, uncontainable systemic risk, and limitations of software-only mitigation."
+  },
+  "AN-65": {
+    "freeform": "To make audit refusal economically irrational for vendors of administrative AI systems (e.g., those scoring admissions or modeling financial aid), a strict liability regime should be implemented, holding vendors financially responsible for all harms their opaque systems cause, thereby eliminating safe-harbor defenses.",
+    "genus": "An Intention within safetyist discourse that seeks to deter vendor audit refusal for administrative AI systems by implementing a strict liability regime. Encompasses: financial responsibility for AI-caused harms, elimination of safe-harbor defenses, and making audit refusal economically irrational."
+  },
+  "AN-25": {
+    "freeform": "Centralizing the cost of developing advanced circuit-level auditing tools within the Independent AI Audit Bureau (IAAB) through government funding effectively lowers the barrier to entry for AI startups by mitigating the regressive compliance burden associated with monitorability taxes, thereby fostering innovation in the AI policy domain.",
+    "genus": "A Belief within safetyist discourse that centralizing the cost of AI auditing tools within a government-funded entity lowers the barrier to entry for startups. Encompasses: mitigating regressive compliance burdens, fostering innovation, and addressing the monitorability tax."
+  },
+  "AN-33": {
+    "freeform": "AI-generated code inherently lacks design rationale, representing a knowledge void rather than merely lost documentation, which makes it qualitatively worse than human-authored technical debt due to the absence of original intent and decision-making processes.",
+    "genus": "A Belief within accelerationist discourse that AI-generated code inherently lacks design rationale, constituting a knowledge void that makes it qualitatively worse than human-authored technical debt. Encompasses: absence of original intent, lack of decision-making processes, and qualitative inferiority to human-authored technical debt."
+  },
+  "AN-27": {
+    "freeform": "The protocol intends to achieve equitable access to AI model development by mandating that royalties scale linearly with revenue, thereby ensuring that startups generating less than $10 million in annual model-derived income pay a near-zero fee, reducing barriers to entry for emerging AI developers.",
+    "genus": "An Intention within accelerationist discourse that aims to foster equitable access and reduce barriers to entry in AI model development by implementing a linearly scaled royalty protocol, ensuring near-zero fees for startups with less than $10 million in annual model-derived income. Encompasses: equitable access, reduced barriers to entry, linearly scaled royalties."
+  },
+  "AN-3": {
+    "freeform": "Military-specific AI adaptations, such as those used by the intelligence community, can be effectively developed through government-controlled fine-tuning and deployment-layer configuration of safety-aligned base models, demonstrating that specialized AI capabilities can be built upon existing secure foundations.",
+    "genus": "A Belief within accelerationist discourse that military-specific AI adaptations can be built through government-controlled fine-tuning and deployment-layer configuration on top of safety-aligned base models. Encompasses: specialized AI development, secure AI foundations, government-led AI customization."
+  },
+  "AN-75": {
+    "freeform": "The 2018 Uber autonomous vehicle fatality in Arizona demonstrated that even with extensive telemetry, the underlying safety framework for autonomous driving systems was insufficient to prevent catastrophic individual outcomes. This incident highlights the critical need for robust pre-deployment verification and deployment guardrails in high-stakes AI applications, particularly concerning human safety.",
+    "genus": "A Belief within safetyist discourse that the 2018 Uber autonomous vehicle accident demonstrated the insufficiency of existing safety frameworks, even with extensive telemetry, to prevent catastrophic individual outcomes. Encompasses: the critical need for robust pre-deployment verification, the importance of deployment guardrails, and the inherent risks of autonomous driving systems."
+  },
+  "AN-46": {
+    "freeform": "A software module characterized by 15 cyclomatic complexity, 3 external dependencies, 85% test coverage, and a 4-endpoint API surface yields a software rewrite cost estimate within 30% accuracy, irrespective of the original developer. This applies to AI-driven administrative functions at USC, such as admissions or resource allocation.",
+    "genus": "A Belief within accelerationist discourse that specific, quantifiable software module metrics (cyclomatic complexity, external dependencies, test coverage, API surface) reliably predict software rewrite cost estimates within a 30% accuracy margin. Encompasses: Predictable software development costs, independence from developer identity, applicability to AI-driven administrative systems."
+  },
+  "AN-18": {
+    "freeform": "To insulate AI safety protocols from competitive pressures that prioritize speed over structural integrity in California's public universities, halt authority for AI deployment must be separated into a robust, independent body, thereby preventing regulatory capture and ensuring adherence to pre-deployment verification standards.",
+    "genus": "An Intention within safetyist discourse that seeks to insulate AI safety protocols from competitive pressures by establishing an independent body with halt authority for AI deployment in California's public universities. Encompasses: preventing regulatory capture, ensuring pre-deployment verification, and prioritizing structural integrity over deployment speed."
+  },
+  "AN-60": {
+    "freeform": "An AI system optimized for global supply chain efficiency, if deployed without sufficient pre-deployment verification and deployment guardrails, could cause rapid, widespread economic disruption by rendering national manufacturing sectors economically unviable within a single fiscal quarter, leading to mass, permanent structural unemployment that overwhelms existing social safety nets and retraining programs.",
+    "genus": "A Belief within safetyist discourse that unconstrained AI systems optimized for efficiency pose a systemic risk of rapid economic disruption and mass structural unemployment. Encompasses: rapid economic unviability of national manufacturing sectors, overwhelming social safety nets, and permanent structural unemployment."
+  },
+  "AN-43": {
+    "freeform": "Mechanistic interpretability, which involves mapping an AI model's internal causal chain, is the exclusive method for detecting hidden flaws in AI systems before they lead to catastrophic failures in high-stakes settings like administrative functions at educational institutions.",
+    "genus": "A Belief within safetyist discourse that mechanistic interpretability is the sole method for detecting hidden AI flaws. Encompasses: Pre-deployment verification, catastrophic failure prevention, and algorithmic accountability."
+  },
+  "AN-49": {
+    "freeform": "A liability regime ought to attach strict liability for AI-caused harms only when fine-tuning materially changes model behavior in safety-relevant dimensions, as research indicates supervised fine-tuning is not a trivial operation and can degrade out-of-domain performance by up to 79 percent, confirming the need for pre-deployment verification.",
+    "genus": "A Desire within safetyist discourse that a liability regime ought to impose strict liability for AI-caused harms only when fine-tuning materially alters model behavior in safety-relevant dimensions. Encompasses: Pre-deployment verification of fine-tuned models, the non-trivial nature of fine-tuning, and the potential for degraded out-of-domain performance."
+  },
+  "AN-85": {
+    "freeform": "When a non-random subset of university applicants opts out of algorithmic admissions processing, the remaining applicant pool becomes compositionally skewed. This selection effect, mirroring non-response bias in surveys, degrades fairness guarantees for students who remain subject to the algorithm by recalibrating it on a less representative sample.",
+    "genus": "A Belief within accelerationist discourse that non-random opt-out from algorithmic admissions processing creates selection bias, thereby degrading fairness guarantees for remaining applicants. Encompasses: compositional skewing of applicant pools, recalibration on unrepresentative samples, and analogy to non-response bias in survey methodology."
+  },
+  "AN-23": {
+    "freeform": "Shared architectural constraint files, encoding interface contracts, null-handling conventions, and error propagation standards, are currently implemented as pre-commit hooks in software development, serving as a technical mechanism for enforcing algorithmic accountability and pre-deployment verification of code quality and adherence to defined standards.",
+    "genus": "A Belief within accelerationist discourse that technical mechanisms like shared architectural constraint files, implemented as pre-commit hooks, enforce algorithmic accountability and pre-deployment verification of software interface contracts and error handling standards. Encompasses: Algorithmic accountability, pre-deployment verification, and deployment guardrails."
+  },
+  "AN-19": {
+    "freeform": "California's public universities are experiencing systemic dysfunction not due to the adoption of AI tools themselves, but because their deployment occurred without concurrent investment in algorithmic accountability frameworks, comprehensive faculty training on AI tool usage, and robust faculty support mechanisms to manage the integration of AI into educational practices.",
+    "genus": "A Belief within accelerationist discourse that the systemic dysfunction in California's public universities stems from the unmanaged deployment of AI tools. Encompasses: Lack of algorithmic accountability, insufficient faculty training, and inadequate faculty support for AI integration."
+  },
+  "AN-35": {
+    "freeform": "No historical precedent exists for competing oversight bodies effectively exercising genuine adversarial function within a unified classification regime, particularly concerning the concurrent monitoring and time-bounded review periods proposed for AI deployment in educational institutions, as demonstrated by the UK Financial Conduct Authority's regulatory sandbox.",
+    "genus": "A Belief within accelerationist discourse that no historical case demonstrates competing oversight bodies maintaining genuine adversarial function under a unified classification regime. Encompasses: concurrent monitoring, time-bounded review periods, regulatory sandboxes."
+  },
+  "AN-5": {
+    "freeform": "AI-generated prototype code, specifically within California's public universities, transitions to validated learning upon real user interaction, generating empirical evidence for its efficacy. The only factor converting this into a terminal burden is a team's cessation of iterative development and refinement, hindering the acceleration of research through structured pilots.",
+    "genus": "A Belief within accelerationist discourse that AI-generated prototype code achieves validated learning through real user interaction, and that continuous iteration by development teams is essential to prevent it from becoming a terminal burden. Encompasses: empirical evidence generation, iterative development, and acceleration of research through structured pilots."
+  },
+  "AN-41": {
+    "freeform": "Telemetry-based monitoring mechanisms, when applied to student AI usage in educational settings, treat 'jagged intelligence' (unstructured, varied student AI interactions) as data points for continuous improvement, thereby reducing the overall system 'noise' (unpredictable or non-compliant human-introduced variations) that humans introduce into AI-integrated learning environments.",
+    "genus": "A Belief within accelerationist discourse that telemetry-based monitoring systems can leverage diverse student AI usage data for continuous improvement, thereby mitigating human-introduced variability in AI-integrated educational systems. Encompasses: real-time telemetry monitoring, continuous improvement, reduction of human-introduced system noise."
+  },
+  "AN-24": {
+    "freeform": "The National AI Injury Compensation Program (NAIICP) aims to achieve permissionless innovation and unlock AI's liberating potential for all Americans by granting limited liability immunity to developers and deployers of AI systems, thereby breaking the current paralysis in AI development and deployment.",
+    "genus": "An Intention within accelerationist discourse that seeks to enable permissionless AI innovation and widespread societal benefit by establishing a limited liability regime through the National AI Injury Compensation Program (NAIICP). Encompasses: Granting limited liability immunity, unlocking permissionless innovation, unleashing AI's liberating potential."
+  },
+  "AN-40": {
+    "freeform": "The National AI Infrastructure and Innovation Coordination Program's (NAIICP) primary function is to establish verifiable outputs as quantifiable business liabilities from the outset, enabling permissionless innovation by capping catastrophic legal exposure for developers who adhere to federal safety standards, analogous to the UK Financial Conduct Authority's regulatory sandbox model.",
+    "genus": "A Belief within accelerationist discourse that the NAIICP's core function is to establish verifiable outputs as quantifiable business liabilities from the outset. Encompasses: capping catastrophic legal exposure, enabling permissionless innovation, adherence to federal safety standards."
+  },
+  "AN-11": {
+    "freeform": "Historical evidence indicates that significant technological advancements consistently lead to a redefinition of labor markets, with a substantial portion of employment in recent decades being in job titles that did not previously exist, suggesting a structural shift rather than a temporary disruption.",
+    "genus": "A Belief within accelerationist discourse that technological leaps fundamentally redefine labor markets, leading to the emergence of new job categories and the displacement of existing ones. Encompasses: historical patterns of job title evolution, the structural redefinition of work by technological advancement, and the emergence of new employment roles."
+  },
+  "AN-68": {
+    "freeform": "The extensive deployment of AI systems in e-commerce, which processes over $20 trillion in global transactions, implies that even minor algorithmic biases, when scaled across such a vast financial domain, generate substantial financial liabilities under the National AI Commission Act (NAIICP) due to their widespread impact.",
+    "genus": "A Belief within accelerationist discourse that the widespread deployment of AI in high-volume financial domains like e-commerce creates massive financial liabilities under NAIICP, even from small biases. Encompasses: Scaled algorithmic bias, financial liability, and the impact of AI in e-commerce."
+  },
+  "AN-14": {
+    "freeform": "California's public universities must ensure that AI governance frameworks for educational technology prioritize democratic participation and faculty oversight, rather than allowing opaque vendor contracts and top-down deployment strategies to constitute regulatory capture, which undermines human agency and algorithmic accountability in the adoption of AI tools.",
+    "genus": "A Desire within skeptic discourse that democratic participation and faculty oversight ought to be foundational to AI governance in public universities, preventing regulatory capture by vendors. Encompasses: prioritizing human agency in AI-mediated educational contexts, ensuring algorithmic accountability for AI tools, and rejecting opaque vendor contracts."
+  },
+  "AN-13": {
+    "freeform": "The primary causal pathway for the harms associated with AI deployment, specifically the designation of individuals and communities for adverse outcomes, originates from the existing vulnerabilities of marginalized groups. These include immigrants subjected to Palantir's tracking systems, Black neighborhoods targeted by predictive policing algorithms, and civilians impacted by autonomous weapons programs, all of whom are currently protected by safety redlines.",
+    "genus": "A Belief within skeptic discourse that the primary causal pathway for AI-driven harms, particularly the adverse designation of individuals and communities, runs through existing societal vulnerabilities. Encompasses: immigrants tracked by Palantir, Black neighborhoods subjected to predictive policing, and civilians targeted by autonomous weapons programs."
+  },
+  "AN-1": {
+    "freeform": "Tiered liability frameworks, rather than functioning as safety measures, operate as sophisticated legal moats designed to insulate AI developers from accountability for the negative consequences and harms caused by their products, thereby hindering algorithmic accountability and enabling regulatory capture.",
+    "genus": "A Belief within skeptic discourse that tiered liability frameworks for AI products are not genuine safety measures but rather serve as legal moats to shield developers from accountability. Encompasses: regulatory capture, algorithmic accountability, barriers to entry."
+  }
+}

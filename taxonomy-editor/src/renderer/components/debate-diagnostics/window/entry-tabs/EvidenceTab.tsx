@@ -434,9 +434,9 @@ export function EvidenceTab({ entry, diag, an, searchQuery }: EvidenceTabProps) 
                           </div>
                           {(sourceNode || targetNode) && (
                             <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 1 }}>
-                              {sourceNode && <span>{sourceNode.text.length > 60 ? sourceNode.text.slice(0, 60) + '…' : sourceNode.text}</span>}
+                              {sourceNode && <span title={sourceNode.attribution_text_genus || undefined}>{sourceNode.text.length > 60 ? sourceNode.text.slice(0, 60) + '…' : sourceNode.text}</span>}
                               {sourceNode && targetNode && <span> → </span>}
-                              {targetNode && <span>{targetNode.text.length > 60 ? targetNode.text.slice(0, 60) + '…' : targetNode.text}</span>}
+                              {targetNode && <span title={targetNode.attribution_text_genus || undefined}>{targetNode.text.length > 60 ? targetNode.text.slice(0, 60) + '…' : targetNode.text}</span>}
                             </div>
                           )}
                           {edge.warrant && (

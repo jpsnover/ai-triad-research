@@ -485,6 +485,7 @@ const rawApi: AppAPI = {
 
   // Synthetic corpus
   loadSyntheticCorpus: (pov) => get(`/api/taxonomy/synthetic/${encodeURIComponent(pov)}`).catch(() => null),
+  loadSyntheticEmbeddings: () => get('/api/taxonomy/synthetic-embeddings').catch(() => null),
 
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),

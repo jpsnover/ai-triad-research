@@ -522,7 +522,7 @@ export interface ANClaimEmbedding {
  */
 export function scoreNodesViaAN(
   claimEmbeddings: ANClaimEmbedding[],
-  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>,
+  nodeEmbeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }>,
   topicVector?: number[],
   strengthWeighted: boolean = false,
 ): Map<string, number> {
@@ -531,7 +531,7 @@ export function scoreNodesViaAN(
   // Fallback: no AN claims yet (e.g., first opening statement)
   if (claimEmbeddings.length === 0) {
     if (topicVector) {
-      return scoreNodeRelevance(topicVector, nodeEmbeddings);
+      return scoreNodeRelevanceMeanTopN(topicVector, nodeEmbeddings);
     }
     return scores;
   }
@@ -539,12 +539,20 @@ export function scoreNodesViaAN(
   for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
     if (!entry.vector || !Array.isArray(entry.vector)) continue;
 
+    // Collect all node vectors: description embedding + synthetic vectors
+    const nodeVectors = entry.vectors?.length
+      ? [entry.vector, ...entry.vectors]
+      : [entry.vector];
+
     let maxScore = 0;
     for (const claim of claimEmbeddings) {
-      let sim = cosineSimilarity(entry.vector, claim.vector);
+      // Score against best-matching node vector
+      let sim = 0;
+      for (const nv of nodeVectors) {
+        const s = cosineSimilarity(nv, claim.vector);
+        if (s > sim) sim = s;
+      }
       if (strengthWeighted && claim.strength != null) {
-        // Blend: 70% raw similarity + 30% strength-weighted
-        // This prevents a single high-strength claim from dominating
         sim = sim * (0.7 + 0.3 * claim.strength);
       }
       if (sim > maxScore) maxScore = sim;
@@ -573,7 +581,7 @@ export interface SituationReScoreInput {
   situationNodes: readonly SituationNode[];
   cruxes: readonly TrackedCrux[];
   anNodes: readonly ArgumentNetworkNode[];
-  nodeEmbeddings: Record<string, { pov: string; vector: number[] }>;
+  nodeEmbeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }>;
   /** Situation IDs that were injected in prior turns. */
   injectedSitIds: ReadonlySet<string>;
   /** Situation IDs actually referenced in transcript taxonomy_refs. */

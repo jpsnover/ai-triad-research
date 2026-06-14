@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-06-13T20:17:55.195527+00:00",
+  "hard_nodes": {
+    "saf-intentions-091": {
+      "neighbor_violations": {},
+      "prune_rate": 0.279,
+      "pruned_count": 12,
+      "remaining": 31
+    }
+  },
+  "node_ids": [
+    "saf-intentions-091"
+  ]
+}

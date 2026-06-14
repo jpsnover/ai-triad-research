@@ -89,4 +89,17 @@ function Assert-TaxonomyCacheFresh {
             }
         }
     }
+
+    # ── Check synthetic_embeddings.json ───────────────────────────────────────
+    if ($null -ne $script:CachedSyntheticVectors) {
+        $SynFile = Join-Path $TaxDir 'synthetic/synthetic_embeddings.json'
+        if (Test-Path $SynFile) {
+            $SynWriteTime = (Get-Item $SynFile).LastWriteTime
+            if (-not $script:SyntheticTimestamp -or $SynWriteTime -gt $script:SyntheticTimestamp) {
+                Write-Verbose 'Synthetic embeddings cache stale — will reload on next use'
+                $script:CachedSyntheticVectors = $null
+                $script:SyntheticTimestamp = $null
+            }
+        }
+    }
 }

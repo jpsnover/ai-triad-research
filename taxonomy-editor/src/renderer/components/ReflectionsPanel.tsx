@@ -380,6 +380,7 @@ function EditCard({ edit, pover, editIndex }: {
                 <span style={{ fontWeight: 700, fontFamily: 'monospace', marginRight: 4 }}>{e}</span>
                 <span style={{ color: 'var(--text-muted)', marginRight: 4 }}>({node.speaker})</span>
                 {node.text}
+                {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
               </div>
             );
           })}

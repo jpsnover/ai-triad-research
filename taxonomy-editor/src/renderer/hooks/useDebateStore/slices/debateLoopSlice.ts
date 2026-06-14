@@ -28,7 +28,7 @@ import { triggerManualDump } from '../../../lib/flightRecorderInit';
 import { generateId, nowISO, stripCodeFences, parseAIJson, parseAtMention, formatRecentTranscript, parsePoverResponse } from '@lib/debate/helpers';
 import { getMoveName, SUPPORT_MOVES } from '@lib/debate/helpers';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
-import { formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, computeClaimTaxonomyAttribution } from '../../../prompts/argumentNetwork';
+import { formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatConcessionCandidatesHint, computeClaimTaxonomyAttribution } from '../../../prompts/argumentNetwork';
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
 import {
   debateResponsePrompt,

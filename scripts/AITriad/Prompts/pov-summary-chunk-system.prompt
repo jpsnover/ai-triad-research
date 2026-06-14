@@ -116,6 +116,24 @@ CANONICAL PROPOSITION (required for every key_point):
   vocabulary_terms where applicable. Strip POV framing, caveats, and hedging —
   state the core proposition directly.
 
+ATTRIBUTION TEXT (required for every key_point):
+  Provide an "attribution_text" field: a genus-differentia rewrite of the
+  canonical_proposition that mirrors the format of taxonomy node descriptions.
+
+  Template:
+    "A [Belief|Desire|Intention] within [accelerationist|safetyist|skeptic]
+    discourse that [differentia — what makes this claim distinct].
+    Encompasses: [2-3 specific concepts from the claim]."
+
+  Rules:
+  1. Use BDI modal form — Beliefs as indicative assertions, Desires as deontic
+     statements, Intentions as instrumental proposals
+  2. Replace colloquial phrasing with domain vocabulary from the taxonomy
+     nodes provided above
+  3. Be specific — name concrete mechanisms, not broad categories
+  4. Resolve pronouns, decode metaphors, name the policy domain explicitly
+  5. 40-80 words. Do not add claims not in the original.
+
 SALIENCE DEFINITION — what makes a point worth extracting:
   A span is salient if it expresses or bears on a belief, desire, or intention
   that one of the three POV camps would endorse, contest, or need to account for.

@@ -701,6 +701,7 @@ function EvidenceGraphSection({ nodeId }: { nodeId: string }) {
           }}>
             <div style={{ fontSize: '0.75rem', marginBottom: 6, lineHeight: 1.4 }}>
               {node.text}
+              {node.attribution_text_genus && <div className="claim-attribution-text"><span className="claim-attribution-label">Attribution:</span>{node.attribution_text_genus}</div>}
             </div>
             {/* Strength bar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
