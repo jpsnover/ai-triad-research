@@ -170,22 +170,37 @@ describe('computeClaimTaxonomyAttribution', () => {
     expect(result.novel_argument).toBe(1);
   });
 
-  // ── Belief-only filtering ──────────────────────────
+  // ── candidateNodeIds filtering ──────────────────────
 
-  it('only compares against Belief nodes, not Desire/Intention', () => {
+  it('excludes nodes not in candidateNodeIds set', () => {
     const emb = makeEmbedding(0);
     const nodes = [makeNode('AN-1', 'accelerationist', emb)];
-    const beliefOnly = new Set(['acc-B-001']); // acc-D-001 is not in belief set
+    const candidateIds = new Set(['acc-B-001']); // acc-D-001 is not in candidate set
     const embeddings: Record<string, { pov: string; vector: number[] }> = {
       'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(7) }, // orthogonal
-      'acc-D-001': { pov: 'accelerationist', vector: emb },              // exact match but Desire
+      'acc-D-001': { pov: 'accelerationist', vector: emb },              // exact match but excluded
     };
 
-    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, beliefOnly);
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, candidateIds);
 
-    // Should NOT match acc-D-001 (Desire node excluded from candidates)
     expect(nodes[0].claim_taxonomy_attribution!.unattributed_reason).toBe('novel_argument');
     expect(result.novel_argument).toBe(1);
+  });
+
+  it('matches Desire/Intention nodes when included in candidateNodeIds', () => {
+    const emb = makeEmbedding(0);
+    const nodes = [makeNode('AN-1', 'accelerationist', emb)];
+    const allIds = new Set(['acc-B-001', 'acc-D-001']);
+    const embeddings: Record<string, { pov: string; vector: number[] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(7) }, // orthogonal
+      'acc-D-001': { pov: 'accelerationist', vector: emb },              // exact match
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, allIds);
+
+    expect(result.attributed).toBe(1);
+    expect(nodes[0].claim_taxonomy_attribution!.primary_ref).toBe('acc-D-001');
+    expect(nodes[0].claim_taxonomy_attribution!.attribution_confidence).toBeCloseTo(1.0);
   });
 
   // ── Multiple claims ────────────────────────────────
@@ -271,6 +286,37 @@ describe('computeClaimTaxonomyAttribution', () => {
     const decision = result.decisions[0];
     expect(decision.primary_ref).toBe('acc-B-001');
     expect(decision.attribution_confidence).toBeGreaterThan(0.5);
+  });
+
+  it('prefers attribution_embedding over embedding when both present', () => {
+    // attribution_embedding points at dim 0 (matches acc-B-001)
+    // embedding points at dim 5 (orthogonal to everything useful)
+    const nodes: ArgumentNetworkNode[] = [{
+      ...makeNode('AN-1', 'accelerationist', makeEmbedding(5)),
+      attribution_embedding: makeEmbedding(0),
+    }];
+
+    const embeddings: Record<string, { pov: string; vector: number[] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, BELIEF_IDS);
+
+    expect(result.attributed).toBe(1);
+    expect(nodes[0].claim_taxonomy_attribution!.primary_ref).toBe('acc-B-001');
+    expect(nodes[0].claim_taxonomy_attribution!.attribution_confidence).toBeCloseTo(1.0);
+  });
+
+  it('falls back to embedding when attribution_embedding is absent', () => {
+    const nodes = [makeNode('AN-1', 'accelerationist', makeEmbedding(0))];
+    const embeddings: Record<string, { pov: string; vector: number[] }> = {
+      'acc-B-001': { pov: 'accelerationist', vector: makeEmbedding(0) },
+    };
+
+    const result = computeClaimTaxonomyAttribution(nodes, 'accelerationist', embeddings, BELIEF_IDS);
+
+    expect(result.attributed).toBe(1);
+    expect(nodes[0].claim_taxonomy_attribution!.attribution_confidence).toBeCloseTo(1.0);
   });
 
   it('falls back to single-vector when no multi-vector data exists', () => {

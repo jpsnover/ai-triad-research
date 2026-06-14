@@ -2284,6 +2284,12 @@ export class DebateEngine {
             const { vector } = await adapter.computeQueryEmbedding(inode.text.slice(0, 300));
             if (vector && vector.length > 0) node.embedding = vector;
           } catch { /* telemetry — silent by design: doc i-node embedding is best-effort */ }
+          if (inode.attribution_text) {
+            try {
+              const { vector } = await adapter.computeQueryEmbedding(inode.attribution_text.slice(0, 300));
+              if (vector && vector.length > 0) node.attribution_embedding = vector;
+            } catch { /* best-effort: falls back to node.embedding for attribution */ }
+          }
         }
         an.nodes.push(node);
       }
@@ -4856,6 +4862,12 @@ Return ONLY JSON (no markdown, no code fences):
           const { vector } = await adapter.computeQueryEmbedding(node.text.slice(0, 300));
           if (vector && vector.length > 0) node.embedding = vector;
         } catch { /* telemetry — silent by design: per-node AN embedding is best-effort */ }
+        if (node.attribution_text_genus) {
+          try {
+            const { vector } = await adapter.computeQueryEmbedding(node.attribution_text_genus.slice(0, 300));
+            if (vector && vector.length > 0) node.attribution_embedding = vector;
+          } catch { /* best-effort: falls back to node.embedding for attribution */ }
+        }
       }
     }
 
@@ -4864,9 +4876,9 @@ Return ONLY JSON (no markdown, no code fences):
       const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
       if (speakerPov) {
         const povNodes = this.taxonomy[speakerPov as PovKey]?.nodes ?? [];
-        const beliefNodeIds = new Set(povNodes.filter(n => n.category === 'Beliefs').map(n => n.id));
+        const allPovNodeIds = new Set(povNodes.map(n => n.id));
         const attrResult = computeClaimTaxonomyAttribution(
-          claimsResult.newNodes, speakerPov, this.taxonomy.embeddings, beliefNodeIds,
+          claimsResult.newNodes, speakerPov, this.taxonomy.embeddings, allPovNodeIds,
         );
         trace.attribution_attributed = attrResult.attributed;
         trace.attribution_unattributed = attrResult.unattributed;

@@ -1477,20 +1477,22 @@ export interface ClaimAttributionDecision {
 
 /**
  * Compute per-claim taxonomy attribution for AN nodes.
- * Compares each claim's embedding against same-POV Belief node embeddings
- * using cosine similarity. Mutates nodes in place (sets claim_taxonomy_attribution).
+ * Compares each claim's attribution_embedding (or embedding fallback) against
+ * same-POV taxonomy node embeddings using cosine similarity.
+ * Mutates nodes in place (sets claim_taxonomy_attribution).
  *
  * @param nodes - AN nodes to attribute (typically newly extracted nodes)
  * @param speakerPov - The POV key for the speaker (e.g. 'accelerationist')
  * @param nodeEmbeddings - Taxonomy node embeddings keyed by node ID
- * @param beliefNodeIds - Set of taxonomy node IDs that are Belief category
+ * @param candidateNodeIds - Set of taxonomy node IDs eligible for attribution (all BDI categories)
+ * @param topN - Number of top vectors for mean-of-top-N multi-vector scoring
  * @returns Attribution summary for diagnostics
  */
 export function computeClaimTaxonomyAttribution(
   nodes: ArgumentNetworkNode[],
   speakerPov: string,
   nodeEmbeddings: Record<string, { pov: string; vector: number[]; vectors?: number[][] }>,
-  beliefNodeIds: Set<string>,
+  candidateNodeIds: Set<string>,
   topN: number = 3,
 ): ClaimAttributionResult {
   const decisions: ClaimAttributionDecision[] = [];
@@ -1499,17 +1501,18 @@ export function computeClaimTaxonomyAttribution(
   let missingEmbedding = 0;
   let novelArgument = 0;
 
-  // Pre-filter: same-POV Belief nodes with embeddings
+  // Pre-filter: same-POV nodes with embeddings (all BDI categories)
   const candidateEntries: [string, { vector: number[]; vectors?: number[][] }][] = [];
   for (const [nodeId, entry] of Object.entries(nodeEmbeddings)) {
-    if (entry.pov === speakerPov && beliefNodeIds.has(nodeId) && entry.vector?.length > 0) {
+    if (entry.pov === speakerPov && candidateNodeIds.has(nodeId) && entry.vector?.length > 0) {
       candidateEntries.push([nodeId, { vector: entry.vector, vectors: entry.vectors }]);
     }
   }
   const hasMultiVector = candidateEntries.some(([, e]) => e.vectors && e.vectors.length > 0);
 
   for (const node of nodes) {
-    if (!node.embedding || node.embedding.length === 0) {
+    const queryVector = node.attribution_embedding ?? node.embedding;
+    if (!queryVector || queryVector.length === 0) {
       const attribution: ClaimTaxonomyAttribution = {
         primary_ref: '',
         attribution_confidence: 0,
@@ -1555,13 +1558,13 @@ export function computeClaimTaxonomyAttribution(
       for (const [nodeId, entry] of candidateEntries) {
         candidateMap[nodeId] = { pov: speakerPov, vector: entry.vector, vectors: entry.vectors };
       }
-      const meanScores = scoreNodeRelevanceMeanTopN(node.embedding, candidateMap, topN);
+      const meanScores = scoreNodeRelevanceMeanTopN(queryVector, candidateMap, topN);
       for (const [nodeId, sim] of meanScores) {
         similarities.push({ node_id: nodeId, similarity: sim });
       }
     } else {
       for (const [nodeId, entry] of candidateEntries) {
-        const sim = cosineSimilarity(node.embedding, entry.vector);
+        const sim = cosineSimilarity(queryVector, entry.vector);
         similarities.push({ node_id: nodeId, similarity: sim });
       }
     }

@@ -917,6 +917,8 @@ export interface ArgumentNetworkNode {
   specificity?: 'precise' | 'general' | 'abstract';
   /** 384-dim all-MiniLM-L6-v2 embedding, computed on extraction. Used for AN-based taxonomy relevance scoring. */
   embedding?: number[];
+  /** Embedding computed from attribution_text_genus (genus-differentia rewrite). Used for taxonomy attribution when available. */
+  attribution_embedding?: number[];
   /** If this claim is a steelman of an opponent's position, the opponent's SpeakerId. */
   steelman_of?: string;
   /** Inline verification status from web search (Intervention 2). */
