@@ -89,18 +89,20 @@ export function saveDebateSession(session: unknown): void {
   if (!data.id || typeof data.id !== 'string') {
     throw new Error('Cannot save debate session: missing or invalid ID');
   }
-  const filePath = debateFilePath(data.id);
-  fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
 
-  // Log calibration data for completed debates (non-blocking)
+  // Embed calibration data for completed debates before saving
   try {
-    const s = session as { transcript?: { type: string }[] };
-    if (s?.transcript?.some(e => e.type === 'concluding')) {
-      const dataRoot = path.dirname(DEBATES_DIR); // data root is parent of debates/
+    const s = session as { transcript?: { type: string }[]; calibration_log?: unknown };
+    if (s?.transcript?.some(e => e.type === 'concluding') && !s.calibration_log) {
+      const dataRoot = path.dirname(DEBATES_DIR);
       const dataPoint = extractCalibrationData(session as Parameters<typeof extractCalibrationData>[0], 'local' as const);
+      s.calibration_log = dataPoint;
       appendCalibrationLog(dataPoint, dataRoot);
     }
   } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
+
+  const filePath = debateFilePath(data.id);
+  fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
 }
 
 export function deleteDebateSession(id: string): void {

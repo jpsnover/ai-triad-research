@@ -74,6 +74,7 @@ import { validateTurn, resolveTurnValidationConfig } from './turnValidator.js';
 import { getGlobalRecorder } from '../flight-recorder/index.js';
 import { resolveBackend } from '../ai-client/registry.js';
 import { DEFAULT_TEMPERATURE } from '../ai-client/defaults.js';
+import { runPropositionalGate } from './revoiceGate.js';
 
 const SLOW_BACKEND_TIMEOUT_MS = 180_000;
 const DEFAULT_TIMEOUT_MS = 60_000;
@@ -99,6 +100,7 @@ export interface ModeratorSelectionCallbacks {
   warn(context: string, err: unknown, recovery: string): void;
   formatEdgeContext(activePovers: string[]): { text: string; edges_used?: unknown[] };
   isAborted?(): boolean;
+  computeEmbedding?(text: string): Promise<number[]>;
 }
 
 // ── Input / Output Types ────────────────────────────────
@@ -147,6 +149,8 @@ export interface ModeratorSelectionInput {
   cruxTracker?: ReadonlyArray<{ id: string; description: string; identified_turn: number; state: string; disagreement_type?: string; attacking_claim_ids: string[]; speakers_involved: SpeakerId[] }>;
   /** Claim text lookup for contested term extraction (AN node id → text). */
   claimTexts?: Record<string, string>;
+  /** Taxonomy node embeddings for REVOICE propositional gate. */
+  nodeEmbeddings?: Record<string, { vector: number[] }>;
 }
 
 export interface ModeratorSelectionResult {
@@ -664,6 +668,7 @@ export async function runModeratorSelection(
         addressing: (addressing as SpeakerId | 'general') ?? 'general',
         focus_point: focusPoint,
         agreement_detected: agreementDetected,
+        drift_detected: !!parsed.drift_detected,
         intervene: !!parsed.intervene,
         suggested_move: parsed.suggested_move as InterventionMove | undefined,
         target_debater: labelMap[String(parsed.target_debater ?? '').toLowerCase()] ?? undefined,
@@ -734,11 +739,53 @@ export async function runModeratorSelection(
             }
 
             const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
-            const interventionText = (stage2Parsed.text as string) ?? stage2Text;
+            let interventionText = (stage2Parsed.text as string) ?? stage2Text;
+            let effectiveValidation = engineValidation;
+
+            // REVOICE propositional gate: validate that revoiced text preserves
+            // propositional content before allowing the intervention through.
+            if (engineValidation.validated_move === 'REVOICE' && interventionText?.trim()) {
+              const originalClaimText = (stage2Parsed.original_claim_text as string) ?? '';
+              if (originalClaimText && callbacks.computeEmbedding && input.nodeEmbeddings) {
+                try {
+                  const [origVec, revoicedVec] = await Promise.all([
+                    callbacks.computeEmbedding(originalClaimText.slice(0, 300)),
+                    callbacks.computeEmbedding(interventionText.slice(0, 300)),
+                  ]);
+                  const gateResult = runPropositionalGate({
+                    originalText: originalClaimText,
+                    revoicedText: interventionText,
+                    originalEmbedding: origVec,
+                    revoicedEmbedding: revoicedVec,
+                    taxonomyEmbeddings: input.nodeEmbeddings,
+                    anNodes: an?.nodes ?? [],
+                    currentRound: round,
+                  });
+                  getGlobalRecorder()?.record({
+                    type: 'debate.moderate', component: 'revoice-gate', level: 'info',
+                    message: `REVOICE gate ${gateResult.passed ? 'passed' : 'failed'}: anchor=${gateResult.anchor_source}, overlap=${gateResult.taxonomy_overlap.overlap_count}/3`,
+                    data: gateResult,
+                  });
+                  if (!gateResult.passed) {
+                    // Downgrade to CHECK: "I want to make sure I understand your point..."
+                    effectiveValidation = {
+                      ...engineValidation,
+                      validated_move: 'CHECK' as InterventionMove,
+                      validated_family: 'repair' as import('./types.js').InterventionFamily,
+                    };
+                    interventionText = `I want to make sure I understand your point — ${originalClaimText}`;
+                    callbacks.progress('debate', undefined,
+                      `Moderator: REVOICE gate failed (${gateResult.entity_preservation.missing_entities.concat(gateResult.entity_preservation.missing_thresholds).join(', ') || 'anchor mismatch'}), downgrading to CHECK`);
+                  }
+                } catch (gateErr) {
+                  getGlobalRecorder()?.record({ type: 'ai.error', component: 'revoice-gate', level: 'warn', message: 'REVOICE gate failed — proceeding without gate', error: { name: (gateErr as Error).name ?? 'Error', message: String(gateErr) } });
+                }
+              }
+            }
 
             if (interventionText && interventionText.trim().length > 0) {
               activeIntervention = buildIntervention(
-                engineValidation, interventionText,
+                effectiveValidation, interventionText,
                 selectionResultObj.trigger_reasoning ?? 'Engine-validated intervention',
                 {
                   signal: selectionResultObj.trigger_evidence?.signal_name,

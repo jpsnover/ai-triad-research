@@ -615,81 +615,47 @@ export function OverviewView() {
         );
       })()}
 
-      {/* Drift Detection Trace (10.6) */}
-      {activeDebate.convergence_signals && activeDebate.convergence_signals.length > 0 && (() => {
-        const signals = activeDebate.convergence_signals!;
-        const arcoWarnings = signals.filter(s => s.arco?.drift_warning);
-        const highDrift = signals.filter(s => s.position_drift.drift > 0.3);
-        const recycled = signals.filter(s => s.argument_redundancy.semantically_recycled);
-        const offClause = signals.filter(s => s.clause_coverage?.no_clause_engaged);
-        const totalClauses = activeDebate.topic?.clauses?.length ?? 0;
-        const coveredSet = new Set<number>();
-        for (const s of signals) {
-          if (s.clause_coverage?.best_clause_id != null && !s.clause_coverage.no_clause_engaged) {
-            coveredSet.add(s.clause_coverage.best_clause_id);
-          }
-        }
-        const uncoveredCount = totalClauses > 0 ? totalClauses - coveredSet.size : 0;
-        const hasAny = arcoWarnings.length > 0 || highDrift.length > 0 || recycled.length > 0 || offClause.length > 0 || uncoveredCount > 0;
-        if (!hasAny) return null;
-
+      {/* Drift Detection Trace (10.6) — moderator drift patterns */}
+      {(() => {
+        const driftEntries = activeDebate.transcript
+          .filter(e => {
+            const trace = (e.metadata as Record<string, unknown>)?.moderator_trace as Record<string, unknown> | undefined;
+            return trace?.drift_detected === true;
+          })
+          .map(e => {
+            const trace = (e.metadata as Record<string, unknown>).moderator_trace as Record<string, unknown>;
+            const round = trace.debate_phase ? undefined : (e.metadata as Record<string, unknown>)?.round as number | undefined;
+            return {
+              id: e.id,
+              round,
+              reasoning: trace.drift_reasoning as string | null,
+              intervention_move: trace.intervention_move as string | null,
+              intervention_validated: trace.intervention_validated as boolean | undefined,
+              selected: trace.selected as string | undefined,
+            };
+          });
+        if (driftEntries.length === 0) return null;
+        const redirected = driftEntries.filter(d => d.intervention_validated && d.intervention_move && ['REDIRECT', 'CHALLENGE', 'CLARIFY', 'CHECK'].includes(d.intervention_move));
         return (
-          <CollapsibleSection title={`Drift Detection — ${arcoWarnings.length + highDrift.length + recycled.length + offClause.length} signals`}>
-            {arcoWarnings.length > 0 && (
-              <div style={{ marginBottom: 6 }}>
-                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#ef4444' }}>ArCo Drift ({arcoWarnings.length} turns)</div>
-                {arcoWarnings.slice(-5).map(s => (
-                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
-                    <span className="diag-muted">R{s.round}</span>
-                    <span>{speakerLabel(s.speaker)}</span>
-                    <span style={{ color: '#ef4444' }}>ArCo={s.arco!.turn_similarity.toFixed(2)} (phase mean {s.arco!.phase_mean.toFixed(2)})</span>
-                  </div>
-                ))}
+          <CollapsibleSection title={`Drift Detection — ${driftEntries.length} detected, ${redirected.length} intervened`}>
+            {driftEntries.map(d => (
+              <div key={d.id} style={{ marginBottom: 6, fontSize: '0.6rem' }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                  {d.round != null && <span className="diag-muted">R{d.round}</span>}
+                  {d.selected && <span>{speakerLabel(d.selected as SpeakerId)}</span>}
+                  <span className="diag-badge" style={{
+                    fontSize: '0.5rem',
+                    background: d.intervention_validated ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                    color: d.intervention_validated ? '#ef4444' : '#f59e0b',
+                  }}>
+                    {d.intervention_validated && d.intervention_move ? d.intervention_move : 'drift noted'}
+                  </span>
+                </div>
+                {d.reasoning && (
+                  <div style={{ marginLeft: 8, color: 'var(--text-muted)', fontStyle: 'italic' }}>{d.reasoning}</div>
+                )}
               </div>
-            )}
-            {highDrift.length > 0 && (
-              <div style={{ marginBottom: 6 }}>
-                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#f59e0b' }}>Position Drift ({highDrift.length} turns &gt; 0.30)</div>
-                {highDrift.slice(-5).map(s => (
-                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
-                    <span className="diag-muted">R{s.round}</span>
-                    <span>{speakerLabel(s.speaker)}</span>
-                    <span style={{ color: '#f59e0b' }}>drift={s.position_drift.drift.toFixed(2)} (overlap {s.position_drift.overlap_with_opening.toFixed(2)})</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {recycled.length > 0 && (
-              <div style={{ marginBottom: 6 }}>
-                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#a855f7' }}>Argument Recycling ({recycled.length} turns)</div>
-                {recycled.slice(-5).map(s => (
-                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
-                    <span className="diag-muted">R{s.round}</span>
-                    <span>{speakerLabel(s.speaker)}</span>
-                    <span style={{ color: '#a855f7' }}>max sim={s.argument_redundancy.semantic_max_similarity?.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {offClause.length > 0 && (
-              <div style={{ marginBottom: 6 }}>
-                <div className="diag-k" style={{ fontSize: '0.6rem', color: '#f59e0b' }}>Off-Clause Turns ({offClause.length})</div>
-                {offClause.slice(-5).map(s => (
-                  <div key={s.entry_id} style={{ display: 'flex', gap: 6, fontSize: '0.6rem', marginLeft: 8 }}>
-                    <span className="diag-muted">R{s.round}</span>
-                    <span>{speakerLabel(s.speaker)}</span>
-                    <span style={{ color: '#f59e0b' }}>no clause engaged (best sim {s.clause_coverage!.best_similarity.toFixed(2)})</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {uncoveredCount > 0 && totalClauses > 0 && (
-              <div style={{ fontSize: '0.6rem' }}>
-                <span className="diag-k">Clause Coverage:</span>
-                <span className="diag-v" style={{ marginLeft: 4 }}>{coveredSet.size}/{totalClauses} covered</span>
-                <span style={{ color: '#f59e0b', marginLeft: 4 }}>({uncoveredCount} uncovered)</span>
-              </div>
-            )}
+            ))}
           </CollapsibleSection>
         );
       })()}

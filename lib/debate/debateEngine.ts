@@ -2771,6 +2771,12 @@ export class DebateEngine {
         const result = this.formatModeratorEdgeContext();
         return { text: result.text, edges_used: result.edges_used };
       },
+      computeEmbedding: this.adapter.computeQueryEmbedding
+        ? async (text: string) => {
+          const { vector } = await this.adapter.computeQueryEmbedding!(text);
+          return vector;
+        }
+        : undefined,
     };
 
     const selectionInput: ModeratorSelectionInput = {
@@ -2797,6 +2803,7 @@ export class DebateEngine {
       claimTexts: this.session.argument_network
         ? Object.fromEntries(this.session.argument_network.nodes.map(n => [n.id, n.text]))
         : undefined,
+      nodeEmbeddings: this.taxonomy.embeddings as Record<string, { vector: number[] }> | undefined,
     };
 
     const modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
@@ -2823,6 +2830,8 @@ export class DebateEngine {
           critical_questions: diagnostics.recentScheme ? (formatCriticalQuestions(diagnostics.recentScheme) || null) : null,
           metaphor_reframe_offered: diagnostics.metaphorReframeOffered ?? null,
           metaphor_reframe_used: false,
+          drift_detected: selectionResult.drift_detected ?? false,
+          drift_reasoning: selectionResult.trigger_reasoning ?? null,
           intervention_recommended: selectionResult.intervene ?? false,
           intervention_move: activeIntervention?.move ?? modResult.engineValidation?.validated_move ?? null,
           intervention_validated: !!activeIntervention,
@@ -3280,6 +3289,39 @@ export class DebateEngine {
     const anNodesBefore = this.session.argument_network!.nodes.length;
     await this.extractClaims(statement, responder, entry.id, taxonomyRefs.map(r => r.node_id), meta.my_claims);
     const newNodes = this.session.argument_network!.nodes.slice(anNodesBefore);
+
+    // Conditional AN linkage: if debater confirmed a REVOICE, add the
+    // revoiced text as a linked node with a revoice_of edge.
+    if (activeIntervention?.move === 'REVOICE' || activeIntervention?.move === 'CHECK') {
+      const revoiceResp = (meta as Record<string, unknown>).revoice_response as { accurate?: boolean } | undefined;
+      if (revoiceResp?.accurate === true && activeIntervention.original_claim_text && activeIntervention.text) {
+        const an = this.session.argument_network!;
+        const revoiceNodeId = `revoice-${an.nodes.length}`;
+        const revoiceNode: import('./types.js').ArgumentNetworkNode = {
+          id: revoiceNodeId,
+          text: activeIntervention.text,
+          speaker: 'system' as import('./types.js').SpeakerId,
+          source_entry_id: entry.id,
+          taxonomy_refs: [],
+          turn_number: round,
+        };
+        const originalNodeId = an.nodes.find(n => n.text === activeIntervention!.original_claim_text)?.id;
+        if (originalNodeId) {
+          an.nodes.push(revoiceNode);
+          an.edges.push({
+            source: revoiceNodeId,
+            target: originalNodeId,
+            type: 'revoice_of',
+            weight: 1.0,
+            confidence: 1.0,
+          });
+          getGlobalRecorder()?.record({
+            type: 'debate.moderate', component: 'revoice-linkage', level: 'info',
+            message: `REVOICE confirmed: linked ${revoiceNodeId} → ${originalNodeId}`,
+          });
+        }
+      }
+    }
 
     // Lookahead gate: evaluate move quality of extracted claims (t/21)
     if (newNodes.length > 0) {

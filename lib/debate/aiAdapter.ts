@@ -14,6 +14,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../search/tavily.js';
 import { ActionableError } from './errors.js';
 import type { GenerateRequest, GenerateResponse } from './cacheTypes.js';
@@ -189,6 +190,24 @@ export async function countTokens(
   return { tokenCount: Math.ceil(text.length / charsPerToken), accurate: false };
 }
 
+// ── Local Python embedding (matches taxonomy model: all-MiniLM-L6-v2, 384-dim) ──
+
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
+
+function computeEmbeddingViaPython(repoRoot: string, text: string): number[] | null {
+  const script = path.join(repoRoot, 'scripts', 'embed_taxonomy.py');
+  if (!fs.existsSync(script)) return null;
+  try {
+    const stdout = execFileSync(PYTHON, [script, 'encode', text], {
+      timeout: 60_000,
+      maxBuffer: 10 * 1024 * 1024,
+    }).toString('utf-8');
+    const vector = JSON.parse(stdout) as number[];
+    if (Array.isArray(vector) && vector.length > 0) return vector;
+  } catch { /* fall through to API-based embedding */ }
+  return null;
+}
+
 // ── Factory ──────────────────────────────────────────────
 
 export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): ExtendedAIAdapter {
@@ -348,17 +367,26 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
     },
 
     async computeQueryEmbedding(text: string): Promise<{ vector: number[] }> {
+      // Python sentence-transformers first (all-MiniLM-L6-v2, 384-dim — matches taxonomy embeddings)
+      const pyVec = computeEmbeddingViaPython(repoRoot, text);
+      if (pyVec) return { vector: pyVec };
+
+      // Gemini API fallback (768-dim — dimension mismatch with taxonomy, attribution accuracy degrades)
       let apiKey: string;
       try {
         apiKey = resolveApiKey('gemini', explicitApiKey);
       } catch {
         throw new ActionableError({
           goal: 'Compute query embedding for claim attribution',
-          problem: 'No Gemini API key available for embedding',
+          problem: 'No embedding backend available. Python sentence-transformers not found, and no Gemini API key.',
           location: 'aiAdapter.createCLIAdapter.computeQueryEmbedding',
-          nextSteps: ['Set GEMINI_API_KEY env var', 'Pass --api-key to the CLI'],
+          nextSteps: [
+            'Install sentence-transformers: pip install sentence-transformers==4.1.0',
+            'Or set GEMINI_API_KEY env var (note: Gemini embeddings have lower attribution accuracy due to dimension mismatch)',
+          ],
         });
       }
+      console.warn('[embedding] Python unavailable, falling back to Gemini API (dimension mismatch with taxonomy — attribution accuracy may degrade)');
       const vectors = await callGeminiBatchEmbed(fetch, [text], 'RETRIEVAL_QUERY', apiKey);
       return { vector: vectors[0] };
     },

@@ -1171,16 +1171,15 @@ export function extractCalibrationData(
       return allDemoted.size > 0 ? Math.round((referencedDemoted.size / allDemoted.size) * 1000) / 1000 : null;
     })(),
     moderator_drift_intervention_rate: (() => {
-      const interventionEntries = (session.transcript ?? []).filter(e => e.type === 'intervention');
-      if (interventionEntries.length === 0) return null;
-      const signals = session.convergence_signals ?? [];
+      const modEntries = (session.transcript ?? []).filter(e =>
+        (e.metadata as Record<string, unknown>)?.moderator_trace != null);
+      if (modEntries.length === 0) return null;
       let driftCount = 0;
-      for (const ie of interventionEntries) {
-        const round = (ie.metadata as Record<string, unknown>)?.round as number | undefined;
-        const signal = round != null ? signals.find(s => s.round === round) : undefined;
-        if (signal?.arco?.drift_warning) driftCount++;
+      for (const me of modEntries) {
+        const trace = (me.metadata as Record<string, unknown>).moderator_trace as Record<string, unknown>;
+        if (trace.drift_detected) driftCount++;
       }
-      return Math.round((driftCount / interventionEntries.length) * 1000) / 1000;
+      return Math.round((driftCount / modEntries.length) * 1000) / 1000;
     })(),
 
     max_prompt_chars: maxPromptChars,

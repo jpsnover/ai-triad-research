@@ -109,7 +109,11 @@ export function DebateTab() {
     localStorage.setItem('debate-custom-order', JSON.stringify(order));
   }, []);
 
-  // Apply custom ordering: custom-ordered IDs first (in order), then any new sessions not yet ordered
+  // Apply custom ordering: sessions not yet in the custom order (e.g. newly
+  // created debates) float to the top in server order (newest-first), followed
+  // by manually-ordered sessions in their saved order. This keeps a user's
+  // drag-arrangement intact while ensuring new debates are immediately visible
+  // instead of being buried below a long custom-ordered list.
   const orderedSessions = useMemo(() => {
     if (customOrder.length === 0) return sessions;
     const orderMap = new Map(customOrder.map((id, i) => [id, i]));
@@ -117,9 +121,9 @@ export function DebateTab() {
       const ai = orderMap.get(a.id);
       const bi = orderMap.get(b.id);
       if (ai !== undefined && bi !== undefined) return ai - bi;
-      if (ai !== undefined) return -1;
-      if (bi !== undefined) return 1;
-      return 0; // both unordered — keep server order
+      if (ai !== undefined) return 1;  // a is pinned, b is new — new (b) first
+      if (bi !== undefined) return -1; // b is pinned, a is new — new (a) first
+      return 0; // both unordered — keep server order (newest-first)
     });
     return ordered;
   }, [sessions, customOrder]);

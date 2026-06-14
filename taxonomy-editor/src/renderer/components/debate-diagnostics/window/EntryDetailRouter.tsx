@@ -381,12 +381,15 @@ export function EntryDetailRouter({
             { demoted?: { nodeId: string }[] } | undefined;
           const demotedIds = new Set((sft?.demoted ?? []).map(d => d.nodeId));
           const hasDemotedRef = (entry.taxonomy_refs ?? []).some(r => demotedIds.has(r.node_id));
-          const modDrift = entry.type === 'intervention' || (meta?.moderator_trace as Record<string, unknown> | undefined)?.drift_detected;
+          const modTrace = meta?.moderator_trace as Record<string, unknown> | undefined;
+          const modDrift = modTrace?.drift_detected === true;
+          const intMeta = entry.intervention_metadata;
+          const modRedirect = modDrift && intMeta && ['REDIRECT', 'CHALLENGE'].includes(intMeta.move);
           let state: 'green' | 'amber' | 'red';
           let label: string;
           let tip: string;
-          if (!ta.topic_aligned) {
-            state = 'red'; label = 'off-scope'; tip = 'Topic alignment failed after all retries';
+          if (!ta.topic_aligned || modRedirect) {
+            state = 'red'; label = modRedirect ? 'drift redirect' : 'off-scope'; tip = modRedirect ? `Moderator ${intMeta!.move} for drift` : 'Topic alignment failed after all retries';
           } else if (ta.repaired) {
             state = 'amber'; label = 'repaired'; tip = 'Off-scope draft repaired on retry';
           } else if (modDrift || hasDemotedRef) {

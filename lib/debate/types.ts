@@ -962,7 +962,8 @@ export interface ArgumentNetworkEdge {
   id: string;
   source: string;
   target: string;
-  type: 'supports' | 'attacks';
+  /** Non-dialectical 'revoice_of' edges express identity-across-register (no QBAF weight). */
+  type: 'supports' | 'attacks' | 'revoice_of';
   attack_type?: 'rebut' | 'undercut' | 'undermine';
   scheme?: DialecticalScheme;
   warrant?: string;
@@ -974,6 +975,14 @@ export interface ArgumentNetworkEdge {
   critical_questions_addressed?: number[];
   /** Engagement strength: how directly this edge rebuts/supports its target. */
   strength?: 'decisive' | 'substantial' | 'tangential';
+}
+
+export interface RevoiceGateResult {
+  passed: boolean;
+  anchor_source: 'taxonomy' | 'dynamic_an' | null;
+  taxonomy_overlap: { original_top3: string[]; revoiced_top3: string[]; overlap_count: number };
+  entity_preservation: { preserved: boolean; missing_entities: string[]; missing_thresholds: string[] };
+  downgraded_to_check: boolean;
 }
 
 export interface CommitmentStore {
@@ -1860,6 +1869,7 @@ export interface SelectionResult {
   focus_point: string;
   agreement_detected: boolean;
   metaphor_reframe?: string;
+  drift_detected?: boolean;
   intervene: boolean;
   suggested_move?: InterventionMove;
   target_debater?: SpeakerId;

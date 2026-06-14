@@ -104,13 +104,15 @@ function toQbafNodes(nodes: ReadonlyArray<ArgumentNetworkNode>): QbafNode[] {
 }
 
 function toQbafEdges(edges: ReadonlyArray<ArgumentNetworkEdge>): QbafEdge[] {
-  return edges.map(e => ({
-    source: e.source,
-    target: e.target,
-    type: e.type,
-    weight: e.weight ?? 0.5,
-    attack_type: e.attack_type,
-  }));
+  return edges
+    .filter(e => e.type === 'supports' || e.type === 'attacks')
+    .map(e => ({
+      source: e.source,
+      target: e.target,
+      type: e.type as 'supports' | 'attacks',
+      weight: e.weight ?? 0.5,
+      attack_type: e.attack_type,
+    }));
 }
 
 // ── Baseline strength computation ──────────────────────────

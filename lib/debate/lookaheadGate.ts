@@ -603,13 +603,15 @@ function runQbaf(
     id: n.id,
     base_strength: n.base_strength ?? 0.5,
   }));
-  const qEdges = edges.map(e => ({
-    source: e.source,
-    target: e.target,
-    type: e.type,
-    weight: e.weight ?? 0.5,
-    attack_type: (e as ArgumentNetworkEdge).attack_type,
-  }));
+  const qEdges = edges
+    .filter(e => e.type === 'supports' || e.type === 'attacks')
+    .map(e => ({
+      source: e.source,
+      target: e.target,
+      type: e.type as 'supports' | 'attacks',
+      weight: e.weight ?? 0.5,
+      attack_type: (e as ArgumentNetworkEdge).attack_type,
+    }));
   return computeQbafStrengths(qNodes, qEdges, options).strengths;
 }
 

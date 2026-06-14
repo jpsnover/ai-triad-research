@@ -1041,9 +1041,15 @@ export async function extractClaimsAndUpdateAN(
         const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
         if (vector && vector.length > 0) node.embedding = vector;
       } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+      if (node.attribution_text_genus) {
+        try {
+          const { vector } = await api.computeQueryEmbedding(node.attribution_text_genus.slice(0, 300));
+          if (vector && vector.length > 0) node.attribution_embedding = vector;
+        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node genus embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+      }
     }
 
-    // Per-claim taxonomy attribution (t/110): compare AN embeddings against same-POV Belief nodes
+    // Per-claim taxonomy attribution (t/110): compare AN embeddings against same-POV nodes (all BDI categories)
     if (newNodes.length > 0) {
       const speakerPov = POVER_INFO[speaker as Exclude<SpeakerId, 'user'>]?.pov;
       if (speakerPov) {
@@ -1051,12 +1057,11 @@ export async function extractClaimsAndUpdateAN(
           const taxState = useTaxonomyStore.getState();
           const povFile = taxState[speakerPov as keyof typeof taxState] as { nodes: { id: string; category: string; label: string; description: string }[] } | null;
           const povNodes = povFile?.nodes ?? [];
-          const beliefNodes = povNodes.filter((n) => n.category === 'Beliefs');
-          const beliefNodeIds = new Set(beliefNodes.map((n) => n.id));
+          const allPovNodeIds = new Set(povNodes.map((n) => n.id));
 
-          // Ensure we have embeddings for the belief nodes — load from embeddings.json via IPC
+          // Ensure we have embeddings for POV nodes — load from embeddings.json via IPC
           let embCache = taxState.embeddingCache;
-          if (embCache.size === 0 || !beliefNodes.some(n => embCache.has(n.id))) {
+          if (embCache.size === 0 || !povNodes.some(n => embCache.has(n.id))) {
             const { ids, texts } = taxState.buildEmbeddingTexts(new Set(), new Set());
             if (ids.length > 0) {
               const { vectors } = await api.computeEmbeddings(texts, ids);
@@ -1086,7 +1091,7 @@ export async function extractClaimsAndUpdateAN(
             : baseNodeEmbeddings;
 
           const attrResult = computeClaimTaxonomyAttribution(
-            newNodes, speakerPov, nodeEmbeddings, beliefNodeIds,
+            newNodes, speakerPov, nodeEmbeddings, allPovNodeIds,
           );
           extractionTrace.attribution_attributed = attrResult.attributed;
           extractionTrace.attribution_unattributed = attrResult.unattributed;

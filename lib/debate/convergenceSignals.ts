@@ -116,12 +116,14 @@ export function computeConvergenceSignals(
     strengths = precomputedStrengths;
   } else {
     const qbafNodes: QbafNode[] = nodes.map(n => ({ id: n.id, base_strength: n.base_strength ?? 0.5 }));
-    const qbafEdges: QbafEdge[] = edges.map(e => ({
-      source: e.source, target: e.target,
-      type: e.type as 'attacks' | 'supports',
-      weight: e.weight ?? 0.5,
-      attack_type: e.attack_type,
-    }));
+    const qbafEdges: QbafEdge[] = edges
+      .filter(e => e.type === 'supports' || e.type === 'attacks')
+      .map(e => ({
+        source: e.source, target: e.target,
+        type: e.type as 'attacks' | 'supports',
+        weight: e.weight ?? 0.5,
+        attack_type: e.attack_type,
+      }));
     strengths = computeQbafStrengths(qbafNodes, qbafEdges).strengths;
   }
 
