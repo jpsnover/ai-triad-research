@@ -144,6 +144,14 @@ For each claim, also classify:
   Desires: deontic ("X ought to be the case")
   Intentions: instrumental ("Achieve X by means of Y")
   Use controlled vocabulary terms where applicable. This field is used for taxonomy matching — precision matters.
+- "attribution_text": Rewrite this claim mirroring taxonomy node description format:
+  "A [Belief|Desire|Intention] within [POV] discourse that [differentia]. Encompasses: [2-3 specific concepts from the claim]."
+  Rules:
+  1. Use BDI modal form (beliefs=indicative, desires=deontic, intentions=instrumental)
+  2. Replace colloquial phrasing with domain vocabulary (see PREFERRED DOMAIN TERMINOLOGY above)
+  3. Be specific — name concrete mechanisms, not broad categories
+  4. Resolve pronouns, decode metaphors, name the policy domain
+  5. 40-80 words. Do not add claims not in the original.
 - "base_strength": FOR BELIEF CLAIMS ONLY. Classify the evidential grounding as ONE of:
   "grounded" — cites specific data, named sources, dates, or directly verifiable facts
   "reasoned" — logical argument with internal coherence but no specific evidence
@@ -173,10 +181,10 @@ ${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown). Two example claim shapes:
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
-{"text": "...", "canonical_proposition": "X causes Y under condition Z", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "on_topic"' : ''}${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
+{"text": "...", "canonical_proposition": "X causes Y under condition Z", "attribution_text": "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations.", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "on_topic"' : ''}${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
 
 Example 2 — Desire claim (includes bdi_sub_scores; NO base_strength):
-{"text": "...", "canonical_proposition": "Regulators ought to require X for Y", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "adjacent"' : ''}${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
+{"text": "...", "canonical_proposition": "Regulators ought to require X for Y", "attribution_text": "A Desire within safetyist discourse that regulatory sandboxes ought to mandate pre-deployment verification for all frontier models before commercial release. Encompasses: regulatory sandbox frameworks, pre-deployment verification requirements, frontier model governance.", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "adjacent"' : ''}${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
 
 Full responds_to shape (same for all BDI categories):
 {
@@ -274,6 +282,14 @@ Also classify each claim:
    "evidence_supports": "strongly" | "partially" | "weakly" | "contradicts",
    "counter_evidence": "none" | "minor" | "significant",
    "ambiguity_resolved": "none" | "acknowledged" | "collapsed"}
+- "attribution_text": Rewrite this claim mirroring taxonomy node description format:
+  "A [Belief|Desire|Intention] within [POV] discourse that [differentia]. Encompasses: [2-3 specific concepts from the claim]."
+  Rules:
+  1. Use BDI modal form (beliefs=indicative, desires=deontic, intentions=instrumental)
+  2. Replace colloquial phrasing with domain vocabulary (see PREFERRED DOMAIN TERMINOLOGY below)
+  3. Be specific — name concrete mechanisms, not broad categories
+  4. Resolve pronouns, decode metaphors, name the policy domain
+  5. 40-80 words. Do not add claims not in the original.
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 ${audience === 'policymakers' ? `
@@ -286,10 +302,10 @@ ${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown). Two example claim shapes:
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
-{"text": "...", "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
+{"text": "...", "attribution_text": "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations.", "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
 
 Example 2 — Intention claim (includes bdi_sub_scores; NO base_strength):
-{"text": "...", "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "low"' : ''}}
+{"text": "...", "attribution_text": "An Intention within skeptic discourse that regulatory sandboxes should implement formal verification of frontier model behavior before permitting broader deployment. Encompasses: regulatory sandbox design, formal verification methodology, staged deployment protocols.", "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "low"' : ''}}
 
 Full responds_to shape (same for all BDI categories):
 {
@@ -864,6 +880,7 @@ export interface BeliefVerification {
 
 export interface RawExtractedClaim {
   text: string;
+  attribution_text?: string;
   canonical_proposition?: string;
   extraction_confidence?: number;
   bdi_category?: string;
@@ -1021,6 +1038,7 @@ export function processExtractedClaims(
     const node: ArgumentNetworkNode = {
       id: nodeId,
       text: claim.text,
+      attribution_text_genus: claim.attribution_text || undefined,
       canonical_proposition: claim.canonical_proposition || undefined,
       speaker,
       source_entry_id: entryId,

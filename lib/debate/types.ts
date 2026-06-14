@@ -867,6 +867,8 @@ export interface ClaimCoverageEntry {
 export interface DocumentINode {
   id: string;
   text: string;
+  /** Genus-differentia rewrite optimized for taxonomy node matching (LLM output field). */
+  attribution_text?: string;
   type: 'empirical' | 'normative' | 'definitional' | 'assumption' | 'evidence';
   /** FIRE: How faithfully this i-node represents the source text (0-1). */
   extraction_confidence?: number;
@@ -889,6 +891,8 @@ export interface DocumentAnalysis {
 export interface ArgumentNetworkNode {
   id: string;
   text: string;
+  /** Genus-differentia rewrite of the claim optimized for taxonomy node matching. Only present on enriched claims. */
+  attribution_text_genus?: string;
   /** Register-normalized proposition for taxonomy matching (≤30 words, modal register matches BDI type). */
   canonical_proposition?: string;
   speaker: SpeakerId | 'system' | 'document';

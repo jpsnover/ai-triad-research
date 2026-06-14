@@ -170,8 +170,16 @@ Analyze this document and extract its key claims as information nodes (i-nodes).
    - 0.5-0.69: inferred claim not explicitly stated but implied by the text
    - Below 0.5: do not include — you are editorializing beyond the source
    AMBIGUITY WARNING: If the source hedges, qualifies, or presents multiple interpretations of a claim, preserve that uncertainty in your extraction. Do NOT collapse "X may lead to Y" into "X leads to Y" or turn "some argue X while others argue Y" into just "X". Cap extraction_confidence at 0.6 for any claim where you resolved an ambiguity the source left open.
-4. Map it to relevant taxonomy node IDs from the list above — only include IDs that actually appear in the taxonomy
-5. Map it to relevant policy item IDs if applicable
+4. Write an "attribution_text" that rewrites the claim mirroring taxonomy node description format:
+   "A [type] within [POV] discourse that [differentia]. Encompasses: [2-3 specific concepts from the claim]."
+   Rules:
+   a. Use BDI modal form — empirical claims as indicative assertions, normative claims as deontic statements
+   b. Replace colloquial phrasing with domain vocabulary from the taxonomy nodes above
+   c. Be specific — name concrete mechanisms, not broad categories
+   d. Resolve pronouns/demonstratives to their referents from the document, decode metaphors into literal policy language, name the policy domain explicitly, expand acronyms
+   e. 40-80 words. Do not add claims not in the original.
+5. Map it to relevant taxonomy node IDs from the list above — only include IDs that actually appear in the taxonomy
+6. Map it to relevant policy item IDs if applicable
 
 Also identify tension points — places where the document's claims would provoke sharp disagreement between the debate perspectives.
 
@@ -191,6 +199,7 @@ Return ONLY JSON (no markdown, no code fences):
     {
       "id": "D-1",
       "text": "near-verbatim claim from the document",
+      "attribution_text": "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations.",
       "type": "empirical",
       "extraction_confidence": 0.92,
       "taxonomy_refs": ["acc-goals-002"],

@@ -2271,6 +2271,7 @@ export class DebateEngine {
         const node: import('./types.js').ArgumentNetworkNode = {
           id: inode.id,
           text: inode.text,
+          attribution_text_genus: inode.attribution_text || undefined,
           speaker: 'document',
           source_entry_id: entry.id,
           taxonomy_refs: inode.taxonomy_refs,
