@@ -141,7 +141,7 @@ describe('evaluateLookahead — basic', () => {
 // ── evaluateLookahead — threshold behavior ───────────────
 
 describe('evaluateLookahead — threshold', () => {
-  it('uses default threshold of 0.0 when not specified', () => {
+  it('uses default threshold of -0.01 when not specified', () => {
     const input: LookaheadGateInput = {
       speaker: 'accelerationist',
       existingNodes: [makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.5 })],
@@ -151,7 +151,27 @@ describe('evaluateLookahead — threshold', () => {
     };
 
     const result = evaluateLookahead(input);
-    expect(result.threshold).toBe(0.0);
+    expect(result.threshold).toBe(-0.01);
+  });
+
+  it('passes micro-negative moves within erosion tolerance', () => {
+    const existingNodes = [
+      makeNode({ id: 'AN-1', speaker: 'accelerationist', base_strength: 0.6 }),
+      makeNode({ id: 'AN-2', speaker: 'safetyist', base_strength: 0.5 }),
+    ];
+
+    const input: LookaheadGateInput = {
+      speaker: 'accelerationist',
+      existingNodes,
+      existingEdges: [],
+      tentativeClaims: [{ text: 'Clarifying claim', base_strength: 0.3 }],
+      tentativeEdges: [],
+    };
+
+    const result = evaluateLookahead(input);
+    if (result.utility_delta >= -0.01 && result.utility_delta < 0) {
+      expect(result.pass).toBe(true);
+    }
   });
 
   it('respects custom threshold', () => {

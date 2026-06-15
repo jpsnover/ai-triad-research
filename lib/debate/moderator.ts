@@ -301,6 +301,22 @@ export function getSliModifier(family: InterventionFamily, state: ModeratorState
   return 1.0;
 }
 
+// ── Burden modifier ───────────────────────────────────
+
+export function getBurdenModifier(
+  debater: SpeakerId,
+  move: InterventionMove,
+  state: ModeratorState,
+): number {
+  if (state.avg_burden <= 0) return 1.0;
+  const debaterBurden = state.burden_per_debater[debater] ?? 0;
+  const family = MOVE_TO_FAMILY[move];
+  if (debaterBurden > state.avg_burden * 1.5 && FAMILY_BURDEN_WEIGHT[family] > 0.5) {
+    return 1.3;
+  }
+  return 1.0;
+}
+
 // ── Combined effective threshold ───────────────────────
 
 export function computeEffectiveThreshold(
@@ -315,7 +331,8 @@ export function computeEffectiveThreshold(
   const sliMod = getSliModifier(family, state);
   const combined = personaMod * trajectoryMod * sliMod;
   const clamped = Math.max(0.6, Math.min(1.4, combined));
-  return baseThreshold * clamped;
+  const burdenMod = getBurdenModifier(debater, move, state);
+  return baseThreshold * clamped * burdenMod;
 }
 
 // ── Debate Health Score ────────────────────────────────
@@ -448,18 +465,19 @@ export function validateRecommendation(
       `${selection.target_debater} was already the target of the previous intervention — must alternate`);
   }
 
-  // Burden cap: debater with cumulative burden > 1.5× average blocks high-burden moves
+  // Burden diagnostic: flag overburdened debaters but allow the intervention
   const debaterBurden = state.burden_per_debater[selection.target_debater] ?? 0;
-  if (state.avg_burden > 0 && debaterBurden > state.avg_burden * 1.5 && FAMILY_BURDEN_WEIGHT[family] > 0.5) {
-    return suppress(move, selection.target_debater, 'burden_cap',
-      `${selection.target_debater} burden (${debaterBurden.toFixed(1)}) exceeds 1.5× average (${(state.avg_burden * 1.5).toFixed(1)}) — high-burden ${family} move blocked`);
-  }
+  const burdenMod = getBurdenModifier(selection.target_debater, move, state);
+  const burdenDiag = (state.avg_burden > 0 && debaterBurden > state.avg_burden * 1.5)
+    ? { debater: selection.target_debater, burden: debaterBurden, avg: state.avg_burden, threshold_multiplier: burdenMod }
+    : undefined;
 
   const result = {
     proceed: true as const,
     validated_move: move,
     validated_family: family,
     validated_target: selection.target_debater,
+    burden_diagnostic: burdenDiag,
   };
   getGlobalRecorder()?.record({
     type: 'debate.moderate', component: 'moderator', level: 'info',
@@ -902,12 +920,20 @@ export interface NearMiss {
 
 export function detectNearMisses(
   _state: ModeratorState,
-  _signalValues: Partial<Record<InterventionMove, number>>,
+  signalValues: Partial<Record<InterventionMove, number>>,
 ): NearMiss[] {
-  // Near-miss detection compares each trigger's signal value against its effective
-  // threshold and flags those at >= 80%. This is a placeholder for when signal
-  // values are computed from convergence data.
-  return [];
+  const nearMisses: NearMiss[] = [];
+  const threshold = 1.0;
+
+  for (const [move, value] of Object.entries(signalValues) as [InterventionMove, number][]) {
+    if (value === undefined) continue;
+    const ratio = value / threshold;
+    if (ratio >= 0.8 && ratio < 1.0) {
+      nearMisses.push({ move, signal_value: value, effective_threshold: threshold, ratio });
+    }
+  }
+
+  return nearMisses;
 }
 
 // ── Synthesis COMMIT automation ───────────────────────

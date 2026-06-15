@@ -1655,9 +1655,14 @@ GROUNDING DEPTH: Each angle and claim MUST cite 2-4 grounding nodes from the tax
 
 GROUNDING WEIGHTS: For Belief grounding nodes, include "confidence" (0.0–1.0) from the taxonomy context. For Desire grounding nodes, include "priority" (1–5). For Intention grounding nodes, include "operationality" (1–5). These help downstream stages calibrate rhetorical strength.
 
+SOURCE FIDELITY: Your situation_assessment must describe the debate topic as given — do not introduce concepts, framings, or policy domains that the topic and source material did not raise. If the source argues about ecosystem stability, do not reframe it as a governance debate. Characterize the actual disagreement, not a more convenient one. For every concept in your situation_assessment, cite the exact source phrase that warrants it in source_fidelity_check. If you cannot quote a source phrase for a concept, remove it from your assessment.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
   "situation_assessment": "2-4 sentences: the key dimensions of the topic and what matters most for this perspective",
+  "source_fidelity_check": [
+    {"concept_used": "concept you reference in situation_assessment", "source_quote": "exact phrase from topic or source material that justifies it"}
+  ],
   "strongest_angles": [
     {"angle": "a framing or argument line", "why": "why this is strong for the ${input.pov} perspective", "grounding": [{"node_id": "acc-beliefs-003", "label": "Node Label Here", "confidence": 0.72, "why": "primary anchor — empirical basis"}, {"node_id": "acc-desires-007", "label": "Node Label Here", "priority": 4, "why": "supporting normative commitment"}]}
   ],
@@ -1673,7 +1678,9 @@ Respond ONLY with a JSON object (no markdown, no code fences):
   "prior_positions_to_address": [
     {"speaker": "who", "position": "their key claim", "response_strategy": "acknowledge / contrast / challenge"}
   ]`}
-}`;
+}${input.isFirst ? '' : `
+
+NOTE: Only speakers listed in the prior statements have actually spoken. Do not infer or attribute positions to other perspectives — they have not spoken yet. Your 'prior_positions_to_address' entries must reference ONLY speakers from the prior opening statements above.`}`;
 }
 
 export function planOpeningStagePrompt(input: OpeningStagePromptInput, brief: string): string {
@@ -1765,7 +1772,9 @@ ${plan}
 ${input.userSeedClaims && input.userSeedClaims.length > 0 ? `=== USER-STATED POSITIONS ===\nThe user framed this debate with the following positions. Engage with these directly — state which you agree with, which you challenge, and why. Reference their IDs in your claim_sketches targets.\n${input.userSeedClaims.map(c => `- [${c.id}] ${c.text}`).join('\n')}\n\n` : ''}=== YOUR ASSIGNMENT ===
 Deliver your opening statement as ${input.label} — stay in character. Frame the issue from your perspective and establish your core argument. Be specific, substantive, and persuasive.
 ${hasDocument ? documentInstructions : ''}
-${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before introducing your own position, show that you understand the strongest version of each prior speaker's argument — not just acknowledge it, but articulate why it's compelling. Then identify where your evidence leads in a different direction. Name the specific tension: what would have to be true for both positions to hold? Strong openings surface the real disagreement, not just assert the opposite.`}
+${input.isFirst ? 'You are delivering the first opening statement.' : `You have read the prior opening statements. Before introducing your own position, show that you understand the strongest version of each prior speaker's argument — not just acknowledge it, but articulate why it's compelling. Then identify where your evidence leads in a different direction. Name the specific tension: what would have to be true for both positions to hold? Strong openings surface the real disagreement, not just assert the opposite.
+
+IMPORTANT: You may only attribute named positions to speakers whose openings appear in the PRIOR OPENING POSITIONS section above. If only one speaker has spoken, do not use 'they' or 'both positions' — name the specific speaker. Do not attribute positions to speakers who have not yet delivered their opening.`}
 
 Execute the argument plan above. Write your opening statement following the plan's structure.
 
@@ -2558,7 +2567,7 @@ Tasks:
 
    Weight criteria f and g equally with the existing five when evaluating for a policymaker audience. A technically superior position that cannot be implemented is less valuable to this audience than a feasible one.` : ''}
    If genuinely undecidable, say so and explain what evidence would tip the balance.
-2. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails.${policyContext}
+2. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails.${policyContext ? ` Reference pol-NNN IDs from the policy registry when applicable.${policyContext}` : ''}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -2566,7 +2575,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"conflict": "description of disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
   ],
   "policy_implications": [
-    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "accelerationist", "stance": "supports/opposes/modifies and why"}], "implication": "how this affects what policy should be adopted"}
+    {"disagreement": "the policy-relevant disagreement", ${policyContext ? '"policy_refs": ["pol-NNN"], ' : ''}"positions": [{"pover": "accelerationist", "stance": "supports/opposes/modifies and why"}], "implication": "how this affects what policy should be adopted"}
   ]
 }`;
 }
@@ -2646,7 +2655,7 @@ Identify:
    e. "scope" — which position accounts for more of the relevant considerations?
    A position can prevail on one criterion while losing on another.
    If genuinely undecidable, say so and explain what evidence would tip the balance.${documentAnalysis}
-9. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails. Reference pol-NNN IDs from the policy registry when applicable.${policyContext}
+9. Policy implications: For each significant disagreement, identify what concrete policy actions would differ depending on which position prevails.${policyContext ? ` Reference pol-NNN IDs from the policy registry when applicable.${policyContext}` : ' Describe implied policy directions based on the debaters\' positions.'}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -2666,7 +2675,7 @@ Respond ONLY with a JSON object (no markdown, no code fences):
     {"conflict": "description of the disagreement", "claim_ids": ["C1", "C2"], "prevails": "C2 or undecidable", "criterion": "empirical_evidence or logical_validity or source_authority or specificity or scope", "rationale": "2-3 sentences explaining why", "what_would_change_this": "what evidence would flip the verdict"}
   ],
   "policy_implications": [
-    {"disagreement": "the policy-relevant disagreement", "policy_refs": ["pol-001"], "positions": [{"pover": "accelerationist", "stance": "supports/opposes/modifies and why"}], "implication": "how this disagreement affects what policy should be adopted"}
+    {"disagreement": "the policy-relevant disagreement", ${policyContext ? '"policy_refs": ["pol-NNN"], ' : ''}"positions": [{"pover": "accelerationist", "stance": "supports/opposes/modifies and why"}], "implication": "how this disagreement affects what policy should be adopted"}
   ]${documentSchema}
 }`;
 }

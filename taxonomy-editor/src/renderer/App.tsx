@@ -24,6 +24,7 @@ import { PovProgressionWindow } from './components/PovProgression/PovProgression
 import { DebatePopoutWindow } from './components/DebatePopoutWindow';
 import { ChatWindow } from './components/ChatWindow';
 import { PromptDiffWindow } from './components/PromptDiffWindow';
+import { DiffWindow } from './components/DiffWindow';
 import { HarvestDialog } from './components/HarvestDialog';
 import { SummariesTab } from './components/SummariesTab';
 import { CruxesTab } from './components/CruxesTab';
@@ -150,6 +151,9 @@ export function App() {
   if (hash.startsWith('#prompt-diff-window')) {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PromptDiffWindow /></ErrorBoundary>;
   }
+  if (hash.startsWith('#diff-window')) {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DiffWindow /></ErrorBoundary>;
+  }
   if (hash === '#chat-window') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><ChatWindow /></ErrorBoundary>;
   }
@@ -194,8 +198,6 @@ function MainApp() {
   const [changedFiles, setChangedFiles] = useState<{ path: string; status: string }[] | null>(null);
   const [showFiles, setShowFiles] = useState(false);
   const [loadingFiles, setLoadingFiles] = useState(false);
-  const [diffContent, setDiffContent] = useState<string | null>(null);
-  const [diffFilePath, setDiffFilePath] = useState<string | null>(null);
   const [showFirstRun, setShowFirstRun] = useState(false);
   const [dataRoot, setDataRoot] = useState('');
   const [copyStatus, setCopyStatus] = useState<{ state: string; dir?: string; copied?: number; total?: number } | null>(null);
@@ -307,19 +309,8 @@ function MainApp() {
     }
   };
 
-  const handleViewDiff = async (filePath: string) => {
-    if (diffFilePath === filePath) { setDiffContent(null); setDiffFilePath(null); return; }
-    try {
-      const diff = await api.getFileDiff(filePath);
-      setDiffContent(diff);
-      setDiffFilePath(filePath);
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error', component: 'app', level: 'error',
-        message: `failed to fetch diff for ${filePath}`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
-      });
-    }
+  const handleViewDiff = (filePath: string) => {
+    void api.openDiffWindow(filePath);
   };
 
   const dismissUpdate = () => { setDataUpdate(null); setShowFiles(false); setChangedFiles(null); };
@@ -539,32 +530,15 @@ function MainApp() {
                     </span>
                     <span className="data-update-file-path">{f.path}</span>
                     <button
-                      className={`data-update-file-diff-btn${diffFilePath === f.path ? ' active' : ''}`}
-                      onClick={() => void handleViewDiff(f.path)}
+                      className="data-update-file-diff-btn"
+                      onClick={() => handleViewDiff(f.path)}
                       title={`View changes in ${f.path}`}
                     >
-                      {diffFilePath === f.path ? 'Hide Diff' : 'View Diff'}
+                      View Diff
                     </button>
                   </div>
                 ))}
               </div>
-              {diffContent && diffFilePath && (
-                <div className="data-update-diff-panel">
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Changes: {diffFilePath}</span>
-                    <button className="data-update-file-diff-btn" onClick={() => { setDiffContent(null); setDiffFilePath(null); }}>Close</button>
-                  </div>
-                  <pre className="data-update-diff-content">
-                    {diffContent.split('\n').map((line, i) => {
-                      let cls = '';
-                      if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add';
-                      else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-del';
-                      else if (line.startsWith('@@')) cls = 'diff-hunk';
-                      return <span key={i} className={cls}>{line}{'\n'}</span>;
-                    })}
-                  </pre>
-                </div>
-              )}
             </div>
           )}
         </div>

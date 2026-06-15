@@ -116,6 +116,9 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    exclude: ['@huggingface/transformers', 'onnxruntime-web'],
+  },
   server: {
     port: 5173,
     strictPort: true,

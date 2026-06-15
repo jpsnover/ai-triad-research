@@ -88,7 +88,12 @@ function Get-RelevantTaxonomyNodes {
         [ValidateScript({ Test-AIModelId $_ })]
         [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
         [string]$Model = '',
-        [string]$ApiKey = ''
+        [string]$ApiKey = '',
+
+        # Pre-computed query embedding. When supplied (e.g. callers that batch
+        # many chunk queries in one embed subprocess), the per-call encode
+        # subprocess is skipped entirely — avoids a ~6s cold model load per call.
+        [double[]]$QueryVector = @()
     )
 
     Set-StrictMode -Version Latest
@@ -150,13 +155,22 @@ function Get-RelevantTaxonomyNodes {
     # Truncate query to ~2000 chars (model context limit)
     if ($Query.Length -gt 2000) { $QueryText = $Query.Substring(0, 2000) } else { $QueryText = $Query }
 
+    if ($QueryVector.Count -gt 0) {
+        # Caller supplied a pre-computed embedding (batched upstream) — skip the
+        # per-call encode subprocess entirely.
+        $QueryVector = [double[]]$QueryVector
+    }
+    else {
     try {
         # Pipe query text via stdin to avoid CLI arg escaping issues with long text.
         # embed_taxonomy.py encode reads from stdin when arg is '-' (default).
         $PrevEAP = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
         try {
+            $__EmbSw = [System.Diagnostics.Stopwatch]::StartNew()
             $EmbOutput = $QueryText | & $PythonCmd $EmbedScript encode - 2>$null
+            $__EmbSw.Stop()
+            Add-StageTiming -Name 'embed.subprocess (RAG query)' -Milliseconds $__EmbSw.Elapsed.TotalMilliseconds
         } finally {
             $ErrorActionPreference = $PrevEAP
         }
@@ -180,6 +194,7 @@ function Get-RelevantTaxonomyNodes {
             -Problem "Local embedding failed: $($_.Exception.Message)" `
             -Location 'Get-RelevantTaxonomyNodes' `
             -NextSteps @('Check Python is installed', 'Run: pip install sentence-transformers') -Throw
+    }
     }
 
     # ── Compute cosine similarity for all nodes ───────────────────────────────

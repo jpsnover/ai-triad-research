@@ -166,8 +166,30 @@ export function ArgumentNetworkTab({
           </span>
         )}
       </div>
-      {filteredGroups.map(({ entryId, nodes: groupNodes, trace }) => (
+      {filteredGroups.map(({ entryId, nodes: groupNodes, trace }) => {
+        const srcEntry = debate.transcript.find(e => e.id === entryId);
+        const stmtId = stmtIdByEntry.get(entryId);
+        return (
         <div key={entryId}>
+          {/* Source statement header */}
+          {srcEntry && groupNodes.length > 0 && (
+            <div
+              style={{
+                margin: '10px 0 2px', padding: '4px 8px', borderRadius: 4,
+                background: 'rgba(59,130,246,0.06)', borderLeft: '3px solid rgba(59,130,246,0.4)',
+                fontSize: '0.65rem', color: 'var(--text-secondary)',
+                cursor: 'pointer',
+              }}
+              onClick={() => { setOverviewTab('transcript'); setSelectedEntry(entryId); setLocalOverride(true); }}
+              title={`Go to ${stmtId ?? entryId} in transcript`}
+            >
+              <span style={{ fontWeight: 700, color: '#3b82f6', marginRight: 6 }}>{stmtId ?? entryId}</span>
+              <span style={{ fontWeight: 600, marginRight: 6 }}>{speakerLabel(srcEntry.speaker)}</span>
+              <span style={{ color: 'var(--text-muted)' }}>
+                {srcEntry.content.length > 200 ? srcEntry.content.slice(0, 200) + '…' : srcEntry.content}
+              </span>
+            </div>
+          )}
           {/* Moderator deliberation banner */}
           {trace && (
             <div style={{
@@ -240,7 +262,8 @@ export function ArgumentNetworkTab({
             );
           })}
         </div>
-      ))}
+        );
+      })}
       {/* Confidence evolution trace — shows taxonomy nodes whose confidence changed from this debate */}
       <ConfidenceImpactTrace debateId={debate.id} />
     </div>

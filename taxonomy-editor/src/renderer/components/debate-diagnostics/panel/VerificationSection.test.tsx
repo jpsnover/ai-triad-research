@@ -201,19 +201,11 @@ describe('VerificationSection — detail rows', () => {
     expect(screen.getByText('claim two')).toBeInTheDocument();
   });
 
-  it('truncates checked text longer than 80 characters', () => {
-    const longText = 'A'.repeat(90);
+  it('displays full checked text without truncation', () => {
+    const longText = 'A'.repeat(200);
     const transcript = [makeFactCheck('verified', longText)];
     render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
-    // Should be truncated to 77 chars + '...'
-    expect(screen.getByText(`${'A'.repeat(77)}...`)).toBeInTheDocument();
-  });
-
-  it('does not truncate checked text at or under 80 characters', () => {
-    const text = 'A'.repeat(80);
-    const transcript = [makeFactCheck('verified', text)];
-    render(<VerificationSection transcript={transcript} anNodes={NO_AN_NODES} />);
-    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(longText)).toBeInTheDocument();
   });
 
   it('shows "auto" label for auto fact-checks', () => {

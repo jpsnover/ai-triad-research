@@ -163,7 +163,7 @@ export function VerificationSection({ transcript, anNodes }: VerificationSection
                 <span className="diag-badge" style={{ background: VERDICT_COLORS[fc.verdict] ?? '#6b7280', color: '#fff', fontSize: '0.55rem' }}>
                   {fc.verdict}
                 </span>
-                <span className="factcheck-detail-claim">{fc.checkedText.length > 80 ? fc.checkedText.slice(0, 77) + '...' : fc.checkedText}</span>
+                <span className="factcheck-detail-claim">{fc.checkedText}</span>
                 <span className="diag-muted" style={{ fontSize: '0.55rem' }}>{fc.isAuto ? 'auto' : 'user'}{fc.webSearchUsed ? ' · web' : ''}</span>
               </div>
               {expandedIdx === i && (

@@ -98,7 +98,10 @@ function Invoke-SummaryPipeline {
         $QueryText = "$($Metadata.title). $($QueryWords -join ' ')"
 
         try {
+            $__ChessSw = [System.Diagnostics.Stopwatch]::StartNew()
             $RelevantPovs = Get-DocumentPovClassification -QueryText $QueryText -ApiKey $ApiKey
+            $__ChessSw.Stop()
+            Add-StageTiming -Name 'api.chess (POV classify)' -Milliseconds $__ChessSw.Elapsed.TotalMilliseconds
             Write-Verbose "Pipeline: CHESS classified POVs: $($RelevantPovs -join ', ')"
 
             $AllPovs = @('accelerationist', 'safetyist', 'skeptic')
@@ -203,6 +206,7 @@ $SnapshotText
                 $AttemptPrompt = $FullPrompt + "`n`n" + $DensityRetryNudge
             }
 
+            $__SsSw = [System.Diagnostics.Stopwatch]::StartNew()
             $AiResult = Invoke-AIApi `
                 -Prompt      $AttemptPrompt `
                 -SystemInstruction $SysInstruction `
@@ -212,6 +216,8 @@ $SnapshotText
                 -MaxTokens   32768 `
                 -JsonMode `
                 -TimeoutSec  600
+            $__SsSw.Stop()
+            Add-StageTiming -Name 'api.extraction (single-shot)' -Milliseconds $__SsSw.Elapsed.TotalMilliseconds
 
             if ($null -eq $AiResult) {
                 return @{ Success = $false; DocId = $DocId; Error = 'API call returned null' }

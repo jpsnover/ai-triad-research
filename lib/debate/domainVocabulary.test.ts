@@ -50,4 +50,17 @@ describe('DOMAIN_VOCABULARY in classifyClaimsPrompt', () => {
     const jsonIdx = prompt.indexOf('Return ONLY JSON');
     expect(vocabIdx).toBeLessThan(jsonIdx);
   });
+
+  it('includes extraction_confidence instructions and examples', () => {
+    const prompt = classifyClaimsPrompt(
+      'Test statement',
+      'safetyist',
+      [{ claim: 'Safety is important', targets: [] }],
+      [],
+    );
+    expect(prompt).toContain('"extraction_confidence"');
+    expect(prompt).toContain('how faithfully this claim captures what the speaker actually said');
+    expect(prompt).toContain('extraction_confidence": 0.92');
+    expect(prompt).toContain('extraction_confidence": 0.85');
+  });
 });

@@ -185,6 +185,9 @@ export interface AppAPI {
   closeDiagnosticsWindow: () => Promise<void>;
   sendDiagnosticsState: (state: unknown) => void;
 
+  // --- Data file diff popout ---
+  openDiffWindow: (filePath: string) => Promise<void>;
+
   // --- Prompt Diff popout ---
   openPromptDiffWindow: (debateId: string, entryId: string) => Promise<void>;
 

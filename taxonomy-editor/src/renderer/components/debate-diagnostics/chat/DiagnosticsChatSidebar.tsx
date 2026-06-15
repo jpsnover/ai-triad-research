@@ -815,6 +815,35 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
     setTimeout(() => inputRef.current?.focus(), 0);
   }, [generating]);
 
+  const [width, setWidth] = useState(360);
+  const dragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartW = useRef(0);
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartW.current = width;
+
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const delta = dragStartX.current - ev.clientX;
+      setWidth(Math.max(240, Math.min(800, dragStartW.current + delta)));
+    };
+    const onUp = () => {
+      dragging.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, [width]);
+
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
 
   const chatContent = (
@@ -1007,35 +1036,6 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       </div>
     </div>
   );
-
-  const [width, setWidth] = useState(360);
-  const dragging = useRef(false);
-  const dragStartX = useRef(0);
-  const dragStartW = useRef(0);
-
-  const onResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dragging.current = true;
-    dragStartX.current = e.clientX;
-    dragStartW.current = width;
-
-    const onMove = (ev: MouseEvent) => {
-      if (!dragging.current) return;
-      const delta = dragStartX.current - ev.clientX;
-      setWidth(Math.max(240, Math.min(800, dragStartW.current + delta)));
-    };
-    const onUp = () => {
-      dragging.current = false;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  }, [width]);
 
   if (!open) {
     if (embedded) return null;

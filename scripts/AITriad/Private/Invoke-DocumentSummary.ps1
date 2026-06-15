@@ -176,6 +176,16 @@ function Invoke-ChunkedSummary {
     }
     $DocHeader = Build-DocHeader -Doc $Doc -Meta $Meta -ThisDocId $ThisDocId
 
+    # -- Pre-compute all chunk RAG query embeddings in ONE batch subprocess ----
+    # Get-RelevantTaxonomyNodes embeds the query via a cold ~6s model-load per
+    # call; batching all chunk queries up front loads the model once. Queries are
+    # truncated to 2000 chars to match Get-RelevantTaxonomyNodes' own truncation.
+    $ChunkQueryTexts = [System.Collections.Generic.List[string]]::new()
+    foreach ($Ck in $Chunks) {
+        if ($Ck.Length -gt 2000) { $ChunkQueryTexts.Add($Ck.Substring(0, 2000)) } else { $ChunkQueryTexts.Add($Ck) }
+    }
+    $ChunkQueryEmb = Invoke-BatchEmbeddings -Texts $ChunkQueryTexts.ToArray() -MaxChars 2000
+
     # -- Process each chunk sequentially (API rate limits) --------------------
     $StartTime = Get-Date
     $ChunkResults = [System.Collections.Generic.List[object]]::new()
@@ -194,7 +204,11 @@ function Invoke-ChunkedSummary {
         $ChunkTaxonomy = $null
         $script:LastRAGMetrics = $null
         try {
-            $ChunkRelevant = Get-RelevantTaxonomyNodes -Query $ChunkText `
+            # Use the pre-computed (batched) query vector when available; falls
+            # back to an in-call encode if the batch produced no vector for it.
+            if ($ChunkText.Length -gt 2000) { $ChunkQueryText = $ChunkText.Substring(0, 2000) } else { $ChunkQueryText = $ChunkText }
+            if ($ChunkQueryEmb.ContainsKey($ChunkQueryText)) { $ChunkQVec = $ChunkQueryEmb[$ChunkQueryText] } else { $ChunkQVec = @() }
+            $ChunkRelevant = Get-RelevantTaxonomyNodes -Query $ChunkText -QueryVector $ChunkQVec `
                 -MaxTotal 150 -TopK 60 -MinPerCategory 2 `
                 -IncludeSituations -Format context -ApiKey $ApiKey
             if ($ChunkRelevant) {
@@ -231,6 +245,7 @@ $ChunkText
 "@
 
         try {
+            $__ApiSw = [System.Diagnostics.Stopwatch]::StartNew()
             $AIResult = Invoke-AIApi `
                 -Prompt     $ChunkPrompt `
                 -SystemInstruction $ChunkSysInstruction `
@@ -242,6 +257,8 @@ $ChunkText
                 -TimeoutSec 600 `
                 -MaxRetries 3 `
                 -RetryDelays @(5, 15, 45)
+            $__ApiSw.Stop()
+            Add-StageTiming -Name 'api.extraction (chunk)' -Milliseconds $__ApiSw.Elapsed.TotalMilliseconds
 
             if ($null -eq $AIResult) {
                 Write-Host " ✗ null response" -ForegroundColor Red
@@ -349,7 +366,10 @@ $ChunkText
 
     # -- Merge chunk results --------------------------------------------------
     Write-Host "  │  merging $($ChunkResults.Count) chunk results..." -ForegroundColor Cyan
+    $__MergeSw = [System.Diagnostics.Stopwatch]::StartNew()
     $MergedObject = Merge-ChunkSummaries -ChunkResults @($ChunkResults)
+    $__MergeSw.Stop()
+    Add-StageTiming -Name 'merge.total (incl. embed dedup)' -Milliseconds $__MergeSw.Elapsed.TotalMilliseconds
 
     # Capture context-rot merge metrics before stripping the internal field
     if ($MergedObject['_merge_metrics']) {

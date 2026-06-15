@@ -6262,6 +6262,7 @@ body {
   font-size: 0.85rem;
   color: var(--text-primary);
   line-height: 1.5;
+  white-space: pre-line;
   margin: 0;
 }
 
@@ -6863,6 +6864,7 @@ body {
 
 .lineage-inline-summary {
   color: var(--text-primary);
+  white-space: pre-line;
   margin-bottom: 8px;
 }
 
@@ -8437,8 +8439,8 @@ body {
 .factcheck-detail-list { display: flex; flex-direction: column; gap: 3px; }
 .factcheck-detail-row { cursor: pointer; padding: 3px 6px; border-radius: 4px; background: var(--bg-secondary); font-size: 0.65rem; }
 .factcheck-detail-row:hover { background: var(--bg-tertiary, rgba(255,255,255,0.06)); }
-.factcheck-detail-header { display: flex; align-items: center; gap: 6px; }
-.factcheck-detail-claim { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.factcheck-detail-header { display: flex; align-items: baseline; gap: 6px; }
+.factcheck-detail-claim { flex: 1; line-height: 1.4; }
 .factcheck-detail-expanded { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--border-color, rgba(255,255,255,0.08)); }
 .factcheck-detail-explanation { font-size: 0.62rem; line-height: 1.4; white-space: pre-wrap; color: var(--text-primary); }
 

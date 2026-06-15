@@ -12,7 +12,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createCLIAdapter } from './aiAdapter.js';
-import { resolveRepoRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts, loadVocabulary } from './taxonomyLoader.js';
+import { resolveRepoRoot, resolveDataRoot, loadTaxonomy, loadSourceContent, fetchUrlContent, loadConflicts, loadVocabulary } from './taxonomyLoader.js';
 import { DebateEngine } from './debateEngine.js';
 import type { DebateConfig } from './debateEngine.js';
 import type { DebateSourceType, SpeakerId, DebateAudience } from './types.js';
@@ -400,7 +400,8 @@ async function main(): Promise<void> {
 
   // Generate outputs
   const slug = config.slug ?? generateSlug(config.name ?? topic);
-  const outputDir = path.resolve(config.outputDir ?? './debates');
+  const dataRoot = resolveDataRoot(repoRoot);
+  const outputDir = path.resolve(config.outputDir ?? path.join(dataRoot, 'debates'));
   try {
     fs.mkdirSync(outputDir, { recursive: true });
   } catch (err) {

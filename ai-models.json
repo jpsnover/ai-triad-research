@@ -40,6 +40,30 @@
       "backend": "gemini"
     },
     {
+      "id": "gemini-2.0-flash",
+      "apiModelId": "gemini-2.0-flash",
+      "label": "Gemini 2.0 Flash",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-001",
+      "apiModelId": "gemini-2.0-flash-001",
+      "label": "Gemini 2.0 Flash 001",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-lite-001",
+      "apiModelId": "gemini-2.0-flash-lite-001",
+      "label": "Gemini 2.0 Flash-Lite 001",
+      "backend": "gemini"
+    },
+    {
+      "id": "gemini-2.0-flash-lite",
+      "apiModelId": "gemini-2.0-flash-lite",
+      "label": "Gemini 2.0 Flash-Lite",
+      "backend": "gemini"
+    },
+    {
       "id": "gemini-2.5-flash-preview-tts",
       "apiModelId": "gemini-2.5-flash-preview-tts",
       "label": "Gemini 2.5 Flash Preview TTS",
@@ -262,21 +286,9 @@
       "backend": "claude"
     },
     {
-      "id": "groq-openai-gpt-oss-20b",
-      "apiModelId": "openai/gpt-oss-20b",
-      "label": "Openai/Gpt Oss 20b",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-llama-3.1-8b-instant",
-      "apiModelId": "llama-3.1-8b-instant",
-      "label": "Llama 3.1 8b Instant",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-llama-4-scout-17b-16e",
-      "apiModelId": "meta-llama/llama-4-scout-17b-16e-instruct",
-      "label": "Llama 4 Scout 17b 16e Instruct",
+      "id": "groq-canopylabs-orpheus-v1-english",
+      "apiModelId": "canopylabs/orpheus-v1-english",
+      "label": "Canopylabs/Orpheus V1 English",
       "backend": "groq"
     },
     {
@@ -286,9 +298,21 @@
       "backend": "groq"
     },
     {
-      "id": "groq-canopylabs-orpheus-v1-english",
-      "apiModelId": "canopylabs/orpheus-v1-english",
-      "label": "Canopylabs/Orpheus V1 English",
+      "id": "groq-llama-3.1-8b-instant",
+      "apiModelId": "llama-3.1-8b-instant",
+      "label": "Llama 3.1 8b Instant",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-groq-compound-mini",
+      "apiModelId": "groq/compound-mini",
+      "label": "Groq/Compound Mini",
+      "backend": "groq"
+    },
+    {
+      "id": "groq-openai-gpt-oss-20b",
+      "apiModelId": "openai/gpt-oss-20b",
+      "label": "Openai/Gpt Oss 20b",
       "backend": "groq"
     },
     {
@@ -304,15 +328,9 @@
       "backend": "groq"
     },
     {
-      "id": "groq-groq-compound",
-      "apiModelId": "groq/compound",
-      "label": "Groq/Compound",
-      "backend": "groq"
-    },
-    {
-      "id": "groq-groq-compound-mini",
-      "apiModelId": "groq/compound-mini",
-      "label": "Groq/Compound Mini",
+      "id": "groq-llama-4-scout-17b-16e",
+      "apiModelId": "meta-llama/llama-4-scout-17b-16e-instruct",
+      "label": "Llama 4 Scout 17b 16e Instruct",
       "backend": "groq"
     },
     {
@@ -328,6 +346,24 @@
       "backend": "groq"
     },
     {
+      "id": "groq-groq-compound",
+      "apiModelId": "groq/compound",
+      "label": "Groq/Compound",
+      "backend": "groq"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo",
+      "apiModelId": "gpt-3.5-turbo",
+      "label": "Gpt 3.5 Turbo",
+      "backend": "openai"
+    },
+    {
+      "id": "openai-gpt-3.5-turbo-16k",
+      "apiModelId": "gpt-3.5-turbo-16k",
+      "label": "Gpt 3.5 Turbo 16k",
+      "backend": "openai"
+    },
+    {
       "id": "openai-gpt-4-0613",
       "apiModelId": "gpt-4-0613",
       "label": "Gpt 4 0613",
@@ -337,18 +373,6 @@
       "id": "openai-gpt-4",
       "apiModelId": "gpt-4",
       "label": "Gpt 4",
-      "backend": "openai"
-    },
-    {
-      "id": "openai-gpt-3.5-turbo",
-      "apiModelId": "gpt-3.5-turbo",
-      "label": "Gpt 3.5 Turbo",
-      "backend": "openai"
-    },
-    {
-      "id": "openai-gpt-5.5-pro-2026-04-23",
-      "apiModelId": "gpt-5.5-pro-2026-04-23",
-      "label": "Gpt 5.5 Pro 2026 04 23",
       "backend": "openai"
     },
     {
@@ -814,9 +838,9 @@
       "backend": "openai"
     },
     {
-      "id": "openai-gpt-3.5-turbo-16k",
-      "apiModelId": "gpt-3.5-turbo-16k",
-      "label": "Gpt 3.5 Turbo 16k",
+      "id": "openai-gpt-5.5-pro-2026-04-23",
+      "apiModelId": "gpt-5.5-pro-2026-04-23",
+      "label": "Gpt 5.5 Pro 2026 04 23",
       "backend": "openai"
     },
     {
@@ -1030,5 +1054,5 @@
       "cachedInputPer1M": 0.14
     }
   },
-  "lastRefreshed": "2026-06-11T18:25:51.783Z"
+  "lastRefreshed": "2026-06-15T09:39:55.533Z"
 }

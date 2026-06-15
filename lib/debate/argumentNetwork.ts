@@ -290,6 +290,11 @@ Also classify each claim:
   3. Be specific — name concrete mechanisms, not broad categories
   4. Resolve pronouns, decode metaphors, name the policy domain
   5. 40-80 words. Do not add claims not in the original.
+- "extraction_confidence": how faithfully this claim captures what the speaker actually said (0-1):
+  0.9-1.0: near-verbatim sentence from the statement
+  0.7-0.89: faithful compression, core meaning preserved
+  0.5-0.69: implicit premise or reading between the lines
+  Below 0.5: do not include — you are editorializing beyond the statement
 - "specificity": "precise" (specific numbers, dates, named entities), "general" (broad empirical), or "abstract" (theoretical/normative)
 - "steelman_of": null normally. Set to opponent's name ONLY when this claim deliberately presents the strongest version of an opponent's position.
 ${audience === 'policymakers' ? `
@@ -302,10 +307,10 @@ ${DOMAIN_VOCABULARY}
 Return ONLY JSON (no markdown). Two example claim shapes:
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
-{"text": "...", "attribution_text": "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations.", "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
+{"text": "...", "attribution_text": "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations.", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
 
 Example 2 — Intention claim (includes bdi_sub_scores; NO base_strength):
-{"text": "...", "attribution_text": "An Intention within skeptic discourse that regulatory sandboxes should implement formal verification of frontier model behavior before permitting broader deployment. Encompasses: regulatory sandbox design, formal verification methodology, staged deployment protocols.", "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "low"' : ''}}
+{"text": "...", "attribution_text": "An Intention within skeptic discourse that regulatory sandboxes should implement formal verification of frontier model behavior before permitting broader deployment. Encompasses: regulatory sandbox design, formal verification methodology, staged deployment protocols.", "extraction_confidence": 0.85, "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "low"' : ''}}
 
 Full responds_to shape (same for all BDI categories):
 {
@@ -1059,11 +1064,21 @@ export function processExtractedClaims(
 
     if (typeof claim.extraction_confidence !== 'number') {
       getGlobalRecorder()?.record({
-        type: 'an.extraction_confidence_missing', component: 'argument-network', level: 'warn',
+        type: 'an.extraction_confidence_missing', component: 'argument-network', level: 'debug',
         speaker,
         message: `LLM output missing extraction_confidence for claim "${claim.text.slice(0, 80)}" — computed server-side from wordOverlap (${Math.round(overlap * 100)}%)`,
         data: { node_id: nodeId, overlap, computed_confidence: node.extraction_confidence },
       });
+    } else {
+      const delta = Math.abs(claim.extraction_confidence - node.extraction_confidence!);
+      if (delta >= 0.3) {
+        getGlobalRecorder()?.record({
+          type: 'an.extraction_confidence_delta', component: 'argument-network', level: 'info',
+          speaker,
+          message: `extraction_confidence: LLM=${claim.extraction_confidence.toFixed(2)} vs server=${node.extraction_confidence!.toFixed(2)} (delta=${delta.toFixed(2)}) for "${claim.text.slice(0, 80)}"`,
+          data: { node_id: nodeId, llm_confidence: claim.extraction_confidence, server_confidence: node.extraction_confidence, delta, overlap },
+        });
+      }
     }
 
     // BDI composite scoring: for Desires and Intentions with sub-scores,

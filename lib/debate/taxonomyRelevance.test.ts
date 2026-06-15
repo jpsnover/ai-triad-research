@@ -373,15 +373,17 @@ describe('filterByTopicConstraints — discipline boost', () => {
     };
   }
 
-  it('boosts nodes matching 2+ discipline terms', () => {
+  it('boosts nodes matching 2+ discipline terms with graduated formula', () => {
     const nodes: ScoredPovNode[] = [
-      makeScoredNode('acc-beliefs-001', 'Labor market dynamics', 'Labor economics and employment patterns in automated hiring', 0.6),
+      makeScoredNode('acc-beliefs-001', 'Labor market dynamics', 'Labor economics and hiring patterns in automated systems', 0.6),
       makeScoredNode('acc-beliefs-002', 'General AI progress', 'Advances in transformer architecture and compute scaling', 0.5),
     ];
     const result = filterByTopicConstraints(nodes, makeScope());
     expect(result.boosted).toHaveLength(1);
     expect(result.boosted[0].nodeId).toBe('acc-beliefs-001');
     expect(result.boosted[0].originalScore).toBe(0.6);
+    expect(result.boosted[0].matchCount).toBe(2);
+    expect(result.boosted[0].boostFactor).toBeCloseTo(1.2);
     expect(result.boosted[0].newScore).toBeCloseTo(0.72);
     expect(result.boosted[0].matchedTerms).toContain('labor');
     const boostedNode = result.nodes.find(n => n.node.id === 'acc-beliefs-001');
@@ -397,11 +399,40 @@ describe('filterByTopicConstraints — discipline boost', () => {
     expect(result.nodes[0].score).toBe(0.6);
   });
 
-  it('respects custom boostFactor config', () => {
+  it('respects custom boostIncrement and boostCap config', () => {
     const nodes: ScoredPovNode[] = [
       makeScoredNode('acc-beliefs-001', 'Labor market dynamics', 'Labor economics and employment law compliance', 0.5),
     ];
-    const result = filterByTopicConstraints(nodes, makeScope(), { boostFactor: 1.5 });
+    // 3 matches (labor, economics, employment) × 0.2 increment = 1.6×, cap 2.0
+    const result = filterByTopicConstraints(nodes, makeScope(), { boostIncrement: 0.2, boostCap: 2.0 });
+    expect(result.boosted[0].matchCount).toBe(3);
+    expect(result.boosted[0].boostFactor).toBeCloseTo(1.6);
+    expect(result.boosted[0].newScore).toBeCloseTo(0.8);
+  });
+
+  it('graduates boost by match count (3 matches = 1.3×)', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Labor economics employment law compliance', 'Labor economics employment law compliance overview', 0.5),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope({
+      relevant_disciplines: ['labor', 'economics', 'employment'],
+    }));
+    expect(result.boosted).toHaveLength(1);
+    expect(result.boosted[0].matchCount).toBe(3);
+    expect(result.boosted[0].boostFactor).toBeCloseTo(1.3);
+    expect(result.boosted[0].newScore).toBeCloseTo(0.65);
+  });
+
+  it('caps boost at boostCap (default 1.5×)', () => {
+    const nodes: ScoredPovNode[] = [
+      makeScoredNode('acc-beliefs-001', 'Labor economics employment law compliance regulation policy', 'Labor economics employment law compliance regulation policy detail', 0.5),
+    ];
+    const result = filterByTopicConstraints(nodes, makeScope({
+      relevant_disciplines: ['labor', 'economics', 'employment', 'compliance', 'regulation', 'policy'],
+    }));
+    expect(result.boosted).toHaveLength(1);
+    expect(result.boosted[0].matchCount).toBe(6);
+    expect(result.boosted[0].boostFactor).toBeCloseTo(1.5);
     expect(result.boosted[0].newScore).toBeCloseTo(0.75);
   });
 
@@ -439,7 +470,8 @@ describe('filterByTopicConstraints — discipline boost', () => {
     const result = filterByTopicConstraints(nodes, makeScope());
     expect(result.nodes[0].node.id).toBe('acc-beliefs-001');
     expect(result.nodes[1].node.id).toBe('acc-beliefs-002');
-    expect(result.nodes[1].score).toBeCloseTo(0.6);
+    // 3 matches (labor, economics, employment) × 0.1 = 1.3× boost → 0.5 × 1.3 = 0.65
+    expect(result.nodes[1].score).toBeCloseTo(0.65);
   });
 });
 

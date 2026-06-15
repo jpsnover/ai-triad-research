@@ -274,12 +274,13 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
           }
         }
       }
-      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [] });
+      set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null });
       setGapInjectionCount(session.gap_injections?.length ?? 0);
       usePromptConfigStore.getState().loadSessionConfig(
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
       );
       void api.setDebateTemperature(session.debate_temperature ?? null);
+      try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
       getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
 
       if (session.interrupted_turn) {

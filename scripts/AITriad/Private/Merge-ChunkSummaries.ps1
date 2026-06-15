@@ -35,34 +35,26 @@ function Merge-ChunkSummaries {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
-    # ── Helper: cosine similarity between two text strings ─────────────────
-    # Uses local all-MiniLM-L6-v2 model via embed_taxonomy.py encode (no API key needed)
-    $UseEmbeddings = $false
-    $EmbeddingCache = @{}  # text hash → vector
-    $EmbedScript = Join-Path (Join-Path $script:RepoRoot 'scripts') 'embed_taxonomy.py'
-    if (-not (Test-Path $EmbedScript)) { $EmbedScript = Join-Path $script:ModuleRoot 'embed_taxonomy.py' }
-    if (Get-Command python -ErrorAction SilentlyContinue) { $PythonCmd = 'python' } else { $PythonCmd = 'python3' }
-
-    # Closures that capture parent-scope variables
-    $GetTextEmbedding = {
-        param([string]$Text)
-        $Hash = $Text.GetHashCode().ToString()
-        if ($EmbeddingCache.ContainsKey($Hash)) { return $EmbeddingCache[$Hash] }
-
-        try {
-            if ($Text.Length -gt 1000) { $TruncText = $Text.Substring(0, 1000) } else { $TruncText = $Text }
-            # PS 5.1: native stderr becomes terminating error under $ErrorActionPreference='Stop'
-            $SavedEAP = $ErrorActionPreference
-            $ErrorActionPreference = 'Continue'
-            try { $Output = $TruncText | & $PythonCmd $EmbedScript encode - 2>$null } finally { $ErrorActionPreference = $SavedEAP }
-            if ($LASTEXITCODE -ne 0) { return $null }
-            $Vector = [double[]]@($Output | ConvertFrom-Json)
-            $EmbeddingCache[$Hash] = $Vector
-            return $Vector
+    # ── Safe property access ───────────────────────────────────────────────
+    # Chunk summaries come from AI-generated (and sometimes repair-salvaged)
+    # JSON, so their shape is not guaranteed — a truncated chunk may yield a
+    # pov_summaries camp object with no 'key_points', a claim with no 'claim',
+    # etc. Under StrictMode, touching a missing property throws and kills the
+    # whole document merge. Get-Prop returns $null instead so a single malformed
+    # chunk degrades gracefully rather than aborting the run.
+    function Get-Prop {
+        param($Object, [string]$Name)
+        if ($null -eq $Object) { return $null }
+        if ($Object -is [System.Collections.IDictionary]) {
+            if ($Object.Contains($Name)) { return $Object[$Name] } else { return $null }
         }
-        catch { return $null }
-    }.GetNewClosure()
+        $Prop = $Object.PSObject.Properties[$Name]
+        if ($Prop) { return $Prop.Value } else { return $null }
+    }
 
+    $Camps = @('accelerationist', 'safetyist', 'skeptic')
+
+    # ── Cosine similarity between two vectors ───────────────────────────────
     $GetCosineSimilarity = {
         param([double[]]$A, [double[]]$B)
         if ($A.Count -ne $B.Count -or $A.Count -eq 0) { return 0.0 }
@@ -74,30 +66,42 @@ function Merge-ChunkSummaries {
         if ($Denom -gt 0) { return $Dot / $Denom } else { return 0.0 }
     }
 
-    # Test if local embedding model is available
-    $ProbeVec = & $GetTextEmbedding 'test'
-    $UseEmbeddings = $null -ne $ProbeVec
+    # ── Pre-dedup counts (for context-rot metrics) + collect point texts ─────
+    # All key_point texts are embedded in ONE batch subprocess below (model loads
+    # once) rather than spawning a cold `encode -` process per point — the latter
+    # cost ~6s × N points. Uses local all-MiniLM-L6-v2 (no API key needed).
+    $PreDedupPoints = 0; $PreDedupClaims = 0; $PreDedupConcepts = 0
+    $AllPointTexts = [System.Collections.Generic.List[string]]::new()
+    foreach ($Chunk in $ChunkResults) {
+        $PovSummaries = Get-Prop $Chunk 'pov_summaries'
+        foreach ($c in $Camps) {
+            $CampPoints = Get-Prop (Get-Prop $PovSummaries $c) 'key_points'
+            if ($CampPoints) {
+                $PreDedupPoints += @($CampPoints).Count
+                foreach ($kp in $CampPoints) {
+                    $P = Get-Prop $kp 'point'
+                    if (-not [string]::IsNullOrWhiteSpace($P)) { $AllPointTexts.Add($P) }
+                }
+            }
+        }
+        $ChunkClaims = Get-Prop $Chunk 'factual_claims'
+        if ($ChunkClaims) { $PreDedupClaims += @($ChunkClaims).Count }
+        $ChunkConcepts = Get-Prop $Chunk 'unmapped_concepts'
+        if ($ChunkConcepts) { $PreDedupConcepts += @($ChunkConcepts).Count }
+    }
+
+    # One batch subprocess: text → vector for every point. Empty map ⇒ model
+    # unavailable ⇒ fall back to string-prefix dedup.
+    $PointEmbeddings = Invoke-BatchEmbeddings -Texts $AllPointTexts.ToArray()
+    $UseEmbeddings = $PointEmbeddings.Count -gt 0
     if ($UseEmbeddings) {
-        Write-Verbose 'Merge-ChunkSummaries: using local embedding dedup (cosine > 0.85)'
+        Write-Verbose "Merge-ChunkSummaries: batch-embedded $($PointEmbeddings.Count) points; using embedding dedup (cosine > 0.85)"
     }
     else {
         Write-Verbose 'Merge-ChunkSummaries: falling back to string-prefix dedup (local model unavailable)'
     }
 
-    # ── Pre-dedup counts (for context-rot metrics) ─────────────────────────
-    $PreDedupPoints = 0; $PreDedupClaims = 0; $PreDedupConcepts = 0
-    foreach ($Chunk in $ChunkResults) {
-        foreach ($c in @('accelerationist','safetyist','skeptic')) {
-            if ($Chunk.pov_summaries.$c -and $Chunk.pov_summaries.$c.key_points) {
-                $PreDedupPoints += @($Chunk.pov_summaries.$c.key_points).Count
-            }
-        }
-        if ($Chunk.factual_claims) { $PreDedupClaims += @($Chunk.factual_claims).Count }
-        if ($Chunk.unmapped_concepts) { $PreDedupConcepts += @($Chunk.unmapped_concepts).Count }
-    }
-
     # ── Merge key_points per camp ────────────────────────────────────────────
-    $Camps = @('accelerationist', 'safetyist', 'skeptic')
     $MergedPovSummaries = [ordered]@{}
 
     foreach ($Camp in $Camps) {
@@ -106,23 +110,25 @@ function Merge-ChunkSummaries {
         $PointVectors = [System.Collections.Generic.List[object]]::new()  # {point, vector}
 
         foreach ($Chunk in $ChunkResults) {
-            $CampData = $Chunk.pov_summaries.$Camp
-            if (-not $CampData -or -not $CampData.key_points) { continue }
+            $CampPoints = Get-Prop (Get-Prop $Chunk 'pov_summaries') $Camp
+            $CampPoints = Get-Prop $CampPoints 'key_points'
+            if (-not $CampPoints) { continue }
 
-            foreach ($kp in $CampData.key_points) {
+            foreach ($kp in $CampPoints) {
                 $IsDuplicate = $false
+                $KpPoint = Get-Prop $kp 'point'
 
-                if ($UseEmbeddings -and $kp.point) {
+                if ($UseEmbeddings -and $KpPoint -and $PointEmbeddings.ContainsKey($KpPoint)) {
                     # Embedding-based dedup: compare against all accepted points
-                    $Vec = & $GetTextEmbedding $kp.point
+                    $Vec = $PointEmbeddings[$KpPoint]
                     if ($Vec) {
                         foreach ($Existing in $PointVectors) {
                             $Sim = & $GetCosineSimilarity $Vec $Existing.Vector
                             if ($Sim -gt $SimilarityThreshold) {
                                 # Keep the longer version
-                                if ($kp.point.Length -gt $Existing.Point.point.Length) {
+                                if ($KpPoint.Length -gt $Existing.Text.Length) {
                                     $Idx = $AllPoints.IndexOf($Existing.Point)
-                                    if ($Idx -ge 0) { $AllPoints[$Idx] = $kp; $Existing.Point = $kp; $Existing.Vector = $Vec }
+                                    if ($Idx -ge 0) { $AllPoints[$Idx] = $kp; $Existing.Point = $kp; $Existing.Vector = $Vec; $Existing.Text = $KpPoint }
                                 }
                                 $IsDuplicate = $true
                                 break
@@ -130,7 +136,7 @@ function Merge-ChunkSummaries {
                         }
                         if (-not $IsDuplicate) {
                             $AllPoints.Add($kp)
-                            $PointVectors.Add(@{ Point = $kp; Vector = $Vec })
+                            $PointVectors.Add(@{ Point = $kp; Vector = $Vec; Text = $KpPoint })
                         }
                         continue
                     }
@@ -138,8 +144,9 @@ function Merge-ChunkSummaries {
 
                 # Fallback: string-prefix dedup
                 if (-not $IsDuplicate) {
-                    if ($kp.point.Length -gt 80) { $PointPrefix = $kp.point.Substring(0, 80) } else { $PointPrefix = $kp.point }
-                    $DedupKey = "$($kp.taxonomy_node_id)|$($PointPrefix.ToLowerInvariant().Trim())"
+                    if ($KpPoint) { $PointText = $KpPoint } else { $PointText = '' }
+                    if ($PointText.Length -gt 80) { $PointPrefix = $PointText.Substring(0, 80) } else { $PointPrefix = $PointText }
+                    $DedupKey = "$(Get-Prop $kp 'taxonomy_node_id')|$($PointPrefix.ToLowerInvariant().Trim())"
 
                     if ($SeenKeys.Add($DedupKey)) {
                         $AllPoints.Add($kp)
@@ -158,15 +165,19 @@ function Merge-ChunkSummaries {
     $SeenClaimLabels = [System.Collections.Generic.HashSet[string]]::new()
 
     foreach ($Chunk in $ChunkResults) {
-        if (-not $Chunk.factual_claims) { continue }
+        $ChunkClaims = Get-Prop $Chunk 'factual_claims'
+        if (-not $ChunkClaims) { continue }
 
-        foreach ($Claim in $Chunk.factual_claims) {
+        foreach ($Claim in $ChunkClaims) {
+            $ClaimLabel = Get-Prop $Claim 'claim_label'
             # Dedup on claim_label (lowercased)
-            if ($Claim.claim_label) {
-                $ClaimKey = $Claim.claim_label.ToLowerInvariant().Trim()
+            if ($ClaimLabel) {
+                $ClaimKey = $ClaimLabel.ToLowerInvariant().Trim()
             } else {
                 # Fallback: first 60 chars of claim text
-                if ($Claim.claim.Length -gt 60) { $ClaimText = $Claim.claim.Substring(0, 60) } else { $ClaimText = $Claim.claim }
+                $ClaimRaw = Get-Prop $Claim 'claim'
+                if (-not $ClaimRaw) { $ClaimRaw = '' }
+                if ($ClaimRaw.Length -gt 60) { $ClaimText = $ClaimRaw.Substring(0, 60) } else { $ClaimText = $ClaimRaw }
                 $ClaimKey = $ClaimText.ToLowerInvariant().Trim()
             }
 
@@ -181,12 +192,13 @@ function Merge-ChunkSummaries {
     $SeenLabels  = [System.Collections.Generic.HashSet[string]]::new()
 
     foreach ($Chunk in $ChunkResults) {
-        if (-not $Chunk.unmapped_concepts) { continue }
+        $ChunkConcepts = Get-Prop $Chunk 'unmapped_concepts'
+        if (-not $ChunkConcepts) { continue }
 
-        foreach ($Concept in $Chunk.unmapped_concepts) {
-            $HasLabel = $Concept.PSObject.Properties['suggested_label'] -and $Concept.suggested_label
-            if ($HasLabel) {
-                $LabelKey = $Concept.suggested_label.ToLowerInvariant().Trim()
+        foreach ($Concept in $ChunkConcepts) {
+            $SuggestedLabel = Get-Prop $Concept 'suggested_label'
+            if ($SuggestedLabel) {
+                $LabelKey = $SuggestedLabel.ToLowerInvariant().Trim()
             } else {
                 $LabelKey = "unknown-$($AllUnmapped.Count)"
             }

@@ -451,6 +451,33 @@ describe('4-stage opening pipeline', () => {
       const result = briefOpeningStagePrompt(input);
       expect(result).not.toContain('"prior_positions_to_address"');
     });
+
+    it('includes transcript-grounding constraint for non-first speakers', () => {
+      const result = briefOpeningStagePrompt(makeOpeningInput({ isFirst: false, priorStatements: 'Skeptic spoke.' }));
+      expectContains(result, 'Only speakers listed in the prior statements have actually spoken');
+      expectContains(result, 'must reference ONLY speakers from the prior opening statements');
+    });
+
+    it('omits transcript-grounding constraint for first speaker', () => {
+      const result = briefOpeningStagePrompt(input);
+      expect(result).not.toContain('Only speakers listed in the prior statements have actually spoken');
+    });
+
+    it('includes source-fidelity constraint for all speakers', () => {
+      const firstResult = briefOpeningStagePrompt(input);
+      expectContains(firstResult, 'SOURCE FIDELITY');
+      expectContains(firstResult, 'do not introduce concepts, framings, or policy domains');
+
+      const nonFirstResult = briefOpeningStagePrompt(makeOpeningInput({ isFirst: false, priorStatements: 'Skeptic spoke.' }));
+      expectContains(nonFirstResult, 'SOURCE FIDELITY');
+    });
+
+    it('includes source_fidelity_check field in output schema', () => {
+      const result = briefOpeningStagePrompt(input);
+      expectContains(result, '"source_fidelity_check"');
+      expectContains(result, '"concept_used"');
+      expectContains(result, '"source_quote"');
+    });
   });
 
   describe('planOpeningStagePrompt', () => {
@@ -474,6 +501,18 @@ describe('4-stage opening pipeline', () => {
       });
       const result = draftOpeningStagePrompt(inp, '{}', '{}');
       expectContains(result, 'pre-analyzed document');
+    });
+
+    it('includes transcript-grounding constraint for non-first speakers', () => {
+      const inp = makeOpeningInput({ isFirst: false, priorStatements: 'Safetyist spoke.' });
+      const result = draftOpeningStagePrompt(inp, '{}', '{}');
+      expectContains(result, 'You may only attribute named positions to speakers whose openings appear');
+      expectContains(result, 'Do not attribute positions to speakers who have not yet delivered their opening');
+    });
+
+    it('omits transcript-grounding constraint for first speaker', () => {
+      const result = draftOpeningStagePrompt(input, '{}', '{}');
+      expect(result).not.toContain('You may only attribute named positions');
     });
   });
 

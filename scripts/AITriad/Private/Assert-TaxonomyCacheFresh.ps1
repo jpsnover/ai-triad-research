@@ -54,13 +54,17 @@ function Assert-TaxonomyCacheFresh {
             if ($File.Name -in 'embeddings.json', 'edges.json', 'policy_actions.json',
                 '_archived_edges.json', 'lineage_categories.json', 'interpretation_embeddings.json',
                 'source_evidence_index.json', 'similarity-cache.json') { continue }
+            # Stamp every scanned file — even ones we don't load into the cache
+            # below — so non-POV aux files (logs, staging, cruxes without a
+            # 'nodes' property, or files >10MB) don't perpetually re-trigger the
+            # `-not $Cached` staleness check and force needless full reloads.
+            $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
             if ($File.Length -gt 10MB) { continue }
             try {
                 $Json = Get-Content -Raw -Path $File.FullName | ConvertFrom-Json
                 if (-not ($Json -and $Json.PSObject.Properties['nodes'])) { continue }
                 $PovName = $File.BaseName.ToLower()
                 $script:TaxonomyData[$PovName] = $Json
-                $script:TaxonomyFileTimestamps[$File.FullName] = $File.LastWriteTime
                 Write-Verbose "  Reloaded '$PovName' ($($Json.nodes.Count) nodes)"
             }
             catch {

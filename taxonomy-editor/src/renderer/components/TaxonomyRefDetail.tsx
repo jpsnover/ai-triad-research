@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { POV_KEYS } from '@lib/debate/types';
+import { useTaxonomyStore } from '../hooks/useTaxonomyStore';
 
 /** Raw node shape as loaded from POV JSON files, used read-only in Diagnostics. */
 export interface TaxRefNode {
@@ -397,9 +398,11 @@ function otherPrefix(edge: TaxRefEdge, nodeId: string): PovPrefix | null {
 }
 
 function TaxRefEdgeGroup({
-  edgeType, edges, nodeId,
+  edgeType, edges, nodeId, selectedKey, onSelect, nodeLabels,
 }: {
   edgeType: string; edges: TaxRefEdge[]; nodeId: string;
+  selectedKey: string | null; onSelect: (key: string | null) => void;
+  nodeLabels: Map<string, string>;
 }) {
   const [collapsed, setCollapsed] = useState(true);
   const typeColor = EDGE_TYPE_COLORS[edgeType] || 'var(--text-secondary)';
@@ -413,15 +416,22 @@ function TaxRefEdgeGroup({
       </div>
       {!collapsed && edges.map((e, i) => {
         const other = otherNodeId(e, nodeId);
+        const otherLabel = nodeLabels.get(other);
         const direction = e.bidirectional ? '\u2194' : e.source === nodeId ? '\u2192' : '\u2190';
+        const key = `${e.source}|${e.target}|${e.type}`;
+        const isSelected = selectedKey === key;
         return (
-          <div key={i} style={{
-            padding: '6px 10px', borderBottom: '1px solid var(--border)',
-            fontSize: '0.78rem',
-          }}>
+          <div key={i}
+            onClick={() => onSelect(isSelected ? null : key)}
+            style={{
+              padding: '6px 10px', borderBottom: '1px solid var(--border)',
+              fontSize: '0.78rem', cursor: 'pointer',
+              background: isSelected ? 'rgba(249,115,22,0.08)' : 'transparent',
+              borderLeft: isSelected ? '3px solid #f97316' : '3px solid transparent',
+            }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>{direction}</span>
-              <span style={chipStyle}>{other}</span>
+              <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>{otherLabel || other}</span>
               {e.strength && (
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>({e.strength})</span>
               )}
@@ -429,10 +439,8 @@ function TaxRefEdgeGroup({
                 c{(e.confidence * 100).toFixed(0)}%
               </span>
             </div>
-            {e.rationale && (
-              <div style={{ marginTop: 4, color: 'var(--text-secondary)', fontSize: '0.72rem', lineHeight: 1.45 }}>
-                {e.rationale}
-              </div>
+            {otherLabel && (
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: 1 }}>{other}</div>
             )}
           </div>
         );
@@ -441,10 +449,96 @@ function TaxRefEdgeGroup({
   );
 }
 
+function EdgeDetailPanel({ edge, typeColor, srcLabel, tgtLabel, pct, onClose }: {
+  edge: TaxRefEdge; typeColor: string; srcLabel: string; tgtLabel: string; pct: number; onClose: () => void;
+}) {
+  const [rationaleExpanded, setRationaleExpanded] = useState(false);
+  const RATIONALE_LIMIT = 200;
+  const srcPovColor = edge.source.startsWith('acc-') ? '#f97316' : edge.source.startsWith('saf-') ? '#3b82f6' : edge.source.startsWith('skp-') ? '#a855f7' : 'var(--text-primary)';
+  const tgtPovColor = edge.target.startsWith('acc-') ? '#f97316' : edge.target.startsWith('saf-') ? '#3b82f6' : edge.target.startsWith('skp-') ? '#a855f7' : 'var(--text-primary)';
+
+  return (
+    <div style={{ marginTop: 12, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-primary)', overflow: 'hidden' }}>
+      {/* Edge type banner */}
+      <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 3, height: 20, borderRadius: 2, background: typeColor, flexShrink: 0 }} />
+        <span style={{ fontWeight: 700, fontSize: '0.78rem', textTransform: 'uppercase', color: typeColor, letterSpacing: '0.03em' }}>
+          {edge.type.replace(/_/g, ' ')}
+        </span>
+        <span style={{ fontSize: '0.85rem', color: typeColor }}>{edge.bidirectional ? '↔' : '→'}</span>
+        <button onClick={onClose} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
+      </div>
+
+      {/* Source → Target */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '12px 12px 8px', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.6rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Source</div>
+          <div style={{ fontWeight: 600, color: srcPovColor, fontSize: '0.78rem', lineHeight: 1.3 }}>{srcLabel}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>{edge.source}</div>
+        </div>
+        <div style={{ color: typeColor, fontSize: '1rem', fontWeight: 700, flexShrink: 0, padding: '0 4px' }}>
+          {edge.bidirectional ? '↔' : '→'}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.6rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600, marginBottom: 2 }}>Target</div>
+          <div style={{ fontWeight: 600, color: tgtPovColor, fontSize: '0.78rem', lineHeight: 1.3 }}>{tgtLabel}</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>{edge.target}</div>
+        </div>
+      </div>
+
+      {/* Rationale */}
+      {edge.rationale && (
+        <div style={{ padding: '8px 12px 12px' }}>
+          <div style={{ fontSize: '0.6rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 6 }}>Rationale</div>
+          <div style={{ borderLeft: '3px solid #3b82f6', paddingLeft: 10, fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: 1.55, background: 'var(--bg-secondary)', borderRadius: '0 4px 4px 0', padding: '8px 10px 8px 12px' }}>
+            {!rationaleExpanded && edge.rationale.length > RATIONALE_LIMIT
+              ? edge.rationale.slice(0, RATIONALE_LIMIT) + '…'
+              : edge.rationale}
+          </div>
+          {edge.rationale.length > RATIONALE_LIMIT && (
+            <div onClick={() => setRationaleExpanded(!rationaleExpanded)} style={{ fontSize: '0.65rem', color: '#3b82f6', cursor: 'pointer', marginTop: 4 }}>
+              {rationaleExpanded ? 'Show less' : 'Show more'}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Confidence & Strength */}
+      <div style={{ padding: '4px 12px 10px', display: 'flex', gap: 16, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+        <span>Confidence: <strong style={{ color: 'var(--text-primary)' }}>{pct}%</strong></span>
+        {edge.strength && <span>Strength: <strong style={{ color: 'var(--text-primary)' }}>{edge.strength}</strong></span>}
+        {edge.status && edge.status !== 'approved' && (
+          <span style={{ color: edge.status === 'rejected' ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
+            {edge.status === 'rejected' ? '✗' : '●'} {edge.status}
+          </span>
+        )}
+        {edge.status === 'approved' && <span style={{ color: '#22c55e', fontWeight: 600 }}>✓ Approved</span>}
+      </div>
+    </div>
+  );
+}
+
 function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string; edges?: TaxRefEdge[] }) {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [confidenceThreshold, setConfidenceThreshold] = useState(0.75);
   const [hiddenPovs, setHiddenPovs] = useState<Set<PovPrefix>>(new Set());
+  const [selectedEdgeKey, setSelectedEdgeKey] = useState<string | null>(null);
+
+  const { accelerationist, safetyist, skeptic } = useTaxonomyStore();
+  const nodeLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const pov of [accelerationist, safetyist, skeptic]) {
+      if (!pov?.nodes) continue;
+      for (const n of pov.nodes) map.set(n.id, n.label);
+    }
+    return map;
+  }, [accelerationist, safetyist, skeptic]);
+
+  const selectedEdge = useMemo(() => {
+    if (!selectedEdgeKey || !edges) return null;
+    const [src, tgt, typ] = selectedEdgeKey.split('|');
+    return edges.find(e => e.source === src && e.target === tgt && e.type === typ) ?? null;
+  }, [selectedEdgeKey, edges]);
 
   const togglePov = useCallback((prefix: PovPrefix) => {
     setHiddenPovs(prev => {
@@ -548,7 +642,7 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
 
           {/* Grouped edge list */}
           {Array.from(groupedEdges.entries()).map(([edgeType, edgeList]) => (
-            <TaxRefEdgeGroup key={edgeType} edgeType={edgeType} edges={edgeList} nodeId={nodeId} />
+            <TaxRefEdgeGroup key={edgeType} edgeType={edgeType} edges={edgeList} nodeId={nodeId} selectedKey={selectedEdgeKey} onSelect={setSelectedEdgeKey} nodeLabels={nodeLabels} />
           ))}
 
           {totalEdges === 0 && (
@@ -556,6 +650,25 @@ function RelatedTab({ node, nodeId, edges }: { node: TaxRefNode; nodeId: string;
               No edges match the current filters.
             </div>
           )}
+
+          {/* Edge Detail Panel */}
+          {selectedEdge && (() => {
+            const typeColor = EDGE_TYPE_COLORS[selectedEdge.type] || 'var(--text-secondary)';
+            const srcLabel = nodeLabels.get(selectedEdge.source) ?? selectedEdge.source;
+            const tgtLabel = nodeLabels.get(selectedEdge.target) ?? selectedEdge.target;
+            const pct = Math.round(selectedEdge.confidence * 100);
+            const RATIONALE_LIMIT = 200;
+            return (
+              <EdgeDetailPanel
+                edge={selectedEdge}
+                typeColor={typeColor}
+                srcLabel={srcLabel}
+                tgtLabel={tgtLabel}
+                pct={pct}
+                onClose={() => setSelectedEdgeKey(null)}
+              />
+            );
+          })()}
         </>
       )}
 

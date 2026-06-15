@@ -3498,7 +3498,15 @@ export class DebateEngine {
       // Add a transcript entry so diagnostics are visible per-entry
       const cruxCount = evaluation.cruxes?.length ?? 0;
       const claimCount = evaluation.claims?.length ?? 0;
-      const notes = evaluation.overall_assessment?.notes ?? '';
+      const rawNotes = evaluation.overall_assessment?.notes ?? '';
+      // De-anonymize Speaker A/B/C → display names so the transcript is readable
+      let notes = rawNotes;
+      if (this._neutralMapping) {
+        for (const [label, povId] of Object.entries(this._neutralMapping.reverse)) {
+          const displayName = POVER_INFO[povId as Exclude<SpeakerId, 'user'>]?.label ?? povId;
+          notes = notes.replaceAll(label, displayName);
+        }
+      }
       const evalEntry = this.addEntry({
         type: 'system',
         speaker: 'system',

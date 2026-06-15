@@ -664,7 +664,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       try {
         set({ debateActivity: 'Extracting topic scope...' });
         const scopePrompt = topicScopeExtractionPrompt(topic);
-        const { text: scopeText } = await api.generateText(scopePrompt, model, 30_000);
+        const { text: scopeText } = await api.generateText(scopePrompt, model);
         const scopeParsed = parseAIJson<Record<string, unknown>>(scopeText);
         if (scopeParsed && typeof scopeParsed === 'object') {
           const validRiskLevels: TopicScopeRiskLevel[] = ['low', 'medium', 'high', 'catastrophic', 'unspecified'];

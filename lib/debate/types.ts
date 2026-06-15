@@ -508,6 +508,7 @@ export interface DebateSession {
   argument_network?: {
     nodes: ArgumentNetworkNode[];
     edges: ArgumentNetworkEdge[];
+    mutations?: ANMutation[];
   };
   /** Per-debater commitment stores */
   commitments?: Record<string, CommitmentStore>;
@@ -975,6 +976,20 @@ export interface ArgumentNetworkEdge {
   critical_questions_addressed?: number[];
   /** Engagement strength: how directly this edge rebuts/supports its target. */
   strength?: 'decisive' | 'substantial' | 'tangential';
+}
+
+export interface ANMutation {
+  id: string;
+  type: 'add_edge' | 'remove_edge' | 'modify_strength' | 'add_node' | 'add_flag';
+  source: 'claim_extraction' | 'intervention_response';
+  target_node_id?: string;
+  target_edge_id?: string;
+  old_value?: number;
+  new_value?: number;
+  provisional: boolean;
+  provisional_round?: number;
+  hardened: boolean;
+  move?: InterventionMove;
 }
 
 export interface RevoiceGateResult {
@@ -1888,10 +1903,16 @@ export interface EngineValidationResult {
   validated_family: InterventionFamily;
   validated_target: SpeakerId;
   suppressed_reason?: 'budget_exhausted' | 'cooldown_active' | 'phase_mismatch'
-    | 'same_debater_consecutive' | 'prerequisite_override' | 'burden_cap'
+    | 'same_debater_consecutive' | 'prerequisite_override'
     | 'engine_override';
   suppression_explanation?: string;
   prerequisite_applied?: string;
+  burden_diagnostic?: {
+    debater: SpeakerId;
+    burden: number;
+    avg: number;
+    threshold_multiplier: number;
+  };
 }
 
 export interface DebateHealthScore {

@@ -76,7 +76,10 @@ function Invoke-BatchSummary {
         [switch]$AutoFire,
 
         [Parameter(HelpMessage = 'Process only documents imported today (date_ingested = today)')]
-        [switch]$ImportedToday
+        [switch]$ImportedToday,
+
+        [Parameter(HelpMessage = 'Print a per-stage timing trace (embeddings, API calls, merge) at the end. Use with -MaxConcurrent 1 for accurate aggregation.')]
+        [switch]$TimingTrace
     )
 
     begin {
@@ -101,6 +104,12 @@ function Invoke-BatchSummary {
     # Wire -WhatIf into the existing -DryRun logic
     if ($WhatIfPreference) { $DryRun = [switch]::new($true) }
 
+    # Per-stage timing trace (opt-in). Reset the accumulator at the start of the
+    # run; the report is printed at the end. Timing aggregates per-runspace, so
+    # warn if combined with parallel workers.
+    $TimingEnabled = $TimingTrace -or $env:AITRIAD_TIMING
+    if ($TimingEnabled) { Reset-StageTiming }
+
     # ForEach-Object -Parallel is PS 7+ only. The AITriad module supports
     # Windows PowerShell 5.1 as a hard requirement (see AITriad.psd1), so on
     # 5.1 we clamp -MaxConcurrent to 1 and fall through to the sequential
@@ -108,6 +117,10 @@ function Invoke-BatchSummary {
     if ($MaxConcurrent -gt 1 -and $PSVersionTable.PSVersion.Major -lt 7) {
         Write-Warn "MaxConcurrent > 1 requires PowerShell 7+; falling back to sequential (MaxConcurrent = 1) on Windows PowerShell $($PSVersionTable.PSVersion)."
         $MaxConcurrent = 1
+    }
+
+    if ($TimingEnabled -and $MaxConcurrent -gt 1) {
+        Write-Warn "-TimingTrace aggregates per-runspace; with -MaxConcurrent $MaxConcurrent the trace will only reflect the main runspace. Use -MaxConcurrent 1 for an accurate single-doc trace."
     }
 
     # Consolidate collected IDs
@@ -699,6 +712,8 @@ function Invoke-BatchSummary {
     catch {
         Write-Warn "Policy registry consolidation failed: $_ — run Update-PolicyRegistry -Fix manually"
     }
+
+    if ($TimingEnabled) { Write-StageTimingReport }
 
     if ($Failed.Count -gt 0) {
         throw "$($Failed.Count) document(s) failed during batch summarization."

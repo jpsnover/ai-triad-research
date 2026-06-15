@@ -527,6 +527,10 @@ const rawApi: AppAPI = {
     for (const cb of diagCallbacks) cb(state);
     diagChannel?.postMessage({ type: 'diagnostics-state', payload: state });
   },
+  // Data file diff popout
+  openDiffWindow: async (filePath) => {
+    window.open(`${location.origin}/#diff-window?file=${encodeURIComponent(filePath)}`, '_blank');
+  },
   // Prompt Diff popout
   openPromptDiffWindow: async (debateId, entryId) => {
     window.open(`${location.origin}/#prompt-diff-window?debateId=${encodeURIComponent(debateId)}&entryId=${encodeURIComponent(entryId)}`, '_blank');

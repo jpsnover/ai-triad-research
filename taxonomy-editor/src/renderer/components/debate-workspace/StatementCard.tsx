@@ -700,9 +700,24 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
         )}
       </div>
       <div className="debate-statement-content markdown-body">
-        {findQuery
-          ? <HighlightedText text={entry.content} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
-          : <Markdown remarkPlugins={[remarkGfm]} components={lineageMarkdownComponents}>{fixMarkdownLinks(entry.content)}</Markdown>}
+        {(() => {
+          // Retroactive fix: older auto fact-checks truncated the claim in entry.content.
+          // Use the full checked_text from metadata when available.
+          let displayContent = entry.content;
+          if (factCheck?.checked_text) {
+            const quoteStart = displayContent.indexOf('"');
+            const quoteEnd = quoteStart >= 0 ? displayContent.indexOf('"', quoteStart + 1) : -1;
+            if (quoteStart >= 0 && quoteEnd > quoteStart) {
+              const embedded = displayContent.slice(quoteStart + 1, quoteEnd);
+              if (embedded.endsWith('...') && factCheck.checked_text.length > embedded.length) {
+                displayContent = displayContent.slice(0, quoteStart + 1) + factCheck.checked_text + displayContent.slice(quoteEnd);
+              }
+            }
+          }
+          return findQuery
+            ? <HighlightedText text={displayContent} query={findQuery} matchOffset={matchOffset} currentIndex={findCurrentIndex} />
+            : <Markdown remarkPlugins={[remarkGfm]} components={lineageMarkdownComponents}>{fixMarkdownLinks(displayContent)}</Markdown>;
+        })()}
       </div>
       {showWebEvidence && (
         <div className="debate-fact-check-web-evidence">

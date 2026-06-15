@@ -1033,7 +1033,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
               anTexts,
               focusNodes,
             );
-            const { text: gapText } = await api.generateText(gapPrompt, gapModel, 30_000);
+            const { text: gapText } = await api.generateText(gapPrompt, gapModel);
             const gapParsed = parseAIJson<{ gap_arguments: GapArgument[] }>(gapText);
             const gapArgs = gapParsed?.gap_arguments ?? [];
 
@@ -1519,7 +1519,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
             set({ debateActivity: `${info.label}: fixing DOLCE compliance (attempt ${attempt}/${MAX_DOLCE_RETRIES})…` });
             try {
               const retryPrompt = dolceComplianceRetryPrompt(edit, violations, attempt);
-              const { text: retryText } = await api.generateText(retryPrompt, model, 30_000);
+              const { text: retryText } = await api.generateText(retryPrompt, model);
               const fixed = parseAIJson<{
                 proposed_description?: string;
                 proposed_label?: string;
@@ -1793,7 +1793,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
             pov: povKey,
           });
           const enrichModel = getConfiguredModel();
-          const { text } = await api.generateText(enrichPrompt, enrichModel, 15000);
+          const { text } = await api.generateText(enrichPrompt, enrichModel);
           const enriched = JSON.parse(stripCodeFences(text));
           const currentTaxStore = useTaxonomyStore.getState();
           const currentNode = currentTaxStore[povKey]?.nodes.find(n => n.id === createdNodeId);

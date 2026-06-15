@@ -362,7 +362,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
             sitLabels,
             ccDebate.topic.final,
           );
-          const { text: ccText } = await api.generateText(ccPrompt, model, 30_000);
+          const { text: ccText } = await api.generateText(ccPrompt, model);
           const ccParsed = parseAIJson<{ proposals: CrossCuttingProposal[] }>(ccText);
 
           if (ccParsed?.proposals?.length) {

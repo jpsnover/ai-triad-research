@@ -711,6 +711,19 @@ describe('extraction_confidence server-side computation', () => {
     expect(typeof result.newNodes[0].extraction_confidence).toBe('number');
   });
 
+  it('uses server-side value even when LLM provides a very different extraction_confidence', () => {
+    const result = processExtractedClaims({
+      ...ecBaseInput,
+      claims: [{
+        text: 'AI governance should prioritize safety mechanisms with clear tradeoff acknowledgment',
+        extraction_confidence: 0.3,
+      }],
+    }, ecOptions);
+
+    expect(result.newNodes).toHaveLength(1);
+    expect(result.newNodes[0].extraction_confidence).toBe(1.0);
+  });
+
   it('assigns lower confidence for loosely overlapping claims', () => {
     const result = processExtractedClaims({
       ...ecBaseInput,

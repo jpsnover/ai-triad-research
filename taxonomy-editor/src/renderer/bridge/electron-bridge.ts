@@ -214,6 +214,9 @@ export const api: AppAPI = {
     window.electronAPI.sendDiagnosticsState(s);
   },
 
+  // Data file diff popout
+  openDiffWindow: (filePath) => window.electronAPI.openDiffWindow(filePath),
+
   // Prompt Diff popout
   openPromptDiffWindow: (debateId, entryId) => window.electronAPI.openPromptDiffWindow(debateId, entryId),
 

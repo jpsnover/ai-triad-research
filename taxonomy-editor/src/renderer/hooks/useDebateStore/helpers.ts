@@ -253,7 +253,7 @@ export async function runNeutralCheckpoint(
     const model = getConfiguredModel();
     const adapter = {
       generateText: async (prompt: string, m: string, opts?: { temperature?: number; maxTokens?: number; timeoutMs?: number }) => {
-        const result = await api.generateText(prompt, m, opts?.timeoutMs ?? 30_000, opts?.temperature);
+        const result = await api.generateText(prompt, m, opts?.timeoutMs, opts?.temperature);
         return result.text;
       },
     };
@@ -402,7 +402,7 @@ export async function summarizeTranscriptEntry(
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
       const prompt = entrySummarizationPrompt(content, speaker);
-      const { text } = await api.generateText(prompt, model, 15000);
+      const { text } = await api.generateText(prompt, model);
       const parsed = parseAIJson<{ brief?: string; medium?: string }>(text);
       if (!parsed) {
         console.warn(`[debate] summarizeEntry: parseAIJson returned null (attempt ${attempt + 1}/${MAX_RETRIES}). Raw response:`, text.slice(0, 500));
@@ -1662,7 +1662,7 @@ export async function extractClaimsAndUpdateAN(
               addEntry({
                 type: 'fact-check',
                 speaker: 'system',
-                content: `**Fact Check: ${verdictLabel}**\n\n"${pNode.text.length > 120 ? pNode.text.slice(0, 117) + '...' : pNode.text}"\n\n${explanation}${webNote}`,
+                content: `**Fact Check: ${verdictLabel}**\n\n"${pNode.text}"\n\n${explanation}${webNote}`,
                 taxonomy_refs: [],
                 metadata: {
                   fact_check: {

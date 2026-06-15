@@ -199,6 +199,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => { ipcRenderer.removeListener('chat-popout-closed', listener); };
   },
 
+  // Data file diff window
+  openDiffWindow: (filePath: string): Promise<void> =>
+    ipcRenderer.invoke('open-diff-window', filePath),
+
   // Prompt Diff window
   openPromptDiffWindow: (debateId: string, entryId: string): Promise<void> =>
     ipcRenderer.invoke('open-prompt-diff-window', debateId, entryId),
@@ -221,7 +225,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
     const listener = (_event: Electron.IpcRendererEvent, debateId: string) => callback(debateId);
     ipcRenderer.on('debate-window-load', listener);
-    return () => { ipcRenderer.removeListener('debate-window-load', listener); };
+    return () => {
+      ipcRenderer.removeListener('debate-window-load', listener);
+      // Re-arm buffer so IPC arriving during the next HMR reload cycle is captured
+      _debateBufferActive = true;
+    };
   },
   onDebatePopoutClosed: (callback: () => void) => {
     const listener = () => callback();

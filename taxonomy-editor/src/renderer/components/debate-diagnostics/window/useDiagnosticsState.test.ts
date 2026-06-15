@@ -9,6 +9,7 @@ import type { DebateSession, ArgumentNetworkNode } from '../../../types/debate';
 vi.mock('@bridge', () => ({
   api: {
     onDiagnosticsStateUpdate: vi.fn().mockReturnValue(() => {}),
+    onReloadTaxonomy: vi.fn().mockReturnValue(() => {}),
     loadTaxonomyFile: vi.fn().mockResolvedValue(null),
     loadPolicyRegistry: vi.fn().mockResolvedValue(null),
     loadEdges: vi.fn().mockResolvedValue(null),

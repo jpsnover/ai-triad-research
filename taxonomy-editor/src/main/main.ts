@@ -27,6 +27,7 @@ let povProgWindow: BrowserWindow | null = null;
 let debateWindow: BrowserWindow | null = null;
 let promptDiffWindow: BrowserWindow | null = null;
 let chatWindow: BrowserWindow | null = null;
+let diffWindow: BrowserWindow | null = null;
 let focusServer: http.Server | null = null;
 
 const FOCUS_PORT = 17862;
@@ -349,6 +350,9 @@ void app.whenReady().then(() => {
 
   createWindow();
 
+  // Buffer the last diagnostics state so popouts that reload (HMR) get it resent.
+  let _lastDiagnosticsState: unknown = null;
+
   // Diagnostics popout window
   ipcMain.handle('open-diagnostics-window', () => {
     if (diagWindow && !diagWindow.isDestroyed()) {
@@ -380,6 +384,11 @@ void app.whenReady().then(() => {
     } else {
       void diagWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'diagnostics-window' });
     }
+    diagWindow.webContents.on('did-finish-load', () => {
+      if (_lastDiagnosticsState && diagWindow && !diagWindow.isDestroyed()) {
+        diagWindow.webContents.send('diagnostics-state-update', _lastDiagnosticsState);
+      }
+    });
     diagWindow.on('closed', () => {
       diagWindow = null;
       // Notify main window that popout closed
@@ -470,8 +479,50 @@ void app.whenReady().then(() => {
     promptDiffWindow.on('closed', () => { promptDiffWindow = null; });
   });
 
+  // Data file diff popout window
+  ipcMain.handle('open-diff-window', (_event, filePath: string) => {
+    if (diffWindow && !diffWindow.isDestroyed()) {
+      const hash = `diff-window?file=${encodeURIComponent(filePath)}`;
+      const isDev = !app.isPackaged;
+      if (isDev) {
+        void diffWindow.loadURL(`http://localhost:5173#${hash}`);
+      } else {
+        void diffWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash });
+      }
+      if (diffWindow.isMinimized()) diffWindow.restore();
+      diffWindow.show();
+      diffWindow.focus();
+      return;
+    }
+    const preloadPath = path.join(__dirname, 'preload.cjs');
+    diffWindow = new BrowserWindow({
+      width: 900,
+      height: 650,
+      minWidth: 500,
+      minHeight: 400,
+      title: `Diff: ${filePath}`,
+      alwaysOnTop: false,
+      webPreferences: {
+        preload: preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    hardenWindow(diffWindow);
+    const hash = `diff-window?file=${encodeURIComponent(filePath)}`;
+    const isDev = !app.isPackaged;
+    if (isDev) {
+      void diffWindow.loadURL(`http://localhost:5173#${hash}`);
+    } else {
+      void diffWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash });
+    }
+    diffWindow.on('closed', () => { diffWindow = null; });
+  });
+
   // Relay diagnostics state from main window to diag window AND pov-progression window
   ipcMain.on('diagnostics-state-update', (_event, state) => {
+    _lastDiagnosticsState = state;
     if (diagWindow && !diagWindow.isDestroyed()) {
       diagWindow.webContents.send('diagnostics-state-update', state);
     }
@@ -510,6 +561,11 @@ void app.whenReady().then(() => {
     } else {
       void povProgWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'pov-progression-window' });
     }
+    povProgWindow.webContents.on('did-finish-load', () => {
+      if (_lastDiagnosticsState && povProgWindow && !povProgWindow.isDestroyed()) {
+        povProgWindow.webContents.send('diagnostics-state-update', _lastDiagnosticsState);
+      }
+    });
     povProgWindow.on('closed', () => {
       povProgWindow = null;
     });
@@ -541,14 +597,15 @@ void app.whenReady().then(() => {
       },
     });
     hardenWindow(debateWindow);
+    const debateHash = `debate-window?id=${encodeURIComponent(debateId)}`;
     const isDev = !app.isPackaged;
     if (isDev) {
-      void debateWindow.loadURL('http://localhost:5173#debate-window');
+      void debateWindow.loadURL(`http://localhost:5173#${debateHash}`);
     } else {
-      void debateWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: 'debate-window' });
+      void debateWindow.loadFile(path.join(PROJECT_ROOT, 'taxonomy-editor/dist/renderer/index.html'), { hash: debateHash });
     }
-    // Send debate ID once the renderer is ready
-    debateWindow.webContents.once('did-finish-load', () => {
+    // Send debate ID on every load (initial + HMR reload)
+    debateWindow.webContents.on('did-finish-load', () => {
       console.log('[Main] debate-window did-finish-load, sending debate ID:', debateId);
       debateWindow?.webContents.send('debate-window-load', debateId);
     });

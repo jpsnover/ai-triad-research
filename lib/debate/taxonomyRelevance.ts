@@ -685,14 +685,15 @@ const CATASTROPHIC_SIGNALS = new Set([
 export interface TopicConstraintFilterConfig {
   mode: 'demote' | 'exclude';
   penaltyFactor: number;
-  boostFactor: number;
+  boostIncrement: number;
+  boostCap: number;
   minPerCategory: number;
 }
 
 export interface TopicConstraintFilterResult {
   nodes: ScoredPovNode[];
   demoted: { nodeId: string; reason: string; originalScore: number; newScore: number }[];
-  boosted: { nodeId: string; matchedTerms: string[]; originalScore: number; newScore: number }[];
+  boosted: { nodeId: string; matchedTerms: string[]; matchCount: number; boostFactor: number; originalScore: number; newScore: number }[];
   restorations: string[];
 }
 
@@ -704,7 +705,8 @@ export function filterByTopicConstraints(
   if (!scope) return { nodes, demoted: [], boosted: [], restorations: [] };
 
   const penalty = config?.penaltyFactor ?? 0.7;
-  const boost = config?.boostFactor ?? 1.2;
+  const boostIncrement = config?.boostIncrement ?? 0.1;
+  const boostCap = config?.boostCap ?? 1.5;
   const minPerCat = config?.minPerCategory ?? 3;
 
   const isLowRisk = scope.risk_level === 'low' || scope.risk_level === 'medium';
@@ -763,8 +765,9 @@ export function filterByTopicConstraints(
         if (desc.includes(term)) matchedTerms.push(term);
       }
       if (matchedTerms.length >= 2) {
-        const newScore = entry.score * boost;
-        boosted.push({ nodeId: entry.node.id, matchedTerms, originalScore: entry.score, newScore });
+        const factor = Math.min(1.0 + boostIncrement * matchedTerms.length, boostCap);
+        const newScore = entry.score * factor;
+        boosted.push({ nodeId: entry.node.id, matchedTerms, matchCount: matchedTerms.length, boostFactor: factor, originalScore: entry.score, newScore });
         result.push({ node: entry.node, score: newScore });
       } else {
         result.push({ ...entry });

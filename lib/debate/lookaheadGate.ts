@@ -96,8 +96,10 @@ export interface LookaheadDiagnostics {
 
 // ── Constants ─────────────────────────────────────────────
 
-/** Default utility delta threshold. Any non-negative delta passes. */
-const DEFAULT_THRESHOLD = 0.0;
+/** Default utility delta threshold. Allows micro-negative moves (defensive responses,
+ *  clarifying claims) that are strategically neutral but don't strictly improve composite
+ *  utility. At 0.0, ~47% of moves triggered regen in a 30-round debate (t/588). */
+const DEFAULT_THRESHOLD = -0.01;
 
 // ── Concession detection ──────────────────────────────────
 

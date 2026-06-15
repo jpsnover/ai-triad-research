@@ -102,73 +102,84 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
     if (cmd.overviewTab) setOverviewTab(cmd.overviewTab as OverviewTab);
   }, []);
 
-  // Load taxonomy files once for node lookup
+  // Load taxonomy, policy registry, and edges for node lookup
+  const loadTaxonomyData = useCallback(async (signal: { cancelled: boolean }) => {
+    try {
+      const files = await Promise.all([
+        api.loadTaxonomyFile('accelerationist').catch(() => null),
+        api.loadTaxonomyFile('safetyist').catch(() => null),
+        api.loadTaxonomyFile('skeptic').catch(() => null),
+        api.loadTaxonomyFile('situations').catch(() => null),
+      ]);
+      if (signal.cancelled) return;
+      const m = new Map<string, Record<string, unknown>>();
+      for (const f of files) {
+        const nodes = (f as { nodes?: Record<string, unknown>[] } | null)?.nodes;
+        if (!Array.isArray(nodes)) continue;
+        for (const n of nodes) {
+          const id = (n as { id?: string }).id;
+          if (typeof id === 'string') m.set(id, n);
+        }
+      }
+      setTaxNodeMap(m);
+      const labels = new Map<string, string>();
+      for (const [id, n] of m) {
+        const label = (n as { label?: string }).label;
+        if (typeof label === 'string') labels.set(id, label);
+      }
+      setNodeLabels(labels);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'diagnostics-window', level: 'warn',
+        message: 'Failed to load taxonomy files for node lookup',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
+    try {
+      const registryRaw = await api.loadPolicyRegistry() as { policies?: { id: string; action: string; source_povs: string[]; member_count: number }[] } | null;
+      const policies = registryRaw?.policies;
+      if (!signal.cancelled && Array.isArray(policies)) {
+        const pm = new Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>();
+        for (const p of policies) pm.set(p.id, p);
+        setPolicyMap(pm);
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'diagnostics-window', level: 'warn',
+        message: 'Failed to load policy registry',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
+    try {
+      const raw = await api.loadEdges() as { edges?: TaxRefEdge[] } | null;
+      if (signal.cancelled) return;
+      if (raw && Array.isArray(raw.edges)) setAllEdges(raw.edges);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'diagnostics-window', level: 'warn',
+        message: 'Failed to load edges data',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    }
+  }, []);
+
+  // Initial load
   const taxLoadedRef = useRef(false);
   useEffect(() => {
     if (taxLoadedRef.current) return;
     taxLoadedRef.current = true;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const files = await Promise.all([
-          api.loadTaxonomyFile('accelerationist').catch(() => null),
-          api.loadTaxonomyFile('safetyist').catch(() => null),
-          api.loadTaxonomyFile('skeptic').catch(() => null),
-          api.loadTaxonomyFile('situations').catch(() => null),
-        ]);
-        if (cancelled) return;
-        const m = new Map<string, Record<string, unknown>>();
-        for (const f of files) {
-          const nodes = (f as { nodes?: Record<string, unknown>[] } | null)?.nodes;
-          if (!Array.isArray(nodes)) continue;
-          for (const n of nodes) {
-            const id = (n as { id?: string }).id;
-            if (typeof id === 'string') m.set(id, n);
-          }
-        }
-        setTaxNodeMap(m);
-        const labels = new Map<string, string>();
-        for (const [id, n] of m) {
-          const label = (n as { label?: string }).label;
-          if (typeof label === 'string') labels.set(id, label);
-        }
-        setNodeLabels(labels);
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'diagnostics-window', level: 'warn',
-          message: 'Failed to load taxonomy files for node lookup',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
-        });
-      }
-      try {
-        const registryRaw = await api.loadPolicyRegistry() as { policies?: { id: string; action: string; source_povs: string[]; member_count: number }[] } | null;
-        const policies = registryRaw?.policies;
-        if (!cancelled && Array.isArray(policies)) {
-          const pm = new Map<string, { id: string; action: string; source_povs: string[]; member_count: number }>();
-          for (const p of policies) pm.set(p.id, p);
-          setPolicyMap(pm);
-        }
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'diagnostics-window', level: 'warn',
-          message: 'Failed to load policy registry',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
-        });
-      }
-      try {
-        const raw = await api.loadEdges() as { edges?: TaxRefEdge[] } | null;
-        if (cancelled) return;
-        if (raw && Array.isArray(raw.edges)) setAllEdges(raw.edges);
-      } catch (err) {
-        getGlobalRecorder()?.record({
-          type: 'system.error', component: 'diagnostics-window', level: 'warn',
-          message: 'Failed to load edges data',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
-        });
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    const signal = { cancelled: false };
+    void loadTaxonomyData(signal);
+    return () => { signal.cancelled = true; };
+  }, [loadTaxonomyData]);
+
+  // Reload when taxonomy data changes (e.g., data download, taxonomy dir switch)
+  useEffect(() => {
+    return api.onReloadTaxonomy(() => {
+      const signal = { cancelled: false };
+      void loadTaxonomyData(signal);
+    });
+  }, [loadTaxonomyData]);
 
   // Apply theme
   useEffect(() => {
@@ -246,6 +257,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
       'prompt-diff': true,
       'utility': hasAn,
       'fr-context': true,
+      'exclusion-overview': true,
     };
     return tabVisibility[overviewTab] ? overviewTab : 'transcript';
   }, [overviewTab, debate, an, commitments]);
@@ -336,8 +348,9 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
           const next = idx + dir;
           if (next >= 0 && next < ENTRY_TABS.length) setEntryTab(ENTRY_TABS[next]);
         } else if (debate) {
-          const OVERVIEW_TABS: OverviewTab[] = ['argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility'];
+          const OVERVIEW_TABS: OverviewTab[] = ['topic-scope', 'argument-network', 'commitments', 'transcript', 'extraction', 'convergence', 'reflections', 'gaps', 'grounding', 'lineage', 'adaptive', 'pov-progression', 'fr-context', 'prompt-diff', 'utility', 'exclusion-overview'];
           const visible = OVERVIEW_TABS.filter(id => {
+            if (id === 'topic-scope') return !!debate.topic?.scope;
             if (id === 'argument-network' || id === 'utility') return !!(an && an.nodes.length > 0);
             if (id === 'commitments') return !!(commitments && Object.keys(commitments).length > 0);
             if (id === 'convergence') return !!(debate.convergence_signals && debate.convergence_signals.length > 0);

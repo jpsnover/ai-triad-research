@@ -66,7 +66,14 @@ function Repair-PovLineage {
         [switch]$FixUrls,
 
         [Parameter(HelpMessage = 'Convert existing rich lineage objects back to bare strings for re-enrichment')]
-        [switch]$Force
+        [switch]$Force,
+
+        [Parameter(HelpMessage = 'Regenerate lineage descriptions with 2-4 paragraph node-specific content')]
+        [switch]$RegenerateContent,
+
+        [Parameter(HelpMessage = 'Nodes per AI batch in RegenerateContent mode')]
+        [ValidateRange(1, 10)]
+        [int]$NodeBatchSize = 3
     )
 
     begin {
@@ -219,6 +226,220 @@ function Repair-PovLineage {
             }
         }
         Write-Host "Updated $TaxUpdated lineage entries in taxonomy files" -ForegroundColor Green
+        return
+    }
+
+    # ── RegenerateContent mode: per-node 2-4 paragraph descriptions ──────────
+    if ($RegenerateContent) {
+        $PovFiles = @('accelerationist', 'safetyist', 'skeptic', 'situations')
+        if ($POV) { $PovFiles = @($POV) }
+
+        $SystemPrompt = Get-Prompt -Name 'lineage-regenerate'
+
+        # Resolve API key
+        if ($Model -match '^gemini') { $Backend = 'gemini' }
+        elseif ($Model -match '^claude') { $Backend = 'claude' }
+        elseif ($Model -match '^openai') { $Backend = 'openai' }
+        else { $Backend = 'gemini' }
+        $ResolvedKey = Resolve-AIApiKey -ExplicitKey $ApiKey -Backend $Backend
+        if ([string]::IsNullOrWhiteSpace($ResolvedKey)) {
+            throw (New-ActionableError `
+                -Goal 'Regenerate lineage content' `
+                -Problem 'No API key available' `
+                -Location 'Repair-PovLineage -RegenerateContent' `
+                -NextSteps @('Set GEMINI_API_KEY or ANTHROPIC_API_KEY environment variable', 'Pass -ApiKey parameter'))
+        }
+
+        # Collect nodes to process
+        $NodesToProcess = [System.Collections.Generic.List[hashtable]]::new()
+        foreach ($PovName in $PovFiles) {
+            $FilePath = Join-Path $TaxDir "$PovName.json"
+            if (-not (Test-Path $FilePath)) { continue }
+            $Data = Get-Content $FilePath -Raw | ConvertFrom-Json
+
+            foreach ($Node in $Data.nodes) {
+                if ($FilterNodeIds -and -not $FilterNodeIds.Contains($Node.id)) { continue }
+                if (-not $Node.PSObject.Properties['graph_attributes'] -or -not $Node.graph_attributes) { continue }
+                $GA = $Node.graph_attributes
+                if (-not $GA.PSObject.Properties['intellectual_lineage']) { continue }
+                $LinEntries = @($GA.intellectual_lineage)
+                if ($LinEntries.Count -eq 0) { continue }
+
+                # Only process rich entries (have a name property)
+                $RichEntries = @($LinEntries | Where-Object { $_ -isnot [string] -and $_.PSObject.Properties['name'] })
+                if ($RichEntries.Count -eq 0) { continue }
+
+                $NodeCategory = if ($Node.PSObject.Properties['category']) { $Node.category } else { 'Situation' }
+                $NodeDesc = if ($Node.PSObject.Properties['description']) { $Node.description } else { '' }
+                $NodesToProcess.Add(@{
+                    pov      = $PovName
+                    node_id  = $Node.id
+                    label    = $Node.label
+                    desc     = $NodeDesc
+                    category = $NodeCategory
+                    entries  = $RichEntries
+                })
+            }
+        }
+
+        Write-Host "=== Regenerate Lineage Content ===" -ForegroundColor Cyan
+        Write-Host "  Nodes to process: $($NodesToProcess.Count)"
+        Write-Host "  Batch size: $NodeBatchSize nodes/batch"
+        Write-Host "  Model: $Model"
+
+        $TotalBatches = [Math]::Ceiling($NodesToProcess.Count / $NodeBatchSize)
+        Write-Host "  Total batches: $TotalBatches"
+
+        if ($WhatIfPreference) {
+            Write-Host "`nWhatIf: Would regenerate $($NodesToProcess.Count) nodes in $TotalBatches batches"
+            $NodesToProcess | Select-Object -First 5 | ForEach-Object {
+                Write-Host "  $($_.node_id): $($_.label) ($($_.entries.Count) entries)" -ForegroundColor DarkGray
+            }
+            return
+        }
+
+        # Track which POV files need saving
+        $PovModified = @{}
+
+        $BatchNum = 0
+        $TotalUpdated = 0
+        $TotalFailed = 0
+
+        for ($i = 0; $i -lt $NodesToProcess.Count; $i += $NodeBatchSize) {
+            $BatchNum++
+            $BatchEnd = [Math]::Min($i + $NodeBatchSize - 1, $NodesToProcess.Count - 1)
+            $Batch = @($NodesToProcess[$i..$BatchEnd])
+            $BatchNodeIds = ($Batch | ForEach-Object { $_.node_id }) -join ', '
+            Write-Host "  Batch $BatchNum/$TotalBatches ($($Batch.Count) nodes: $BatchNodeIds)..." -ForegroundColor Gray -NoNewline
+
+            # Build per-node input for the prompt
+            $NodesJson = @(foreach ($Item in $Batch) {
+                $EntryNames = @($Item.entries | ForEach-Object { $_.name })
+                $ExistingEntries = @(foreach ($E in $Item.entries) {
+                    [ordered]@{
+                        name     = $E.name
+                        url      = if ($E.PSObject.Properties['url']) { $E.url } else { $null }
+                        category = if ($E.PSObject.Properties['category']) { $E.category } else { $null }
+                    }
+                })
+                [ordered]@{
+                    node_id           = $Item.node_id
+                    label             = $Item.label
+                    description       = $Item.desc
+                    category          = $Item.category
+                    pov               = $Item.pov
+                    lineage_entries   = $ExistingEntries
+                    other_entry_names = $EntryNames
+                }
+            }) | ConvertTo-Json -Depth 5
+
+            $UserPrompt = @"
+Regenerate the description field for each lineage entry on each node below.
+Keep name, url, and category fields EXACTLY as provided. Only replace the description.
+
+NODES:
+$NodesJson
+
+Return a JSON object mapping node_id to an array of updated lineage entries:
+{
+  "node_id_1": [
+    {"name": "...", "description": "2-4 paragraphs...", "url": "...", "category": "..."},
+    ...
+  ],
+  ...
+}
+"@
+
+            try {
+                $Result = Invoke-AIApi -Prompt $UserPrompt -SystemInstruction $SystemPrompt `
+                    -Model $Model -ApiKey $ResolvedKey `
+                    -Temperature 0.3 -MaxTokens 16384 -JsonMode -TimeoutSec 120
+
+                if (-not $Result -or -not $Result.Text) {
+                    Write-Host " no response" -ForegroundColor Red
+                    $TotalFailed += $Batch.Count
+                    continue
+                }
+
+                $CleanText = $Result.Text -replace '^\s*```json\s*', '' -replace '\s*```\s*$', ''
+                $Regenerated = $CleanText | ConvertFrom-Json
+
+                foreach ($Item in $Batch) {
+                    $NodeId = $Item.node_id
+                    if (-not $Regenerated.PSObject.Properties[$NodeId]) {
+                        Write-Verbose "  $NodeId — not in response, skipping"
+                        $TotalFailed++
+                        continue
+                    }
+
+                    $NewEntries = @($Regenerated.$NodeId)
+                    if ($NewEntries.Count -eq 0) {
+                        Write-Verbose "  $NodeId — empty entries in response"
+                        $TotalFailed++
+                        continue
+                    }
+
+                    # Build lookup: name → new description
+                    $DescLookup = @{}
+                    foreach ($NE in $NewEntries) {
+                        if ($NE.PSObject.Properties['name'] -and $NE.PSObject.Properties['description']) {
+                            $DescLookup[$NE.name] = $NE.description
+                        }
+                    }
+
+                    # Apply to original entries (preserve url/category from source)
+                    $Updated = 0
+                    foreach ($OrigEntry in $Item.entries) {
+                        if ($DescLookup.ContainsKey($OrigEntry.name)) {
+                            $NewDesc = $DescLookup[$OrigEntry.name]
+                            if ($NewDesc.Length -gt 100) {
+                                $OrigEntry.description = $NewDesc
+                                $Updated++
+                            }
+                        }
+                    }
+
+                    if ($Updated -gt 0) {
+                        $PovModified[$Item.pov] = $true
+                        $TotalUpdated++
+                        Write-Verbose "  $NodeId — $Updated/$($Item.entries.Count) entries updated"
+                    }
+                }
+
+                Write-Host " done ($($Batch.Count) nodes)" -ForegroundColor Green
+            }
+            catch {
+                Write-Host " failed: $($_.Exception.Message)" -ForegroundColor Red
+                $TotalFailed += $Batch.Count
+            }
+
+            if ($BatchNum -lt $TotalBatches) { Start-Sleep -Seconds 1 }
+        }
+
+        # Save modified taxonomy files
+        foreach ($PovName in $PovModified.Keys) {
+            $FilePath = Join-Path $TaxDir "$PovName.json"
+            $Data = Get-Content $FilePath -Raw | ConvertFrom-Json
+
+            # Re-apply the updated entries from NodesToProcess back to the file data
+            $NodeLookup = @{}
+            foreach ($Item in $NodesToProcess) {
+                if ($Item.pov -eq $PovName) { $NodeLookup[$Item.node_id] = $Item }
+            }
+            foreach ($Node in $Data.nodes) {
+                if ($NodeLookup.ContainsKey($Node.id)) {
+                    $Node.graph_attributes.intellectual_lineage = @($NodeLookup[$Node.id].entries)
+                }
+            }
+
+            $Data | ConvertTo-Json -Depth 20 | Set-Content -Path $FilePath -Encoding UTF8
+            Write-Host "  Saved $PovName.json" -ForegroundColor Green
+        }
+
+        Write-Host "`n=== SUMMARY ===" -ForegroundColor Cyan
+        Write-Host "  Nodes updated: $TotalUpdated"
+        Write-Host "  Nodes failed: $TotalFailed"
+        Write-Host "  POV files saved: $($PovModified.Keys -join ', ')"
         return
     }
 

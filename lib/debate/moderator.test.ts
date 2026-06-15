@@ -22,6 +22,8 @@ import {
   checkInterventionCompliance,
   getResponseFieldForMove,
   getMoveResponseConfig,
+  detectNearMisses,
+  getBurdenModifier,
   getConcludingResponder,
   shouldFirePolicyChallenge,
   extractContestedTerm,
@@ -377,6 +379,60 @@ describe('computeEffectiveThreshold', () => {
     const result = computeEffectiveThreshold(1.0, 'accelerationist', 'PIN', state);
     expect(result).toBeCloseTo(0.6);
   });
+
+  it('raises threshold by 1.3× for overburdened debater with high-burden move', () => {
+    const state = makeState({
+      burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 },
+      avg_burden: 2.0,
+    });
+    // safetyist burden (5.0) > avg (2.0) × 1.5 (3.0), PIN is elicitation (weight 1.0 > 0.5)
+    const result = computeEffectiveThreshold(0.7, 'safetyist', 'PIN', state);
+    expect(result).toBeCloseTo(0.7 * 1.3);
+  });
+
+  it('does not raise threshold for low-burden family on overburdened debater', () => {
+    const state = makeState({
+      burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 },
+      avg_burden: 2.0,
+    });
+    // REVOICE is reconciliation (weight 0.25 ≤ 0.5) — no burden modifier
+    // safetyist has no persona modifier for REVOICE
+    const result = computeEffectiveThreshold(0.7, 'safetyist', 'REVOICE', state);
+    expect(result).toBeCloseTo(0.7);
+  });
+});
+
+// ── getBurdenModifier ────────────────────────────────────
+
+describe('getBurdenModifier', () => {
+  it('returns 1.0 when avg_burden is zero', () => {
+    const state = makeState();
+    expect(getBurdenModifier('safetyist', 'PIN', state)).toBe(1.0);
+  });
+
+  it('returns 1.3 for overburdened debater with high-burden move', () => {
+    const state = makeState({
+      burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 },
+      avg_burden: 2.0,
+    });
+    expect(getBurdenModifier('safetyist', 'PIN', state)).toBe(1.3);
+  });
+
+  it('returns 1.0 for overburdened debater with low-burden move', () => {
+    const state = makeState({
+      burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 },
+      avg_burden: 2.0,
+    });
+    expect(getBurdenModifier('safetyist', 'ACKNOWLEDGE', state)).toBe(1.0);
+  });
+
+  it('returns 1.0 when debater is not overburdened', () => {
+    const state = makeState({
+      burden_per_debater: { accelerationist: 1.0, safetyist: 1.0, skeptic: 1.0 },
+      avg_burden: 1.0,
+    });
+    expect(getBurdenModifier('safetyist', 'PIN', state)).toBe(1.0);
+  });
 });
 
 // ── computeDebateHealthScore ─────────────────────────────
@@ -576,31 +632,37 @@ describe('validateRecommendation', () => {
     expect(r.proceed).toBe(true);
   });
 
-  it('suppresses when burden cap exceeded', () => {
+  it('allows overburdened debater with burden diagnostic', () => {
     const state = makeState({
       phase: 'argumentation',
       rounds_since_last_intervention: 2,
       burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 },
       avg_burden: 2.0,
     });
-    // safetyist burden (5.0) > avg (2.0) * 1.5 (3.0) and elicitation weight = 1.0 > 0.5
+    // safetyist burden (5.0) > avg (2.0) * 1.5 (3.0) — no longer blocked, emits diagnostic
     const sel = makeSelection({ suggested_move: 'PIN', target_debater: 'safetyist' });
     const r = validateRecommendation(sel, state);
-    expect(r.proceed).toBe(false);
-    expect(r.suppressed_reason).toBe('burden_cap');
+    expect(r.proceed).toBe(true);
+    expect(r.burden_diagnostic).toBeDefined();
+    expect(r.burden_diagnostic!.debater).toBe('safetyist');
+    expect(r.burden_diagnostic!.burden).toBe(5.0);
+    expect(r.burden_diagnostic!.avg).toBe(2.0);
+    expect(r.burden_diagnostic!.threshold_multiplier).toBe(1.3);
   });
 
-  it('allows high-burden debater with low-burden move', () => {
+  it('emits burden diagnostic with multiplier 1.0 for low-burden family', () => {
     const state = makeState({
       phase: 'argumentation',
       rounds_since_last_intervention: 2,
       burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 },
       avg_burden: 2.0,
     });
-    // reconciliation weight = 0.25, which is <= 0.5 threshold
+    // reconciliation weight = 0.25 ≤ 0.5 — burden exceeds 1.5× avg but family is low-burden
     const sel = makeSelection({ suggested_move: 'ACKNOWLEDGE', target_debater: 'safetyist' });
     const r = validateRecommendation(sel, state);
     expect(r.proceed).toBe(true);
+    expect(r.burden_diagnostic).toBeDefined();
+    expect(r.burden_diagnostic!.threshold_multiplier).toBe(1.0);
   });
 
   it('suppresses CHALLENGE in confrontation before round 4', () => {
@@ -670,7 +732,6 @@ describe('validateRecommendation — suppression reason invariant', () => {
       { label: 'cooldown', state: { phase: 'argumentation', rounds_since_last_intervention: 0, required_gap: 2 }, sel: { suggested_move: 'PIN' } },
       { label: 'phase_mismatch', state: { phase: 'confrontation', rounds_since_last_intervention: 2 }, sel: { suggested_move: 'COMMIT' } },
       { label: 'same_debater_consecutive', state: { phase: 'argumentation', rounds_since_last_intervention: 2, last_target: 'safetyist' }, sel: { suggested_move: 'PIN', target_debater: 'safetyist' } },
-      { label: 'burden_cap', state: { phase: 'argumentation', rounds_since_last_intervention: 2, burden_per_debater: { accelerationist: 0.5, safetyist: 5.0, skeptic: 0.5 }, avg_burden: 2.0 }, sel: { suggested_move: 'PIN', target_debater: 'safetyist' } },
       { label: 'engine_override (no move)', state: { phase: 'argumentation' }, sel: { intervene: true, suggested_move: undefined as unknown as string } },
       { label: 'engine_override (no target)', state: { phase: 'argumentation' }, sel: { intervene: true, target_debater: undefined as unknown as string } },
       { label: 'engine_override (not intervening)', state: { phase: 'argumentation' }, sel: { intervene: false } },
@@ -1496,5 +1557,54 @@ describe('checkInterventionCompliance — CRUX_FOCUS', () => {
     });
     expect(result.compliant).toBe(false);
     expect(result.missing_field).toContain('evidence_or_tradeoff');
+  });
+});
+
+// ── detectNearMisses ─────────────────────────────────────
+
+describe('detectNearMisses', () => {
+  it('returns empty for signal at 79% of threshold', () => {
+    const state = makeState();
+    const result = detectNearMisses(state, { PIN: 0.79 });
+    expect(result).toHaveLength(0);
+  });
+
+  it('flags signal at 80% as near-miss', () => {
+    const state = makeState();
+    const result = detectNearMisses(state, { PIN: 0.8 });
+    expect(result).toHaveLength(1);
+    expect(result[0].move).toBe('PIN');
+    expect(result[0].signal_value).toBe(0.8);
+    expect(result[0].effective_threshold).toBe(1.0);
+    expect(result[0].ratio).toBeCloseTo(0.8);
+  });
+
+  it('flags signal at 99% as near-miss', () => {
+    const state = makeState();
+    const result = detectNearMisses(state, { PROBE: 0.99 });
+    expect(result).toHaveLength(1);
+    expect(result[0].move).toBe('PROBE');
+    expect(result[0].ratio).toBeCloseTo(0.99);
+  });
+
+  it('does not flag signal at 100%+ (triggered, not near-miss)', () => {
+    const state = makeState();
+    const result = detectNearMisses(state, { CHALLENGE: 1.0 });
+    expect(result).toHaveLength(0);
+  });
+
+  it('detects multiple near-misses across moves', () => {
+    const state = makeState();
+    const result = detectNearMisses(state, { PIN: 0.85, PROBE: 0.92, CHALLENGE: 0.5, REDIRECT: 1.1 });
+    expect(result).toHaveLength(2);
+    const moves = result.map(r => r.move);
+    expect(moves).toContain('PIN');
+    expect(moves).toContain('PROBE');
+  });
+
+  it('returns empty for empty signal values', () => {
+    const state = makeState();
+    const result = detectNearMisses(state, {});
+    expect(result).toHaveLength(0);
   });
 });
