@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { app } from 'electron';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -308,12 +309,42 @@ export function loadSyntheticEmbeddings(): Record<string, { pov: string; vectors
   if (_syntheticEmbeddingsCache && _syntheticEmbeddingsTaxDir === activeTaxonomyDir) {
     return _syntheticEmbeddingsCache;
   }
-  const filePath = path.join(activeTaxonomyDir, 'synthetic', 'synthetic_embeddings.json');
-  if (!fs.existsSync(filePath)) return null;
-  const raw = parseJsonFile(filePath) as { nodes?: Record<string, { pov: string; vectors: number[][] }> } | null;
-  _syntheticEmbeddingsCache = raw?.nodes ?? null;
+  const synDir = path.join(activeTaxonomyDir, 'synthetic');
+  const result: Record<string, { pov: string; vectors: number[][] }> = {};
+  let found = false;
+
+  for (const pov of SYNTHETIC_POV_KEYS) {
+    const npyPath = path.join(synDir, `embeddings_${pov}.npy`);
+    const idxPath = path.join(synDir, `index_${pov}.json`);
+    if (!fs.existsSync(npyPath) || !fs.existsSync(idxPath)) continue;
+
+    const npyBuf = fs.readFileSync(npyPath);
+    const parsed = parseNpy(npyBuf);
+    const index = JSON.parse(fs.readFileSync(idxPath, 'utf-8')) as Record<string, { start: number; count: number }>;
+    Object.assign(result, extractNodeVectors(parsed, index, pov));
+    found = true;
+  }
+
+  _syntheticEmbeddingsCache = found ? result : null;
   _syntheticEmbeddingsTaxDir = activeTaxonomyDir;
   return _syntheticEmbeddingsCache;
+}
+
+export function updateSyntheticEmbeddings(nodeId: string, pov: string, vectors: number[][]): void {
+  const synDir = path.join(activeTaxonomyDir, 'synthetic');
+  if (!fs.existsSync(synDir)) fs.mkdirSync(synDir, { recursive: true });
+  const filePath = path.join(synDir, 'synthetic_embeddings.json');
+  let file: { model: string; dimension: number; node_count: number; nodes: Record<string, { pov: string; vectors: number[][] }> };
+  if (fs.existsSync(filePath)) {
+    file = parseJsonFile(filePath) as typeof file;
+  } else {
+    file = { model: 'all-MiniLM-L6-v2', dimension: 384, node_count: 0, nodes: {} };
+  }
+  file.nodes[nodeId] = { pov, vectors };
+  file.node_count = Object.keys(file.nodes).length;
+  fs.writeFileSync(filePath, JSON.stringify(file, null, 2), 'utf-8');
+  _syntheticEmbeddingsCache = file.nodes;
+  _syntheticEmbeddingsTaxDir = activeTaxonomyDir;
 }
 
 export function readLineageCategories(): unknown {

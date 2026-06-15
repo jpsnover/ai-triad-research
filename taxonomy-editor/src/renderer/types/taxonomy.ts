@@ -34,6 +34,8 @@ export interface GraphAttributes {
   possible_fallacies?: PossibleFallacy[];
   /** AIF node scope — added in dolce-phase-4. Absent in older nodes. */
   node_scope?: 'claim' | 'scheme' | 'bridging';
+  /** Genus-differentia rewrite of the node description for embedding-based attribution. */
+  attribution_text?: string;
 }
 
 export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';

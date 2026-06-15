@@ -167,6 +167,7 @@ export interface AppAPI {
   // --- Synthetic corpus ---
   loadSyntheticCorpus: (pov: string) => Promise<unknown | null>;
   loadSyntheticEmbeddings: () => Promise<Record<string, { pov: string; vectors: number[][] }> | null>;
+  updateSyntheticEmbeddings: (nodeId: string, pov: string, vectors: number[][]) => Promise<void>;
 
   // --- Feedback & error reporting ---
   submitFeedback: (rating: 'up' | 'down', text?: string) => Promise<{ ok: boolean; id?: string }>;

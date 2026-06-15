@@ -22,6 +22,7 @@ import type { StorageBackend } from './storageBackend.js';
 import { log } from './logger.js';
 import { FilesystemBackend } from './filesystemBackend.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+import { parseNpy, extractNodeVectors } from '../../../lib/npy.js';
 import { getStorageUserId, isAnonymousUser, getAnonymousSessionId } from './userContext.js';
 import { getAnonymousSessionStore } from './anonymousSessionStore.js';
 import { checkQuota } from './quotas.js';
@@ -177,11 +178,27 @@ export async function loadSyntheticCorpus(pov: string): Promise<unknown | null> 
 }
 
 export async function loadSyntheticEmbeddings(): Promise<Record<string, { pov: string; vectors: number[][] }> | null> {
-  const filePath = path.join(getTaxonomyDir(), 'synthetic', 'synthetic_embeddings.json');
-  const raw = await backend.readFile(filePath);
-  if (raw === null) return null;
-  const parsed = JSON.parse(raw.replace(/^﻿/, '')) as { nodes?: Record<string, { pov: string; vectors: number[][] }> } | null;
-  return parsed?.nodes ?? null;
+  const synDir = path.join(getTaxonomyDir(), 'synthetic');
+  const result: Record<string, { pov: string; vectors: number[][] }> = {};
+  let found = false;
+
+  for (const pov of SYNTHETIC_POV_KEYS) {
+    const npyPath = path.join(synDir, `embeddings_${pov}.npy`);
+    const idxPath = path.join(synDir, `index_${pov}.json`);
+
+    const [npyBuf, idxRaw] = await Promise.all([
+      backend.readBinaryFile(npyPath),
+      backend.readFile(idxPath),
+    ]);
+    if (!npyBuf || !idxRaw) continue;
+
+    const parsed = parseNpy(npyBuf);
+    const index = JSON.parse(idxRaw.replace(/^﻿/, '')) as Record<string, { start: number; count: number }>;
+    Object.assign(result, extractNodeVectors(parsed, index, pov));
+    found = true;
+  }
+
+  return found ? result : null;
 }
 
 export async function writeTaxonomyFile(pov: string, data: unknown): Promise<void> {

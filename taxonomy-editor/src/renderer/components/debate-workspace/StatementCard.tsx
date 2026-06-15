@@ -614,42 +614,6 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
   const citations = factCheck?.web_search_citations ?? [];
   const hasWebEvidence = factCheck?.web_search_used || factCheck?.web_search_evidence || citations.length > 0;
 
-  const annotatedEvidence = (() => {
-    const raw = factCheck?.web_search_evidence;
-    if (!raw || citations.length === 0) return null;
-
-    type Marker = { pos: number; citationIndex: number; confidence?: number };
-    const markers: Marker[] = [];
-    citations.forEach((c, ci) => {
-      for (const seg of c.segments) {
-        if (typeof seg.endIndex === 'number' && seg.endIndex <= raw.length) {
-          markers.push({ pos: seg.endIndex, citationIndex: ci, confidence: seg.confidence });
-        }
-      }
-    });
-    if (markers.length === 0) return null;
-    markers.sort((a, b) => a.pos - b.pos);
-
-    const parts: ReactNode[] = [];
-    let cursor = 0;
-    markers.forEach((m, i) => {
-      if (m.pos > cursor) parts.push(raw.slice(cursor, m.pos));
-      parts.push(
-        <sup key={`cite-${i}`} className="debate-fact-check-citation-marker">
-          <a
-            href={`#fact-check-source-${m.citationIndex + 1}`}
-            title={citations[m.citationIndex]?.title + (m.confidence != null ? ` (confidence ${m.confidence.toFixed(2)})` : '')}
-          >
-            [{m.citationIndex + 1}]
-          </a>
-        </sup>,
-      );
-      cursor = m.pos;
-    });
-    if (cursor < raw.length) parts.push(raw.slice(cursor));
-    return parts;
-  })();
-
   return (
     <div className={`debate-statement debate-type-fact-check debate-speaker-system ${verdictClass}`}>
       <div className="debate-statement-header">
@@ -723,9 +687,7 @@ export function FactCheckCard({ entry, statementId, findQuery = '', matchOffset 
         <div className="debate-fact-check-web-evidence">
           <div className="debate-fact-check-web-evidence-header">Web Search Evidence</div>
           <div className="debate-fact-check-web-evidence-body markdown-body">
-            {annotatedEvidence ? (
-              <div className="debate-fact-check-evidence-text">{annotatedEvidence}</div>
-            ) : factCheck?.web_search_evidence ? (
+            {factCheck?.web_search_evidence ? (
               <Markdown remarkPlugins={[remarkGfm]}>{fixMarkdownLinks(factCheck.web_search_evidence)}</Markdown>
             ) : (
               <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>

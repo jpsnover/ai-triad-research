@@ -35,4 +35,7 @@ export interface StorageBackend {
 
   /** Check whether a file or directory exists at the given path. */
   fileExists(filePath: string): Promise<boolean>;
+
+  /** Read a file as a raw binary Buffer. Returns null if the file does not exist. */
+  readBinaryFile(filePath: string): Promise<Buffer | null>;
 }

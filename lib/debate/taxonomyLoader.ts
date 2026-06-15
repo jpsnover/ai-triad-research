@@ -11,6 +11,7 @@ import path from 'path';
 import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes.js';
 import type { PolicyRef } from './taxonomyContext.js';
 import { ActionableError } from './errors.js';
+import { parseNpy, extractNodeVectors } from '../npy.js';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -187,11 +188,17 @@ export function loadTaxonomy(repoRoot: string): LoadedTaxonomy {
   const embeddings: Record<string, NodeEmbedding> = embeddingsRaw.nodes ?? {};
 
   // Synthetic multi-vector embeddings (optional — produced by Export-SyntheticEmbeddings)
-  const syntheticRaw = loadJsonSafe<{
-    nodes?: Record<string, { pov: string; vectors: number[][]; archetypes?: string[] }>;
-  } | null>(path.join(taxonomyDir, 'synthetic', 'synthetic_embeddings.json'), null);
-  if (syntheticRaw?.nodes) {
-    for (const [nodeId, entry] of Object.entries(syntheticRaw.nodes)) {
+  const synDir = path.join(taxonomyDir, 'synthetic');
+  for (const pov of ['acc', 'saf', 'skp']) {
+    const npyPath = path.join(synDir, `embeddings_${pov}.npy`);
+    const idxPath = path.join(synDir, `index_${pov}.json`);
+    if (!fs.existsSync(npyPath) || !fs.existsSync(idxPath)) continue;
+
+    const parsed = parseNpy(fs.readFileSync(npyPath));
+    const index = loadJsonSafe<Record<string, { start: number; count: number }>>(idxPath, {});
+    const synVecs = extractNodeVectors(parsed, index, pov);
+
+    for (const [nodeId, entry] of Object.entries(synVecs)) {
       if (!entry.vectors?.length) continue;
       if (embeddings[nodeId]) {
         embeddings[nodeId].vectors = entry.vectors;

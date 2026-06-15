@@ -43,6 +43,7 @@ import {
   coverageCheckPrompt,
   classifyOffScopeDrift,
   offScopeRepairHint,
+  topicScopeExtractionPrompt,
 } from './prompts.js';
 import type { OpeningStagePromptInput, StagePromptInput, SituationDebateInput } from './prompts.js';
 import type { TopicScope } from './types.js';
@@ -171,6 +172,12 @@ describe('concludingPrompt', () => {
     const lineage = '  - Utilitarian Ethics (55%)';
     const result = concludingPrompt(TOPIC, 'Q: x? A: y', undefined, undefined, lineage);
     expectContains(result, 'INTELLECTUAL TRADITIONS IN PLAY', 'Utilitarian Ethics');
+  });
+
+  it('includes naturalness constraint', () => {
+    const result = concludingPrompt(TOPIC, 'Q: x? A: y');
+    expect(result).toContain('conversational and direct');
+    expect(result).toContain('not a committee-drafted scope statement');
   });
 });
 
@@ -1176,5 +1183,30 @@ describe('offScopeRepairHint', () => {
     const hint = offScopeRepairHint('evidence', makeScope());
     expect(hint).toContain('Sector-specific regulatory failures');
     expect(hint).toContain('Keep your argument structure');
+  });
+});
+
+describe('topicScopeExtractionPrompt', () => {
+  it('includes topic in prompt without additions block when none provided', () => {
+    const result = topicScopeExtractionPrompt('Should AI be regulated?');
+    expect(result).toContain('Should AI be regulated?');
+    expect(result).not.toContain('ADDITIONAL DIMENSIONAL CONTEXT');
+  });
+
+  it('includes scope_additions block when provided', () => {
+    const additions = [
+      { dimension: 'mechanism', detail: 'Liability frameworks for AI-generated content' },
+      { dimension: 'stakeholder', detail: 'Include judiciary as institutional actor' },
+    ];
+    const result = topicScopeExtractionPrompt('Should AI be regulated?', additions);
+    expect(result).toContain('ADDITIONAL DIMENSIONAL CONTEXT');
+    expect(result).toContain('mechanism: Liability frameworks for AI-generated content');
+    expect(result).toContain('stakeholder: Include judiciary as institutional actor');
+    expect(result).toContain('Incorporate these into the appropriate scope fields');
+  });
+
+  it('omits additions block for empty array', () => {
+    const result = topicScopeExtractionPrompt('Topic', []);
+    expect(result).not.toContain('ADDITIONAL DIMENSIONAL CONTEXT');
   });
 });

@@ -8,6 +8,7 @@ import { resolveDataPath } from './fileIO.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
 
 const DEBATES_DIR = resolveDataPath('debates');
+const INDEX_PATH = path.join(DEBATES_DIR, '.debate-index.json');
 
 export interface DebateSessionSummary {
   id: string;
@@ -20,6 +21,16 @@ export interface DebateSessionSummary {
   turn_count?: number;
 }
 
+interface IndexEntry {
+  mtimeMs: number;
+  summary: DebateSessionSummary;
+}
+
+interface DebateIndex {
+  v: 1;
+  entries: Record<string, IndexEntry>;
+}
+
 function ensureDebatesDir(): void {
   if (!fs.existsSync(DEBATES_DIR)) {
     fs.mkdirSync(DEBATES_DIR, { recursive: true });
@@ -30,56 +41,119 @@ function debateFilePath(id: string): string {
   return path.join(DEBATES_DIR, `debate-${id}.json`);
 }
 
-export function listDebateSessions(): DebateSessionSummary[] {
+function loadIndex(): DebateIndex {
+  try {
+    const raw = fs.readFileSync(INDEX_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (parsed?.v === 1) return parsed;
+  } catch { /* missing or corrupt — rebuild */ }
+  return { v: 1, entries: {} };
+}
+
+function saveIndex(index: DebateIndex): void {
+  try {
+    fs.writeFileSync(INDEX_PATH, JSON.stringify(index), 'utf-8');
+  } catch { /* non-fatal — next call rebuilds */ }
+}
+
+function extractSummary(data: Record<string, unknown>): DebateSessionSummary {
+  const transcript = Array.isArray(data.transcript) ? data.transcript : [];
+  const topic = data.topic as { final?: string; original?: string } | undefined;
+  return {
+    id: data.id as string,
+    title: (data.title || data.topic || 'Untitled') as string,
+    created_at: data.created_at as string,
+    updated_at: data.updated_at as string,
+    phase: data.phase as string,
+    topic_text: topic?.final ?? topic?.original ?? '',
+    model: data.debate_model as string | undefined,
+    turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
+  };
+}
+
+function updateIndexEntry(index: DebateIndex, id: string, session: Record<string, unknown>): void {
+  const filename = `debate-${id}.json`;
+  const filePath = debateFilePath(id);
+  try {
+    const stat = fs.statSync(filePath);
+    index.entries[filename] = { mtimeMs: stat.mtimeMs, summary: extractSummary(session) };
+  } catch { /* file gone — skip */ }
+}
+
+export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
   if (!fs.existsSync(DEBATES_DIR)) return [];
 
-  // Scan root debates dir + cli-runs subdirectory
-  const scanDirs = [DEBATES_DIR];
+  // Migrate cli-runs files first (rare, sync is fine)
   const cliRunsDir = path.join(DEBATES_DIR, 'cli-runs');
-  if (fs.existsSync(cliRunsDir)) scanDirs.push(cliRunsDir);
-
-  const summaries: DebateSessionSummary[] = [];
-  for (const scanDir of scanDirs) {
-    const files = fs.readdirSync(scanDir).filter(f =>
+  if (fs.existsSync(cliRunsDir)) {
+    const cliFiles = fs.readdirSync(cliRunsDir).filter(f =>
       f.endsWith('.json') && (f.startsWith('debate-') || f.endsWith('-debate.json'))
     );
-    for (const f of files) {
+    for (const f of cliFiles) {
       try {
-        const currentPath = path.join(scanDir, f);
-        const data = JSON.parse(fs.readFileSync(currentPath, 'utf-8'));
-        // Move cli-runs files to root debates dir with canonical naming
-        const canonical = `debate-${data.id}.json`;
-        const canonicalPath = path.join(DEBATES_DIR, canonical);
-        if (currentPath !== canonicalPath) {
-          fs.renameSync(currentPath, canonicalPath);
-        }
-        const transcript = Array.isArray(data.transcript) ? data.transcript : [];
-        summaries.push({
-          id: data.id,
-          title: data.title || data.topic || 'Untitled',
-          created_at: data.created_at,
-          updated_at: data.updated_at,
-          phase: data.phase,
-          topic_text: data.topic?.final ?? data.topic?.original ?? '',
-          model: data.debate_model,
-          turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
-        });
-      } catch {
-        /* telemetry — silent by design */
-        // Skip corrupt files
-      }
+        const src = path.join(cliRunsDir, f);
+        const data = JSON.parse(fs.readFileSync(src, 'utf-8'));
+        const dest = path.join(DEBATES_DIR, `debate-${data.id}.json`);
+        if (src !== dest) fs.renameSync(src, dest);
+      } catch { /* skip corrupt */ }
     }
   }
+
+  const index = loadIndex();
+  const nextIndex: DebateIndex = { v: 1, entries: {} };
+  const summaries: DebateSessionSummary[] = [];
+  let indexDirty = false;
+
+  const files = fs.readdirSync(DEBATES_DIR).filter(f =>
+    f.endsWith('.json') && f.startsWith('debate-')
+  );
+
+  const readQueue: Array<{ filename: string; filePath: string }> = [];
+
+  for (const f of files) {
+    const filePath = path.join(DEBATES_DIR, f);
+    try {
+      const stat = fs.statSync(filePath);
+      const cached = index.entries[f];
+      if (cached && cached.mtimeMs === stat.mtimeMs) {
+        summaries.push(cached.summary);
+        nextIndex.entries[f] = cached;
+      } else {
+        readQueue.push({ filename: f, filePath });
+        indexDirty = true;
+      }
+    } catch { /* stat failed — skip */ }
+  }
+
+  // Removed entries → dirty
+  if (Object.keys(index.entries).length !== Object.keys(nextIndex.entries).length + readQueue.length) {
+    indexDirty = true;
+  }
+
+  // Read changed/new files async (non-blocking)
+  const reads = readQueue.map(({ filename, filePath }) =>
+    fs.promises.readFile(filePath, 'utf-8').then(raw => {
+      const data = JSON.parse(raw) as Record<string, unknown>;
+      const summary = extractSummary(data);
+      const stat = fs.statSync(filePath);
+      nextIndex.entries[filename] = { mtimeMs: stat.mtimeMs, summary };
+      summaries.push(summary);
+    }).catch(() => { /* skip corrupt files */ })
+  );
+  await Promise.all(reads);
+
+  if (indexDirty) saveIndex(nextIndex);
+
   summaries.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
   return summaries;
 }
 
-export function loadDebateSession(id: string): unknown {
+export async function loadDebateSession(id: string): Promise<unknown> {
   const filePath = debateFilePath(id);
   if (!fs.existsSync(filePath)) {
     throw new Error(`Debate session not found: ${id}`);
   }
-  const raw = fs.readFileSync(filePath, 'utf-8');
+  const raw = await fs.promises.readFile(filePath, 'utf-8');
   return JSON.parse(raw);
 }
 
@@ -103,6 +177,13 @@ export function saveDebateSession(session: unknown): void {
 
   const filePath = debateFilePath(data.id);
   fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
+
+  // Update metadata index so next list call skips re-reading this file
+  try {
+    const index = loadIndex();
+    updateIndexEntry(index, data.id, session as Record<string, unknown>);
+    saveIndex(index);
+  } catch { /* non-fatal */ }
 }
 
 export function deleteDebateSession(id: string): void {
@@ -111,6 +192,13 @@ export function deleteDebateSession(id: string): void {
     throw new Error(`Debate session not found: ${id}`);
   }
   fs.unlinkSync(filePath);
+
+  // Remove from metadata index
+  try {
+    const index = loadIndex();
+    delete index.entries[`debate-${id}.json`];
+    saveIndex(index);
+  } catch { /* non-fatal */ }
 }
 
 // ── Debate comments ────────────────────────────────────────

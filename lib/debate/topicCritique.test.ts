@@ -395,6 +395,22 @@ describe('critiqueTopicPrompt', () => {
     expect(prompt).toContain('rewritten_topic');
     expect(prompt).toContain('Self-check');
   });
+
+  it('includes naturalness constraint', () => {
+    const prompt = critiqueTopicPrompt('test topic');
+    expect(prompt).toContain('sound like a question a thoughtful person would actually ask');
+    expect(prompt).toContain('not a grant proposal abstract');
+    expect(prompt).toContain('prioritize natural language over maximizing every dimension score');
+  });
+
+  it('caps incorporations to 2-3 highest-severity and includes scope_additions schema', () => {
+    const prompt = critiqueTopicPrompt('test topic');
+    expect(prompt).toContain('2-3 highest-severity reframe_suggestions');
+    expect(prompt).toContain('"scope_additions"');
+    expect(prompt).toContain('"dimension"');
+    expect(prompt).toContain('"detail"');
+    expect(prompt).not.toContain('INCORPORATING every reframe_suggestion');
+  });
 });
 
 // ── formatStructuralContext ─────────────────────────────
@@ -597,6 +613,52 @@ describe('parseTopicCritique', () => {
     // Should have structural issues for crux_density (0 nodes) and situation_activation
     const structIssues = result.issues.filter(i => ['crux_density', 'situation_activation'].includes(i.dimension));
     expect(structIssues.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('parses scope_additions when present', () => {
+    const raw = JSON.stringify({
+      frame_scores: { conditionality: 2, mechanism: 2, stakeholder: 2, tension: 2, scope: 2 },
+      issues: [],
+      reframe_suggestions: [],
+      scope_additions: [
+        { dimension: 'mechanism', detail: 'Specific liability frameworks for AI-generated content' },
+        { dimension: 'stakeholder', detail: 'Include judiciary as separate institutional actor' },
+      ],
+      rewritten_topic: 'Great topic',
+    });
+    const result = parseTopicCritique(raw, minStructural);
+    expect(result.scope_additions).toHaveLength(2);
+    expect(result.scope_additions![0].dimension).toBe('mechanism');
+    expect(result.scope_additions![1].detail).toContain('judiciary');
+  });
+
+  it('returns undefined scope_additions when field absent', () => {
+    const raw = JSON.stringify({
+      frame_scores: { conditionality: 1, mechanism: 1, stakeholder: 1, tension: 1, scope: 1 },
+      issues: [],
+      reframe_suggestions: [],
+      rewritten_topic: 'Topic',
+    });
+    const result = parseTopicCritique(raw, minStructural);
+    expect(result.scope_additions).toBeUndefined();
+  });
+
+  it('filters invalid scope_additions entries', () => {
+    const raw = JSON.stringify({
+      frame_scores: { conditionality: 1, mechanism: 1, stakeholder: 1, tension: 1, scope: 1 },
+      issues: [],
+      reframe_suggestions: [],
+      scope_additions: [
+        { dimension: 'mechanism', detail: 'valid entry' },
+        { dimension: 123, detail: 'bad dimension type' },
+        { dimension: 'scope' },
+        'not an object',
+      ],
+      rewritten_topic: 'Topic',
+    });
+    const result = parseTopicCritique(raw, minStructural);
+    expect(result.scope_additions).toHaveLength(1);
+    expect(result.scope_additions![0].detail).toBe('valid entry');
   });
 });
 

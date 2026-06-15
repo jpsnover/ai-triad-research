@@ -150,6 +150,14 @@ Generate a JSON object with these fields:
 
   node_scope (string): "claim" (specific assertion), "scheme" (argumentative strategy), or "bridging" (connects claims to schemes).
 
+  attribution_text (string): Rewrite this node's description in genus-differentia format:
+    "A [BDI category] within [POV] discourse that [core proposition]. Encompasses: [key facets]."
+    Example: "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations."
+
+  synthetic_phrases (array of 6-8 strings): Diverse paraphrases of this node's description, as if stated by different speakers in a policy debate.
+    Vary register (academic, policy brief, conversational, rhetorical), sentence structure, and framing while preserving semantic meaning.
+    Each phrase should be 1-2 sentences. Include at least one that uses domain-specific jargon and one that is accessible to a general audience.
+
 Return ONLY valid JSON. No markdown fencing, no preamble.`;
 }
 

@@ -1933,7 +1933,8 @@ export class DebateEngine {
     this.progress('setup', undefined, 'Extracting topic scope');
 
     try {
-      const prompt = topicScopeExtractionPrompt(this.session.topic.final);
+      const scopeAdditions = this.session.topic.critique?.scope_additions;
+      const prompt = topicScopeExtractionPrompt(this.session.topic.final, scopeAdditions);
       const text = await this.generate(prompt, 'Topic scope extraction');
       const parsed = parseJsonRobust(text) as Record<string, unknown> | null;
       if (!parsed || typeof parsed !== 'object') {

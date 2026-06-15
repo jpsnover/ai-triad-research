@@ -80,4 +80,13 @@ export class FilesystemBackend implements StorageBackend {
       return false;
     }
   }
+
+  async readBinaryFile(filePath: string): Promise<Buffer | null> {
+    try {
+      return await fs.readFile(filePath);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
+  }
 }

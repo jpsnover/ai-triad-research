@@ -99,6 +99,7 @@ export default defineConfig({
       '../../../lib/diff/**/*.test.ts',
       '../../../lib/flight-recorder/**/*.test.ts',
       '../../../lib/search/**/*.test.ts',
+      '../../../lib/*.test.ts',
       // translation tests excluded — depend on ai-triad-data dictionary not available in CI
     ],
     globals: false,

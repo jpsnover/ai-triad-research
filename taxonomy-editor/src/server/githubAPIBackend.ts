@@ -311,6 +311,22 @@ export class GitHubAPIBackend implements StorageBackend {
     return result.content;
   }
 
+  async readBinaryFile(filePath: string): Promise<Buffer | null> {
+    const repoPath = this.toRepoPath(filePath);
+
+    const cached = await this.readBinaryFromDiskCache(repoPath);
+    if (cached !== null) return cached;
+
+    if (this.circuitState === 'open' && !this.shouldProbe()) return null;
+
+    const ref = this.getEffectiveRef();
+    const result = await this.fetchBinaryFileFromGitHub(repoPath, ref);
+    if (result === null) return null;
+
+    await this.writeBinaryToDiskCache(repoPath, result.content, result.sha, result.etag);
+    return result.content;
+  }
+
   async writeFile(filePath: string, content: string): Promise<void> {
     const repoPath = this.toRepoPath(filePath);
     const ref = this.getEffectiveRef();
@@ -1364,6 +1380,17 @@ export class GitHubAPIBackend implements StorageBackend {
     }
   }
 
+  private async readBinaryFromDiskCache(repoPath: string): Promise<Buffer | null> {
+    if (!this.manifest?.files[repoPath]) return null;
+
+    const diskPath = path.join(this.cacheDir, repoPath);
+    try {
+      return await fs.readFile(diskPath);
+    } catch {
+      return null;
+    }
+  }
+
   private async writeToDiskCache(
     repoPath: string, content: string, sha: string, etag: string,
   ): Promise<void> {
@@ -1372,6 +1399,38 @@ export class GitHubAPIBackend implements StorageBackend {
 
     const tmpPath = diskPath + '.tmp';
     await fs.writeFile(tmpPath, content, 'utf-8');
+    await fs.rename(tmpPath, diskPath);
+
+    await this.withManifestLock(async () => {
+      if (!this.manifest) {
+        this.manifest = {
+          version: 1,
+          generation: 1,
+          lastCommitSha: '',
+          lastUpdated: new Date().toISOString(),
+          files: {},
+        };
+      }
+
+      this.manifest.files[repoPath] = {
+        sha,
+        etag,
+        cachedAt: new Date().toISOString(),
+      };
+      this.manifest.generation++;
+      this.manifest.lastUpdated = new Date().toISOString();
+      await this.saveManifest();
+    });
+  }
+
+  private async writeBinaryToDiskCache(
+    repoPath: string, content: Buffer, sha: string, etag: string,
+  ): Promise<void> {
+    const diskPath = path.join(this.cacheDir, repoPath);
+    await fs.mkdir(path.dirname(diskPath), { recursive: true });
+
+    const tmpPath = diskPath + '.tmp';
+    await fs.writeFile(tmpPath, content);
     await fs.rename(tmpPath, diskPath);
 
     await this.withManifestLock(async () => {
@@ -1477,6 +1536,57 @@ export class GitHubAPIBackend implements StorageBackend {
     const content = data.encoding === 'base64'
       ? Buffer.from(data.content, 'base64').toString('utf-8')
       : data.content;
+    return { content, sha: data.sha, etag: resp.etag ?? etag };
+  }
+
+  private async fetchBinaryFileFromGitHub(
+    repoPath: string,
+    ref: string,
+  ): Promise<{ content: Buffer; sha: string; etag: string } | null> {
+    const creds = await this.getCredsCached();
+    if (!creds) return null;
+
+    const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
+    const resp = await this.apiRequest(creds, 'GET',
+      `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
+
+    if (!resp.ok) return null;
+
+    const data = resp.data as {
+      content?: string;
+      encoding?: string;
+      sha: string;
+      size?: number;
+      type?: string;
+    };
+
+    if (data.type === 'dir') return null;
+
+    if (!data.content || data.encoding !== 'base64') {
+      if (data.sha && (data.size ?? 0) > 0) {
+        return this.fetchBinaryBlobFromGitHub(creds, data.sha, resp.etag ?? '');
+      }
+      return null;
+    }
+
+    const content = Buffer.from(data.content, 'base64');
+    return { content, sha: data.sha, etag: resp.etag ?? '' };
+  }
+
+  private async fetchBinaryBlobFromGitHub(
+    creds: SyncCredentials,
+    sha: string,
+    etag: string,
+  ): Promise<{ content: Buffer; sha: string; etag: string } | null> {
+    const resp = await this.apiRequest(creds, 'GET',
+      `/repos/${creds.repo}/git/blobs/${sha}`);
+
+    if (!resp.ok) return null;
+
+    const data = resp.data as { content: string; encoding: string; sha: string };
+    const content = data.encoding === 'base64'
+      ? Buffer.from(data.content, 'base64')
+      : Buffer.from(data.content);
     return { content, sha: data.sha, etag: resp.etag ?? etag };
   }
 

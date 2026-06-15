@@ -1092,6 +1092,7 @@ ${critiqueBlock}${lineageBlock}
 Synthesize the original topic and the answers into a clear, specific debate topic statement.
 One to three sentences. Incorporate the key constraints and scope clarifications from the answers.
 The refined topic should be specific enough to produce falsifiable claims but broad enough to sustain 6-10 rounds of multi-perspective debate.
+The refined topic must sound conversational and direct — like a question worth arguing about, not a committee-drafted scope statement. Prefer plain language over jargon-laden precision.
 ${getReadingLevel(audience)}
 
 Respond ONLY with a JSON object (no markdown, no code fences):
@@ -3991,12 +3992,16 @@ ${audienceDelta}
 }
 
 // ── Topic Scope Extraction (t/336) ──────────────────────────────
-export function topicScopeExtractionPrompt(topic: string): string {
+export function topicScopeExtractionPrompt(topic: string, scopeAdditions?: { dimension: string; detail: string }[]): string {
+  const additionsBlock = scopeAdditions && scopeAdditions.length > 0
+    ? `\n\n=== ADDITIONAL DIMENSIONAL CONTEXT ===\nThe topic critique identified these dimensional details that should inform your scope extraction (they were too detailed to fit in the topic sentence itself):\n${scopeAdditions.map(s => `- ${s.dimension}: ${s.detail}`).join('\n')}\nIncorporate these into the appropriate scope fields (key_tensions, relevant_disciplines, on_scope_evidence, etc.).\n`
+    : '';
+
   return `You are a debate scope analyst. Extract the structured scope of the following debate topic.
 
 === DEBATE TOPIC ===
 "${topic}"
-
+${additionsBlock}
 === TASK ===
 Parse this topic into a TopicScope object. Populate ALL fields — no field should be empty or generic.
 

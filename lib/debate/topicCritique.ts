@@ -122,6 +122,8 @@ export interface TopicCritique {
   exploratory?: boolean;
   /** Dominant intellectual traditions from activated nodes' lineage (top 3 at 15%+). */
   lineage_frame?: LineageFrameEntry[];
+  /** Dimensional detail overflow — suggestions not incorporated into rewritten_topic, routed to scope extraction. */
+  scope_additions?: { dimension: string; detail: string }[];
 }
 
 // ── Constants ─────────────────────────────────────────────
@@ -429,8 +431,9 @@ TASK: Score the topic, then rewrite it. Follow these steps IN ORDER:
 
 Step 1 — Score each frame dimension for the ORIGINAL topic above.
 Step 2 — For each dimension scoring below 2, write one reframe_suggestion explaining the weakness and a concrete replacement fragment.
-Step 3 — Write rewritten_topic by starting from the original topic and INCORPORATING every reframe_suggestion from Step 2. Dimensions already at 2 must be PRESERVED — do not weaken them. The rewritten topic must be 1-3 sentences (similar length to the original). Do not bloat.
-Step 4 — Self-check: mentally re-score your rewritten_topic. If ANY dimension dropped below its original score, revise before outputting.
+Step 3 — Write rewritten_topic by starting from the original topic and incorporating the 2-3 highest-severity reframe_suggestions from Step 2. Dimensions already at 2 must be PRESERVED — do not weaken them. The rewritten topic must be 1-3 sentences (similar length to the original). Do not bloat. For remaining lower-severity suggestions that don't fit naturally in the topic sentence, output them in the scope_additions array instead — these will be fed to the topic scope extractor as dimensional context.
+Step 4 — Naturalness check: read your rewritten_topic aloud. It must sound like a question a thoughtful person would actually ask — not a grant proposal abstract or a policy brief heading. If incorporating all suggestions produced awkward phrasing, prioritize natural language over maximizing every dimension score. A topic that reads naturally and scores 1 on a dimension is better than one that scores 2 but no human would say aloud.
+Step 5 — Self-check: mentally re-score your rewritten_topic. If ANY dimension dropped below its original score, revise before outputting.
 
 Respond with ONLY this JSON (no markdown fences, no explanation):
 {
@@ -459,7 +462,10 @@ Respond with ONLY this JSON (no markdown fences, no explanation):
       "reframed_fragment": "<suggested replacement fragment>"
     }
   ],
-  "rewritten_topic": "<1-3 sentence rewrite incorporating ALL reframe_suggestions, preserving dimensions already at 2>"
+  "scope_additions": [
+    {"dimension": "<dimension name>", "detail": "<specific detail to add to scope metadata>"}
+  ],
+  "rewritten_topic": "<1-3 sentence rewrite incorporating top 2-3 severity suggestions, preserving dimensions already at 2>"
 }`;
 }
 
@@ -490,6 +496,7 @@ export function parseTopicCritique(
     };
     issues?: TopicIssue[];
     reframe_suggestions?: ReframeSuggestion[];
+    scope_additions?: { dimension: string; detail: string }[];
     rewritten_topic?: string;
   };
 
@@ -533,6 +540,10 @@ export function parseTopicCritique(
     rewritten_topic: parsed.rewritten_topic ?? '',
     computed_at: new Date().toISOString(),
     exploratory: structuralScore.evidence_coverage === 0,
+    scope_additions: Array.isArray(parsed.scope_additions) ? parsed.scope_additions.filter(
+      (s): s is { dimension: string; detail: string } =>
+        typeof s?.dimension === 'string' && typeof s?.detail === 'string',
+    ) : undefined,
   };
 }
 

@@ -26,17 +26,20 @@ export const povTaxonomyFileSchema = z.object({
   nodes: z.array(povNodeSchema),
 });
 
+const bdiInterpretation = z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() });
+const interpretationField = z.union([z.string(), bdiInterpretation]);
+
 const situationNodeSchema = z.object({
   id: z.string().min(1, 'ID is required'),
   label: z.string().min(1, 'Label is required'),
-  description: z.string().min(1, 'Description is required'),
+  description: z.string().default(''),
   interpretations: z.object({
-    accelerationist: z.union([z.string().min(1), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
-    safetyist: z.union([z.string().min(1), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
-    skeptic: z.union([z.string().min(1), z.object({ belief: z.string().optional(), desire: z.string().optional(), intention: z.string().optional(), summary: z.string().optional() })]),
+    accelerationist: interpretationField,
+    safetyist: interpretationField,
+    skeptic: interpretationField,
   }),
-  linked_nodes: z.array(z.string()),
-  conflict_ids: z.array(z.string()),
+  linked_nodes: z.array(z.string()).default([]),
+  conflict_ids: z.array(z.string()).default([]),
   disagreement_type: z.enum(['definitional', 'interpretive', 'structural']).optional(),
 });
 

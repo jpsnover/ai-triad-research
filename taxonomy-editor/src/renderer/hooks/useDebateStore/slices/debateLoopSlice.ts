@@ -1780,14 +1780,16 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       return { ok: false, error: detailedError };
     }
 
-    // Fire-and-forget: enrich new nodes with AI-generated graph attributes
-    if (createdNodeId) {
+    // Fire-and-forget: enrich with AI-generated graph attributes + synthetic embeddings
+    // Runs for new nodes AND edited nodes (skip deprecations — those are being retired)
+    const enrichNodeId = createdNodeId ?? (edit.node_id && edit.edit_type !== 'deprecate' ? edit.node_id : null);
+    if (enrichNodeId) {
       void (async () => {
         try {
           const { reflectionNodeEnrichmentPrompt } = await import('../../../prompts/analysis');
           const enrichPrompt = reflectionNodeEnrichmentPrompt({
-            id: createdNodeId!,
-            label: finalLabel,
+            id: enrichNodeId,
+            label: finalLabel || edit.current_label || '',
             description: finalDescription,
             category: edit.category,
             pov: povKey,
@@ -1796,7 +1798,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           const { text } = await api.generateText(enrichPrompt, enrichModel);
           const enriched = JSON.parse(stripCodeFences(text));
           const currentTaxStore = useTaxonomyStore.getState();
-          const currentNode = currentTaxStore[povKey]?.nodes.find(n => n.id === createdNodeId);
+          const currentNode = currentTaxStore[povKey]?.nodes.find(n => n.id === enrichNodeId);
           if (!currentNode) return;
           const mergedAttrs: GraphAttributes = {
             ...currentNode.graph_attributes,
@@ -1809,12 +1811,36 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
             ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
             ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
             ...(enriched.node_scope && { node_scope: enriched.node_scope }),
+            ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
           };
-          currentTaxStore.updatePovNode(povKey, createdNodeId!, { graph_attributes: mergedAttrs });
+          currentTaxStore.updatePovNode(povKey, enrichNodeId, { graph_attributes: mergedAttrs });
           await currentTaxStore.save();
-          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'reflectionEnrichment.complete', data: { node_id: createdNodeId, fields: Object.keys(enriched) } });
+
+          // Compute synthetic embeddings from attribution_text + synthetic_phrases
+          const phrasesToEmbed: string[] = [];
+          if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
+          if (Array.isArray(enriched.synthetic_phrases)) {
+            for (const p of enriched.synthetic_phrases) {
+              if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
+            }
+          }
+          if (phrasesToEmbed.length > 0) {
+            const vectors: number[][] = [];
+            for (const phrase of phrasesToEmbed) {
+              try {
+                const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
+                if (vector?.length > 0) vectors.push(vector);
+              } catch { /* per-phrase resilience — outer catch records if entire enrichment fails */ }
+            }
+            if (vectors.length > 0) {
+              const povShort = povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
+              await api.updateSyntheticEmbeddings(enrichNodeId, povShort, vectors);
+            }
+          }
+
+          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'reflectionEnrichment.complete', data: { node_id: enrichNodeId, fields: Object.keys(enriched), synthetic_vectors: phrasesToEmbed.length } });
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'reflectionEnrichment.failed', data: { node_id: createdNodeId, error: String(err) } });
+          getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'reflectionEnrichment.failed', data: { node_id: enrichNodeId, error: String(err) } });
         }
       })();
     }

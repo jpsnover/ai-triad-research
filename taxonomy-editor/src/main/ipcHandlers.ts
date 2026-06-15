@@ -29,6 +29,7 @@ import {
   getSummariesDir,
   loadSyntheticCorpus,
   loadSyntheticEmbeddings,
+  updateSyntheticEmbeddings,
 } from './fileIO.js';
 import {
   listDebateSessions,
@@ -749,7 +750,7 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('generate-news-report', async (_event, debateId: string) => {
-    const session = loadDebateSession(debateId) as Record<string, unknown>;
+    const session = await loadDebateSession(debateId) as Record<string, unknown>;
     const transcript = (session.transcript ?? []) as Array<{ type: string; content: string; speaker: string }>;
     const hasSynthesis = transcript.some(e => e.type === 'synthesis' || e.type === 'concluding');
     if (!hasSynthesis) {
@@ -1285,6 +1286,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   ipcMain.handle('load-synthetic-embeddings', () => {
     return loadSyntheticEmbeddings();
+  });
+
+  ipcMain.handle('update-synthetic-embeddings', (_event, nodeId: string, pov: string, vectors: number[][]) => {
+    updateSyntheticEmbeddings(nodeId, pov, vectors);
   });
 
   ipcMain.handle('submit-feedback', (_event, rating: string, text?: string) => {

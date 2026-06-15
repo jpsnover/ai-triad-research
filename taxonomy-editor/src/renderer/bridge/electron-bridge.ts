@@ -174,6 +174,7 @@ export const api: AppAPI = {
   // Synthetic corpus
   loadSyntheticCorpus: (pov) => window.electronAPI.loadSyntheticCorpus(pov),
   loadSyntheticEmbeddings: () => window.electronAPI.loadSyntheticEmbeddings(),
+  updateSyntheticEmbeddings: (nodeId, pov, vectors) => window.electronAPI.updateSyntheticEmbeddings(nodeId, pov, vectors),
 
   // Feedback & error reporting
   submitFeedback: (rating, text) => window.electronAPI.submitFeedback(rating, text),
