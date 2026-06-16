@@ -126,7 +126,7 @@ export interface DebateLoopSlice {
   crossRespond: () => Promise<void>;
   generateNewsReport: () => Promise<void>;
   requestReflections: () => Promise<void>;
-  applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }) => Promise<{ ok: boolean; error?: string }>;
+  applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => Promise<{ ok: boolean; error?: string }>;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
   acceptConsensus: (clusterId: string) => Promise<{ ok: boolean; error?: string }>;
   rejectConsensus: (clusterId: string) => void;
@@ -1694,7 +1694,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     await saveDebate('requestReflections');
   },
 
-  applyReflectionEdit: async (pover: string, editIndex: number, overrides?: { label?: string; description?: string }) => {
+  applyReflectionEdit: async (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => {
     const startTime = performance.now();
     const { reflections } = get();
     const reflection = reflections.find(r => r.pover === pover);
@@ -1817,28 +1817,32 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           await currentTaxStore.save();
 
           // Compute synthetic embeddings from attribution_text + synthetic_phrases
-          const phrasesToEmbed: string[] = [];
-          if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
-          if (Array.isArray(enriched.synthetic_phrases)) {
-            for (const p of enriched.synthetic_phrases) {
-              if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
+          // For add edits: always regenerate. For revise/qualify: only when explicitly opted in.
+          const shouldRegeneratePhrases = edit.edit_type === 'add' || !!options?.regeneratePhrases;
+          if (shouldRegeneratePhrases) {
+            const phrasesToEmbed: string[] = [];
+            if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
+            if (Array.isArray(enriched.synthetic_phrases)) {
+              for (const p of enriched.synthetic_phrases) {
+                if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
+              }
             }
-          }
-          if (phrasesToEmbed.length > 0) {
-            const vectors: number[][] = [];
-            for (const phrase of phrasesToEmbed) {
-              try {
-                const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
-                if (vector?.length > 0) vectors.push(vector);
-              } catch { /* per-phrase resilience — outer catch records if entire enrichment fails */ }
-            }
-            if (vectors.length > 0) {
-              const povShort = povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
-              await api.updateSyntheticEmbeddings(enrichNodeId, povShort, vectors);
+            if (phrasesToEmbed.length > 0) {
+              const vectors: number[][] = [];
+              for (const phrase of phrasesToEmbed) {
+                try {
+                  const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
+                  if (vector?.length > 0) vectors.push(vector);
+                } catch { /* per-phrase resilience — outer catch records if entire enrichment fails */ }
+              }
+              if (vectors.length > 0) {
+                const povShort = povKey === 'accelerationist' ? 'acc' : povKey === 'safetyist' ? 'saf' : 'skp';
+                await api.updateSyntheticEmbeddings(enrichNodeId, povShort, vectors);
+              }
             }
           }
 
-          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'reflectionEnrichment.complete', data: { node_id: enrichNodeId, fields: Object.keys(enriched), synthetic_vectors: phrasesToEmbed.length } });
+          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'reflectionEnrichment.complete', data: { node_id: enrichNodeId, fields: Object.keys(enriched), regeneratePhrases: shouldRegeneratePhrases } });
         } catch (err) {
           getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'reflectionEnrichment.failed', data: { node_id: enrichNodeId, error: String(err) } });
         }

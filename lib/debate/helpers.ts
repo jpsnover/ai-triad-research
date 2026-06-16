@@ -78,6 +78,45 @@ export function parseAIJson<T = unknown>(text: string): T | null {
 }
 
 /**
+ * Normalize an LLM claim extraction response into the expected `{claims: [...]}` shape.
+ * Handles common model-specific variants:
+ *  - Already correct: `{claims: [...]}`
+ *  - Bare array: `[{text: ...}, ...]`
+ *  - Wrong key: `{extracted_claims: [...]}` or `{results: [...]}`
+ *
+ * Returns null if the input can't be interpreted as a claims response.
+ */
+export function normalizeClaimsResponse(parsed: unknown): { claims: Record<string, unknown>[] } | null {
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  // Case 1: bare array of claim-like objects
+  if (Array.isArray(parsed)) {
+    if (parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null && 'text' in parsed[0]) {
+      return { claims: parsed as Record<string, unknown>[] };
+    }
+    return null;
+  }
+
+  const obj = parsed as Record<string, unknown>;
+
+  // Case 2: already has a `claims` array
+  if (Array.isArray(obj.claims)) {
+    return obj as { claims: Record<string, unknown>[] };
+  }
+
+  // Case 3: single key whose value is an array of claim-like objects
+  const keys = Object.keys(obj);
+  for (const key of keys) {
+    const val = obj[key];
+    if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object' && val[0] !== null && 'text' in val[0]) {
+      return { claims: val as Record<string, unknown>[] };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Attempt to repair common JSON issues from LLM responses:
  *  - Bare newlines inside string values
  *  - Unescaped quotes inside string values

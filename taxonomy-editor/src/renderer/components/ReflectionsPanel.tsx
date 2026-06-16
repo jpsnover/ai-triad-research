@@ -115,6 +115,8 @@ function EditCard({ edit, pover, editIndex }: {
   const [editedDescription, setEditedDescription] = useState(edit.proposed_description);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [regeneratePhrases, setRegeneratePhrases] = useState(false);
+  const showRegenerateToggle = !resolved && (edit.edit_type === 'revise' || edit.edit_type === 'qualify');
 
   const isModified = editedLabel !== edit.proposed_label
                   || editedDescription !== edit.proposed_description;
@@ -129,6 +131,7 @@ function EditCard({ edit, pover, editIndex }: {
   const handleReset = () => {
     setEditedLabel(edit.proposed_label);
     setEditedDescription(edit.proposed_description);
+    setRegeneratePhrases(false);
   };
 
   const handleCancel = () => {
@@ -387,6 +390,19 @@ function EditCard({ edit, pover, editIndex }: {
         </div>
       )}
 
+      {/* Regenerate phrases toggle — revise/qualify only */}
+      {showRegenerateToggle && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 4, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={regeneratePhrases}
+            onChange={e => setRegeneratePhrases(e.target.checked)}
+            style={{ margin: 0 }}
+          />
+          Regenerate phrases & embeddings
+        </label>
+      )}
+
       {/* Actions */}
       {!resolved && (
         <div style={{ display: 'flex', gap: 6 }}>
@@ -399,7 +415,8 @@ function EditCard({ edit, pover, editIndex }: {
               setApplyError(null);
               try {
                 const result = await applyReflectionEdit(pover, editIndex,
-                  editing && isModified ? { label: editedLabel, description: editedDescription } : undefined
+                  editing && isModified ? { label: editedLabel, description: editedDescription } : undefined,
+                  { regeneratePhrases },
                 );
                 if (!result.ok) {
                   setApplyError(result.error ?? 'Save failed — check SaveBar for details');

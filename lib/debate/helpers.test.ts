@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   stripCodeFences,
   parseAIJson,
+  normalizeClaimsResponse,
   extractArraysFromPartialJson,
   parsePoverResponse,
   parseJsonRobust,
@@ -796,5 +797,55 @@ describe('repairJson adversarial cases (via parseAIJson)', () => {
     expect(result!.statement).toContain('sustainable innovation');
     expect(result!.taxonomy_refs).toHaveLength(2);
     expect(result!.move_types).toHaveLength(1);
+  });
+});
+
+// ── normalizeClaimsResponse ────────────────────────────────────
+
+describe('normalizeClaimsResponse', () => {
+  it('returns correct shape when claims array is present', () => {
+    const input = { claims: [{ text: 'AI is safe', bdi_category: 'belief' }] };
+    const result = normalizeClaimsResponse(input);
+    expect(result).not.toBeNull();
+    expect(result!.claims).toHaveLength(1);
+    expect(result!.claims[0].text).toBe('AI is safe');
+  });
+
+  it('wraps bare array of claim objects', () => {
+    const input = [
+      { text: 'Claim one', bdi_category: 'belief' },
+      { text: 'Claim two', bdi_category: 'desire' },
+    ];
+    const result = normalizeClaimsResponse(input);
+    expect(result).not.toBeNull();
+    expect(result!.claims).toHaveLength(2);
+    expect(result!.claims[0].text).toBe('Claim one');
+  });
+
+  it('extracts claims from variant key names', () => {
+    const input = { extracted_claims: [{ text: 'A claim', responds_to: [] }] };
+    const result = normalizeClaimsResponse(input);
+    expect(result).not.toBeNull();
+    expect(result!.claims).toHaveLength(1);
+    expect(result!.claims[0].text).toBe('A claim');
+  });
+
+  it('returns null for non-object input', () => {
+    expect(normalizeClaimsResponse(null)).toBeNull();
+    expect(normalizeClaimsResponse(undefined)).toBeNull();
+    expect(normalizeClaimsResponse('string')).toBeNull();
+    expect(normalizeClaimsResponse(42)).toBeNull();
+  });
+
+  it('returns null for empty array', () => {
+    expect(normalizeClaimsResponse([])).toBeNull();
+  });
+
+  it('returns null for array of non-claim objects', () => {
+    expect(normalizeClaimsResponse([{ name: 'not a claim' }])).toBeNull();
+  });
+
+  it('returns null for object with no claim-like arrays', () => {
+    expect(normalizeClaimsResponse({ status: 'ok', count: 3 })).toBeNull();
   });
 });

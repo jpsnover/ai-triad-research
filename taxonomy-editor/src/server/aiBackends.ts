@@ -330,25 +330,82 @@ export async function computeEmbeddings(texts: string[], ids?: string[]): Promis
   }
 
   if (missing.length > 0) {
+    const missingTexts = missing.map(i => texts[i]);
+    const missingIds = ids ? missing.map(i => ids[i] ?? `_idx_${i}`) : missing.map((_, j) => `_idx_${j}`);
+    let computed: number[][] | null = null;
+
+    // Try Gemini batch API first
     const apiKey = await getApiKey('gemini');
-    if (!apiKey) {
+    if (apiKey) {
+      try {
+        const all: number[][] = [];
+        for (let i = 0; i < missingTexts.length; i += BATCH_SIZE) {
+          const batch = missingTexts.slice(i, i + BATCH_SIZE);
+          all.push(...await callGeminiBatchApi(batch, 'RETRIEVAL_DOCUMENT', apiKey));
+        }
+        computed = all;
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'ai.fallback', component: 'embeddings', level: 'warn',
+          message: `Gemini batch embed failed — trying local Python fallback`,
+          data: { count: missingTexts.length, error: String(err) },
+        });
+      }
+    }
+
+    // Fallback: local Python batch-encode
+    if (!computed && await isPythonEmbeddingAvailable()) {
+      try {
+        computed = await computeBatchViaLocalPython(missingTexts, missingIds);
+        getGlobalRecorder()?.record({
+          type: 'ai.fallback', component: 'embeddings', level: 'info',
+          message: `Local Python batch-encode succeeded as fallback`,
+          data: { count: missingTexts.length },
+        });
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'embeddings', level: 'error',
+          message: 'Local Python batch-encode fallback also failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        });
+      }
+    }
+
+    if (!computed) {
       throw new ActionableError({
         goal: 'Compute embeddings',
-        problem: 'No Gemini API key configured for embeddings',
+        problem: apiKey
+          ? 'Gemini embedding API failed and local Python fallback unavailable'
+          : 'No Gemini API key configured and local Python fallback unavailable',
         location: 'aiBackends.computeEmbeddings',
-        nextSteps: ['Set your Gemini API key in Settings'],
+        nextSteps: [
+          'Set your Gemini API key in Settings',
+          'Or install Python with sentence-transformers: pip install sentence-transformers',
+        ],
       });
     }
-    const missingTexts = missing.map(i => texts[i]);
-    const all: number[][] = [];
-    for (let i = 0; i < missingTexts.length; i += BATCH_SIZE) {
-      const batch = missingTexts.slice(i, i + BATCH_SIZE);
-      all.push(...await callGeminiBatchApi(batch, 'RETRIEVAL_DOCUMENT', apiKey));
-    }
-    for (let j = 0; j < missing.length; j++) results[missing[j]] = all[j];
+
+    for (let j = 0; j < missing.length; j++) results[missing[j]] = computed[j];
   }
 
   return results as number[][];
+}
+
+function computeBatchViaLocalPython(texts: string[], ids: string[]): Promise<number[][]> {
+  const input = texts.map((text, i) => ({ id: ids[i], text }));
+  return new Promise((resolve, reject) => {
+    const child = execFile(PYTHON, [EMBED_SCRIPT, 'batch-encode'], { timeout: 120_000, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
+      if (err) { reject(new Error(`Python batch-encode failed: ${err.message}\n${stderr}`)); return; }
+      try {
+        const map = JSON.parse(stdout) as Record<string, number[]>;
+        const vectors = ids.map(id => map[id]);
+        if (vectors.some(v => !v || !Array.isArray(v))) { reject(new Error('Incomplete vectors from batch-encode')); return; }
+        resolve(vectors as number[][]);
+      } catch (e) { reject(new Error(`Parse failed: ${e}`)); }
+    });
+    child.stdin?.write(JSON.stringify(input));
+    child.stdin?.end();
+  });
 }
 
 // ── Python embedding availability probe ──

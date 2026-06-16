@@ -178,7 +178,10 @@ ${topic ? `- "topic_relevance": "on_topic" (directly engages the stated scope), 
   "low" = Technically important but requires multiple inferential steps to connect to any pending political decision.
 ` : ''}
 ${DOMAIN_VOCABULARY}
-Return ONLY JSON (no markdown). Two example claim shapes:
+Return ONLY a JSON object with a single key "claims" containing an array of claim objects. No markdown fences, no explanation. The EXACT structure must be:
+{"claims": [<claim1>, <claim2>, ...]}
+
+Example claim shapes (each goes inside the "claims" array):
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
 {"text": "...", "canonical_proposition": "X causes Y under condition Z", "attribution_text": "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations.", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "on_topic"' : ''}${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
@@ -186,25 +189,8 @@ Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_
 Example 2 — Desire claim (includes bdi_sub_scores; NO base_strength):
 {"text": "...", "canonical_proposition": "Regulators ought to require X for Y", "attribution_text": "A Desire within safetyist discourse that regulatory sandboxes ought to mandate pre-deployment verification for all frontier models before commercial release. Encompasses: regulatory sandbox frameworks, pre-deployment verification requirements, frontier model governance.", "extraction_confidence": 0.85, "bdi_category": "desire", "bdi_sub_scores": {"values_grounding": "yes", "tradeoff_acknowledgment": "partial", "precedent_citation": "no"}, "specificity": "abstract", "steelman_of": null, "responds_to": [...]${topic ? ', "topic_relevance": "adjacent"' : ''}${audience === 'policymakers' ? ', "political_salience": "medium"' : ''}}
 
-Full responds_to shape (same for all BDI categories):
-{
-  "claims": [
-    {
-      "text": "near-verbatim claim from the statement",
-      "responds_to": [
-        {
-          "prior_claim_id": "AN-1",
-          "relationship": "supports or attacks",
-          "attack_type": "rebut or undercut or undermine (only if attacks)",
-          "strength": "decisive or substantial or tangential",
-          "scheme": "one of: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT",
-          "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
-          "warrant": "1 sentence: WHY this claim relates to the prior claim"
-        }
-      ]
-    }
-  ]
-}`;
+Full example response:
+{"claims": [{"text": "near-verbatim claim from the statement", "responds_to": [{"prior_claim_id": "AN-1", "relationship": "supports or attacks", "attack_type": "rebut or undercut or undermine (only if attacks)", "strength": "decisive or substantial or tangential", "scheme": "one of: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE", "warrant": "1 sentence: WHY this claim relates to the prior claim"}]}]}`;
 }
 
 /**
@@ -304,7 +290,10 @@ ${audience === 'policymakers' ? `
   "low" = Technically important but requires multiple inferential steps to connect to any pending political decision.
 ` : ''}
 ${DOMAIN_VOCABULARY}
-Return ONLY JSON (no markdown). Two example claim shapes:
+Return ONLY a JSON object with a single key "claims" containing an array of claim objects. No markdown fences, no explanation. The EXACT structure must be:
+{"claims": [<claim1>, <claim2>, ...]}
+
+Example claim shapes (each goes inside the "claims" array):
 
 Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_sub_scores):
 {"text": "...", "attribution_text": "A Belief within accelerationist discourse that recursive self-improvement in frontier models produces capability overhang exceeding current scalable oversight methods. Encompasses: recursive self-improvement dynamics, capability overhang measurement, oversight scaling limitations.", "extraction_confidence": 0.92, "bdi_category": "belief", "base_strength": "grounded", "belief_verification": {"evidence_cited": "...", "source_located": "found", "evidence_supports": "strongly", "counter_evidence": "none", "ambiguity_resolved": "none"}, "specificity": "precise", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "high"' : ''}}
@@ -312,25 +301,8 @@ Example 1 — Belief claim (includes base_strength, belief_verification; no bdi_
 Example 2 — Intention claim (includes bdi_sub_scores; NO base_strength):
 {"text": "...", "attribution_text": "An Intention within skeptic discourse that regulatory sandboxes should implement formal verification of frontier model behavior before permitting broader deployment. Encompasses: regulatory sandbox design, formal verification methodology, staged deployment protocols.", "extraction_confidence": 0.85, "bdi_category": "intention", "bdi_sub_scores": {"mechanism_specificity": "yes", "scope_bounding": "partial", "failure_mode_addressing": "no"}, "specificity": "general", "steelman_of": null, "responds_to": [...]${audience === 'policymakers' ? ', "political_salience": "low"' : ''}}
 
-Full responds_to shape (same for all BDI categories):
-{
-  "claims": [
-    {
-      "text": "the debater's claim text (unchanged)",
-      "responds_to": [
-        {
-          "prior_claim_id": "AN-1",
-          "relationship": "supports or attacks",
-          "attack_type": "rebut or undercut or undermine (only if attacks)",
-          "strength": "decisive or substantial or tangential",
-          "scheme": "one of: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT",
-          "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE",
-          "warrant": "1 sentence: WHY this claim relates to the prior claim"
-        }
-      ]
-    }
-  ]
-}`;
+Full example response:
+{"claims": [{"text": "the debater's claim text (unchanged)", "responds_to": [{"prior_claim_id": "AN-1", "relationship": "supports or attacks", "attack_type": "rebut or undercut or undermine (only if attacks)", "strength": "decisive or substantial or tangential", "scheme": "one of: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE", "warrant": "1 sentence: WHY this claim relates to the prior claim"}]}]}`;
 }
 
 /** Format the argument network for injection into moderator prompts */

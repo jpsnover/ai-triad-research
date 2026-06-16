@@ -16,13 +16,19 @@ describe('DOMAIN_VOCABULARY in extractClaimsPrompt', () => {
   it('places vocabulary before JSON schema', () => {
     const prompt = extractClaimsPrompt('AI is dangerous', 'safetyist', []);
     const vocabIdx = prompt.indexOf('PREFERRED DOMAIN TERMINOLOGY');
-    const jsonIdx = prompt.indexOf('Return ONLY JSON');
+    const jsonIdx = prompt.indexOf('Return ONLY a JSON object');
     expect(vocabIdx).toBeLessThan(jsonIdx);
   });
 
   it('includes advisory note about exact phrasing', () => {
     const prompt = extractClaimsPrompt('AI is dangerous', 'safetyist', []);
     expect(prompt).toContain("use the debater's exact phrasing when it's already precise");
+  });
+
+  it('specifies explicit claims wrapper format', () => {
+    const prompt = extractClaimsPrompt('AI is dangerous', 'safetyist', []);
+    expect(prompt).toContain('a JSON object with a single key "claims" containing an array');
+    expect(prompt).toContain('{"claims": [<claim1>, <claim2>, ...]}');
   });
 });
 
@@ -47,8 +53,19 @@ describe('DOMAIN_VOCABULARY in classifyClaimsPrompt', () => {
       [],
     );
     const vocabIdx = prompt.indexOf('PREFERRED DOMAIN TERMINOLOGY');
-    const jsonIdx = prompt.indexOf('Return ONLY JSON');
+    const jsonIdx = prompt.indexOf('Return ONLY a JSON object');
     expect(vocabIdx).toBeLessThan(jsonIdx);
+  });
+
+  it('specifies explicit claims wrapper format', () => {
+    const prompt = classifyClaimsPrompt(
+      'Test statement',
+      'safetyist',
+      [{ claim: 'Safety is important', targets: [] }],
+      [],
+    );
+    expect(prompt).toContain('a JSON object with a single key "claims" containing an array');
+    expect(prompt).toContain('{"claims": [<claim1>, <claim2>, ...]}');
   });
 
   it('includes extraction_confidence instructions and examples', () => {
