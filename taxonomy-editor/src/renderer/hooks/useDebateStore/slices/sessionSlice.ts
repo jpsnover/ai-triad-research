@@ -301,7 +301,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         void get().saveDebate('loadDebate:interrupted_turn_recovery');
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err), stack: (err as Error).stack } });
       set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
     }
   },
@@ -550,7 +550,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       }));
       getGlobalRecorder()?.record({ type: 'state.save', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'Debate saved', data: { phase: activeDebate.phase, transcript_length: activeDebate.transcript.length, caller: caller ?? 'unknown' } });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err) }, data: { caller: caller ?? 'unknown' } });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: activeDebate.id, message: 'Failed to save debate', error: { name: 'SaveError', message: String(err), stack: (err as Error).stack }, data: { caller: caller ?? 'unknown' } });
       set({ debateError: mapErrorToUserMessage(err) });
     }
   },

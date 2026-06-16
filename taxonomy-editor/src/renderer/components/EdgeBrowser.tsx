@@ -180,7 +180,7 @@ export function EdgeBrowser() {
       getGlobalRecorder()?.record({ type: 'user.action', component: 'edge-browser', level: 'info', message: 'edge.bulk_update', data: { status, count: indices.length } });
     } catch (err) {
       console.error('Bulk update failed:', err);
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'edge-browser', level: 'error', message: 'edge.bulk_update failed', error: { name: 'BulkUpdateError', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'edge-browser', level: 'error', message: 'edge.bulk_update failed', error: { name: 'BulkUpdateError', message: String(err), stack: (err as Error).stack } });
     }
   }, [filteredEdges, reloadEdges]);
 

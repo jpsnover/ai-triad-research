@@ -621,7 +621,7 @@ post('/api/data/pull', async (_req, res) => {
     });
     const msg = err instanceof Error ? err.message : String(err);
     log.dataPull.error({ err: msg }, 'Pull failed');
-    serverRecorder.record({ type: 'system.error', component: 'data-pull', level: 'error', message: 'pull.failed', error: { name: 'Error', message: msg }, duration_ms: Date.now() - pullStart });
+    serverRecorder.record({ type: 'system.error', component: 'data-pull', level: 'error', message: 'pull.failed', error: { name: 'Error', message: msg, stack: (err as Error).stack }, duration_ms: Date.now() - pullStart });
     res.write(JSON.stringify({ success: false, message: msg }) + '\n');
   } finally {
     clearInterval(heartbeat);

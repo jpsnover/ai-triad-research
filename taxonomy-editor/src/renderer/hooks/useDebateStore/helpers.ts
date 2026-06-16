@@ -945,7 +945,7 @@ export async function extractClaimsAndUpdateAN(
         component: 'debate-store',
         level: 'error',
         message: 'Claim extraction JSON parse failed',
-        error: { name: parseErr.name, message: `${parseErr.message} (raw length: ${text.length})` },
+        error: { name: parseErr.name, message: `${parseErr.message} (raw length: ${text.length})`, stack: parseErr.stack },
       });
       extractionTrace.status = extractionTrace.response_truncated ? 'truncated_response' : 'parse_error';
       extractionTrace.error_message = String(parseErr);
