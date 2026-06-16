@@ -244,21 +244,21 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         track(steps[4], api.loadPolicyRegistry()),
       ]);
       void api.loadConflictFiles().then((c) => set({ conflicts: c as ConflictFile[] })).catch((err) => {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict files (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict files (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       });
       void api.loadConflictClusters().then((d) => {
         const clusters = d && typeof d === 'object' && Array.isArray((d as { clusters: unknown }).clusters)
           ? (d as { clusters: { label: string; nodeIds: string[] }[] }).clusters : null;
         set({ conflictClusters: clusters });
       }).catch((err) => {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict clusters (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict clusters (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       });
       void api.loadAggregatedCruxes().then((d) => {
         const cruxes = d && typeof d === 'object' && Array.isArray((d as { cruxes: unknown }).cruxes)
           ? (d as { cruxes: AggregatedCrux[] }).cruxes : null;
         set({ aggregatedCruxes: cruxes });
       }).catch((err) => {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load aggregated cruxes (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load aggregated cruxes (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       });
       void loadLineageCategoriesData();
       void loadLineageInfoData();
@@ -279,7 +279,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         embeddingDirty: true,
       });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to load taxonomy data', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to load taxonomy data', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ loading: false, backgroundLoading: false, saveError: mapErrorToUserMessage(err) });
     }
   },
@@ -473,7 +473,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       }
       if (nodesToEmbed.length > 0) {
         api.updateNodeEmbeddings(nodesToEmbed).catch((err) => {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to update node embeddings after save', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
           console.warn('[save] Failed to update embeddings:', err);
         });
       }
@@ -1050,7 +1050,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       const raw = await api.loadEdges();
       set({ edgesFile: raw as EdgesFile | null, edgesLoading: false });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to load edges file', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to load edges file', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ edgesLoading: false });
     }
   },

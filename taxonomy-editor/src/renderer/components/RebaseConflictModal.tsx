@@ -113,7 +113,7 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
         component: 'rebase-conflict-modal',
         level: 'error',
         message: 'Failed to resolve rebase file',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -145,7 +145,7 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
         component: 'rebase-conflict-modal',
         level: 'error',
         message: 'Continue rebase failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -166,7 +166,7 @@ export function RebaseConflictModal({ open, onClose, onCompleted, onAborted, onE
         component: 'rebase-conflict-modal',
         level: 'error',
         message: 'Abort rebase failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       onError(err instanceof Error ? err.message : String(err));
     } finally {

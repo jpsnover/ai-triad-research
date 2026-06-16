@@ -95,11 +95,29 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         }
       }
 
+      getGlobalRecorder()?.record({
+        type: 'ai.response',
+        component: 'debate-store',
+        level: 'info',
+        debate_id: activeDebate.id,
+        message: 'Synthesis parsed',
+        data: {
+          model,
+          parse_method: synthesis._raw_text ? 'raw_fallback' : 'json',
+          schema: Object.fromEntries(
+            Object.entries(synthesis).map(([k, v]) => [k,
+              v === null ? 'null' : Array.isArray(v) ? `array(${v.length})` : typeof v]),
+          ),
+        },
+      });
+
       // Build readable content
       // Strip inline node IDs from text fields — they belong in taxonomy_refs, not prose
-      const stripNodeIds = (text: string) =>
-        text.replace(/\b(?:acc|saf|skp|sit|cc)-(?:beliefs|desires|intentions)-\d+\b/g, '')
-            .replace(/\s{2,}/g, ' ').trim();
+      const stripNodeIds = (text: unknown): string => {
+        const s = typeof text === 'string' ? text : String(text ?? '');
+        return s.replace(/\b(?:acc|saf|skp|sit|cc)-(?:beliefs|desires|intentions)-\d+\b/g, '')
+                .replace(/\s{2,}/g, ' ').trim();
+      };
 
       const lines: string[] = [];
       if (synthesis._raw_text) {
@@ -261,7 +279,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           component: 'debate-store',
           level: 'warn',
           message: 'Missing arguments detection failed',
-          error: { name: (maErr as Error).name ?? 'Error', message: String(maErr) },
+          error: { name: (maErr as Error).name ?? 'Error', message: String(maErr), stack: (maErr as Error).stack },
         });
         console.warn('[Missing Args] Pass failed (non-blocking):', maErr);
         pushWarning(get, set, 'Missing argument detection skipped');
@@ -340,7 +358,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           component: 'debate-store',
           level: 'warn',
           message: 'Taxonomy refinement pass failed',
-          error: { name: (trErr as Error).name ?? 'Error', message: String(trErr) },
+          error: { name: (trErr as Error).name ?? 'Error', message: String(trErr), stack: (trErr as Error).stack },
         });
         console.warn('[Taxonomy Refinement] Pass failed (non-blocking):', trErr);
         pushWarning(get, set, 'Taxonomy refinement suggestions skipped');
@@ -385,7 +403,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           component: 'debate-store',
           level: 'warn',
           message: 'Cross-cutting proposals detection failed',
-          error: { name: (ccErr as Error).name ?? 'Error', message: String(ccErr) },
+          error: { name: (ccErr as Error).name ?? 'Error', message: String(ccErr), stack: (ccErr as Error).stack },
         });
         console.warn('[Cross-Cutting Proposals] Pass failed (non-blocking):', ccErr);
         pushWarning(get, set, 'Cross-cutting proposal detection skipped');
@@ -428,7 +446,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           component: 'debate-store',
           level: 'warn',
           message: 'Taxonomy gap analysis failed',
-          error: { name: (tgaErr as Error).name ?? 'Error', message: String(tgaErr) },
+          error: { name: (tgaErr as Error).name ?? 'Error', message: String(tgaErr), stack: (tgaErr as Error).stack },
         });
         console.warn('[Taxonomy Gap Analysis] Pass failed (non-blocking):', tgaErr);
         pushWarning(get, set, 'Taxonomy gap analysis skipped');
@@ -473,7 +491,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
                   component: 'debate-store',
                   level: 'debug',
                   message: `Evidence QBAF failed for node ${node.id}`,
-                  error: { name: (nodeErr as Error).name ?? 'Error', message: String(nodeErr) },
+                  error: { name: (nodeErr as Error).name ?? 'Error', message: String(nodeErr), stack: (nodeErr as Error).stack },
                 });
               }
             }
@@ -497,7 +515,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           component: 'debate-store',
           level: 'warn',
           message: 'Evidence QBAF pass failed (non-fatal)',
-          error: { name: (eqErr as Error).name ?? 'Error', message: String(eqErr) },
+          error: { name: (eqErr as Error).name ?? 'Error', message: String(eqErr), stack: (eqErr as Error).stack },
         });
         pushWarning(get, set, 'Evidence QBAF scoring skipped');
       }
@@ -575,7 +593,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
           component: 'debate-store',
           level: 'warn',
           message: 'Lineage debate summary emission failed',
-          error: { name: (summaryErr as Error).name ?? 'Error', message: String(summaryErr) },
+          error: { name: (summaryErr as Error).name ?? 'Error', message: String(summaryErr), stack: (summaryErr as Error).stack },
         });
       }
     } catch (err) {
@@ -585,7 +603,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         component: 'debate-store',
         level: 'error',
         message: 'Synthesis failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: `Synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
@@ -660,7 +678,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         component: 'debate-store',
         level: 'error',
         message: 'Probing questions generation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: `Probing questions failed: ${mapErrorToUserMessage(err)}` });
     } finally {
@@ -752,7 +770,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         component: 'debate-store',
         level: 'warn',
         message: 'Fact-check web search failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn('[factCheck] Web search failed, proceeding with internal data only:', err);
       pushWarning(get, set, 'Web search unavailable for fact-check');
@@ -917,7 +935,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         component: 'debate-store',
         level: 'error',
         message: 'Fact check failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: `Fact check failed: ${mapErrorToUserMessage(err)}` });
     } finally {
@@ -995,7 +1013,7 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
         component: 'debate-store',
         level: 'error',
         message: 'Context compression failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: `Context compression failed: ${mapErrorToUserMessage(err)}` });
     } finally {

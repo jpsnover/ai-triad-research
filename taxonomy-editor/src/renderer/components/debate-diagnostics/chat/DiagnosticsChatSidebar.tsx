@@ -46,7 +46,7 @@ function getModel(): string {
       component: 'diagnostics-chat-sidebar',
       level: 'warn',
       message: 'Failed to read model from localStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return DEFAULT_MODEL;
   }
@@ -212,7 +212,7 @@ function parseNavigation(text: string): { content: string; navigation?: Navigate
     const content = text.replace(/```navigate\s*\n[\s\S]*?\n```/, '').trim();
     return { content, navigation: nav };
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'debug', message: 'Navigation block JSON parse failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'debug', message: 'Navigation block JSON parse failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return { content: text };
   }
 }
@@ -225,7 +225,7 @@ function parseSuggestions(text: string): { content: string; suggestions?: string
     const content = text.replace(/```suggestions\s*\n[\s\S]*?\n```/, '').trim();
     return { content, suggestions };
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'debug', message: 'Suggestions block JSON parse failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'debug', message: 'Suggestions block JSON parse failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return { content: text };
   }
 }
@@ -276,7 +276,7 @@ function loadSessionMessages(): ChatMessage[] {
       component: 'diagnostics-chat-sidebar',
       level: 'warn',
       message: 'Failed to load session messages from sessionStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return [];
   }
@@ -289,7 +289,7 @@ function saveSessionMessages(msgs: ChatMessage[]) {
       component: 'diagnostics-chat-sidebar',
       level: 'warn',
       message: 'Failed to save session messages to sessionStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
   }
 }
@@ -304,7 +304,7 @@ function loadPromptHistory(): string[] {
       component: 'diagnostics-chat-sidebar',
       level: 'warn',
       message: 'Failed to load prompt history from sessionStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return [];
   }
@@ -317,7 +317,7 @@ function savePromptHistory(history: string[]) {
       component: 'diagnostics-chat-sidebar',
       level: 'warn',
       message: 'Failed to save prompt history to sessionStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
   }
 }
@@ -508,7 +508,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
             component: 'diagnostics-chat-sidebar',
             level: 'warn',
             message: `Failed to load taxonomy file for ${pov}`,
-            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
           });
         }
       }
@@ -716,7 +716,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
         component: 'diagnostics-chat-sidebar',
         level: 'error',
         message: 'Chat message generation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setStreamingText('');
       setMessages(prev => [...prev, {
@@ -727,7 +727,7 @@ export function DiagnosticsChatSidebar({ debate, selectedEntry, currentTab, onNa
       }]);
     } finally {
       for (const cleanup of cleanups) {
-        try { cleanup(); } catch (cleanupErr) { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'warn', message: 'Effect cleanup failed', error: { name: (cleanupErr as Error).name ?? 'Error', message: String(cleanupErr) } }); }
+        try { cleanup(); } catch (cleanupErr) { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-chat', level: 'warn', message: 'Effect cleanup failed', error: { name: (cleanupErr as Error).name ?? 'Error', message: String(cleanupErr), stack: (cleanupErr as Error).stack } }); }
       }
       setGenerating(false);
       setActivity(null);

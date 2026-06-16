@@ -51,7 +51,7 @@ export const createArgumentNetworkSlice: StateCreator<DebateStore, [], [], Argum
         component: 'debate-store',
         level: 'error',
         message: `Re-extraction failed for entry ${entryId}`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       pushWarning(get, set, `Re-extraction failed: ${mapErrorToUserMessage(err)}`);
     }

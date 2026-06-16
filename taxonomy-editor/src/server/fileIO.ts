@@ -128,7 +128,7 @@ export async function isDataAvailable(): Promise<boolean> {
       component: 'file-io',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.server.debug({ taxDir, err: String(err) }, 'isDataAvailable error');
     return false;
@@ -341,7 +341,7 @@ export async function readPolicyRegistry(): Promise<unknown | null> {
       component: 'file-io',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.server.error({ err }, 'readPolicyRegistry failed');
     return null;
@@ -1189,7 +1189,7 @@ export async function fetchUrlContent(url: string): Promise<{ content: string; e
       component: 'file-io',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return { content: '', error: String(err) };
   }

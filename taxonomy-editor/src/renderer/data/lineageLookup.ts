@@ -123,7 +123,7 @@ export async function loadLineageInfoData(): Promise<void> {
     getGlobalRecorder()?.record({
       type: 'system.error', component: 'lineage-lookup', level: 'warn',
       message: 'Failed to load lineage info from bridge',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
   }
 }

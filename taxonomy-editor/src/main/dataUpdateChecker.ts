@@ -78,7 +78,7 @@ export async function checkForDataUpdates(): Promise<DataUpdateStatus> {
       component: 'data-update-checker',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('[DataUpdateChecker] Error:', msg);
@@ -141,7 +141,7 @@ export async function pullDataUpdates(): Promise<{ success: boolean; message: st
       component: 'data-update-checker',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     const msg = err instanceof Error ? err.message : String(err);
     return { success: false, message: msg };

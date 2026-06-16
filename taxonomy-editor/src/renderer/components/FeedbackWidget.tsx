@@ -55,7 +55,7 @@ export function FeedbackWidget() {
         component: 'feedback-widget',
         level: 'error',
         message: 'Failed to submit feedback',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
     setTimeout(startCooldown, 1500);

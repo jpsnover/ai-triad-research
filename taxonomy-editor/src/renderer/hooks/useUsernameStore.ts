@@ -11,17 +11,17 @@ function loadUsername(): string | null {
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored && stored.trim() ? stored.trim() : null;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to load username from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to load username from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return null;
   }
 }
 
 function saveUsername(username: string): void {
-  try { localStorage.setItem(STORAGE_KEY, username); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to save username', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+  try { localStorage.setItem(STORAGE_KEY, username); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to save username', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
 }
 
 function removeUsername(): void {
-  try { localStorage.removeItem(STORAGE_KEY); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to remove username', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+  try { localStorage.removeItem(STORAGE_KEY); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'username-store', level: 'debug', message: 'Failed to remove username', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
 }
 
 export function validateUsername(value: string): string | null {

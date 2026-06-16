@@ -382,7 +382,7 @@ export function OverviewView() {
         component: 'diagnostics-panel',
         level: 'warn',
         message: 'Coverage map computation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
     }
@@ -398,7 +398,7 @@ export function OverviewView() {
         component: 'diagnostics-panel',
         level: 'warn',
         message: 'Strength-weighted coverage computation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
     }

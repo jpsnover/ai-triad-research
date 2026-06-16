@@ -132,7 +132,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'diagnostics-window', level: 'warn',
         message: 'Failed to load taxonomy files for node lookup',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
     try {
@@ -147,7 +147,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'diagnostics-window', level: 'warn',
         message: 'Failed to load policy registry',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
     try {
@@ -158,7 +158,7 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'diagnostics-window', level: 'warn',
         message: 'Failed to load edges data',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
   }, []);

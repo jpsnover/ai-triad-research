@@ -32,7 +32,7 @@ export function ChatWindow() {
           component: 'chat-popout',
           level: 'error',
           message: 'Failed to initialize chat popout window',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         if (!cancelled) setReady(true);
       });

@@ -244,7 +244,7 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
         component: 'prompts-panel',
         level: 'debug',
         message: 'Failed to write prompt text to clipboard',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
   };

@@ -180,7 +180,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
       setResearchCopied(true);
       setTimeout(() => setResearchCopied(false), 2000);
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'node-detail', level: 'warn', message: 'clipboard write failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'node-detail', level: 'warn', message: 'clipboard write failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
   };
 

@@ -283,7 +283,7 @@ function MainApp() {
         component: 'app',
         level: 'error',
         message: 'data pull failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setPullResult(`Error: ${String(err)}`);
     } finally {
@@ -302,7 +302,7 @@ function MainApp() {
       getGlobalRecorder()?.record({
         type: 'system.error', component: 'app', level: 'error',
         message: 'failed to fetch changed files',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     } finally {
       setLoadingFiles(false);

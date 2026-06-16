@@ -33,7 +33,7 @@ async function getPolicySourceIndex(): Promise<PolicySourceIndex> {
   try {
     _policyIndexCache = (await api.buildPolicySourceIndex()) as PolicySourceIndex;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'policy-sources', level: 'error', message: 'Failed to build policy source index', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'policy-sources', level: 'error', message: 'Failed to build policy source index', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     _policyIndexCache = {};
   }
   _policyIndexLoading = false;

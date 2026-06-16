@@ -171,7 +171,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
         component: 'new-debate-dialog',
         level: 'error',
         message: 'Failed to refresh AI models',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     } finally {
       setRefreshingModels(false);
@@ -240,7 +240,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           component: 'new-debate-dialog',
           level: 'error',
           message: 'failed to fetch URL content for debate source',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         finalContent = `[Failed to fetch URL content: ${err}]`;
       }
@@ -268,7 +268,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
           component: 'new-debate-dialog',
           level: 'error',
           message: 'Failed to resolve multi-provider models',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         setCreating(false);
         return;

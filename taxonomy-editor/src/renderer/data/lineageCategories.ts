@@ -53,7 +53,7 @@ export async function loadLineageCategoriesData(): Promise<void> {
       component: 'lineage-data',
       level: 'warn',
       message: 'Failed to load L2 lineage category data',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
   }
 }

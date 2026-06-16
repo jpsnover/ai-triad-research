@@ -193,7 +193,7 @@ export function generatePromptPreview(promptId: string): PromptPreviewResult | n
       component: 'prompt-preview',
       level: 'warn',
       message: 'Failed to assemble prompt preview',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return null;
   }

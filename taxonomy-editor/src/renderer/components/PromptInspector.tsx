@@ -253,7 +253,7 @@ export function PromptInspector() {
         component: 'prompt-inspector',
         level: 'warn',
         message: 'Prompt preview generation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
     }
@@ -282,7 +282,7 @@ export function PromptInspector() {
         component: 'prompt-inspector',
         level: 'warn',
         message: 'Clipboard write failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
   }, [livePreview]);

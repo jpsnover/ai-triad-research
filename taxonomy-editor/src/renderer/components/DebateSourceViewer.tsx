@@ -39,7 +39,7 @@ function wildcardToRegex(pattern: string): RegExp | null {
       component: 'debate-source-viewer',
       level: 'warn',
       message: 'Invalid wildcard pattern',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return null;
   }
@@ -76,7 +76,7 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
           component: 'debate-source-viewer',
           level: 'warn',
           message: 'failed to compile search regex',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         return [];
       }
@@ -154,7 +154,7 @@ export function DebateSourceViewer({ content, sourceType, sourceRef }: DebateSou
         component: 'debate-source-viewer',
         level: 'error',
         message: 'Similar search failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.error('[DebateSourceViewer] Similar search error:', err);
       setMatches([]);

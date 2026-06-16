@@ -284,7 +284,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-embeddings failed:', msg);
@@ -311,7 +311,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] compute-query-embedding failed:', msg);
@@ -338,7 +338,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] update-node-embeddings failed:', msg);
@@ -373,7 +373,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-text failed:', msg);
@@ -420,7 +420,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[IPC] generate-text-with-search failed:', msg);
@@ -615,7 +615,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return { text: null, error: String(err) };
     }
@@ -849,7 +849,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn(`[ipc] get-source-evidence failed: ${err instanceof Error ? err.message.slice(0, 200) : err}`);
       return emptyResult;
@@ -887,7 +887,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[ipc] run-evidence-qbaf failed for ${claimId}: ${msg}`);
@@ -1006,7 +1006,7 @@ export function registerIpcHandlers(): void {
         component: 'ipc-handlers',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return { content: '', error: String(err) };
     }
@@ -1265,7 +1265,7 @@ document.addEventListener('DOMContentLoaded', function() {
         component: 'ipc-research-file',
         level: 'error',
         message: `Failed to read research file: ${relativePath}`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
     }

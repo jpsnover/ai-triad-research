@@ -56,7 +56,7 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
         component: 'key-sharing-dialog',
         level: 'error',
         message: 'Failed to export keys for sharing',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -79,7 +79,7 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
         component: 'key-sharing-dialog',
         level: 'error',
         message: 'Failed to import keys from sharing payload',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg.includes('Unsupported state') || msg.includes('unable to authenticate')
@@ -102,7 +102,7 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
         component: 'key-sharing-dialog',
         level: 'error',
         message: 'Failed to access camera for QR scanning',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setError('Camera not available. Use "Paste Payload" instead.');
     }
@@ -149,7 +149,7 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
         component: 'key-sharing-dialog',
         level: 'error',
         message: 'Failed to copy payload to clipboard',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
   };

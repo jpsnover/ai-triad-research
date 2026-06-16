@@ -79,7 +79,7 @@ async function doInit(): Promise<boolean> {
           component: 'localEmbedding',
           level: 'warn',
           message: 'WebNN init failed, falling back to WASM',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
     }
@@ -107,7 +107,7 @@ async function doInit(): Promise<boolean> {
         component: 'localEmbedding',
         level: 'warn',
         message: 'WASM init failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
 
@@ -120,7 +120,7 @@ async function doInit(): Promise<boolean> {
       component: 'localEmbedding',
       level: 'error',
       message: 'Transformers.js import failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     _backend = 'none';
     return false;

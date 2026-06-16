@@ -151,7 +151,7 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
             component: 'debate-store',
             level: 'warn',
             message: 'Suggested topic scoring failed',
-            error: { name: (sugErr as Error).name ?? 'Error', message: String(sugErr) },
+            error: { name: (sugErr as Error).name ?? 'Error', message: String(sugErr), stack: (sugErr as Error).stack },
           });
           console.warn('[TopicCritique] Suggested topic scoring failed (non-blocking):', sugErr);
         }
@@ -186,7 +186,7 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
         component: 'debate-store',
         level: 'warn',
         message: 'Topic critique failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn('[TopicCritique] Failed (non-blocking):', err);
       set({ topicCritiqueLoading: false, debateActivity: null });
@@ -271,7 +271,7 @@ export const createTopicCritiqueSlice: StateCreator<DebateStore, [], [], TopicCr
         component: 'debate-store',
         level: 'warn',
         message: 'Re-evaluate suggested topic failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn('[TopicCritique] Re-evaluate suggested failed (non-blocking):', err);
       set({ topicCritiqueLoading: false, debateActivity: null });

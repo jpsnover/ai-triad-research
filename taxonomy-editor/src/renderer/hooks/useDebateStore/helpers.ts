@@ -156,7 +156,7 @@ async function loadSyntheticVectors(): Promise<Record<string, number[][]> | null
       console.log(`[taxonomy] Loaded synthetic embeddings for ${Object.keys(_syntheticVectorsCache).length} nodes`);
     }
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to load synthetic embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to load synthetic embeddings', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
   _syntheticVectorsLoaded = true;
   return _syntheticVectorsCache;
@@ -314,7 +314,7 @@ export function getConfiguredModel(): string {
     console.log(`[model] Using global model: ${globalModel}`);
     return globalModel;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to read configured model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Failed to read configured model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return DEFAULT_MODEL;
   }
 }
@@ -428,7 +428,7 @@ export async function summarizeTranscriptEntry(
         component: 'debate-store',
         level: 'warn',
         message: `Summarize entry failed (attempt ${attempt + 1}/${MAX_RETRIES})`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn(`[debate] summarizeEntry failed (attempt ${attempt + 1}/${MAX_RETRIES}):`, err);
     }
@@ -439,7 +439,7 @@ export async function summarizeTranscriptEntry(
     if (s.debateWarnings.length < 50) {
       useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Entry summarization failed — detail level pills unavailable'] });
     }
-  } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Store not ready during summarizeEntry warning push', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+  } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Store not ready during summarizeEntry warning push', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 }
 
 /**
@@ -540,7 +540,7 @@ export function recordDiagnostic(
   set({ activeDebate: updatedDebate });
 
   // Broadcast to popout window
-  try { api.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate?.id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (recordDiagnostic)', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+  try { api.sendDiagnosticsState({ debate: updatedDebate, selectedEntry: get().selectedDiagEntry }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate?.id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (recordDiagnostic)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 }
 
 /** djb2 hash for prompt fingerprinting. */
@@ -918,7 +918,7 @@ export async function extractClaimsAndUpdateAN(
         component: 'debate-store',
         level: 'error',
         message: 'Claim extraction AI call failed',
-        error: { name: (callErr as Error).name ?? 'Error', message: String(callErr) },
+        error: { name: (callErr as Error).name ?? 'Error', message: String(callErr), stack: (callErr as Error).stack },
       });
       extractionTrace.response_time_ms = Date.now() - callStartedAt;
       extractionTrace.status = 'adapter_error';
@@ -1040,12 +1040,12 @@ export async function extractClaimsAndUpdateAN(
       try {
         const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
         if (vector && vector.length > 0) node.embedding = vector;
-      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
       if (node.attribution_text_genus) {
         try {
           const { vector } = await api.computeQueryEmbedding(node.attribution_text_genus.slice(0, 300));
           if (vector && vector.length > 0) node.attribution_embedding = vector;
-        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node genus embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'AN node genus embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
       }
     }
 
@@ -1099,7 +1099,7 @@ export async function extractClaimsAndUpdateAN(
           extractionTrace.attribution_novel_argument = attrResult.novel_argument;
           extractionTrace.attribution_decisions = attrResult.decisions;
         } catch (e) {
-          getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Claim taxonomy attribution failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } });
+          getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Claim taxonomy attribution failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } });
           // Attribution failure never blocks extraction
         }
       }
@@ -1186,7 +1186,7 @@ export async function extractClaimsAndUpdateAN(
               try {
                 const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
                 if (vector && vector.length > 0) node.embedding = vector;
-              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Regen claim embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate.id, component: 'debate-store', level: 'warn', message: 'Regen claim embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
             }
 
             // Per-claim evaluation on retry claims
@@ -1232,7 +1232,7 @@ export async function extractClaimsAndUpdateAN(
               component: 'debate-store',
               level: 'warn',
               message: `Lookahead regen attempt ${attempt + 1} extraction failed`,
-              error: { name: (regenErr as Error).name ?? 'Error', message: String(regenErr) },
+              error: { name: (regenErr as Error).name ?? 'Error', message: String(regenErr), stack: (regenErr as Error).stack },
             });
             console.warn(`[Lookahead] Regen attempt ${attempt + 1} extraction failed:`, regenErr);
             break;
@@ -1288,7 +1288,7 @@ export async function extractClaimsAndUpdateAN(
         component: 'debate-store',
         level: 'warn',
         message: 'Lookahead pre-commit gate evaluation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn('[Lookahead] Pre-commit gate evaluation failed (non-blocking):', err);
     }
@@ -1408,7 +1408,7 @@ export async function extractClaimsAndUpdateAN(
             }
             turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
           } catch (e) {
-            getGlobalRecorder()?.record({ type: 'system.error', debate_id: baseDebate.id, component: 'debate-store', level: 'warn', message: 'Convergence turn embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } });
+            getGlobalRecorder()?.record({ type: 'system.error', debate_id: baseDebate.id, component: 'debate-store', level: 'warn', message: 'Convergence turn embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } });
             if (Object.keys(cachedEmbeddings).length > 0) {
               turnEmbeddings = new Map(Object.entries(cachedEmbeddings));
             }
@@ -1480,7 +1480,7 @@ export async function extractClaimsAndUpdateAN(
             component: 'debate-store',
             level: 'warn',
             message: 'Convergence signal computation failed',
-            error: { name: (convErr as Error).name ?? 'Error', message: String(convErr) },
+            error: { name: (convErr as Error).name ?? 'Error', message: String(convErr), stack: (convErr as Error).stack },
           });
           console.warn('[Convergence] Signal computation failed (non-blocking):', convErr);
           pushWarning(get, set, 'Convergence analysis skipped this turn');
@@ -1514,7 +1514,7 @@ export async function extractClaimsAndUpdateAN(
           component: 'debate-store',
           level: 'warn',
           message: 'Crux resolution tracker update failed',
-          error: { name: (cruxErr as Error).name ?? 'Error', message: String(cruxErr) },
+          error: { name: (cruxErr as Error).name ?? 'Error', message: String(cruxErr), stack: (cruxErr as Error).stack },
         });
         console.warn('[CruxResolution] Tracker update failed (non-blocking):', cruxErr);
         pushWarning(get, set, 'Crux resolution tracking skipped');
@@ -1578,7 +1578,7 @@ export async function extractClaimsAndUpdateAN(
           component: 'debate-store',
           level: 'warn',
           message: 'Steelman NLI validation failed',
-          error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr) },
+          error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr), stack: (nliErr as Error).stack },
         });
         console.warn('[Steelman] NLI validation failed (non-blocking):', nliErr);
         pushWarning(get, set, 'Steelman validation skipped this turn');
@@ -1614,7 +1614,7 @@ export async function extractClaimsAndUpdateAN(
             component: 'debate-store',
             level: 'warn',
             message: `Inline verify web search failed for ${pNode.id}`,
-            error: { name: (searchErr as Error).name ?? 'Error', message: String(searchErr) },
+            error: { name: (searchErr as Error).name ?? 'Error', message: String(searchErr), stack: (searchErr as Error).stack },
           });
           console.warn(`[Verify] Web search failed for ${pNode.id}, proceeding without:`, searchErr);
           pushWarning(get, set, 'Web verification unavailable for some claims');
@@ -1719,7 +1719,7 @@ export async function extractClaimsAndUpdateAN(
           component: 'debate-store',
           level: 'warn',
           message: `Inline verification failed for ${pNode.id}`,
-          error: { name: (verifyErr as Error).name ?? 'Error', message: String(verifyErr) },
+          error: { name: (verifyErr as Error).name ?? 'Error', message: String(verifyErr), stack: (verifyErr as Error).stack },
         });
         console.warn(`[Verify] Inline verification failed for ${pNode.id} (non-blocking):`, verifyErr);
         pushWarning(get, set, 'Claim verification skipped');
@@ -1733,7 +1733,7 @@ export async function extractClaimsAndUpdateAN(
         component: 'debate-store',
         level: 'warn',
         message: 'Failed to persist post-extraction analytics',
-        error: { name: (saveErr as Error).name ?? 'Error', message: String(saveErr) },
+        error: { name: (saveErr as Error).name ?? 'Error', message: String(saveErr), stack: (saveErr as Error).stack },
       });
       console.warn('[Extract] Failed to persist post-extraction analytics:', saveErr);
       pushWarning(get, set, 'Post-extraction data could not be saved');
@@ -1747,20 +1747,20 @@ export async function extractClaimsAndUpdateAN(
     commitTrace();
 
     // Broadcast updated state to popout
-    try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+    try { api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
       component: 'debate-store',
       level: 'error',
       message: 'Claim extraction failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     console.warn('[AN] Claim extraction failed (non-blocking):', err);
     pushWarning(get, set, 'Argument extraction skipped this turn');
     if (!extractionTrace.error_message) extractionTrace.error_message = String(err);
     if (extractionTrace.status === 'ok') extractionTrace.status = 'adapter_error';
-    try { commitTrace(); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'commitTrace failed during error recovery', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+    try { commitTrace(); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'commitTrace failed during error recovery', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
     recordDiagnostic(get, set, entryId, { extraction_status: 'failed' as const });
     detectZeroClaims(get, set, debate.id, entryId, speaker, sketchCount, 0, 'extraction_failed');
     trace(TraceEventName.AN_EXTRACT_FAILED, {
@@ -1871,7 +1871,7 @@ export async function getSourceEvidenceIndex(): Promise<Record<string, unknown> 
       component: 'debate-store',
       level: 'warn',
       message: 'Failed to load source evidence index',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     console.error(`[debate-store] getSourceEvidenceIndex ERROR:`, err);
     _cachedEvidenceIndex = null;
@@ -1894,7 +1894,7 @@ export async function getDocTitles(): Promise<Record<string, string> | undefined
       component: 'debate-store',
       level: 'warn',
       message: 'Failed to load doc titles',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     _cachedDocTitles = null;
     return undefined;
@@ -2045,7 +2045,7 @@ export async function getRelevantTaxonomyContext(
           component: 'debate-store',
           level: 'warn',
           message: 'Doctrinal anchoring failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         console.warn('[doctrinal] Anchoring failed (non-blocking):', err);
         _doctrinalAnchoringApplied.add(pov); // don't retry on failure
@@ -2246,7 +2246,7 @@ export async function getRelevantTaxonomyContext(
       component: 'debate-store',
       level: 'warn',
       message: 'Taxonomy relevance scoring failed, using unfiltered fallback',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     console.warn('[taxonomy] Relevance scoring failed, using unfiltered:', err);
     try {
@@ -2254,7 +2254,7 @@ export async function getRelevantTaxonomyContext(
       if (s.debateWarnings.length < 50) {
         useDebateStore.setState({ debateWarnings: [...s.debateWarnings, 'Taxonomy relevance scoring unavailable'] });
       }
-    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Store not ready during relevance scoring fallback', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'Store not ready during relevance scoring fallback', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
     const policyRegistry = (state.policyRegistry ?? []).map(p => ({ id: p.id, action: p.action, source_povs: p.source_povs }));
     // Fallback: first 21 POV nodes + first 10 CC nodes
     return {

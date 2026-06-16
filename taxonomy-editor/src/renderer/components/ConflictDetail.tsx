@@ -79,7 +79,7 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
         component: 'conflict-detail',
         level: 'error',
         message: 'failed to create debate from conflict',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     } finally {
       setDebateCreating(false);

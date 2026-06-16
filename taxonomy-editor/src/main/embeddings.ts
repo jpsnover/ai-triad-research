@@ -145,7 +145,7 @@ function loadEmbeddingsFile(): EmbeddingsFile | null {
       component: 'embeddings',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     console.warn('[embeddings] Could not load embeddings.json:', err);
     return null;
@@ -218,7 +218,7 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
         component: 'embeddings',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn('[embeddings] ONNX embedding failed, trying Python fallback:', err);
     }
@@ -231,7 +231,7 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
       component: 'embeddings',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     console.warn('[embeddings] Local Python embedding failed, falling back to Gemini API:', err);
     return computeQueryViaApi(text);
@@ -295,7 +295,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
               component: 'embeddings',
               level: 'error',
               message: 'Operation failed',
-              error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+              error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
             });
             reject(new Error(`Failed to parse batch-encode output: ${parseErr}`));
           }
@@ -339,7 +339,7 @@ export async function updateNodeEmbeddings(nodes: NodeEmbeddingInput[]): Promise
                 component: 'embeddings',
                 level: 'error',
                 message: 'Operation failed',
-                error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+                error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
               });
               reject(new Error(`Failed to parse exclusion batch-encode output: ${parseErr}`));
             }
@@ -445,7 +445,7 @@ export async function classifyNli(pairs: NliPair[]): Promise<NliResult[]> {
             component: 'embeddings',
             level: 'error',
             message: 'Operation failed',
-            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
           });
           reject(new Error(`Failed to parse NLI output: ${parseErr}`));
         }
@@ -482,7 +482,7 @@ function computeQueryViaLocalPython(text: string): Promise<number[]> {
             component: 'embeddings',
             level: 'error',
             message: 'Operation failed',
-            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr) },
+            error: { name: (parseErr as Error).name ?? 'Error', message: String(parseErr), stack: (parseErr as Error).stack },
           });
           reject(new Error(`Failed to parse Python output: ${parseErr}`));
         }
@@ -664,7 +664,7 @@ function resolveApiModelId(friendlyId: string): string {
       component: 'embeddings',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     if (!_modelMapCache) _modelMapCache = {};
     console.error(`[model-map] FAILED to load model map: ${err instanceof Error ? err.message : err}`);

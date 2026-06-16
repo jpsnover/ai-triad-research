@@ -35,7 +35,7 @@ export function DebatePopoutWindow() {
     }).catch(err => {
       if (!cancelled) {
         console.error('[DebatePopout] Failed to load taxonomy:', err);
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'warn', message: 'Failed to load taxonomy in popout — non-fatal', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'warn', message: 'Failed to load taxonomy in popout — non-fatal', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         setReady(true);
       }
     });
@@ -53,7 +53,7 @@ export function DebatePopoutWindow() {
       const debateId = decodeURIComponent(idMatch[1]);
       console.log('[DebatePopout] Web mode — loading debate from hash:', debateId);
       useDebateStore.getState().loadDebate(debateId).catch(err => {
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate from URL hash', error: { name: (err as Error).name ?? 'Error', message: String(err) }, data: { debateId } });
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate from URL hash', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
         setError(`Failed to load debate: ${err}`);
       });
     }
@@ -69,7 +69,7 @@ export function DebatePopoutWindow() {
         document.title = title ? `Debate — ${title}` : `Debate — ${debateId.slice(0, 8)}`;
       }).catch(err => {
         console.error('[DebatePopout] loadDebate failed:', err);
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate via IPC', error: { name: (err as Error).name ?? 'Error', message: String(err) }, data: { debateId } });
+        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate via IPC', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
         setError(`Failed to load debate: ${err}`);
       });
     });

@@ -103,7 +103,7 @@ export const api: AppAPI = {
         component: 'electron-bridge',
         level: 'error',
         message: 'Local batch embedding failed, falling back to IPC',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return window.electronAPI.computeEmbeddings(texts, ids);
     }
@@ -120,7 +120,7 @@ export const api: AppAPI = {
           component: 'electron-bridge',
           level: 'error',
           message: 'Local query embedding failed, falling back to IPC',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         return window.electronAPI.computeQueryEmbedding(text);
       }

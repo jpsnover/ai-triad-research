@@ -27,7 +27,7 @@ export function ApiKeyDialog({ onClose }: ApiKeyDialogProps) {
         component: 'api-key-dialog',
         level: 'warn',
         message: 'failed to save API key',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setError(String(err));
     } finally {

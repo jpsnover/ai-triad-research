@@ -54,6 +54,20 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
     const edges = v.edges;
     return { edge_count: Array.isArray(edges) ? edges.length : undefined };
   }
+  if (method === 'generateText' || method === 'generateTextWithSearch') {
+    const text = v.text;
+    const meta: Record<string, unknown> = {};
+    if (typeof text === 'string') {
+      meta.response_chars = text.length;
+      meta.response_preview = text.slice(0, 300) + (text.length > 300 ? '…' : '');
+    }
+    const usage = v.tokenUsage as Record<string, unknown> | undefined;
+    if (usage) {
+      meta.input_tokens = usage.inputTokens;
+      meta.output_tokens = usage.outputTokens;
+    }
+    return Object.keys(meta).length > 0 ? meta : undefined;
+  }
   return undefined;
 }
 
@@ -114,9 +128,11 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
       const category = inferCategory(key);
       const startTs = performance.now();
 
+      const isAI = category === 'ai';
+
       // Record call start (only if recorder is initialized)
       recorder?.record({
-        type: 'lifecycle',
+        type: isAI ? 'ai.request' : 'lifecycle',
         component: recorder.intern('component', 'bridge') as string | number,
         level: 'debug',
         message: `bridge.${key}`,
@@ -130,7 +146,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         // Sync throw (rare for bridge methods)
         const duration_ms = Math.round(performance.now() - startTs);
         recorder?.record({
-          type: 'system.error',
+          type: isAI ? 'ai.error' : 'system.error',
           component: recorder.intern('component', 'bridge') as string | number,
           level: 'error',
           message: `bridge.${key} failed (sync)`,
@@ -152,7 +168,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
           const duration_ms = Math.round(performance.now() - startTs);
           const resultMeta = extractResultMeta(key, args, value);
           recorder?.record({
-            type: 'lifecycle',
+            type: isAI ? 'ai.response' : 'lifecycle',
             component: recorder.intern('component', 'bridge') as string | number,
             level: 'info',
             message: `bridge.${key} ok`,
@@ -164,7 +180,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         (err) => {
           const duration_ms = Math.round(performance.now() - startTs);
           recorder?.record({
-            type: 'system.error',
+            type: isAI ? 'ai.error' : 'system.error',
             component: recorder.intern('component', 'bridge') as string | number,
             level: 'error',
             message: `bridge.${key} failed`,

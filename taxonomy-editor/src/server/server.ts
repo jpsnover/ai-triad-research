@@ -465,7 +465,7 @@ post('/api/data/set-root', (_req, res, body) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     json(res, { success: false, message: String(err) }, 500);
   }
@@ -497,7 +497,7 @@ post('/api/data/clone', async (_req, res, body) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     json(res, { success: false, message: String(err) });
   }
@@ -527,7 +527,7 @@ post('/api/data/check-updates', async (_req, res) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     json(res, { available: false, error: String(err) });
   }
@@ -617,7 +617,7 @@ post('/api/data/pull', async (_req, res) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     const msg = err instanceof Error ? err.message : String(err);
     log.dataPull.error({ err: msg }, 'Pull failed');
@@ -1130,7 +1130,7 @@ post('/api/admin/feedback', (_req, res, body) => {
 
     json(res, { ok: true, id: entry.id });
   } catch (err) {
-    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store feedback', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store feedback', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     error(res, String(err));
   }
 });
@@ -1158,7 +1158,7 @@ post('/api/admin/errors', (_req, res, body) => {
 
     json(res, { ok: true, id: entry.id });
   } catch (err) {
-    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store error report', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store error report', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     error(res, String(err));
   }
 });
@@ -1222,7 +1222,7 @@ post('/api/admin/telemetry', (_req, res, body) => {
     fs.appendFileSync(path.join(telemetryDir, `${date}.jsonl`), line);
     json(res, { ok: true });
   } catch (err) {
-    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write telemetry event', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to write telemetry event', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     error(res, String(err));
   }
 });
@@ -1405,7 +1405,7 @@ post('/api/source-evidence', async (_req, res, body) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.api.warn({ err }, 'source-evidence failed');
     json(res, emptyResult);
@@ -1447,7 +1447,7 @@ post('/api/evidence-qbaf', async (_req, res, body) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.api.warn({ err }, `evidence-qbaf failed for ${claimId}`);
     json(res, null);
@@ -1963,7 +1963,7 @@ post('/debug/events', (_req, res, body) => {
       component: 'server',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     error(res, String(err));
   }
@@ -2117,7 +2117,7 @@ function loadAuthorizedUsers(): AuthorizedUsersFile | null {
         component: 'server',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.auth.error({ path: p, err }, 'Failed to parse authorized users file');
     }
@@ -2496,7 +2496,7 @@ async function handleRequestInner(
           component: 'server',
           level: 'error',
           message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         log.server.error({ err, method: req.method, path: url.pathname }, 'Error handling request');
         const status = (err as { statusCode?: number }).statusCode ?? 500;

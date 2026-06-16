@@ -96,7 +96,7 @@ function loadCollapsed(): Set<string> {
     // First run or version bump — default collapsed & store the version
     localStorage.setItem(COLLAPSE_VERSION_KEY, String(COLLAPSE_VERSION));
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'node-tree', level: 'warn', message: 'collapsed state load failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'node-tree', level: 'warn', message: 'collapsed state load failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
   // Default: all categories collapsed
   return new Set(CATEGORY_ORDER);

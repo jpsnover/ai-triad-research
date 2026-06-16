@@ -72,7 +72,7 @@ function setStoredVersions(versions: Record<string, string>) {
       component: 'precache',
       level: 'warn',
       message: 'Failed to persist precache versions',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
   }
 }
@@ -155,7 +155,7 @@ export function usePrecache(activePov?: string) {
             component: 'precache',
             level: 'error',
             message: 'POV precaching failed',
-            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
           });
           setProgress(p => ({
             ...p,
@@ -225,7 +225,7 @@ async function cacheEndpoints(
         component: 'precache',
         level: 'warn',
         message: `Failed to precache ${url}`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       completed.push(endpointLabel(url));
     }

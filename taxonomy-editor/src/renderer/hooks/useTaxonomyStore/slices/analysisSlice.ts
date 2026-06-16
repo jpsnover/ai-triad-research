@@ -44,7 +44,7 @@ function loadAnalysisCache(): Map<string, AnalysisCacheEntry> {
     const arr: [string, AnalysisCacheEntry][] = JSON.parse(raw);
     return new Map(arr);
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load analysis cache from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load analysis cache from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return new Map();
   }
 }
@@ -55,7 +55,7 @@ function saveAnalysisCache(cache: Map<string, AnalysisCacheEntry>): void {
     const trimmed = entries.slice(-50);
     localStorage.setItem(ANALYSIS_CACHE_KEY, JSON.stringify(trimmed));
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to save analysis cache to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to save analysis cache to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
 }
 
@@ -190,7 +190,7 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
 
       set({ analysisResult: text, analysisLoading: false, analysisStep: 0, analysisCached: false });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run distinction analysis', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run distinction analysis', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });
     } finally {
       unsubscribe();
@@ -299,7 +299,7 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
       set({ analysisStep: 4, analysisRetry: null });
       set({ analysisResult: text, analysisLoading: false, analysisStep: 0 });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run node critique', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run node critique', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ analysisLoading: false, analysisError: mapErrorToUserMessage(err), analysisStep: 0, analysisRetry: null });
     } finally {
       unsubscribe();
@@ -355,7 +355,7 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
           const cleaned = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
           labels = JSON.parse(cleaned);
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to parse conflict cluster labels from AI response', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to parse conflict cluster labels from AI response', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
           labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);
         }
       } else {
@@ -391,7 +391,7 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
 
       set({ conflictClusters: multiClusters, conflictClusterLoading: false });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run conflict cluster view', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run conflict cluster view', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ conflictClusterLoading: false, conflictClusterError: mapErrorToUserMessage(err) });
     }
   },
@@ -444,7 +444,7 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
           const cleaned = text.replace(/```json?\s*/g, '').replace(/```/g, '').trim();
           labels = JSON.parse(cleaned);
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to parse POV cluster labels from AI response', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to parse POV cluster labels from AI response', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
           labels = multiRawClusters.map((_, i) => `Cluster ${i + 1}`);
         }
       } else {
@@ -537,7 +537,7 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
           }
         }
       } catch (nliErr) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'NLI misfit detection failed during cluster view', error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'NLI misfit detection failed during cluster view', error: { name: (nliErr as Error).name ?? 'Error', message: String(nliErr), stack: (nliErr as Error).stack } });
         console.warn('[clusterView] NLI misfit detection failed, continuing without:', nliErr);
       }
 
@@ -549,7 +549,7 @@ export const createAnalysisSlice: StateCreator<TaxonomyStore, [], [], AnalysisSl
 
       set({ clusterView: { clusters: multiClusters, misfits: misfits.size > 0 ? misfits : undefined }, clusterLoading: false });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run POV cluster view', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Failed to run POV cluster view', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ clusterLoading: false, clusterError: mapErrorToUserMessage(err) });
     }
   },

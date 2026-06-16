@@ -264,7 +264,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           component: 'debate-store',
           level: 'error',
           message: `${info.label} failed to respond (user prompt)`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         addTranscriptEntry({
           type: 'system',
@@ -536,7 +536,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         component: 'debate-store',
         level: 'error',
         message: 'Cross-respond moderator selection failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });
       return;
@@ -911,7 +911,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
                 component: 'debate-store',
                 level: 'warn',
                 message: 'Lookahead response regeneration failed',
-                error: { name: (err as Error).name ?? 'Error', message: String(err) },
+                error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
               });
               console.warn('[Lookahead] Response regeneration failed:', err);
               return null;
@@ -963,7 +963,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
               }
             }
           }
-        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Position drift detection failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+        } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Position drift detection failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
       }
       // ── Neutral evaluation: midpoint checkpoint ──
       try {
@@ -976,7 +976,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
             void runNeutralCheckpoint('midpoint', get, set as any, addTranscriptEntry);
           }
         }
-      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Neutral midpoint checkpoint failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+      } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Neutral midpoint checkpoint failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 
       // ── Gap injection — scheduled at midpoint + responsive every 3 rounds after ──
       try {
@@ -1090,7 +1090,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           component: 'debate-store',
           level: 'warn',
           message: 'Gap injection analysis failed',
-          error: { name: (gapErr as Error).name ?? 'Error', message: String(gapErr) },
+          error: { name: (gapErr as Error).name ?? 'Error', message: String(gapErr), stack: (gapErr as Error).stack },
         });
         console.warn('[Gap Injection] Gap analysis failed (non-blocking):', gapErr);
         pushWarning(get, set, 'Gap analysis skipped this turn');
@@ -1272,7 +1272,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           try {
             const val = Math.max(0, Math.min(1, signal.compute(signalCtx)));
             recordSignalHistory(signal.id, crossRespondRound, val);
-          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: postDebate.id, component: 'debate-store', level: 'warn', message: 'Phase signal computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: postDebate.id, component: 'debate-store', level: 'warn', message: 'Phase signal computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
         }
 
         // Flight recorder telemetry — per-round state snapshot for diagnostics
@@ -1375,7 +1375,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         component: 'debate-store',
         level: 'error',
         message: 'News report generation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ newsReportError: `News report generation failed: ${err instanceof Error ? err.message : String(err)}`, newsReportLoading: false });
     }
@@ -1535,7 +1535,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
                 component: 'debate-store',
                 level: 'warn',
                 message: `DOLCE compliance retry ${attempt} failed for edit ${ei}`,
-                error: { name: (retryErr as Error).name ?? 'Error', message: String(retryErr) },
+                error: { name: (retryErr as Error).name ?? 'Error', message: String(retryErr), stack: (retryErr as Error).stack },
               });
               console.warn(`[debate] DOLCE retry ${attempt} failed for edit ${ei}:`, retryErr);
               break;
@@ -1558,7 +1558,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           component: 'debate-store',
           level: 'error',
           message: `Reflection generation failed for ${info.label}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         results.push({
           pover: povKey,
@@ -1657,7 +1657,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           component: 'debate-store',
           level: 'warn',
           message: 'Consensus detection failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         console.warn('[reflections] Consensus detection failed (non-fatal):', err);
       }
@@ -1980,7 +1980,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         component: 'debate-store',
         level: 'error',
         message: 'Accept consensus failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }

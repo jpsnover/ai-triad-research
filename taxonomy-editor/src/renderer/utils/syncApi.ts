@@ -147,7 +147,7 @@ export async function getSyncStatus(): Promise<SyncStatus> {
   try {
     return await getJson<SyncStatus>('/api/sync/status');
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Sync status unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Sync status unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return DISABLED_STATUS;
   }
 }
@@ -156,7 +156,7 @@ export async function listUnsynced(): Promise<UnsyncedFile[]> {
   try {
     return await getJson<UnsyncedFile[]>('/api/sync/unsynced');
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Unsynced list unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Unsynced list unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return [];
   }
 }
@@ -168,7 +168,7 @@ export async function getFileDiff(relPath: string): Promise<string> {
     );
     return res.diff || '';
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'File diff unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'File diff unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return '';
   }
 }
@@ -195,7 +195,7 @@ export async function getRebaseState(): Promise<RebaseState> {
   try {
     return await getJson<RebaseState>('/api/sync/rebase-state');
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Rebase state unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Rebase state unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return { in_progress: false, conflict_files: [], onto_branch: null };
   }
 }
@@ -294,7 +294,7 @@ export async function getSyncDiagnostics(): Promise<SyncDiagnostics> {
   try {
     return await getJson<SyncDiagnostics>('/api/sync/diagnostics');
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Sync diagnostics unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sync-api', level: 'debug', message: 'Sync diagnostics unavailable', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return DISABLED_DIAGNOSTICS;
   }
 }

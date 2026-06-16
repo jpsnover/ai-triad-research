@@ -36,7 +36,7 @@ async function getNodeSourceIndex(): Promise<NodeSourceIndex> {
   try {
     _indexCache = (await api.buildNodeSourceIndex()) as NodeSourceIndex;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'sources-panel', level: 'error', message: 'Failed to build node source index', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'sources-panel', level: 'error', message: 'Failed to build node source index', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     _indexCache = {};
   }
   _indexLoading = false;

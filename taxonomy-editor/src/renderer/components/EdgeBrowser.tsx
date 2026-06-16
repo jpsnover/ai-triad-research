@@ -165,7 +165,7 @@ export function EdgeBrowser() {
         component: 'edge-browser',
         level: 'error',
         message: 'Edge reload failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.error('Edge reload failed:', err);
     }
@@ -212,7 +212,7 @@ export function EdgeBrowser() {
         component: 'edge-browser',
         level: 'error',
         message: 'Edge status update failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.error('Status update failed:', err);
     }
@@ -229,7 +229,7 @@ export function EdgeBrowser() {
         component: 'edge-browser',
         level: 'error',
         message: 'Edge swap direction failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.error('Swap direction failed:', err);
     }

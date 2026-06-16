@@ -152,7 +152,7 @@ function ensureEventSocket(): void {
         component: 'web-bridge',
         level: 'debug',
         message: 'Failed to parse WebSocket event message',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
   };
@@ -196,7 +196,7 @@ function ensureTerminalSocket(): WebSocket {
         component: 'web-bridge',
         level: 'debug',
         message: 'Failed to parse WebSocket terminal message',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
   };

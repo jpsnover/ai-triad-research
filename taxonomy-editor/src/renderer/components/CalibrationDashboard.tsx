@@ -171,7 +171,7 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
           component: 'calibration-dashboard',
           level: 'debug',
           message: 'Calibration log unavailable',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
       setLoading(false);

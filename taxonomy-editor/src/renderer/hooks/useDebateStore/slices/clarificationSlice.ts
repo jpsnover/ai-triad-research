@@ -117,7 +117,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         component: 'debate-store',
         level: 'error',
         message: 'Failed to generate clarifying questions',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       addTranscriptEntry({
         type: 'system',
@@ -206,7 +206,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
               component: 'debate-store',
               level: 'warn',
               message: 'Topic refinement scoring failed, accepting candidate',
-              error: { name: (scoreErr as Error).name ?? 'Error', message: String(scoreErr) },
+              error: { name: (scoreErr as Error).name ?? 'Error', message: String(scoreErr), stack: (scoreErr as Error).stack },
             });
             // Scoring failed — accept the candidate rather than blocking refinement
             console.warn('[TopicRefinement] Scoring failed, accepting candidate:', scoreErr);
@@ -225,7 +225,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           component: 'debate-store',
           level: 'error',
           message: `Topic refinement attempt ${attempt + 1} generation failed`,
-          error: { name: (genErr as Error).name ?? 'Error', message: String(genErr) },
+          error: { name: (genErr as Error).name ?? 'Error', message: String(genErr), stack: (genErr as Error).stack },
         });
         console.warn(`[TopicRefinement] Attempt ${attempt + 1} generation failed:`, genErr);
         break;
@@ -270,7 +270,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         getGlobalRecorder()?.record({
           type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn',
           message: 'Resolution clause decomposition failed (non-fatal)',
-          error: { name: (clauseErr as Error).name ?? 'Error', message: String(clauseErr) },
+          error: { name: (clauseErr as Error).name ?? 'Error', message: String(clauseErr), stack: (clauseErr as Error).stack },
         });
       }
 
@@ -295,7 +295,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
                 getGlobalRecorder()?.record({
                   type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'debug',
                   message: `Clause embedding failed for clause ${currentClauses.indexOf(clause)}`,
-                  error: { name: (cvErr as Error).name ?? 'Error', message: String(cvErr) },
+                  error: { name: (cvErr as Error).name ?? 'Error', message: String(cvErr), stack: (cvErr as Error).stack },
                 });
               }
             }
@@ -308,7 +308,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         getGlobalRecorder()?.record({
           type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn',
           message: 'Resolution anchor embedding failed — ArCo drift signal unavailable',
-          error: { name: (embedErr as Error).name ?? 'Error', message: String(embedErr) },
+          error: { name: (embedErr as Error).name ?? 'Error', message: String(embedErr), stack: (embedErr as Error).stack },
         });
       }
 
@@ -367,7 +367,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           component: 'debate-store',
           level: 'warn',
           message: 'User seed claim extraction failed',
-          error: { name: (seedErr as Error).name ?? 'Error', message: String(seedErr) },
+          error: { name: (seedErr as Error).name ?? 'Error', message: String(seedErr), stack: (seedErr as Error).stack },
         });
         console.warn('[debate] User seed claim extraction failed (non-fatal):', seedErr);
         pushWarning(get, set, 'User position extraction skipped — debaters will not see your stated positions in the graph');
@@ -385,7 +385,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         component: 'debate-store',
         level: 'error',
         message: 'Topic synthesis failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: `Topic synthesis failed: ${mapErrorToUserMessage(err)}` });
     } finally {
@@ -483,7 +483,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
               try {
                 const { vector } = await api.computeQueryEmbedding(node.text.slice(0, 300));
                 if (vector && vector.length > 0) node.embedding = vector;
-              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Doc i-node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+              } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Doc i-node embedding failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
             }
 
             set({
@@ -505,7 +505,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           component: 'debate-store',
           level: 'error',
           message: 'Document analysis failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         console.warn('[debate] Document analysis failed:', err);
         pushWarning(get, set, 'Document analysis could not be completed');
@@ -534,7 +534,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         component: 'debate-store',
         level: 'warn',
         message: 'Vocabulary loading failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn('[debate] Vocabulary loading failed, debates will use bare terms:', err);
       pushWarning(get, set, 'Vocabulary dictionary unavailable — debates will use bare terms');
@@ -701,7 +701,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         getGlobalRecorder()?.record({
           type: 'system.error', debate_id: activeDebate?.id, component: 'debate-store', level: 'warn',
           message: 'Topic scope extraction failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
       set({ debateActivity: null });
@@ -826,7 +826,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
               component: 'debate-store',
               level: 'warn',
               message: `Opening retry failed for ${info.label}`,
-              error: { name: (err as Error).name ?? 'Error', message: String(err) },
+              error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
             });
             console.warn(`[debate-store] Opening retry failed for ${info.label}:`, err);
           }
@@ -961,7 +961,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           try {
             const result = await api.computeQueryEmbedding(entry.content.slice(0, 1000));
             openingEmbeddings[entry.speaker] = result.vector;
-          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embedding computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+          } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embedding computation failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
         }
         // Store on session metadata for cross-respond access
         if (Object.keys(openingEmbeddings).length > 0) {
@@ -973,7 +973,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
           }
         }
       }
-    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embeddings caching failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Opening embeddings caching failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
 
     // Neutral evaluation: baseline checkpoint (after openings, before cross-respond)
     void runNeutralCheckpoint('baseline', get, set as any, addTranscriptEntry);

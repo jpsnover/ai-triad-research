@@ -75,7 +75,7 @@ function debouncedSave(results: Map<string, ValidationResult>): void {
         component: 'validation-store',
         level: 'error',
         message: 'Failed to auto-save validation results',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     });
   }, 500);
@@ -145,7 +145,7 @@ export const useValidationStore = create<ValidationStore>((set, get) => ({
         component: 'validation-store',
         level: 'error',
         message: 'Failed to load golden set',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ loading: false });
     }

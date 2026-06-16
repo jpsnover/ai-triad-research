@@ -71,7 +71,7 @@ export function SituationDetail({ node, readOnly, onPin, onRelated, onDebate, ch
       setResearchCopied(true);
       setTimeout(() => setResearchCopied(false), 2000);
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-detail', level: 'warn', message: 'clipboard write failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-detail', level: 'warn', message: 'clipboard write failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
   };
 

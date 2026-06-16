@@ -342,7 +342,7 @@ export function ExtractionTimelinePanel({ debate }: Props) {
         component: 'extraction-timeline',
         level: 'debug',
         message: 'Cross-window DOM access failed during transcript scroll',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
   };

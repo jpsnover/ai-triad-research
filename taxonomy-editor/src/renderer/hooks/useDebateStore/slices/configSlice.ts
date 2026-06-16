@@ -150,9 +150,9 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
         setTimeout(() => {
           api.sendDiagnosticsState({ debate: get().activeDebate, selectedEntry: get().selectedDiagEntry });
         }, 1000);
-      }).catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Failed to open diagnostics window', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); });
+      }).catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Failed to open diagnostics window', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
     } else {
-      try { void api.closeDiagnosticsWindow?.(); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Failed to close diagnostics window', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+      try { void api.closeDiagnosticsWindow?.(); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: get().activeDebate?.id, component: 'debate-store', level: 'warn', message: 'Failed to close diagnostics window', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
       set({ diagPopoutOpen: false });
     }
   },
@@ -161,7 +161,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
     try {
       const debate = get().activeDebate;
       api.sendDiagnosticsState({ debate, selectedEntry: entryId, forceSelect: !!force });
-    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate?.id, component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast to popout failed', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+    } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: debate?.id, component: 'debate-store', level: 'warn', message: 'Diagnostics state broadcast to popout failed', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
   },
   setDiagPopoutOpen: (open) => set({ diagPopoutOpen: open }),
   inspectNode: (nodeId) => set({ inspectedNodeId: nodeId }),

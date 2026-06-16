@@ -61,7 +61,7 @@ function ShowKeysSection() {
         component: 'settings-dialog',
         level: 'error',
         message: 'Failed to load API key summary',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setKeySummary([]);
     } finally {
@@ -165,7 +165,7 @@ function PromptDefaultsSection() {
 }
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, qbafEnabled, setQbafEnabled, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
+  const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, qbafEnabled, setQbafEnabled, aiBackend, setAIBackend, geminiModel, setGeminiModel, communityServerUrl, setCommunityServerUrl } = useTaxonomyStore();
   const [hasKey, setHasKey] = useState<Record<string, boolean>>({});
   const [keyInput, setKeyInput] = useState('');
   const [savingKey, setSavingKey] = useState(false);
@@ -203,7 +203,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         component: 'settings-dialog',
         level: 'error',
         message: 'Failed to save API key',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setKeyError(String(err));
     } finally {
@@ -228,7 +228,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         component: 'settings-dialog',
         level: 'error',
         message: 'Failed to refresh AI models',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setRefreshError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -395,6 +395,22 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             />
             <span>Show argument strength scores in debates</span>
           </label>
+        </div>
+
+        <div className="settings-divider" />
+
+        <div className="settings-row">
+          <label className="settings-label">Community Server URL</label>
+          <div className="settings-hint" style={{ marginBottom: 4 }}>
+            Required for sharing debates from the desktop app. Leave blank when using the web version.
+          </div>
+          <input
+            type="url"
+            className="settings-key-input"
+            value={communityServerUrl}
+            onChange={(e) => setCommunityServerUrl(e.target.value)}
+            placeholder="https://your-app.azurewebsites.net"
+          />
         </div>
 
         <div className="settings-divider" />

@@ -157,7 +157,7 @@ export async function getApiKey(backend: AIBackend = 'gemini'): Promise<string |
       component: 'server-config',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.server.warn({ backend, err }, 'getApiKey failed');
   }

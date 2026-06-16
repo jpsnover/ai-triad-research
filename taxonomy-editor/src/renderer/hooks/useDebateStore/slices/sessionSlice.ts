@@ -76,7 +76,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         component: 'debate-store',
         level: 'error',
         message: 'Failed to load debate sessions',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ sessionsLoading: false });
     }
@@ -280,7 +280,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
       );
       void api.setDebateTemperature(session.debate_temperature ?? null);
-      try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e) } }); }
+      try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
       getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
 
       if (session.interrupted_turn) {
@@ -322,7 +322,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         component: 'debate-store',
         level: 'error',
         message: 'Failed to delete debate',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: mapErrorToUserMessage(err) });
     }
@@ -347,7 +347,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         component: 'debate-store',
         level: 'error',
         message: 'Failed to rename debate',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       set({ debateError: mapErrorToUserMessage(err) });
     }

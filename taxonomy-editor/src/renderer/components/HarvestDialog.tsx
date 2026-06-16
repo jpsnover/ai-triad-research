@@ -278,7 +278,7 @@ IMPORTANT: Return ONLY claim_label and description. Do NOT include linked_taxono
           component: 'harvest-dialog',
           level: 'error',
           message: 'AI conflict description generation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         setConflicts(prev => prev.map(c => c.id === item.id ? {
           ...c,
@@ -322,7 +322,7 @@ Return ONLY the condensed steelman text, no JSON, no quotes.`;
           component: 'harvest-dialog',
           level: 'error',
           message: 'AI steelman condensation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         setSteelmans(prev => prev.map(s => s.id === item.id ? {
           ...s, proposedSteelman: item.sourceExcerpt.slice(0, 150),
@@ -381,7 +381,7 @@ Return ONLY JSON (no markdown):
           component: 'harvest-dialog',
           level: 'error',
           message: 'AI concept proposal generation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         setConcepts(prev => prev.map(c => c.id === item.id ? {
           ...c,
@@ -433,7 +433,7 @@ Return ONLY JSON (no markdown):
           component: 'harvest-dialog',
           level: 'error',
           message: `Failed to create conflict ${conflictId}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         manifest.push({ type: 'conflict', action: 'created', id: conflictId, status: 'rejected' });
         failed++;
@@ -456,7 +456,7 @@ Return ONLY JSON (no markdown):
           component: 'harvest-dialog',
           level: 'error',
           message: `Failed to update steelman for ${item.targetNodeId}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         manifest.push({ type: 'steelman', action: 'updated', id: item.targetNodeId, status: 'rejected' });
         failed++;
@@ -476,7 +476,7 @@ Return ONLY JSON (no markdown):
           component: 'harvest-dialog',
           level: 'error',
           message: `Failed to add debate ref for ${item.nodeId}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         manifest.push({ type: 'debate_ref', action: 'added', id: item.nodeId, status: 'rejected' });
         failed++;
@@ -508,7 +508,7 @@ Return ONLY JSON (no markdown):
           component: 'harvest-dialog',
           level: 'error',
           message: `Failed to add verdict for ${conflictSlug}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         manifest.push({ type: 'verdict', action: 'updated', id: conflictSlug, status: 'rejected' });
         failed++;
@@ -538,7 +538,7 @@ Return ONLY JSON (no markdown):
           component: 'harvest-dialog',
           level: 'error',
           message: `Failed to queue concept ${item.id}`,
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         manifest.push({ type: 'concept', action: 'queued', id: item.id, status: 'rejected' });
         failed++;

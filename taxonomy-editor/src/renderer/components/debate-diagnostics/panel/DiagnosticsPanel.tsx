@@ -20,7 +20,7 @@ export function DiagnosticsPanel() {
         component: 'diagnostics-panel',
         level: 'warn',
         message: 'Failed to load panel height from localStorage',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return 250;
     }
@@ -49,7 +49,7 @@ export function DiagnosticsPanel() {
           component: 'diagnostics-panel',
           level: 'warn',
           message: 'Failed to save panel height to localStorage',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
       document.removeEventListener('mousemove', onMouseMove);

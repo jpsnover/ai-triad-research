@@ -81,7 +81,7 @@ async function loadPrivateKey(): Promise<string | null> {
         component: 'github-auth',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       log.auth.warn({ err }, 'Failed to load private key from Key Vault');
     }

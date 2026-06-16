@@ -23,7 +23,7 @@ export class FilesystemBackend implements StorageBackend {
         component: 'filesystem-backend',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw err;
@@ -46,7 +46,7 @@ export class FilesystemBackend implements StorageBackend {
         component: 'filesystem-backend',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
       // ENOTDIR: path exists but is a file, not a directory
@@ -64,7 +64,7 @@ export class FilesystemBackend implements StorageBackend {
         component: 'filesystem-backend',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
       throw err;

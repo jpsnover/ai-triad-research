@@ -93,7 +93,7 @@ export function ProposalReviewDialog({ onClose }: ProposalReviewDialogProps) {
       const result = await api.saveProposal(filename, data);
       setSaveResult(result.error ?? 'Saved');
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'proposal-review', level: 'error', message: 'proposal save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'proposal-review', level: 'error', message: 'proposal save failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       setSaveResult(String(err));
     } finally {
       setSaving(false);

@@ -121,7 +121,7 @@ class CommitMutex {
           component: 'session-branch',
           level: 'error',
           message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         // eslint-disable-next-line @typescript-eslint/no-use-before-define
         if (err instanceof LockTimeoutError) {
@@ -427,7 +427,7 @@ export class SessionBranchManager {
         component: 'session-branch',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       this.recordEvent({
         type: 'github.api.error',

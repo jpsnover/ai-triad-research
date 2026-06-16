@@ -58,7 +58,7 @@ export function SituationsTab() {
         component: 'situations-tab',
         level: 'warn',
         message: 'Failed to load hierarchy view preference from localStorage',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return true;
     }
@@ -77,7 +77,7 @@ export function SituationsTab() {
         component: 'situations-tab',
         level: 'warn',
         message: 'Failed to load collapsed groups from localStorage',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
     return new Set(['__default_collapsed__']); // sentinel: collapse all on first load

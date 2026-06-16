@@ -113,7 +113,7 @@ function getStoredBackend(): AIBackend {
     const stored = localStorage.getItem('taxonomy-editor-ai-backend');
     if (stored === 'gemini' || stored === 'claude' || stored === 'groq' || stored === 'openai' || stored === 'deepseek' || stored === 'ollama') return stored;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI backend from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI backend from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
   return 'gemini';
 }
@@ -123,7 +123,7 @@ function getStoredModel(): AIModel {
     const stored = localStorage.getItem('taxonomy-editor-gemini-model');
     if (stored && ALL_MODEL_IDS.has(stored)) return stored as AIModel;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored AI model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
   const backend = getStoredBackend();
   return DEFAULT_MODELS[backend];
@@ -173,7 +173,7 @@ export async function initAIModels(): Promise<void> {
 
     console.log(`[AI Models] Loaded ${config.models.length} models from ai-models.json`);
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load ai-models.json config', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load ai-models.json config', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     console.warn('[AI Models] Failed to load ai-models.json, using built-in defaults:', err);
   }
 }
@@ -191,7 +191,7 @@ function getStoredTheme(): ColorScheme {
     const stored = localStorage.getItem('taxonomy-editor-theme');
     if (stored === 'light' || stored === 'dark' || stored === 'bkc' || stored === 'harvard' || stored === 'system') return stored;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored theme from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read stored theme from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
   return 'light';
 }
@@ -205,7 +205,7 @@ function applyTheme(scheme: ColorScheme) {
     root.setAttribute('data-theme', scheme);
   }
   try { localStorage.setItem('taxonomy-editor-theme', scheme); } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist theme to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist theme to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   }
 }
 
@@ -226,6 +226,9 @@ export interface SettingsSlice {
   qbafEnabled: boolean;
   setQbafEnabled: (enabled: boolean) => void;
 
+  communityServerUrl: string;
+  setCommunityServerUrl: (url: string) => void;
+
   zoomLevel: number;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -238,18 +241,18 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
   aiBackend: getStoredBackend(),
   setAIBackend: (backend) => {
     try { localStorage.setItem('taxonomy-editor-ai-backend', backend); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI backend to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI backend to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     const newModel = DEFAULT_MODELS[backend];
     try { localStorage.setItem('taxonomy-editor-gemini-model', newModel); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI model to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI model to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     set({ aiBackend: backend, geminiModel: newModel });
   },
   geminiModel: getStoredModel(),
   setGeminiModel: (model) => {
     try { localStorage.setItem('taxonomy-editor-gemini-model', model); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI model selection to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist AI model selection to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     set({ geminiModel: model });
   },
@@ -262,13 +265,13 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
 
   paneSpacing: (() => {
     try { return (localStorage.getItem('taxonomy-editor-pane-spacing') as 'normal' | 'concise') || 'normal'; } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read pane spacing from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read pane spacing from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       return 'normal' as const;
     }
   })(),
   setPaneSpacing: (spacing) => {
     try { localStorage.setItem('taxonomy-editor-pane-spacing', spacing); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist pane spacing to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist pane spacing to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     document.documentElement.setAttribute('data-pane-spacing', spacing);
     set({ paneSpacing: spacing });
@@ -276,15 +279,28 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
 
   qbafEnabled: (() => {
     try { const v = localStorage.getItem('taxonomy-editor-qbaf'); return v === null ? true : v === 'true'; } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read QBAF setting from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read QBAF setting from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       return true;
     }
   })(),
   setQbafEnabled: (enabled) => {
     try { localStorage.setItem('taxonomy-editor-qbaf', String(enabled)); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist QBAF setting to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist QBAF setting to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     set({ qbafEnabled: enabled });
+  },
+
+  communityServerUrl: (() => {
+    try { return localStorage.getItem('taxonomy-editor-community-url') ?? ''; } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read community server URL from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      return '';
+    }
+  })(),
+  setCommunityServerUrl: (url) => {
+    try { localStorage.setItem('taxonomy-editor-community-url', url); } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist community server URL to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
+    set({ communityServerUrl: url });
   },
 
   zoomLevel: (() => {
@@ -295,7 +311,7 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
         if (n >= 60 && n <= 200) return n;
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read zoom level from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read zoom level from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     return 100;
   })(),
@@ -303,7 +319,7 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
   zoomIn: () => {
     const next = Math.min(200, get().zoomLevel + 10);
     try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom level to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom level to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     set({ zoomLevel: next });
   },
@@ -311,14 +327,14 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
   zoomOut: () => {
     const next = Math.max(60, get().zoomLevel - 10);
     try { localStorage.setItem('taxonomy-editor-zoom', String(next)); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom level to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom level to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     set({ zoomLevel: next });
   },
 
   zoomReset: () => {
     try { localStorage.setItem('taxonomy-editor-zoom', '100'); } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom reset to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to persist zoom reset to localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
     set({ zoomLevel: 100 });
   },

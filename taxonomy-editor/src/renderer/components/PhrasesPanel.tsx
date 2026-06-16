@@ -78,7 +78,7 @@ async function loadSyntheticForPov(povKey: string): Promise<SyntheticEntry[]> {
       component: 'phrases-panel',
       level: 'error',
       message: `Failed to load synthetic corpus for ${povKey}`,
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     _syntheticCache.set(povKey, []);
     return [];
@@ -102,7 +102,7 @@ async function loadLegacyCorpus(): Promise<LegacyClaim[]> {
       component: 'phrases-panel',
       level: 'error',
       message: 'Failed to load legacy phrases corpus',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     _legacyCache = [];
   }

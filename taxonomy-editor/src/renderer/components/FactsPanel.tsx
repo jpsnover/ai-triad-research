@@ -36,7 +36,7 @@ async function getFactsIndex(): Promise<FactsIndex> {
       component: 'facts-panel',
       level: 'error',
       message: 'Failed to load source evidence index',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     _factsCache = {};
   }

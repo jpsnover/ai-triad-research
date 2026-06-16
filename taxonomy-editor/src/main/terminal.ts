@@ -41,7 +41,7 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
         component: 'terminal',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const win = getWindow();
       if (win && !win.isDestroyed()) {
@@ -84,7 +84,7 @@ export function registerTerminalHandlers(getWindow: () => BrowserWindow | null):
         component: 'terminal',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const win = getWindow();
       if (win && !win.isDestroyed()) {

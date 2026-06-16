@@ -39,7 +39,7 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
           component: 'first-run-dialog',
           level: 'error',
           message: 'Failed to locate data directory',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         setMessage(String(err));
         setStatus('error');
@@ -82,7 +82,7 @@ export function FirstRunDialog({ dataRoot, onComplete, onSkip }: FirstRunDialogP
         component: 'first-run-dialog',
         level: 'error',
         message: 'Failed to download data repo',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setStatus('error');
       setMessage(String(err));

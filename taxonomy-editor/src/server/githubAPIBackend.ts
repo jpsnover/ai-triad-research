@@ -1179,7 +1179,7 @@ export class GitHubAPIBackend implements StorageBackend {
           component: 'github-api',
           level: 'error',
           message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         // Network error — retryable
         const durationMs = Date.now() - startMs;
@@ -1678,7 +1678,7 @@ export class GitHubAPIBackend implements StorageBackend {
           component: 'github-api',
           level: 'error',
           message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         this.recordEvent({
           type: 'system.error',

@@ -16,7 +16,7 @@ function getStoredWidth(): number {
       const n = parseInt(stored, 10);
       if (n >= MIN_WIDTH && n <= MAX_WIDTH) return n;
     }
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read panel width from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read panel width from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
   return DEFAULT_WIDTH;
 }
 
@@ -61,14 +61,14 @@ export function useResizablePanel() {
         dragging.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        try { localStorage.setItem(STORAGE_KEY, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+        try { localStorage.setItem(STORAGE_KEY, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel width', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
       }
     };
 
     const onTouchEnd = () => {
       if (dragging.current) {
         dragging.current = false;
-        try { localStorage.setItem(STORAGE_KEY, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+        try { localStorage.setItem(STORAGE_KEY, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel width', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
       }
     };
 
@@ -103,7 +103,7 @@ function getStoredRightWidth(opts: RightPanelOptions): number {
       const n = parseInt(stored, 10);
       if (n >= opts.minWidth && n <= opts.maxWidth) return n;
     }
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read right panel width from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read right panel width from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
   return opts.defaultWidth;
 }
 
@@ -149,14 +149,14 @@ export function useResizableRightPanel(opts: RightPanelOptions) {
         dragging.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        try { localStorage.setItem(opts.storageKey, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save right panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+        try { localStorage.setItem(opts.storageKey, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save right panel width', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
       }
     };
 
     const onTouchEnd = () => {
       if (dragging.current) {
         dragging.current = false;
-        try { localStorage.setItem(opts.storageKey, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save right panel width', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+        try { localStorage.setItem(opts.storageKey, String(width)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save right panel width', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
       }
     };
 
@@ -191,7 +191,7 @@ function getStoredHeight(opts: VerticalSplitOptions): number {
       const n = parseInt(stored, 10);
       if (n >= opts.minHeight && n <= opts.maxHeight) return n;
     }
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read panel height from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to read panel height from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
   return opts.defaultHeight;
 }
 
@@ -236,14 +236,14 @@ export function useResizableVerticalSplit(opts: VerticalSplitOptions) {
         dragging.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        try { localStorage.setItem(opts.storageKey, String(height)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel height', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+        try { localStorage.setItem(opts.storageKey, String(height)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel height', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
       }
     };
 
     const onTouchEnd = () => {
       if (dragging.current) {
         dragging.current = false;
-        try { localStorage.setItem(opts.storageKey, String(height)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel height', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+        try { localStorage.setItem(opts.storageKey, String(height)); } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'resizable-panel', level: 'debug', message: 'Failed to save panel height', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
       }
     };
 

@@ -554,7 +554,7 @@ export function ValidationTab() {
           component: 'validation-tab',
           level: 'error',
           message: 'Failed to load golden set in tab',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       });
     }

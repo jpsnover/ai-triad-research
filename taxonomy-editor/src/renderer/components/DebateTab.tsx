@@ -98,7 +98,7 @@ export function DebateTab() {
         component: 'debate-tab',
         level: 'warn',
         message: 'Failed to load custom debate order from localStorage',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return [];
     }
@@ -188,7 +188,7 @@ export function DebateTab() {
         component: 'debate-tab',
         level: 'error',
         message: 'Debate export failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setExportStatus(`Export failed: ${err}`);
       setTimeout(() => setExportStatus(null), 4000);
@@ -751,7 +751,7 @@ function loadExportOptions(): ExportOptions {
       component: 'debate-tab',
       level: 'warn',
       message: 'Failed to load export options from localStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
   }
   return { includeTaxonomyRefs: true, includeReasoning: true };
@@ -778,7 +778,7 @@ function ExportOptionsDialog({
         component: 'debate-tab',
         level: 'warn',
         message: 'Failed to save export options to localStorage',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
     }
     onConfirm(options);

@@ -40,7 +40,7 @@ function getConfiguredModel(): string {
   try {
     return localStorage.getItem('taxonomy-editor-gemini-model') || DEFAULT_MODEL;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Failed to read chat model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Failed to read chat model from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return DEFAULT_MODEL;
   }
 }
@@ -92,7 +92,7 @@ function parseChatResponse(text: string): { response: string; taxonomyRefs: Taxo
       : [];
     return { response, taxonomyRefs };
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Chat response JSON parse failed, using raw text', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'debug', message: 'Chat response JSON parse failed, using raw text', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return { response: text.trim(), taxonomyRefs: [] };
   }
 }
@@ -164,7 +164,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const raw = await api.listChatSessions();
       set({ sessions: raw as ChatSessionSummary[] });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to load chat sessions', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to load chat sessions', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     } finally {
       set({ sessionsLoading: false });
     }
@@ -202,7 +202,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         chatModel: session.chat_model || null,
       });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to load chat session', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to load chat session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ chatError: `Failed to load chat: ${err}` });
     } finally {
       set({ chatLoading: false });
@@ -219,7 +219,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const sessions = await api.listChatSessions();
       set({ sessions: sessions as ChatSessionSummary[] });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to delete chat session', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to delete chat session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ chatError: `Failed to delete chat: ${err}` });
     }
   },
@@ -239,7 +239,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         session.updated_at = nowISO();
         await api.saveChatSession(session);
       } catch (err) {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to rename chat session', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to rename chat session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       }
     }
     // Update session list
@@ -318,7 +318,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const sessions = await api.listChatSessions();
       set({ sessions: sessions as ChatSessionSummary[] });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to generate opening message', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to generate opening message', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ chatError: `Failed to start conversation: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ chatGenerating: false });
@@ -405,7 +405,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ sessions: sessions as ChatSessionSummary[] });
     } catch (err) {
       if (!isStillValid()) return;
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to send chat message', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'chat-store', level: 'error', message: 'Failed to send chat message', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ chatError: `Response failed: ${mapErrorToUserMessage(err)}` });
     } finally {
       set({ chatGenerating: false });

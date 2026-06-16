@@ -60,7 +60,7 @@ export function VocabularyPanel() {
             component: 'vocabulary-panel',
             level: 'debug',
             message: 'Dictionary API unavailable',
-            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
           });
         }
       }

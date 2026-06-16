@@ -35,7 +35,7 @@ export function TypeaheadSelect({ options, onSelect, placeholder }: TypeaheadSel
           component: 'typeahead-select',
           level: 'debug',
           message: 'Wildcard regex construction failed; falling back to includes search',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
     }

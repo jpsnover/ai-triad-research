@@ -93,7 +93,7 @@ class LocalFileKeyStore implements KeyStore {
           component: 'key-store',
           level: 'error',
           message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         log.server.warn({ path: p, err }, 'Failed to decrypt with current and legacy keys');
         return null;
@@ -161,7 +161,7 @@ class AzureKeyVaultKeyStore implements KeyStore {
         component: 'key-store',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const code = (err as { code?: string; statusCode?: number })?.code;
       const status = (err as { statusCode?: number })?.statusCode;

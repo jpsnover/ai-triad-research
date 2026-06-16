@@ -39,7 +39,7 @@ function loadCollapsedClusters(): Set<string> {
       component: 'conflicts-tab',
       level: 'warn',
       message: 'failed to load collapsed clusters from localStorage',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
   }
   return new Set(); // empty = will be initialized from cluster labels on first render

@@ -32,7 +32,7 @@ function extractRefinedJson(markdown: string): Record<string, unknown> | null {
       component: 'analysis-panel',
       level: 'debug',
       message: 'failed to parse refined JSON from markdown',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return null;
   }

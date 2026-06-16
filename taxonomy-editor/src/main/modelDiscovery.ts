@@ -188,7 +188,7 @@ async function discoverClaudeModels(apiKey: string): Promise<ModelEntry[]> {
         component: 'model-discovery',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn(`[ModelDiscovery] Claude probe ${candidate.apiModelId} failed:`, err);
       return false;
@@ -402,7 +402,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
         component: 'model-discovery',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       result.gemini = { ok: false, count: 0, error: msg };
@@ -436,7 +436,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
         component: 'model-discovery',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       result.claude = { ok: false, count: 0, error: msg };
@@ -462,7 +462,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
         component: 'model-discovery',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       result.groq = { ok: false, count: 0, error: msg };
@@ -488,7 +488,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
         component: 'model-discovery',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       result.openai = { ok: false, count: 0, error: msg };
@@ -514,7 +514,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
         component: 'model-discovery',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
       result.deepseek = { ok: false, count: 0, error: msg };
@@ -538,7 +538,7 @@ export async function refreshAIModels(): Promise<RefreshResult> {
       component: 'model-discovery',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     const msg = err instanceof Error ? err.message : String(err);
     result.ollama = { ok: false, count: 0, error: msg };

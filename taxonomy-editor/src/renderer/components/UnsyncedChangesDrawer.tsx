@@ -410,7 +410,7 @@ function CreatePrDialog({ files, status, onCancel, onDone, onError }: CreatePrDi
         component: 'unsynced-changes-drawer',
         level: 'error',
         message: 'Create/update pull request failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       onError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -487,7 +487,7 @@ function ResyncDialog({ status, hasLocalChanges, onCancel, onDone, onConflicts, 
         component: 'unsynced-changes-drawer',
         level: 'error',
         message: `Resync (${mode}) failed`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       onError(err instanceof Error ? err.message : String(err));
     } finally {

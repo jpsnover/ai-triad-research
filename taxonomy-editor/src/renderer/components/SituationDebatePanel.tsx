@@ -88,7 +88,7 @@ export function SituationDebatePanel({ node, onLaunched }: SituationDebatePanelP
       setActiveTab('debate');
       onLaunched();
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-debate', level: 'error', message: 'debate launch failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'situation-debate', level: 'error', message: 'debate launch failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     } finally {
       setLaunching(false);
     }

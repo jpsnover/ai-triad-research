@@ -27,7 +27,7 @@ export function GroundingPanel({ debate }: { debate: DebateSession }) {
     let cancelled = false;
     void (async () => {
       const loadWithRecorder = (name: string) => api.loadTaxonomyFile(name).catch((err) => {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'groundingPanel', level: 'warn', message: `Failed to load taxonomy file: ${name}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'groundingPanel', level: 'warn', message: `Failed to load taxonomy file: ${name}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         return null;
       });
       const files = await Promise.all([

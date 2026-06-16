@@ -89,7 +89,7 @@ function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: 
       component: 'ai-backends',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.api.warn({ err }, 'Failed to load model config');
     if (!_modelMapCache) _modelMapCache = {};
@@ -366,7 +366,7 @@ export async function computeEmbeddings(texts: string[], ids?: string[]): Promis
         getGlobalRecorder()?.record({
           type: 'system.error', component: 'embeddings', level: 'error',
           message: 'Local Python batch-encode fallback also failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
     }
@@ -577,7 +577,7 @@ export async function refreshAIModels(): Promise<unknown> {
         component: 'ai-backends',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       result[backend] = { ok: false, count: 0, error: String(err) };
     }

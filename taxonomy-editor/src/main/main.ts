@@ -319,7 +319,7 @@ void app.whenReady().then(() => {
           component: 'main-process',
           level: 'error',
           message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         console.error('[main] Failed to read diagnostics file:', err);
         return { type: 'diagnostics', path: filePath, data: null, error: String(err) };
@@ -338,7 +338,7 @@ void app.whenReady().then(() => {
           component: 'main-process',
           level: 'error',
           message: 'Operation failed',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
         console.error('[main] Failed to read harvest file:', err);
         return { type: 'harvest', path: filePath, data: null, error: String(err) };

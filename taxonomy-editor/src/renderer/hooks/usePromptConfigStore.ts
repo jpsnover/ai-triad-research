@@ -45,7 +45,7 @@ function loadWorkspaceDefaults(): Record<string, number | boolean | string> {
     const raw = localStorage.getItem(WORKSPACE_DEFAULTS_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'prompt-config-store', level: 'debug', message: 'Failed to load workspace defaults from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'prompt-config-store', level: 'debug', message: 'Failed to load workspace defaults from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return {};
   }
 }
@@ -53,7 +53,7 @@ function loadWorkspaceDefaults(): Record<string, number | boolean | string> {
 function saveWorkspaceDefaults(overrides: Record<string, number | boolean | string>): void {
   try {
     localStorage.setItem(WORKSPACE_DEFAULTS_KEY, JSON.stringify(overrides));
-  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'prompt-config-store', level: 'debug', message: 'Failed to save workspace defaults', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+  } catch (err) { getGlobalRecorder()?.record({ type: 'system.error', component: 'prompt-config-store', level: 'debug', message: 'Failed to save workspace defaults', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); }
 }
 
 // ── Store ──

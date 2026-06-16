@@ -212,7 +212,7 @@ function parseJsonFile(filePath: string): unknown {
       component: 'file-io',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     const msg = err instanceof Error ? err.message : String(err);
     const basename = path.basename(filePath);
@@ -255,7 +255,7 @@ function writeJsonFileAtomic(filePath: string, data: unknown): void {
       component: 'file-io',
       level: 'error',
       message: 'Operation failed',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     // Clean up tmp file if rename failed
     try { fs.unlinkSync(tmpPath); } catch { /* telemetry — silent by design;  ignore */ }
@@ -437,7 +437,7 @@ export function readAllConflictFiles(): unknown[] {
         component: 'file-io',
         level: 'error',
         message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       console.warn(`[fileIO] Skipping corrupt conflict file ${f}:`, err);
     }

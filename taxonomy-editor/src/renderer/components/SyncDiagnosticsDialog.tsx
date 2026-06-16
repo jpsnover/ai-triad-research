@@ -63,7 +63,7 @@ function formatDate(iso: string): string {
       component: 'sync-diagnostics-dialog',
       level: 'warn',
       message: 'Failed to format date string',
-      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     return iso;
   }
@@ -117,7 +117,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
         component: 'sync-diagnostics-dialog',
         level: 'error',
         message: 'Failed to fetch sync diagnostics',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setFetchError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -146,7 +146,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
         component: 'sync-diagnostics-dialog',
         level: 'error',
         message: `Sync action "${label}" failed`,
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setAction({ running: false, label: '', error: `${label} failed: ${err instanceof Error ? err.message : String(err)}`, success: null });
     }
@@ -254,7 +254,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                         component: 'sync-diagnostics-dialog',
                         level: 'error',
                         message: 'Set GitHub credentials failed',
-                        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+                        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
                       });
                       setAction({ running: false, label: '', error: `Set credentials failed: ${err instanceof Error ? err.message : String(err)}`, success: null });
                     }
@@ -461,7 +461,7 @@ export function SyncDiagnosticsDialog({ open, onClose }: SyncDiagnosticsDialogPr
                         component: 'sync-diagnostics-dialog',
                         level: 'error',
                         message: 'Create pull request failed',
-                        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+                        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
                       });
                       setAction({
                         running: false, label: '',

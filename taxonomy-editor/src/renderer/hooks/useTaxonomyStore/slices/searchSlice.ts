@@ -84,7 +84,7 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
       const has = await api.hasApiKey();
       set({ hasApiKey: has });
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to check API key availability', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to check API key availability', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       set({ hasApiKey: false });
     }
   },
@@ -173,7 +173,7 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
       set({ semanticResults: results, embeddingLoading: false });
     } catch (err) {
       const { aiBackend, geminiModel } = get();
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Semantic search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) }, data: { aiBackend, geminiModel } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Semantic search failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { aiBackend, geminiModel } });
       console.error('[semantic-search] Error during semantic search for query "' + query + '":', err);
       const detail = mapErrorToUserMessage(err);
       set({
@@ -221,7 +221,7 @@ export const createSearchSlice: StateCreator<TaxonomyStore, [], [], SearchSlice>
       set({ similarResults: filtered, similarLoading: false, similarStep: null });
     } catch (err) {
       const { aiBackend, geminiModel } = get();
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Similar node search failed', error: { name: (err as Error).name ?? 'Error', message: String(err) }, data: { aiBackend, geminiModel } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'error', message: 'Similar node search failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { aiBackend, geminiModel } });
       set({ similarLoading: false, similarStep: null, similarError: `[${aiBackend}/${geminiModel}] ${mapErrorToUserMessage(err)}` });
     }
   },

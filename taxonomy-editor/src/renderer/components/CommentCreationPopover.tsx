@@ -105,7 +105,7 @@ export function CommentCreationPopover({ popover, onClose }: CommentCreationPopo
         component: 'comment-popover',
         level: 'error',
         message: 'failed to save comment',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setError('Failed to save comment');
     } finally {

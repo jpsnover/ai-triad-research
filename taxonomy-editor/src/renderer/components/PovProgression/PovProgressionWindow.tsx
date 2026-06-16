@@ -63,7 +63,7 @@ export function PovProgressionWindow() {
           component: 'pov-progression',
           level: 'debug',
           message: 'Failed to load taxonomy files for node label lookup',
-          error: { name: (err as Error).name ?? 'Error', message: String(err) },
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
       }
     })();

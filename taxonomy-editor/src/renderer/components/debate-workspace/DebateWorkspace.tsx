@@ -27,6 +27,7 @@ import { DiagnosticsChatSidebar } from '../debate-diagnostics/chat';
 import type { NavigateCommand } from '../debate-diagnostics/chat';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useCommunityStore } from '../../hooks/useCommunityStore';
 import { CoverageBadge } from './TaxonomyRefs';
 import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText } from './StatementCard';
 import { PhaseProgressBar, ProgressIndicator, DebaterToggles, DebateActions } from './DebateActionBar';
@@ -94,6 +95,68 @@ function ExportButtonInline({ onExport }: { onExport: (format: string) => void }
       )}
     </div>
   );
+}
+
+function ShareToCommunityButton({ debate }: { debate: { id: string; topic: string; transcript: unknown[] } }) {
+  const [sharing, setSharing] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const submitItem = useCommunityStore(s => s.submitItem);
+  const communityUrl = useTaxonomyStore(s => s.communityServerUrl);
+
+  const handleShare = async () => {
+    setSharing(true);
+    setResult(null);
+    try {
+      const submissionId = await submitItem('debate', debate);
+      setResult({ ok: true, message: `Submitted (${submissionId.slice(0, 8)})` });
+      getGlobalRecorder()?.record({
+        type: 'lifecycle',
+        component: 'debate-workspace',
+        level: 'info',
+        message: 'community.submit.ok',
+        data: { debateId: debate.id, submissionId },
+      });
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-workspace',
+        level: 'error',
+        message: 'Failed to submit debate to community',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setResult({ ok: false, message: (err as Error).message });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const configured = !isElectronLike() || !!communityUrl;
+
+  return (
+    <span style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        className="btn btn-sm"
+        onClick={handleShare}
+        disabled={sharing || !configured}
+        title={!configured ? 'Set Community Server URL in Settings first' : 'Submit this debate to the Community Library'}
+      >
+        {sharing ? 'Sharing...' : 'Share'}
+      </button>
+      {result && (
+        <span
+          className="debate-toolbar-status"
+          style={{ color: result.ok ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)', marginLeft: 4, fontSize: '0.75rem' }}
+          title={result.message}
+        >
+          {result.ok ? result.message : 'Failed'}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function isElectronLike(): boolean {
+  return typeof window !== 'undefined' && 'electronAPI' in window;
 }
 
 // ── Similar POVs panel ───────────────────────────────────
@@ -386,7 +449,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         component: 'debate-workspace',
         level: 'warn',
         message: 'Coverage map computation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
     }
@@ -404,7 +467,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         component: 'debate-workspace',
         level: 'warn',
         message: 'Strength-weighted coverage computation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       return null;
     }
@@ -600,6 +663,7 @@ export function DebateWorkspace({ onExport, exportStatus }: {
         {onExport && (
           <ExportButtonInline onExport={onExport} />
         )}
+        <ShareToCommunityButton debate={activeDebate} />
         <span className="debate-tier-global" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>
           {(['brief', 'medium', 'detailed', 'reasoning', 'claims', 'convergence'] as const).map(tier => (
             <button
