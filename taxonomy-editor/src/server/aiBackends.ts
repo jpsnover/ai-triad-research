@@ -68,18 +68,20 @@ export interface GenerateTextProgress {
 // ── Model ID mapping (mtime-cached) ──
 
 let _modelMapCache: Record<string, string> | null = null;
-let _modelMapMtime = 0;
+let _fallbackChainCache: Record<string, string[]> | null = null;
+let _modelConfigMtime = 0;
 
-function loadModelMap(): Record<string, string> {
+function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: Record<string, string[]> } {
   try {
     const configPath = path.join(getProjectRoot(), 'ai-models.json');
     const stat = fs.statSync(configPath);
-    if (!_modelMapCache || stat.mtimeMs !== _modelMapMtime) {
+    if (!_modelMapCache || stat.mtimeMs !== _modelConfigMtime) {
       const raw = fs.readFileSync(configPath, 'utf-8');
-      const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[] };
+      const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[]; fallbackChains?: Record<string, string[]> };
       _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
-      _modelMapMtime = stat.mtimeMs;
-      log.api.debug({ count: Object.keys(_modelMapCache!).length }, 'Reloaded model map');
+      _fallbackChainCache = registry.fallbackChains ?? {};
+      _modelConfigMtime = stat.mtimeMs;
+      log.api.debug({ models: Object.keys(_modelMapCache!).length, chains: Object.keys(_fallbackChainCache!).length }, 'Reloaded model config');
     }
   } catch (err) {
     getGlobalRecorder()?.record({
@@ -89,10 +91,19 @@ function loadModelMap(): Record<string, string> {
       message: 'Operation failed',
       error: { name: (err as Error).name ?? 'Error', message: String(err) },
     });
-    log.api.warn({ err }, 'Failed to load model map');
+    log.api.warn({ err }, 'Failed to load model config');
     if (!_modelMapCache) _modelMapCache = {};
+    if (!_fallbackChainCache) _fallbackChainCache = {};
   }
-  return _modelMapCache!;
+  return { modelMap: _modelMapCache!, fallbackChains: _fallbackChainCache! };
+}
+
+function loadModelMap(): Record<string, string> {
+  return loadModelConfig().modelMap;
+}
+
+function getFallbackChain(modelId: string): string[] {
+  return loadModelConfig().fallbackChains[modelId] ?? [];
 }
 
 function getApiModelId(friendlyId: string): string {
@@ -139,30 +150,44 @@ export async function generateText(
   explicitApiKey?: string,
 ): Promise<GenerateResult> {
   const resolved = model || DEFAULT_MODEL;
-  const backend = resolveBackend(resolved);
-  const apiKey = explicitApiKey ?? await getApiKey(backend);
-  if (!apiKey) {
-    const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek' };
-    const backendName = names[backend] ?? backend;
-    throw new ActionableError({
-      goal: `Generate text via ${backendName}`,
-      problem: `No ${backendName} API key configured`,
-      location: 'aiBackends.generateText',
-      nextSteps: [`Set your ${backendName} API key in Settings`, 'Or switch to a backend that has a key configured'],
-    });
-  }
+  const modelsToTry = [resolved, ...getFallbackChain(resolved)];
 
-  const apiModel = getApiModelId(resolved);
-  const opts: GenerateOptions = {
-    temperature: _debateTemperature ?? 0.7,
-    timeoutMs: timeoutMs ?? getDefaultTimeout(resolved),
-  };
+  let lastError: unknown;
+  for (let mi = 0; mi < modelsToTry.length; mi++) {
+    const currentModel = modelsToTry[mi];
+    const backend = resolveBackend(currentModel);
+    const apiKey = explicitApiKey ?? await getApiKey(backend);
+    if (!apiKey) {
+      if (mi < modelsToTry.length - 1) {
+        getGlobalRecorder()?.record({
+          type: 'ai.fallback', component: 'ai-adapter', level: 'info',
+          message: `Skipping ${currentModel}: no ${backend} API key — trying next fallback`,
+          data: { model: currentModel, backend, fallbackIndex: mi, chain: modelsToTry },
+        });
+        continue;
+      }
+      const names: Record<string, string> = { gemini: 'Gemini', claude: 'Claude', groq: 'Groq', openai: 'OpenAI', tavily: 'Tavily', deepseek: 'DeepSeek' };
+      const backendName = names[backend] ?? backend;
+      throw new ActionableError({
+        goal: `Generate text via ${backendName}`,
+        problem: `No API key configured for any model in the fallback chain: ${modelsToTry.join(' → ')}`,
+        location: 'aiBackends.generateText',
+        nextSteps: [`Set your ${backendName} API key in Settings`, 'Or switch to a backend that has a key configured'],
+      });
+    }
 
-  const result = await withRetry(
-    () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
-    SERVER_RETRY_CONFIG,
-    `${backend}/${apiModel}`,
-    (msg: string) => {
+    const apiModel = getApiModelId(currentModel);
+    const opts: GenerateOptions = {
+      temperature: _debateTemperature ?? 0.7,
+      timeoutMs: timeoutMs ?? getDefaultTimeout(currentModel),
+    };
+
+    try {
+      const result = await withRetry(
+        () => callProvider(fetch, backend, prompt, apiModel, apiKey, opts),
+        SERVER_RETRY_CONFIG,
+        `${backend}/${apiModel}`,
+        (msg: string) => {
           const attemptMatch = msg.match(/attempt (\d+)\/(\d+)/);
           const backoffMatch = msg.match(/waiting (\d+)s/);
           const reasonMatch = msg.match(/failed \((.+?)\), waiting/);
@@ -181,9 +206,30 @@ export async function generateText(
             data: { attempt, maxRetries, backoffSeconds, reason, backend, model: apiModel },
           });
         },
-  );
+      );
 
-  return { text: result.text, tokenUsage: mapUsage(result.usage) };
+      if (mi > 0) {
+        getGlobalRecorder()?.record({
+          type: 'ai.fallback', component: 'ai-adapter', level: 'info',
+          message: `Fallback succeeded: ${currentModel} (after ${resolved} failed)`,
+          data: { originalModel: resolved, fallbackModel: currentModel, fallbackIndex: mi },
+        });
+      }
+      return { text: result.text, tokenUsage: mapUsage(result.usage) };
+    } catch (err) {
+      lastError = err;
+      if (mi < modelsToTry.length - 1) {
+        const nextModel = modelsToTry[mi + 1];
+        getGlobalRecorder()?.record({
+          type: 'ai.fallback', component: 'ai-adapter', level: 'warn',
+          message: `${currentModel} failed after retries — falling back to ${nextModel}`,
+          data: { failedModel: currentModel, nextModel, fallbackIndex: mi, error: String(err), chain: modelsToTry },
+        });
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 export type { SharedGroundingCitation as GroundingCitation };

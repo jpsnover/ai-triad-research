@@ -28,8 +28,11 @@ function truncateArg(arg: unknown, maxLen = 200): unknown {
 }
 
 /** Summarize args array for flight recorder (max 3 args logged). */
-function summarizeArgs(args: unknown[]): unknown[] {
-  return args.slice(0, 3).map(a => truncateArg(a));
+function summarizeArgs(args: unknown[], method?: string): unknown[] {
+  const redactIndices = method ? REDACT_ARGS[method] : undefined;
+  return args.slice(0, 3).map((a, i) =>
+    redactIndices?.includes(i) ? redactSecret(a) : truncateArg(a),
+  );
 }
 
 /** Extract result metadata for data-loading methods to enrich completion events. */
@@ -52,6 +55,18 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
     return { edge_count: Array.isArray(edges) ? edges.length : undefined };
   }
   return undefined;
+}
+
+/** Redact secret-bearing arguments before logging. Key = method name, value = arg indices to redact. */
+const REDACT_ARGS: Record<string, number[]> = {
+  setApiKey: [0],                // arg 0 is the raw API key
+  exportKeysForSharing: [0],     // arg 0 is the passphrase
+  importKeysFromSharing: [0, 1], // arg 0 is encrypted payload, arg 1 is passphrase
+};
+
+function redactSecret(value: unknown): string {
+  if (typeof value !== 'string' || value.length < 8) return '[REDACTED]';
+  return value.slice(0, 4) + '…' + value.slice(-2);
 }
 
 /** Methods that should NOT be wrapped. */
@@ -105,7 +120,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         component: recorder.intern('component', 'bridge') as string | number,
         level: 'debug',
         message: `bridge.${key}`,
-        data: { method: key, category, arg_count: args.length, args: summarizeArgs(args) },
+        data: { method: key, category, arg_count: args.length, args: summarizeArgs(args, key) },
       });
 
       let result: unknown;

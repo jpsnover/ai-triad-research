@@ -240,6 +240,19 @@ export class SessionBranchManager {
     return this.sessions.get(userId)?.branchName;
   }
 
+  /**
+   * Resolve the session branch for a user — fast in-memory check first,
+   * then GitHub fallback for cold starts / server restarts.
+   * Does NOT create a branch (read-safe). Returns undefined if no branch exists.
+   */
+  async resolveBranch(userId: string): Promise<string | undefined> {
+    const cached = this.sessions.get(userId);
+    if (cached) return cached.branchName;
+    if (userId === '_local') return undefined;
+    const exists = await this.checkBranchExists(userId);
+    return exists ? this.sessions.get(userId)?.branchName : undefined;
+  }
+
   /** Get the full state for a user's session, or undefined. */
   getSessionState(userId: string): SessionBranchState | undefined {
     return this.sessions.get(userId);

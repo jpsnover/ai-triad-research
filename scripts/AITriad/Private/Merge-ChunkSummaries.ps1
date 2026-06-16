@@ -211,7 +211,10 @@ function Merge-ChunkSummaries {
 
     # ── Context-rot: merge/dedup metrics ─────────────────────────────────────
     $PostDedupPoints = 0
-    foreach ($c in $Camps) { $PostDedupPoints += @($MergedPovSummaries[$c].key_points).Count }
+    foreach ($c in $Camps) {
+        $kp = if ($MergedPovSummaries[$c].Contains('key_points')) { $MergedPovSummaries[$c].key_points } else { @() }
+        $PostDedupPoints += @($kp).Count
+    }
     $PostDedupClaims = $AllClaims.Count
     $PostDedupConcepts = $AllUnmapped.Count
     $TotalIn = $PreDedupPoints + $PreDedupClaims + $PreDedupConcepts

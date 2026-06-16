@@ -690,7 +690,7 @@ export default function KeyPointsPane() {
       if (summary.pov_summaries) {
         for (const [pov, povSummary] of Object.entries(summary.pov_summaries)) {
           if (!groups[pov]) continue;
-          povSummary.key_points.forEach((kp, idx) => {
+          (povSummary.key_points ?? []).forEach((kp, idx) => {
             const taxNode = kp.taxonomy_node_id ? taxonomy[kp.taxonomy_node_id] : null;
             groups[pov].push({
               docId: sourceId,
@@ -743,7 +743,7 @@ export default function KeyPointsPane() {
 
       for (const [pov, povSummary] of Object.entries(summary.pov_summaries)) {
         if (!POV_CONFIG[pov]) continue;
-        povSummary.key_points.forEach((kp, idx) => {
+        (povSummary.key_points ?? []).forEach((kp, idx) => {
           const ctx = kp.excerpt_context || '(no context)';
           if (!fragmentMap.has(ctx)) {
             fragmentMap.set(ctx, []);

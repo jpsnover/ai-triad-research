@@ -281,14 +281,15 @@ $ChunkText
             $ChunkPts = 0
             $ChunkNulls = 0
             foreach ($c in @('accelerationist','safetyist','skeptic')) {
-                if ($ChunkObj.pov_summaries.$c -and $ChunkObj.pov_summaries.$c.key_points) {
-                    $pts = @($ChunkObj.pov_summaries.$c.key_points)
+                $campObj = $ChunkObj.pov_summaries.$c
+                if ($campObj -and $campObj.PSObject.Properties['key_points'] -and $campObj.key_points) {
+                    $pts = @($campObj.key_points)
                     $ChunkPts += $pts.Count
                     $ChunkNulls += @($pts | Where-Object { $null -eq $_.taxonomy_node_id }).Count
                 }
             }
-            $ChunkFacts = if ($ChunkObj.factual_claims) { @($ChunkObj.factual_claims).Count } else { 0 }
-            $ChunkUnmapped = if ($ChunkObj.unmapped_concepts) { @($ChunkObj.unmapped_concepts).Count } else { 0 }
+            $ChunkFacts = if ($ChunkObj.PSObject.Properties['factual_claims'] -and $ChunkObj.factual_claims) { @($ChunkObj.factual_claims).Count } else { 0 }
+            $ChunkUnmapped = if ($ChunkObj.PSObject.Properties['unmapped_concepts'] -and $ChunkObj.unmapped_concepts) { @($ChunkObj.unmapped_concepts).Count } else { 0 }
             $ChunkExtractionStats.TotalPoints += $ChunkPts
             $ChunkExtractionStats.NullNodes += $ChunkNulls
             $ChunkExtractionStats.FactualClaims += $ChunkFacts
@@ -680,7 +681,9 @@ function Finalize-Summary {
     }
     function Get-Field($Obj, [string]$Name) {
         if ($Obj -is [System.Collections.IDictionary]) { return $Obj[$Name] }
-        return $Obj.$Name
+        $P = $Obj.PSObject.Properties[$Name]
+        if ($P) { return $P.Value }
+        return $null
     }
 
     $Camps        = @('accelerationist','safetyist','skeptic')
@@ -748,12 +751,15 @@ function Finalize-Summary {
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
         if ($CampData) {
-            if ($CampData.key_points) {
-                foreach ($kp in $CampData.key_points) {
-                    if ($kp.stance -notin $script:ValidStances) { $kp.stance = Resolve-Stance $kp.stance }
+            if (Has-Field $CampData 'key_points') {
+                $kpList = Get-Field $CampData 'key_points'
+                if ($kpList) {
+                    foreach ($kp in $kpList) {
+                        if ($kp.stance -notin $script:ValidStances) { $kp.stance = Resolve-Stance $kp.stance }
+                    }
+                    $TotalPoints += @($kpList).Count
+                    $NullNodes   += @($kpList | Where-Object { $null -eq $_.taxonomy_node_id }).Count
                 }
-                $TotalPoints += @($CampData.key_points).Count
-                $NullNodes   += @($CampData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
             }
         }
     }
@@ -764,8 +770,10 @@ function Finalize-Summary {
     if ($null -ne $NodeIdSet -and $NodeIdSet.Count -gt 0) {
         foreach ($Camp in $Camps) {
             $CampData = $SummaryObject.pov_summaries.$Camp
-            if (-not $CampData -or -not $CampData.key_points) { continue }
-            foreach ($kp in $CampData.key_points) {
+            if (-not $CampData -or -not (Has-Field $CampData 'key_points')) { continue }
+            $kpList769 = Get-Field $CampData 'key_points'
+            if (-not $kpList769) { continue }
+            foreach ($kp in $kpList769) {
                 if (-not $kp.taxonomy_node_id) { continue }
                 if (-not $NodeIdSet.Contains($kp.taxonomy_node_id)) {
                     $InvalidNodeIds.Add("$Camp/$($kp.taxonomy_node_id)")
@@ -795,8 +803,10 @@ function Finalize-Summary {
     $CrossCampWarnings = [System.Collections.Generic.List[string]]::new()
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
-        if (-not $CampData -or -not $CampData.key_points) { continue }
-        foreach ($kp in $CampData.key_points) {
+        if (-not $CampData -or -not (Has-Field $CampData 'key_points')) { continue }
+        $kpList800 = Get-Field $CampData 'key_points'
+        if (-not $kpList800) { continue }
+        foreach ($kp in $kpList800) {
             if (-not $kp.taxonomy_node_id) { continue }
             $Key = "$($kp.taxonomy_node_id)|$($kp.stance)"
             if ($NodeStanceMap.ContainsKey($Key)) {

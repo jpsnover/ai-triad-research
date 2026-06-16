@@ -327,7 +327,7 @@ $SnapshotText
     $TotalPoints = 0; $NullNodes = 0
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
-        if ($CampData -and $CampData.key_points) {
+        if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
             $TotalPoints += @($CampData.key_points).Count
             $NullNodes += @($CampData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
         }

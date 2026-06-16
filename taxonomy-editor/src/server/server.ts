@@ -2473,7 +2473,7 @@ async function handleRequestInner(
   // Reads start with the active branch (or undefined → 'main').
   // Writes call ensureSessionBranch() which updates the ALS mid-request.
   const sessionBranch = (githubBackend && sessionManager)
-    ? sessionManager.getActiveBranch(principalName || '_local') ?? undefined
+    ? await sessionManager.resolveBranch(principalName || '_local')
     : undefined;
   const isAnon = !principalName;
   const effectivePrincipal = principalName || '_local';
