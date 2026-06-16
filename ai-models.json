@@ -251,13 +251,13 @@
     },
     {
       "id": "claude-opus-4",
-      "apiModelId": "claude-opus-4-20250514",
+      "apiModelId": "claude-opus-4-8",
       "label": "Opus 4",
       "backend": "claude"
     },
     {
       "id": "claude-sonnet-4",
-      "apiModelId": "claude-sonnet-4-20250514",
+      "apiModelId": "claude-sonnet-4-6",
       "label": "Sonnet 4",
       "backend": "claude"
     },
