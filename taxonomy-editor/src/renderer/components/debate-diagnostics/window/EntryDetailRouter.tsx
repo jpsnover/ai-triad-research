@@ -25,7 +25,7 @@ import type {
   TurnValidationTrail,
 } from '../../../types/debate';
 import { getGlobalRecorder, type FlightRecorderEvent } from '@lib/flight-recorder/index';
-import { TaxonomyRefDetail, type TaxRefEdge } from '../../TaxonomyRefDetail';
+import { TaxonomyRefDetail, type TaxRefEdge } from '../../taxonomy/TaxonomyRefDetail';
 import { speakerLabel } from './helpers';
 import { api } from '@bridge';
 import { EntryTab, OverviewTab, UtilitySnapshot } from './types';

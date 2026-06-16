@@ -16,12 +16,12 @@ import { AdaptiveStagingTab } from './overview-tabs';
 import { ReflectionsTab } from './overview-tabs';
 import { UtilityTab } from './overview-tabs';
 
-import { ExtractionTimelinePanel } from '../../ExtractionTimelinePanel';
-import { ConvergenceSignalsPanel } from '../../ConvergenceSignalsPanel';
-import { TaxonomyGapPanel } from '../../TaxonomyGapPanel';
-import { GroundingPanel } from '../../GroundingPanel';
+import { ExtractionTimelinePanel } from '../../analysis/ExtractionTimelinePanel';
+import { ConvergenceSignalsPanel } from '../../analysis/ConvergenceSignalsPanel';
+import { TaxonomyGapPanel } from '../../analysis/TaxonomyGapPanel';
+import { GroundingPanel } from '../../analysis/GroundingPanel';
 import { PovProgressionView } from '../../PovProgression/PovProgressionView';
-import { PromptDiffContent } from '../../PromptDiffWindow';
+import { PromptDiffContent } from '../../chat/PromptDiffWindow';
 import { CommitmentsPanel } from './shared';
 
 declare const __COMPONENT_VERSIONS__: Record<string, string>;

@@ -5,7 +5,7 @@ import React from 'react';
 import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
 import { Highlight, CopyButton } from '../helpers';
 import { classifyHintTarget, HINT_TARGET_STYLE } from '../shared';
-import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../TaxonomyRefDetail';
+import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 
 export interface PlanTabProps {
   planStage: any;

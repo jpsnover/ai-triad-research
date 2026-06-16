@@ -6,7 +6,7 @@ import type { DebateSession, TurnValidationTrail } from '../../../../types/debat
 import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
 import { Highlight, CopyButton } from '../helpers';
 import { classifyHintTarget, HINT_TARGET_STYLE } from '../shared';
-import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../TaxonomyRefDetail';
+import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 
 export interface BriefTabProps {
   entry: DebateSession['transcript'][number];
