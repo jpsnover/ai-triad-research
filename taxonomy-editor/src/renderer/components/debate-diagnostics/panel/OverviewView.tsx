@@ -7,7 +7,7 @@ import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
 import type { SpeakerId, ArgumentNetworkNode, ArgumentNetworkEdge, QbafTimelineEntry } from '../../../types/debate';
-import { QbafClaimBadge, QbafEdgeIndicator } from '../../QbafOverlay';
+import { QbafClaimBadge, QbafEdgeIndicator } from '../../taxonomy/QbafOverlay';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { TopicScope, TopicScopeRiskLevel } from '@lib/debate/types';

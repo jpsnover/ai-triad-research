@@ -17,7 +17,7 @@ import type { MoveAnnotation } from '@lib/debate/helpers';
 import { speakerLabel, Highlight, Section, ResizablePre } from '../helpers';
 import { SUPPRESSION_REASON_TOOLTIPS } from '../shared/constants';
 import { classifyHintTarget, HINT_TARGET_STYLE, EdgesUsedGrouped } from '../shared';
-import type { TaxRefEdge } from '../../../TaxonomyRefDetail';
+import type { TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 import type { UtilitySnapshot } from '../types';
 import type { FlightRecorderEvent } from '@lib/flight-recorder/index';
 

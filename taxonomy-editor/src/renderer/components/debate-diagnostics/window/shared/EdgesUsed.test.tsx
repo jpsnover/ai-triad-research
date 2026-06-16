@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { edgeNodeColor, truncateLabel, EdgesUsedDetail, EdgesUsedGrouped } from './EdgesUsed';
-import type { TaxRefEdge } from '../../../TaxonomyRefDetail';
+import type { TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 
 // --- edgeNodeColor ---
 

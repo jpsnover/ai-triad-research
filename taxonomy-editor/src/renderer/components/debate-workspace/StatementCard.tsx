@@ -17,7 +17,7 @@ import {
 } from './utils';
 import { ClaimsView } from './ClaimsView';
 import { LineageTermsView, VocabTermsView } from './VocabularyPanel';
-import { CommentHighlightedText, useEntryCommentCount, useHasCommentHighlights } from '../CommentHighlights';
+import { CommentHighlightedText, useEntryCommentCount, useHasCommentHighlights } from '../chat/CommentHighlights';
 import { useCommentStore } from '../../hooks/useCommentStore';
 import type { DetailTier } from '@lib/debate/comments';
 import { TaxonomyRefsSection } from './TaxonomyRefs';

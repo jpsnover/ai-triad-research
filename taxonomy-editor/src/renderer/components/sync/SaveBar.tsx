@@ -1,0 +1,225 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { triggerManualDump } from '../../lib/flightRecorderInit';
+import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
+import { SyncDiagnosticsDialog } from './SyncDiagnosticsDialog';
+
+function formatFileKey(key: string): string {
+  if (key === 'situations') return 'Situations';
+  if (key.startsWith('conflict-')) return key;
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+export function SaveBar() {
+  const { dirty, save, saveError, dismissSaveError, validationErrors, integrityIssues, fixIntegrityErrors, zoomLevel, zoomIn, zoomOut, zoomReset } = useTaxonomyStore();
+  const isOnline = useOnlineStatus();
+  const isDirty = dirty.size > 0;
+  const [showErrors, setShowErrors] = useState(false);
+  const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
+  const [syncDiagOpen, setSyncDiagOpen] = useState(false);
+  const { status: syncStatus, refresh: refreshSync } = useSyncStatus();
+
+  // Refresh sync status after a save completes (dirty transitions non-zero → 0).
+  const prevDirtyCountRef = useRef(dirty.size);
+  useEffect(() => {
+    const prev = prevDirtyCountRef.current;
+    const now = dirty.size;
+    if (prev > 0 && now === 0 && syncStatus.enabled) {
+      // Slight delay so the server-side commit has landed.
+      const t = setTimeout(() => { void refreshSync(); }, 500);
+      return () => clearTimeout(t);
+    }
+    prevDirtyCountRef.current = now;
+    return undefined;
+  }, [dirty.size, syncStatus.enabled, refreshSync]);
+
+  const hasErrors = Object.keys(validationErrors).length > 0;
+
+  const dirtyList = useMemo(() => [...dirty].map(formatFileKey).join(', '), [dirty]);
+
+  const groupedErrors = useMemo(() => {
+    const groups: Record<string, { path: string; message: string }[]> = {};
+    for (const [path, message] of Object.entries(validationErrors)) {
+      // path looks like "nodes.acc-goal-001.label" or "conflict-xyz.description"
+      const parts = path.split('.');
+      let fileKey: string;
+      let fieldPath: string;
+      if (parts[0] === 'nodes' && parts.length >= 3) {
+        // POV / situations: nodes.NODE_ID.field
+        const nodeId = parts[1];
+        fileKey = nodePovFromId(nodeId) ?? 'unknown';
+        fieldPath = `${nodeId} → ${parts.slice(2).join('.')}`;
+      } else if (parts[0].startsWith('conflict-')) {
+        fileKey = parts[0];
+        fieldPath = parts.slice(1).join('.');
+      } else {
+        fileKey = parts[0];
+        fieldPath = parts.slice(1).join('.') || parts[0];
+      }
+      const displayKey = formatFileKey(fileKey);
+      if (!groups[displayKey]) groups[displayKey] = [];
+      groups[displayKey].push({ path: fieldPath, message });
+    }
+    return groups;
+  }, [validationErrors]);
+
+  return (
+    <div className="save-bar">
+      {!isOnline && <span className="save-bar-offline">Offline</span>}
+      <span className={`save-bar-status ${isDirty ? 'dirty' : ''}`}>
+        {isDirty
+          ? `Unsaved: ${dirtyList}`
+          : 'All changes saved'}
+      </span>
+      {saveError && (
+        <span className="save-bar-error-wrap">
+          <span
+            className={`save-bar-error ${hasErrors ? 'clickable' : ''}`}
+            onClick={() => hasErrors && setShowErrors(v => !v)}
+            title={hasErrors ? 'Click to see error details' : undefined}
+          >
+            {saveError}{hasErrors && (showErrors ? ' ▾' : ' ▸')}
+          </span>
+          {integrityIssues.length > 0 && (
+            <button
+              type="button"
+              className="save-bar-fix-btn"
+              onClick={(e) => { e.stopPropagation(); fixIntegrityErrors(); }}
+              title="Auto-fix integrity errors (removes dangling references)"
+            >
+              Fix it
+            </button>
+          )}
+          <button
+            type="button"
+            className="save-bar-error-dismiss"
+            onClick={(e) => { e.stopPropagation(); setShowErrors(false); dismissSaveError(); }}
+            title="Dismiss error"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
+        </span>
+      )}
+      {showErrors && hasErrors && (
+        <div className="save-bar-error-panel">
+          {Object.entries(groupedErrors).map(([file, errs]) => (
+            <div key={file} className="save-bar-error-group">
+              <div className="save-bar-error-file">{file}</div>
+              {errs.map((e, i) => (
+                <div key={i} className="save-bar-error-item">
+                  <span className="save-bar-error-path">{e.path}</span>
+                  <span className="save-bar-error-msg">{e.message}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="save-bar-right">
+        {syncStatus.enabled && syncStatus.has_conflicts && (
+          <span
+            className="save-bar-conflict-banner"
+            title="Your session branch has merge conflicts with main — open the sync panel to resolve"
+            onClick={() => setSyncDrawerOpen(true)}
+          >
+            Conflicts detected
+          </span>
+        )}
+        {syncStatus.enabled && syncStatus.unsynced_count > 0 && (
+          <button
+            type="button"
+            className="save-bar-unsynced"
+            onClick={() => setSyncDrawerOpen(true)}
+            title={`${syncStatus.unsynced_count} unsynced change${syncStatus.unsynced_count === 1 ? '' : 's'} on ${syncStatus.session_branch ?? 'session branch'} — click to review`}
+          >
+            <span className="save-bar-unsynced-dot" aria-hidden="true" />
+            {syncStatus.unsynced_count} unsynced
+          </button>
+        )}
+        {syncStatus.enabled && syncStatus.main_updated_available && (
+          <button
+            type="button"
+            className="save-bar-upstream"
+            onClick={() => setSyncDrawerOpen(true)}
+            title="origin/main has new commits — click to resync"
+          >
+            <span className="save-bar-upstream-dot" aria-hidden="true" />
+            Upstream updated
+          </button>
+        )}
+        {syncStatus.enabled && syncStatus.rebase_in_progress && (
+          <button
+            type="button"
+            className="save-bar-rebase"
+            onClick={() => setSyncDrawerOpen(true)}
+            title="Rebase paused on conflicts — click to resolve"
+          >
+            <span className="save-bar-rebase-dot" aria-hidden="true" />
+            Rebase paused
+          </button>
+        )}
+        <button
+          type="button"
+          className="save-bar-sync-diag"
+          onClick={() => setSyncDiagOpen(true)}
+          title="Sync diagnostics"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button
+          type="button"
+          className="save-bar-sync-diag"
+          onClick={triggerManualDump}
+          title="Dump flight recorder (⌃⌥D)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+        {import.meta.env.VITE_TARGET === 'web' && (
+          <button
+            type="button"
+            className="save-bar-sync-diag"
+            onClick={() => { window.location.hash = '#analytics'; }}
+            title="Usage Analytics"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          </button>
+        )}
+        <div className="zoom-controls">
+          <button className="btn btn-ghost btn-sm" onClick={zoomOut} title="Zoom out (Ctrl+-)">-</button>
+          <button
+            className="btn btn-ghost btn-sm zoom-level"
+            onClick={zoomReset}
+            title="Reset zoom (Ctrl+0)"
+          >
+            {zoomLevel}%
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={zoomIn} title="Zoom in (Ctrl+=)">+</button>
+        </div>
+        <button
+          className="btn btn-primary"
+          onClick={save}
+          disabled={!isDirty}
+        >
+          Save
+        </button>
+      </div>
+      <UnsyncedChangesDrawer
+        open={syncDrawerOpen}
+        onClose={() => setSyncDrawerOpen(false)}
+        status={syncStatus}
+        onChanged={() => { void refreshSync(); }}
+      />
+      <SyncDiagnosticsDialog
+        open={syncDiagOpen}
+        onClose={() => setSyncDiagOpen(false)}
+      />
+    </div>
+  );
+}

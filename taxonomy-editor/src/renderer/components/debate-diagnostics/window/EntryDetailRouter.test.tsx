@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { EntryDetailRouter } from './EntryDetailRouter';
 import type { EntryDetailRouterProps } from './EntryDetailRouter';
 import type { EntryTab, OverviewTab, UtilitySnapshot } from './types';
-import type { TaxRefEdge } from '../../TaxonomyRefDetail';
+import type { TaxRefEdge } from '../../taxonomy/TaxonomyRefDetail';
 
 // ---------------------------------------------------------------------------
 // Mocks

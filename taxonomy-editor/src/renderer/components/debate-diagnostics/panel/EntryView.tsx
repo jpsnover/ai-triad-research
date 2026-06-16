@@ -6,7 +6,7 @@ import { useDebateStore } from '../../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../../hooks/useTaxonomyStore';
 import { POVER_INFO } from '../../../types/debate';
 import type { SpeakerId, EntryDiagnostics, ArgumentNetworkNode, ArgumentNetworkEdge } from '../../../types/debate';
-import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from '../../QbafOverlay';
+import { QbafClaimBadge, QbafScoreSlider, QbafEdgeIndicator } from '../../taxonomy/QbafOverlay';
 import { getMoveName } from '@lib/debate/helpers';
 import type { MoveAnnotation } from '@lib/debate/helpers';
 import { api } from '@bridge';

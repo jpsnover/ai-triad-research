@@ -4,7 +4,7 @@
 import React from 'react';
 import type { DebateSession, TurnValidationTrail } from '../../../../types/debate';
 import { humanizeSpeakerIds } from '../../../../utils/humanizeSpeakers';
-import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../TaxonomyRefDetail';
+import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 import { Highlight, CopyButton } from '../helpers';
 import { classifyHintTarget, HINT_TARGET_STYLE } from '../shared';
 

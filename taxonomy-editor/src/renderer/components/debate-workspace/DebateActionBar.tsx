@@ -10,9 +10,9 @@ import { AI_POVERS } from '@lib/debate/types';
 import { speakerLabel } from './utils';
 import type { AdaptivePhase } from './utils';
 import { ADAPTIVE_PHASES, ADAPTIVE_PHASE_LABELS, ADAPTIVE_PHASE_COLORS } from './utils';
-import { HarvestDialog } from '../HarvestDialog';
-import { ReflectionsPanel } from '../ReflectionsPanel';
-import { NewsReportModal } from '../NewsReportModal';
+import { HarvestDialog } from '../shared/HarvestDialog';
+import { ReflectionsPanel } from '../shared/ReflectionsPanel';
+import { NewsReportModal } from '../shared/NewsReportModal';
 
 export function ProgressIndicator() {
   const { debateActivity, debateProgress } = useDebateStore(

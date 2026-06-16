@@ -8,7 +8,7 @@ import type { DebateSession, EntryDiagnostics, ArgumentNetworkNode, CommitmentSt
 import { computeQbafStrengths } from '@lib/debate/qbaf';
 import type { QbafNode, QbafEdge } from '@lib/debate/qbaf';
 import type { NavigateCommand } from '../chat';
-import type { TaxRefEdge } from '../../TaxonomyRefDetail';
+import type { TaxRefEdge } from '../../taxonomy/TaxonomyRefDetail';
 import { countMatches } from './helpers';
 import type { OverviewTab, EntryTab, UtilitySnapshot } from './types';
 import { UTILITY_WEIGHTS } from './types';

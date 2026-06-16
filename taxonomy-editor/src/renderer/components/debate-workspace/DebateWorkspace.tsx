@@ -8,21 +8,21 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DEBATE_AUDIENCES } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
-import { DebateSourceViewer } from '../DebateSourceViewer';
-import { NeutralEvaluationPanel } from '../NeutralEvaluationPanel';
-import { ParameterHistoryPanel } from '../ParameterHistoryPanel';
+import { DebateSourceViewer } from '../debate/DebateSourceViewer';
+import { NeutralEvaluationPanel } from '../analysis/NeutralEvaluationPanel';
+import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
 import { computeCoverageMap, computeStrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import type { CoverageMap, StrengthWeightedCoverage } from '@lib/debate/coverageTracker';
 import {
   speakerLabel, speakerColor, nodeIdToTab, focusMainWindowNode, countOccurrences,
 } from './utils';
 import type { AdaptivePhase } from './utils';
-import { CommentCreationPopover } from '../CommentCreationPopover';
-import type { CommentPopoverState } from '../CommentCreationPopover';
-import { CommentSidebar } from '../CommentSidebar';
+import { CommentCreationPopover } from '../chat/CommentCreationPopover';
+import type { CommentPopoverState } from '../chat/CommentCreationPopover';
+import { CommentSidebar } from '../chat/CommentSidebar';
 import { useCommentStore } from '../../hooks/useCommentStore';
 import type { DetailTier } from '@lib/debate/comments';
-import { UsernamePromptDialog } from '../UsernamePromptDialog';
+import { UsernamePromptDialog } from '../shared/UsernamePromptDialog';
 import { DiagnosticsChatSidebar } from '../debate-diagnostics/chat';
 import type { NavigateCommand } from '../debate-diagnostics/chat';
 import { triggerManualDump } from '../../lib/flightRecorderInit';

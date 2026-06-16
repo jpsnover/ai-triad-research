@@ -3,7 +3,7 @@
 
 import { useState, useMemo } from 'react';
 import { POV_NODE_COLOR } from './constants';
-import type { TaxRefEdge, TaxRefNode } from '../../../TaxonomyRefDetail';
+import type { TaxRefEdge, TaxRefNode } from '../../../taxonomy/TaxonomyRefDetail';
 
 // NOTE: AifBadge stays in DiagnosticsWindow.tsx (parent) — not used by these components directly.
 // NOTE: speakerLabel stays in DiagnosticsWindow.tsx (parent) — not used by these components directly.

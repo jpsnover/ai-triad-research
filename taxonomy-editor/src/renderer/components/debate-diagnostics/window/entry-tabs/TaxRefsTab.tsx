@@ -3,7 +3,7 @@
 
 import React, { Fragment } from 'react';
 import type { DebateSession } from '../../../../types/debate';
-import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../TaxonomyRefDetail';
+import { TaxonomyRefDetail, type TaxRefNode, type TaxRefEdge } from '../../../taxonomy/TaxonomyRefDetail';
 import { truncateLabel } from '../shared/constants';
 import type { OverviewTab } from '../types';
 
