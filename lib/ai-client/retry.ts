@@ -60,6 +60,9 @@ export async function withRetry<T>(
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       const lower = msg.toLowerCase();
+      if (lower.includes('error 401') || lower.includes('error 403') ||
+          lower.includes('status 401') || lower.includes('status 403') ||
+          lower.includes(' 401:') || lower.includes(' 403:')) throw err;
       const isRetryable =
         msg.includes('429') || msg.includes('503') ||
         lower.includes('rate') || lower.includes('unavailable') ||
@@ -72,7 +75,8 @@ export async function withRetry<T>(
       const delay = config.strategy === 'fixed'
         ? (config.fixedDelays?.[attempt - 1] ?? 45)
         : Math.min(2 ** attempt, config.maxBackoffS ?? 30);
-      onLog?.(`[retry] ${label} attempt ${attempt}/${config.maxRetries} failed (${msg.slice(0, 80)}), waiting ${delay}s...`);
+      const errSummary = err instanceof ActionableError ? err.problem : msg.slice(0, 300);
+      onLog?.(`[retry] ${label} attempt ${attempt}/${config.maxRetries} failed (${errSummary}), waiting ${delay}s...`);
       await new Promise(r => setTimeout(r, delay * 1000));
     }
   }
