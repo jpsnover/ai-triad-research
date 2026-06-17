@@ -1363,6 +1363,50 @@ get('/api/snapshots/:sourceId', async (req, res) => {
   json(res, { content: data });
 });
 
+// ── Source documents (resolve doc_id → content/path; serve raw PDF) ──
+
+get('/api/source-documents/:docId', async (req, res) => {
+  const docId = param(req, 'docId', '/api/source-documents/:docId');
+  try {
+    json(res, await fileIO.resolveSourceDocument(docId));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err, docId }, 'source-document resolution failed');
+    // AC #3 graceful degradation — never surface a 500 for a missing/bad doc.
+    json(res, { available: false, type: null });
+  }
+});
+
+get('/api/source-documents/:docId/file', async (req, res) => {
+  const docId = param(req, 'docId', '/api/source-documents/:docId/file');
+  try {
+    const pdf = await fileIO.readSourceDocumentPdf(docId);
+    if (pdf === null) { error(res, `Source document not found: ${docId}`, 404); return; }
+    res.writeHead(200, {
+      'Content-Type': 'application/pdf',
+      'Content-Length': pdf.length,
+      'Content-Disposition': `inline; filename="${encodeURIComponent(docId)}.pdf"`,
+    });
+    res.end(pdf);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err, docId }, 'source-document file serve failed');
+    error(res, String(err));
+  }
+});
+
 // ── Dictionary ──
 
 get('/api/dictionary', async (_req, res) => {

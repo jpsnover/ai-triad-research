@@ -301,7 +301,7 @@ let lineageInfoCache: Record<string, unknown> | null = null;
 
 export async function readLineageEnrichments(): Promise<Record<string, unknown>> {
   if (lineageInfoCache) return lineageInfoCache;
-  const filePath = path.join(getDataRoot(), 'calibration', 'lineage-enrichments.json');
+  const filePath = path.join(getDataRoot(), 'calibration', 'core', 'lineage-enrichments.json');
   const raw = await backend.readFile(filePath);
   if (raw === null) return {};
   try {
@@ -1057,6 +1057,87 @@ export async function loadSnapshot(sourceId: string): Promise<string | null> {
   const sourcesDir = getSourcesDir();
   if (!sourcesDir) return null; // sources unavailable
   return backend.readFile(path.join(sourcesDir, sourceId, 'snapshot.md'));
+}
+
+// ── Source document resolution ──
+
+/** Result of resolving a fact's `doc_id` to an actual source document. */
+export interface SourceDocumentResolution {
+  available: boolean;
+  type: 'pdf' | 'markdown' | null;
+  /** Inline markdown content (markdown type only). */
+  content?: string;
+  /** Path/URL to fetch the document (pdf type only). Same-origin API URL in
+   *  server mode; the Electron IPC mirror returns a local file path instead. */
+  path?: string;
+}
+
+/** Find the raw PDF inside a source's `raw/` directory. Returns absolute path or null. */
+async function findRawPdfPath(docId: string): Promise<string | null> {
+  const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return null;
+  const rawDir = path.join(sourcesDir, docId, 'raw');
+  const entries = await backend.listDirectory(rawDir);
+  const pdf = entries.find(e => e.toLowerCase().endsWith('.pdf'));
+  return pdf ? path.join(rawDir, pdf) : null;
+}
+
+/**
+ * Resolve a source document by id. Determines whether the document exists and
+ * returns its content (markdown) or a URL to fetch it (PDF).
+ *
+ * Resolution order:
+ *   1. metadata source_type 'pdf' (or only a PDF present) + a raw PDF → pdf
+ *   2. snapshot.md present → markdown (content inline)
+ *   3. a raw PDF present without snapshot → pdf
+ *   4. otherwise → { available: false } (AC #3 graceful degradation)
+ */
+export async function resolveSourceDocument(docId: string): Promise<SourceDocumentResolution> {
+  assertSafeId(docId, 'document id');
+  const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return { available: false, type: null }; // sources unavailable
+
+  const docDir = path.join(sourcesDir, docId);
+
+  // Read metadata best-effort to learn the original document type.
+  let sourceType = '';
+  try {
+    const metaRaw = await backend.readFile(path.join(docDir, 'metadata.json'));
+    if (metaRaw) sourceType = String(JSON.parse(metaRaw).source_type ?? '').toLowerCase();
+  } catch (err) {
+    // Malformed/missing metadata — fall back to content detection below.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'fileIO',
+      level: 'warn',
+      message: 'source document metadata unreadable',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+
+  const pdfPath = await findRawPdfPath(docId);
+  const snapshot = await backend.readFile(path.join(docDir, 'snapshot.md'));
+  const fileUrl = `/api/source-documents/${encodeURIComponent(docId)}/file`;
+
+  // Prefer the PDF when the source is a PDF, or when no markdown snapshot exists.
+  if (pdfPath && (sourceType === 'pdf' || snapshot === null)) {
+    return { available: true, type: 'pdf', path: fileUrl };
+  }
+  if (snapshot !== null) {
+    return { available: true, type: 'markdown', content: snapshot };
+  }
+  if (pdfPath) {
+    return { available: true, type: 'pdf', path: fileUrl };
+  }
+  return { available: false, type: null };
+}
+
+/** Read the raw PDF bytes for a source document. Returns null if absent. */
+export async function readSourceDocumentPdf(docId: string): Promise<Buffer | null> {
+  assertSafeId(docId, 'document id');
+  const pdfPath = await findRawPdfPath(docId);
+  if (!pdfPath) return null;
+  return backend.readBinaryFile(pdfPath);
 }
 
 // ── Dictionary ──
