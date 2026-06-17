@@ -3629,6 +3629,53 @@ body {
   border-color: var(--focus-ring, #2563eb);
 }
 
+/* ─── Node edit history ───────────────────────────────── */
+
+.node-edit-history { display: flex; flex-direction: column; gap: 16px; }
+.node-edit-history-empty { color: var(--text-secondary); padding: 24px 0; text-align: center; }
+.node-edit-history-empty p { margin: 4px 0; }
+.node-edit-history-hint { font-size: 0.85em; opacity: 0.7; }
+
+.node-edit-history-summary {
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.node-edit-history-meta-row { display: flex; align-items: center; gap: 8px; font-size: 0.9em; }
+.node-edit-history-meta-label { color: var(--text-secondary); min-width: 100px; }
+.node-edit-history-meta-value { font-weight: 500; }
+.node-edit-history-meta-time { color: var(--text-secondary); margin-left: auto; font-size: 0.85em; }
+
+.node-edit-history-list-header {
+  font-size: 0.85em;
+  color: var(--text-secondary);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 8px;
+}
+.node-edit-history-entries { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+.node-edit-history-entry {
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+.node-edit-history-entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.node-edit-history-entry-user { font-weight: 500; font-size: 0.9em; }
+.node-edit-history-entry-time { font-size: 0.8em; color: var(--text-secondary); }
+.node-edit-history-entry-fields { display: flex; flex-wrap: wrap; gap: 4px; }
+.node-edit-history-field-chip {
+  font-size: 0.78em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--accent-bg, #e8f0fe);
+  color: var(--accent-text, #1a56db);
+}
+.node-edit-history-entry-summary { font-size: 0.85em; color: var(--text-secondary); margin-top: 4px; }
+
 /* ─── Instance / note cards ────────────────────────────── */
 
 .card {

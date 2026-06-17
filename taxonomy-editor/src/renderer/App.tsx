@@ -68,6 +68,8 @@ initFlightRecorder();
 interface DataUpdateInfo {
   available: boolean;
   behindCount: number;
+  aheadCount: number;
+  diverged: boolean;
   currentCommit?: string;
   remoteCommit?: string;
   error?: string;
@@ -475,12 +477,16 @@ function MainApp() {
           <span
             className="data-update-text"
             title={[
-              `${dataUpdate.behindCount} new commit${dataUpdate.behindCount !== 1 ? 's' : ''} on the remote repository.`,
+              dataUpdate.diverged
+                ? `Data repo has diverged: ${dataUpdate.aheadCount} commit${dataUpdate.aheadCount !== 1 ? 's' : ''} ahead, ${dataUpdate.behindCount} commit${dataUpdate.behindCount !== 1 ? 's' : ''} behind.`
+                : `${dataUpdate.behindCount} new commit${dataUpdate.behindCount !== 1 ? 's' : ''} on the remote repository.`,
               dataUpdate.currentCommit ? `Local:  ${dataUpdate.currentCommit.slice(0, 8)}` : '',
               dataUpdate.remoteCommit ? `Remote: ${dataUpdate.remoteCommit.slice(0, 8)}` : '',
             ].filter(Boolean).join('\n')}
           >
-            {dataUpdate.behindCount} data update{dataUpdate.behindCount !== 1 ? 's' : ''} available
+            {dataUpdate.diverged
+              ? `Data repo diverged — ${dataUpdate.aheadCount} ahead, ${dataUpdate.behindCount} behind`
+              : `${dataUpdate.behindCount} data update${dataUpdate.behindCount !== 1 ? 's' : ''} available`}
           </span>
           <button
             className="btn btn-sm data-update-btn"

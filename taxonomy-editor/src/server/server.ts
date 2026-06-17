@@ -342,6 +342,19 @@ put('/api/taxonomy/:pov', async (req, res, body) => {
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
+// ── Node Edit History ──
+
+get('/api/taxonomy/:pov/node/:nodeId/history', async (req, res) => {
+  try {
+    const pov = param(req, 'pov', '/api/taxonomy/:pov/node/:nodeId/history');
+    const nodeId = param(req, 'nodeId', '/api/taxonomy/:pov/node/:nodeId/history');
+    const data = await fileIO.readTaxonomyFile(pov) as { nodes?: Array<{ id: string; _edit_history?: unknown[]; _edit_meta?: unknown }> };
+    const node = data?.nodes?.find(n => n.id === nodeId);
+    if (!node) { error(res, `Node ${nodeId} not found in ${pov}`, 404); return; }
+    json(res, { nodeId, history: node._edit_history ?? [], edit_meta: node._edit_meta ?? null });
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+});
+
 // ── Conflicts ──
 
 let conflictsCache: { data: unknown[]; ts: number } | null = null;
@@ -531,9 +544,19 @@ post('/api/data/check-updates', async (_req, res) => {
     await runGit(['fetch', 'origin', '--quiet']);
     const local = await runGit(['rev-parse', 'HEAD']);
     const remote = await runGit(['rev-parse', 'origin/main']);
-    const count = local === remote ? 0 : parseInt(await runGit(['rev-list', '--count', `HEAD..origin/main`]), 10);
 
-    json(res, { available: count > 0, behindCount: count, currentCommit: local, remoteCommit: remote });
+    if (local === remote) {
+      json(res, { available: false, behindCount: 0, aheadCount: 0, diverged: false, currentCommit: local, remoteCommit: remote });
+      return;
+    }
+
+    const lrOutput = await runGit(['rev-list', '--left-right', '--count', 'HEAD...origin/main']);
+    const [aheadStr, behindStr] = lrOutput.split(/\s+/);
+    const aheadCount = parseInt(aheadStr, 10) || 0;
+    const behindCount = parseInt(behindStr, 10) || 0;
+    const diverged = aheadCount > 0 && behindCount > 0;
+
+    json(res, { available: behindCount > 0, behindCount, aheadCount, diverged, currentCommit: local, remoteCommit: remote });
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -783,19 +806,6 @@ get('/api/calibration/history', (_req, res) => {
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
-// ── Flight recorder: persist to GitHub for offline access ──
-function persistDumpToGitHub(filename: string, ndjson: string): void {
-  if (!githubBackend) return;
-  githubBackend.createCommitFromTree('main',
-    [{ path: `flight-recorder/${filename}`, content: ndjson }],
-    `chore: flight recorder dump`
-  ).then(() => {
-    log.fr.info({ filename }, 'Dump persisted to GitHub');
-  }).catch(err => {
-    log.fr.warn({ err: String(err), filename }, 'Failed to persist dump to GitHub');
-  });
-}
-
 // ── Flight recorder dump ──
 post('/api/flight-recorder/dump', (_req, res, body) => {
   try {
@@ -829,7 +839,6 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
     } catch { /* telemetry — silent by design;  retention cleanup is best-effort */ }
 
     const filename = path.basename(filePath);
-    persistDumpToGitHub(filename, ndjson);
     log.fr.info({ filePath }, 'Dump written');
     json(res, { filePath, filename });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
@@ -845,7 +854,6 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
     const filename = `server-flight-recorder-${ts}.jsonl`;
     const filePath = path.join(dumpDir, filename);
     fs.writeFileSync(filePath, ndjson, 'utf-8');
-    persistDumpToGitHub(filename, ndjson);
     log.fr.info({ filePath }, 'Server dump written');
     json(res, { filePath, filename });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }

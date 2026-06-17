@@ -16,6 +16,8 @@ import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 export interface DataUpdateStatus {
   available: boolean;
   behindCount: number;
+  aheadCount: number;
+  diverged: boolean;
   currentCommit: string;
   remoteCommit: string;
   error?: string;
@@ -44,15 +46,17 @@ export async function checkForDataUpdates(): Promise<DataUpdateStatus> {
   const dataRoot = resolveDataPath('.');
   const gitDir = path.join(dataRoot, '.git');
 
+  const empty: DataUpdateStatus = { available: false, behindCount: 0, aheadCount: 0, diverged: false, currentCommit: '', remoteCommit: '' };
+
   // Not a git repo — nothing to check
   if (!fs.existsSync(gitDir)) {
-    return { available: false, behindCount: 0, currentCommit: '', remoteCommit: '', error: 'Data directory is not a git repo' };
+    return { ...empty, error: 'Data directory is not a git repo' };
   }
 
   // Check connectivity
   const online = await isOnline();
   if (!online) {
-    return { available: false, behindCount: 0, currentCommit: '', remoteCommit: '', error: 'offline' };
+    return { ...empty, error: 'offline' };
   }
 
   try {
@@ -64,14 +68,17 @@ export async function checkForDataUpdates(): Promise<DataUpdateStatus> {
     const remoteCommit = await runGit(['rev-parse', 'origin/main'], dataRoot);
 
     if (currentCommit === remoteCommit) {
-      return { available: false, behindCount: 0, currentCommit, remoteCommit };
+      return { ...empty, currentCommit, remoteCommit };
     }
 
-    // Count commits behind
-    const behindOutput = await runGit(['rev-list', '--count', `HEAD..origin/main`], dataRoot);
-    const behindCount = parseInt(behindOutput, 10) || 0;
+    // Count commits ahead and behind using left-right rev-list
+    const lrOutput = await runGit(['rev-list', '--left-right', '--count', 'HEAD...origin/main'], dataRoot);
+    const [aheadStr, behindStr] = lrOutput.split(/\s+/);
+    const aheadCount = parseInt(aheadStr, 10) || 0;
+    const behindCount = parseInt(behindStr, 10) || 0;
+    const diverged = aheadCount > 0 && behindCount > 0;
 
-    return { available: behindCount > 0, behindCount, currentCommit, remoteCommit };
+    return { available: behindCount > 0, behindCount, aheadCount, diverged, currentCommit, remoteCommit };
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -82,7 +89,7 @@ export async function checkForDataUpdates(): Promise<DataUpdateStatus> {
     });
     const msg = err instanceof Error ? err.message : String(err);
     console.warn('[DataUpdateChecker] Error:', msg);
-    return { available: false, behindCount: 0, currentCommit: '', remoteCommit: '', error: msg };
+    return { ...empty, error: msg };
   }
 }
 
@@ -91,15 +98,19 @@ export interface ChangedFileInfo {
   status: string; // 'M' | 'A' | 'D' | 'R' etc.
 }
 
+const IGNORED_PATH_PREFIXES = ['flight-recorder/', 'server-flight-recorder-'];
+
 export async function getChangedFiles(): Promise<ChangedFileInfo[]> {
   const dataRoot = resolveDataPath('.');
   try {
-    const output = await runGit(['diff', '--name-status', 'HEAD..origin/main'], dataRoot);
+    // Use merge-base for accurate diff when repos have diverged
+    const mergeBase = await runGit(['merge-base', 'HEAD', 'origin/main'], dataRoot);
+    const output = await runGit(['diff', '--name-status', `${mergeBase}..origin/main`], dataRoot);
     if (!output) return [];
     return output.split('\n').filter(Boolean).map(line => {
       const [status, ...pathParts] = line.split('\t');
       return { path: pathParts.join('\t'), status: status.charAt(0) };
-    });
+    }).filter(f => !IGNORED_PATH_PREFIXES.some(p => f.path.startsWith(p)));
   } catch {
     /* telemetry — silent by design */
     return [];

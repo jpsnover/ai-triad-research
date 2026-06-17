@@ -20,6 +20,7 @@ import { researchPrompt } from '../../prompts/research';
 import { SourcesPanel } from '../policy/SourcesPanel';
 import { PhrasesPanel } from '../policy/PhrasesPanel';
 import { FactsPanel, getFactCount, preloadFactsIndex } from '../analysis/FactsPanel';
+import { NodeEditHistory } from './NodeEditHistory';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
@@ -120,7 +121,7 @@ const POV_LABELS: Record<Pov, string> = {
   skeptic: 'Skeptic',
 };
 
-type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'research';
+type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'research' | 'history';
 
 export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId } = useTaxonomyStore();
@@ -349,6 +350,12 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         >
           Research
         </button>
+        <button
+          className={`node-detail-tab ${activeTab === 'history' ? 'node-detail-tab-active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          History{node._edit_history?.length ? ` (${node._edit_history.length})` : ''}
+        </button>
       </div>
 
       {/* Tab content */}
@@ -562,6 +569,10 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
               spellCheck={false}
             />
           </div>
+        )}
+
+        {activeTab === 'history' && (
+          <NodeEditHistory editMeta={node._edit_meta} editHistory={node._edit_history} />
         )}
       </div>
 

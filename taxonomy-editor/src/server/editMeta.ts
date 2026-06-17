@@ -25,7 +25,16 @@ interface NodeDiffResult {
   deleted: string[];
 }
 
-const HASH_EXCLUDE = new Set(['_edit_meta', 'confidence_history', 'priority_history', 'concession_history']);
+interface EditHistoryEntry {
+  user: string;
+  timestamp: string;
+  fields_changed: string[];
+  summary?: string;
+}
+
+const MAX_HISTORY_ENTRIES = 50;
+
+const HASH_EXCLUDE = new Set(['_edit_meta', '_edit_history', 'confidence_history', 'priority_history', 'concession_history']);
 
 export function nodeContentHash(node: NodeWithMeta): string {
   const filtered: Record<string, unknown> = {};
@@ -64,6 +73,18 @@ export function diffNodes(oldNodes: NodeWithMeta[], newNodes: NodeWithMeta[]): N
   return { added, modified, deleted };
 }
 
+export function changedFields(oldNode: NodeWithMeta, newNode: NodeWithMeta): string[] {
+  const fields: string[] = [];
+  const allKeys = new Set([...Object.keys(oldNode), ...Object.keys(newNode)]);
+  for (const k of allKeys) {
+    if (HASH_EXCLUDE.has(k)) continue;
+    if (JSON.stringify(oldNode[k]) !== JSON.stringify(newNode[k])) {
+      fields.push(k);
+    }
+  }
+  return fields.sort();
+}
+
 export function stampNodeAuthorship(
   oldNodes: NodeWithMeta[],
   newNodes: NodeWithMeta[],
@@ -91,6 +112,15 @@ export function stampNodeAuthorship(
       created_at: isNew ? now : (existing?.created_at ?? now),
     };
 
-    return { ...node, _edit_meta: meta };
+    const fields = isNew ? ['*'] : changedFields(oldMap[node.id], node);
+    const historyEntry: EditHistoryEntry = {
+      user,
+      timestamp: now,
+      fields_changed: fields,
+    };
+    const prevHistory = (node._edit_history as EditHistoryEntry[] | undefined) ?? (oldMap[node.id]?._edit_history as EditHistoryEntry[] | undefined) ?? [];
+    const newHistory = [...prevHistory, historyEntry].slice(-MAX_HISTORY_ENTRIES);
+
+    return { ...node, _edit_meta: meta, _edit_history: newHistory };
   });
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { nodeContentHash, diffNodes, stampNodeAuthorship } from '../editMeta';
+import { nodeContentHash, diffNodes, stampNodeAuthorship, changedFields } from '../editMeta';
 
 vi.mock('../userContext', () => ({
   getCurrentUserId: () => 'test-user@example.com',
@@ -131,6 +131,87 @@ describe('editMeta', () => {
       const result = stampNodeAuthorship([], [makeNode('a-1', 'A')], 'custom-user');
       expect(result[0]._edit_meta!.last_edited_by).toBe('custom-user');
       expect(result[0]._edit_meta!.created_by).toBe('custom-user');
+    });
+
+    it('appends edit history for new nodes with wildcard fields', () => {
+      const result = stampNodeAuthorship([], [makeNode('a-1', 'Alpha')]);
+      expect(result[0]._edit_history).toHaveLength(1);
+      expect(result[0]._edit_history![0]).toEqual({
+        user: 'test-user@example.com',
+        timestamp: '2026-06-16T12:00:00.000Z',
+        fields_changed: ['*'],
+      });
+    });
+
+    it('appends edit history with changed field names for modified nodes', () => {
+      const old = [makeNode('a-1', 'Alpha')];
+      const now = [makeNode('a-1', 'Alpha Updated', { description: 'new desc' })];
+      const result = stampNodeAuthorship(old, now);
+      expect(result[0]._edit_history).toHaveLength(1);
+      expect(result[0]._edit_history![0].fields_changed).toContain('label');
+      expect(result[0]._edit_history![0].fields_changed).toContain('description');
+    });
+
+    it('preserves and appends to existing edit history', () => {
+      const existingHistory = [
+        { user: 'prev@test.com', timestamp: '2026-01-01T00:00:00Z', fields_changed: ['label'] },
+      ];
+      const old = [{ ...makeNode('a-1', 'Alpha'), _edit_history: existingHistory }];
+      const now = [makeNode('a-1', 'Alpha Updated')];
+      const result = stampNodeAuthorship(old, now);
+      expect(result[0]._edit_history).toHaveLength(2);
+      expect(result[0]._edit_history![0].user).toBe('prev@test.com');
+      expect(result[0]._edit_history![1].user).toBe('test-user@example.com');
+    });
+
+    it('caps edit history at 50 entries', () => {
+      const existingHistory = Array.from({ length: 50 }, (_, i) => ({
+        user: `user-${i}@test.com`,
+        timestamp: `2026-01-${String(i + 1).padStart(2, '0')}T00:00:00Z`,
+        fields_changed: ['label'],
+      }));
+      const old = [{ ...makeNode('a-1', 'Alpha'), _edit_history: existingHistory }];
+      const now = [makeNode('a-1', 'Alpha Updated')];
+      const result = stampNodeAuthorship(old, now);
+      expect(result[0]._edit_history).toHaveLength(50);
+      expect(result[0]._edit_history![0].user).toBe('user-1@test.com');
+      expect(result[0]._edit_history![49].user).toBe('test-user@example.com');
+    });
+  });
+
+  describe('changedFields', () => {
+    it('detects changed scalar fields', () => {
+      const old = makeNode('a-1', 'Alpha');
+      const now = makeNode('a-1', 'Beta');
+      expect(changedFields(old, now)).toEqual(['label']);
+    });
+
+    it('detects multiple changed fields', () => {
+      const old = makeNode('a-1', 'Alpha');
+      const now = { ...makeNode('a-1', 'Beta'), description: 'changed' };
+      expect(changedFields(old, now)).toEqual(['description', 'label']);
+    });
+
+    it('detects added fields', () => {
+      const old = makeNode('a-1', 'Alpha');
+      const now = { ...makeNode('a-1', 'Alpha'), debate_refs: ['d-1'] };
+      expect(changedFields(old, now)).toEqual(['debate_refs']);
+    });
+
+    it('returns empty for identical nodes', () => {
+      const node = makeNode('a-1', 'Alpha');
+      expect(changedFields(node, { ...node })).toEqual([]);
+    });
+
+    it('excludes _edit_meta and history fields', () => {
+      const old = makeNode('a-1', 'Alpha');
+      const now = {
+        ...makeNode('a-1', 'Alpha'),
+        _edit_meta: { last_edited_by: 'x', last_edited_at: 'y' },
+        _edit_history: [{ user: 'x', timestamp: 'y', fields_changed: [] }],
+        confidence_history: [{ old: 0.5, new: 0.6 }],
+      };
+      expect(changedFields(old, now)).toEqual([]);
     });
   });
 });

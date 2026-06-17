@@ -71,6 +71,13 @@ export interface NodeEditMeta {
   created_at?: string;
 }
 
+export interface EditHistoryEntry {
+  user: string;
+  timestamp: string;
+  fields_changed: string[];
+  summary?: string;
+}
+
 export interface PovNode {
   id: string;
   category: Category;
@@ -99,6 +106,7 @@ export interface PovNode {
   /** Concession history — tracks cross-debate concessions affecting this node. */
   concession_history?: ConcessionRecord[];
   _edit_meta?: NodeEditMeta;
+  _edit_history?: EditHistoryEntry[];
 }
 
 export interface PovTaxonomyFile {
