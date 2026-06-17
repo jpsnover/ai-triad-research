@@ -48,7 +48,7 @@ import { usePrecache } from './hooks/usePrecache';
 import { DiagnosticsDrawer } from './components/shared/DiagnosticsDrawer';
 
 const UpdatePrompt = import.meta.env.VITE_TARGET === 'web'
-  ? lazy(() => import('./components/UpdatePrompt').then(m => ({ default: m.UpdatePrompt })))
+  ? lazy(() => import('./components/shared/UpdatePrompt').then(m => ({ default: m.UpdatePrompt })))
   : null;
 
 const THEME_COLORS: Record<string, string> = {

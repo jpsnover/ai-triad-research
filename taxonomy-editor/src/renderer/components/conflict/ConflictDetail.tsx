@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { TOAST_DURATION_FEEDBACK } from '../../../constants';
+import { TOAST_DURATION_FEEDBACK } from '../../constants';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';

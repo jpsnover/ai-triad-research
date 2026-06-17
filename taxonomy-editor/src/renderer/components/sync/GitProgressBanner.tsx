@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { TOAST_DURATION_SUCCESS } from '../../../constants';
+import { TOAST_DURATION_SUCCESS } from '../../constants';
 import { useGitProgress } from '../../hooks/useGitProgress';
 
 export function GitProgressBanner() {

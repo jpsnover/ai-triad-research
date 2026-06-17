@@ -11,7 +11,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { DebateWorkspace } from './debate-workspace';
+import { DebateWorkspace } from '../debate-workspace';
 
 export function DebatePopoutWindow() {
   const [ready, setReady] = useState(false);
