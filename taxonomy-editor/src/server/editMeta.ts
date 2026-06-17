@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { createHash } from 'crypto';
-import { getCurrentUserId } from './userContext';
+import { getCurrentUserId } from './userContext.js';
 
 interface NodeEditMeta {
   last_edited_by: string;
