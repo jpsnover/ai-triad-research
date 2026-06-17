@@ -20,6 +20,8 @@ import { researchPrompt } from '../../prompts/research';
 import { SourcesPanel } from '../policy/SourcesPanel';
 import { PhrasesPanel } from '../policy/PhrasesPanel';
 import { FactsPanel, getFactCount, preloadFactsIndex } from '../analysis/FactsPanel';
+import type { SourceFact } from '../analysis/FactsPanel';
+import type { SourceDocumentResolution } from '../../bridge/types';
 import { NodeEditHistory } from './NodeEditHistory';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
@@ -136,10 +138,56 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
   const [factCount, setFactCount] = useState(() => getFactCount(node.id));
   useEffect(() => {
     preloadFactsIndex();
-    // Re-check count after cache warms (small delay for async load)
     const t = setTimeout(() => setFactCount(getFactCount(node.id)), 500);
     return () => clearTimeout(t);
   }, [node.id]);
+
+  // Source document viewer state (Facts tab)
+  const [selectedFact, setSelectedFact] = useState<SourceFact | null>(null);
+  const [sourceDoc, setSourceDoc] = useState<SourceDocumentResolution | null>(null);
+  const [sourceDocLoading, setSourceDocLoading] = useState(false);
+  const [factSplitPct, setFactSplitPct] = useState(40);
+  const factSplitRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!selectedFact) { setSourceDoc(null); return; }
+    let cancelled = false;
+    setSourceDocLoading(true);
+    api.resolveSourceDocument(selectedFact.doc_id)
+      .then(res => { if (!cancelled) setSourceDoc(res); })
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error', component: 'node-detail', level: 'error',
+          message: 'Failed to resolve source document',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        if (!cancelled) setSourceDoc({ available: false, type: null });
+      })
+      .finally(() => { if (!cancelled) setSourceDocLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedFact]);
+
+  // Clear fact selection on node change
+  useEffect(() => { setSelectedFact(null); }, [node.id]);
+
+  const handleFactSplitMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const container = factSplitRef.current;
+    if (!container) return;
+    const startY = e.clientY;
+    const startPct = factSplitPct;
+    const containerHeight = container.offsetHeight;
+    const onMouseMove = (ev: MouseEvent) => {
+      const dy = ev.clientY - startY;
+      setFactSplitPct(Math.min(70, Math.max(20, startPct + (dy / containerHeight) * 100)));
+    };
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }, [factSplitPct]);
 
   const handleSplitMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -545,7 +593,33 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
         )}
 
         {activeTab === 'facts' && (
-          <FactsPanel nodeId={node.id} />
+          <div className="facts-split-container" ref={factSplitRef}>
+            <div className="facts-split-list" style={sourceDoc?.available ? { height: `${factSplitPct}%` } : undefined}>
+              <FactsPanel nodeId={node.id} onSelectFact={setSelectedFact} />
+            </div>
+            {sourceDocLoading && (
+              <div className="facts-doc-loading">
+                <span className="facts-doc-spinner" />
+                Resolving source document...
+              </div>
+            )}
+            {sourceDoc?.available && (
+              <>
+                <div className="resize-handle resize-handle-horizontal" onMouseDown={handleFactSplitMouseDown} />
+                <div className="facts-doc-pane" style={{ height: `${100 - factSplitPct}%` }}>
+                  <div className="facts-doc-header">
+                    <span className="facts-doc-title">{selectedFact?.doc_id}</span>
+                    <span className="facts-doc-type">{sourceDoc.type?.toUpperCase()}</span>
+                    <button className="facts-doc-close" onClick={() => setSelectedFact(null)} title="Close document viewer">&times;</button>
+                  </div>
+                  <SourceDocumentViewer doc={sourceDoc} claimText={selectedFact?.claim} />
+                </div>
+              </>
+            )}
+            {sourceDoc && !sourceDoc.available && !sourceDocLoading && (
+              <div className="facts-doc-unavailable">Source document not available for this fact.</div>
+            )}
+          </div>
         )}
 
         {activeTab === 'research' && (
@@ -659,6 +733,60 @@ function CruxChip({ crux, onClick }: { crux: AggregatedCrux; onClick: () => void
       </span>
     </button>
   );
+}
+
+// ── Source Document Viewer (shown in Facts tab bottom pane) ──
+
+function highlightClaim(markdown: string, claim: string | undefined): string {
+  if (!claim || !claim.trim()) return markdown;
+  const escaped = claim.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  try {
+    return markdown.replace(new RegExp(`(${escaped})`, 'gi'), '**==$1==**');
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'source-doc-viewer', level: 'warn',
+      message: 'Claim highlight regex failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err) },
+    });
+    return markdown;
+  }
+}
+
+function SourceDocumentViewer({ doc, claimText }: { doc: SourceDocumentResolution; claimText?: string }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      const mark = contentRef.current.querySelector('.claim-highlight');
+      mark?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [doc, claimText]);
+
+  if (doc.type === 'pdf' && doc.path) {
+    return (
+      <iframe
+        className="facts-doc-iframe"
+        src={doc.path}
+        title="Source document (PDF)"
+      />
+    );
+  }
+
+  if (doc.type === 'markdown' && doc.content) {
+    const highlighted = highlightClaim(doc.content, claimText);
+    const parts = highlighted.split(/\*\*==(.*?)==\*\*/g);
+    return (
+      <div className="facts-doc-markdown" ref={contentRef}>
+        {parts.map((part, i) =>
+          i % 2 === 1
+            ? <mark key={i} className="claim-highlight">{part}</mark>
+            : <span key={i}>{part}</span>
+        )}
+      </div>
+    );
+  }
+
+  return <div className="facts-doc-empty">Unable to render this document type.</div>;
 }
 
 // ── Evidence QBAF Graph (shown in Research tab) ──

@@ -2112,6 +2112,139 @@ body {
   font-size: 0.78rem;
 }
 
+/* ─── Facts tab: source document split pane ───────────── */
+
+.facts-split-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.facts-split-list {
+  overflow-y: auto;
+  min-height: 80px;
+}
+
+.resize-handle-horizontal {
+  height: 5px;
+  min-height: 5px;
+  cursor: row-resize;
+  background: var(--border-color);
+  flex-shrink: 0;
+}
+
+.resize-handle-horizontal:hover {
+  background: var(--accent-primary);
+}
+
+.facts-doc-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 100px;
+  overflow: hidden;
+  border-top: 1px solid var(--border-color);
+}
+
+.facts-doc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.facts-doc-title {
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.facts-doc-type {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+}
+
+.facts-doc-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.facts-doc-close:hover {
+  color: var(--text-primary);
+}
+
+.facts-doc-iframe {
+  flex: 1;
+  border: none;
+  width: 100%;
+  min-height: 0;
+}
+
+.facts-doc-markdown {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.claim-highlight {
+  background: rgba(250, 204, 21, 0.35);
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+.facts-doc-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.facts-doc-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: toolbar-spin 0.8s linear infinite;
+}
+
+.facts-doc-unavailable {
+  padding: 8px 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.facts-doc-empty {
+  padding: 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .chip-input-row {
   display: flex;
   gap: 6px;

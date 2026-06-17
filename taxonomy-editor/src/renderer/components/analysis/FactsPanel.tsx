@@ -62,7 +62,10 @@ const SPECIFICITY_COLORS: Record<string, { bg: string; fg: string }> = {
   unknown: { bg: 'rgba(148,163,184,0.12)', fg: '#64748b' },
 };
 
-export function FactsPanel({ nodeId }: { nodeId: string }) {
+export function FactsPanel({ nodeId, onSelectFact }: {
+  nodeId: string;
+  onSelectFact?: (fact: SourceFact | null) => void;
+}) {
   const [facts, setFacts] = useState<SourceFact[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -71,6 +74,7 @@ export function FactsPanel({ nodeId }: { nodeId: string }) {
     let cancelled = false;
     setLoading(true);
     setExpanded(null);
+    onSelectFact?.(null);
     void getFactsIndex().then((idx) => {
       if (cancelled) return;
       setFacts(idx[nodeId]?.facts ?? []);
@@ -105,7 +109,11 @@ export function FactsPanel({ nodeId }: { nodeId: string }) {
               background: isExpanded ? 'var(--bg-secondary)' : 'transparent',
               cursor: 'pointer',
             }}
-            onClick={() => setExpanded(isExpanded ? null : i)}
+            onClick={() => {
+              const next = isExpanded ? null : i;
+              setExpanded(next);
+              onSelectFact?.(next !== null ? f : null);
+            }}
           >
             <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
               <span style={{ flexShrink: 0, color: 'var(--text-muted)', fontSize: '0.65rem', marginTop: 2 }}>
