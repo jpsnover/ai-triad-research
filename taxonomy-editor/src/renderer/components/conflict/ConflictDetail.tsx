@@ -12,7 +12,6 @@ import { ConflictNoteForm, newEmptyNote } from './ConflictNoteForm';
 import { HighlightedInput, HighlightedTextarea } from '../shared/HighlightedField';
 import { TypeaheadSelect } from '../shared/TypeaheadSelect';
 import { FieldHelp } from '../shared/FieldHelp';
-import { LinkedChip } from '../shared/LinkedChip';
 import { generateConflictResearchPrompt } from '../../utils/researchPrompt';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { POV_KEYS } from '@lib/debate/types';
