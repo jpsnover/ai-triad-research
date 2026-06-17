@@ -88,6 +88,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [multiProvider, setMultiProvider] = useState(false);
   const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');
   const [excludedBackends, setExcludedBackends] = useState<Set<string>>(new Set());
+  const [stepMode, setStepMode] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showModelModal, setShowModelModal] = useState(false);
   const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
@@ -297,11 +298,12 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
         },
         speakerModels,
         modelTier: multiProvider ? modelTier : undefined,
+        stepMode: stepMode || undefined,
       },
     );
     await loadDebate(id);
     const _creationWeights = (() => { try { const w = loadProvisionalWeights(); const p = w.pacing_presets?.moderate; return { pacing: 'moderate', maxTotalRounds: p?.maxTotalRounds, argumentationExit: p?.argumentationExit, concludingExit: p?.concludingExit, phase_bounds: w.phase_bounds, overrides: { confrontation: confrontationRounds, argumentation: argumentationRounds, concluding: concludingRounds } }; } catch { /* telemetry — silent by design: weights unavailable is non-fatal */ return null; } })();
-    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, multi_provider: multiProvider || undefined, model_tier: multiProvider ? modelTier : undefined, speaker_models: speakerModels || undefined, ..._creationWeights && { adaptive_config: _creationWeights } } });
+    getGlobalRecorder()?.record({ type: 'user.action', component: 'new-debate', level: 'info', message: 'debate.created', data: { debate_id: id, source_type: sourceType, povers, user_is_pover: userIsPover, model: effectiveModel, protocol: protocolId, temperature, audience: audience || null, adaptive_staging: true, step_mode: stepMode || undefined, multi_provider: multiProvider || undefined, model_tier: multiProvider ? modelTier : undefined, speaker_models: speakerModels || undefined, ..._creationWeights && { adaptive_config: _creationWeights } } });
     const store = useDebateStore.getState();
     store.updatePhase('clarification');
     await store.saveDebate();
@@ -653,6 +655,19 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
             {showAdvanced && (
               <div className="ndd-advanced-section">
+                {/* Step Mode */}
+                <label className="ndd-model-toggle">
+                  <input
+                    type="checkbox"
+                    checked={stepMode}
+                    onChange={() => setStepMode(!stepMode)}
+                  />
+                  Step-by-Step Mode
+                </label>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                  Pause after each phase for manual review before advancing. You can also toggle this during a debate.
+                </div>
+
                 {/* Temperature */}
                 <label className="ndd-field-label">Temperature</label>
                 <div className="ndd-temperature-row">

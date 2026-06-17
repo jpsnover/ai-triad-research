@@ -43,7 +43,7 @@ export interface SessionSlice {
   debateLoading: boolean;
 
   loadSessions: () => Promise<void>;
-  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced' }) => Promise<string>;
+  createDebate: (topic: string, povers: SpeakerId[], userIsPover: boolean, sourceType?: DebateSourceType, sourceRef?: string, sourceContent?: string, debateModel?: string, protocolId?: string, debateTemperature?: number, debateAudience?: DebateAudience, options?: { title?: string; evaluatorModel?: string; pacing?: string; useAdaptiveStaging?: boolean; phaseBoundsOverride?: { maxConfrontationRounds?: number; maxArgumentationRounds?: number; maxConcludingRounds?: number }; speakerModels?: Record<string, string>; modelTier?: 'basic' | 'advanced'; stepMode?: boolean }) => Promise<string>;
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
@@ -120,7 +120,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       protocol_id: protocolId || 'structured',
       debate_temperature: debateTemperature ?? undefined,
       adaptive_staging: options?.useAdaptiveStaging
-        ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate', phase_bounds_override: options.phaseBoundsOverride }
+        ? { enabled: true, pacing: (options.pacing as 'tight' | 'moderate' | 'thorough') ?? 'moderate', phase_bounds_override: options.phaseBoundsOverride, step_mode: options.stepMode || undefined }
         : undefined,
       origin: { mode: 'gui' },
     };
