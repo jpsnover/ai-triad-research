@@ -295,7 +295,7 @@ function CruxListItem({ crux, isSelected, onSelect }: {
 
 // ── Detail Panel ──
 
-function CruxDetail({ crux, onDebateClick, onNodeClick }: {
+export function CruxDetail({ crux, onDebateClick, onNodeClick }: {
   crux: AggregatedCrux;
   onDebateClick: (id: string) => void;
   onNodeClick: (id: string) => void;

@@ -20,7 +20,7 @@ import { AnalysisPanel } from '../analysis/AnalysisPanel';
 import { EdgeDetailPanel } from '../edge-browser/EdgeDetailPanel';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
-import { ConflictDetail } from '../conflict/ConflictDetail';
+import { CruxDetail } from '../debate/CruxesTab';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
 import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../../data/lineageCategories';
@@ -237,10 +237,10 @@ export function PovTab({ pov }: PovTabProps) {
     cruxDetailId, showCruxDetail,
   } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
-  const conflicts = useTaxonomyStore((s) => s.conflicts);
-  const cruxConflict = useMemo(
-    () => cruxDetailId ? conflicts.find(c => c.claim_id === cruxDetailId) ?? null : null,
-    [cruxDetailId, conflicts],
+  const { aggregatedCruxes } = useTaxonomyStore();
+  const selectedCrux = useMemo(
+    () => cruxDetailId ? aggregatedCruxes?.find(c => c.id === cruxDetailId) ?? null : null,
+    [cruxDetailId, aggregatedCruxes],
   );
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('label');
@@ -453,7 +453,7 @@ export function PovTab({ pov }: PovTabProps) {
   const showAnalysisPanel = analysisResult !== null || analysisLoading || !!analysisError;
   const showRelatedPanel = relatedNodeId !== null;
   const showEdgeDetail = selectedEdge !== null && showRelatedPanel;
-  const showCruxPane = cruxConflict !== null && !showAnalysisPanel;
+  const showCruxPane = selectedCrux !== null && !showAnalysisPanel;
 
   // A promoted panel is active in Pane 1
   const hasToolbarPane = toolbarPanel !== null;
@@ -949,7 +949,7 @@ export function PovTab({ pov }: PovTabProps) {
           <AnalysisPanel width={pane3Width} />
         </>
       )}
-      {showCruxPane && cruxConflict && (
+      {showCruxPane && selectedCrux && (
         <>
           <div className="resize-handle" onMouseDown={onPane3Resize} />
           <div className="pane3-crux-detail" style={{ width: pane3Width, minWidth: 300, overflow: 'auto' }}>
@@ -957,7 +957,11 @@ export function PovTab({ pov }: PovTabProps) {
               <span>Crux Detail</span>
               <button className="pane3-close-btn" onClick={() => showCruxDetail(null)} title="Close">✕</button>
             </div>
-            <ConflictDetail conflict={cruxConflict} readOnly />
+            <CruxDetail
+              crux={selectedCrux}
+              onDebateClick={() => {}}
+              onNodeClick={(id) => useTaxonomyStore.getState().setSelectedNodeId(id)}
+            />
           </div>
         </>
       )}
