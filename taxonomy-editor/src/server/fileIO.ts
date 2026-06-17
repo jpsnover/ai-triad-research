@@ -1119,10 +1119,8 @@ export async function resolveSourceDocument(docId: string): Promise<SourceDocume
   const snapshot = await backend.readFile(path.join(docDir, 'snapshot.md'));
   const fileUrl = `/api/source-documents/${encodeURIComponent(docId)}/file`;
 
-  // Prefer the PDF when the source is a PDF, or when no markdown snapshot exists.
-  if (pdfPath && (sourceType === 'pdf' || snapshot === null)) {
-    return { available: true, type: 'pdf', path: fileUrl };
-  }
+  // Prefer markdown snapshot — renders inline with claim highlighting and
+  // auto-scroll to the fact location. PDFs don't render in Electron's iframe.
   if (snapshot !== null) {
     return { available: true, type: 'markdown', content: snapshot };
   }
