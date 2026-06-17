@@ -122,8 +122,8 @@ export interface CalibrationDataPoint {
   debate_id: string;
   /** When the data point was recorded */
   timestamp: string;
-  /** Where the debate ran */
-  origin: 'local' | 'azure';
+  /** Where the debate ran — 'local' for Electron, userId or 'azure' for web */
+  origin: string;
   /** Model used */
   model: string;
   /** Total rounds completed */
@@ -387,7 +387,7 @@ export interface CalibrationDataPoint {
  */
 export function extractCalibrationData(
   session: DebateSession,
-  origin: 'local' | 'azure',
+  origin: string,
   config: {
     argumentationExitThreshold?: number;
     relevanceThreshold?: number;

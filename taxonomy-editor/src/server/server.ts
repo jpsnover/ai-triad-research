@@ -32,7 +32,7 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
-import { runWithUser, getCurrentUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
+import { runWithUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -944,7 +944,7 @@ put('/api/debates', async (_req, res, body) => {
       const session = body as { id?: string; transcript?: { type: string }[]; neutral_evaluations?: unknown[] };
       if (session?.transcript?.some(e => e.type === 'concluding')) {
         const { extractCalibrationData, appendCalibrationLog } = require('../../../lib/debate/calibrationLogger');
-        const dataPoint = extractCalibrationData(session, 'azure' as const);
+        const dataPoint = extractCalibrationData(session, getStorageUserId());
         appendCalibrationLog(dataPoint, getDataRoot());
       }
     } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }
