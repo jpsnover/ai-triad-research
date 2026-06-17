@@ -155,6 +155,9 @@ export interface TaxonomyDataSlice {
   navigateToSearchRelated: (nodeId: string) => void;
   previousView: { panel: ToolbarPanel; nodeId: string | null } | null;
   navigateBack: () => void;
+
+  cruxDetailId: string | null;
+  showCruxDetail: (id: string | null) => void;
 }
 
 // ── Slice creator ──
@@ -1101,4 +1104,7 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       ...(prev.nodeId ? { selectedNodeId: prev.nodeId } : {}),
     });
   },
+
+  cruxDetailId: null,
+  showCruxDetail: (id) => set({ cruxDetailId: id }),
 });

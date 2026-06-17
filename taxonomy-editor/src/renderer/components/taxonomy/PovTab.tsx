@@ -20,6 +20,7 @@ import { AnalysisPanel } from '../analysis/AnalysisPanel';
 import { EdgeDetailPanel } from '../edge-browser/EdgeDetailPanel';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
+import { ConflictDetail } from '../conflict/ConflictDetail';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
 import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
 import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../../data/lineageCategories';
@@ -152,8 +153,14 @@ export function PovTab({ pov }: PovTabProps) {
     clusterView, clusterLoading, clusterError, runClusterView, clearClusterView,
     relatedNodeId, showRelatedEdges, selectedEdge,
     toolbarPanel, setActiveTab,
+    cruxDetailId, showCruxDetail,
   } = useTaxonomyStore();
   const file = useTaxonomyStore((s) => s[pov]);
+  const conflicts = useTaxonomyStore((s) => s.conflicts);
+  const cruxConflict = useMemo(
+    () => cruxDetailId ? conflicts.find(c => c.claim_id === cruxDetailId) ?? null : null,
+    [cruxDetailId, conflicts],
+  );
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('label');
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -247,6 +254,11 @@ export function PovTab({ pov }: PovTabProps) {
   // Close phone list overlay when a node is selected
   useEffect(() => {
     if (isPhone && selectedNodeId) setMobileListOpen(false);
+  }, [selectedNodeId]);
+
+  // Close crux detail pane when switching nodes
+  useEffect(() => {
+    if (cruxDetailId) showCruxDetail(null);
   }, [selectedNodeId]);
 
   // Swipe-right on detail panel → pop back to list
@@ -360,6 +372,7 @@ export function PovTab({ pov }: PovTabProps) {
   const showAnalysisPanel = analysisResult !== null || analysisLoading || !!analysisError;
   const showRelatedPanel = relatedNodeId !== null;
   const showEdgeDetail = selectedEdge !== null && showRelatedPanel;
+  const showCruxPane = cruxConflict !== null && !showAnalysisPanel;
 
   // A promoted panel is active in Pane 1
   const hasToolbarPane = toolbarPanel !== null;
@@ -853,6 +866,18 @@ export function PovTab({ pov }: PovTabProps) {
         <>
           <div className="resize-handle" onMouseDown={onPane3Resize} />
           <AnalysisPanel width={pane3Width} />
+        </>
+      )}
+      {showCruxPane && cruxConflict && (
+        <>
+          <div className="resize-handle" onMouseDown={onPane3Resize} />
+          <div className="pane3-crux-detail" style={{ width: pane3Width, minWidth: 300, overflow: 'auto' }}>
+            <div className="pane3-crux-detail-header">
+              <span>Crux Detail</span>
+              <button className="pane3-close-btn" onClick={() => showCruxDetail(null)} title="Close">✕</button>
+            </div>
+            <ConflictDetail conflict={cruxConflict} readOnly />
+          </div>
         </>
       )}
       {showNewDialog && (

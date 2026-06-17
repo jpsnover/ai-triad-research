@@ -1996,6 +1996,43 @@ body {
   font-style: italic;
 }
 
+/* ─── Crux detail pane 3 ──────────────────────── */
+
+.pane3-crux-detail {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-color);
+}
+
+.pane3-crux-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.pane3-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.pane3-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .chip-input-row {
   display: flex;
   gap: 6px;

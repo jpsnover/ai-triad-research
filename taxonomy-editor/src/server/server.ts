@@ -37,7 +37,7 @@ import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
-import { stampNodeAuthorship } from './editMeta.js';
+import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
@@ -1669,6 +1669,58 @@ get('/api/sync/diff', async (req, res) => {
     const file = cmp.files.find(f => f.filename === p);
     json(res, { path: p, diff: file?.patch ?? '' });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err), 400); }
+});
+
+get('/api/sync/node-diff', async (_req, res) => {
+  const disabled = { enabled: false, session_branch: null, files: [], totals: { added: 0, modified: 0, removed: 0 } };
+  try {
+    if (!githubBackend || !sessionManager) { json(res, disabled); return; }
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+    if (!branch) { json(res, disabled); return; }
+
+    const cmp = await githubBackend.compareBranches('main', branch);
+    const nodeFiles = cmp.files.filter(f => f.filename.endsWith('.json') && /\/(accelerationist|safetyist|skeptic|situations|cross-cutting)\.json$/.test(f.filename));
+
+    const totals = { added: 0, modified: 0, removed: 0 };
+    const files: Array<{ path: string; added: Array<{ id: string; label?: string }>; removed: Array<{ id: string; label?: string }>; modified: Array<{ id: string; label?: string; fields?: Array<{ field: string; old: unknown; new: unknown }> }> }> = [];
+
+    for (const nf of nodeFiles) {
+      const [mainRaw, branchRaw] = await Promise.all([
+        githubBackend.readFileAtRef(nf.filename, 'main'),
+        githubBackend.readFileAtRef(nf.filename, branch),
+      ]);
+
+      const mainNodes: Array<{ id: string; label?: string; [k: string]: unknown }> = mainRaw ? (JSON.parse(mainRaw.replace(/^﻿/, '')).nodes ?? []) : [];
+      const branchNodes: Array<{ id: string; label?: string; [k: string]: unknown }> = branchRaw ? (JSON.parse(branchRaw.replace(/^﻿/, '')).nodes ?? []) : [];
+
+      const diff = diffNodes(mainNodes, branchNodes);
+      if (diff.added.length === 0 && diff.modified.length === 0 && diff.deleted.length === 0) continue;
+
+      const mainMap = new Map(mainNodes.map(n => [n.id, n]));
+      const branchMap = new Map(branchNodes.map(n => [n.id, n]));
+
+      const added = diff.added.map(id => ({ id, label: branchMap.get(id)?.label }));
+      const removed = diff.deleted.map(id => ({ id, label: mainMap.get(id)?.label }));
+      const modified = diff.modified.map(id => {
+        const oldNode = mainMap.get(id)!;
+        const newNode = branchMap.get(id)!;
+        const fields = changedFields(oldNode, newNode).map(field => ({
+          field,
+          old: oldNode[field],
+          new: newNode[field],
+        }));
+        return { id, label: newNode.label ?? oldNode.label, fields };
+      });
+
+      totals.added += added.length;
+      totals.modified += modified.length;
+      totals.removed += removed.length;
+      files.push({ path: nf.filename, added, removed, modified });
+    }
+
+    json(res, { enabled: true, session_branch: branch, files, totals });
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
 post('/api/sync/discard', async (_req, res, body) => {

@@ -599,7 +599,7 @@ const CRUX_TYPE_COLORS: Record<string, string> = {
 };
 
 function RelatedCruxes({ nodeId }: { nodeId: string }) {
-  const { aggregatedCruxes, navigateToNode } = useTaxonomyStore();
+  const { aggregatedCruxes, showCruxDetail } = useTaxonomyStore();
   const related = aggregatedCruxes?.filter(c => c.linked_node_ids.includes(nodeId)) ?? [];
   const [expanded, setExpanded] = useState(related.length <= 5);
 
@@ -618,7 +618,7 @@ function RelatedCruxes({ nodeId }: { nodeId: string }) {
       {expanded && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {related.map(crux => (
-            <CruxChip key={crux.id} crux={crux} onClick={() => navigateToNode('cruxes', crux.id)} />
+            <CruxChip key={crux.id} crux={crux} onClick={() => showCruxDetail(crux.id)} />
           ))}
         </div>
       )}

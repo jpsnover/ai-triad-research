@@ -327,6 +327,20 @@ export class GitHubAPIBackend implements StorageBackend {
     return result.content;
   }
 
+  async readFileAtRef(repoPath: string, ref: string): Promise<string | null> {
+    if (ref === 'main') {
+      const cached = await this.readFromDiskCache(repoPath);
+      if (cached !== null) return cached;
+    }
+    if (this.circuitState === 'open' && !this.shouldProbe()) return null;
+    const result = await this.fetchFileFromGitHub(repoPath, ref);
+    if (result === null) return null;
+    if (ref === 'main') {
+      await this.writeToDiskCache(repoPath, result.content, result.sha, result.etag);
+    }
+    return result.content;
+  }
+
   async writeFile(filePath: string, content: string): Promise<void> {
     const repoPath = this.toRepoPath(filePath);
     const ref = this.getEffectiveRef();
