@@ -1043,6 +1043,15 @@ body {
   opacity: 0.9;
 }
 
+.toolbar-icon-spin svg {
+  animation: toolbar-spin 1s linear infinite;
+}
+
+@keyframes toolbar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .toolbar-icon::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -2031,6 +2040,76 @@ body {
 .pane3-close-btn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+/* ─── Data load retry empty state ──────────────────────── */
+
+.data-load-retry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 32px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.data-load-retry-icon {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.data-load-retry-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.data-load-retry-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.data-load-retry-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--focus-ring);
+  border-radius: 50%;
+  animation: toolbar-spin 0.8s linear infinite;
+}
+
+.data-load-retry-error {
+  font-size: 0.82rem;
+  color: #ef4444;
+  max-width: 400px;
+  word-break: break-word;
+}
+
+.data-load-retry-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.data-load-retry-btn:hover {
+  background: var(--bg-hover);
+}
+
+.data-load-retry-btn-sm {
+  padding: 3px 10px;
+  font-size: 0.78rem;
 }
 
 .chip-input-row {

@@ -119,6 +119,7 @@ export function Toolbar() {
     attributeInfo, showAttributeInfo,
     clearAttributeInfo,
     previousView, navigateBack,
+    loadAll, loading,
   } = useTaxonomyStore();
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -457,6 +458,17 @@ export function Toolbar() {
           </svg>
         </button>
         <ToolbarAuthButton />
+        <button
+          className={`toolbar-icon${loading ? ' toolbar-icon-spin' : ''}`}
+          onClick={() => { if (!loading) void loadAll(); }}
+          disabled={loading}
+          data-tooltip="Reload taxonomy data"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+        </button>
         <button
           className="toolbar-icon"
           onClick={() => setShowSettings(true)}

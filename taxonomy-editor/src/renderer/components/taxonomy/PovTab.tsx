@@ -143,6 +143,87 @@ function DoctrinalBoundariesSection({ pov }: { pov: string }) {
   );
 }
 
+const RETRY_DELAYS = [3000, 8000, 15000];
+
+function DataLoadRetry({ pov }: { pov: string }) {
+  const { loadAll, loading, saveError } = useTaxonomyStore();
+  const [attempt, setAttempt] = useState(0);
+  const [countdown, setCountdown] = useState(0);
+  const [exhausted, setExhausted] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearTimers = useCallback(() => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+  }, []);
+
+  const doRetry = useCallback(() => {
+    clearTimers();
+    setCountdown(0);
+    void loadAll();
+  }, [loadAll, clearTimers]);
+
+  const scheduleRetry = useCallback((attemptIndex: number) => {
+    if (attemptIndex >= RETRY_DELAYS.length) { setExhausted(true); return; }
+    const delay = RETRY_DELAYS[attemptIndex];
+    setCountdown(Math.ceil(delay / 1000));
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(countdownRef.current!); countdownRef.current = null; return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    timerRef.current = setTimeout(() => {
+      setAttempt(attemptIndex + 1);
+      void loadAll();
+    }, delay);
+  }, [loadAll, clearTimers]);
+
+  useEffect(() => {
+    if (!loading && attempt < RETRY_DELAYS.length && !exhausted) {
+      scheduleRetry(attempt);
+    }
+    return clearTimers;
+  }, [loading, attempt]);
+
+  const handleManualRetry = () => {
+    if (exhausted) setExhausted(false);
+    setAttempt(0);
+    doRetry();
+  };
+
+  return (
+    <div className="data-load-retry">
+      <div className="data-load-retry-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      </div>
+      <div className="data-load-retry-title">No data loaded for {pov}</div>
+      {loading ? (
+        <div className="data-load-retry-status">
+          <span className="data-load-retry-spinner" />
+          Loading...
+        </div>
+      ) : exhausted ? (
+        <>
+          {saveError && <div className="data-load-retry-error">{saveError}</div>}
+          <button className="data-load-retry-btn" onClick={handleManualRetry}>Try Again</button>
+        </>
+      ) : (
+        <div className="data-load-retry-status">
+          Attempt {attempt + 1} of {RETRY_DELAYS.length}{countdown > 0 ? ` · Retry in ${countdown}s` : ''}
+          <button className="data-load-retry-btn data-load-retry-btn-sm" onClick={handleManualRetry}>Reload Now</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PovTab({ pov }: PovTabProps) {
   const {
     selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
@@ -709,7 +790,7 @@ export function PovTab({ pov }: PovTabProps) {
   };
 
   if (!file) {
-    return <div className="detail-panel-empty">No data loaded for {pov}</div>;
+    return <DataLoadRetry pov={pov} />;
   }
 
   return (
