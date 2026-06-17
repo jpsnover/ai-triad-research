@@ -796,6 +796,27 @@ post('/api/nli/classify', async (_req, res, body) => {
 get('/api/debates', async (_req, res) => { json(res, await fileIO.listDebateSessions()); });
 get('/api/debates/list', async (_req, res) => { json(res, await fileIO.listDebateSessionsMeta()); });
 
+// ── Calibration log (per-debate metrics — JSONL from core/) ──
+get('/api/calibration/log', (_req, res) => {
+  try {
+    const logPath = path.join(getDataRoot(), 'calibration', 'core', 'calibration-log.jsonl');
+    if (!fs.existsSync(logPath)) { json(res, { entries: [], validationReport: null }); return; }
+
+    const entries = fs.readFileSync(logPath, 'utf-8')
+      .split('\n')
+      .filter((line: string) => line.trim().length > 0)
+      .map((line: string) => JSON.parse(line));
+
+    const reportPath = path.join(getDataRoot(), 'calibration', 'validation-report.json');
+    let validationReport = null;
+    if (fs.existsSync(reportPath)) {
+      try { validationReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8')); } catch { /* telemetry — silent by design */ }
+    }
+
+    json(res, { entries, validationReport });
+  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+});
+
 // ── Calibration parameter history ──
 get('/api/calibration/history', (_req, res) => {
   try {

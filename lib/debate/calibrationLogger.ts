@@ -1255,50 +1255,38 @@ export function extractCalibrationData(
 // ── File I/O ────────────────────────────────────────────────
 
 /**
- * Append a calibration data point to the log file.
- * Creates the calibration directory and file if they don't exist.
+ * Append a calibration data point to the per-user JSONL log.
+ * Writes to calibration/users/{origin}/calibration-log.jsonl.
+ * Creates directories on first write. Uses JSONL (one JSON object per line)
+ * for append-only writes without full-file rewrite.
  */
 export function appendCalibrationLog(
   dataPoint: CalibrationDataPoint,
   dataRoot: string,
 ): void {
 
-  const calibDir = path.join(dataRoot, 'calibration');
-  if (!fs.existsSync(calibDir)) {
-    fs.mkdirSync(calibDir, { recursive: true });
+  const userDir = path.join(dataRoot, 'calibration', 'users', dataPoint.origin || 'local');
+  if (!fs.existsSync(userDir)) {
+    fs.mkdirSync(userDir, { recursive: true });
   }
 
-  const logPath = path.join(calibDir, 'calibration-log.json');
-
-  let log: CalibrationDataPoint[] = [];
-  if (fs.existsSync(logPath)) {
-    try {
-      log = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
-    } catch {
-      // Corrupt log — start fresh
-      log = [];
-    }
-  }
-
-  // Deduplicate by debate_id
-  log = log.filter(p => p.debate_id !== dataPoint.debate_id);
-  log.push(dataPoint);
-
-  fs.writeFileSync(logPath, JSON.stringify(log, null, 2) + '\n', 'utf-8');
+  const logPath = path.join(userDir, 'calibration-log.jsonl');
+  fs.appendFileSync(logPath, JSON.stringify(dataPoint) + '\n', 'utf-8');
 }
 
 /**
- * Read all calibration data points from the log.
+ * Read all calibration data points from the core JSONL log.
+ * Reads from calibration/core/calibration-log.jsonl (one JSON object per line).
  */
 export function readCalibrationLog(dataRoot: string): CalibrationDataPoint[] {
-
-
-
-  const logPath = path.join(dataRoot, 'calibration', 'calibration-log.json');
+  const logPath = path.join(dataRoot, 'calibration', 'core', 'calibration-log.jsonl');
   if (!fs.existsSync(logPath)) return [];
 
   try {
-    return JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+    return fs.readFileSync(logPath, 'utf-8')
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => JSON.parse(line));
   } catch {
     return [];
   }

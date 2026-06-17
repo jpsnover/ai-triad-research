@@ -157,7 +157,7 @@ async function main(): Promise<void> {
     try {
       configText = fs.readFileSync(resolvedConfig, 'utf-8');
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to read config file ${resolvedConfig}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to read config file ${resolvedConfig}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       throw new ActionableError({
         goal: 'Load debate configuration',
         problem: `Failed to read config file ${resolvedConfig}: ${err instanceof Error ? err.message : err}`,
@@ -175,7 +175,7 @@ async function main(): Promise<void> {
   try {
     config = JSON.parse(configText);
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: 'Config file contains invalid JSON', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: 'Config file contains invalid JSON', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     throw new ActionableError({
       goal: 'Parse debate configuration',
       problem: `Config file contains invalid JSON: ${err instanceof Error ? err.message : err}`,
@@ -405,7 +405,7 @@ async function main(): Promise<void> {
   try {
     fs.mkdirSync(outputDir, { recursive: true });
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to create output directory '${outputDir}'`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to create output directory '${outputDir}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     throw new ActionableError({
       goal: 'Create debate output directory',
       problem: `Failed to create output directory '${outputDir}': ${err instanceof Error ? err.message : err}`,
@@ -426,7 +426,7 @@ async function main(): Promise<void> {
       fs.writeFileSync(filePath, content, 'utf-8');
       log(`Wrote ${description}: ${filePath}`);
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write ${description} to '${filePath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'cli', level: 'error', message: `Failed to write ${description} to '${filePath}'`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       throw new ActionableError({
         goal: 'Write debate output file',
         problem: `Failed to write ${description} to '${filePath}': ${err instanceof Error ? err.message : err}`,
@@ -486,9 +486,9 @@ async function main(): Promise<void> {
     const dataRoot = path.dirname(outputDir); // outputDir is .../debates, data root is parent
     const dataPoint = extractCalibrationData(session, 'local');
     appendCalibrationLog(dataPoint, dataRoot);
-    log(`Calibration data logged to ${dataRoot}/calibration/calibration-log.json`);
+    log(`Calibration data logged to ${dataRoot}/calibration/users/${dataPoint.origin || 'local'}/calibration-log.jsonl`);
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'warn', message: 'Calibration logging failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'warn', message: 'Calibration logging failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     log(`Calibration logging failed (non-critical): ${err instanceof Error ? err.message : err}`);
   }
 
