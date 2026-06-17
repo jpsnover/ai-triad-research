@@ -10,6 +10,7 @@ import { SearchPreview } from '../edge-browser/SearchPreview';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { PromptDetailPanel } from '../chat/PromptsPanel';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
+import { LinkedNodePreview } from '../shared/LinkedNodePreview';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
@@ -89,15 +90,6 @@ export function CruxesTab() {
 
   const handleDebateClick = useCallback((debateId: string) => {
     navigateToNode('debate', debateId);
-  }, [navigateToNode]);
-
-  const handleNodeClick = useCallback((nodeId: string) => {
-    // Determine POV from node ID prefix
-    if (nodeId.startsWith('acc-')) navigateToNode('accelerationist', nodeId);
-    else if (nodeId.startsWith('saf-')) navigateToNode('safetyist', nodeId);
-    else if (nodeId.startsWith('skp-')) navigateToNode('skeptic', nodeId);
-    else if (nodeId.startsWith('cc-')) navigateToNode('situations', nodeId);
-    else if (nodeId.startsWith('conflict-')) navigateToNode('conflicts', nodeId);
   }, [navigateToNode]);
 
   // Type counts for filter badges
@@ -226,7 +218,7 @@ export function CruxesTab() {
             </div>
           )}
           {selectedCrux ? (
-            <CruxDetail crux={selectedCrux} onDebateClick={handleDebateClick} onNodeClick={handleNodeClick} />
+            <CruxDetail crux={selectedCrux} onDebateClick={handleDebateClick} />
           ) : (
             <div className="detail-panel-empty">Select a crux to view details</div>
           )}
@@ -295,13 +287,19 @@ function CruxListItem({ crux, isSelected, onSelect }: {
 
 // ── Detail Panel ──
 
-export function CruxDetail({ crux, onDebateClick, onNodeClick }: {
+export function CruxDetail({ crux, onDebateClick }: {
   crux: AggregatedCrux;
   onDebateClick: (id: string) => void;
-  onNodeClick: (id: string) => void;
 }) {
   const rs = crux.resolution_summary;
   const total = rs.resolved + rs.active + rs.irreducible;
+  // Linked nodes and conflicts expand inline (read-only) instead of navigating away.
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) => setExpandedNodes(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   return (
     <div style={{ padding: '0 4px', overflow: 'auto' }}>
@@ -353,47 +351,57 @@ export function CruxDetail({ crux, onDebateClick, onNodeClick }: {
         </div>
       )}
 
-      {/* Linked taxonomy nodes */}
-      {crux.linked_node_ids.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-            Linked Nodes ({crux.linked_node_ids.length})
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {crux.linked_node_ids.map(nodeId => (
-              <button
-                key={nodeId}
-                className="btn btn-sm btn-ghost"
-                onClick={() => onNodeClick(nodeId)}
-                style={{ fontSize: '0.7rem' }}
-              >
-                {nodeId}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Linked taxonomy nodes — expand inline (read-only) */}
+      <ExpandableLinkList
+        label="Linked Nodes"
+        ids={crux.linked_node_ids}
+        expanded={expandedNodes}
+        onToggle={toggleExpanded}
+      />
 
-      {/* Linked conflicts */}
-      {crux.linked_conflict_ids && crux.linked_conflict_ids.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-            Linked Conflicts ({crux.linked_conflict_ids.length})
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-            {crux.linked_conflict_ids.map(cid => (
-              <button
-                key={cid}
-                className="btn btn-sm btn-ghost"
-                onClick={() => onNodeClick(cid)}
-                style={{ fontSize: '0.7rem' }}
-              >
-                {cid}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Linked conflicts — expand inline (read-only) */}
+      <ExpandableLinkList
+        label="Linked Conflicts"
+        ids={crux.linked_conflict_ids ?? []}
+        expanded={expandedNodes}
+        onToggle={toggleExpanded}
+      />
+    </div>
+  );
+}
+
+// ── Expandable Link List ──
+
+/** Renders linked entity ids as chips that toggle an inline read-only preview. */
+function ExpandableLinkList({ label, ids, expanded, onToggle }: {
+  label: string;
+  ids: string[];
+  expanded: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  if (ids.length === 0) return null;
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+        {label} ({ids.length})
+      </div>
+      <div className="chip-list">
+        {ids.map(id => (
+          <span key={id} className={`chip${expanded.has(id) ? ' chip-expanded' : ''}`}>
+            <span
+              className="chip-content"
+              onClick={() => onToggle(id)}
+              title="Click to expand content"
+            >
+              <span className="chip-id">{id}</span>
+              <span className="chip-expand-indicator">{expanded.has(id) ? '▲' : '▼'}</span>
+            </span>
+          </span>
+        ))}
+      </div>
+      {ids.filter(id => expanded.has(id)).map(id => (
+        <LinkedNodePreview key={id} nodeId={id} />
+      ))}
     </div>
   );
 }
