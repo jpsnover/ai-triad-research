@@ -1904,6 +1904,98 @@ body {
   color: var(--danger);
 }
 
+.chip-expanded {
+  background: rgba(96, 165, 250, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.chip-expand-indicator {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+/* ─── Linked node inline preview ──────────────────────── */
+
+.linked-node-preview {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--focus-ring);
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+
+.linked-node-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.linked-node-preview-pov {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--focus-ring);
+  letter-spacing: 0.04em;
+}
+
+.linked-node-preview-category {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.linked-node-preview-id {
+  font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.linked-node-preview-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.linked-node-preview-description {
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.linked-node-preview-attrs {
+  display: flex;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.linked-node-preview-attr-label {
+  font-weight: 600;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.linked-node-preview-keypoints {
+  margin: 0;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.linked-node-preview-keypoints li {
+  margin-bottom: 2px;
+}
+
+.linked-node-preview-more {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .chip-input-row {
   display: flex;
   gap: 6px;
@@ -9489,6 +9581,54 @@ a.vocab-term,
 }
 .debate-continue-btn:hover:not(:disabled) {
   background: rgba(59, 130, 246, 0.1);
+}
+
+/* ─── Step mode toggle ─── */
+.debate-step-toggle {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.debate-step-toggle.active {
+  border-color: #f59e0b;
+  color: #f59e0b;
+  font-weight: 600;
+}
+.debate-step-toggle:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+/* ─── Step mode phase selector ─── */
+.debate-step-phase-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+.debate-step-phase-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.debate-step-phase-pill {
+  font-size: 0.7rem;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.debate-step-phase-pill.active {
+  font-weight: 600;
+}
+.debate-step-phase-pill:hover:not(:disabled):not(.active) {
+  background: var(--bg-hover);
+}
+.debate-step-phase-pill:disabled {
+  cursor: default;
 }
 
 /* ─── Phase override buttons (adaptive staging) ─── */

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { TOAST_DURATION_FEEDBACK } from '../../constants';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep } from '../../types/taxonomy';
+import type { ConflictFile, ConflictQbaf, DialecticTrace, DialecticTraceStep, PovNode } from '../../types/taxonomy';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { DeleteConfirmDialog } from '../shared/DeleteConfirmDialog';
 import { ConflictInstanceForm, newEmptyInstance } from './ConflictInstanceForm';
@@ -45,10 +45,13 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
     validationErrors,
   } = useTaxonomyStore();
   const { setActiveTab } = useTaxonomyStore();
+  const lookupPinnedData = useTaxonomyStore(s => s.lookupPinnedData);
+  const getLabelForId = useTaxonomyStore(s => s.getLabelForId);
   const createConflictDebate = useDebateStore(s => s.createConflictDebate);
   const [showDelete, setShowDelete] = useState(false);
   const [clipboardState, setClipboardState] = useState<'idle' | 'copied'>('idle');
   const [debateCreating, setDebateCreating] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const formRef = useRef<HTMLDivElement>(null);
 
   const handleResearchPrompt = useCallback(async () => {
@@ -245,10 +248,31 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
         <div className="form-group">
           <label>Linked Taxonomy Nodes</label>
           <div className="chip-list">
-            {linkedNodes.map((id) => (
-              <LinkedChip key={id} id={id} depth={chipDepth} readOnly={readOnly} onRemove={removeLinked} />
-            ))}
+            {linkedNodes.map((id) => {
+              const label = getLabelForId(id);
+              return (
+                <span key={id} className={`chip${expandedNodes.has(id) ? ' chip-expanded' : ''}`}>
+                  <span
+                    className="chip-content"
+                    onClick={() => setExpandedNodes(prev => {
+                      const next = new Set(prev);
+                      if (next.has(id)) next.delete(id); else next.add(id);
+                      return next;
+                    })}
+                    title="Click to expand node content"
+                  >
+                    <span className="chip-id">{id}</span>
+                    {label && <span className="chip-label">{label}</span>}
+                    <span className="chip-expand-indicator">{expandedNodes.has(id) ? '▲' : '▼'}</span>
+                  </span>
+                  {!readOnly && <button onClick={() => removeLinked(id)}>x</button>}
+                </span>
+              );
+            })}
           </div>
+          {linkedNodes.filter(id => expandedNodes.has(id)).map(id => (
+            <LinkedNodePreview key={id} nodeId={id} lookupPinnedData={lookupPinnedData} />
+          ))}
           {!readOnly && (
             <TypeaheadSelect
               options={allNodeIds.filter(id => !linkedNodes.includes(id))}
@@ -344,6 +368,52 @@ export function ConflictDetail({ conflict, readOnly, onPin, chipDepth = 0 }: Con
           }}
           onCancel={() => setShowDelete(false)}
         />
+      )}
+    </div>
+  );
+}
+
+const POV_LABELS: Record<string, string> = {
+  accelerationist: 'Accelerationist',
+  safetyist: 'Safetyist',
+  skeptic: 'Skeptic',
+};
+
+function LinkedNodePreview({ nodeId, lookupPinnedData }: { nodeId: string; lookupPinnedData: (id: string) => { type: string; pov?: string; node?: PovNode } | null }) {
+  const data = lookupPinnedData(nodeId);
+  if (!data || data.type === 'conflict' || !data.node) return null;
+
+  const node = data.node;
+  const povLabel = data.type === 'pov' && data.pov ? POV_LABELS[data.pov] || data.pov : null;
+  const category = node.category;
+  const ga = node.graph_attributes;
+
+  return (
+    <div className="linked-node-preview">
+      <div className="linked-node-preview-header">
+        {povLabel && <span className="linked-node-preview-pov">{povLabel}</span>}
+        {category && <span className="linked-node-preview-category">{category}</span>}
+        <span className="linked-node-preview-id">{nodeId}</span>
+      </div>
+      <div className="linked-node-preview-label">{node.label}</div>
+      <div className="linked-node-preview-description">{node.description}</div>
+      {ga?.interpretation && (
+        <div className="linked-node-preview-attrs">
+          <span className="linked-node-preview-attr-label">Interpretation:</span>
+          {typeof ga.interpretation === 'string'
+            ? <span>{ga.interpretation}</span>
+            : <span>{(ga.interpretation as { summary?: string }).summary}</span>
+          }
+        </div>
+      )}
+      {ga?.key_points && (ga.key_points as string[]).length > 0 && (
+        <div className="linked-node-preview-attrs">
+          <span className="linked-node-preview-attr-label">Key points:</span>
+          <ul className="linked-node-preview-keypoints">
+            {(ga.key_points as string[]).slice(0, 3).map((kp, i) => <li key={i}>{kp}</li>)}
+            {(ga.key_points as string[]).length > 3 && <li className="linked-node-preview-more">+{(ga.key_points as string[]).length - 3} more</li>}
+          </ul>
+        </div>
       )}
     </div>
   );
