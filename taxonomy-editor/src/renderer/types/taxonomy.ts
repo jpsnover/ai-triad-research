@@ -64,6 +64,13 @@ export interface ConcessionRecord {
   bdi_impact: 'belief' | 'desire' | 'intention';
 }
 
+export interface NodeEditMeta {
+  last_edited_by: string;
+  last_edited_at: string;
+  created_by?: string;
+  created_at?: string;
+}
+
 export interface PovNode {
   id: string;
   category: Category;
@@ -91,6 +98,7 @@ export interface PovNode {
   priority_history?: WeightHistoryEntry[];
   /** Concession history — tracks cross-debate concessions affecting this node. */
   concession_history?: ConcessionRecord[];
+  _edit_meta?: NodeEditMeta;
 }
 
 export interface PovTaxonomyFile {
@@ -150,6 +158,7 @@ export interface SituationNode {
     original_proposals: Record<string, { proposed_label: string; evidence_entries: string[] }>;
     similarity_scores: Record<string, number>;
   };
+  _edit_meta?: NodeEditMeta;
 }
 
 /** @deprecated Use SituationNode */

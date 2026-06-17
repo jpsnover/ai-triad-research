@@ -37,6 +37,7 @@ import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
+import { stampNodeAuthorship } from './editMeta.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
@@ -324,6 +325,18 @@ put('/api/taxonomy/:pov', async (req, res, body) => {
   try {
     await ensureSessionBranch();
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
+    const incoming = body as { nodes?: unknown[] };
+    if (incoming.nodes && Array.isArray(incoming.nodes)) {
+      let oldNodes: unknown[] = [];
+      try {
+        const existing = await fileIO.readTaxonomyFile(pov) as { nodes?: unknown[] };
+        oldNodes = existing?.nodes ?? [];
+      } catch { /* first write or missing file — treat as empty */ }
+      incoming.nodes = stampNodeAuthorship(
+        oldNodes as Parameters<typeof stampNodeAuthorship>[0],
+        incoming.nodes as Parameters<typeof stampNodeAuthorship>[1],
+      );
+    }
     await fileIO.writeTaxonomyFile(pov, body);
     json(res, { ok: true });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
