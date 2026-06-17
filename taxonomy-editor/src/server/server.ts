@@ -1132,6 +1132,70 @@ post('/api/admin/submissions/:id/reject', async (req, res) => {
   }
 });
 
+// ── Admin: Calibration curation (t/643) ──
+
+get('/api/admin/calibration/pending', async (_req, res) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  try {
+    json(res, { groups: await fileIO.listPendingCalibration() });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'calibration pending failed');
+    error(res, String(err));
+  }
+});
+
+post('/api/admin/calibration/promote', async (_req, res, body) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  const { source, entryIds, notes } = body as { source?: string; entryIds?: string[]; notes?: string };
+  if (!source || !Array.isArray(entryIds) || entryIds.length === 0) {
+    error(res, 'source and a non-empty entryIds[] are required', 400); return;
+  }
+  try {
+    await ensureSessionBranch();
+    json(res, await fileIO.promoteCalibrationEntries(source, entryIds, getStorageUserId(), notes));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'calibration promote failed');
+    error(res, String(err));
+  }
+});
+
+post('/api/admin/calibration/reject', async (_req, res, body) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  const { source, entryIds, reason } = body as { source?: string; entryIds?: string[]; reason?: string };
+  if (!source || !Array.isArray(entryIds) || entryIds.length === 0) {
+    error(res, 'source and a non-empty entryIds[] are required', 400); return;
+  }
+  if (!reason || typeof reason !== 'string') { error(res, 'reason is required', 400); return; }
+  try {
+    await ensureSessionBranch();
+    json(res, await fileIO.rejectCalibrationEntries(source, entryIds, getStorageUserId(), reason));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'calibration reject failed');
+    error(res, String(err));
+  }
+});
+
 // ── Admin: Feedback & Error reporting ──
 
 const serverStartTime = Date.now();

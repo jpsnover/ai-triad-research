@@ -1140,6 +1140,193 @@ export async function readSourceDocumentPdf(docId: string): Promise<Buffer | nul
   return backend.readBinaryFile(pdfPath);
 }
 
+// ── Admin calibration curation (t/643) ──
+//
+// Per-user calibration metrics are appended to
+// calibration/users/{origin}/calibration-log.jsonl (see lib/debate/calibrationLogger).
+// An admin curates these: promoted entries are copied into the shared
+// calibration/core/calibration-log.jsonl, and every promote/reject decision is
+// recorded in calibration/integration-log.jsonl. The integration log is the
+// source of truth for which entries are already resolved.
+
+/** A calibration log entry. Only `debate_id` is required for curation; the rest is opaque. */
+export interface CalibrationLogEntry {
+  debate_id: string;
+  [key: string]: unknown;
+}
+
+/** Audit record written to calibration/integration-log.jsonl on promote/reject. */
+export interface CalibrationIntegrationRecord {
+  action: 'promote' | 'reject';
+  /** "users/{origin}" — the source user log the entries came from. */
+  source: string;
+  /** debate_ids that were promoted/rejected. */
+  entries: string[];
+  /** Admin userId who performed the action. */
+  by: string;
+  /** ISO 8601 timestamp. */
+  at: string;
+  /** Promotion notes (promote only). */
+  notes?: string;
+  /** Rejection reason (reject only). */
+  reason?: string;
+}
+
+/** Calibration entries for one user that have not yet been promoted or rejected. */
+export interface PendingCalibrationGroup {
+  /** User directory name under calibration/users/. */
+  origin: string;
+  /** Canonical source identifier ("users/{origin}"). */
+  source: string;
+  /** Unresolved calibration entries for this user. */
+  entries: CalibrationLogEntry[];
+}
+
+function calibrationUsersDir(): string { return resolveDataPath(path.join('calibration', 'users')); }
+function calibrationCoreLogPath(): string { return resolveDataPath(path.join('calibration', 'core', 'calibration-log.jsonl')); }
+function calibrationIntegrationLogPath(): string { return resolveDataPath(path.join('calibration', 'integration-log.jsonl')); }
+
+/** Parse JSONL text into objects, skipping blank and malformed lines. */
+function parseJsonlEntries<T = CalibrationLogEntry>(raw: string | null): T[] {
+  if (!raw) return [];
+  const out: T[] = [];
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try { out.push(JSON.parse(trimmed) as T); }
+    catch { /* telemetry — silent by design; skip malformed JSONL line */ }
+  }
+  return out;
+}
+
+/** Read the promote/reject audit log. Returns [] when absent. */
+export async function readCalibrationIntegrationLog(): Promise<CalibrationIntegrationRecord[]> {
+  return parseJsonlEntries<CalibrationIntegrationRecord>(await backend.readFile(calibrationIntegrationLogPath()));
+}
+
+/** debate_ids already promoted or rejected (union across the integration log). */
+async function resolvedCalibrationDebateIds(): Promise<Set<string>> {
+  const resolved = new Set<string>();
+  for (const rec of await readCalibrationIntegrationLog()) {
+    for (const id of rec.entries ?? []) resolved.add(id);
+  }
+  return resolved;
+}
+
+/** Read one user's calibration entries. */
+async function readUserCalibrationLog(origin: string): Promise<CalibrationLogEntry[]> {
+  const logPath = path.join(calibrationUsersDir(), origin, 'calibration-log.jsonl');
+  return parseJsonlEntries(await backend.readFile(logPath));
+}
+
+/**
+ * List calibration entries across all users that have not been promoted or
+ * rejected, grouped by user. Entries whose debate_id appears in the integration
+ * log are excluded (AC #1).
+ */
+export async function listPendingCalibration(): Promise<PendingCalibrationGroup[]> {
+  const userDirs = await backend.listDirectory(calibrationUsersDir());
+  const resolved = await resolvedCalibrationDebateIds();
+
+  const groups: PendingCalibrationGroup[] = [];
+  for (const origin of userDirs) {
+    if (!SAFE_ID_RE.test(origin)) continue; // skip stray non-id directory names
+    const entries = (await readUserCalibrationLog(origin))
+      .filter(e => typeof e.debate_id === 'string' && !resolved.has(e.debate_id));
+    if (entries.length > 0) groups.push({ origin, source: `users/${origin}`, entries });
+  }
+  groups.sort((a, b) => a.origin.localeCompare(b.origin));
+  return groups;
+}
+
+/** Parse and validate a "users/{origin}" source string. Returns the origin. */
+function parseCalibrationSource(source: string): string {
+  const match = /^users\/(.+)$/.exec(source ?? '');
+  if (!match) {
+    throw new ActionableError({
+      goal: 'Resolve calibration source',
+      problem: `Invalid source "${source}": expected "users/{origin}"`,
+      location: 'server/fileIO.ts → parseCalibrationSource',
+      nextSteps: ['Pass source in the form "users/{origin}" (e.g. "users/local")'],
+    });
+  }
+  const origin = match[1];
+  assertSafeId(origin, 'calibration origin');
+  return origin;
+}
+
+/** Append a record to the integration audit log (read-modify-write via backend). */
+async function appendIntegrationRecord(record: CalibrationIntegrationRecord): Promise<void> {
+  const logPath = calibrationIntegrationLogPath();
+  const existing = (await backend.readFile(logPath)) ?? '';
+  const prefix = existing.length > 0 && !existing.endsWith('\n') ? existing + '\n' : existing;
+  await backend.writeFile(logPath, prefix + JSON.stringify(record) + '\n');
+}
+
+/**
+ * Promote selected user entries into the core calibration log and record an
+ * audit entry (AC #2). Only entries that actually exist in the user log are
+ * promoted; returns the promoted debate_ids.
+ */
+export async function promoteCalibrationEntries(
+  source: string,
+  entryIds: string[],
+  by: string,
+  notes?: string,
+): Promise<{ promoted: number; entries: string[] }> {
+  const origin = parseCalibrationSource(source);
+  const wanted = new Set(entryIds);
+  const toPromote = (await readUserCalibrationLog(origin))
+    .filter(e => typeof e.debate_id === 'string' && wanted.has(e.debate_id));
+
+  if (toPromote.length > 0) {
+    const corePath = calibrationCoreLogPath();
+    const existing = (await backend.readFile(corePath)) ?? '';
+    const prefix = existing.length > 0 && !existing.endsWith('\n') ? existing + '\n' : existing;
+    const appended = toPromote.map(e => JSON.stringify(e)).join('\n') + '\n';
+    await backend.writeFile(corePath, prefix + appended);
+  }
+
+  const promotedIds = toPromote.map(e => e.debate_id);
+  await appendIntegrationRecord({
+    action: 'promote',
+    source: `users/${origin}`,
+    entries: promotedIds,
+    by,
+    at: new Date().toISOString(),
+    ...(notes ? { notes } : {}),
+  });
+  return { promoted: promotedIds.length, entries: promotedIds };
+}
+
+/**
+ * Record a rejection of selected user entries (AC #3). User files are never
+ * modified — the rejection lives only in the integration audit log. Only ids
+ * present in the user log are recorded.
+ */
+export async function rejectCalibrationEntries(
+  source: string,
+  entryIds: string[],
+  by: string,
+  reason: string,
+): Promise<{ rejected: number; entries: string[] }> {
+  const origin = parseCalibrationSource(source);
+  const wanted = new Set(entryIds);
+  const rejectedIds = (await readUserCalibrationLog(origin))
+    .filter(e => typeof e.debate_id === 'string' && wanted.has(e.debate_id))
+    .map(e => e.debate_id);
+
+  await appendIntegrationRecord({
+    action: 'reject',
+    source: `users/${origin}`,
+    entries: rejectedIds,
+    by,
+    at: new Date().toISOString(),
+    reason,
+  });
+  return { rejected: rejectedIds.length, entries: rejectedIds };
+}
+
 // ── Dictionary ──
 
 export async function loadDictionary(): Promise<{ standardized: unknown[]; colloquial: unknown[]; lintViolations: unknown[] }> {
