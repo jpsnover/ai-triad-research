@@ -9,6 +9,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
 import { SyncDiagnosticsDialog } from './SyncDiagnosticsDialog';
+import { TaxonomyDiffPanel } from './TaxonomyDiffPanel';
 
 function formatFileKey(key: string): string {
   if (key === 'situations') return 'Situations';
@@ -22,6 +23,7 @@ export function SaveBar() {
   const isDirty = dirty.size > 0;
   const [showErrors, setShowErrors] = useState(false);
   const [syncDrawerOpen, setSyncDrawerOpen] = useState(false);
+  const [diffPanelOpen, setDiffPanelOpen] = useState(false);
   const [syncDiagOpen, setSyncDiagOpen] = useState(false);
   const { status: syncStatus, refresh: refreshSync } = useSyncStatus();
 
@@ -136,11 +138,11 @@ export function SaveBar() {
           <button
             type="button"
             className="save-bar-unsynced"
-            onClick={() => setSyncDrawerOpen(true)}
-            title={`${syncStatus.unsynced_count} unsynced change${syncStatus.unsynced_count === 1 ? '' : 's'} on ${syncStatus.session_branch ?? 'session branch'} — click to review`}
+            onClick={() => setDiffPanelOpen(true)}
+            title={`${syncStatus.unsynced_count} pending change${syncStatus.unsynced_count === 1 ? '' : 's'} on ${syncStatus.session_branch ?? 'session branch'} — click to review the diff`}
           >
             <span className="save-bar-unsynced-dot" aria-hidden="true" />
-            {syncStatus.unsynced_count} unsynced
+            {syncStatus.unsynced_count} pending change{syncStatus.unsynced_count === 1 ? '' : 's'}
           </button>
         )}
         {syncStatus.enabled && syncStatus.main_updated_available && (
@@ -210,6 +212,11 @@ export function SaveBar() {
           Save
         </button>
       </div>
+      <TaxonomyDiffPanel
+        open={diffPanelOpen}
+        onClose={() => setDiffPanelOpen(false)}
+        onManageChanges={() => setSyncDrawerOpen(true)}
+      />
       <UnsyncedChangesDrawer
         open={syncDrawerOpen}
         onClose={() => setSyncDrawerOpen(false)}

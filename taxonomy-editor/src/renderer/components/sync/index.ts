@@ -3,4 +3,5 @@ export * from './GitProgressBanner';
 export * from './RebaseConflictModal';
 export * from './SaveBar';
 export * from './SyncDiagnosticsDialog';
+export * from './TaxonomyDiffPanel';
 export * from './UnsyncedChangesDrawer';
