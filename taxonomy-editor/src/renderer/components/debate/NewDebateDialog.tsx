@@ -648,6 +648,19 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
               </div>
             </div>
 
+            {/* Step Mode (visible control) */}
+            <label className="ndd-model-toggle" style={{ marginTop: 10 }}>
+              <input
+                type="checkbox"
+                checked={stepMode}
+                onChange={() => setStepMode(!stepMode)}
+              />
+              Step-by-Step Mode
+            </label>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
+              Pause after each phase for manual review before advancing. You can also toggle this during a debate.
+            </div>
+
             {/* Advanced toggle */}
             <button className="ndd-advanced-toggle" onClick={() => setShowAdvanced(!showAdvanced)}>
               {showAdvanced ? 'Hide advanced' : 'Advanced options'} {showAdvanced ? '▲' : '▼'}
@@ -655,19 +668,6 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
             {showAdvanced && (
               <div className="ndd-advanced-section">
-                {/* Step Mode */}
-                <label className="ndd-model-toggle">
-                  <input
-                    type="checkbox"
-                    checked={stepMode}
-                    onChange={() => setStepMode(!stepMode)}
-                  />
-                  Step-by-Step Mode
-                </label>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                  Pause after each phase for manual review before advancing. You can also toggle this during a debate.
-                </div>
-
                 {/* Temperature */}
                 <label className="ndd-field-label">Temperature</label>
                 <div className="ndd-temperature-row">
