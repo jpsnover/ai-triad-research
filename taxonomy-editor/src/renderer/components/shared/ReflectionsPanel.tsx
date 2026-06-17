@@ -97,9 +97,10 @@ function EditCard({ edit, pover, editIndex }: {
   pover: string;
   editIndex: number;
 }) {
-  const { applyReflectionEdit, dismissReflectionEdit, anNodes } = useDebateStore(
+  const { applyReflectionEdit, retryReflectionEditAfterFix, dismissReflectionEdit, anNodes } = useDebateStore(
     useShallow(s => ({
       applyReflectionEdit: s.applyReflectionEdit,
+      retryReflectionEditAfterFix: s.retryReflectionEditAfterFix,
       dismissReflectionEdit: s.dismissReflectionEdit,
       anNodes: (s.activeDebate as Record<string, unknown> | null)?.argument_network
         ? ((s.activeDebate as Record<string, unknown>).argument_network as { nodes: { id: string; text: string; speaker: string }[] }).nodes
@@ -115,6 +116,9 @@ function EditCard({ edit, pover, editIndex }: {
   const [editedDescription, setEditedDescription] = useState(edit.proposed_description);
   const [applying, setApplying] = useState(false);
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [fixing, setFixing] = useState(false);
+  // Integrity failures (e.g. dangling CONVERGES_WITH edges) are auto-fixable via "Fix it".
+  const isIntegrityError = !!applyError && applyError.startsWith('Integrity check failed');
   const [regeneratePhrases, setRegeneratePhrases] = useState(false);
   const showRegenerateToggle = !resolved && (edit.edit_type === 'revise' || edit.edit_type === 'qualify');
 
@@ -460,7 +464,35 @@ function EditCard({ edit, pover, editIndex }: {
       )}
       {applyError && (
         <div style={{ color: '#ef4444', fontSize: '0.7rem', marginTop: 4, padding: '6px 8px', background: 'rgba(239,68,68,0.08)', borderRadius: 4, whiteSpace: 'pre-line' }}>
-          {applyError}
+          <div>{applyError}</div>
+          {isIntegrityError && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+              <button
+                className="btn btn-sm"
+                style={{ fontSize: '0.65rem', padding: '2px 10px' }}
+                disabled={fixing}
+                title="Remove the dangling references blocking this save, then retry"
+                onClick={async () => {
+                  setFixing(true);
+                  try {
+                    const result = await retryReflectionEditAfterFix(pover, editIndex);
+                    if (result.ok) setApplyError(null);
+                    else setApplyError(result.error ?? 'Fix failed — check SaveBar for details');
+                  } catch (err) {
+                    getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'fix-it retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+                    setApplyError(String(err));
+                  } finally {
+                    setFixing(false);
+                  }
+                }}
+              >
+                {fixing ? 'Fixing…' : 'Fix it'}
+              </button>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem' }}>
+                Removes edges that point to nonexistent nodes, then saves.
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

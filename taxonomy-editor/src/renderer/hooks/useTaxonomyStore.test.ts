@@ -113,7 +113,7 @@ vi.stubGlobal('document', {
 vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false }));
 
 import { useTaxonomyStore } from './useTaxonomyStore';
-import type { PovTaxonomyFile, CrossCuttingFile, ConflictFile, PovNode, Edge } from '../types/taxonomy';
+import type { PovTaxonomyFile, CrossCuttingFile, ConflictFile, PovNode, Edge, EdgesFile } from '../types/taxonomy';
 
 // ── Factories ──
 
@@ -1354,6 +1354,85 @@ describe('useTaxonomyStore', () => {
       const results = useTaxonomyStore.getState().similarResults!;
       expect(results).toHaveLength(1);
       expect(results[0].id).toBe('acc-beliefs-002');
+    });
+  });
+
+  describe('fixIntegrityErrors — edge dangling references', () => {
+    function makeEdge(overrides: Partial<Edge> = {}): Edge {
+      return {
+        source: 'acc-beliefs-001',
+        target: 'sit-001',
+        type: 'CONVERGES_WITH',
+        bidirectional: false,
+        confidence: 0.8,
+        weight: 0.8,
+        rationale: 'test',
+        status: 'proposed',
+        discovered_at: '2026-01-01',
+        model: 'test',
+        ...overrides,
+      } as Edge;
+    }
+
+    function makeEdgesFile(edges: Edge[]): EdgesFile {
+      return { _schema_version: '1', _doc: '', last_modified: '2026-01-01', edge_types: [], edges } as EdgesFile;
+    }
+
+    it('drops an edge with a fabricated dangling source and clears the save error', () => {
+      const validEdge = makeEdge();
+      const danglingEdge = makeEdge({ source: 'acc-convergence' }); // symbolic, no such node
+      useTaxonomyStore.setState({
+        accelerationist: makePovFile([makePovNode()]),
+        situations: makeSituationsFile(),
+        edgesFile: makeEdgesFile([validEdge, danglingEdge]),
+        integrityIssues: [
+          { severity: 'error', code: 'EDGE_DANGLING_SOURCE', entityId: 'acc-convergence', message: "Edge source 'acc-convergence' does not exist in taxonomy", fix: '' },
+        ],
+        saveError: 'Integrity check failed (1 error):\nEDGE_DANGLING_SOURCE: acc-convergence',
+      });
+
+      useTaxonomyStore.getState().fixIntegrityErrors();
+
+      const state = useTaxonomyStore.getState();
+      expect(state.edgesFile!.edges).toHaveLength(1);
+      expect(state.edgesFile!.edges[0].source).toBe('acc-beliefs-001');
+      expect(state.dirty.has('edges')).toBe(true);
+      expect(state.saveError).toBeNull();
+      expect(state.integrityIssues).toHaveLength(0);
+    });
+
+    it('drops an edge with a dangling target', () => {
+      useTaxonomyStore.setState({
+        accelerationist: makePovFile([makePovNode()]),
+        situations: makeSituationsFile(),
+        edgesFile: makeEdgesFile([makeEdge({ target: 'nonexistent-001' })]),
+        integrityIssues: [
+          { severity: 'error', code: 'EDGE_DANGLING_TARGET', entityId: 'nonexistent-001', message: "Edge target 'nonexistent-001' does not exist in taxonomy", fix: '' },
+        ],
+        saveError: 'Integrity check failed (1 error):\nEDGE_DANGLING_TARGET: nonexistent-001',
+      });
+
+      useTaxonomyStore.getState().fixIntegrityErrors();
+
+      const state = useTaxonomyStore.getState();
+      expect(state.edgesFile!.edges).toHaveLength(0);
+      expect(state.dirty.has('edges')).toBe(true);
+      expect(state.saveError).toBeNull();
+    });
+
+    it('keeps edges whose endpoints both resolve (situation target is valid)', () => {
+      useTaxonomyStore.setState({
+        accelerationist: makePovFile([makePovNode()]),
+        situations: makeSituationsFile(),
+        edgesFile: makeEdgesFile([makeEdge({ source: 'acc-beliefs-001', target: 'sit-001' })]),
+        integrityIssues: [],
+        saveError: null,
+      });
+
+      useTaxonomyStore.getState().fixIntegrityErrors();
+
+      // No integrity issues → no-op, edge preserved.
+      expect(useTaxonomyStore.getState().edgesFile!.edges).toHaveLength(1);
     });
   });
 });

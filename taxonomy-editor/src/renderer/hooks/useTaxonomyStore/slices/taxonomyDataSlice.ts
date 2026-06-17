@@ -297,7 +297,20 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     const dirtyPovs = new Set<string>();
     const povKeys = ['accelerationist', 'safetyist', 'skeptic'] as const;
 
+    // Valid edge endpoints / reference targets = all POV nodes + all situation nodes
+    // (mirrors checkReferentialIntegrity's allIds set in validators.ts).
+    const validNodeIds = new Set<string>();
+    for (const p of povKeys) {
+      const f = state[p] as PovTaxonomyFile | null;
+      if (f) for (const n of f.nodes) validNodeIds.add(n.id);
+    }
+    const sitIds = new Set(state.situations?.nodes.map(n => n.id) ?? []);
+    for (const id of sitIds) validNodeIds.add(id);
+
     for (const issue of issues) {
+      // Edge-dangling errors are handled in bulk below — they have no owning node to mutate.
+      if (issue.code === 'EDGE_DANGLING_SOURCE' || issue.code === 'EDGE_DANGLING_TARGET') continue;
+
       const entityPov = nodePovFromId(issue.entityId);
       const file = entityPov ? state[entityPov as keyof typeof state] as PovTaxonomyFile | null : null;
       if (!file) continue;
@@ -307,29 +320,36 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
       if (issue.code === 'DANGLING_CHILD') {
         const match = issue.message.match(/Child '([^']+)'/);
         if (match) {
-          const allPovIds = new Set<string>();
-          for (const p of povKeys) {
-            const f = state[p] as PovTaxonomyFile | null;
-            if (f) for (const n of f.nodes) allPovIds.add(n.id);
-          }
-          node.children = node.children.filter(id => allPovIds.has(id));
+          node.children = node.children.filter(id => validNodeIds.has(id));
           if (entityPov) dirtyPovs.add(entityPov);
         }
       } else if (issue.code === 'DANGLING_PARENT') {
         node.parent_id = null;
         if (entityPov) dirtyPovs.add(entityPov);
       } else if (issue.code === 'DANGLING_SITUATION_REF') {
-        const sitIds = new Set(state.situations?.nodes.map(n => n.id) ?? []);
         node.situation_refs = node.situation_refs.filter(id => sitIds.has(id));
         if (entityPov) dirtyPovs.add(entityPov);
       }
     }
 
-    if (dirtyPovs.size > 0) {
+    // Edge integrity: drop any edge whose source or target no longer resolves to a node.
+    let removedEdges = 0;
+    let repairedEdgesFile = state.edgesFile;
+    const hasEdgeIssues = issues.some(i => i.code === 'EDGE_DANGLING_SOURCE' || i.code === 'EDGE_DANGLING_TARGET');
+    if (hasEdgeIssues && state.edgesFile) {
+      const kept = state.edgesFile.edges.filter(e => validNodeIds.has(e.source) && validNodeIds.has(e.target));
+      removedEdges = state.edgesFile.edges.length - kept.length;
+      if (removedEdges > 0) {
+        repairedEdgesFile = { ...state.edgesFile, edges: kept };
+      }
+    }
+
+    if (dirtyPovs.size > 0 || removedEdges > 0) {
       const dirty = new Set(state.dirty);
       for (const p of dirtyPovs) dirty.add(p);
-      getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'integrity.auto-fix', data: { fixed: issues.length, dirty: [...dirtyPovs] } });
-      set({ dirty, saveError: null, integrityIssues: [], embeddingDirty: true });
+      if (removedEdges > 0) dirty.add('edges');
+      getGlobalRecorder()?.record({ type: 'state.change', component: 'taxonomy-store', level: 'info', message: 'integrity.auto-fix', data: { fixed: issues.length, removed_edges: removedEdges, dirty: [...dirty] } });
+      set({ dirty, edgesFile: repairedEdgesFile, saveError: null, integrityIssues: [], embeddingDirty: true });
     }
   },
 

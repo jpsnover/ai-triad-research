@@ -127,6 +127,7 @@ export interface DebateLoopSlice {
   generateNewsReport: () => Promise<void>;
   requestReflections: () => Promise<void>;
   applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => Promise<{ ok: boolean; error?: string }>;
+  retryReflectionEditAfterFix: (pover: string, editIndex: number) => Promise<{ ok: boolean; error?: string }>;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
   acceptConsensus: (clusterId: string) => Promise<{ ok: boolean; error?: string }>;
   rejectConsensus: (clusterId: string) => void;
@@ -1862,6 +1863,42 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     return { ok: true };
   },
 
+  // "Fix it" recovery: a prior applyReflectionEdit already mutated the node in memory but
+  // its save was rejected by the taxonomy integrity check (e.g. dangling CONVERGES_WITH
+  // edges left over from consensus acceptance). Auto-remove the dangling references, then
+  // re-save the still-pending change — no node is re-created, so 'add' edits can't duplicate.
+  retryReflectionEditAfterFix: async (pover: string, editIndex: number) => {
+    const { reflections } = get();
+    const reflection = reflections.find(r => r.pover === pover);
+    const edit = reflection?.edits[editIndex];
+    if (!reflection || !edit) return { ok: false, error: 'Edit not found' };
+
+    const taxStore = useTaxonomyStore.getState();
+    taxStore.fixIntegrityErrors();
+    await useTaxonomyStore.getState().save();
+
+    const { saveError, validationErrors } = useTaxonomyStore.getState();
+    if (saveError) {
+      const errorDetails = Object.entries(validationErrors ?? {});
+      const detailedError = errorDetails.length > 0
+        ? `${saveError}\n${errorDetails.map(([field, msg]) => `• ${field}: ${msg}`).join('\n')}`
+        : saveError;
+      getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'error', message: 'retryReflectionEditAfterFix.result', data: { ok: false, error: saveError, pover, editIndex } });
+      return { ok: false, error: detailedError };
+    }
+
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'retryReflectionEditAfterFix.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id } });
+    const updated = reflections.map(r => {
+      if (r.pover !== pover) return r;
+      return {
+        ...r,
+        edits: r.edits.map((e, i) => i === editIndex ? { ...e, status: 'approved' as const } : e),
+      };
+    });
+    set({ reflections: updated });
+    return { ok: true };
+  },
+
   dismissReflectionEdit: (pover: string, editIndex: number) => {
     const { reflections } = get();
     const updated = reflections.map(r => {
@@ -1929,29 +1966,45 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         },
       });
 
-      // Create CONVERGES_WITH edges from each converging POV to the situation node
+      // Create CONVERGES_WITH edges from each converging POV node to the situation node.
+      // The source must be a REAL node id, never a fabricated symbol — otherwise the edge
+      // is dangling and the taxonomy integrity check rejects every subsequent save.
+      // Source = the converging proposal's existing node (revise/qualify edits). ADD
+      // proposals have no node yet, so their convergence is captured only in the situation
+      // node's convergence_source metadata (no edge), avoiding dangling references.
       const currentEdgesFile = useTaxonomyStore.getState().edgesFile;
       if (currentEdgesFile) {
-        const convergenceEdges = cluster.proposals.map(p => ({
-          source: `${p.pov.slice(0, 3)}-convergence`, // symbolic source — links POV to situation
-          target: newId,
-          type: 'CONVERGES_WITH' as const,
-          bidirectional: false,
-          confidence: 0.8,
-          weight: 0.8,
-          rationale: `Consensus detected via embedding similarity (debate: ${activeDebateId})`,
-          status: 'proposed' as const,
-          discovered_at: nowISO(),
-          model: 'consensus-detection',
-        }));
-        const updatedEdgesFile = {
-          ...currentEdgesFile,
-          last_modified: nowISO(),
-          edges: [...currentEdgesFile.edges, ...convergenceEdges],
-        };
-        const dirty = new Set(useTaxonomyStore.getState().dirty);
-        dirty.add('edges');
-        useTaxonomyStore.setState({ edgesFile: updatedEdgesFile, dirty });
+        const { reflections: reflForEdges } = get();
+        const povNodeIds = new Set<string>();
+        for (const pov of POV_KEYS) {
+          const f = useTaxonomyStore.getState()[pov];
+          if (f) for (const n of f.nodes) povNodeIds.add(n.id);
+        }
+        const convergenceEdges = cluster.proposals
+          .map(p => reflForEdges.find(r => r.pover === p.pov)?.edits[p.editIndex]?.node_id ?? null)
+          .filter((srcId): srcId is string => srcId !== null && povNodeIds.has(srcId))
+          .map(srcId => ({
+            source: srcId,
+            target: newId,
+            type: 'CONVERGES_WITH' as const,
+            bidirectional: false,
+            confidence: 0.8,
+            weight: 0.8,
+            rationale: `Consensus detected via embedding similarity (debate: ${activeDebateId})`,
+            status: 'proposed' as const,
+            discovered_at: nowISO(),
+            model: 'consensus-detection',
+          }));
+        if (convergenceEdges.length > 0) {
+          const updatedEdgesFile = {
+            ...currentEdgesFile,
+            last_modified: nowISO(),
+            edges: [...currentEdgesFile.edges, ...convergenceEdges],
+          };
+          const dirty = new Set(useTaxonomyStore.getState().dirty);
+          dirty.add('edges');
+          useTaxonomyStore.setState({ edgesFile: updatedEdgesFile, dirty });
+        }
       }
 
       await taxStore.save();
