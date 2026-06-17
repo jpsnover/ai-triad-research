@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
 import type { Pov, Category, PovNode } from '../../types/taxonomy';
@@ -143,54 +144,163 @@ function DoctrinalBoundariesSection({ pov }: { pov: string }) {
   );
 }
 
-const RETRY_DELAYS = [3000, 8000, 15000];
+type StepStatus = 'pending' | 'running' | 'ok' | 'error' | 'polling';
 
-function DataLoadRetry({ pov }: { pov: string }) {
-  const { loadAll, loading, saveError } = useTaxonomyStore();
-  const [attempt, setAttempt] = useState(0);
-  const [countdown, setCountdown] = useState(0);
-  const [exhausted, setExhausted] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+interface RecoveryStep {
+  label: string;
+  status: StepStatus;
+  detail: string;
+  error?: string;
+}
 
-  const clearTimers = useCallback(() => {
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    if (countdownRef.current) { clearInterval(countdownRef.current); countdownRef.current = null; }
+const STEP_LABELS = ['Server health', 'Data availability', 'Authentication', 'Load taxonomy'];
+const POLL_INTERVAL = 4000;
+const MAX_FAILURES = 3;
+
+function DataRecovery({ pov }: { pov: string }) {
+  const { loadAll } = useTaxonomyStore();
+  const [steps, setSteps] = useState<RecoveryStep[]>(
+    STEP_LABELS.map(label => ({ label, status: 'pending', detail: '' })),
+  );
+  const [activeStep, setActiveStep] = useState(0);
+  const [failures, setFailures] = useState(0);
+  const [diagnostics, setDiagnostics] = useState('');
+  const abortRef = useRef<AbortController | null>(null);
+
+  const updateStep = useCallback((idx: number, patch: Partial<RecoveryStep>) => {
+    setSteps(prev => prev.map((s, i) => i === idx ? { ...s, ...patch } : s));
   }, []);
 
-  const doRetry = useCallback(() => {
-    clearTimers();
-    setCountdown(0);
-    void loadAll();
-  }, [loadAll, clearTimers]);
+  const runPipeline = useCallback(async (startFrom = 0) => {
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const sig = ac.signal;
+    let diagLines: string[] = [];
 
-  const scheduleRetry = useCallback((attemptIndex: number) => {
-    if (attemptIndex >= RETRY_DELAYS.length) { setExhausted(true); return; }
-    const delay = RETRY_DELAYS[attemptIndex];
-    setCountdown(Math.ceil(delay / 1000));
-    countdownRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) { clearInterval(countdownRef.current!); countdownRef.current = null; return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    timerRef.current = setTimeout(() => {
-      setAttempt(attemptIndex + 1);
-      void loadAll();
-    }, delay);
-  }, [loadAll, clearTimers]);
+    setSteps(prev => prev.map((s, i) => i < startFrom ? s : { ...s, status: 'pending', detail: '', error: undefined }));
+    setActiveStep(startFrom);
+
+    try {
+      // Step 0: Server health
+      if (startFrom <= 0) {
+        updateStep(0, { status: 'running', detail: 'Checking...' });
+        try {
+          const res = await fetch('/health', { signal: sig });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const cacheCount = data.storage?.cacheFileCount ?? '?';
+          const uptime = data.uptime ? `${Math.round(data.uptime)}s` : '?';
+          updateStep(0, { status: 'ok', detail: `${data.status} · ${cacheCount} cached · uptime ${uptime}` });
+          diagLines.push(`health: ${JSON.stringify(data)}`);
+        } catch (err) {
+          if (sig.aborted) return;
+          const msg = String((err as Error).message);
+          updateStep(0, { status: 'error', detail: 'Server unreachable', error: msg });
+          diagLines.push(`health: FAILED — ${msg}`);
+          setDiagnostics(diagLines.join('\n'));
+          setFailures(f => f + 1);
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Health check failed', error: { name: 'HealthCheckError', message: msg } });
+          return;
+        }
+      }
+      if (sig.aborted) return;
+
+      // Step 1: Data availability (may poll)
+      if (startFrom <= 1) {
+        setActiveStep(1);
+        updateStep(1, { status: 'running', detail: 'Checking...' });
+        try {
+          let available = false;
+          let pollCount = 0;
+          while (!available && !sig.aborted) {
+            const res = await fetch('/api/data/available', { signal: sig });
+            available = await res.json();
+            if (available) break;
+            pollCount++;
+            updateStep(1, { status: 'polling', detail: `Server syncing data from GitHub (poll ${pollCount})...` });
+            await new Promise(r => setTimeout(r, POLL_INTERVAL));
+          }
+          if (sig.aborted) return;
+          updateStep(1, { status: 'ok', detail: 'Data available' });
+          diagLines.push(`data-available: true (polls: ${pollCount})`);
+        } catch (err) {
+          if (sig.aborted) return;
+          const msg = String((err as Error).message);
+          updateStep(1, { status: 'error', detail: 'Cannot verify data', error: msg });
+          diagLines.push(`data-available: FAILED — ${msg}`);
+          setDiagnostics(diagLines.join('\n'));
+          setFailures(f => f + 1);
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Data availability check failed', error: { name: 'DataAvailError', message: msg } });
+          return;
+        }
+      }
+      if (sig.aborted) return;
+
+      // Step 2: Authentication
+      if (startFrom <= 2) {
+        setActiveStep(2);
+        updateStep(2, { status: 'running', detail: 'Checking...' });
+        try {
+          const res = await fetch('/api/auth/me', { signal: sig });
+          const data = await res.json();
+          const userLabel = data.anonymous ? 'anonymous' : `${data.user} (${data.idp || 'local'})`;
+          updateStep(2, { status: 'ok', detail: userLabel });
+          diagLines.push(`auth: ${JSON.stringify(data)}`);
+        } catch (err) {
+          if (sig.aborted) return;
+          const msg = String((err as Error).message);
+          updateStep(2, { status: 'error', detail: 'Auth check failed', error: msg });
+          diagLines.push(`auth: FAILED — ${msg}`);
+          setDiagnostics(diagLines.join('\n'));
+          setFailures(f => f + 1);
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Auth check failed', error: { name: 'AuthCheckError', message: msg } });
+          return;
+        }
+      }
+      if (sig.aborted) return;
+
+      // Step 3: Load taxonomy data
+      setActiveStep(3);
+      updateStep(3, { status: 'running', detail: `Loading ${pov}...` });
+      try {
+        await loadAll();
+        updateStep(3, { status: 'ok', detail: 'Loaded' });
+        diagLines.push('loadAll: ok');
+      } catch (err) {
+        if (sig.aborted) return;
+        const msg = String((err as Error).message);
+        updateStep(3, { status: 'error', detail: 'Load failed', error: msg });
+        diagLines.push(`loadAll: FAILED — ${msg}`);
+        setDiagnostics(diagLines.join('\n'));
+        setFailures(f => f + 1);
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Taxonomy load failed', error: { name: 'LoadError', message: msg } });
+        return;
+      }
+
+      setDiagnostics(diagLines.join('\n'));
+      setFailures(0);
+    } catch (err) {
+      if (!sig.aborted) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'data-recovery', level: 'error', message: 'Recovery pipeline error', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      }
+    }
+  }, [loadAll, pov, updateStep]);
 
   useEffect(() => {
-    if (!loading && attempt < RETRY_DELAYS.length && !exhausted) {
-      scheduleRetry(attempt);
-    }
-    return clearTimers;
-  }, [loading, attempt]);
+    void runPipeline(0);
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
-  const handleManualRetry = () => {
-    if (exhausted) setExhausted(false);
-    setAttempt(0);
-    doRetry();
+  const failedIdx = steps.findIndex(s => s.status === 'error');
+  const completedCount = steps.filter(s => s.status === 'ok').length;
+  const showCopyDiag = failures >= MAX_FAILURES;
+
+  const handleCopyDiagnostics = async () => {
+    try {
+      const { api } = await import('@bridge');
+      await api.clipboardWriteText(`Data Recovery Diagnostics (${pov})\n${new Date().toISOString()}\n\n${diagnostics}`);
+    } catch { /* telemetry — silent by design */ }
   };
 
   return (
@@ -203,25 +313,59 @@ function DataLoadRetry({ pov }: { pov: string }) {
           <rect x="14" y="14" width="7" height="7" rx="1" />
         </svg>
       </div>
-      <div className="data-load-retry-title">No data loaded for {pov}</div>
-      {loading ? (
-        <div className="data-load-retry-status">
-          <span className="data-load-retry-spinner" />
-          Loading...
+      <div className="data-load-retry-title">Loading Taxonomy Data</div>
+
+      <div className="recovery-steps">
+        {steps.map((step, i) => (
+          <div key={i} className={`recovery-step recovery-step-${step.status}`}>
+            <span className="recovery-step-icon">
+              {step.status === 'ok' && '✓'}
+              {step.status === 'error' && '✗'}
+              {step.status === 'running' && <span className="data-load-retry-spinner" />}
+              {step.status === 'polling' && <span className="data-load-retry-spinner" />}
+              {step.status === 'pending' && '·'}
+            </span>
+            <span className="recovery-step-label">{step.label}</span>
+            <span className="recovery-step-detail">{step.detail}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      <div className="recovery-progress">
+        <div className="recovery-progress-bar" style={{ width: `${(completedCount / steps.length) * 100}%` }} />
+      </div>
+      <div className="recovery-progress-text">{completedCount} of {steps.length}</div>
+
+      {step2NeedsAuth(steps) && (
+        <div className="recovery-auth-inline">
+          <a href="/.auth/login/github" className="data-load-retry-btn">Sign in with GitHub</a>
+          <a href="/.auth/login/google" className="data-load-retry-btn data-load-retry-btn-sm">Sign in with Google</a>
         </div>
-      ) : exhausted ? (
-        <>
-          {saveError && <div className="data-load-retry-error">{saveError}</div>}
-          <button className="data-load-retry-btn" onClick={handleManualRetry}>Try Again</button>
-        </>
-      ) : (
-        <div className="data-load-retry-status">
-          Attempt {attempt + 1} of {RETRY_DELAYS.length}{countdown > 0 ? ` · Retry in ${countdown}s` : ''}
-          <button className="data-load-retry-btn data-load-retry-btn-sm" onClick={handleManualRetry}>Reload Now</button>
+      )}
+
+      {failedIdx >= 0 && (
+        <div className="recovery-actions">
+          {steps[failedIdx].error && <div className="data-load-retry-error">{steps[failedIdx].error}</div>}
+          <button className="data-load-retry-btn" onClick={() => { setFailures(f => f); void runPipeline(failedIdx); }}>
+            Retry from {steps[failedIdx].label.toLowerCase()}
+          </button>
+          <button className="data-load-retry-btn data-load-retry-btn-sm" onClick={() => void runPipeline(0)}>
+            Restart
+          </button>
+          {showCopyDiag && (
+            <button className="data-load-retry-btn data-load-retry-btn-sm" onClick={() => void handleCopyDiagnostics()}>
+              Copy Diagnostics
+            </button>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+function step2NeedsAuth(steps: RecoveryStep[]): boolean {
+  return steps[2]?.status === 'ok' && steps[2]?.detail === 'anonymous' && steps[3]?.status === 'error';
 }
 
 export function PovTab({ pov }: PovTabProps) {
@@ -790,7 +934,7 @@ export function PovTab({ pov }: PovTabProps) {
   };
 
   if (!file) {
-    return <DataLoadRetry pov={pov} />;
+    return <DataRecovery pov={pov} />;
   }
 
   return (

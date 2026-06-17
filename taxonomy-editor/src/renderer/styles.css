@@ -2112,6 +2112,92 @@ body {
   font-size: 0.78rem;
 }
 
+/* ─── Data Recovery step-by-step UI ──────────────────── */
+
+.recovery-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 420px;
+  margin: 8px 0 12px;
+}
+
+.recovery-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.recovery-step-icon {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.recovery-step-ok .recovery-step-icon { color: #22c55e; }
+.recovery-step-error .recovery-step-icon { color: #ef4444; }
+.recovery-step-pending .recovery-step-icon { color: var(--text-muted); }
+.recovery-step-running .recovery-step-icon,
+.recovery-step-polling .recovery-step-icon { color: var(--accent-primary); }
+
+.recovery-step-label {
+  flex-shrink: 0;
+  font-weight: 600;
+  min-width: 130px;
+  color: var(--text-primary);
+}
+
+.recovery-step-pending .recovery-step-label { color: var(--text-muted); }
+
+.recovery-step-detail {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recovery-progress {
+  width: 100%;
+  max-width: 420px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.recovery-progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-primary);
+  transition: width 0.3s ease;
+}
+
+.recovery-progress-text {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.recovery-auth-inline {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.recovery-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 /* ─── Facts tab: source document split pane ───────────── */
 
 .facts-split-container {
