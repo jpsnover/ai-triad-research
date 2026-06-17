@@ -1104,7 +1104,6 @@ export function PovTab({ pov }: PovTabProps) {
             <CruxDetail
               crux={selectedCrux}
               onDebateClick={() => {}}
-              onNodeClick={(id) => useTaxonomyStore.getState().setSelectedNodeId(id)}
             />
           </div>
         </>
