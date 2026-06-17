@@ -15,7 +15,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$REPO_ROOT/lib/debate/cli.ts"
 MODEL="gemini-flash-lite-latest"
 OUTPUT_DIR="$REPO_ROOT/../ai-triad-data/debates"
-LOG_FILE="$REPO_ROOT/../ai-triad-data/calibration/calibration-log.json"
+LOG_FILE="$REPO_ROOT/../ai-triad-data/calibration/core/calibration-log.jsonl"
 
 # Debater orders
 ORDER_A='["prometheus","sentinel","cassandra"]'
@@ -184,7 +184,7 @@ if ! $DRY_RUN; then
   fi
 
   if [[ -f "$LOG_FILE" ]]; then
-    ENTRIES=$(python3 -c "import json; print(len(json.load(open('$LOG_FILE'))))" 2>/dev/null || echo "?")
+    ENTRIES=$(python3 -c "print(sum(1 for line in open('$LOG_FILE') if line.strip()))" 2>/dev/null || echo "?")
     echo "Calibration log entries: $ENTRIES"
   fi
 fi

@@ -56,6 +56,8 @@ export interface SessionSlice {
   updatePhase: (phase: DebateSession['phase']) => void;
   updateTopic: (topic: Partial<DebateSession['topic']>) => void;
   saveDebate: (caller?: string) => Promise<void>;
+  toggleStepMode: () => Promise<void>;
+  setDebatePhase: (phase: 'confrontation' | 'argumentation' | 'concluding') => Promise<void>;
 }
 
 export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice> = (set, get) => ({
@@ -479,6 +481,37 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         updated_at: nowISO(),
       },
     });
+  },
+
+  toggleStepMode: async () => {
+    const { activeDebate, saveDebate } = get();
+    if (!activeDebate?.adaptive_staging) return;
+    const newMode = !activeDebate.adaptive_staging.step_mode;
+    const newDebate = {
+      ...activeDebate,
+      adaptive_staging: { ...activeDebate.adaptive_staging, step_mode: newMode },
+      updated_at: nowISO(),
+    };
+    set({ activeDebate: newDebate });
+    await saveDebate('toggleStepMode');
+  },
+
+  setDebatePhase: async (phase) => {
+    const { activeDebate, addTranscriptEntry, saveDebate } = get();
+    if (!activeDebate?.adaptive_staging?.phase_state) return;
+    const prev = activeDebate.adaptive_staging.phase_state.current_phase;
+    if (prev === phase) return;
+    const newPhaseState = { ...activeDebate.adaptive_staging.phase_state, current_phase: phase, rounds_in_phase: 0 };
+    const asObj = { ...activeDebate.adaptive_staging, phase_state: newPhaseState, current_phase: phase, rounds_in_phase: 0 };
+    const newDebate = { ...activeDebate, adaptive_staging: asObj, updated_at: nowISO() };
+    set({ activeDebate: newDebate });
+    addTranscriptEntry({
+      type: 'system', speaker: 'system',
+      content: `[Manual phase change] ${prev} → ${phase}`,
+      taxonomy_refs: [],
+      metadata: { manual_phase_change: true, from_phase: prev, to_phase: phase },
+    });
+    await saveDebate('setDebatePhase');
   },
 
   saveDebate: async (caller?: string) => {

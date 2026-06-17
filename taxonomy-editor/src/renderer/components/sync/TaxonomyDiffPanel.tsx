@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { createPullRequestTracked, type CreatePrSuccess, type SyncStatus } from '../../utils/syncApi';
 import './TaxonomyDiffPanel.css';
 
 // ── Response contract (mirrors GET /api/sync/node-diff) ──────────────────────
@@ -55,8 +56,12 @@ export interface NodeDiffResponse {
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Optional: switch to the file-level actions drawer (PR / discard / resync). */
+  /** Current sync status — drives the submit affordance (branch, existing PR, GitHub config). */
+  status?: SyncStatus;
+  /** Optional: switch to the file-level actions drawer (discard / resync). */
   onManageChanges?: () => void;
+  /** Called after a PR is created/updated so the parent can re-poll sync status. */
+  onSubmitted?: () => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -102,6 +107,23 @@ async function fetchNodeDiff(): Promise<NodeDiffResponse | null> {
     });
     return null;
   }
+}
+
+/** Build a default PR description summarising the node-level changes. */
+function defaultPrBody(data: NodeDiffResponse): string {
+  const { added, modified, removed } = data.totals;
+  const summary = `Taxonomy edits via the web UI: ${added} added, ${modified} modified, ${removed} removed.`;
+  const fileLines = data.files
+    .slice(0, 20)
+    .map(f => {
+      const parts: string[] = [];
+      if (f.added.length) parts.push(`+${f.added.length}`);
+      if (f.modified.length) parts.push(`~${f.modified.length}`);
+      if (f.removed.length) parts.push(`−${f.removed.length}`);
+      return `- \`${fileLabel(f.path)}\` (${parts.join(' ')})`;
+    });
+  const extra = data.files.length > 20 ? `\n…and ${data.files.length - 20} more file(s).` : '';
+  return `${summary}\n\n**Changed files:**\n${fileLines.join('\n')}${extra}`;
 }
 
 // ── Subcomponents ──────────────────────────────────────────────────────────
@@ -169,10 +191,17 @@ function FileSection({ file }: { file: FileNodeDiff }) {
 
 // ── Main panel ──────────────────────────────────────────────────────────────
 
-export function TaxonomyDiffPanel({ open, onClose, onManageChanges }: Props) {
+export function TaxonomyDiffPanel({ open, onClose, status, onManageChanges, onSubmitted }: Props) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<NodeDiffResponse | null>(null);
   const [unavailable, setUnavailable] = useState(false);
+
+  // ── Pre-submission / PR state (Phase 5E) ──
+  const [description, setDescription] = useState('');
+  const [descTouched, setDescTouched] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState<CreatePrSuccess | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -180,16 +209,47 @@ export function TaxonomyDiffPanel({ open, onClose, onManageChanges }: Props) {
     const res = await fetchNodeDiff();
     if (res && res.enabled) {
       setData(res);
+      // Seed the description from the diff unless the user has edited it.
+      setDescription(prev => (descTouched ? prev : defaultPrBody(res)));
     } else {
       setData(null);
       setUnavailable(true);
     }
     setLoading(false);
-  }, []);
+  }, [descTouched]);
 
   useEffect(() => {
-    if (open) void refresh();
-  }, [open, refresh]);
+    if (!open) return;
+    // Fresh review each time the panel opens.
+    setSubmitted(null);
+    setSubmitError(null);
+    setDescTouched(false);
+    void refresh();
+    // refresh is intentionally excluded — we want this to run on open, not on
+    // every descTouched-driven refresh identity change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const onSubmit = useCallback(async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await createPullRequestTracked({ body: description });
+      setSubmitted(res);
+      onSubmitted?.();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'taxonomy-diff-panel',
+        level: 'error',
+        message: 'Submit for review (create/update PR) failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      setSubmitError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [description, onSubmitted]);
 
   // Close on Escape for keyboard dismissal.
   useEffect(() => {
@@ -204,6 +264,11 @@ export function TaxonomyDiffPanel({ open, onClose, onManageChanges }: Props) {
     () => totals ? totals.added + totals.modified + totals.removed : 0,
     [totals],
   );
+
+  // Submission affordance is only meaningful with real changes and a known status.
+  const canSubmit = totalCount > 0 && !!status;
+  const ghDisabled = !status?.github_configured;
+  const existingPr = !!status?.pr_number;
 
   if (!open) return null;
 
@@ -251,15 +316,63 @@ export function TaxonomyDiffPanel({ open, onClose, onManageChanges }: Props) {
           )}
         </div>
 
-        {onManageChanges && (
+        {(canSubmit || submitted || onManageChanges) && (
           <div className="txdiff-footer">
-            <button
-              className="btn btn-ghost"
-              onClick={() => { onClose(); onManageChanges(); }}
-              title="Open the sync drawer to create a PR, resync, or discard changes"
-            >
-              Manage changes →
-            </button>
+            {submitted ? (
+              <div className="txdiff-submitted">
+                <span className="txdiff-submitted-msg">
+                  {submitted.created ? 'Opened' : 'Updated'} PR #{submitted.number} ·{' '}
+                  <a href={submitted.url} target="_blank" rel="noreferrer noopener">View on GitHub ↗</a>
+                </span>
+                <button className="btn btn-primary btn-sm" onClick={onClose}>Done</button>
+              </div>
+            ) : canSubmit ? (
+              <div className="txdiff-submit">
+                <label className="txdiff-submit-label">
+                  <span>Description</span>
+                  <textarea
+                    rows={4}
+                    value={description}
+                    onChange={e => { setDescription(e.target.value); setDescTouched(true); }}
+                    disabled={submitting}
+                    placeholder="Describe these changes for the reviewer…"
+                  />
+                </label>
+                {submitError && <div className="txdiff-submit-error">{submitError}</div>}
+                <div className="txdiff-submit-actions">
+                  {onManageChanges && (
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => { onClose(); onManageChanges(); }}
+                      disabled={submitting}
+                      title="Open the sync drawer to resync or discard changes"
+                    >
+                      Manage changes →
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => void onSubmit()}
+                    disabled={submitting || ghDisabled}
+                    title={ghDisabled
+                      ? 'GitHub is not configured on this server.'
+                      : (existingPr ? 'Push the latest changes and update the pull request' : 'Open a pull request from your session branch to main')}
+                  >
+                    {submitting
+                      ? (existingPr ? 'Updating…' : 'Submitting…')
+                      : (existingPr ? `Update PR #${status!.pr_number}` : 'Submit for review')}
+                  </button>
+                </div>
+              </div>
+            ) : onManageChanges ? (
+              <button
+                className="btn btn-ghost"
+                onClick={() => { onClose(); onManageChanges(); }}
+                title="Open the sync drawer to resync or discard changes"
+              >
+                Manage changes →
+              </button>
+            ) : null}
           </div>
         )}
       </div>

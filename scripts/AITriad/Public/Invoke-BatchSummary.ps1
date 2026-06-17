@@ -679,16 +679,15 @@ function Invoke-BatchSummary {
         }
         $ExtractionMetrics['near_duplicate_labels'] = $DupCandidates
 
-        $MetricsPath = Join-Path $CalibDir 'extraction-metrics.json'
-        # Append to history array
-        $History = @()
-        if (Test-Path $MetricsPath) {
-            try { $History = @(Get-Content -Raw $MetricsPath | ConvertFrom-Json) } catch { $History = @() }
-        }
-        $History += $ExtractionMetrics
-        $History | ConvertTo-Json -Depth 5 | Set-Content $MetricsPath -Encoding utf8
+        $CoreDir = Join-Path $CalibDir 'core'
+        if (-not (Test-Path $CoreDir)) { $null = New-Item -ItemType Directory -Path $CoreDir -Force }
+        $MetricsPath = Join-Path $CoreDir 'extraction-metrics.jsonl'
 
-        Write-OK "Extraction metrics logged to calibration/extraction-metrics.json (density mean: $($ExtractionMetrics.density_stats.mean ?? 'N/A') claims/1k words, $DupCandidates near-dup label pairs)"
+        # JSONL append — one compressed JSON object per line, no full-file rewrite
+        $JsonLine = $ExtractionMetrics | ConvertTo-Json -Depth 5 -Compress
+        Add-Content -Path $MetricsPath -Value $JsonLine -Encoding utf8
+
+        Write-OK "Extraction metrics logged to calibration/core/extraction-metrics.jsonl (density mean: $($ExtractionMetrics.density_stats.mean ?? 'N/A') claims/1k words, $DupCandidates near-dup label pairs)"
     }
     catch {
         Write-Warn "Extraction metrics logging failed (non-critical): $_"

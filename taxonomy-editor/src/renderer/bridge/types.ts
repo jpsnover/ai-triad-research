@@ -18,6 +18,16 @@ export interface GroundingSegment {
   confidence?: number;
 }
 
+/** Result of resolving a fact's `doc_id` to an actual source document.
+ *  PDFs resolve to a fetchable `path` (local file path in Electron, API URL in web);
+ *  markdown resolves to inline `content`. */
+export interface SourceDocumentResolution {
+  available: boolean;
+  type: 'pdf' | 'markdown' | null;
+  content?: string;
+  path?: string;
+}
+
 export interface GroundingCitation {
   uri: string;
   title: string;
@@ -55,6 +65,7 @@ export interface AppAPI {
   discoverSources: () => Promise<unknown[]>;
   loadSummary: (docId: string) => Promise<unknown | null>;
   loadSnapshot: (sourceId: string) => Promise<{ content: string } | null>;
+  resolveSourceDocument: (docId: string) => Promise<SourceDocumentResolution>;
 
   // --- Data management ---
   isDataAvailable: () => Promise<boolean>;

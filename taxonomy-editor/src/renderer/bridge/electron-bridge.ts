@@ -53,6 +53,7 @@ export const api: AppAPI = {
   discoverSources: () => window.electronAPI.discoverSources(),
   loadSummary: (docId) => window.electronAPI.loadSummary(docId),
   loadSnapshot: (sourceId) => window.electronAPI.loadSnapshot(sourceId),
+  resolveSourceDocument: (docId) => window.electronAPI.resolveSourceDocument(docId),
   loadSourceEvidenceIndex: () => window.electronAPI.loadSourceEvidenceIndex(),
   loadDocTitles: () => window.electronAPI.loadDocTitles(),
   getSourceEvidence: (nodeIds, pov) => window.electronAPI.getSourceEvidence(nodeIds, pov),

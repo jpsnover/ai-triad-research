@@ -499,6 +499,8 @@ export interface DebateSession {
   adaptive_staging?: {
     enabled: boolean;
     pacing: 'tight' | 'moderate' | 'thorough';
+    /** Step mode: user advances one round at a time and manually sets the debate phase. */
+    step_mode?: boolean;
     /** Persisted phase state for GUI round-by-round execution. Initialized on first crossRespond. */
     phase_state?: PhaseState;
   };

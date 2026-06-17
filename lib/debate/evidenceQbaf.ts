@@ -191,7 +191,7 @@ export async function buildEvidenceQbaf(
       ...options?.generateOptions,
     });
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'ai.error', component: 'evidence-qbaf', level: 'error', message: 'LLM evidence classification failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'evidence-qbaf', level: 'error', message: 'LLM evidence classification failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     throw new ActionableError({
       goal: 'Classify evidence items for QBAF',
       problem: `LLM classification failed: ${err instanceof Error ? err.message : err}`,

@@ -18,6 +18,7 @@ export interface ElectronAPI {
   discoverSources: () => Promise<unknown[]>;
   loadSummary: (docId: string) => Promise<unknown | null>;
   loadSnapshot: (sourceId: string) => Promise<{ content: string } | null>;
+  resolveSourceDocument: (docId: string) => Promise<{ available: boolean; type: 'pdf' | 'markdown' | null; content?: string; path?: string }>;
   saveConflictFile: (claimId: string, data: unknown) => Promise<void>;
   createConflictFile: (claimId: string, data: unknown) => Promise<void>;
   deleteConflictFile: (claimId: string) => Promise<void>;

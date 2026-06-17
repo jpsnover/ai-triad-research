@@ -195,9 +195,9 @@ Write-Host "  Total time: $([int]($totalSecs / 60))m $($totalSecs % 60)s"
 Write-Host ""
 
 # Check calibration log
-$calibLog = Join-Path (Split-Path $OutputDir -Parent) 'calibration/calibration-log.json'
+$calibLog = Join-Path (Split-Path $OutputDir -Parent) 'calibration/core/calibration-log.jsonl'
 if (Test-Path $calibLog) {
-    $entries = (Get-Content $calibLog -Raw | ConvertFrom-Json).Count
+    $entries = @(Get-Content $calibLog).Count
     Write-Host "  Calibration log: $entries entries" -ForegroundColor Green
 } else {
     Write-Host "  Calibration log: not found (check wiring)" -ForegroundColor Yellow

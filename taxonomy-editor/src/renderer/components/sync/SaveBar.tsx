@@ -215,7 +215,9 @@ export function SaveBar() {
       <TaxonomyDiffPanel
         open={diffPanelOpen}
         onClose={() => setDiffPanelOpen(false)}
+        status={syncStatus}
         onManageChanges={() => setSyncDrawerOpen(true)}
+        onSubmitted={() => { void refreshSync(); }}
       />
       <UnsyncedChangesDrawer
         open={syncDrawerOpen}

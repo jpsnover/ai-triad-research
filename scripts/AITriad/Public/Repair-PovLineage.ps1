@@ -100,7 +100,7 @@ function Repair-PovLineage {
     $ErrorActionPreference = 'Stop'
 
     $TaxDir = Get-TaxonomyDir
-    $CacheDir = Join-Path (Get-DataRoot) 'calibration'
+    $CacheDir = Join-Path (Get-DataRoot) 'calibration' 'core'
     if (-not (Test-Path $CacheDir)) { $null = New-Item -ItemType Directory -Path $CacheDir -Force }
     $CachePath = Join-Path $CacheDir 'lineage-enrichments.json'
 

@@ -1297,34 +1297,35 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           },
         });
 
-        // Apply transition
+        // Apply transition (skipped in step mode — user controls phase manually)
+        const isStepMode = postDebate.adaptive_staging.step_mode;
         const prevPhase = advanced.current_phase;
-        const newState = applyTransition(advanced, result);
+        const newState = isStepMode ? advanced : applyTransition(advanced, result);
 
-        // Handle transitions
-        if (result.action === 'transition' || result.action === 'force_transition') {
-          addTranscriptEntry({
-            type: 'system', speaker: 'system',
-            content: `[Phase transition] ${prevPhase} → ${newState.current_phase}: ${result.reason}`,
-            taxonomy_refs: [],
-            metadata: { adaptive_transition: true, from_phase: prevPhase, to_phase: newState.current_phase, reason: result.reason },
-          });
-        } else if (result.action === 'regress') {
-          addTranscriptEntry({
-            type: 'system', speaker: 'system',
-            content: `[Phase regression] concluding → argumentation: ${result.reason}. Threshold ratcheted to ${(newState.argumentation_exit_threshold * 100).toFixed(0)}%.`,
-            taxonomy_refs: [],
-            metadata: { adaptive_regression: true, reason: result.reason, new_threshold: newState.argumentation_exit_threshold },
-          });
-        } else if (result.action === 'terminate') {
-          addTranscriptEntry({
-            type: 'system', speaker: 'system',
-            content: `[Adaptive termination] ${result.reason}`,
-            taxonomy_refs: [],
-            metadata: { adaptive_termination: true, reason: result.reason },
-          });
-          // Mark terminated so auto-run loop stops
-          newState.current_phase = 'terminated';
+        if (!isStepMode) {
+          if (result.action === 'transition' || result.action === 'force_transition') {
+            addTranscriptEntry({
+              type: 'system', speaker: 'system',
+              content: `[Phase transition] ${prevPhase} → ${newState.current_phase}: ${result.reason}`,
+              taxonomy_refs: [],
+              metadata: { adaptive_transition: true, from_phase: prevPhase, to_phase: newState.current_phase, reason: result.reason },
+            });
+          } else if (result.action === 'regress') {
+            addTranscriptEntry({
+              type: 'system', speaker: 'system',
+              content: `[Phase regression] concluding → argumentation: ${result.reason}. Threshold ratcheted to ${(newState.argumentation_exit_threshold * 100).toFixed(0)}%.`,
+              taxonomy_refs: [],
+              metadata: { adaptive_regression: true, reason: result.reason, new_threshold: newState.argumentation_exit_threshold },
+            });
+          } else if (result.action === 'terminate') {
+            addTranscriptEntry({
+              type: 'system', speaker: 'system',
+              content: `[Adaptive termination] ${result.reason}`,
+              taxonomy_refs: [],
+              metadata: { adaptive_termination: true, reason: result.reason },
+            });
+            newState.current_phase = 'terminated';
+          }
         }
 
         // Persist updated phase state + UI convenience fields

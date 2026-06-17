@@ -26,6 +26,7 @@ import {
   discoverSources,
   loadSummary,
   loadSnapshot,
+  resolveSourceDocument,
   getSummariesDir,
   loadSyntheticCorpus,
   loadSyntheticEmbeddings,
@@ -168,6 +169,9 @@ export function registerIpcHandlers(): void {
     const content = loadSnapshot(sourceId);
     return content ? { content } : null;
   });
+  ipcMain.handle('source-documents:resolve', (_event, docId: string) =>
+    resolveSourceDocument(docId),
+  );
 
   ipcMain.handle('save-conflict-file', (_event, claimId: string, data: unknown) => {
     writeConflictFile(claimId, data);
@@ -1078,10 +1082,14 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('get-calibration-log', () => {
     try {
       const dataRoot = getDataRootPath();
-      const logPath = path.join(dataRoot, 'calibration', 'calibration-log.json');
+      const logPath = path.join(dataRoot, 'calibration', 'core', 'calibration-log.jsonl');
       if (!fs.existsSync(logPath)) return { entries: [], validationReport: null };
 
-      const entries = JSON.parse(fs.readFileSync(logPath, 'utf-8'));
+      // JSONL: one JSON object per line. Parse each non-empty line independently.
+      const entries = fs.readFileSync(logPath, 'utf-8')
+        .split('\n')
+        .filter((line) => line.trim().length > 0)
+        .map((line) => JSON.parse(line));
 
       // Also load validation report if available
       const reportPath = path.join(dataRoot, 'calibration', 'validation-report.json');

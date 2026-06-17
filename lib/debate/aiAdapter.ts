@@ -86,7 +86,7 @@ function loadRegistry(repoRoot: string): ModelRegistry {
   try {
     _registry = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as ModelRegistry;
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'state.error', component: 'ai-adapter', level: 'error', message: `Failed to parse model registry at ${configPath}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'state.error', component: 'ai-adapter', level: 'error', message: `Failed to parse model registry at ${configPath}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     throw new ActionableError({
       goal: 'Parse AI model registry',
       problem: `Failed to parse model registry at ${configPath}: ${err instanceof Error ? err.message : err}`,
@@ -262,7 +262,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         error_category: isAuthError ? 'permissions' : 'ai_provider',
         duration_ms: Math.round(performance.now() - t0),
         message: `generateText failed ${backend}/${apiModelId}: ${errMsg.slice(0, 120)}`,
-        error: { name: primaryErr instanceof Error ? primaryErr.name : 'Error', message: errMsg },
+        error: { name: primaryErr instanceof Error ? primaryErr.name : 'Error', message: errMsg, stack: primaryErr instanceof Error ? primaryErr.stack : undefined },
         data: { backend, model: apiModelId, fn: 'generateText', isAuthError },
       });
       const chain = registry.fallbackChains?.[model] ?? [];
@@ -323,7 +323,7 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         error_category: 'ai_provider',
         duration_ms: Math.round(performance.now() - t0),
         message: `generate (envelope) fallback ${backend}/${apiModelId}`,
-        error: { name: err instanceof Error ? err.name : 'Error', message: err instanceof Error ? err.message : String(err) },
+        error: { name: err instanceof Error ? err.name : 'Error', message: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined },
         data: { backend, model: apiModelId, fn: 'generate', fallback: true },
       });
       // Graceful degradation: fall back to flat generateText

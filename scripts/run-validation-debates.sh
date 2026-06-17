@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLI="$REPO_ROOT/lib/debate/cli.ts"
 MODEL="gemini-flash-lite-latest"
 OUTPUT_DIR="$REPO_ROOT/../ai-triad-data/debates"
-CAL_LOG="$REPO_ROOT/../ai-triad-data/calibration/calibration-log.json"
+CAL_LOG="$REPO_ROOT/../ai-triad-data/calibration/core/calibration-log.jsonl"
 REPORT_DIR="$REPO_ROOT/../ai-triad-data/calibration"
 REPORT_FILE="$REPORT_DIR/validation-report.json"
 
@@ -145,7 +145,7 @@ report_path = sys.argv[2]
 debates_dir = sys.argv[3]
 
 with open(cal_log_path) as f:
-    log = json.load(f)
+    log = [json.loads(line) for line in f if line.strip()]
 
 # Build set of validation debate IDs by scanning debate files named validation-*
 validation_ids = set()

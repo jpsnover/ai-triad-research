@@ -357,7 +357,7 @@ let lineageInfoCache: Record<string, unknown> | null = null;
 
 export function readLineageEnrichments(): Record<string, unknown> {
   if (lineageInfoCache) return lineageInfoCache;
-  const filePath = path.join(getDataRootPath(), 'calibration', 'lineage-enrichments.json');
+  const filePath = path.join(getDataRootPath(), 'calibration', 'core', 'lineage-enrichments.json');
   if (!fs.existsSync(filePath)) return {};
   try {
     const raw = parseJsonFile(filePath) as Record<string, { category?: string; description?: string; url?: string | null }>;
@@ -558,6 +558,82 @@ export function loadSnapshot(sourceId: string): string | null {
   try {
     return fs.readFileSync(filePath, 'utf-8');
   } catch { /* telemetry — silent by design */ return null; }
+}
+
+// ── Source document resolution ──
+// Electron (sync) mirror of server/fileIO.ts `resolveSourceDocument`. Keep the
+// precedence rules below in sync with the server twin. The only intentional
+// divergence: PDFs resolve to a local absolute file path here (the renderer
+// loads it directly via pdfjs) rather than the server's `/api/.../file` URL.
+
+/** Result of resolving a fact's `doc_id` to an actual source document. */
+export interface SourceDocumentResolution {
+  available: boolean;
+  type: 'pdf' | 'markdown' | null;
+  /** Inline markdown content (markdown type only). */
+  content?: string;
+  /** Absolute local path to the document (pdf type only). */
+  path?: string;
+}
+
+/** Find the raw PDF inside a source's `raw/` directory. Returns absolute path or null. */
+function findRawPdfPath(docId: string): string | null {
+  const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return null;
+  const rawDir = path.join(sourcesDir, docId, 'raw');
+  if (!fs.existsSync(rawDir)) return null;
+  const pdf = fs.readdirSync(rawDir).find(e => e.toLowerCase().endsWith('.pdf'));
+  return pdf ? path.join(rawDir, pdf) : null;
+}
+
+/**
+ * Resolve a source document by id. Determines whether the document exists and
+ * returns its content (markdown) or a local path to fetch it (PDF).
+ *
+ * Resolution order (mirrors server/fileIO.ts):
+ *   1. metadata source_type 'pdf' (or no markdown snapshot present) + a raw PDF → pdf
+ *   2. snapshot.md present → markdown (content inline)
+ *   3. a raw PDF present without snapshot → pdf
+ *   4. otherwise → { available: false }
+ */
+export function resolveSourceDocument(docId: string): SourceDocumentResolution {
+  const sourcesDir = getSourcesDir();
+  if (!sourcesDir) return { available: false, type: null };
+
+  const docDir = path.join(sourcesDir, docId);
+
+  // Read metadata best-effort to learn the original document type.
+  let sourceType = '';
+  try {
+    const metaPath = path.join(docDir, 'metadata.json');
+    if (fs.existsSync(metaPath)) {
+      sourceType = String(JSON.parse(fs.readFileSync(metaPath, 'utf-8')).source_type ?? '').toLowerCase();
+    }
+  } catch (err) {
+    // Malformed/missing metadata — fall back to content detection below.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'fileIO',
+      level: 'warn',
+      message: 'source document metadata unreadable',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+
+  const pdfPath = findRawPdfPath(docId);
+  const snapshot = loadSnapshot(docId);
+
+  // Prefer the PDF when the source is a PDF, or when no markdown snapshot exists.
+  if (pdfPath && (sourceType === 'pdf' || snapshot === null)) {
+    return { available: true, type: 'pdf', path: pdfPath };
+  }
+  if (snapshot !== null) {
+    return { available: true, type: 'markdown', content: snapshot };
+  }
+  if (pdfPath) {
+    return { available: true, type: 'pdf', path: pdfPath };
+  }
+  return { available: false, type: null };
 }
 
 export function readEdgesFile(): unknown | null {

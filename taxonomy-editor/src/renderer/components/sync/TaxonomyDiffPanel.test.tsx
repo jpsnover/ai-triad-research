@@ -4,11 +4,33 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TaxonomyDiffPanel, type NodeDiffResponse } from './TaxonomyDiffPanel';
+import type { SyncStatus } from '../../utils/syncApi';
 
 // Flight recorder is a no-op in tests.
 vi.mock('@lib/flight-recorder/index', () => ({
   getGlobalRecorder: () => null,
 }));
+
+// Stub the PR-submission client call (Phase 5E).
+const createPullRequestTracked = vi.fn();
+vi.mock('../../utils/syncApi', () => ({
+  createPullRequestTracked: (...args: unknown[]) => createPullRequestTracked(...args),
+}));
+
+function makeStatus(overrides: Partial<SyncStatus> = {}): SyncStatus {
+  return {
+    enabled: true,
+    unsynced_count: 3,
+    session_branch: 'api-session/jeff',
+    pr_number: null,
+    pr_url: null,
+    push_pending: false,
+    github_configured: true,
+    main_updated_available: false,
+    rebase_in_progress: false,
+    ...overrides,
+  };
+}
 
 function mockFetchOnce(body: unknown, { ok = true, contentType = 'application/json' } = {}) {
   const res = {
@@ -120,5 +142,55 @@ describe('TaxonomyDiffPanel', () => {
     fireEvent.click(screen.getByText(/Manage changes/));
     expect(onClose).toHaveBeenCalled();
     expect(onManageChanges).toHaveBeenCalled();
+  });
+
+  // ── Phase 5E: pre-submission / PR flow ──
+
+  it('shows a "Submit for review" affordance with a seeded description when status is provided', async () => {
+    mockFetchOnce(SAMPLE);
+    render(<TaxonomyDiffPanel open onClose={() => {}} status={makeStatus()} />);
+    await waitFor(() => expect(screen.getByText('Submit for review')).toBeInTheDocument());
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    // Description seeded from the diff totals.
+    expect(textarea.value).toMatch(/1 added, 1 modified, 1 removed/);
+  });
+
+  it('submits a PR and shows the resulting PR link', async () => {
+    mockFetchOnce(SAMPLE);
+    createPullRequestTracked.mockResolvedValue({ ok: true, number: 42, url: 'https://github.com/x/y/pull/42', branch: 'api-session/jeff', created: true });
+    const onSubmitted = vi.fn();
+    render(<TaxonomyDiffPanel open onClose={() => {}} status={makeStatus()} onSubmitted={onSubmitted} />);
+    await waitFor(() => expect(screen.getByText('Submit for review')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText('Submit for review'));
+
+    await waitFor(() => expect(screen.getByText(/Opened PR #42/)).toBeInTheDocument());
+    expect(createPullRequestTracked).toHaveBeenCalledTimes(1);
+    expect(onSubmitted).toHaveBeenCalled();
+    const link = screen.getByText(/View on GitHub/) as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('https://github.com/x/y/pull/42');
+  });
+
+  it('labels the action "Update PR" when a PR already exists', async () => {
+    mockFetchOnce(SAMPLE);
+    render(<TaxonomyDiffPanel open onClose={() => {}} status={makeStatus({ pr_number: 7, pr_url: 'https://github.com/x/y/pull/7' })} />);
+    await waitFor(() => expect(screen.getByText('Update PR #7')).toBeInTheDocument());
+  });
+
+  it('disables submission when GitHub is not configured', async () => {
+    mockFetchOnce(SAMPLE);
+    render(<TaxonomyDiffPanel open onClose={() => {}} status={makeStatus({ github_configured: false })} />);
+    await waitFor(() => expect(screen.getByText('Submit for review')).toBeInTheDocument());
+    expect(screen.getByText('Submit for review').closest('button')).toBeDisabled();
+  });
+
+  it('surfaces a submission error and does not show a PR link', async () => {
+    mockFetchOnce(SAMPLE);
+    createPullRequestTracked.mockRejectedValue(new Error('rate limited'));
+    render(<TaxonomyDiffPanel open onClose={() => {}} status={makeStatus()} />);
+    await waitFor(() => expect(screen.getByText('Submit for review')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Submit for review'));
+    await waitFor(() => expect(screen.getByText(/rate limited/)).toBeInTheDocument());
+    expect(screen.queryByText(/View on GitHub/)).toBeNull();
   });
 });

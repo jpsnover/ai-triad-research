@@ -63,6 +63,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadSnapshot: (sourceId: string): Promise<{ content: string } | null> =>
     ipcRenderer.invoke('load-snapshot', sourceId),
 
+  resolveSourceDocument: (docId: string): Promise<{ available: boolean; type: 'pdf' | 'markdown' | null; content?: string; path?: string }> =>
+    ipcRenderer.invoke('source-documents:resolve', docId),
+
   saveConflictFile: (claimId: string, data: unknown): Promise<void> =>
     ipcRenderer.invoke('save-conflict-file', claimId, data),
 

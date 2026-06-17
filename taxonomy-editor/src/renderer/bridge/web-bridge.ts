@@ -5,7 +5,7 @@
  * Web bridge — implements AppAPI via REST and WebSocket calls to the server.
  * Used when the app runs in a browser served by the container.
  */
-import type { AppAPI } from './types';
+import type { AppAPI, SourceDocumentResolution } from './types';
 import { instrumentBridge } from './instrumentBridge';
 import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -264,6 +264,7 @@ const rawApi: AppAPI = {
   discoverSources: () => get('/api/sources'),
   loadSummary: (docId) => get(`/api/summaries/${encodeURIComponent(docId)}`).catch(() => null),
   loadSnapshot: (sourceId) => get(`/api/snapshots/${encodeURIComponent(sourceId)}`).then(r => r as { content: string } | null).catch(() => null),
+  resolveSourceDocument: (docId) => get(`/api/source-documents/${encodeURIComponent(docId)}`).then(r => r as SourceDocumentResolution).catch(() => ({ available: false, type: null })),
 
   // Data management
   isDataAvailable: () => get('/api/data/available'),

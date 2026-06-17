@@ -198,6 +198,7 @@ export function ClarificationActions() {
     initialCrossRespondRounds, setInitialCrossRespondRounds,
     openingOrder, setOpeningOrder,
     runTopicCritique, reEvaluateSuggestedTopic, topicCritiqueLoading, updateTopic,
+    toggleStepMode,
   } = useDebateStore(
     useShallow(s => ({
       activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError,
@@ -205,6 +206,7 @@ export function ClarificationActions() {
       initialCrossRespondRounds: s.initialCrossRespondRounds, setInitialCrossRespondRounds: s.setInitialCrossRespondRounds,
       openingOrder: s.openingOrder, setOpeningOrder: s.setOpeningOrder,
       runTopicCritique: s.runTopicCritique, reEvaluateSuggestedTopic: s.reEvaluateSuggestedTopic, topicCritiqueLoading: s.topicCritiqueLoading, updateTopic: s.updateTopic,
+      toggleStepMode: s.toggleStepMode,
     }))
   );
 
@@ -349,13 +351,23 @@ export function ClarificationActions() {
           )}
           <div className="debate-initial-rounds">
             {activeDebate.adaptive_staging?.enabled ? (
-              <span className="debate-initial-rounds-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="debate-initial-rounds-label" style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <span style={{ background: '#f59e0b', color: '#000', padding: '2px 8px', borderRadius: 4, fontWeight: 600, fontSize: '0.75rem' }}>
                   Adaptive
                 </span>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Signal-driven phase transitions ({activeDebate.adaptive_staging.pacing} pacing)
+                  {activeDebate.adaptive_staging.step_mode
+                    ? 'Step-by-step — 1 round at a time, manual stage control'
+                    : `Signal-driven phase transitions (${activeDebate.adaptive_staging.pacing} pacing)`}
                 </span>
+                <button
+                  className={`btn btn-sm debate-step-toggle${activeDebate.adaptive_staging.step_mode ? ' active' : ''}`}
+                  onClick={() => void toggleStepMode()}
+                  style={{ fontSize: '0.7rem', padding: '1px 8px' }}
+                  title={activeDebate.adaptive_staging.step_mode ? 'Switch to auto mode' : 'Switch to step-by-step mode'}
+                >
+                  {activeDebate.adaptive_staging.step_mode ? 'Step Mode' : 'Auto Mode'}
+                </button>
               </span>
             ) : (
               <label className="debate-initial-rounds-label">

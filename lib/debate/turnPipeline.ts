@@ -654,7 +654,7 @@ export async function runTurnPipeline(
       }
     } catch (err) {
       // Evidence retrieval failure is non-fatal — proceed without evidence
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Evidence retrieval failed — proceeding without evidence', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Evidence retrieval failed — proceeding without evidence', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       console.warn(`[pipeline] Evidence retrieval failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -709,7 +709,7 @@ export async function runTurnPipeline(
         });
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Citation bank build failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Citation bank build failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       console.warn(`[pipeline] Citation bank build failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -998,7 +998,7 @@ export async function runTurnPipeline(
         (draft as Record<string, unknown>).key_assumptions = assumptionsParsed.product.key_assumptions;
       }
     } catch (err) {
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-draft assumptions extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-draft assumptions extraction failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     }
   }
 
@@ -1511,13 +1511,13 @@ export async function runTurnPipeline(
               },
             });
           } catch (err) {
-            getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-repair quality re-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+            getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Post-repair quality re-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
           }
         }
       }
     } catch (err) {
       // Pre-check failure is non-fatal — proceed to cite
-      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Draft quality pre-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Draft quality pre-check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       console.warn(`[pipeline] Draft quality pre-check failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
     }
   }
@@ -1908,7 +1908,7 @@ async function trySpecificityMicroFix(
       `${input.label} micro-fix(specificity)`,
     );
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(specificity) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(specificity) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     stageDiags.push({
       stage: 'micro-fix', prompt: microFixPromptText, raw_response: microFixRaw,
       model: input.model, temperature: 0.3,
@@ -2029,7 +2029,7 @@ async function tryInterventionMicroFix(
       `${input.label} micro-fix(intervention)`,
     );
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(intervention) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(intervention) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     stageDiags.push({
       stage: 'micro-fix', prompt: intFixPromptText, raw_response: intFixRaw,
       model: input.model, temperature: 0.2,
@@ -2136,7 +2136,7 @@ async function tryDirectiveMicroFix(
       `${input.label} micro-fix(directive)`,
     );
   } catch (err) {
-    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(directive) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    getGlobalRecorder()?.record({ type: 'ai.error', component: 'turn-pipeline', level: 'warn', debate_id: (input as any).debate_id, message: 'Micro-fix(directive) LLM call failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     stageDiags.push({
       stage: 'micro-fix', prompt: dirFixPromptText, raw_response: dirFixRaw,
       model: input.model, temperature: 0.3,

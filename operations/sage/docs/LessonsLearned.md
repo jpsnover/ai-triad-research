@@ -34,8 +34,11 @@ Institutional memory for failure patterns across the AI Triad Research project.
 - 2026-05-21 — Taxonomy Editor agent hit heredoc failures twice when running Python code containing TSX string literals with nested single quotes (p/6#1).
 - 2026-05-24 — PowerShell agent: `pwsh -Command '...'` with embedded PowerShell single-quoted strings caused `unexpected EOF while looking for matching backtick`. Fixed by replacing inner single-quoted strings with double-quoted strings (p/20#3).
 - 2026-05-24 — Computational Linguist: Bash heredoc failed again on a large Python analysis script with apostrophes in f-strings. Fixed by splitting into two scripts (data collection to `/tmp/belief_signals.json`, then analysis) and using %-formatting instead of f-strings to avoid apostrophes (p/7#7).
+- 2026-06-17 — Sync: `git commit -m @'...'@` in Bash tool errored — `@'...'@` is PowerShell here-string syntax, Bash split the multi-line message into stray pathspec args. Fixed by writing commit message to temp file and using `git commit -F <file>` (p/77#1).
+- 2026-06-17 — ServerAPI: same `@'...'@` in Bash issue, compounded by placing `-m` after `--` separator — everything after `--` is treated as pathspecs, so the message flag was ignored entirely. Fixed with `git commit -F <file> -- <paths>` (message flag before `--`) (p/79#1).
+- 2026-06-17 — DebateUI: `@'...'@` in Bash tool leaked a literal `@` into a commit subject on shared branch. Part of a larger incident where amend clobbered another agent's commit (p/83#1).
 
-**Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Any nested single quotes inside a single-quoted outer wrapper will break the shell parser.
+**Root Cause:** Heredocs (even quoted `<< 'EOF'` which disable variable expansion) still cannot contain the same quote delimiter used by the inner language. The `bash -c` and `pwsh -Command` wrappers compound this by adding another quoting layer. Additionally, PowerShell-specific syntax (`@'...'@` here-strings) is silently misinterpreted by Bash, not rejected — leading to confusing errors. The `--` separator compounds commit message issues: all flags must come before `--`, or git treats them as pathspecs.
 
 **Prevention:**
 1. **First choice:** Use the Write tool to create a temp `.py` script file, then execute it with Bash — avoids all quoting issues.
@@ -43,6 +46,7 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. In Python, use %-formatting or `.format()` instead of f-strings when the content will pass through Bash.
 4. For PowerShell via Bash, use double-quoted strings inside the command to avoid single-quote nesting.
 5. Prefer the Edit/Write tools over Bash heredocs for file creation/modification.
+6. For git commits: use `git commit -F <tmpfile> -- <paths>` — write message to temp file, and always place flags before the `--` separator.
 
 **Status:** Resolved — AGENTS.md rule broadened to cover both file editing and script execution (p/8#14). Original rule from q/4 now includes: write scripts to temp files with Write tool, then execute via Bash.
 
@@ -387,6 +391,27 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ---
 
+## [Build] Git Amend on Shared Branch Clobbers Other Agents' Commits
+
+**Pattern:** `git commit --amend` on a branch with multiple concurrent committers rewrites another agent's commit when HEAD advances between the original commit and the amend.
+
+**Instances:**
+- 2026-06-17 — DebateUI: ran `git commit --amend` on `feat/phase-5c-diff-view` to fix a commit message. Between the original commit and the amend, another agent committed (t/651), moving HEAD. The amend rewrote that agent's commit with DebateUI's message, clobbering their work. Recovered via `git reflog` to find the original SHA, then `git reset --soft <sha>` to restore it (p/83#1).
+
+**Root Cause:** `git commit --amend` rewrites the commit at HEAD. On a shared branch, HEAD can move between your commit and your amend if another agent commits in that window. The amend then targets the wrong commit — the other agent's — replacing their message and potentially their changes.
+
+**Prevention:**
+1. **NEVER use `git commit --amend` on a shared branch.** Create a new commit instead.
+2. If a commit message needs fixing, use `git commit --allow-empty -m "corrected message"` or create a fixup commit.
+3. `--amend` is only safe on personal/feature branches with a single committer.
+4. Recovery: `git reflog` to find the clobbered commit's SHA, then `git reset --soft <sha>` to restore it (preserves index and worktree).
+
+**Status:** Resolved — "Git Commit Rule (Multi-Agent)" added to root AGENTS.md covering amend and rebase on shared branches (p/8#25).
+
+**Applies To:** All agents committing to shared branches (especially `main` and shared feature branches).
+
+---
+
 ## [Data] Active Writers Corrupt Git Operations in Data Repo
 
 **Pattern:** Git add/commit/pull operations fail when an active process (e.g., running debate session) is continuously writing to the data repo, creating or modifying files between git commands.
@@ -571,3 +596,21 @@ Institutional memory for failure patterns across the AI Triad Research project.
 3. When in doubt, check if the command uses a Verb-Noun pattern — if yes, it's PowerShell.
 
 **Applies To:** All agents on this Windows dev environment with dual shell access.
+
+---
+
+## [Build] Relative Paths Double When CWD Is Already the Target Directory
+
+**Pattern:** Running a command with a relative path like `node lib/debate/script.mjs` fails with MODULE_NOT_FOUND when the CWD is already `lib/debate/`, because the path resolves to `lib/debate/lib/debate/script.mjs`.
+
+**Instances:**
+- 2026-06-16 — DebateTool: `node lib/debate/_add_stack.mjs` failed because CWD was already `lib/debate/`, doubling the path. Fixed by using absolute path (p/70#1).
+
+**Root Cause:** Bash tool CWD may differ between calls or may have been changed by a prior `cd` command. Relative paths assume CWD is the repo root, but if a previous command changed directory, the relative path stacks on top of the current location.
+
+**Prevention:**
+1. Use absolute paths for `node`, `python3`, and other file execution commands — never rely on CWD being the repo root.
+2. If using relative paths, verify CWD first with `pwd`.
+3. Bash tool CWD persists between calls — a prior `cd` affects all subsequent commands in that shell session.
+
+**Applies To:** All agents executing scripts via Bash, especially when working across subdirectories.

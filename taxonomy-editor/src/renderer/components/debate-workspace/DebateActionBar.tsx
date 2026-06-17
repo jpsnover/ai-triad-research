@@ -127,8 +127,8 @@ const AI_MENTION_OPTIONS: { id: string; label: string; color: string }[] = [
 ];
 
 export function DebateActions({ showParamHistory, setShowParamHistory, showEvaluation, setShowEvaluation }: { showParamHistory: boolean; setShowParamHistory: (v: boolean) => void; showEvaluation: boolean; setShowEvaluation: (v: boolean) => void }) {
-  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience } = useDebateStore(
-    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience }))
+  const { activeDebate, debateGenerating, debateError, askQuestion, crossRespond, requestSynthesis, requestProbingQuestions, requestReflections, audience, setAudience, toggleStepMode, setDebatePhase } = useDebateStore(
+    useShallow(s => ({ activeDebate: s.activeDebate, debateGenerating: s.debateGenerating, debateError: s.debateError, askQuestion: s.askQuestion, crossRespond: s.crossRespond, requestSynthesis: s.requestSynthesis, requestProbingQuestions: s.requestProbingQuestions, requestReflections: s.requestReflections, audience: s.audience, setAudience: s.setAudience, toggleStepMode: s.toggleStepMode, setDebatePhase: s.setDebatePhase }))
   );
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -141,6 +141,8 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const inputRef = useRef<HTMLInputElement>(null);
   const hasSynthesis = activeDebate?.transcript.some(e => e.type === 'concluding') || false;
   const isAdaptive = (activeDebate as any)?.adaptive_staging?.enabled ?? false;
+  const isStepMode = (activeDebate as any)?.adaptive_staging?.step_mode ?? false;
+  const currentAdaptivePhase = (activeDebate as any)?.adaptive_staging?.current_phase as AdaptivePhase | undefined;
 
   if (!activeDebate) return null;
 
@@ -219,7 +221,9 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
   const handleCrossRespond = async () => {
     if (disableAnalysis) return;
     setSending(true);
-    if (isAdaptive) {
+    if (isAdaptive && isStepMode) {
+      await crossRespond();
+    } else if (isAdaptive) {
       const maxSafetyRounds = 50;
       const alreadyTerminated = (activeDebate as any)?.adaptive_staging?.phase_state?.current_phase === 'terminated'
         || activeDebate.phase === 'closed';
@@ -296,14 +300,25 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
           Send
         </button>
         {!isSocratic && (isAdaptive ? (
-          <button
-            className="btn debate-continue-btn"
-            onClick={handleCrossRespond}
-            disabled={disableAnalysis}
-            title="Let the debate engine select the next speaker and continue"
-          >
-            Continue
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              className="btn debate-continue-btn"
+              onClick={handleCrossRespond}
+              disabled={disableAnalysis}
+              title={isStepMode ? 'Run one debate round' : 'Let the debate engine select the next speaker and run to completion'}
+            >
+              {isStepMode ? 'Step' : 'Continue'}
+            </button>
+            <button
+              className={`btn btn-sm debate-step-toggle${isStepMode ? ' active' : ''}`}
+              onClick={() => void toggleStepMode()}
+              disabled={disableAnalysis}
+              title={isStepMode ? 'Switch to auto mode (run all stages)' : 'Switch to step mode (1 round at a time, manual phase control)'}
+              style={{ fontSize: '0.65rem', padding: '2px 6px' }}
+            >
+              {isStepMode ? 'Step' : 'Auto'}
+            </button>
+          </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
             <button
@@ -329,6 +344,23 @@ export function DebateActions({ showParamHistory, setShowParamHistory, showEvalu
           </div>
         ))}
       </div>
+      {isStepMode && (
+        <div className="debate-step-phase-selector">
+          <span className="debate-step-phase-label">Stage:</span>
+          {ADAPTIVE_PHASES.map(phase => (
+            <button
+              key={phase}
+              className={`debate-step-phase-pill${currentAdaptivePhase === phase ? ' active' : ''}`}
+              style={currentAdaptivePhase === phase ? { borderColor: ADAPTIVE_PHASE_COLORS[phase], color: ADAPTIVE_PHASE_COLORS[phase] } : undefined}
+              onClick={() => void setDebatePhase(phase)}
+              disabled={disableAnalysis || currentAdaptivePhase === phase}
+              title={`Set debate stage to ${ADAPTIVE_PHASE_LABELS[phase]}`}
+            >
+              {ADAPTIVE_PHASE_LABELS[phase]}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="debate-action-bar-secondary">
         <button
           className="btn debate-synthesis-btn"

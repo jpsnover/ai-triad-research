@@ -431,7 +431,7 @@ export async function runModeratorSelection(
           callbacks.progress('debate', undefined, `Moderator: COMMIT → ${poverInfo[concludingTarget]?.label}`);
         }
       } catch (err) {
-        getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator synthesis COMMIT generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+        getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator synthesis COMMIT generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         callbacks.warn('Moderator synthesis COMMIT generation', err, 'Proceeding without COMMIT intervention');
       }
     }
@@ -516,7 +516,7 @@ export async function runModeratorSelection(
             callbacks.progress('debate', undefined, `Moderator: POLICY_CHALLENGE → ${poverInfo[policyChallengeTarget]?.label}`);
           }
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator POLICY_CHALLENGE generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+          getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator POLICY_CHALLENGE generation failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
           callbacks.warn('Moderator POLICY_CHALLENGE generation', err, 'Proceeding without POLICY_CHALLENGE intervention');
         }
       }
@@ -778,7 +778,7 @@ export async function runModeratorSelection(
                       `Moderator: REVOICE gate failed (${gateResult.entity_preservation.missing_entities.concat(gateResult.entity_preservation.missing_thresholds).join(', ') || 'anchor mismatch'}), downgrading to CHECK`);
                   }
                 } catch (gateErr) {
-                  getGlobalRecorder()?.record({ type: 'ai.error', component: 'revoice-gate', level: 'warn', message: 'REVOICE gate failed — proceeding without gate', error: { name: (gateErr as Error).name ?? 'Error', message: String(gateErr) } });
+                  getGlobalRecorder()?.record({ type: 'ai.error', component: 'revoice-gate', level: 'warn', message: 'REVOICE gate failed — proceeding without gate', error: { name: (gateErr as Error).name ?? 'Error', message: String(gateErr), stack: (gateErr as Error).stack } });
                 }
               }
             }
@@ -826,14 +826,14 @@ export async function runModeratorSelection(
                 `Moderator: ${activeIntervention.move} → ${poverInfo[responder]?.label}`);
             }
           } catch (stage2Err) {
-            getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator Stage 2 intervention generation failed', error: { name: (stage2Err as Error).name ?? 'Error', message: String(stage2Err) } });
+            getGlobalRecorder()?.record({ type: 'ai.error', component: 'orchestration', level: 'warn', message: 'Moderator Stage 2 intervention generation failed', error: { name: (stage2Err as Error).name ?? 'Error', message: String(stage2Err), stack: (stage2Err as Error).stack } });
             callbacks.warn('Moderator Stage 2 generation', stage2Err, 'Proceeding without intervention');
           }
         }
       }
     } catch (err) {
       selectionParseError = err;
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: 'Moderator selection parse failed — falling back to least-recently-spoken', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: 'Moderator selection parse failed — falling back to least-recently-spoken', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       callbacks.warn('Parsing moderator selection', err, 'Falling back to least-recently-spoken debater');
     }
   }
@@ -977,7 +977,7 @@ export async function executeTurnWithRetry(
       break;
     } catch (err) {
       pipelineError = err instanceof Error ? err : new Error(String(err));
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: `Pipeline attempt ${pipelineAttempt + 1} failed`, error: { name: pipelineError.name, message: pipelineError.message } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: `Pipeline attempt ${pipelineAttempt + 1} failed`, error: { name: pipelineError.name, message: pipelineError.message, stack: pipelineError.stack } });
       if (pipelineAttempt < vConfig.maxRetries) {
         // Log and retry — transient parse errors from weak models often succeed on retry
         console.warn(`[orchestration] Pipeline attempt ${pipelineAttempt + 1} failed: ${pipelineError.message.slice(0, 100)}. Retrying...`);
@@ -1175,7 +1175,7 @@ export async function executeTurnWithRetry(
       pipelineResult.stage_diagnostics = [...carriedDiags, ...pipelineResult.stage_diagnostics];
     } catch (err) {
       // Pipeline parse failure on retry — treat as failed attempt, break with current validation
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: `Pipeline retry ${attemptIdx} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'orchestration', level: 'warn', message: `Pipeline retry ${attemptIdx} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       console.warn(`[orchestration] Pipeline retry ${attemptIdx} failed: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
       break;
     }
