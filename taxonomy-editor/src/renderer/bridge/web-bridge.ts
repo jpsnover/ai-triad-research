@@ -489,6 +489,12 @@ const rawApi: AppAPI = {
   loadSyntheticEmbeddings: () => get('/api/taxonomy/synthetic-embeddings').catch(() => null),
   updateSyntheticEmbeddings: (nodeId, pov, vectors) => post('/api/taxonomy/synthetic-embeddings', { nodeId, pov, vectors }).then(() => {}),
 
+  // Community Library
+  listCommunityChats: () => get('/api/community/chats').catch(() => []),
+  listCommunityDebates: () => get('/api/community/debates').catch(() => []),
+  submitToCommunity: (type, itemData, note) => post('/api/community/submit', { type, data: itemData, note }),
+  copyFromCommunity: (type, communityId) => post('/api/community/copy', { type, communityId }),
+
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
   getCalibrationLog: () => get('/api/calibration/log').catch(() => ({ entries: [], validationReport: null })),
@@ -618,6 +624,7 @@ const rawApi: AppAPI = {
   onGenerateTextProgress: (cb) => addEventListener('generate-text-progress', cb as EventCallback),
   onReloadTaxonomy: (cb) => addEventListener('reload-taxonomy', cb as EventCallback),
   onFocusNode: (cb) => addEventListener('focus-node', (d) => cb((d as { nodeId: string }).nodeId)),
+  onTaxonomyUpdated: (cb) => addEventListener('taxonomy-updated', (d) => cb(d as { user: string; nodeCount: number; povs: string[] })),
   focusNodeInMainWindow: (nodeId) => { void post('/api/focus-node', { nodeId }); },
   onTerminalData: (cb) => {
     terminalDataCallbacks.add(cb);

@@ -187,6 +187,12 @@ export interface AppAPI {
   // --- Telemetry ---
   trackEvent: (type: string, view?: string, metadata?: Record<string, unknown>) => void;
 
+  // --- Community Library ---
+  listCommunityChats: () => Promise<unknown[]>;
+  listCommunityDebates: () => Promise<unknown[]>;
+  submitToCommunity: (type: 'chat' | 'debate', itemData: unknown, note?: string) => Promise<{ submissionId: string }>;
+  copyFromCommunity: (type: 'chats' | 'debates', communityId: string) => Promise<{ newId: string }>;
+
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
   getCalibrationLog: () => Promise<{ entries: unknown[]; validationReport: unknown }>;
@@ -252,6 +258,7 @@ export interface AppAPI {
   }) => void) => () => void;
   onReloadTaxonomy: (callback: () => void) => () => void;
   onFocusNode: (callback: (nodeId: string) => void) => () => void;
+  onTaxonomyUpdated: (callback: (evt: { user: string; nodeCount: number; povs: string[] }) => void) => () => void;
   focusNodeInMainWindow: (nodeId: string) => void;
   onTerminalData: (callback: (data: string) => void) => () => void;
   onTerminalExit: (callback: () => void) => () => void;
