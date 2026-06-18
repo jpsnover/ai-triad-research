@@ -662,7 +662,7 @@ export async function listDebateSessionsMeta(): Promise<unknown[]> {
         .filter(f => f.endsWith('.json') && f.startsWith('debate-'));
       if (files.length === cached.length) return cached;
       // Count mismatch — rebuild in background, return stale data now for speed
-      void rebuildDebateIndex().catch(() => {});
+      void rebuildDebateIndex().catch((err) => { log.server.warn({ err }, 'Background debate index rebuild failed'); });
       return cached;
     } catch {
       /* telemetry — silent by design */
@@ -677,7 +677,7 @@ export async function listDebateSessionsMeta(): Promise<unknown[]> {
 async function rebuildDebateIndex(): Promise<unknown[]> {
   const summaries = await listDebateSessions();
   const typed = summaries as { id: string; title: string; created_at: string; updated_at: string; phase: string; model?: string; turn_count?: number }[];
-  await writeDebateIndex(typed).catch(() => {}); // best-effort
+  await writeDebateIndex(typed).catch((err) => { log.server.warn({ err }, 'Debate index write failed (best-effort)'); });
   return typed;
 }
 
@@ -762,14 +762,14 @@ export async function saveDebateSession(session: unknown): Promise<void> {
     created_at: s.created_at || '',
     updated_at: s.updated_at || s.created_at || '',
     phase: s.phase || 'unknown',
-  }).catch(() => {}); // best-effort — never fail a save because of index
+  }).catch((err) => { log.server.warn({ err }, 'Debate index upsert failed (best-effort)'); });
 }
 
 export async function deleteDebateSession(id: string): Promise<void> {
   assertSafeId(id, 'debate id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) a.store.deleteDebate(a.sessionId, id); return; }
   await backend.deleteFile(path.join(getDebatesDir(), `debate-${id}.json`));
-  void removeFromDebateIndex(id).catch(() => {}); // best-effort
+  void removeFromDebateIndex(id).catch((err) => { log.server.warn({ err, debateId: id }, 'Debate index removal failed (best-effort)'); });
 }
 
 export async function loadDebateComments(debateId: string): Promise<unknown> {
@@ -1170,6 +1170,8 @@ export interface CalibrationIntegrationRecord {
   reason?: string;
   /** debate_ids that had admin edit-on-promote corrections applied (promote only). */
   edited?: string[];
+  /** Which curated file the entries belong to. Absent on legacy records → 'calibration-log'. */
+  kind?: CalibrationKind | 'lineage-enrichments';
 }
 
 /** Calibration entries for one user that have not yet been promoted or rejected. */
@@ -1182,8 +1184,21 @@ export interface PendingCalibrationGroup {
   entries: CalibrationLogEntry[];
 }
 
+/** JSONL calibration file types curated through the staging→core workflow.
+ *  Both are append-only and keyed by `debate_id` (t/621#2). */
+export type CalibrationKind = 'calibration-log' | 'extraction-metrics';
+const CALIBRATION_JSONL_FILE: Record<CalibrationKind, string> = {
+  'calibration-log': 'calibration-log.jsonl',
+  'extraction-metrics': 'extraction-metrics.jsonl',
+};
+
 function calibrationUsersDir(): string { return resolveDataPath(path.join('calibration', 'users')); }
-function calibrationCoreLogPath(): string { return resolveDataPath(path.join('calibration', 'core', 'calibration-log.jsonl')); }
+function calibrationCoreLogPath(kind: CalibrationKind = 'calibration-log'): string {
+  return resolveDataPath(path.join('calibration', 'core', CALIBRATION_JSONL_FILE[kind]));
+}
+function calibrationUserLogPath(origin: string, kind: CalibrationKind = 'calibration-log'): string {
+  return path.join(calibrationUsersDir(), origin, CALIBRATION_JSONL_FILE[kind]);
+}
 function calibrationIntegrationLogPath(): string { return resolveDataPath(path.join('calibration', 'integration-log.jsonl')); }
 
 /** Parse JSONL text into objects, skipping blank and malformed lines. */
@@ -1204,34 +1219,37 @@ export async function readCalibrationIntegrationLog(): Promise<CalibrationIntegr
   return parseJsonlEntries<CalibrationIntegrationRecord>(await backend.readFile(calibrationIntegrationLogPath()));
 }
 
-/** debate_ids already promoted or rejected (union across the integration log). */
-async function resolvedCalibrationDebateIds(): Promise<Set<string>> {
+/** Resolution is per-kind: a debate can have both a calibration-log and an
+ *  extraction-metrics entry sharing a debate_id, so an entry counts as resolved
+ *  only when an integration record of the SAME kind lists it. Legacy records with
+ *  no `kind` are treated as 'calibration-log'. */
+async function resolvedCalibrationDebateIds(kind: CalibrationKind = 'calibration-log'): Promise<Set<string>> {
   const resolved = new Set<string>();
   for (const rec of await readCalibrationIntegrationLog()) {
+    if ((rec.kind ?? 'calibration-log') !== kind) continue;
     for (const id of rec.entries ?? []) resolved.add(id);
   }
   return resolved;
 }
 
-/** Read one user's calibration entries. */
-async function readUserCalibrationLog(origin: string): Promise<CalibrationLogEntry[]> {
-  const logPath = path.join(calibrationUsersDir(), origin, 'calibration-log.jsonl');
-  return parseJsonlEntries(await backend.readFile(logPath));
+/** Read one user's JSONL calibration entries for a given kind. */
+async function readUserCalibrationLog(origin: string, kind: CalibrationKind = 'calibration-log'): Promise<CalibrationLogEntry[]> {
+  return parseJsonlEntries(await backend.readFile(calibrationUserLogPath(origin, kind)));
 }
 
 /**
- * List calibration entries across all users that have not been promoted or
- * rejected, grouped by user. Entries whose debate_id appears in the integration
- * log are excluded (AC #1).
+ * List JSONL calibration entries across all users that have not been promoted or
+ * rejected, grouped by user. Entries whose debate_id appears in a same-kind
+ * integration record are excluded (AC #1). Defaults to the calibration-log kind.
  */
-export async function listPendingCalibration(): Promise<PendingCalibrationGroup[]> {
+export async function listPendingCalibration(kind: CalibrationKind = 'calibration-log'): Promise<PendingCalibrationGroup[]> {
   const userDirs = await backend.listDirectory(calibrationUsersDir());
-  const resolved = await resolvedCalibrationDebateIds();
+  const resolved = await resolvedCalibrationDebateIds(kind);
 
   const groups: PendingCalibrationGroup[] = [];
   for (const origin of userDirs) {
     if (!SAFE_ID_RE.test(origin)) continue; // skip stray non-id directory names
-    const entries = (await readUserCalibrationLog(origin))
+    const entries = (await readUserCalibrationLog(origin, kind))
       .filter(e => typeof e.debate_id === 'string' && !resolved.has(e.debate_id));
     if (entries.length > 0) groups.push({ origin, source: `users/${origin}`, entries });
   }
@@ -1280,10 +1298,11 @@ export async function promoteCalibrationEntries(
   by: string,
   notes?: string,
   edits?: Record<string, Record<string, unknown>>,
+  kind: CalibrationKind = 'calibration-log',
 ): Promise<{ promoted: number; entries: string[]; edited: string[] }> {
   const origin = parseCalibrationSource(source);
   const wanted = new Set(entryIds);
-  const matched = (await readUserCalibrationLog(origin))
+  const matched = (await readUserCalibrationLog(origin, kind))
     .filter(e => typeof e.debate_id === 'string' && wanted.has(e.debate_id));
 
   const editedIds: string[] = [];
@@ -1296,7 +1315,7 @@ export async function promoteCalibrationEntries(
   });
 
   if (toPromote.length > 0) {
-    const corePath = calibrationCoreLogPath();
+    const corePath = calibrationCoreLogPath(kind);
     const existing = (await backend.readFile(corePath)) ?? '';
     const prefix = existing.length > 0 && !existing.endsWith('\n') ? existing + '\n' : existing;
     const appended = toPromote.map(e => JSON.stringify(e)).join('\n') + '\n';
@@ -1312,6 +1331,7 @@ export async function promoteCalibrationEntries(
     at: new Date().toISOString(),
     ...(notes ? { notes } : {}),
     ...(editedIds.length > 0 ? { edited: editedIds } : {}),
+    ...(kind !== 'calibration-log' ? { kind } : {}),
   });
   return { promoted: promotedIds.length, entries: promotedIds, edited: editedIds };
 }
@@ -1326,10 +1346,11 @@ export async function rejectCalibrationEntries(
   entryIds: string[],
   by: string,
   reason: string,
+  kind: CalibrationKind = 'calibration-log',
 ): Promise<{ rejected: number; entries: string[] }> {
   const origin = parseCalibrationSource(source);
   const wanted = new Set(entryIds);
-  const rejectedIds = (await readUserCalibrationLog(origin))
+  const rejectedIds = (await readUserCalibrationLog(origin, kind))
     .filter(e => typeof e.debate_id === 'string' && wanted.has(e.debate_id))
     .map(e => e.debate_id);
 
@@ -1340,8 +1361,140 @@ export async function rejectCalibrationEntries(
     by,
     at: new Date().toISOString(),
     reason,
+    ...(kind !== 'calibration-log' ? { kind } : {}),
   });
   return { rejected: rejectedIds.length, entries: rejectedIds };
+}
+
+/** Read the curated core JSONL entries for a kind (for averages / comparison). */
+export async function readCoreCalibrationEntries(kind: CalibrationKind = 'calibration-log'): Promise<CalibrationLogEntry[]> {
+  return parseJsonlEntries(await backend.readFile(calibrationCoreLogPath(kind)));
+}
+
+// ── Lineage enrichments curation (keyed-map variant, t/621#2 / t/647) ──
+
+function lineageCoreMapPath(): string {
+  return resolveDataPath(path.join('calibration', 'core', 'lineage-enrichments.json'));
+}
+function lineageUserMapPath(origin: string): string {
+  return path.join(calibrationUsersDir(), origin, 'lineage-enrichments.json');
+}
+
+/** Read the curated core lineage-enrichments map (raw topic→value form). */
+export async function readCoreLineageEnrichmentsMap(): Promise<Record<string, unknown>> {
+  return readLineageMap(lineageCoreMapPath());
+}
+
+/** Read one user's raw lineage-enrichments map (topic→value). */
+export async function readUserLineageEnrichmentsMap(origin: string): Promise<Record<string, unknown>> {
+  assertSafeId(origin, 'calibration origin');
+  return readLineageMap(lineageUserMapPath(origin));
+}
+
+/** Parse a topic-keyed enrichment map; tolerant of a missing/garbled file. */
+async function readLineageMap(filePath: string): Promise<Record<string, unknown>> {
+  const raw = await backend.readFile(filePath);
+  if (!raw) return {};
+  try {
+    const data = JSON.parse(raw.replace(/^﻿/, ''));
+    return data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : {};
+  } catch { /* telemetry — silent by design; treat unreadable map as empty */ return {}; }
+}
+
+/** Topic keys already promoted/rejected for lineage-enrichments (per-kind audit). */
+async function resolvedLineageKeys(): Promise<Set<string>> {
+  const resolved = new Set<string>();
+  for (const rec of await readCalibrationIntegrationLog()) {
+    if (rec.kind !== 'lineage-enrichments') continue;
+    for (const k of rec.entries ?? []) resolved.add(k);
+  }
+  return resolved;
+}
+
+/** One user's lineage-enrichment keys not yet promoted/rejected, grouped by user. */
+export async function listPendingLineageEnrichments(): Promise<Array<{ origin: string; source: string; keys: string[] }>> {
+  const userDirs = await backend.listDirectory(calibrationUsersDir());
+  const resolved = await resolvedLineageKeys();
+
+  const groups: Array<{ origin: string; source: string; keys: string[] }> = [];
+  for (const origin of userDirs) {
+    if (!SAFE_ID_RE.test(origin)) continue;
+    const keys = Object.keys(await readLineageMap(lineageUserMapPath(origin)))
+      .filter(k => !resolved.has(k));
+    if (keys.length > 0) groups.push({ origin, source: `users/${origin}`, keys });
+  }
+  groups.sort((a, b) => a.origin.localeCompare(b.origin));
+  return groups;
+}
+
+/**
+ * Promote selected topic keys from a user's lineage map into the core map.
+ * Keys are case-normalized (lowercased) in core per t/621#2. `edits` may override
+ * a key's value before the merge (edit-on-promote). Audit record kind =
+ * 'lineage-enrichments', entries = the original (pre-normalization) user keys.
+ */
+export async function promoteLineageEnrichments(
+  source: string,
+  keys: string[],
+  by: string,
+  notes?: string,
+  edits?: Record<string, Record<string, unknown>>,
+): Promise<{ promoted: number; entries: string[]; edited: string[] }> {
+  const origin = parseCalibrationSource(source);
+  const userMap = await readLineageMap(lineageUserMapPath(origin));
+  const wanted = keys.filter(k => Object.prototype.hasOwnProperty.call(userMap, k));
+
+  if (wanted.length > 0) {
+    const corePath = lineageCoreMapPath();
+    const coreMap = await readLineageMap(corePath);
+    const editedKeys: string[] = [];
+    for (const k of wanted) {
+      const patch = edits?.[k];
+      const base = userMap[k];
+      let value: unknown = base;
+      if (patch && typeof patch === 'object') {
+        editedKeys.push(k);
+        value = (base && typeof base === 'object' && !Array.isArray(base))
+          ? { ...(base as Record<string, unknown>), ...patch }
+          : patch;
+      }
+      coreMap[k.toLowerCase()] = value; // case-normalized key in core
+    }
+    await backend.writeFile(corePath, JSON.stringify(coreMap, null, 2) + '\n');
+
+    await appendIntegrationRecord({
+      action: 'promote', source: `users/${origin}`, entries: wanted, by,
+      at: new Date().toISOString(), kind: 'lineage-enrichments',
+      ...(notes ? { notes } : {}),
+      ...(editedKeys.length > 0 ? { edited: editedKeys } : {}),
+    });
+    return { promoted: wanted.length, entries: wanted, edited: editedKeys };
+  }
+
+  await appendIntegrationRecord({
+    action: 'promote', source: `users/${origin}`, entries: [], by,
+    at: new Date().toISOString(), kind: 'lineage-enrichments',
+    ...(notes ? { notes } : {}),
+  });
+  return { promoted: 0, entries: [], edited: [] };
+}
+
+/** Reject selected lineage keys — audit only; the user map is never modified. */
+export async function rejectLineageEnrichments(
+  source: string,
+  keys: string[],
+  by: string,
+  reason: string,
+): Promise<{ rejected: number; entries: string[] }> {
+  const origin = parseCalibrationSource(source);
+  const userMap = await readLineageMap(lineageUserMapPath(origin));
+  const rejected = keys.filter(k => Object.prototype.hasOwnProperty.call(userMap, k));
+
+  await appendIntegrationRecord({
+    action: 'reject', source: `users/${origin}`, entries: rejected, by,
+    at: new Date().toISOString(), reason, kind: 'lineage-enrichments',
+  });
+  return { rejected: rejected.length, entries: rejected };
 }
 
 // ── Dictionary ──

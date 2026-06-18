@@ -50,12 +50,18 @@ import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder.js';
 import { log, runWithRequestContext, generateRequestId } from './logger.js';
 import {
   requireAdmin,
+  registerReviewHandler,
   getReviewQueue,
   getReviewStats,
   getReviewDetail,
   executeReviewAction,
 } from './admin/reviewRegistry.js';
 import type { ReviewAction } from './admin/types.js';
+import { calibrationReviewHandler } from './admin/calibrationHandler.js';
+
+// Register review domain handlers at startup so the unified admin endpoints
+// (queue/stats/action/detail) can delegate to them (t/646, t/647).
+registerReviewHandler(calibrationReviewHandler);
 
 // ── Server-side flight recorder ──
 const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
