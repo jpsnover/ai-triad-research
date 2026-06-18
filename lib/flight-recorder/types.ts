@@ -116,6 +116,7 @@ export interface FlightRecorderEvent {
 
   // Correlation IDs (optional)
   debate_id?: string;
+  run_id?: string;
   turn_id?: string;
   call_id?: string;
   request_id?: string;      // X-Request-ID from web bridge for end-to-end tracing

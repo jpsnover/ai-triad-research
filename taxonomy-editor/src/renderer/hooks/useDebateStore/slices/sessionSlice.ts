@@ -92,8 +92,10 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     const id = generateId();
     const now = nowISO();
     const title = options?.title?.trim() || (topic.length > 60 ? topic.slice(0, 57) + '...' : topic);
+    const runId = generateId();
     const session: DebateSession = {
       id,
+      run_id: runId,
       title,
       created_at: now,
       updated_at: now,
@@ -135,7 +137,9 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null, openingOrder: shuffledOrder });
     void api.setDebateTemperature(debateTemperature ?? null);
     await get().loadSessions();
-    getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate created', data: { topic: title, povers, protocol: protocolId, model: debateModel } });
+    getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
+    getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate created', data: { topic: title, povers, protocol: protocolId, model: debateModel } });
+    getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'debate.start', data: { phase: 'setup', topic: title, povers, protocol: protocolId, model: debateModel, audience: session.audience, source_type: sourceType, source_ref: sourceRef } });
     return id;
   },
 
@@ -276,6 +280,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
           }
         }
       }
+      const runId = generateId();
+      session.run_id = runId;
       set({ activeDebateId: id, activeDebate: session, debateLoading: false, debateModel: session.debate_model || null, debateTemperature: session.debate_temperature ?? null, audience: session.audience ?? 'policymakers', openingOrder: session.opening_order ?? [], selectedDiagEntry: null });
       setGapInjectionCount(session.gap_injections?.length ?? 0);
       usePromptConfigStore.getState().loadSessionConfig(
@@ -283,7 +289,9 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       );
       void api.setDebateTemperature(session.debate_temperature ?? null);
       try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
-      getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
+      getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
+      getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
+      getGlobalRecorder()?.record({ type: 'debate.phase', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'debate.start', data: { phase: session.phase, topic: session.topic.final, povers: session.active_povers, protocol: session.protocol_id, model: session.debate_model, transcript_length: session.transcript.length, resumed: true } });
 
       if (session.interrupted_turn) {
         const speakerLabel = POVER_INFO[session.interrupted_turn.speaker as Exclude<SpeakerId, 'user'>]?.label ?? session.interrupted_turn.speaker;
@@ -314,6 +322,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       const { activeDebateId } = get();
       if (activeDebateId === id) {
         set({ activeDebateId: null, activeDebate: null, debateModel: null });
+        getGlobalRecorder()?.setEventContext({});
       }
       await get().loadSessions();
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate deleted' });
@@ -360,6 +369,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     set({ activeDebateId: null, activeDebate: null, debateError: null, debateWarnings: [], debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
     void api.setDebateTemperature(null);
     usePromptConfigStore.getState().resetSession();
+    getGlobalRecorder()?.setEventContext({});
     if (closingId) getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'Debate closed' });
   },
 
