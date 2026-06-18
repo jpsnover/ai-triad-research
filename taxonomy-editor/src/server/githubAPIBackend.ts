@@ -53,6 +53,9 @@ export interface CompareResult {
   status: 'ahead' | 'behind' | 'diverged' | 'identical';
   files: Array<{ filename: string; status: string; patch?: string }>;
   total_commits: number;
+  /** SHA of the merge-base commit of base and head (GitHub `merge_base_commit`).
+   *  null when unavailable (no creds / API error). Used for three-way diffs. */
+  merge_base_sha: string | null;
 }
 
 interface CacheManifest {
@@ -918,14 +921,14 @@ export class GitHubAPIBackend implements StorageBackend {
   async compareBranches(base: string, head: string): Promise<CompareResult> {
     const creds = await this.getCredsCached();
     if (!creds) {
-      return { ahead_by: 0, behind_by: 0, status: 'identical', files: [], total_commits: 0 };
+      return { ahead_by: 0, behind_by: 0, status: 'identical', files: [], total_commits: 0, merge_base_sha: null };
     }
 
     const resp = await this.apiRequest(creds, 'GET',
       `/repos/${creds.repo}/compare/${base}...${head}`);
 
     if (!resp.ok) {
-      return { ahead_by: 0, behind_by: 0, status: 'identical', files: [], total_commits: 0 };
+      return { ahead_by: 0, behind_by: 0, status: 'identical', files: [], total_commits: 0, merge_base_sha: null };
     }
 
     const data = resp.data as {
@@ -934,6 +937,7 @@ export class GitHubAPIBackend implements StorageBackend {
       status: string;
       files?: Array<{ filename: string; status: string; patch?: string }>;
       total_commits: number;
+      merge_base_commit?: { sha?: string };
     };
     return {
       ahead_by: data.ahead_by,
@@ -945,6 +949,7 @@ export class GitHubAPIBackend implements StorageBackend {
         patch: f.patch,
       })),
       total_commits: data.total_commits,
+      merge_base_sha: data.merge_base_commit?.sha ?? null,
     };
   }
 

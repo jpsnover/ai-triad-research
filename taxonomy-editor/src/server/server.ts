@@ -38,6 +38,8 @@ import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
+import { computeNodeConflicts } from './nodeConflicts.js';
+import type { TaxNode, NodeConflict } from './nodeConflicts.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
@@ -1935,6 +1937,66 @@ get('/api/sync/node-diff', async (_req, res) => {
 
     json(res, { enabled: true, session_branch: branch, files, totals });
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+});
+
+// Phase 5D (t/654): nodes edited on the user's session branch that were ALSO
+// changed on main since the branch diverged — the "both-edited" conflict set.
+// Three-way: merge-base→branch (your changes) ∩ merge-base→main (their changes).
+// Informational only; never throws into the save path (returns a disabled shape).
+get('/api/sync/node-conflicts', async (_req, res) => {
+  const disabled = { enabled: false, session_branch: null, behind_by: 0, conflicts: [] };
+  try {
+    if (!githubBackend || !sessionManager) { json(res, disabled); return; }
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+    if (!branch) { json(res, disabled); return; }
+
+    // base...head with three dots diffs head against merge-base(base, head):
+    //  - compare('main', branch) → files changed on branch since merge-base (yours)
+    //  - compare(branch, 'main') → files changed on main since merge-base (theirs)
+    const [yourCmp, theirCmp] = await Promise.all([
+      githubBackend.compareBranches('main', branch),
+      githubBackend.compareBranches(branch, 'main'),
+    ]);
+    const baseSha = yourCmp.merge_base_sha;
+    const behindBy = yourCmp.behind_by;
+
+    const POV_RE = /\/(accelerationist|safetyist|skeptic|situations|cross-cutting)\.json$/;
+    const candidateFiles = new Set<string>();
+    for (const f of [...yourCmp.files, ...theirCmp.files]) {
+      if (f.filename.endsWith('.json') && POV_RE.test(f.filename)) candidateFiles.add(f.filename);
+    }
+
+    const parseNodes = (raw: string | null): TaxNode[] =>
+      raw ? ((JSON.parse(raw.replace(/^﻿/, '')) as { nodes?: TaxNode[] }).nodes ?? []) : [];
+
+    const conflicts: NodeConflict[] = [];
+    for (const filename of candidateFiles) {
+      const [baseRaw, mainRaw, branchRaw] = await Promise.all([
+        baseSha ? githubBackend.readFileAtRef(filename, baseSha) : Promise.resolve(null),
+        githubBackend.readFileAtRef(filename, 'main'),
+        githubBackend.readFileAtRef(filename, branch),
+      ]);
+      conflicts.push(...computeNodeConflicts(
+        parseNodes(baseRaw),
+        parseNodes(mainRaw),
+        parseNodes(branchRaw),
+        povKeyForPath(filename) ?? '',
+      ));
+    }
+
+    json(res, { enabled: true, session_branch: branch, behind_by: behindBy, conflicts });
+  } catch (err) {
+    // Record but degrade gracefully — this is informational and must never break the UI.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'warn',
+      message: 'node-conflicts detection failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    json(res, disabled);
+  }
 });
 
 post('/api/sync/discard', async (_req, res, body) => {
