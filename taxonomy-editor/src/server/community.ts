@@ -127,6 +127,13 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
   );
 
   log.server.info({ submissionId, type, userId }, 'Community submission created');
+
+  // Admin submissions are auto-approved — skip the pending queue.
+  if (isAdmin(userId)) {
+    await approveSubmission(submissionId);
+    log.server.info({ submissionId, type, userId }, 'Admin submission auto-approved');
+  }
+
   return { submissionId };
 }
 
