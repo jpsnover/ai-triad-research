@@ -1160,13 +1160,19 @@ get('/api/admin/calibration/pending', async (_req, res) => {
 
 post('/api/admin/calibration/promote', async (_req, res, body) => {
   if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
-  const { source, entryIds, notes } = body as { source?: string; entryIds?: string[]; notes?: string };
+  const { source, entryIds, notes, edits } = body as {
+    source?: string; entryIds?: string[]; notes?: string;
+    edits?: Record<string, Record<string, unknown>>;
+  };
   if (!source || !Array.isArray(entryIds) || entryIds.length === 0) {
     error(res, 'source and a non-empty entryIds[] are required', 400); return;
   }
+  if (edits !== undefined && (typeof edits !== 'object' || edits === null || Array.isArray(edits))) {
+    error(res, 'edits must be an object mapping debateId → field patch', 400); return;
+  }
   try {
     await ensureSessionBranch();
-    json(res, await fileIO.promoteCalibrationEntries(source, entryIds, getStorageUserId(), notes));
+    json(res, await fileIO.promoteCalibrationEntries(source, entryIds, getStorageUserId(), notes, edits));
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',

@@ -1168,6 +1168,8 @@ export interface CalibrationIntegrationRecord {
   notes?: string;
   /** Rejection reason (reject only). */
   reason?: string;
+  /** debate_ids that had admin edit-on-promote corrections applied (promote only). */
+  edited?: string[];
 }
 
 /** Calibration entries for one user that have not yet been promoted or rejected. */
@@ -1265,17 +1267,33 @@ async function appendIntegrationRecord(record: CalibrationIntegrationRecord): Pr
  * Promote selected user entries into the core calibration log and record an
  * audit entry (AC #2). Only entries that actually exist in the user log are
  * promoted; returns the promoted debate_ids.
+ *
+ * Edit-on-promote (t/644 AC #6): `edits` maps a debate_id to a partial object
+ * shallow-merged onto the matched entry before it is appended to core — lets an
+ * admin correct e.g. lineage category/description without mutating the user's
+ * source log. `debate_id` is always preserved from the original entry so an edit
+ * can never re-key or detach an entry. Edited ids are noted in the audit record.
  */
 export async function promoteCalibrationEntries(
   source: string,
   entryIds: string[],
   by: string,
   notes?: string,
-): Promise<{ promoted: number; entries: string[] }> {
+  edits?: Record<string, Record<string, unknown>>,
+): Promise<{ promoted: number; entries: string[]; edited: string[] }> {
   const origin = parseCalibrationSource(source);
   const wanted = new Set(entryIds);
-  const toPromote = (await readUserCalibrationLog(origin))
+  const matched = (await readUserCalibrationLog(origin))
     .filter(e => typeof e.debate_id === 'string' && wanted.has(e.debate_id));
+
+  const editedIds: string[] = [];
+  const toPromote = matched.map(e => {
+    const patch = edits?.[e.debate_id];
+    if (!patch || typeof patch !== 'object') return e;
+    editedIds.push(e.debate_id);
+    // Shallow-merge admin corrections, then pin debate_id back to the original.
+    return { ...e, ...patch, debate_id: e.debate_id } as CalibrationLogEntry;
+  });
 
   if (toPromote.length > 0) {
     const corePath = calibrationCoreLogPath();
@@ -1293,8 +1311,9 @@ export async function promoteCalibrationEntries(
     by,
     at: new Date().toISOString(),
     ...(notes ? { notes } : {}),
+    ...(editedIds.length > 0 ? { edited: editedIds } : {}),
   });
-  return { promoted: promotedIds.length, entries: promotedIds };
+  return { promoted: promotedIds.length, entries: promotedIds, edited: editedIds };
 }
 
 /**
