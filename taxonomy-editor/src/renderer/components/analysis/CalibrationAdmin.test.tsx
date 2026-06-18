@@ -26,8 +26,8 @@ const PENDING = {
       origin: 'alice',
       source: 'users/alice',
       entries: [
-        { debate_id: 'debate-aaaa1111', model: 'gemini-2.0', rounds: 3, crux_addressed_ratio: 0.8, avg_utilization_rate: 0.5, timestamp: '2026-06-01T00:00:00Z' },
-        { debate_id: 'debate-bbbb2222', model: 'claude-opus', rounds: 2, crux_addressed_ratio: null, avg_utilization_rate: 0.4, timestamp: '2026-06-02T00:00:00Z' },
+        { debate_id: 'debate-aaaa1111', model: 'gemini-2.0', rounds: 3, crux_addressed_ratio: 0.8, avg_utilization_rate: 0.5, timestamp: '2026-06-01T00:00:00Z', lineage_frame: [{ cluster_id: 'c1', label: 'Safety', percentage: 60 }] },
+        { debate_id: 'debate-bbbb2222', model: 'claude-opus', rounds: 2, crux_addressed_ratio: null, avg_utilization_rate: 0.4, timestamp: '2026-06-02T00:00:00Z', lineage_frame: null },
       ],
     },
     {
@@ -47,7 +47,8 @@ function mockFetch() {
     }
     if (url === '/api/admin/calibration/promote') {
       const body = JSON.parse((opts?.body as string) ?? '{}');
-      return { ok: true, json: async () => ({ promoted: body.entryIds.length, entries: body.entryIds }) } as Response;
+      const edited = body.edits ? Object.keys(body.edits) : [];
+      return { ok: true, json: async () => ({ promoted: body.entryIds.length, entries: body.entryIds, edited }) } as Response;
     }
     if (url === '/api/admin/calibration/reject') {
       const body = JSON.parse((opts?.body as string) ?? '{}');
@@ -107,6 +108,46 @@ describe('CalibrationAdmin', () => {
       expect(body.entryIds).toEqual(['debate-aaaa1111', 'debate-bbbb2222']);
     });
     await waitFor(() => expect(screen.getByText(/Promoted 2 entries to core/)).toBeInTheDocument());
+  });
+
+  it('sends an edited lineage label as a lineage_frame patch on promote', async () => {
+    const fetchMock = mockFetch();
+    render(<CalibrationAdmin />);
+    fireEvent.click(screen.getByText('Calibration Curation'));
+    await waitFor(() => expect(screen.getByText('alice')).toBeInTheDocument());
+
+    // Open the editor on alice's first entry (dominant label "Safety") and correct it.
+    fireEvent.click(screen.getAllByText('Edit')[0]);
+    fireEvent.change(screen.getByPlaceholderText(/Corrected topic label/), { target: { value: 'Governance' } });
+    fireEvent.click(screen.getAllByText('Promote all')[0]);
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(c => c[0] === '/api/admin/calibration/promote');
+      expect(call).toBeTruthy();
+      const body = JSON.parse((call![1] as RequestInit).body as string);
+      expect(body.edits).toEqual({
+        'debate-aaaa1111': { lineage_frame: [{ cluster_id: 'c1', label: 'Governance', percentage: 60 }] },
+      });
+    });
+    await waitFor(() => expect(screen.getByText(/Promoted 2 entries to core \(1 edited\)/)).toBeInTheDocument());
+  });
+
+  it('omits edits and promotes verbatim when labels are untouched', async () => {
+    const fetchMock = mockFetch();
+    render(<CalibrationAdmin />);
+    fireEvent.click(screen.getByText('Calibration Curation'));
+    await waitFor(() => expect(screen.getByText('bob')).toBeInTheDocument());
+
+    fireEvent.click(screen.getAllByText('Promote all')[1]); // bob's group
+
+    await waitFor(() => {
+      const call = fetchMock.mock.calls.find(
+        c => c[0] === '/api/admin/calibration/promote' && JSON.parse((c[1] as RequestInit).body as string).source === 'users/bob',
+      );
+      expect(call).toBeTruthy();
+      const body = JSON.parse((call![1] as RequestInit).body as string);
+      expect(body.edits).toBeUndefined();
+    });
   });
 
   it('requires a reason before rejecting selected entries', async () => {

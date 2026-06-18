@@ -10,6 +10,17 @@
  * subtracting anything already recorded in `integration-log.jsonl`. Promote
  * appends to `calibration/core/calibration-log.jsonl`; reject writes an audit
  * record only — user files are never modified.
+ *
+ * Edit-on-promote: the promote endpoint accepts an `edits` map (debate_id →
+ * partial patch) shallow-merged onto the core copy before write (t/644#3). The
+ * panel exposes the dominant lineage-frame label as the editable field so an
+ * admin can correct a miscategorized topic before it lands in core. The user
+ * source log is never mutated.
+ *
+ * Interim implementation: this standalone panel stays live until the unified
+ * admin-review framework (t/648 shell + t/647 calibration handler) ships, at
+ * which point its body is refactored into a `CalibrationReviewViewer` consuming
+ * the unified ReviewItem/ReviewAction contract (seam confirmed in t/644#2/#3).
  */
 
 import { useState, useCallback } from 'react';
@@ -19,6 +30,12 @@ import './CalibrationAdmin.css';
 
 // ── Types (subset of CalibrationDataPoint relevant to the preview) ──
 
+export interface LineageFrame {
+  cluster_id: string;
+  label: string;
+  percentage: number;
+}
+
 export interface PendingEntry {
   debate_id: string;
   timestamp?: string;
@@ -27,6 +44,7 @@ export interface PendingEntry {
   rounds?: number;
   crux_addressed_ratio?: number | null;
   avg_utilization_rate?: number | null;
+  lineage_frame?: LineageFrame[] | null;
   [key: string]: unknown;
 }
 
@@ -38,6 +56,9 @@ export interface PendingGroup {
   entries: PendingEntry[];
 }
 
+/** debate_id → partial patch shallow-merged onto the core copy before write. */
+export type PromoteEdits = Record<string, Record<string, unknown>>;
+
 // ── Server calls (web-only admin endpoints) ──
 
 async function fetchPending(): Promise<PendingGroup[]> {
@@ -47,14 +68,24 @@ async function fetchPending(): Promise<PendingGroup[]> {
   return data.groups ?? [];
 }
 
-async function postPromote(source: string, entryIds: string[], notes?: string): Promise<{ promoted: number }> {
+async function postPromote(
+  source: string,
+  entryIds: string[],
+  edits?: PromoteEdits,
+  notes?: string,
+): Promise<{ promoted: number; edited?: string[] }> {
   const res = await fetch('/api/admin/calibration/promote', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source, entryIds, ...(notes ? { notes } : {}) }),
+    body: JSON.stringify({
+      source,
+      entryIds,
+      ...(edits && Object.keys(edits).length > 0 ? { edits } : {}),
+      ...(notes ? { notes } : {}),
+    }),
   });
   if (!res.ok) throw new Error(`promote failed: HTTP ${res.status}`);
-  return res.json() as Promise<{ promoted: number }>;
+  return res.json() as Promise<{ promoted: number; edited?: string[] }>;
 }
 
 async function postReject(source: string, entryIds: string[], reason: string): Promise<{ rejected: number }> {
@@ -90,24 +121,73 @@ function fmtMetric(v: number | null | undefined): string {
   return v == null ? '—' : v.toFixed(2);
 }
 
+/** Dominant lineage-frame label for an entry, or '' if none. */
+function dominantLabel(entry: PendingEntry): string {
+  return entry.lineage_frame?.[0]?.label ?? '';
+}
+
+/**
+ * Build the `lineage_frame` patch value for a corrected label. Relabels the
+ * dominant frame when one exists; otherwise writes a single manual frame.
+ */
+function patchedFrame(entry: PendingEntry, label: string): LineageFrame[] {
+  const frames = entry.lineage_frame;
+  if (Array.isArray(frames) && frames.length > 0) {
+    return [{ ...frames[0], label }, ...frames.slice(1)];
+  }
+  return [{ cluster_id: 'manual-override', label, percentage: 100 }];
+}
+
 // ── Entry row ──
 
-function EntryRow({ entry, source, checked, onToggle }: {
+function EntryRow({ entry, source, checked, onToggle, editing, editedLabel, onToggleEdit, onLabelChange }: {
   entry: PendingEntry;
   source: string;
   checked: boolean;
   onToggle: () => void;
+  editing: boolean;
+  /** Corrected label, or undefined if untouched. */
+  editedLabel: string | undefined;
+  onToggleEdit: () => void;
+  onLabelChange: (value: string) => void;
 }) {
+  const original = dominantLabel(entry);
+  const isEdited = editedLabel !== undefined && editedLabel.trim() !== original;
+  const shown = editedLabel ?? original;
+
   return (
-    <label className="cal-adm-entry">
-      <input type="checkbox" checked={checked} onChange={onToggle} />
-      <span className="cal-adm-entry-id" title={entry.debate_id}>{entry.debate_id.slice(0, 12)}</span>
-      <span className="cal-adm-entry-model">{entry.model || '—'}</span>
-      <span className="cal-adm-entry-meta">{entry.rounds ?? '—'} rds</span>
-      <span className="cal-adm-entry-meta">crux {fmtMetric(entry.crux_addressed_ratio)}</span>
-      <span className="cal-adm-entry-meta">util {fmtMetric(entry.avg_utilization_rate)}</span>
-      <span className="cal-adm-entry-date">{fmtDate(entry.timestamp)}</span>
-    </label>
+    <div className="cal-adm-entry-wrap">
+      <div className="cal-adm-entry">
+        <label className="cal-adm-entry-main">
+          <input type="checkbox" checked={checked} onChange={onToggle} />
+          <span className="cal-adm-entry-id" title={entry.debate_id}>{entry.debate_id.slice(0, 12)}</span>
+          <span className="cal-adm-entry-model">{entry.model || '—'}</span>
+          <span className="cal-adm-entry-meta">{entry.rounds ?? '—'} rds</span>
+          <span className="cal-adm-entry-meta">crux {fmtMetric(entry.crux_addressed_ratio)}</span>
+          <span className="cal-adm-entry-meta">util {fmtMetric(entry.avg_utilization_rate)}</span>
+          <span className="cal-adm-entry-frame" title={shown || 'no lineage frame'}>{shown || '—'}</span>
+          {isEdited && <span className="cal-adm-edited">edited</span>}
+          <span className="cal-adm-entry-date">{fmtDate(entry.timestamp)}</span>
+        </label>
+        <button className="cal-adm-edit-btn" onClick={onToggleEdit} title="Correct lineage topic before promoting">
+          {editing ? 'Done' : 'Edit'}
+        </button>
+      </div>
+      {editing && (
+        <div className="cal-adm-editor">
+          <label className="cal-adm-editor-field">
+            Lineage topic
+            <input
+              type="text"
+              value={shown}
+              placeholder="Corrected topic label (applied to core copy only)"
+              onChange={e => onLabelChange(e.target.value)}
+            />
+          </label>
+          {original && <span className="cal-adm-editor-orig">was: {original}</span>}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -124,6 +204,10 @@ export function CalibrationAdmin() {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // entryKey currently showing its inline editor.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  // entryKey → corrected dominant lineage label.
+  const [labelEdits, setLabelEdits] = useState<Record<string, string>>({});
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -137,6 +221,8 @@ export function CalibrationAdmin() {
       const g = await fetchPending();
       setGroups(g);
       setSelected(new Set());
+      setLabelEdits({});
+      setEditingKey(null);
       setLoaded(true);
     } catch (err) {
       record('Failed to load pending calibration entries', err);
@@ -173,12 +259,30 @@ export function CalibrationAdmin() {
 
   const totalPending = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
-  const promote = useCallback(async (source: string, entryIds: string[]) => {
+  /** Assemble the edits map for the given source + promoted ids (only changed labels). */
+  const buildEdits = useCallback((group: PendingGroup, ids: string[]): PromoteEdits => {
+    const out: PromoteEdits = {};
+    const byId = new Map(group.entries.map(e => [e.debate_id, e]));
+    for (const id of ids) {
+      const entry = byId.get(id);
+      if (!entry) continue;
+      const edited = labelEdits[entryKey(group.source, id)];
+      if (edited === undefined) continue;
+      const trimmed = edited.trim();
+      if (!trimmed || trimmed === dominantLabel(entry)) continue;
+      out[id] = { lineage_frame: patchedFrame(entry, trimmed) };
+    }
+    return out;
+  }, [labelEdits]);
+
+  const promote = useCallback(async (group: PendingGroup, entryIds: string[]) => {
     if (entryIds.length === 0) return;
     setBusy(true);
     try {
-      const { promoted } = await postPromote(source, entryIds);
-      flash(`Promoted ${promoted} entr${promoted === 1 ? 'y' : 'ies'} to core`);
+      const edits = buildEdits(group, entryIds);
+      const { promoted, edited } = await postPromote(group.source, entryIds, edits);
+      const editedNote = edited && edited.length > 0 ? ` (${edited.length} edited)` : '';
+      flash(`Promoted ${promoted} entr${promoted === 1 ? 'y' : 'ies'} to core${editedNote}`);
       await load();
     } catch (err) {
       record('Failed to promote calibration entries', err);
@@ -186,7 +290,7 @@ export function CalibrationAdmin() {
     } finally {
       setBusy(false);
     }
-  }, [flash, load]);
+  }, [buildEdits, flash, load]);
 
   const reject = useCallback(async (source: string, entryIds: string[]) => {
     if (entryIds.length === 0) return;
@@ -250,10 +354,10 @@ export function CalibrationAdmin() {
                   <span className="cal-adm-group-name">{group.origin}</span>
                   <span className="cal-adm-group-count">{group.entries.length}</span>
                   <div className="cal-adm-group-actions">
-                    <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => void promote(group.source, allIds)}>
+                    <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => void promote(group, allIds)}>
                       Promote all
                     </button>
-                    <button className="btn btn-sm" disabled={busy || sel.length === 0} onClick={() => void promote(group.source, sel)}>
+                    <button className="btn btn-sm" disabled={busy || sel.length === 0} onClick={() => void promote(group, sel)}>
                       Promote selected ({sel.length})
                     </button>
                     <button className="btn btn-sm btn-danger" disabled={busy || sel.length === 0} onClick={() => void reject(group.source, sel)}>
@@ -262,15 +366,22 @@ export function CalibrationAdmin() {
                   </div>
                 </div>
                 <div className="cal-adm-entries">
-                  {group.entries.map(entry => (
-                    <EntryRow
-                      key={entry.debate_id}
-                      entry={entry}
-                      source={group.source}
-                      checked={selected.has(entryKey(group.source, entry.debate_id))}
-                      onToggle={() => toggleEntry(group.source, entry.debate_id)}
-                    />
-                  ))}
+                  {group.entries.map(entry => {
+                    const k = entryKey(group.source, entry.debate_id);
+                    return (
+                      <EntryRow
+                        key={entry.debate_id}
+                        entry={entry}
+                        source={group.source}
+                        checked={selected.has(k)}
+                        onToggle={() => toggleEntry(group.source, entry.debate_id)}
+                        editing={editingKey === k}
+                        editedLabel={labelEdits[k]}
+                        onToggleEdit={() => setEditingKey(cur => (cur === k ? null : k))}
+                        onLabelChange={value => setLabelEdits(prev => ({ ...prev, [k]: value }))}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             );
