@@ -149,7 +149,7 @@ export function PhrasesPanel({ nodeId }: { nodeId: string }) {
     setLegacyPhrases([]);
     setUsingSynthetic(false);
     setExpandedArchetypes(new Set());
-    load();
+    void load();
     return () => { cancelled = true; };
   }, [nodeId]);
 
