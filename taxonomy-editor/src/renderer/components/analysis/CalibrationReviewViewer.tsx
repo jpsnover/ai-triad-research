@@ -16,7 +16,6 @@
  *  - item ids are qualified `${kind}::${key}` — passed back verbatim; edit-on-
  *    promote patches are keyed by the same id (lineage-enrichments only here).
  *
- * This is the unified-framework successor to the interim CalibrationAdmin panel.
  * It owns only the right-pane viewer; the shell (queue list, routing, header
  * badge) is t/648 (Taxonomy Editor). Seam: the shell renders this with the
  * selected item's `groupId` and refreshes its queue/stats on `onActionComplete`.

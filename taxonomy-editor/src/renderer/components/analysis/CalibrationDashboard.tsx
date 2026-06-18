@@ -10,7 +10,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { CalibrationDataPoint } from '@lib/debate/calibrationLogger';
-import { CalibrationAdmin } from './CalibrationAdmin';
 
 type CalibrationEntry = CalibrationDataPoint;
 
@@ -229,7 +228,6 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
           <h3>Calibration Dashboard</h3>
           {onClose && <button className="btn btn-sm" onClick={onClose}>Close</button>}
         </div>
-        <CalibrationAdmin />
         <p className="cal-dash-placeholder">
           No calibration data. Run debates to generate metrics.
         </p>
@@ -254,8 +252,6 @@ export function CalibrationDashboard({ onClose }: CalibrationDashboardProps) {
           {onClose && <button className="btn btn-sm" onClick={onClose}>Close</button>}
         </div>
       </div>
-
-      <CalibrationAdmin />
 
       {/* Summary stats */}
       <div className="cal-dash-stats">
