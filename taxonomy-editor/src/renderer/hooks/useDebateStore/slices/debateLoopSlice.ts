@@ -119,6 +119,8 @@ import {
   _abortController,
   _gapInjectionCount,
   getTaxonomyContext,
+  claimDebateDriver,
+  releaseDebateDriver,
 } from '../helpers';
 
 export interface DebateLoopSlice {
@@ -284,6 +286,11 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     console.warn('%c[DEBATE-STORE] crossRespond ENTERED', 'color: red; font-weight: bold; font-size: 14px');
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
+    if (!claimDebateDriver()) {
+      set({ debateError: 'Another window is already running this debate.' });
+      getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Debate driver claim denied — another window owns it' });
+      return;
+    }
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'debug', debate_id: activeDebate?.id, message: 'crossRespond entered', data: { phase: activeDebate?.phase, transcript_length: activeDebate?.transcript.length, adaptive_phase: activeDebate?.adaptive_staging?.phase_state?.current_phase } });
 
     // Guard: if openings completed but abort guard prevented phase transition, fix it now
@@ -409,7 +416,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
 
         const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
         const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
-        if (!isStillValid()) { set({ debateGenerating: null }); return; }
+        if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); return; }
 
         const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text);
         if (ctx.nodeScores) {
@@ -453,6 +460,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
           void extractClaimsAndUpdateAN(statement, responderPover, lastEntry.id, taxonomyRefs.map(r => r.node_id), get, set, meta.my_claims);
           await summarizeTranscriptEntry(lastEntry.id, statement, info.label, model, get, set);
         }
+        releaseDebateDriver();
         set({ debateGenerating: null });
         await saveDebate('crossRespond:postTermination');
         return;
@@ -539,6 +547,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         message: 'Cross-respond moderator selection failed',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
+      releaseDebateDriver();
       set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });
       return;
     }
@@ -550,6 +559,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       if (freshDebate) {
         set({ activeDebate: { ...freshDebate, moderator_state: modResult.modState } });
       }
+      releaseDebateDriver();
       set({ debateGenerating: null });
       await saveDebate('crossRespond:agreement');
       return;
@@ -1353,6 +1363,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
 
     // Auto-probing disabled — probing questions are available on demand via requestProbingQuestions()
 
+    releaseDebateDriver();
     set({ debateGenerating: null });
     getGlobalRecorder()?.record({ type: 'debate.round', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: `Cross-respond round ${crossRespondRound} end` , data: { round: crossRespondRound } });
     await saveDebate('crossRespond:end');

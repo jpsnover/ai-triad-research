@@ -473,9 +473,6 @@ export function newAbortController(): AbortController {
 }
 
 // ── Single-driver guard (t/657) ────────────────────────────────────────
-// Prevents multiple windows from running the debate loop simultaneously.
-// Uses BroadcastChannel for cross-window coordination.
-
 const _driverChannel = typeof BroadcastChannel !== 'undefined'
   ? new BroadcastChannel('aitriad-debate-driver') : null;
 const _windowId = typeof crypto !== 'undefined' && crypto.randomUUID
@@ -489,7 +486,6 @@ if (_driverChannel) {
     if (type === 'release' && _activeDriverWindow === windowId) _activeDriverWindow = null;
   };
 }
-
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => releaseDebateDriver());
 }
@@ -506,6 +502,10 @@ export function releaseDebateDriver(): void {
     _activeDriverWindow = null;
     _driverChannel?.postMessage({ type: 'release', windowId: _windowId });
   }
+}
+
+export function resetDebateDriverLock(): void {
+  _activeDriverWindow = null;
 }
 
 const AI_POVER_ORDER = AI_POVERS;

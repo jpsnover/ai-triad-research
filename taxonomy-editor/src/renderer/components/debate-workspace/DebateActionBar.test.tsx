@@ -46,9 +46,10 @@ vi.mock('../../types/debate', () => ({
   ],
 }));
 
-vi.mock('@lib/debate/types', () => ({
-  AI_POVERS: ['accelerationist', 'safetyist', 'skeptic'],
-}));
+vi.mock('@lib/debate/types', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@lib/debate/types')>();
+  return { ...actual };
+});
 
 vi.mock('./utils', () => ({
   speakerLabel: (s: string) => s.charAt(0).toUpperCase() + s.slice(1),

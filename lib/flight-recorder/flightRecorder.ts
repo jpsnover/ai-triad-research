@@ -34,6 +34,7 @@ export class FlightRecorder {
   readonly dictionary: Dictionary;
   readonly buffer: RingBuffer;
   private contextProvider: ContextProvider = () => ({});
+  private eventContext: Partial<RecordInput> = {};
 
   constructor(config?: Partial<FlightRecorderConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -50,9 +51,18 @@ export class FlightRecorder {
 
   // ── Recording ────────────────────────────────────────────────────────
 
+  /**
+   * Set fields auto-merged into every record() call. Caller-supplied fields
+   * take precedence. Use for ambient context like active debate_id / run_id.
+   */
+  setEventContext(ctx: Partial<RecordInput>): void {
+    this.eventContext = ctx;
+  }
+
   /** Record an event into the ring buffer. Hot path — no allocations beyond the event object. */
   record(input: RecordInput): void {
     const event: FlightRecorderEvent = {
+      ...this.eventContext,
       ...input,
       _seq: this.buffer.count,
       _ts: typeof performance !== 'undefined' ? performance.now() : Date.now(),

@@ -439,6 +439,8 @@ export interface TaxonomyGapAnalysis {
 
 export interface DebateSession {
   id: string;
+  /** Execution run — regenerated each time the debate loop starts or resumes. */
+  run_id?: string;
   title: string;
   created_at: string;
   updated_at: string;

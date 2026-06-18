@@ -34,6 +34,11 @@ const REDACT_ARGS: Record<string, number[]> = {
   importKeysFromSharing: [0, 1], // arg 0 is encrypted payload, arg 1 is passphrase
 };
 
+function redactSecret(value: unknown): string {
+  if (typeof value !== 'string' || value.length < 8) return '[REDACTED]';
+  return value.slice(0, 4) + '…' + value.slice(-2);
+}
+
 /** Summarize args array for flight recorder (max 3 args logged). */
 function summarizeArgs(args: unknown[], method?: string): unknown[] {
   const redactIndices = method ? REDACT_ARGS[method] : undefined;
@@ -76,11 +81,6 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
     return Object.keys(meta).length > 0 ? meta : undefined;
   }
   return undefined;
-}
-
-function redactSecret(value: unknown): string {
-  if (typeof value !== 'string' || value.length < 8) return '[REDACTED]';
-  return value.slice(0, 4) + '…' + value.slice(-2);
 }
 
 /** Methods that should NOT be wrapped. */
@@ -145,9 +145,9 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
       } catch (err) {
         // Sync throw (rare for bridge methods)
         const duration_ms = Math.round(performance.now() - startTs);
-        recorder?.record({
+        getGlobalRecorder()?.record({
           type: isAI ? 'ai.error' : 'system.error',
-          component: recorder.intern('component', 'bridge') as string | number,
+          component: recorder?.intern('component', 'bridge') as string | number,
           level: 'error',
           message: `bridge.${key} failed (sync)`,
           duration_ms,

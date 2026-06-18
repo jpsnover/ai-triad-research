@@ -10,6 +10,8 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo/renderer.tsbuildinfo",
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {

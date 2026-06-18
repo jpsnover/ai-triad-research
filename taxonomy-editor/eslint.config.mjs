@@ -41,6 +41,12 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/renderer/**/*.ts', 'src/renderer/**/*.tsx'],
+    rules: {
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+    },
+  },
+  {
     ignores: ['node_modules/', 'dist/', 'build/', '**/*.test.ts', '**/*.test.tsx', '**/__tests__/'],
   },
 );

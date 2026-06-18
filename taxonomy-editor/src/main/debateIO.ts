@@ -6,6 +6,7 @@ import path from 'path';
 
 import { resolveDataPath } from './fileIO.js';
 import { extractCalibrationData, appendCalibrationLog } from '../../../lib/debate/calibrationLogger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const DEBATES_DIR = resolveDataPath('debates');
 const INDEX_PATH = path.join(DEBATES_DIR, '.debate-index.json');
@@ -46,14 +47,18 @@ function loadIndex(): DebateIndex {
     const raw = fs.readFileSync(INDEX_PATH, 'utf-8');
     const parsed = JSON.parse(raw);
     if (parsed?.v === 1) return parsed;
-  } catch { /* missing or corrupt — rebuild */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: 'Debate index missing or corrupt — rebuilding', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
   return { v: 1, entries: {} };
 }
 
 function saveIndex(index: DebateIndex): void {
   try {
     fs.writeFileSync(INDEX_PATH, JSON.stringify(index), 'utf-8');
-  } catch { /* non-fatal — next call rebuilds */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: 'Debate index write failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
 }
 
 function extractSummary(data: Record<string, unknown>): DebateSessionSummary {
@@ -77,7 +82,9 @@ function updateIndexEntry(index: DebateIndex, id: string, session: Record<string
   try {
     const stat = fs.statSync(filePath);
     index.entries[filename] = { mtimeMs: stat.mtimeMs, summary: extractSummary(session) };
-  } catch { /* file gone — skip */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: `Stat failed for debate file ${id}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
 }
 
 export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
@@ -95,7 +102,9 @@ export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
         const data = JSON.parse(fs.readFileSync(src, 'utf-8'));
         const dest = path.join(DEBATES_DIR, `debate-${data.id}.json`);
         if (src !== dest) fs.renameSync(src, dest);
-      } catch { /* skip corrupt */ }
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: `Skipping corrupt cli-runs file: ${f}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+      }
     }
   }
 
@@ -122,7 +131,9 @@ export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
         readQueue.push({ filename: f, filePath });
         indexDirty = true;
       }
-    } catch { /* stat failed — skip */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: `Stat failed for debate file: ${f}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+    }
   }
 
   // Removed entries → dirty
@@ -138,7 +149,15 @@ export async function listDebateSessions(): Promise<DebateSessionSummary[]> {
       const stat = fs.statSync(filePath);
       nextIndex.entries[filename] = { mtimeMs: stat.mtimeMs, summary };
       summaries.push(summary);
-    }).catch(() => { /* skip corrupt files */ })
+    }).catch((err) => {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debateIO',
+        level: 'warn',
+        message: `Skipping corrupt debate file: ${filename}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+    })
   );
   await Promise.all(reads);
 
@@ -183,7 +202,9 @@ export function saveDebateSession(session: unknown): void {
     const index = loadIndex();
     updateIndexEntry(index, data.id, session as Record<string, unknown>);
     saveIndex(index);
-  } catch { /* non-fatal */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: 'Debate index update after save failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
 }
 
 export function deleteDebateSession(id: string): void {
@@ -198,7 +219,9 @@ export function deleteDebateSession(id: string): void {
     const index = loadIndex();
     delete index.entries[`debate-${id}.json`];
     saveIndex(index);
-  } catch { /* non-fatal */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'debateIO', level: 'warn', message: `Debate index cleanup after delete failed for ${id}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } });
+  }
 }
 
 // ── Debate comments ────────────────────────────────────────

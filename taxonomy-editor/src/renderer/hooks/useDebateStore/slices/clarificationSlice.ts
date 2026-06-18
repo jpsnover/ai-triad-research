@@ -55,6 +55,8 @@ import {
   runNeutralCheckpoint,
   newAbortController,
   _abortController,
+  claimDebateDriver,
+  releaseDebateDriver,
 } from '../helpers';
 
 export interface ClarificationSlice {
@@ -652,6 +654,11 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
   runOpeningStatements: async () => {
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
+    if (!claimDebateDriver()) {
+      set({ debateError: 'Another window is already running this debate.' });
+      getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'warn', debate_id: activeDebate.id, message: 'Debate driver claim denied — another window owns it (openings)' });
+      return;
+    }
 
     newAbortController();
     const isStillValid = createDebateGuard(get);
@@ -926,6 +933,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
       }
     }
 
+    releaseDebateDriver();
     set({ debateGenerating: null });
 
     // If user is a POVer, wait for their input (phase stays 'opening')

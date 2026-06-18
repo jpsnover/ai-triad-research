@@ -30,6 +30,10 @@ taxonomy-editor/.aitriad.json
 secrets.json
 .aitriad-key-*.enc
 
+# TypeScript incremental build cache
+.tsbuildinfo/
+*.tsbuildinfo
+
 # Build output
 /build/
 taxonomy-editor/release/
