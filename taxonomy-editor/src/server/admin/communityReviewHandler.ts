@@ -36,9 +36,20 @@ function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
 }
 
+function extractString(val: unknown): string {
+  if (typeof val === 'string') return val;
+  if (val && typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    for (const key of ['final', 'refined', 'original']) {
+      if (typeof obj[key] === 'string') return obj[key];
+    }
+  }
+  return '';
+}
+
 function titleOf(data: unknown): string {
   const d = asRecord(data);
-  return (d.title as string) || (d.topic as string) || '(untitled)';
+  return extractString(d.title) || extractString(d.topic) || '(untitled)';
 }
 
 // Sensitive keys stripped by community.ts → sanitizeForCommunity on promote.
@@ -118,7 +129,7 @@ export const communityReviewHandler: ReviewDomainHandler = {
       submittedAt: sub.submittedAt,
       note: sub.note ?? null,
       title: titleOf(sub.data),
-      topic: (d.topic as string) ?? null,
+      topic: extractString(d.topic) || null,
       preview,
       metadata: {
         model: (d.model as string) ?? null,
