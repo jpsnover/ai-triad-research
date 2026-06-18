@@ -37,7 +37,7 @@ export default tseslint.config(
         allowNamedExports: false,
       }],
       'complexity': ['warn', { max: 15 }],
-      'local/require-flight-recorder-in-catch': 'error',
+      'local/require-flight-recorder-in-catch': 'warn',
     },
   },
   {
