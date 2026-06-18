@@ -3,6 +3,7 @@ export * from './AnalysisPanel';
 export * from './AnalyticsDashboard';
 export * from './AttributeFilterPanel';
 export * from './AttributeInfoPanel';
+export * from './CalibrationAdmin';
 export * from './CalibrationDashboard';
 export * from './ConvergenceSignalsPanel';
 export * from './ExtractionTimelinePanel';
