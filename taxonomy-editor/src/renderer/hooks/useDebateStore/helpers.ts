@@ -131,6 +131,11 @@ import { getLineageMapping, getL2Categories, isLineageDataLoaded } from '../../d
 export let _doctrinalAnchoringApplied = new Set<string>();
 export let _boundaryEmbeddingsCache: BoundaryEmbeddings | null = null;
 
+// ── Synthetic embeddings cache ───────────────────────────────────────
+// Loaded once per session from synthetic_embeddings.json via the bridge.
+let _syntheticVectorsCache: Record<string, number[][]> | null = null;
+let _syntheticVectorsLoaded = false;
+
 /** Reset doctrinal anchoring cache (call when debate changes or taxonomy reloads). */
 export function resetDoctrinalAnchoringCache(): void {
   _doctrinalAnchoringApplied = new Set();
@@ -138,11 +143,6 @@ export function resetDoctrinalAnchoringCache(): void {
   _syntheticVectorsCache = null;
   _syntheticVectorsLoaded = false;
 }
-
-// ── Synthetic embeddings cache ───────────────────────────────────────
-// Loaded once per session from synthetic_embeddings.json via the bridge.
-let _syntheticVectorsCache: Record<string, number[][]> | null = null;
-let _syntheticVectorsLoaded = false;
 
 async function loadSyntheticVectors(): Promise<Record<string, number[][]> | null> {
   if (_syntheticVectorsLoaded) return _syntheticVectorsCache;
@@ -470,6 +470,42 @@ export function cancelAndResetAbort(): void {
 export function newAbortController(): AbortController {
   _abortController = new AbortController();
   return _abortController;
+}
+
+// ── Single-driver guard (t/657) ────────────────────────────────────────
+// Prevents multiple windows from running the debate loop simultaneously.
+// Uses BroadcastChannel for cross-window coordination.
+
+const _driverChannel = typeof BroadcastChannel !== 'undefined'
+  ? new BroadcastChannel('aitriad-debate-driver') : null;
+const _windowId = typeof crypto !== 'undefined' && crypto.randomUUID
+  ? crypto.randomUUID() : `w-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+let _activeDriverWindow: string | null = null;
+
+if (_driverChannel) {
+  _driverChannel.onmessage = (e: MessageEvent) => {
+    const { type, windowId } = e.data as { type: string; windowId: string };
+    if (type === 'claim') _activeDriverWindow = windowId;
+    if (type === 'release' && _activeDriverWindow === windowId) _activeDriverWindow = null;
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => releaseDebateDriver());
+}
+
+export function claimDebateDriver(): boolean {
+  if (_activeDriverWindow && _activeDriverWindow !== _windowId) return false;
+  _activeDriverWindow = _windowId;
+  _driverChannel?.postMessage({ type: 'claim', windowId: _windowId });
+  return true;
+}
+
+export function releaseDebateDriver(): void {
+  if (_activeDriverWindow === _windowId) {
+    _activeDriverWindow = null;
+    _driverChannel?.postMessage({ type: 'release', windowId: _windowId });
+  }
 }
 
 const AI_POVER_ORDER = AI_POVERS;

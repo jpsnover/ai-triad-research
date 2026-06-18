@@ -27,6 +27,13 @@ function truncateArg(arg: unknown, maxLen = 200): unknown {
   return String(arg).slice(0, maxLen);
 }
 
+/** Redact secret-bearing arguments before logging. Key = method name, value = arg indices to redact. */
+const REDACT_ARGS: Record<string, number[]> = {
+  setApiKey: [0],                // arg 0 is the raw API key
+  exportKeysForSharing: [0],     // arg 0 is the passphrase
+  importKeysFromSharing: [0, 1], // arg 0 is encrypted payload, arg 1 is passphrase
+};
+
 /** Summarize args array for flight recorder (max 3 args logged). */
 function summarizeArgs(args: unknown[], method?: string): unknown[] {
   const redactIndices = method ? REDACT_ARGS[method] : undefined;
@@ -70,13 +77,6 @@ function extractResultMeta(method: string, args: unknown[], value: unknown): Rec
   }
   return undefined;
 }
-
-/** Redact secret-bearing arguments before logging. Key = method name, value = arg indices to redact. */
-const REDACT_ARGS: Record<string, number[]> = {
-  setApiKey: [0],                // arg 0 is the raw API key
-  exportKeysForSharing: [0],     // arg 0 is the passphrase
-  importKeysFromSharing: [0, 1], // arg 0 is encrypted payload, arg 1 is passphrase
-};
 
 function redactSecret(value: unknown): string {
   if (typeof value !== 'string' || value.length < 8) return '[REDACTED]';
