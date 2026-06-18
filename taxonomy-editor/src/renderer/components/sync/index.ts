@@ -4,4 +4,5 @@ export * from './RebaseConflictModal';
 export * from './SaveBar';
 export * from './SyncDiagnosticsDialog';
 export * from './TaxonomyDiffPanel';
+export * from './TaxonomyUpdateToast';
 export * from './UnsyncedChangesDrawer';
