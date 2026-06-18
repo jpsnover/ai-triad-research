@@ -1,0 +1,71 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root.
+ *
+ * Phase 5F real-time update toasts. Co-located with TaxonomyUpdateToast.tsx.
+ * Uses the shared theme CSS variables so it tracks Light / Dark / BKC themes.
+ */
+
+.txupdate-toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 56px; /* clears the save bar */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1100;
+  max-width: min(380px, 90vw);
+  pointer-events: none;
+}
+
+.txupdate-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-secondary, #f8fafc);
+  color: var(--text-primary, #1e293b);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-left: 3px solid var(--accent, #4a9eff);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  font-size: 13px;
+  pointer-events: auto;
+  animation: txupdate-slide-in 0.18s ease-out;
+}
+
+@keyframes txupdate-slide-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.txupdate-toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #4a9eff);
+  flex-shrink: 0;
+}
+
+.txupdate-toast-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.txupdate-toast-text strong {
+  font-weight: 600;
+}
+
+.txupdate-toast-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.txupdate-toast-dismiss:hover {
+  color: var(--text-primary, #1e293b);
+}

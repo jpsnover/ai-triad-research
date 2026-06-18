@@ -10,6 +10,7 @@ import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { UnsyncedChangesDrawer } from './UnsyncedChangesDrawer';
 import { SyncDiagnosticsDialog } from './SyncDiagnosticsDialog';
 import { TaxonomyDiffPanel } from './TaxonomyDiffPanel';
+import { TaxonomyUpdateToast } from './TaxonomyUpdateToast';
 
 function formatFileKey(key: string): string {
   if (key === 'situations') return 'Situations';
@@ -212,6 +213,7 @@ export function SaveBar() {
           Save
         </button>
       </div>
+      <TaxonomyUpdateToast />
       <TaxonomyDiffPanel
         open={diffPanelOpen}
         onClose={() => setDiffPanelOpen(false)}
