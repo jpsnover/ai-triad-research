@@ -9,6 +9,8 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo/server.tsbuildinfo",
     "outDir": "dist/server",
     "rootDir": "../",
     "declaration": false
