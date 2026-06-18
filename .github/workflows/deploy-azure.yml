@@ -97,6 +97,7 @@ jobs:
               githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }} \
               authDisabled=${{ inputs.auth_mode == 'disabled' && '1' || '' }} \
               authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }} \
+              adminUsers=${{ vars.ADMIN_USERS }} \
               aadClientId=${{ secrets.AAD_CLIENT_ID }} \
               aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }} \
               aadIssuer=common \
@@ -130,6 +131,7 @@ jobs:
             githubClientSecret=${{ secrets.GH_OAUTH_CLIENT_SECRET }}
             authDisabled=${{ inputs.auth_mode == 'disabled' && '1' || '' }}
             authOptional=${{ inputs.auth_mode == 'optional' && '1' || '' }}
+            adminUsers=${{ vars.ADMIN_USERS }}
             aadClientId=${{ secrets.AAD_CLIENT_ID }}
             aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }}
             aadIssuer=common
