@@ -1,0 +1,218 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* CalibrationReviewViewer — calibration right-pane viewer for the unified admin-review shell. */
+
+.crv {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  height: 100%;
+  overflow-y: auto;
+  color: var(--text-primary);
+}
+
+.crv-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.crv-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.crv-header-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.crv-placeholder {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 8px 2px;
+}
+
+.crv-error {
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+}
+
+.crv-toast {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+}
+
+.crv-section {
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.crv-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  background: var(--bg-panel);
+}
+
+.crv-section-meta {
+  margin-left: auto;
+  font-weight: 400;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.crv-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.crv-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-color);
+}
+
+.crv-row:hover { background: var(--bg-hover); }
+
+.crv-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.crv-row-key {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary);
+  min-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.crv-row-cell {
+  min-width: 70px;
+  color: var(--text-muted);
+}
+
+.crv-row-core {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.crv-lineage-wrap {
+  border-top: 1px solid var(--border-color);
+}
+
+.crv-lineage-wrap .crv-row {
+  border-top: none;
+}
+
+.crv-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.crv-badge-conflict {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.crv-badge-new {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.crv-badge-edited {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.crv-edit-btn {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  font-size: 0.66rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.crv-edit-btn:hover { background: var(--bg-hover); }
+
+.crv-editor {
+  display: flex;
+  gap: 10px;
+  padding: 6px 10px 8px 34px;
+  background: var(--bg-primary);
+}
+
+.crv-editor-json {
+  flex: 1;
+  min-height: 90px;
+  padding: 6px 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.crv-editor-core {
+  flex: 1;
+  margin: 0;
+  max-height: 120px;
+  overflow: auto;
+  padding: 6px 8px;
+  font-size: 0.66rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+
+.crv-actionbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-primary);
+}
+
+.crv-reason {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
