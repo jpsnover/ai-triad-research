@@ -159,17 +159,18 @@ jobs:
           echo "tag=${TAG%% *}" >> $GITHUB_OUTPUT
           echo "Base image tag: $TAG"
 
-      - name: Build base image locally
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: deploy/azure/Dockerfile.base
-          push: false
-          load: true
-          tags: ghcr.io/jpsnover/ai-triad-base:${{ steps.base_tag.outputs.tag }}
-          build-args: PRELOAD_MODEL=false
-          cache-from: type=gha,scope=base-image
-          cache-to: type=gha,scope=base-image,mode=max
+      - name: Pull or build base image
+        run: |
+          TAG=${{ steps.base_tag.outputs.tag }}
+          if docker pull ghcr.io/jpsnover/ai-triad-base:$TAG 2>/dev/null; then
+            echo "Pulled base image from GHCR"
+          else
+            echo "Base image not in GHCR — building locally"
+            docker buildx build --load \
+              -f deploy/azure/Dockerfile.base \
+              --build-arg PRELOAD_MODEL=false \
+              -t ghcr.io/jpsnover/ai-triad-base:$TAG .
+          fi
 
       - name: Build app container image
         uses: docker/build-push-action@v7
@@ -179,8 +180,6 @@ jobs:
           push: false
           load: true
           tags: ai-triad-test:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Run container smoke test (GitHub API-first mode)
         run: |
