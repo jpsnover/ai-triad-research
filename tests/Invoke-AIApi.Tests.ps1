@@ -32,7 +32,7 @@ Describe 'Invoke-AIApi truncation detection (gap 1.1)' {
 
         Mock Invoke-RestMethod { $mockResponse } -ModuleName AIEnrich
 
-        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4-5' -ApiKey 'fake-key' 3>$null
+        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4' -ApiKey 'fake-key' 3>$null
         $result.Truncated | Should -BeTrue
     }
 
@@ -45,7 +45,7 @@ Describe 'Invoke-AIApi truncation detection (gap 1.1)' {
 
         Mock Invoke-RestMethod { $mockResponse } -ModuleName AIEnrich
 
-        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4-5' -ApiKey 'fake-key' 3>$null
+        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4' -ApiKey 'fake-key' 3>$null
         $result.Truncated | Should -BeFalse
     }
 
@@ -128,7 +128,7 @@ Describe 'Invoke-AIApi token usage tracking (gap 1.2)' {
 
         Mock Invoke-RestMethod { $mockResponse } -ModuleName AIEnrich
 
-        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4-5' -ApiKey 'fake-key' 3>$null
+        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4' -ApiKey 'fake-key' 3>$null
         $result.Usage | Should -Not -BeNullOrEmpty
         $result.Usage.InputTokens  | Should -Be 42
         $result.Usage.OutputTokens | Should -Be 17
@@ -204,7 +204,7 @@ Describe 'Invoke-AIApi token usage tracking (gap 1.2)' {
 
         Mock Invoke-RestMethod { $mockResponse } -ModuleName AIEnrich
 
-        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4-5' -ApiKey 'fake-key' 3>$null
+        $result = Invoke-AIApi -Prompt 'test' -Model 'claude-sonnet-4' -ApiKey 'fake-key' 3>$null
         $result.Usage | Should -BeNullOrEmpty
     }
 }

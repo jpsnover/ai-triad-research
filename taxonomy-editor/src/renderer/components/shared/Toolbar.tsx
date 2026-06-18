@@ -10,11 +10,31 @@ import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 
 type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration';
 
+function useAdminReviewCount(): number {
+  const profile = useUserProfile();
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!profile?.isAdmin) return;
+    let cancelled = false;
+    const poll = () => {
+      fetch('/api/admin/review/stats')
+        .then(r => r.ok ? r.json() : null)
+        .then(s => { if (!cancelled && s) setCount(s.total ?? 0); })
+        .catch(() => { /* telemetry — silent by design */ });
+    };
+    poll();
+    const id = setInterval(poll, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [profile?.isAdmin]);
+  return count;
+}
+
 function ToolbarAuthButton() {
   const auth = useAuthStatus();
   const profile = useUserProfile();
   const [showPopover, setShowPopover] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const reviewCount = useAdminReviewCount();
 
   useEffect(() => {
     if (!showPopover) return;
@@ -90,7 +110,12 @@ function ToolbarAuthButton() {
                 <a className="toolbar-more-item" href="#admin" style={{ textDecoration: 'none', color: 'inherit' }}
                   onClick={() => setShowPopover(false)}>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-                  <span>Admin Panel</span>
+                  <span>Admin Review</span>
+                  {reviewCount > 0 && (
+                    <span className="toolbar-auth-admin-badge" style={{ marginLeft: 6 }}>
+                      {reviewCount}
+                    </span>
+                  )}
                 </a>
               )}
               <div className="toolbar-auth-divider" />
