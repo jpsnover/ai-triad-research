@@ -120,7 +120,7 @@ function Test-FireRequired {
     $Camps = @('accelerationist', 'safetyist', 'skeptic')
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
-        if ($CampData -and $CampData.key_points) {
+        if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
             foreach ($KP in @($CampData.key_points)) { $AllKeyPoints.Add($KP) }
         }
     }

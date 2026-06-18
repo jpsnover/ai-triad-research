@@ -1582,6 +1582,8 @@ ${moveHistoryBlock}${refsHistoryBlock}${priorFlaggedHints && priorFlaggedHints.l
 Address ${addressing === 'general' ? 'the panel' : addressing} on this point: ${focusPoint}
 
 Respond substantively. ${phaseDirective}
+
+ATTRIBUTION FIDELITY: You may only attribute positions to other debaters that they have explicitly stated in the RECENT DEBATE HISTORY above. Do not infer, extrapolate, or fabricate positions. Phrases like "your solution is X" or "you're arguing for Y" must correspond to something actually said.
 ${buildRecapSection(taxonomyContext, phase, pov)}
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
@@ -1939,6 +1941,8 @@ ${input.label} must address ${input.addressing === 'general' ? 'the panel' : inp
 
 ${input.phase ? PHASE_INSTRUCTIONS[input.phase] : ''}
 
+ATTRIBUTION FIDELITY: Your analysis of other speakers' positions must be grounded in what they actually said in the RECENT DEBATE HISTORY above. Do not infer, extrapolate, or construct positions that a speaker did not explicitly state. If a speaker did not address a topic, note the absence — do not fill it with assumptions about what they "probably" believe.
+
 Analyze the debate state and produce a structured brief. Focus on:
 1. What is the current state of the debate? What just happened?
 2. What are the most important claims that need addressing? Include the AN-ID if available. For each claim, identify which taxonomy nodes ground your response.
@@ -2161,6 +2165,7 @@ ${pi?.isTargeted
 - A single unbroken block will be rejected — structure your argument into clear, quotable sections.`}
 
 OUTPUT CONSTRAINTS:
+- ATTRIBUTION FIDELITY: You may only attribute positions to other debaters that they have explicitly stated in the debate history. Do not infer, extrapolate, or fabricate positions. Phrases like "your solution is X" or "you're arguing for Y" must correspond to something actually said — not an implication you've constructed. Misrepresenting another debater's position undermines the debate's integrity and will be flagged.
 - NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
 - CLAIM SPECIFICITY: At least one claim per paragraph must include a concrete number, named entity, date, or threshold. If source evidence is provided above, use it — cite the specific statistic, year, or finding rather than paraphrasing vaguely. Abstract claims without any specifics weaken your argument.
 - CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.${!input.pendingIntervention?.isTargeted ? `\n- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.` : ''}

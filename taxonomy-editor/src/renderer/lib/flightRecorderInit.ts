@@ -148,11 +148,15 @@ function createPopupShim(origin: string): FlightRecorder {
     }
   };
 
-  // Forward dictionary registrations to main recorder
+  // Forward dictionary registrations to main recorder (deduped to reduce noise)
   const originalIntern = shim.intern.bind(shim);
+  const _forwardedDictEntries = new Set<string>();
   shim.intern = (category: string, value: string) => {
     const handle = originalIntern(category, value);
-    // Forward prefixed registration
+    const key = `${category}/${value}`;
+    const verbose = (window as unknown as { __FLIGHT_RECORDER_VERBOSE_DICT__?: boolean }).__FLIGHT_RECORDER_VERBOSE_DICT__;
+    if (!verbose && _forwardedDictEntries.has(key)) return handle;
+    _forwardedDictEntries.add(key);
     try {
       electronAPI.forwardFlightEvent({
         type: 'lifecycle',
@@ -260,13 +264,24 @@ export function initFlightRecorder(): FlightRecorder {
     });
   };
 
+  // Compute load_generation: increments on each page load/HMR within the same window tab
+  let loadGeneration = 0;
+  try {
+    const prev = sessionStorage.getItem('flight-recorder-load-gen');
+    loadGeneration = prev ? (parseInt(prev, 10) || 0) + 1 : 0;
+    sessionStorage.setItem('flight-recorder-load-gen', String(loadGeneration));
+  } catch { /* flight recorder init — silent by design (sessionStorage may be unavailable) */ }
+
+  // Set ambient window identity on all events
+  recorder.setEventContext({ window_id: windowId, load_generation: loadGeneration });
+
   // Record startup event
   recorder.record({
     type: 'lifecycle',
     component: recorder.intern('component', 'flight-recorder') as string | number,
     level: 'info',
     message: 'Flight recorder initialized',
-    data: { capacity: 3000, window: windowId },
+    data: { capacity: 3000, window: windowId, load_generation: loadGeneration },
   });
 
   // ── Context provider (full app state snapshot for dump) ──

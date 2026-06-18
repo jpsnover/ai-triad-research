@@ -533,10 +533,24 @@ function DebateDetailSummary({
   exportStatus: string | null;
 }) {
   const [showCalibration, setShowCalibration] = useState(false);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const topic = debate.topic.final || debate.topic.refined || debate.topic.original;
   const turnCount = debate.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
   const anNodeCount = debate.argument_network?.nodes?.length ?? 0;
   const anEdgeCount = debate.argument_network?.edges?.length ?? 0;
+
+  const handleShare = useCallback(async () => {
+    try {
+      setShareStatus('Submitting...');
+      const { submissionId } = await api.submitToCommunity('debate', debate);
+      setShareStatus(`Shared! (${submissionId.slice(0, 8)})`);
+      setTimeout(() => setShareStatus(null), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setShareStatus(`Failed: ${msg}`);
+      setTimeout(() => setShareStatus(null), 4000);
+    }
+  }, [debate]);
 
   return (
     <div className="debate-detail-summary">
@@ -559,6 +573,9 @@ function DebateDetailSummary({
         <button className="btn" onClick={() => onExport('pdf')}>Export PDF</button>
         <button className="btn" onClick={() => setShowCalibration(!showCalibration)}>
           Calibration
+        </button>
+        <button className="btn" onClick={handleShare} disabled={!!shareStatus}>
+          {shareStatus || 'Share to Community'}
         </button>
         {exportStatus && <span className="debate-detail-export-status">{exportStatus}</span>}
       </div>

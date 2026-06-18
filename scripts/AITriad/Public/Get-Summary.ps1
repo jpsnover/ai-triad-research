@@ -101,7 +101,7 @@ function Get-Summary {
                 continue
             }
 
-            $Points = @($PovData.key_points)
+            $Points = if ($PovData.PSObject.Properties['key_points'] -and $PovData.key_points) { @($PovData.key_points) } else { @() }
             $PointCounts[$PovName] = $Points.Count
 
             # Apply POV/Stance filters for -Detailed output

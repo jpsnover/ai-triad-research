@@ -15,6 +15,9 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
 
+// Ollama (local quantized models) cannot reliably produce structured JSON for debate pipelines.
+const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']);
+
 export type DialecticalStyle = 'adversarial' | 'deliberative' | 'integrative';
 
 const STYLE_PRESETS: { id: DialecticalStyle; label: string; desc: string }[] = [
@@ -64,6 +67,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const { aiBackend, geminiModel, situations } = useTaxonomyStore();
   const globalModel = geminiModel;
   const availableModels = Object.entries(MODELS_BY_BACKEND)
+    .filter(([backend]) => !DEBATE_EXCLUDED_BACKENDS.has(backend))
     .flatMap(([backend, models]) =>
       models.map(m => ({ ...m, label: `${m.label} (${backend})` }))
     );
@@ -128,7 +132,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   }, [showModelModal]);
 
   const backendsWithKeys = useMemo(
-    () => Object.entries(hasApiKey).filter(([, has]) => has).map(([b]) => b),
+    () => Object.entries(hasApiKey).filter(([b, has]) => has && !DEBATE_EXCLUDED_BACKENDS.has(b)).map(([b]) => b),
     [hasApiKey],
   );
 
@@ -139,7 +143,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
   const activeModel = useCustomModel ? customModel : globalModel;
   const activeModelBackend = backendForModel(activeModel);
-  const activeModelHasKey = hasApiKey[activeModelBackend] !== false;
+  const activeModelExcluded = DEBATE_EXCLUDED_BACKENDS.has(activeModelBackend);
+  const activeModelHasKey = !activeModelExcluded && hasApiKey[activeModelBackend] !== false;
 
   const fallbackWarnings = useMemo(() => {
     const chain = FALLBACK_CHAINS[activeModel] ?? [];
@@ -152,12 +157,15 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
 
   const openModelModal = () => {
     const model = useCustomModel ? customModel : globalModel;
+    let resolved: AIBackend | null = null;
     for (const [backend, models] of Object.entries(MODELS_BY_BACKEND)) {
-      if (models.some(m => m.value === model)) {
-        setModalBackend(backend as AIBackend);
+      if (!DEBATE_EXCLUDED_BACKENDS.has(backend) && models.some(m => m.value === model)) {
+        resolved = backend as AIBackend;
         break;
       }
     }
+    const fallback = AI_BACKENDS.find(b => !DEBATE_EXCLUDED_BACKENDS.has(b.value))?.value ?? 'gemini';
+    setModalBackend(resolved ?? fallback as AIBackend);
     setShowModelModal(true);
   };
 
@@ -529,7 +537,12 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                     Models
                   </button>
                 </div>
-                {!activeModelHasKey && (
+                {activeModelExcluded && (
+                  <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
+                    {activeModelBackend} models are not supported for debates. Choose a different model.
+                  </div>
+                )}
+                {!activeModelExcluded && !activeModelHasKey && (
                   <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
                     No API key configured for {activeModelBackend}. Configure in Settings or choose a different model.
                   </div>
@@ -812,7 +825,7 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                           if (models?.length) setCustomModel(models[0].value);
                         }}
                       >
-                        {AI_BACKENDS.map(b => (
+                        {AI_BACKENDS.filter(b => !DEBATE_EXCLUDED_BACKENDS.has(b.value)).map(b => (
                           <option key={b.value} value={b.value}>
                             {b.label}{hasApiKey[b.value] === false ? ' (no key)' : ''}
                           </option>

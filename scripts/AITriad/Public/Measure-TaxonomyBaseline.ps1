@@ -97,8 +97,8 @@ function Measure-TaxonomyBaseline {
     foreach ($Sum in $Summaries.Values) {
         foreach ($Camp in $Camps) {
             $CampData = $Sum.pov_summaries.$Camp
-            if (-not $CampData -or -not $CampData.key_points) { continue }
-            foreach ($KP in $CampData.key_points) {
+            if (-not $CampData -or -not $CampData.PSObject.Properties['key_points'] -or -not $CampData.key_points) { continue }
+            foreach ($KP in @($CampData.key_points)) {
                 $TotalKP++
                 $NodeId = $KP.taxonomy_node_id
                 if ($null -eq $NodeId -or $NodeId -eq '') {
@@ -153,7 +153,7 @@ function Measure-TaxonomyBaseline {
 
         foreach ($Camp in $Camps) {
             $CampData = $Sum.pov_summaries.$Camp
-            if ($CampData -and $CampData.key_points) { $KPCount = @($CampData.key_points).Count } else { $KPCount = 0 }
+            if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) { $KPCount = @($CampData.key_points).Count } else { $KPCount = 0 }
             $DensityRecords.Add([PSCustomObject]@{
                 DocId     = $DocId
                 Camp      = $Camp

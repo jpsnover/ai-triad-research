@@ -1048,6 +1048,7 @@ export const createClarificationSlice: StateCreator<DebateStore, [], [], Clarifi
         const finalDebate = get().activeDebate;
         const finalPhase = finalDebate?.adaptive_staging?.phase_state?.current_phase;
         getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'adaptive-loop', level: 'info', debate_id: loopDebateId, message: `Adaptive loop ended: ${loopExitReason}`, data: { exit_reason: loopExitReason, iterations: loopIterations, maxRounds, final_phase: finalPhase, transcript_length: finalDebate?.transcript?.length, an_nodes: finalDebate?.argument_network?.nodes?.length } });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: loopDebateId, message: 'debate.ended', data: { reason: 'adaptive_loop_complete', exit_reason: loopExitReason, iterations: loopIterations } });
         // Always run synthesis when the loop exits with enough debater content.
         // Normal path: phase reached 'terminated'. Abnormal: loop exhausted, consecutive
         // system-only rounds, errors, etc. — still synthesize what we have.

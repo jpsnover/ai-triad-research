@@ -86,7 +86,8 @@ function Find-AITSource {
             $PovData = $Summary.pov_summaries.$PovName
             if (-not $PovData) { continue }
 
-            foreach ($Point in $PovData.key_points) {
+            if (-not $PovData.PSObject.Properties['key_points'] -or -not $PovData.key_points) { continue }
+            foreach ($Point in @($PovData.key_points)) {
                 $NodeId = $Point.taxonomy_node_id
                 if (-not $NodeId) { continue }
 

@@ -89,7 +89,7 @@ function Update-AITSourceIndex {
                     }
                     foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic')) {
                         $PovData = $Summary.pov_summaries.$PovName
-                        if ($PovData -and $PovData.key_points) {
+                        if ($PovData -and $PovData.PSObject.Properties['key_points'] -and $PovData.key_points) {
                             $TotalFacts += @($PovData.key_points).Count
                         }
                     }

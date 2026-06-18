@@ -272,9 +272,9 @@ function Invoke-POVSummary {
     Write-OK "Pipeline complete in $($pipelineResult.ElapsedSeconds)s ($($pipelineResult.Backend))"
     foreach ($camp in $camps) {
         $campData = $summaryObject.pov_summaries.$camp
-        if ($campData -and $campData.key_points) {
+        if ($campData -and $campData.PSObject.Properties['key_points'] -and $campData.key_points) {
             $pointCount = @($campData.key_points).Count
-            $nullNodes  = @($campData.key_points | Where-Object { $null -eq $_.taxonomy_node_id }).Count
+            $nullNodes  = @($campData.key_points | Where-Object { -not $_.PSObject.Properties['taxonomy_node_id'] -or $null -eq $_.taxonomy_node_id }).Count
             Write-OK "  $camp : $pointCount key points ($nullNodes unmapped)"
         }
         else {
@@ -368,7 +368,7 @@ function Invoke-POVSummary {
         $totalFacts = 0
         foreach ($camp in @('accelerationist', 'safetyist', 'skeptic')) {
             $campData = $summaryObject.pov_summaries.$camp
-            if ($campData -and $campData.key_points) {
+            if ($campData -and $campData.PSObject.Properties['key_points'] -and $campData.key_points) {
                 $totalFacts += @($campData.key_points).Count
             }
         }
@@ -514,7 +514,7 @@ function Invoke-POVSummary {
 
         Write-Host "`n  [$campLabel]" -ForegroundColor $campColor
 
-        if ($campData.key_points) {
+        if ($campData.PSObject.Properties['key_points'] -and $campData.key_points) {
             $byCategory = $campData.key_points | Group-Object category
             foreach ($group in $byCategory) {
                 Write-Host "    $($group.Name):" -ForegroundColor White

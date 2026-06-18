@@ -462,8 +462,9 @@ function Invoke-BatchSummary {
                 if (Test-Path $SumPath) { $SumData = Get-Content -Raw $SumPath | ConvertFrom-Json } else { $SumData = $null }
                 $TotalPts = 0
                 foreach ($c in @('accelerationist','safetyist','skeptic')) {
-                    if ($SumData -and $SumData.pov_summaries.$c -and $SumData.pov_summaries.$c.key_points) {
-                        $TotalPts += @($SumData.pov_summaries.$c.key_points).Count
+                    $campData465 = if ($SumData -and $SumData.PSObject.Properties['pov_summaries'] -and $SumData.pov_summaries.PSObject.Properties[$c]) { $SumData.pov_summaries.$c } else { $null }
+                    if ($campData465 -and $campData465.PSObject.Properties['key_points'] -and $campData465.key_points) {
+                        $TotalPts += @($campData465.key_points).Count
                     }
                 }
                 if ($SumData -and $SumData.factual_claims) { $FcCount = @($SumData.factual_claims).Count } else { $FcCount = 0 }
@@ -661,8 +662,9 @@ function Invoke-BatchSummary {
                 $Sum = Get-Content -Raw $SumPath | ConvertFrom-Json
                 $AllLabels = @()
                 foreach ($Camp in @('accelerationist','safetyist','skeptic')) {
-                    if ($Sum.pov_summaries.$Camp.key_points) {
-                        $AllLabels += @($Sum.pov_summaries.$Camp.key_points | ForEach-Object { $_.label ?? $_.point ?? '' })
+                    $campData665 = if ($Sum.PSObject.Properties['pov_summaries'] -and $Sum.pov_summaries.PSObject.Properties[$Camp]) { $Sum.pov_summaries.$Camp } else { $null }
+                    if ($campData665 -and $campData665.PSObject.Properties['key_points'] -and $campData665.key_points) {
+                        $AllLabels += @($campData665.key_points | ForEach-Object { $_.label ?? $_.point ?? '' })
                     }
                 }
                 # Check for near-duplicate labels (Jaccard > 0.6)

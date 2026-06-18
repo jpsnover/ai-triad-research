@@ -77,17 +77,17 @@ function Remove-DuplicateClaims {
     $Camps = @('accelerationist', 'safetyist', 'skeptic')
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
-        if (-not $CampData -or -not $CampData.key_points) { continue }
+        if (-not $CampData -or -not $CampData.PSObject.Properties['key_points'] -or -not $CampData.key_points) { continue }
         $Points = @($CampData.key_points)
         for ($i = 0; $i -lt $Points.Count; $i++) {
-            if ($Points[$i].point) {
+            if ($Points[$i].PSObject.Properties['point'] -and $Points[$i].point) {
                 $AllTexts.Add($Points[$i].point)
                 $AllIds.Add("kp-$Camp-$i")
             }
         }
     }
 
-    if ($SummaryObject.factual_claims) {
+    if ($SummaryObject.PSObject.Properties['factual_claims'] -and $SummaryObject.factual_claims) {
         $Claims = @($SummaryObject.factual_claims)
         for ($i = 0; $i -lt $Claims.Count; $i++) {
             if ($Claims[$i].claim) {
@@ -100,7 +100,7 @@ function Remove-DuplicateClaims {
     # Count items before any dedup
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
-        if ($CampData -and $CampData.key_points) {
+        if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
             $Metrics.points_before += @($CampData.key_points).Count
         }
     }
@@ -129,7 +129,7 @@ function Remove-DuplicateClaims {
     # ── Dedup key_points per camp ────────────────────────────────────────────
     foreach ($Camp in $Camps) {
         $CampData = $SummaryObject.pov_summaries.$Camp
-        if (-not $CampData -or -not $CampData.key_points) { continue }
+        if (-not $CampData -or -not $CampData.PSObject.Properties['key_points'] -or -not $CampData.key_points) { continue }
         $Points = @($CampData.key_points)
 
         if ($Points.Count -lt 2) {
@@ -191,7 +191,7 @@ function Remove-DuplicateClaims {
     }
 
     # ── Dedup factual_claims ─────────────────────────────────────────────────
-    if ($SummaryObject.factual_claims) {
+    if ($SummaryObject.PSObject.Properties['factual_claims'] -and $SummaryObject.factual_claims) {
         $Claims = @($SummaryObject.factual_claims)
 
         if ($Claims.Count -ge 2) {

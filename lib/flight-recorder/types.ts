@@ -44,6 +44,7 @@ export type EventType =
   | 'debate.moderate'
   | 'debate.crux'
   | 'debate.crux_transition'
+  | 'debate.lifecycle'
   // State management
   | 'state.save'
   | 'state.load'
@@ -121,6 +122,10 @@ export interface FlightRecorderEvent {
   call_id?: string;
   request_id?: string;      // X-Request-ID from web bridge for end-to-end tracing
   speaker?: string | number;
+
+  // Window identity (optional — set via setEventContext at init)
+  window_id?: string;
+  load_generation?: number;
 
   // Debate positioning (optional — set via setEventContext per turn)
   phase?: string;
@@ -210,10 +215,13 @@ export interface DumpEvent {
   component: string;  // Always expanded string in dump
   level: EventLevel;
   debate_id?: string;
+  run_id?: string;
   turn_id?: string;
   call_id?: string;
   request_id?: string;
   speaker?: string;   // Always expanded string in dump
+  window_id?: string;
+  load_generation?: number;
   phase?: string;
   round?: number;
   turn_index?: number;
