@@ -124,6 +124,9 @@ vi.mock('../utils/convergenceScoring', () => ({
 vi.mock('../utils/taxonomyRelevance', () => ({
   cosineSimilarity: vi.fn().mockReturnValue(0),
   scoreNodeRelevance: vi.fn().mockReturnValue(0),
+  scoreNodeRelevanceMeanTopN: vi.fn().mockReturnValue(new Map()),
+  scoreNodesViaAN: vi.fn().mockReturnValue(new Map()),
+  scoreNodesLexical: vi.fn().mockReturnValue(new Map()),
   selectRelevantNodes: vi.fn().mockReturnValue([]),
   selectRelevantSituationNodes: vi.fn().mockReturnValue([]),
   buildRelevanceQuery: vi.fn().mockReturnValue('mock-query'),
