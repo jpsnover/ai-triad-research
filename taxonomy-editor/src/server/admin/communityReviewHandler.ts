@@ -134,11 +134,16 @@ export const communityReviewHandler: ReviewDomainHandler = {
   },
 
   async executeAction(action: ReviewAction): Promise<void> {
-    const ids = action.itemIds.map(submissionId);
-    if (action.action === 'promote') {
-      for (const id of ids) await approveSubmission(id);
-    } else {
-      for (const id of ids) await rejectSubmission(id);
+    for (const raw of action.itemIds) {
+      const id = submissionId(raw);
+      if (action.action === 'promote') {
+        // Edit-on-promote: edits keyed by the item id (raw or prefixed) — title /
+        // description overrides merged onto the published copy (t/650 AC#4).
+        const edits = action.edits?.[raw] ?? action.edits?.[id];
+        await approveSubmission(id, edits && typeof edits === 'object' ? edits as Record<string, unknown> : undefined);
+      } else {
+        await rejectSubmission(id, action.reason); // reason persisted (t/650 AC#6)
+      }
     }
   },
 };

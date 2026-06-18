@@ -121,6 +121,30 @@ describe('community ReviewDomainHandler (t/650)', () => {
     expect(fs.existsSync(chatsDir())).toBe(false);
   });
 
+  it('AC#4: edit-on-promote merges title/description into the published copy only', async () => {
+    writeSubmission(pendingChat('a'));
+    await asUser(() => handler.executeAction({
+      domain: 'community', groupId: 'community:a', action: 'promote', itemIds: ['a'],
+      edits: { a: { title: 'Curated Title' } },
+    }));
+    // Published copy carries the edited title.
+    const publishedFile = fs.readdirSync(chatsDir()).find(f => f.startsWith('chat-'))!;
+    const published = JSON.parse(fs.readFileSync(path.join(chatsDir(), publishedFile), 'utf-8'));
+    expect(published.title).toBe('Curated Title');
+    // Stored submission's original data is untouched.
+    expect((readSubmission('a').data as { title: string }).title).toBe('AI Safety Chat');
+  });
+
+  it('AC#6: reject persists the reason on the submission', async () => {
+    writeSubmission(pendingChat('a'));
+    await asUser(() => handler.executeAction({
+      domain: 'community', groupId: 'community:a', action: 'reject', itemIds: ['a'], reason: 'off-topic',
+    }));
+    const sub = readSubmission('a');
+    expect(sub.status).toBe('rejected');
+    expect(sub.rejectionReason).toBe('off-topic');
+  });
+
   it('accepts raw submission ids as well as community:-prefixed ids', async () => {
     writeSubmission(pendingChat('a'));
     await asUser(() => handler.executeAction({
