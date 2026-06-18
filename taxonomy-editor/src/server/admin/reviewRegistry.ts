@@ -18,6 +18,7 @@ import type http from 'http';
 import { ActionableError } from '../../../../lib/debate/errors.js';
 import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 import { isAdmin } from '../community.js';
+import { getStorageUserId } from '../userContext.js';
 import type { ReviewAction, ReviewDomainHandler, ReviewItem, ReviewStats } from './types.js';
 
 // ── Handler registry ──
@@ -57,6 +58,13 @@ export function clearReviewHandlers(): void {
  */
 export function requireAdmin(res: http.ServerResponse): boolean {
   if (isAdmin()) return true;
+  // Record the rejected admin attempt — useful for spotting probing / misconfig.
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'admin-review',
+    level: 'warn',
+    message: `Admin route rejected for non-admin user "${getStorageUserId()}"`,
+  });
   res.writeHead(403, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Forbidden' }));
   return false;
@@ -113,6 +121,29 @@ export async function getReviewStats(userId?: string): Promise<ReviewStats> {
 }
 
 /**
+ * Fetch the domain-specific detail payload for a review group's right-pane viewer.
+ * The owning domain is taken from the `domain:` prefix of the group id (the
+ * `${domain}:${submitter}` convention from {@link ReviewItem.id}). Throws an
+ * {@link ActionableError} when the domain can't be resolved to a handler.
+ */
+export async function getReviewDetail(groupId: string): Promise<unknown> {
+  const domain = groupId.includes(':') ? groupId.slice(0, groupId.indexOf(':')) : groupId;
+  const handler = handlers.get(domain);
+  if (!handler) {
+    throw new ActionableError({
+      goal: `Load review detail for group "${groupId}"`,
+      problem: `Could not resolve domain "${domain}" from the group id to a registered handler.`,
+      location: 'server/admin/reviewRegistry.ts → getReviewDetail',
+      nextSteps: [
+        'Use a group id of the form "{domain}:{submitter}"',
+        `Registered domains: ${[...handlers.keys()].join(', ') || '(none)'}`,
+      ],
+    });
+  }
+  return handler.getDetailForViewer(groupId);
+}
+
+/**
  * Route a promote/reject decision to the owning domain handler. Throws an
  * {@link ActionableError} if no handler is registered for the action's domain.
  */
@@ -129,5 +160,12 @@ export async function executeReviewAction(action: ReviewAction): Promise<void> {
       ],
     });
   }
-  await handler.executeAction(action);
+  try {
+    await handler.executeAction(action);
+  } catch (err) {
+    // Record with domain context before rethrowing so the route's generic catch
+    // isn't the only trail — a failed promote/reject needs the owning domain.
+    recordHandlerError(handler.domain, `executeAction:${action.action}`, err);
+    throw err;
+  }
 }

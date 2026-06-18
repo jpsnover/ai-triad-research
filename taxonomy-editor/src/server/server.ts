@@ -50,6 +50,7 @@ import {
   requireAdmin,
   getReviewQueue,
   getReviewStats,
+  getReviewDetail,
   executeReviewAction,
 } from './admin/reviewRegistry.js';
 import type { ReviewAction } from './admin/types.js';
@@ -1248,11 +1249,32 @@ get('/api/admin/review/stats', async (_req, res) => {
   }
 });
 
+get('/api/admin/review/detail/:groupId', async (req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const groupId = param(req, 'groupId', '/api/admin/review/detail/:groupId');
+    json(res, await getReviewDetail(groupId));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review detail failed');
+    error(res, String(err));
+  }
+});
+
 post('/api/admin/review/action', async (_req, res, body) => {
   if (!requireAdmin(res)) return;
   const action = body as Partial<ReviewAction>;
   if (!action || typeof action.domain !== 'string' || !action.domain) {
     error(res, 'domain is required', 400); return;
+  }
+  if (typeof action.groupId !== 'string' || !action.groupId) {
+    error(res, 'groupId is required', 400); return;
   }
   if (action.action !== 'promote' && action.action !== 'reject') {
     error(res, 'action must be "promote" or "reject"', 400); return;
@@ -1941,12 +1963,18 @@ post('/api/sync/commit', async (_req, res, body) => {
     }
     const userId = getCurrentUserId();
     const { message } = (body || {}) as { message?: string };
+    // Capture pending entries before commitOverlay() clears them — needed for the
+    // taxonomy-updated broadcast below (t/652).
+    const pending = githubBackend.getOverlayEntries(userId);
     const result = await githubBackend.commitOverlay(userId, message);
     if (!result) {
       json(res, { ok: true, commitSha: null, filesCommitted: 0, message: 'No pending changes' });
       return;
     }
     json(res, { ok: true, commitSha: result.commitSha, filesCommitted: result.filesCommitted });
+    // Phase 5F: best-effort notify other web clients. Response is already sent;
+    // broadcastTaxonomyUpdate never throws, so the save result is unaffected (t/652).
+    await broadcastTaxonomyUpdate(githubBackend, pending, userId);
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
@@ -2812,6 +2840,67 @@ function broadcastEvent(type: string, data: unknown) {
   const msg = JSON.stringify({ type, data });
   for (const ws of eventClients) {
     if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+  }
+}
+
+// POV/taxonomy file keys the client toast knows how to label (Phase 5F / t/652).
+const TAXONOMY_POV_FILES = new Set(['accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations']);
+
+/** Map a committed file path to its POV key, or null if it isn't a taxonomy POV file. */
+function povKeyForPath(p: string): string | null {
+  const base = p.split('/').pop() ?? p;
+  if (!base.endsWith('.json')) return null;
+  const key = base.slice(0, -'.json'.length);
+  return TAXONOMY_POV_FILES.has(key) ? key : null;
+}
+
+/**
+ * Best-effort Phase 5F broadcast (t/652): after a session save commits, tell other
+ * web clients which POV files changed and a changed-node count. Affected POVs come
+ * from the committed paths; the count diffs each written POV file against its cached
+ * base. Never throws and never fires when no POV file changed — a broadcast failure
+ * must not affect the save (web/container mode only; filesystem commits return early).
+ */
+async function broadcastTaxonomyUpdate(
+  backend: GitHubAPIBackend,
+  pending: { writes: { path: string; content: string }[]; deletes: string[] } | null,
+  user: string,
+): Promise<void> {
+  try {
+    if (!pending) return;
+    const povs = new Set<string>();
+    let nodeCount = 0;
+
+    for (const w of pending.writes) {
+      const key = povKeyForPath(w.path);
+      if (!key) continue;
+      povs.add(key);
+      try {
+        const newNodes = (JSON.parse(w.content) as { nodes?: unknown[] }).nodes ?? [];
+        const baseRaw = await backend.readBaseFromCache(w.path);
+        const oldNodes = baseRaw ? ((JSON.parse(baseRaw.replace(/^﻿/, '')) as { nodes?: unknown[] }).nodes ?? []) : [];
+        const diff = diffNodes(
+          oldNodes as Parameters<typeof diffNodes>[0],
+          newNodes as Parameters<typeof diffNodes>[1],
+        );
+        nodeCount += diff.added.length + diff.modified.length + diff.deleted.length;
+      } catch { /* telemetry — silent by design: node count is best-effort */ }
+    }
+    for (const p of pending.deletes) {
+      const key = povKeyForPath(p);
+      if (key) povs.add(key);
+    }
+
+    if (povs.size === 0) return; // not a taxonomy change — nothing to announce
+    broadcastEvent('taxonomy-updated', { user, nodeCount, povs: [...povs] });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'warn',
+      message: 'taxonomy-updated broadcast failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
   }
 }
 

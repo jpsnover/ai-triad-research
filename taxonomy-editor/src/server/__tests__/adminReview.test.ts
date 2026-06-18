@@ -9,6 +9,7 @@ import {
   requireAdmin,
   getReviewQueue,
   getReviewStats,
+  getReviewDetail,
   executeReviewAction,
 } from '../admin/reviewRegistry';
 import type { ReviewAction, ReviewDomainHandler, ReviewItem } from '../admin/types';
@@ -168,15 +169,37 @@ describe('admin review registry', () => {
     registerReviewHandler(makeHandler('calibration', { onAction: a => { calReceived = a; } }));
     registerReviewHandler(makeHandler('community', { onAction: a => { comReceived = a; } }));
 
-    const action: ReviewAction = { domain: 'community', action: 'promote', itemIds: ['x'] };
+    const action: ReviewAction = { domain: 'community', groupId: 'community:u1', action: 'promote', itemIds: ['x'] };
     await executeReviewAction(action);
     expect(comReceived).toEqual(action);
     expect(calReceived).toBeUndefined();
   });
 
   it('throws an actionable error when routing to an unregistered domain', async () => {
-    await expect(executeReviewAction({ domain: 'ghost', action: 'promote', itemIds: ['x'] }))
+    await expect(executeReviewAction({ domain: 'ghost', groupId: 'ghost:u1', action: 'promote', itemIds: ['x'] }))
       .rejects.toThrow(/ghost/);
+  });
+
+  it('propagates a handler executeAction failure to the caller', async () => {
+    registerReviewHandler({
+      domain: 'calibration',
+      async getPendingItems() { return []; },
+      async getDetailForViewer() { return {}; },
+      async executeAction() { throw new Error('write failed'); },
+    });
+    await expect(executeReviewAction({ domain: 'calibration', groupId: 'calibration:u1', action: 'promote', itemIds: ['x'] }))
+      .rejects.toThrow(/write failed/);
+  });
+
+  // detail routing by the domain: prefix of the group id
+  it('routes a detail request to the owning handler by group-id prefix', async () => {
+    registerReviewHandler(makeHandler('calibration'));
+    registerReviewHandler(makeHandler('community'));
+    expect(await getReviewDetail('community:jpsnover')).toEqual({ domain: 'community', groupId: 'community:jpsnover' });
+  });
+
+  it('throws when a detail group id resolves to no handler', async () => {
+    await expect(getReviewDetail('ghost:u1')).rejects.toThrow(/ghost/);
   });
 
   // AC#3 — admin middleware

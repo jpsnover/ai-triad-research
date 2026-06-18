@@ -1928,6 +1928,17 @@ export class GitHubAPIBackend implements StorageBackend {
     return this.sessionOverlays.get(userId);
   }
 
+  /**
+   * Read the main-branch base content for a path from the on-disk cache,
+   * bypassing the session overlay. Returns null on cache miss. Used to diff
+   * pending overlay edits against their pre-edit base (e.g. the taxonomy-updated
+   * broadcast in /api/sync/commit). Best-effort: a miss yields null rather than
+   * a network fetch.
+   */
+  async readBaseFromCache(filePath: string): Promise<string | null> {
+    return this.readFromDiskCache(this.toRepoPath(filePath));
+  }
+
   clearSessionOverlay(userId: string): void {
     this.sessionOverlays.delete(userId);
     this.recordEvent({

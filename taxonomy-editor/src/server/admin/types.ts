@@ -57,7 +57,7 @@ export interface ReviewAction {
   /** Domain that owns the targeted entries — used to route to the handler. */
   domain: string;
   /** The review group these entries belong to (matches {@link ReviewItem.id}). */
-  groupId?: string;
+  groupId: string;
   /** Whether to promote into the canonical dataset or reject. */
   action: 'promote' | 'reject';
   /** Which entries within the group are affected (cherry-pick). */
