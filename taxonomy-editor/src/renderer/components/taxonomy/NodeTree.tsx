@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { PovNode, Category } from '../../types/taxonomy';
+import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
 
 export type SortMode = 'id' | 'label' | 'similarity' | 'priority';
 
@@ -22,6 +23,8 @@ interface NodeTreeProps {
   clusterLoading?: boolean;
   misfits?: Set<string> | null;
   onVisibleIdsChange?: (ids: string[]) => void;
+  conflicts?: Map<string, NodeConflict>;
+  resolveUrl?: string | null;
 }
 
 const CATEGORY_ORDER: Category[] = ['Desires', 'Intentions', 'Beliefs'];
@@ -175,7 +178,7 @@ function computeVisibleIds(
   return ids;
 }
 
-export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange }: NodeTreeProps) {
+export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', similarScores, clusters, clusterLoading, misfits, onVisibleIdsChange, conflicts, resolveUrl }: NodeTreeProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsed());
 
   // Collapse all parent/cluster groups when sort mode changes
@@ -255,6 +258,8 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                   isSelected={selectedNodeId === node.id}
                   onSelect={onSelect}
                   isMisfit={misfits?.has(node.id)}
+                  conflict={conflicts?.get(node.id)}
+                  resolveUrl={resolveUrl}
                 />
               ))}
             </div>
@@ -314,6 +319,8 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                 onSelect={onSelect}
                 score={similarScores?.get(node.id)}
                 priorityValue={sortMode === 'priority' ? getPriorityDisplay(node) : undefined}
+                conflict={conflicts?.get(node.id)}
+                resolveUrl={resolveUrl}
               />
             ))}
             {!isCollapsed && !flatMode && (() => {
@@ -334,6 +341,8 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                     isSelected={selectedNodeId === node.id}
                     onSelect={onSelect}
                     score={similarScores?.get(node.id)}
+                    conflict={conflicts?.get(node.id)}
+                    resolveUrl={resolveUrl}
                   />
                 ));
               }
@@ -370,6 +379,8 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                             score={similarScores?.get(child.id)}
                             indent
                             relationship={child.parent_relationship}
+                            conflict={conflicts?.get(child.id)}
+                            resolveUrl={resolveUrl}
                           />
                         ))}
                       </div>
@@ -382,6 +393,8 @@ export function NodeTree({ nodes, selectedNodeId, onSelect, sortMode = 'id', sim
                       isSelected={selectedNodeId === node.id}
                       onSelect={onSelect}
                       score={similarScores?.get(node.id)}
+                      conflict={conflicts?.get(node.id)}
+                      resolveUrl={resolveUrl}
                     />
                   ))}
                 </>
@@ -410,7 +423,7 @@ function getPriorityDisplay(node: PovNode): { label: string; value: number } | u
   return undefined;
 }
 
-function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isMisfit, priorityValue }: {
+function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isMisfit, priorityValue, conflict, resolveUrl }: {
   node: PovNode;
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -419,6 +432,8 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
   relationship?: string | null;
   isMisfit?: boolean;
   priorityValue?: { label: string; value: number };
+  conflict?: NodeConflict;
+  resolveUrl?: string | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -445,6 +460,7 @@ function NodeItem({ node, isSelected, onSelect, score, indent, relationship, isM
       <div>
         {node.label || '(untitled)'}
         {isMisfit && <span className="misfit-badge" title="This node contradicts most of its cluster — it may belong in a different Perspective">misfit?</span>}
+        <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
       </div>
       <div className="node-item-id">
         {node.id}

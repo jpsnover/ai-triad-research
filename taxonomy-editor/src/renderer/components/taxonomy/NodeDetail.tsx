@@ -26,6 +26,7 @@ import { NodeEditHistory } from './NodeEditHistory';
 import { nodeTypeFromId } from '@lib/debate/nodeIdUtils';
 import { POV_KEYS } from '@lib/debate/types';
 import { api } from '@bridge';
+import { EditConflictBadge, type NodeConflict } from '../conflict/edit-conflicts';
 
 interface MoveTarget {
   label: string;
@@ -99,6 +100,8 @@ interface NodeDetailProps {
   onSimilarSearch?: () => void;
   onRelated?: () => void;
   chipDepth?: number;
+  conflict?: NodeConflict;
+  resolveUrl?: string | null;
 }
 
 const ALL_CATEGORIES: Category[] = ['Desires', 'Beliefs', 'Intentions'];
@@ -125,7 +128,7 @@ const POV_LABELS: Record<Pov, string> = {
 
 type NodeDetailTabId = 'content' | 'related' | 'attributes' | 'phrases' | 'sources' | 'facts' | 'research' | 'history';
 
-export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0 }: NodeDetailProps) {
+export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRelated, chipDepth = 0, conflict, resolveUrl }: NodeDetailProps) {
   const { updatePovNode, deletePovNode, movePovNodeCategory, movePovNode, validationErrors, getAllNodeIds, getAllConflictIds, runAttributeFilter, showAttributeInfo, navigateToLineage, setToolbarPanel, selectedEdge, relatedNodeId, loadEdges, edgesFile, setSelectedNodeId, getLabelForId } = useTaxonomyStore();
   const [showDelete, setShowDelete] = useState(false);
   const [activeTab, setActiveTab] = useState<NodeDetailTabId>('content');
@@ -325,6 +328,7 @@ export function NodeDetail({ pov, node, readOnly, onPin, onSimilarSearch, onRela
             {node.category.toUpperCase()}
             <FieldHelp text={BDI_GUIDANCE[node.category]} />
           </span>
+          <EditConflictBadge conflict={conflict} resolveUrl={resolveUrl} />
         </div>
         <div className="nd-header-actions">
           {onSimilarSearch && (
