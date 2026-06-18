@@ -58,10 +58,12 @@ import {
 } from './admin/reviewRegistry.js';
 import type { ReviewAction } from './admin/types.js';
 import { calibrationReviewHandler } from './admin/calibrationHandler.js';
+import { communityReviewHandler } from './admin/communityReviewHandler.js';
 
 // Register review domain handlers at startup so the unified admin endpoints
-// (queue/stats/action/detail) can delegate to them (t/646, t/647).
+// (queue/stats/action/detail) can delegate to them (t/646, t/647, t/650).
 registerReviewHandler(calibrationReviewHandler);
+registerReviewHandler(communityReviewHandler);
 
 // ── Server-side flight recorder ──
 const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
