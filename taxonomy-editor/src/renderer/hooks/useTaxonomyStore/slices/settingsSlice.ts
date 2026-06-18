@@ -7,6 +7,14 @@ import { api } from '@bridge';
 import { DEFAULT_MODEL } from '@lib/ai-client/defaults';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
+/**
+ * Default Community Library server — the Azure Container Apps production deployment.
+ * Used as the fallback when no URL is stored, so "Share to Community" works out of
+ * the box in the desktop build. Still overridable via Settings → Community Server URL.
+ * Only affects Electron; the web build posts same-origin (see getCommunityBaseUrl).
+ */
+const DEFAULT_COMMUNITY_SERVER_URL = 'https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io';
+
 // -- Exported types --
 
 export type ColorScheme = 'light' | 'dark' | 'bkc' | 'harvard' | 'system';
@@ -291,9 +299,10 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
   },
 
   communityServerUrl: (() => {
-    try { return localStorage.getItem('taxonomy-editor-community-url') ?? ''; } catch (err) {
+    // null (never set) → production default; '' (user cleared it) → stays empty.
+    try { return localStorage.getItem('taxonomy-editor-community-url') ?? DEFAULT_COMMUNITY_SERVER_URL; } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read community server URL from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      return '';
+      return DEFAULT_COMMUNITY_SERVER_URL;
     }
   })(),
   setCommunityServerUrl: (url) => {

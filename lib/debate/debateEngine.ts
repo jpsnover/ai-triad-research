@@ -69,7 +69,6 @@ import {
   crossRespondSelectionPrompt,
   formatCriticalQuestions,
   selectReframingMetaphor,
-  crossRespondPrompt,
   debateSynthesisPrompt,
   probingQuestionsPrompt,
   entrySummarizationPrompt,

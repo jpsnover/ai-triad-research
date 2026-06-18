@@ -127,8 +127,10 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   setInitialCrossRespondRounds: (n) => set({ initialCrossRespondRounds: n }),
   clearWarnings: () => set({ debateWarnings: [] }),
   cancelDebate: () => {
+    const debateId = get().activeDebateId;
     cancelAndResetAbort();
     set({ debateGenerating: null, debateActivity: null });
+    if (debateId) getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: debateId, message: 'debate.ended', data: { reason: 'cancelled' } });
   },
   toggleDiagnostics: () => {
     const enabled = !get().diagnosticsEnabled;

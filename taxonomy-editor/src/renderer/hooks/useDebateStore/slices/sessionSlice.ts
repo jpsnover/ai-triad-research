@@ -314,6 +314,8 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
           if (s.activeDebateId === id && !s.debateGenerating) {
             getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Auto-resuming after interrupted turn recovery' });
             void s.crossRespond();
+          } else {
+            getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Loop not auto-resumed', data: { reason: s.activeDebateId !== id ? 'debate_switched' : 'already_generating', activeDebateId: s.activeDebateId, debateGenerating: s.debateGenerating } });
           }
         }, 100);
       }
@@ -329,10 +331,11 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       const { activeDebateId } = get();
       if (activeDebateId === id) {
         set({ activeDebateId: null, activeDebate: null, debateModel: null });
-        getGlobalRecorder()?.setEventContext({});
+        getGlobalRecorder()?.setEventContext({ debate_id: undefined, run_id: undefined, phase: undefined, round: undefined, turn_index: undefined, speaker: undefined });
       }
       await get().loadSessions();
       getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Debate deleted' });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'debate.ended', data: { reason: 'deleted' } });
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -376,8 +379,11 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
     set({ activeDebateId: null, activeDebate: null, debateError: null, debateWarnings: [], debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
     void api.setDebateTemperature(null);
     usePromptConfigStore.getState().resetSession();
-    getGlobalRecorder()?.setEventContext({});
-    if (closingId) getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'Debate closed' });
+    getGlobalRecorder()?.setEventContext({ debate_id: undefined, run_id: undefined, phase: undefined, round: undefined, turn_index: undefined, speaker: undefined });
+    if (closingId) {
+      getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'Debate closed' });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: closingId, message: 'debate.ended', data: { reason: 'closed' } });
+    }
   },
 
   addTranscriptEntry: (entry) => {

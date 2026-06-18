@@ -131,9 +131,9 @@ function Get-TopicFrequency {
         # Count key_points per camp
         foreach ($Camp in $CampKeys) {
             $CampData = $Summary.pov_summaries.$Camp
-            if (-not $CampData -or -not $CampData.key_points) { continue }
+            if (-not $CampData -or -not $CampData.PSObject.Properties['key_points'] -or -not $CampData.key_points) { continue }
 
-            foreach ($KP in $CampData.key_points) {
+            foreach ($KP in @($CampData.key_points)) {
                 $TotalKeyPoints++
                 $NodeId = $KP.taxonomy_node_id
                 if (-not $NodeId) { continue }

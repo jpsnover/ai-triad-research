@@ -283,7 +283,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
   },
 
   crossRespond: async () => {
-    console.warn('%c[DEBATE-STORE] crossRespond ENTERED', 'color: red; font-weight: bold; font-size: 14px');
+
     const { activeDebate, addTranscriptEntry, saveDebate } = get();
     if (!activeDebate) return;
     if (!claimDebateDriver()) {
@@ -313,6 +313,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     const aiPovers = AI_POVERS.filter((p) => activeDebate.active_povers.includes(p));
 
     if (aiPovers.length < 2) {
+      releaseDebateDriver();
       set({ debateError: 'Need at least 2 AI debaters for cross-response' });
       return;
     }
@@ -416,7 +417,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
 
         const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
         const pipelineResult = await runTurnPipeline(pipelineInput, stageGenerate);
-        if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); return; }
+        if (!isStillValid()) { releaseDebateDriver(); set({ debateGenerating: null }); getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'debate_switched' } }); return; }
 
         const { statement, taxonomyRefs, meta } = parsePoverResponse(pipelineResult.final_text);
         if (ctx.nodeScores) {
@@ -462,6 +463,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         }
         releaseDebateDriver();
         set({ debateGenerating: null });
+        getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'post_termination_complete' } });
         await saveDebate('crossRespond:postTermination');
         return;
       }
@@ -537,7 +539,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     let modResult: Awaited<ReturnType<typeof runModeratorSelection>>;
     try {
       modResult = await runModeratorSelection(selectionInput, selectionCallbacks);
-      if (!isStillValid()) return;
+      if (!isStillValid()) { releaseDebateDriver(); return; }
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -549,6 +551,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       });
       releaseDebateDriver();
       set({ debateError: `Cross-respond selection failed: ${mapErrorToUserMessage(err)}`, debateGenerating: null });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'error', error: String(err) } });
       return;
     }
 
@@ -561,6 +564,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       }
       releaseDebateDriver();
       set({ debateGenerating: null });
+      getGlobalRecorder()?.record({ type: 'debate.lifecycle', component: 'debate-store', level: 'info', debate_id: activeDebate.id, message: 'debate.ended', data: { reason: 'agreement_detected', round: crossRespondRound } });
       await saveDebate('crossRespond:agreement');
       return;
     }
@@ -769,7 +773,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
     const stageGenerate = makeStageGenerate(set as (partial: Record<string, unknown>) => void, getSpeakerModel(activeDebate, responderPover, model));
 
     try {
-      console.warn('%c[DEBATE-STORE] Inside try block — about to build retryCallbacks', 'color: cyan; font-weight: bold; font-size: 12px');
+
       // ── Per-turn validation + retry loop ──
       const activeSnapshot = get().activeDebate;
       const vConfig = resolveTurnValidationConfig(undefined);
@@ -804,10 +808,8 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
         pendingIntervention: intervention,
       };
 
-      console.warn('%c[DEBATE-STORE] About to call executeTurnWithRetry', 'color: lime; font-weight: bold; font-size: 14px');
       const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
-      console.warn('%c[DEBATE-STORE] executeTurnWithRetry returned', 'color: lime; font-weight: bold; font-size: 14px', { attempts: turnResult.attempts.length, outcome: turnResult.validation.outcome });
-      if (turnResult.aborted) return;
+      if (turnResult.aborted) { releaseDebateDriver(); return; }
       const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
 
       // Enrich taxonomy refs with relevance scores from context injection

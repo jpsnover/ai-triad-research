@@ -52,11 +52,16 @@ export class FlightRecorder {
   // ── Recording ────────────────────────────────────────────────────────
 
   /**
-   * Set fields auto-merged into every record() call. Caller-supplied fields
-   * take precedence. Use for ambient context like active debate_id / run_id.
+   * Merge fields into the ambient event context. Caller-supplied fields in
+   * record() take precedence over context. Set a field to undefined to remove it.
+   * Use for ambient context like window_id, debate_id, run_id.
    */
   setEventContext(ctx: Partial<RecordInput>): void {
-    this.eventContext = ctx;
+    const merged = { ...this.eventContext, ...ctx };
+    for (const key of Object.keys(merged) as Array<keyof typeof merged>) {
+      if (merged[key] === undefined) delete merged[key];
+    }
+    this.eventContext = merged;
   }
 
   /** Record an event into the ring buffer. Hot path — no allocations beyond the event object. */

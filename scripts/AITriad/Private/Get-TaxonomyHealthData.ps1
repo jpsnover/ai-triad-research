@@ -77,36 +77,40 @@ function Get-TaxonomyHealthData {
             continue
         }
 
-        $DocId         = $Summary.doc_id
+        $DocId         = if ($Summary.PSObject.Properties['doc_id']) { $Summary.doc_id } else { $File.BaseName }
         $DocKeyPoints  = 0
         $DocClaims     = 0
         $DocUnmapped   = 0
 
         # Scan pov_summaries for key_points
-        foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic')) {
-            $PovData = $Summary.pov_summaries.$PovName
-            if (-not $PovData -or -not $PovData.key_points) { continue }
+        $HasPovSummaries = $Summary.PSObject.Properties['pov_summaries'] -and $Summary.pov_summaries
+        if ($HasPovSummaries) {
+            foreach ($PovName in @('accelerationist', 'safetyist', 'skeptic')) {
+                $PovData = $Summary.pov_summaries.$PovName
+                if (-not $PovData -or -not $PovData.PSObject.Properties['key_points'] -or -not $PovData.key_points) { continue }
 
-            foreach ($Point in $PovData.key_points) {
-                $DocKeyPoints++
-                $NodeId = $Point.taxonomy_node_id
-                if (-not $NodeId) { continue }
+                foreach ($Point in @($PovData.key_points)) {
+                    $DocKeyPoints++
+                    $NodeId = if ($Point.PSObject.Properties['taxonomy_node_id']) { $Point.taxonomy_node_id } else { $null }
+                    if (-not $NodeId) { continue }
 
-                if ($NodeIndex.ContainsKey($NodeId)) {
-                    $NodeIndex[$NodeId].Citations++
-                    if ($DocId -notin $NodeIndex[$NodeId].DocIds) {
-                        $NodeIndex[$NodeId].DocIds.Add($DocId)
-                    }
-                    if ($Point.stance) {
-                        $NodeIndex[$NodeId].Stances.Add($Point.stance)
+                    if ($NodeIndex.ContainsKey($NodeId)) {
+                        $NodeIndex[$NodeId].Citations++
+                        if ($DocId -notin $NodeIndex[$NodeId].DocIds) {
+                            $NodeIndex[$NodeId].DocIds.Add($DocId)
+                        }
+                        if ($Point.PSObject.Properties['stance'] -and $Point.stance) {
+                            $NodeIndex[$NodeId].Stances.Add($Point.stance)
+                        }
                     }
                 }
             }
         }
 
         # Aggregate unmapped_concepts
-        if ($Summary.unmapped_concepts) {
-            foreach ($Concept in $Summary.unmapped_concepts) {
+        if ($Summary.PSObject.Properties['unmapped_concepts'] -and $Summary.unmapped_concepts) {
+            foreach ($Concept in @($Summary.unmapped_concepts)) {
+                if ($null -eq $Concept) { continue }
                 $DocUnmapped++
                 if ($Concept.PSObject.Properties['concept']) { $ConceptText = $Concept.concept } else { $ConceptText = "$Concept" }
                 $NormKey = ($ConceptText -replace '\s+', ' ').Trim().ToLower()
@@ -136,7 +140,7 @@ function Get-TaxonomyHealthData {
         }
 
         # Count factual claims
-        if ($Summary.factual_claims) {
+        if ($Summary.PSObject.Properties['factual_claims'] -and $Summary.factual_claims) {
             $DocClaims = @($Summary.factual_claims).Count
         }
 
@@ -310,7 +314,9 @@ function Get-TaxonomyHealthData {
             try {
                 $EmbData = Get-Content -Raw -Path $EmbPath | ConvertFrom-Json
                 $NodeEmbeddings = @{}
-                foreach ($Prop in $EmbData.nodes.PSObject.Properties) {
+                $EmbNodes = if ($EmbData.PSObject.Properties['nodes']) { $EmbData.nodes } else { $null }
+                if (-not $EmbNodes) { throw "embeddings.json has no 'nodes' field" }
+                foreach ($Prop in $EmbNodes.PSObject.Properties) {
                     $NodeEmbeddings[$Prop.Name] = [double[]]@($Prop.Value.vector)
                 }
             }

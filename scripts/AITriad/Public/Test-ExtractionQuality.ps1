@@ -103,7 +103,7 @@ function Test-ExtractionQuality {
 
         foreach ($Camp in @('accelerationist', 'safetyist', 'skeptic')) {
             $CampData = $Summary.pov_summaries.$Camp
-            if ($CampData -and $CampData.key_points) {
+            if ($CampData -and $CampData.PSObject.Properties['key_points'] -and $CampData.key_points) {
                 foreach ($KP in @($CampData.key_points)) {
                     if ($KP.taxonomy_node_id) {
                         $ActualKP.Add($KP.taxonomy_node_id)

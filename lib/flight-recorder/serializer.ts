@@ -56,9 +56,13 @@ export function serializeDump(
       component: dictionary.resolve(event.component),
       level: event.level,
       ...(event.debate_id !== undefined && { debate_id: event.debate_id }),
+      ...(event.run_id !== undefined && { run_id: event.run_id }),
       ...(event.turn_id !== undefined && { turn_id: event.turn_id }),
       ...(event.call_id !== undefined && { call_id: event.call_id }),
+      ...(event.request_id !== undefined && { request_id: event.request_id }),
       ...(event.speaker !== undefined && { speaker: dictionary.resolve(event.speaker) }),
+      ...(event.window_id !== undefined && { window_id: event.window_id }),
+      ...(event.load_generation !== undefined && { load_generation: event.load_generation }),
       ...(event.phase !== undefined && { phase: event.phase }),
       ...(event.round !== undefined && { round: event.round }),
       ...(event.turn_index !== undefined && { turn_index: event.turn_index }),
@@ -66,6 +70,7 @@ export function serializeDump(
       ...(event.data !== undefined && { data: expandData(event.data, dictionary) }),
       ...(event.error !== undefined && { error: event.error }),
       ...(event.duration_ms !== undefined && { duration_ms: event.duration_ms }),
+      ...(event.error_category !== undefined && { error_category: event.error_category }),
     };
     lines.push(JSON.stringify(expanded));
   }
