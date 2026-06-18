@@ -184,6 +184,12 @@ export const api: AppAPI = {
   // Telemetry — no-op in Electron (single-user desktop, no server-side telemetry)
   trackEvent: () => {},
 
+  // Community Library — stubs in Electron (single-user desktop mode)
+  listCommunityChats: async () => [],
+  listCommunityDebates: async () => [],
+  submitToCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
+  copyFromCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
+
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
   getCalibrationLog: () => window.electronAPI.getCalibrationLog(),
@@ -260,6 +266,7 @@ export const api: AppAPI = {
   onGenerateTextProgress: (cb) => window.electronAPI.onGenerateTextProgress(cb),
   onReloadTaxonomy: (cb) => window.electronAPI.onReloadTaxonomy(cb),
   onFocusNode: (cb) => window.electronAPI.onFocusNode(cb),
+  onTaxonomyUpdated: () => () => {},
   focusNodeInMainWindow: (nodeId) => window.electronAPI.focusNodeInMainWindow(nodeId),
   onTerminalData: (cb) => window.electronAPI.onTerminalData(cb),
   onTerminalExit: (cb) => window.electronAPI.onTerminalExit(cb),

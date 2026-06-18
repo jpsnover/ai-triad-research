@@ -33,7 +33,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix"
+    "lint:fix": "eslint src/ --fix",
+    "depgraph": "node scripts/depgraph.mjs --stats",
+    "depgraph:query": "node scripts/depgraph.mjs --query",
+    "depgraph:reverse": "node scripts/depgraph.mjs --reverse",
+    "depgraph:orphans": "node scripts/depgraph.mjs --orphans"
   },
   "dependencies": {
     "@azure/identity": "^4.4.1",

@@ -91,6 +91,7 @@ interface Submission {
   submittedAt: string;
   status: 'pending' | 'approved' | 'rejected';
   note?: string;
+  rejectionReason?: string;
   data: unknown;
 }
 
@@ -127,6 +128,13 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
   );
 
   log.server.info({ submissionId, type, userId }, 'Community submission created');
+
+  // Admin submissions are auto-approved — skip the pending queue.
+  if (isAdmin(userId)) {
+    await approveSubmission(submissionId);
+    log.server.info({ submissionId, type, userId }, 'Admin submission auto-approved');
+  }
+
   return { submissionId };
 }
 
@@ -194,7 +202,10 @@ function sanitizeForCommunity(data: unknown, submittedBy: string): unknown {
   return d;
 }
 
-export async function approveSubmission(submissionId: string): Promise<{ communityId: string }> {
+export async function approveSubmission(
+  submissionId: string,
+  edits?: Record<string, unknown>,
+): Promise<{ communityId: string }> {
   const backend = getBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
   const raw = await backend.readFile(subPath);
@@ -203,7 +214,13 @@ export async function approveSubmission(submissionId: string): Promise<{ communi
   const submission = JSON.parse(raw) as Submission;
   if (submission.status !== 'pending') throw Object.assign(new Error(`Submission already ${submission.status}`), { statusCode: 409 });
 
-  const sanitized = sanitizeForCommunity(submission.data, submission.submittedBy) as { id: string };
+  // Edit-on-promote (t/650 AC#4): shallow-merge admin edits (e.g. title /
+  // description) onto the data before sanitizing + publishing. The user's stored
+  // submission is left as-is — edits affect only the published copy.
+  const dataToPublish = (edits && typeof edits === 'object' && submission.data && typeof submission.data === 'object')
+    ? { ...(submission.data as Record<string, unknown>), ...edits }
+    : submission.data;
+  const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy) as { id: string };
   const dir = submission.type === 'chat' ? communityChatsDir() : communityDebatesDir();
   const prefix = submission.type === 'chat' ? 'chat-' : 'debate-';
 
@@ -220,7 +237,7 @@ export async function approveSubmission(submissionId: string): Promise<{ communi
   return { communityId: sanitized.id };
 }
 
-export async function rejectSubmission(submissionId: string): Promise<void> {
+export async function rejectSubmission(submissionId: string, reason?: string): Promise<void> {
   const backend = getBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
   const raw = await backend.readFile(subPath);
@@ -230,6 +247,8 @@ export async function rejectSubmission(submissionId: string): Promise<void> {
   if (submission.status !== 'pending') throw Object.assign(new Error(`Submission already ${submission.status}`), { statusCode: 409 });
 
   submission.status = 'rejected';
+  // Persist the admin's reason so it can surface in a "My Submissions" view (t/650 AC#6).
+  if (reason) submission.rejectionReason = reason;
   await backend.writeFile(subPath, JSON.stringify(submission, null, 2));
 
   log.server.info({ submissionId, type: submission.type }, 'Community submission rejected');

@@ -1,0 +1,187 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved. */
+/* Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Community domain viewer for the unified admin review panel. */
+
+.crv { padding: 16px; overflow-y: auto; height: 100%; }
+
+.crv-loading, .crv-error, .crv-empty {
+  padding: 24px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.crv-error {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border-radius: 6px;
+}
+
+/* ── Header ── */
+
+.crv-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.crv-type-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: color-mix(in srgb, var(--focus-ring) 15%, transparent);
+  color: var(--focus-ring);
+}
+
+.crv-submitter {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.crv-date {
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ── Metadata ── */
+
+.crv-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.crv-meta-item { display: flex; gap: 4px; }
+.crv-meta-label { font-weight: 600; color: var(--text-muted); }
+
+/* ── Preview ── */
+
+.crv-preview {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.crv-section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+/* ── Sanitization ── */
+
+.crv-sanit {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-size: 0.72rem;
+}
+
+.crv-sanit-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.crv-sanit-strip {
+  color: var(--danger);
+}
+
+.crv-sanit-add {
+  color: var(--success, #10b981);
+}
+
+.crv-sanit-icon {
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+}
+
+/* ── Edit-on-promote fields ── */
+
+.crv-edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.crv-edit-field label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.crv-edit-field input,
+.crv-edit-field textarea {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.crv-edit-field textarea {
+  min-height: 48px;
+  resize: vertical;
+}
+
+/* ── Actions ── */
+
+.crv-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.crv-reject-reason {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.crv-toast {
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+}

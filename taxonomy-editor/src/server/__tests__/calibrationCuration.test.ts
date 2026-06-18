@@ -66,7 +66,7 @@ describe('admin calibration curation', () => {
     writeUserLog('local', ['d-1', 'd-2', 'd-3']);
 
     const result = await promoteCalibrationEntries('users/local', ['d-1', 'd-3'], 'jpsnover', 'looks good');
-    expect(result).toEqual({ promoted: 2, entries: ['d-1', 'd-3'] });
+    expect(result).toEqual({ promoted: 2, entries: ['d-1', 'd-3'], edited: [] });
 
     // Core JSONL holds the promoted entries.
     const coreEntries = fs.readFileSync(coreLogPath(), 'utf-8').trim().split('\n').map(l => JSON.parse(l));
@@ -95,6 +95,36 @@ describe('admin calibration curation', () => {
     expect(result.entries).toEqual(['d-1']);
     const coreEntries = fs.readFileSync(coreLogPath(), 'utf-8').trim().split('\n').map(l => JSON.parse(l));
     expect(coreEntries.map(e => e.debate_id)).toEqual(['d-1']);
+  });
+
+  it('AC#6: edit-on-promote shallow-merges patches onto matched entries before core write', async () => {
+    writeUserLog('local', ['d-1', 'd-2']);
+
+    const result = await promoteCalibrationEntries(
+      'users/local',
+      ['d-1', 'd-2'],
+      'jpsnover',
+      undefined,
+      { 'd-1': { category: 'Governance', description: 'corrected', debate_id: 'HIJACK' } },
+    );
+    expect(result).toEqual({ promoted: 2, entries: ['d-1', 'd-2'], edited: ['d-1'] });
+
+    const coreEntries = fs.readFileSync(coreLogPath(), 'utf-8').trim().split('\n').map(l => JSON.parse(l));
+    const d1 = coreEntries.find(e => e.debate_id === 'd-1');
+    // Edited fields applied...
+    expect(d1).toMatchObject({ category: 'Governance', description: 'corrected' });
+    // ...but debate_id can never be re-keyed by an edit.
+    expect(d1.debate_id).toBe('d-1');
+    // Unedited entry passes through verbatim.
+    expect(coreEntries.find(e => e.debate_id === 'd-2')).not.toHaveProperty('category');
+
+    // Audit record records which ids were edited.
+    const audit = await readCalibrationIntegrationLog();
+    expect(audit[0]).toMatchObject({ action: 'promote', entries: ['d-1', 'd-2'], edited: ['d-1'] });
+
+    // User log is never mutated by edit-on-promote.
+    const userEntries = fs.readFileSync(usersLogPath('local'), 'utf-8').trim().split('\n').map(l => JSON.parse(l));
+    expect(userEntries.find(e => e.debate_id === 'd-1')).not.toHaveProperty('category');
   });
 
   it('AC#3: reject writes an audit record only, never touching user or core files', async () => {

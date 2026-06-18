@@ -1,0 +1,44 @@
+/* Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+   Licensed under the MIT License. See LICENSE file in the project root. */
+
+/* Per-node edit-conflict indicator (Phase 5D). Informational warning styling;
+   themed via CSS variables so it follows Light / Dark / BKC / Auto. */
+
+.edit-conflict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--color-warning);
+  border-radius: 10px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: transparent;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.edit-conflict-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-warning);
+  flex: 0 0 auto;
+}
+
+.edit-conflict-badge-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.edit-conflict-badge-resolve {
+  margin-left: 2px;
+  color: var(--color-accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.edit-conflict-badge-resolve:hover {
+  text-decoration: underline;
+}

@@ -35,6 +35,8 @@ const POV_TO_SPEAKER: Record<string, Exclude<SpeakerId, 'user'>> = {
   skeptic: 'skeptic',
 };
 import { api } from '@bridge';
+import { useNodeConflicts } from '../conflict/edit-conflicts';
+import { useSyncStatus } from '../../hooks/useSyncStatus';
 
 interface PovTabProps {
   pov: Pov;
@@ -386,6 +388,33 @@ export function PovTab({ pov }: PovTabProps) {
     () => cruxDetailId ? aggregatedCruxes?.find(c => c.id === cruxDetailId) ?? null : null,
     [cruxDetailId, aggregatedCruxes],
   );
+  const nodeConflicts = useNodeConflicts();
+  const { status: syncStatus } = useSyncStatus();
+  const dirty = useTaxonomyStore((s) => s.dirty);
+
+  // Refresh conflict indicators after save (dirty transitions non-zero → 0)
+  const prevDirtyRef = useRef(dirty.size);
+  useEffect(() => {
+    const prev = prevDirtyRef.current;
+    const now = dirty.size;
+    prevDirtyRef.current = now;
+    if (prev > 0 && now === 0 && nodeConflicts.enabled) {
+      const t = setTimeout(() => { void nodeConflicts.refresh(); }, 600);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [dirty.size, nodeConflicts.enabled, nodeConflicts.refresh]);
+
+  // Refresh conflict indicators when upstream main advances
+  const prevMainUpdated = useRef(syncStatus.main_updated_available);
+  useEffect(() => {
+    const prev = prevMainUpdated.current;
+    prevMainUpdated.current = syncStatus.main_updated_available;
+    if (!prev && syncStatus.main_updated_available && nodeConflicts.enabled) {
+      void nodeConflicts.refresh();
+    }
+  }, [syncStatus.main_updated_available, nodeConflicts.enabled, nodeConflicts.refresh]);
+
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>('label');
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -1005,6 +1034,8 @@ export function PovTab({ pov }: PovTabProps) {
               clusterLoading={clusterLoading}
               misfits={clusterMisfits}
               onVisibleIdsChange={setVisibleIds}
+              conflicts={nodeConflicts.conflicts}
+              resolveUrl={syncStatus.pr_url}
             />
           </div>
         </div>
@@ -1078,7 +1109,7 @@ export function PovTab({ pov }: PovTabProps) {
                 </div>
               )}
               {selectedNode ? (
-                <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} />
+                <NodeDetail pov={pov} node={selectedNode} onPin={handlePin} onSimilarSearch={handleSimilarSearch} onRelated={handleRelated} conflict={nodeConflicts.conflicts.get(selectedNode.id)} resolveUrl={syncStatus.pr_url} />
               ) : (
                 <div className="detail-panel-empty">Select a node to edit</div>
               )}

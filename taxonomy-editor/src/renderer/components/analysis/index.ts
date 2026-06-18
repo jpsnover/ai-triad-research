@@ -4,6 +4,7 @@ export * from './AnalyticsDashboard';
 export * from './AttributeFilterPanel';
 export * from './AttributeInfoPanel';
 export * from './CalibrationDashboard';
+export * from './CalibrationReviewViewer';
 export * from './ConvergenceSignalsPanel';
 export * from './ExtractionTimelinePanel';
 export * from './FactsPanel';

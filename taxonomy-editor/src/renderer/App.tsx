@@ -40,6 +40,7 @@ import { HamburgerMenu } from './components/shared/HamburgerMenu';
 import { AnalyticsDashboard } from './components/analysis/AnalyticsDashboard';
 import { CommunityLibrary } from './components/community/CommunityLibrary';
 import { AdminPanel } from './components/settings/AdminPanel';
+import { AdminReviewPanel } from './components/settings/AdminReviewPanel';
 import { GitProgressBanner } from './components/sync/GitProgressBanner';
 import { AnonymousBanner } from './components/community/AnonymousBanner';
 import { pullDataTracked } from './utils/syncApi';
@@ -86,7 +87,13 @@ function FileViewerApp() {
       setFileArg(arg as { type: string; path: string; data?: unknown; error?: string } | null);
       setLoading(false);
     }).catch(err => {
-      console.error('[FileViewer] getCliFileArg failed:', err);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'FileViewer',
+        level: 'error',
+        message: 'getCliFileArg failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
       setLoading(false);
     });
   }, []);
@@ -166,6 +173,9 @@ export function App() {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><CommunityLibrary /></ErrorBoundary>;
   }
   if (hash === '#admin' && import.meta.env.VITE_TARGET === 'web') {
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AdminReviewPanel /></ErrorBoundary>;
+  }
+  if (hash === '#admin-legacy' && import.meta.env.VITE_TARGET === 'web') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AdminPanel /></ErrorBoundary>;
   }
 

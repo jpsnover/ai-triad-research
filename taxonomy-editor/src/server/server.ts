@@ -38,6 +38,8 @@ import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
+import { computeNodeConflicts } from './nodeConflicts.js';
+import type { TaxNode, NodeConflict } from './nodeConflicts.js';
 import * as ai from './aiBackends.js';
 import { DEFAULT_MODEL } from '../../../lib/ai-client/index.js';
 import { setRuntimeCredentials, clearRuntimeCredentials, getCredentials } from './githubAppAuth.js';
@@ -46,6 +48,22 @@ import * as rateLimiter from './rateLimiter.js';
 import * as analytics from './analytics.js';
 import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder.js';
 import { log, runWithRequestContext, generateRequestId } from './logger.js';
+import {
+  requireAdmin,
+  registerReviewHandler,
+  getReviewQueue,
+  getReviewStats,
+  getReviewDetail,
+  executeReviewAction,
+} from './admin/reviewRegistry.js';
+import type { ReviewAction } from './admin/types.js';
+import { calibrationReviewHandler } from './admin/calibrationHandler.js';
+import { communityReviewHandler } from './admin/communityReviewHandler.js';
+
+// Register review domain handlers at startup so the unified admin endpoints
+// (queue/stats/action/detail) can delegate to them (t/646, t/647, t/650).
+registerReviewHandler(calibrationReviewHandler);
+registerReviewHandler(communityReviewHandler);
 
 // ── Server-side flight recorder ──
 const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
@@ -1153,13 +1171,19 @@ get('/api/admin/calibration/pending', async (_req, res) => {
 
 post('/api/admin/calibration/promote', async (_req, res, body) => {
   if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
-  const { source, entryIds, notes } = body as { source?: string; entryIds?: string[]; notes?: string };
+  const { source, entryIds, notes, edits } = body as {
+    source?: string; entryIds?: string[]; notes?: string;
+    edits?: Record<string, Record<string, unknown>>;
+  };
   if (!source || !Array.isArray(entryIds) || entryIds.length === 0) {
     error(res, 'source and a non-empty entryIds[] are required', 400); return;
   }
+  if (edits !== undefined && (typeof edits !== 'object' || edits === null || Array.isArray(edits))) {
+    error(res, 'edits must be an object mapping debateId → field patch', 400); return;
+  }
   try {
     await ensureSessionBranch();
-    json(res, await fileIO.promoteCalibrationEntries(source, entryIds, getStorageUserId(), notes));
+    json(res, await fileIO.promoteCalibrationEntries(source, entryIds, getStorageUserId(), notes, edits));
   } catch (err) {
     getGlobalRecorder()?.record({
       type: 'system.error',
@@ -1192,6 +1216,98 @@ post('/api/admin/calibration/reject', async (_req, res, body) => {
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.api.warn({ err }, 'calibration reject failed');
+    error(res, String(err));
+  }
+});
+
+// ── Admin: Unified review panel (t/646) ──
+// Shared infrastructure delegating to per-domain ReviewDomainHandlers registered
+// at startup (calibration t/647, community t/650, taxonomy). Admin-gated via the
+// shared requireAdmin() middleware (reuses isAdmin() / ADMIN_USERS).
+
+get('/api/admin/review/queue', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    json(res, { items: await getReviewQueue(query(_req, 'submitter') ?? undefined) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review queue failed');
+    error(res, String(err));
+  }
+});
+
+get('/api/admin/review/stats', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    json(res, await getReviewStats(query(_req, 'submitter') ?? undefined));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review stats failed');
+    error(res, String(err));
+  }
+});
+
+get('/api/admin/review/detail/:groupId', async (req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const groupId = param(req, 'groupId', '/api/admin/review/detail/:groupId');
+    json(res, await getReviewDetail(groupId));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review detail failed');
+    error(res, String(err));
+  }
+});
+
+post('/api/admin/review/action', async (_req, res, body) => {
+  if (!requireAdmin(res)) return;
+  const action = body as Partial<ReviewAction>;
+  if (!action || typeof action.domain !== 'string' || !action.domain) {
+    error(res, 'domain is required', 400); return;
+  }
+  if (typeof action.groupId !== 'string' || !action.groupId) {
+    error(res, 'groupId is required', 400); return;
+  }
+  if (action.action !== 'promote' && action.action !== 'reject') {
+    error(res, 'action must be "promote" or "reject"', 400); return;
+  }
+  if (!Array.isArray(action.itemIds) || action.itemIds.length === 0) {
+    error(res, 'a non-empty itemIds[] is required', 400); return;
+  }
+  if (action.action === 'reject' && (!action.reason || typeof action.reason !== 'string')) {
+    error(res, 'reason is required when rejecting', 400); return;
+  }
+  try {
+    await ensureSessionBranch();
+    await executeReviewAction(action as ReviewAction);
+    json(res, { ok: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review action failed');
     error(res, String(err));
   }
 });
@@ -1831,6 +1947,66 @@ get('/api/sync/node-diff', async (_req, res) => {
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
+// Phase 5D (t/654): nodes edited on the user's session branch that were ALSO
+// changed on main since the branch diverged — the "both-edited" conflict set.
+// Three-way: merge-base→branch (your changes) ∩ merge-base→main (their changes).
+// Informational only; never throws into the save path (returns a disabled shape).
+get('/api/sync/node-conflicts', async (_req, res) => {
+  const disabled = { enabled: false, session_branch: null, behind_by: 0, conflicts: [] };
+  try {
+    if (!githubBackend || !sessionManager) { json(res, disabled); return; }
+    const userId = getCurrentUserId();
+    const branch = sessionManager.getActiveBranch(userId);
+    if (!branch) { json(res, disabled); return; }
+
+    // base...head with three dots diffs head against merge-base(base, head):
+    //  - compare('main', branch) → files changed on branch since merge-base (yours)
+    //  - compare(branch, 'main') → files changed on main since merge-base (theirs)
+    const [yourCmp, theirCmp] = await Promise.all([
+      githubBackend.compareBranches('main', branch),
+      githubBackend.compareBranches(branch, 'main'),
+    ]);
+    const baseSha = yourCmp.merge_base_sha;
+    const behindBy = yourCmp.behind_by;
+
+    const POV_RE = /\/(accelerationist|safetyist|skeptic|situations|cross-cutting)\.json$/;
+    const candidateFiles = new Set<string>();
+    for (const f of [...yourCmp.files, ...theirCmp.files]) {
+      if (f.filename.endsWith('.json') && POV_RE.test(f.filename)) candidateFiles.add(f.filename);
+    }
+
+    const parseNodes = (raw: string | null): TaxNode[] =>
+      raw ? ((JSON.parse(raw.replace(/^﻿/, '')) as { nodes?: TaxNode[] }).nodes ?? []) : [];
+
+    const conflicts: NodeConflict[] = [];
+    for (const filename of candidateFiles) {
+      const [baseRaw, mainRaw, branchRaw] = await Promise.all([
+        baseSha ? githubBackend.readFileAtRef(filename, baseSha) : Promise.resolve(null),
+        githubBackend.readFileAtRef(filename, 'main'),
+        githubBackend.readFileAtRef(filename, branch),
+      ]);
+      conflicts.push(...computeNodeConflicts(
+        parseNodes(baseRaw),
+        parseNodes(mainRaw),
+        parseNodes(branchRaw),
+        povKeyForPath(filename) ?? '',
+      ));
+    }
+
+    json(res, { enabled: true, session_branch: branch, behind_by: behindBy, conflicts });
+  } catch (err) {
+    // Record but degrade gracefully — this is informational and must never break the UI.
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'warn',
+      message: 'node-conflicts detection failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    json(res, disabled);
+  }
+});
+
 post('/api/sync/discard', async (_req, res, body) => {
   const { all } = (body || {}) as { path?: string; all?: boolean };
   try {
@@ -1857,12 +2033,18 @@ post('/api/sync/commit', async (_req, res, body) => {
     }
     const userId = getCurrentUserId();
     const { message } = (body || {}) as { message?: string };
+    // Capture pending entries before commitOverlay() clears them — needed for the
+    // taxonomy-updated broadcast below (t/652).
+    const pending = githubBackend.getOverlayEntries(userId);
     const result = await githubBackend.commitOverlay(userId, message);
     if (!result) {
       json(res, { ok: true, commitSha: null, filesCommitted: 0, message: 'No pending changes' });
       return;
     }
     json(res, { ok: true, commitSha: result.commitSha, filesCommitted: result.filesCommitted });
+    // Phase 5F: best-effort notify other web clients. Response is already sent;
+    // broadcastTaxonomyUpdate never throws, so the save result is unaffected (t/652).
+    await broadcastTaxonomyUpdate(githubBackend, pending, userId);
   } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
 });
 
@@ -2728,6 +2910,67 @@ function broadcastEvent(type: string, data: unknown) {
   const msg = JSON.stringify({ type, data });
   for (const ws of eventClients) {
     if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+  }
+}
+
+// POV/taxonomy file keys the client toast knows how to label (Phase 5F / t/652).
+const TAXONOMY_POV_FILES = new Set(['accelerationist', 'safetyist', 'skeptic', 'cross-cutting', 'situations']);
+
+/** Map a committed file path to its POV key, or null if it isn't a taxonomy POV file. */
+function povKeyForPath(p: string): string | null {
+  const base = p.split('/').pop() ?? p;
+  if (!base.endsWith('.json')) return null;
+  const key = base.slice(0, -'.json'.length);
+  return TAXONOMY_POV_FILES.has(key) ? key : null;
+}
+
+/**
+ * Best-effort Phase 5F broadcast (t/652): after a session save commits, tell other
+ * web clients which POV files changed and a changed-node count. Affected POVs come
+ * from the committed paths; the count diffs each written POV file against its cached
+ * base. Never throws and never fires when no POV file changed — a broadcast failure
+ * must not affect the save (web/container mode only; filesystem commits return early).
+ */
+async function broadcastTaxonomyUpdate(
+  backend: GitHubAPIBackend,
+  pending: { writes: { path: string; content: string }[]; deletes: string[] } | null,
+  user: string,
+): Promise<void> {
+  try {
+    if (!pending) return;
+    const povs = new Set<string>();
+    let nodeCount = 0;
+
+    for (const w of pending.writes) {
+      const key = povKeyForPath(w.path);
+      if (!key) continue;
+      povs.add(key);
+      try {
+        const newNodes = (JSON.parse(w.content) as { nodes?: unknown[] }).nodes ?? [];
+        const baseRaw = await backend.readBaseFromCache(w.path);
+        const oldNodes = baseRaw ? ((JSON.parse(baseRaw.replace(/^﻿/, '')) as { nodes?: unknown[] }).nodes ?? []) : [];
+        const diff = diffNodes(
+          oldNodes as Parameters<typeof diffNodes>[0],
+          newNodes as Parameters<typeof diffNodes>[1],
+        );
+        nodeCount += diff.added.length + diff.modified.length + diff.deleted.length;
+      } catch { /* telemetry — silent by design: node count is best-effort */ }
+    }
+    for (const p of pending.deletes) {
+      const key = povKeyForPath(p);
+      if (key) povs.add(key);
+    }
+
+    if (povs.size === 0) return; // not a taxonomy change — nothing to announce
+    broadcastEvent('taxonomy-updated', { user, nodeCount, povs: [...povs] });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'warn',
+      message: 'taxonomy-updated broadcast failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
   }
 }
 

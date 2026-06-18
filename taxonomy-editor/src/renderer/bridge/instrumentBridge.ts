@@ -89,7 +89,7 @@ const SKIP = new Set([
   'onChatStreamChunk', 'onChatStreamDone', 'onChatStreamError',
   'onDiagnosticsStateUpdate', 'onDiagnosticsPopoutClosed', 'onReExtractClaims',
   'onDebateWindowLoad', 'onDebatePopoutClosed',
-  'onGenerateTextProgress', 'onReloadTaxonomy', 'onFocusNode',
+  'onGenerateTextProgress', 'onReloadTaxonomy', 'onFocusNode', 'onTaxonomyUpdated',
   'onTerminalData', 'onTerminalExit',
   // Sync methods
   'sendDiagnosticsState', 'requestReExtractClaims',
