@@ -44,10 +44,10 @@ describe('source document resolution', () => {
     expect(res).toEqual({ available: true, type: 'markdown', content: '# Hello\n\nbody text' });
   });
 
-  it('AC#2: returns a fetch path for a PDF source', async () => {
+  it('AC#2: prefers markdown snapshot over PDF for inline display with claim highlighting', async () => {
     makeSource('pdf-doc', { snapshot: 'extracted text', pdf: PDF_BYTES, metadata: { source_type: 'pdf' } });
     const res = await resolveSourceDocument('pdf-doc');
-    expect(res).toEqual({ available: true, type: 'pdf', path: '/api/source-documents/pdf-doc/file' });
+    expect(res).toEqual({ available: true, type: 'markdown', content: 'extracted text' });
   });
 
   it('serves a PDF even without metadata when only a raw PDF exists', async () => {

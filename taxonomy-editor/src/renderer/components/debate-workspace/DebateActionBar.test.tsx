@@ -48,6 +48,7 @@ vi.mock('../../types/debate', () => ({
 
 vi.mock('@lib/debate/types', () => ({
   AI_POVERS: ['accelerationist', 'safetyist', 'skeptic'],
+  POV_KEYS: ['accelerationist', 'safetyist', 'skeptic'],
 }));
 
 vi.mock('./utils', () => ({

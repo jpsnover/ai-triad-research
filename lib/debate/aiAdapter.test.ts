@@ -335,11 +335,7 @@ describe('aiAdapter', () => {
       expect(delay2).toBeLessThan(6_000);
     });
 
-    // NOTE: This documents a real bug — all ActionableErrors from backend
-    // functions include "Generate" in the Goal field, and "generate"
-    // contains the substring "rate", so lower.includes('rate') matches.
-    // This means 401/400/403 errors ARE retried when they should not be.
-    it('BUG: retries 401 errors because "generate" contains "rate"', async () => {
+    it('does not retry 401 auth errors — fails fast', async () => {
       process.env.GEMINI_API_KEY = 'test-key';
       mockFetch.mockImplementation(async () => freshResponse({ error: 'unauthorized' }, 401));
 
@@ -348,8 +344,7 @@ describe('aiAdapter', () => {
 
       await expect(runWithTimers(adapter.generateText('test', 'gemini-2.5-flash')))
         .rejects.toThrow(/401/);
-      // All 5 retries are consumed even for 401, because "generate" matches "rate"
-      expect(mockFetch).toHaveBeenCalledTimes(5);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 
