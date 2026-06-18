@@ -2396,6 +2396,14 @@ export class DebateEngine {
         } : {}),
       };
 
+      getGlobalRecorder()?.setEventContext({
+        debate_id: this.session.id,
+        run_id: this.session.run_id,
+        speaker: poverId,
+        phase: 'opening',
+        round: 0,
+        turn_index: this.session.transcript.length,
+      });
       let pipelineResult = await runOpeningPipeline(
         pipelineInput,
         stageGenerate,
@@ -3144,6 +3152,14 @@ export class DebateEngine {
     };
 
     this.checkAborted();
+    getGlobalRecorder()?.setEventContext({
+      debate_id: this.session.id,
+      run_id: this.session.run_id,
+      speaker: responder,
+      phase,
+      round,
+      turn_index: this.session.transcript.length,
+    });
     const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
     const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
     this.enrichTaxonomyRefs(taxonomyRefs);

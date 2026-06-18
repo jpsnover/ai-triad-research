@@ -122,6 +122,11 @@ export interface FlightRecorderEvent {
   request_id?: string;      // X-Request-ID from web bridge for end-to-end tracing
   speaker?: string | number;
 
+  // Debate positioning (optional — set via setEventContext per turn)
+  phase?: string;
+  round?: number;
+  turn_index?: number;
+
   // Payload (type-specific)
   message?: string;
   data?: Record<string, unknown>;
@@ -209,6 +214,9 @@ export interface DumpEvent {
   call_id?: string;
   request_id?: string;
   speaker?: string;   // Always expanded string in dump
+  phase?: string;
+  round?: number;
+  turn_index?: number;
   message?: string;
   data?: Record<string, unknown>;
   error?: { name: string; message: string; stack?: string };
