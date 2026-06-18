@@ -299,7 +299,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
         get().addTranscriptEntry({
           type: 'system',
           speaker: 'system',
-          content: `[Recovered] ${speakerLabel}'s turn was interrupted when the window closed (round ${session.interrupted_turn.round}, ${session.interrupted_turn.phase} phase). Press Continue to restart the turn.`,
+          content: `[Recovered] ${speakerLabel}'s turn was interrupted when the window closed (round ${session.interrupted_turn.round}, ${session.interrupted_turn.phase} phase). Auto-resuming…`,
           taxonomy_refs: [],
           metadata: { interrupted_turn_recovery: true, ...session.interrupted_turn },
         });
@@ -309,6 +309,13 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
           set({ activeDebate: cleaned as DebateSession });
         }
         void get().saveDebate('loadDebate:interrupted_turn_recovery');
+        setTimeout(() => {
+          const s = get();
+          if (s.activeDebateId === id && !s.debateGenerating) {
+            getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, message: 'Auto-resuming after interrupted turn recovery' });
+            void s.crossRespond();
+          }
+        }, 100);
       }
     } catch (err) {
       getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err), stack: (err as Error).stack } });
