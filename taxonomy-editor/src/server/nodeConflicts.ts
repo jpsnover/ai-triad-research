@@ -36,7 +36,12 @@ export interface NodeConflict {
 
 /** Ids changed (added | modified | deleted) between two node sets. */
 function changedIds(base: TaxNode[], side: TaxNode[]): Set<string> {
-  const d = diffNodes(base, side);
+  // diffNodes ignores _edit_meta (HASH_EXCLUDE); cast bridges TaxNode's looser
+  // _edit_meta typing to editMeta's NodeWithMeta without affecting behavior.
+  const d = diffNodes(
+    base as Parameters<typeof diffNodes>[0],
+    side as Parameters<typeof diffNodes>[1],
+  );
   return new Set([...d.added, ...d.modified, ...d.deleted]);
 }
 
