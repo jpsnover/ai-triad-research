@@ -46,6 +46,13 @@ import * as rateLimiter from './rateLimiter.js';
 import * as analytics from './analytics.js';
 import { FlightRecorder } from '../../../lib/flight-recorder/flightRecorder.js';
 import { log, runWithRequestContext, generateRequestId } from './logger.js';
+import {
+  requireAdmin,
+  getReviewQueue,
+  getReviewStats,
+  executeReviewAction,
+} from './admin/reviewRegistry.js';
+import type { ReviewAction } from './admin/types.js';
 
 // ── Server-side flight recorder ──
 const serverRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: false });
@@ -1192,6 +1199,77 @@ post('/api/admin/calibration/reject', async (_req, res, body) => {
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
     });
     log.api.warn({ err }, 'calibration reject failed');
+    error(res, String(err));
+  }
+});
+
+// ── Admin: Unified review panel (t/646) ──
+// Shared infrastructure delegating to per-domain ReviewDomainHandlers registered
+// at startup (calibration t/647, community t/650, taxonomy). Admin-gated via the
+// shared requireAdmin() middleware (reuses isAdmin() / ADMIN_USERS).
+
+get('/api/admin/review/queue', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    json(res, { items: await getReviewQueue(query(_req, 'submitter') ?? undefined) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review queue failed');
+    error(res, String(err));
+  }
+});
+
+get('/api/admin/review/stats', async (_req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    json(res, await getReviewStats(query(_req, 'submitter') ?? undefined));
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review stats failed');
+    error(res, String(err));
+  }
+});
+
+post('/api/admin/review/action', async (_req, res, body) => {
+  if (!requireAdmin(res)) return;
+  const action = body as Partial<ReviewAction>;
+  if (!action || typeof action.domain !== 'string' || !action.domain) {
+    error(res, 'domain is required', 400); return;
+  }
+  if (action.action !== 'promote' && action.action !== 'reject') {
+    error(res, 'action must be "promote" or "reject"', 400); return;
+  }
+  if (!Array.isArray(action.itemIds) || action.itemIds.length === 0) {
+    error(res, 'a non-empty itemIds[] is required', 400); return;
+  }
+  if (action.action === 'reject' && (!action.reason || typeof action.reason !== 'string')) {
+    error(res, 'reason is required when rejecting', 400); return;
+  }
+  try {
+    await ensureSessionBranch();
+    await executeReviewAction(action as ReviewAction);
+    json(res, { ok: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Operation failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin review action failed');
     error(res, String(err));
   }
 });
