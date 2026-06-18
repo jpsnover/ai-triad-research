@@ -227,7 +227,6 @@ export function TaxonomyDiffPanel({ open, onClose, status, onManageChanges, onSu
     void refresh();
     // refresh is intentionally excluded — we want this to run on open, not on
     // every descTouched-driven refresh identity change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const onSubmit = useCallback(async () => {
