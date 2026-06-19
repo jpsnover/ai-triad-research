@@ -37,6 +37,7 @@ import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
+import { FEEDBACK_CATEGORIES, isFeedbackCategory, listFeedback } from './feedbackStore.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
 import { computeNodeConflicts } from './nodeConflicts.js';
 import type { TaxNode, NodeConflict } from './nodeConflicts.js';
@@ -1318,10 +1319,13 @@ const serverStartTime = Date.now();
 
 post('/api/admin/feedback', (_req, res, body) => {
   try {
-    const { rating, text, context } = body as { rating: string; text?: string; context?: Record<string, unknown> };
+    const { rating, text, context, category } = body as { rating: string; text?: string; context?: Record<string, unknown>; category?: string };
     if (rating !== 'up' && rating !== 'down') { error(res, 'rating must be "up" or "down"', 400); return; }
     if (text && typeof text !== 'string') { error(res, 'text must be a string', 400); return; }
     if (text && text.length > 500) { error(res, 'text must be 500 characters or fewer', 400); return; }
+    if (category !== undefined && !isFeedbackCategory(category)) {
+      error(res, `category must be one of: ${FEEDBACK_CATEGORIES.join(', ')}`, 400); return;
+    }
 
     const feedbackDir = path.join(getDataRoot(), 'admin', 'feedback');
     fs.mkdirSync(feedbackDir, { recursive: true });
@@ -1332,6 +1336,7 @@ post('/api/admin/feedback', (_req, res, body) => {
       timestamp: new Date().toISOString(),
       userId,
       rating,
+      category: isFeedbackCategory(category) ? category : 'general',
       text: text?.trim() || null,
       context: context ?? {},
     };
@@ -1353,6 +1358,40 @@ post('/api/admin/feedback', (_req, res, body) => {
     json(res, { ok: true, id: entry.id });
   } catch (err) {
     serverRecorder.record({ type: 'system.error', component: 'server', level: 'error', message: 'Failed to store feedback', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    error(res, String(err));
+  }
+});
+
+get('/api/admin/feedback', (req, res) => {
+  if (!requireAdmin(res)) return;
+  try {
+    const feedbackDir = path.join(getDataRoot(), 'admin', 'feedback');
+    const { items, total, hasMore, skipped } = listFeedback(feedbackDir, {
+      limit: parseInt(query(req, 'limit') ?? '', 10),
+      offset: parseInt(query(req, 'offset') ?? '', 10),
+      category: query(req, 'category'),
+      rating: query(req, 'rating'),
+    });
+    for (const file of skipped) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'server',
+        level: 'warn',
+        message: 'Skipped unreadable feedback entry',
+        error: { name: 'Error', message: 'parse failed' },
+        data: { file },
+      });
+    }
+    json(res, { items, total, hasMore });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to list feedback',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    log.api.warn({ err }, 'admin feedback list failed');
     error(res, String(err));
   }
 });
