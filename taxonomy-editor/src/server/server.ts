@@ -39,6 +39,7 @@ import * as community from './community.js';
 import * as fileIO from './fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, listFeedback } from './feedbackStore.js';
 import { stripEdgeRationale, type EdgesData } from './edgesApi.js';
+import { rateLimitResponseBody } from './rateLimitResponse.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
 import { computeNodeConflicts } from './nodeConflicts.js';
 import type { TaxNode, NodeConflict } from './nodeConflicts.js';
@@ -196,6 +197,16 @@ function json(res: http.ServerResponse, data: unknown, status = 200) {
 
 function error(res: http.ServerResponse, message: string, status = 500) {
   json(res, { error: message }, status);
+}
+
+// Structured 429 for GitHub-API rate-limit exhaustion (t/685). Surfaces seconds
+// until the limit resets via a `retryAfter` field and a Retry-After header, so
+// clients can back off instead of seeing an opaque 500.
+function respondRateLimited(res: http.ServerResponse): void {
+  const resetsAt = githubBackend ? new Date(githubBackend.getRateLimitResetsAt()).getTime() : 0;
+  const bodyResp = rateLimitResponseBody(resetsAt, Date.now());
+  res.setHeader('Retry-After', String(bodyResp.retryAfter));
+  json(res, bodyResp, 429);
 }
 
 function param(req: http.IncomingMessage, name: string, routePath: string): string {
@@ -1110,14 +1121,38 @@ get('/api/community/debates', async (_req, res) => {
   catch (err) { error(res, String(err)); }
 });
 
+get('/api/community/debates/:id', async (req, res) => {
+  try {
+    const id = param(req, 'id', '/api/community/debates/:id');
+    const item = await community.loadCommunityItem('debates', id);
+    if (!item) { json(res, { found: false }, 200); return; }
+    json(res, item);
+  } catch (err) { error(res, String(err), 404); }
+});
+
 post('/api/community/submit', async (_req, res, body) => {
   try {
     const { type, data, note } = body as { type: 'chat' | 'debate'; data: unknown; note?: string };
     if (!type || !data) { json(res, { error: 'type and data required' }, 400); return; }
+
+    // Pre-flight: a community submission must reach GitHub (it's shared data on
+    // main). If the API is exhausted, fail fast with a structured 429 instead of
+    // attempting a write that 403s mid-flight and surfaces as a 500 — and never
+    // leaves a half-written/uncommittable submission behind (t/685).
+    if (githubBackend && githubBackend.getRateLimitRemaining() <= 0) {
+      respondRateLimited(res);
+      return;
+    }
+
     json(res, await community.submitToCommunity(type, data, note));
   } catch (err) {
-    const status = (err as { statusCode?: number }).statusCode ?? 500;
-    json(res, { error: String(err) }, status);
+    // Map a rate-limit failure that slipped past the pre-check to 429, not 500.
+    const status = (err as { statusCode?: number }).statusCode;
+    if (status === 429 || status === 403 || /rate.?limit/i.test(String(err))) {
+      respondRateLimited(res);
+      return;
+    }
+    json(res, { error: String(err) }, status ?? 500);
   }
 });
 
@@ -2804,7 +2839,7 @@ async function handleRequestInner(
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   if (process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; font-src 'self'");
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; font-src 'self'; worker-src 'self'");
   }
 
   // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev
@@ -2837,7 +2872,12 @@ async function handleRequestInner(
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
     || urlPath === '/api/community/submit'
-    || urlPath.startsWith('/.auth/');
+    || urlPath.startsWith('/.auth/')
+    || urlPath.startsWith('/assets/')
+    || urlPath === '/manifest.webmanifest'
+    || urlPath === '/sw.js'
+    || urlPath.startsWith('/workbox-')
+    || urlPath.startsWith('/icons/');
   // AUTH_DISABLED='1' (default) = anonymous access, no login page.
   // AUTH_OPTIONAL='1' = show login page with anonymous option; sign-in
   //   unlocks platform-tier keys, anonymous users get lower limits + BYOK.
