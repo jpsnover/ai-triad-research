@@ -2572,6 +2572,7 @@ function isAnonAllowedRoute(method: string, urlPath: string): boolean {
     '/api/source-evidence',
     '/api/analytics/event',
     '/api/data/check-updates',
+    '/api/community/submit',
     '/focus-node',
     '/debug/events',
   ];
@@ -2781,6 +2782,7 @@ async function handleRequestInner(
     || urlPath === '/api/auth/me'
     || urlPath === '/api/user/profile'
     || urlPath === '/api/sync/webhook/github'
+    || urlPath === '/api/community/submit'
     || urlPath.startsWith('/.auth/');
   // AUTH_DISABLED='1' (default) = anonymous access, no login page.
   // AUTH_OPTIONAL='1' = show login page with anonymous option; sign-in

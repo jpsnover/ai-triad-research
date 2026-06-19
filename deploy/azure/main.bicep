@@ -73,6 +73,9 @@ param authDisabled string = ''
 @description('Set to "1" to show login page with sign-in + anonymous options. Signed-in users get full access (AI + editing); anonymous users get read-only, non-AI access.')
 param authOptional string = '1'
 
+@description('Comma-separated list of admin userIds (derived storage IDs, not raw emails — see deriveStorageUserId in userContext.ts). Grants the community/calibration review UI and /api/admin/* endpoints. Sourced from the ADMIN_USERS GitHub Actions variable so personal emails stay out of public source. Defaults to jpsnover (matches the server default).')
+param adminUsers string = 'jpsnover'
+
 // ── GitHub data-sync (optional Phase-2 feature) ──
 // When enabled, web edits commit to a per-user branch in the working tree and
 // the user can open / update a pull request against origin/main from the UI.
@@ -243,6 +246,10 @@ var baseEnv = [
   // option. AUTH_DISABLED='1' skips auth entirely. Neither = required sign-in.
   { name: 'AUTH_DISABLED', value: authDisabled }
   { name: 'AUTH_OPTIONAL', value: authOptional }
+  // Admin allowlist — comma-separated derived userIds gating the review UI and
+  // /api/admin/* endpoints. Declared here so it survives Bicep deploys (a CLI
+  // --set-env-vars value would be wiped by the next full template deployment).
+  { name: 'ADMIN_USERS', value: adminUsers }
   // Tell the server to trust Easy Auth headers (X-MS-CLIENT-PRINCIPAL-*).
   // Container Apps should auto-inject this but doesn't reliably do so.
   { name: 'WEBSITE_AUTH_ENABLED', value: 'true' }

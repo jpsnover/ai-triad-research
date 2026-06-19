@@ -194,7 +194,7 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
         )}
         {detail.topic && (
           <div className="crv-meta-item">
-            <span className="crv-meta-label">Topic:</span> {detail.topic}
+            <span className="crv-meta-label">Topic:</span> {typeof detail.topic === 'string' ? detail.topic : String(detail.topic)}
           </div>
         )}
         {detail.note && (

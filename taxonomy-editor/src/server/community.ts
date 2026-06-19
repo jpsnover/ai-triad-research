@@ -96,8 +96,6 @@ interface Submission {
 }
 
 export async function submitToCommunity(type: 'chat' | 'debate', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
-  if (isAnonymousUser()) throw Object.assign(new Error('Anonymous users cannot submit to the Community Library'), { statusCode: 403 });
-
   const userId = getStorageUserId();
   const backend = getBackend();
   const dir = submissionsDir();
