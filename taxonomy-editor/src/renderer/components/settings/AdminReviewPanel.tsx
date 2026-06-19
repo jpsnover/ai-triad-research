@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import ErrorBoundary from '../../../../lib/electron-shared/components/ErrorBoundary';
+import ErrorBoundary from '../../../../../lib/electron-shared/components/ErrorBoundary';
 import { CalibrationReviewViewer } from '../analysis';
 import { CommunityReviewViewer } from './CommunityReviewViewer';
 import './AdminReviewPanel.css';

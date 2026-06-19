@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChatStore } from '../../hooks/useChatStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { api } from '@bridge';
 import { POVER_INFO } from '../../types/debate';
 import type { TaxonomyRef } from '../../types/debate';
 import type { ChatEntry, ChatMode } from '../../types/chat';
@@ -190,8 +191,30 @@ export function ChatWorkspace() {
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredOpening = useRef(false);
   const [input, setInput] = useState('');
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [selectedRefNodeId, setSelectedRefNodeId] = useState<string | null>(null);
   const selectedNode = useSelectedNode(selectedRefNodeId);
+
+  const handleShare = useCallback(async () => {
+    if (!activeChat) return;
+    try {
+      setShareStatus('Sharing...');
+      const { submissionId } = await api.submitToCommunity('chat', activeChat);
+      setShareStatus(`Shared! (${submissionId.slice(0, 8)})`);
+      setTimeout(() => setShareStatus(null), 4000);
+    } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'chat-workspace',
+        level: 'error',
+        message: 'Failed to share chat to community',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      const msg = err instanceof Error ? err.message : String(err);
+      setShareStatus(`Failed: ${msg}`);
+      setTimeout(() => setShareStatus(null), 4000);
+    }
+  }, [activeChat]);
 
   // Clear selection when chat changes
   useEffect(() => {
@@ -260,6 +283,9 @@ export function ChatWorkspace() {
           <div className="chat-header-topic" title={activeChat.topic}>
             {activeChat.topic}
           </div>
+          <button className="btn btn-sm" onClick={handleShare} disabled={!!shareStatus} style={{ flexShrink: 0, fontSize: '0.72rem' }}>
+            {shareStatus || 'Share'}
+          </button>
         </div>
 
         {/* Error bar */}

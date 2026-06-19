@@ -1,9 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useChatStore } from '../../hooks/useChatStore';
-import { useTaxonomyStore, MODELS_BY_BACKEND } from '../../hooks/useTaxonomyStore';
+import { useTaxonomyStore, MODELS_BY_BACKEND, AI_BACKENDS } from '../../hooks/useTaxonomyStore';
+import type { AIBackend } from '../../hooks/useTaxonomyStore/slices/settingsSlice';
+import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { POVER_INFO } from '../../types/debate';
 import type { SpeakerId } from '../../types/debate';
 import type { ChatMode } from '../../types/chat';
@@ -29,9 +32,23 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
   const [creating, setCreating] = useState(false);
   const { aiBackend, geminiModel } = useTaxonomyStore();
   const globalModel = geminiModel;
-  const availableModels = MODELS_BY_BACKEND[aiBackend] || [];
   const [useCustomModel, setUseCustomModel] = useState(false);
+  const [selectedBackend, setSelectedBackend] = useState<AIBackend>(aiBackend);
+  const availableModels = MODELS_BY_BACKEND[selectedBackend] || [];
   const [customModel, setCustomModel] = useState<string>(globalModel);
+  const [keyStatus, setKeyStatus] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const check = async () => {
+      const status: Record<string, boolean> = {};
+      for (const b of AI_BACKENDS) {
+        try { status[b.value] = await api.hasApiKey(b.value); }
+        catch (err) { status[b.value] = false; getGlobalRecorder()?.record({ type: 'system.error', component: 'new-chat-dialog', level: 'warn', message: `Failed to check API key for ${b.value}`, error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }
+      }
+      setKeyStatus(status);
+    };
+    void check();
+  }, []);
 
   const canStart = topic.trim().length > 0;
 
@@ -113,15 +130,33 @@ export function NewChatDialog({ onClose }: NewChatDialogProps) {
             Use a different model for this chat
           </label>
           {useCustomModel && (
-            <select
-              className="new-chat-model-select"
-              value={customModel}
-              onChange={(e) => setCustomModel(e.target.value)}
-            >
-              {availableModels.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+              <select
+                className="new-chat-model-select"
+                value={selectedBackend}
+                onChange={(e) => {
+                  const backend = e.target.value as AIBackend;
+                  setSelectedBackend(backend);
+                  const models = MODELS_BY_BACKEND[backend] || [];
+                  if (models.length > 0) setCustomModel(models[0].value);
+                }}
+              >
+                {AI_BACKENDS.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.label}{keyStatus[b.value] === false ? ' (no key)' : ''}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="new-chat-model-select"
+                value={customModel}
+                onChange={(e) => setCustomModel(e.target.value)}
+              >
+                {availableModels.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </div>
           )}
           {!useCustomModel && (
             <span className="new-chat-model-info">Using global: {globalModel}</span>

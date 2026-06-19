@@ -190,11 +190,12 @@ export function initFlightRecorder(): FlightRecorder {
 
   // Identify which window this recorder belongs to
   const hash = window.location.hash;
-  const isPopup = hash.startsWith('#debate-window') || hash === '#diagnostics-window' || hash === '#pov-progression-window';
+  const isPopup = hash.startsWith('#debate-window') || hash === '#diagnostics-window' || hash === '#pov-progression-window' || hash === '#chat-window';
   const windowId = hash.startsWith('#debate-window')
     ? `debate:${new URLSearchParams(hash.split('?')[1] || '').get('debateId')?.slice(0, 8) || 'unknown'}`
     : hash === '#diagnostics-window' ? 'diagnostics'
     : hash === '#pov-progression-window' ? 'pov-progression'
+    : hash === '#chat-window' ? 'chat'
     : 'main';
 
   // Popup windows use a thin IPC shim — no local buffer, forward everything to main
