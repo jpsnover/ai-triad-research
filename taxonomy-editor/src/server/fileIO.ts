@@ -227,63 +227,110 @@ export async function readConflictClusters(): Promise<unknown | null> {
   try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
 }
 
-export async function readAllConflictFiles(): Promise<unknown[]> {
-  const dir = getConflictsDir();
-  const entries = await backend.listDirectory(dir);
-  const files = entries.filter(f => f.endsWith('.json') && !f.startsWith('_'));
+// Conflicts are stored in a single wrapper file (t/689 / t/693) instead of
+// ~1,244 individual {claimId}.json files (which cost 62 batched API reads to
+// list). The 5-minute response cache lives in server.ts and is invalidated by
+// the route handlers on create/write/delete — unchanged by this layer.
+const CONFLICTS_FILE = 'conflicts.json';
+const CONFLICTS_SCHEMA_VERSION = '2.0';
 
-  // Parallel reads in batches of 20 to avoid overwhelming the API
-  const BATCH = 20;
-  const results: unknown[] = [];
-  for (let i = 0; i < files.length; i += BATCH) {
-    const batch = files.slice(i, i + BATCH);
-    const settled = await Promise.allSettled(
-      batch.map(async f => {
-        const raw = await backend.readFile(path.join(dir, f));
-        return raw !== null ? JSON.parse(raw) : null;
-      }),
-    );
-    for (const r of settled) {
-      if (r.status === 'fulfilled' && r.value !== null) results.push(r.value);
-    }
+interface ConflictsWrapper {
+  _schema_version: string;
+  last_modified: string;
+  conflict_count: number;
+  conflicts: Record<string, unknown>[];
+}
+
+function conflictsFilePath(): string {
+  return path.join(getConflictsDir(), CONFLICTS_FILE);
+}
+
+function claimIdOf(entry: unknown): string | undefined {
+  return (entry as { claim_id?: string })?.claim_id;
+}
+
+/** Read the conflicts wrapper, tolerating a missing or malformed file (→ empty). */
+async function readConflictsWrapper(): Promise<ConflictsWrapper> {
+  const empty: ConflictsWrapper = {
+    _schema_version: CONFLICTS_SCHEMA_VERSION,
+    last_modified: new Date().toISOString(),
+    conflict_count: 0,
+    conflicts: [],
+  };
+  const raw = await backend.readFile(conflictsFilePath());
+  if (raw === null) return empty;
+  try {
+    const parsed = JSON.parse(raw) as Partial<ConflictsWrapper>;
+    const conflicts = Array.isArray(parsed.conflicts) ? parsed.conflicts as Record<string, unknown>[] : [];
+    return {
+      _schema_version: parsed._schema_version ?? CONFLICTS_SCHEMA_VERSION,
+      last_modified: parsed.last_modified ?? empty.last_modified,
+      conflict_count: conflicts.length,
+      conflicts,
+    };
+  } catch {
+    /* telemetry — silent by design; treat an unreadable conflicts file as empty */
+    return empty;
   }
-  return results;
+}
+
+/** Persist the conflicts array, refreshing conflict_count + last_modified. */
+async function writeConflictsWrapper(conflicts: Record<string, unknown>[]): Promise<void> {
+  const wrapper: ConflictsWrapper = {
+    _schema_version: CONFLICTS_SCHEMA_VERSION,
+    last_modified: new Date().toISOString(),
+    conflict_count: conflicts.length,
+    conflicts,
+  };
+  await backend.writeFile(conflictsFilePath(), JSON.stringify(wrapper, null, 2));
+}
+
+export async function readAllConflictFiles(): Promise<unknown[]> {
+  return (await readConflictsWrapper()).conflicts;
 }
 
 export async function writeConflictFile(claimId: string, data: unknown): Promise<void> {
   assertSafeId(claimId, 'claimId');
-  const filePath = path.join(getConflictsDir(), `${claimId}.json`);
-  if (!await backend.fileExists(filePath)) throw new ActionableError({
-    goal: 'Load conflict definition',
-    problem: `Conflict file not found: ${claimId}`,
+  const wrapper = await readConflictsWrapper();
+  const idx = wrapper.conflicts.findIndex(c => claimIdOf(c) === claimId);
+  if (idx === -1) throw new ActionableError({
+    goal: 'Update conflict definition',
+    problem: `Conflict not found: ${claimId}`,
     location: 'server/fileIO.ts → writeConflictFile',
     nextSteps: [
-      `Verify that ${claimId}.json exists in the conflicts directory`,
+      `Verify that a conflict with claim_id "${claimId}" exists in ${CONFLICTS_FILE}`,
       'Use createConflictFile() to create a new conflict instead of writeConflictFile()',
-      'Call readAllConflictFiles() to list available conflict files',
+      'Call readAllConflictFiles() to list available conflicts',
     ],
   });
-  await backend.writeFile(filePath, JSON.stringify(data, null, 2));
+  wrapper.conflicts[idx] = data as Record<string, unknown>;
+  await writeConflictsWrapper(wrapper.conflicts);
 }
 
 export async function createConflictFile(claimId: string, data: unknown): Promise<void> {
   assertSafeId(claimId, 'claimId');
-  const filePath = path.join(getConflictsDir(), `${claimId}.json`);
-  if (await backend.fileExists(filePath)) throw new ActionableError({
+  const wrapper = await readConflictsWrapper();
+  if (wrapper.conflicts.some(c => claimIdOf(c) === claimId)) throw new ActionableError({
     goal: 'Create conflict definition',
-    problem: `Conflict file already exists: ${claimId}`,
+    problem: `Conflict already exists: ${claimId}`,
     location: 'server/fileIO.ts → createConflictFile',
     nextSteps: [
-      `Use writeConflictFile() to update the existing ${claimId}.json`,
-      'Delete the existing file first if you intend to replace it',
+      `Use writeConflictFile() to update the existing conflict "${claimId}"`,
+      'Delete the existing conflict first if you intend to replace it',
     ],
   });
-  await backend.writeFile(filePath, JSON.stringify(data, null, 2));
+  wrapper.conflicts.push(data as Record<string, unknown>);
+  await writeConflictsWrapper(wrapper.conflicts);
 }
 
 export async function deleteConflictFile(claimId: string): Promise<void> {
   assertSafeId(claimId, 'claimId');
-  await backend.deleteFile(path.join(getConflictsDir(), `${claimId}.json`));
+  const wrapper = await readConflictsWrapper();
+  const filtered = wrapper.conflicts.filter(c => claimIdOf(c) !== claimId);
+  // No-op if the claim wasn't present (mirrors the prior delete-missing behavior).
+  if (filtered.length !== wrapper.conflicts.length) {
+    await writeConflictsWrapper(filtered);
+  }
 }
 
 // ── Lineage categories ──
