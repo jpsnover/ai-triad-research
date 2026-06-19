@@ -38,6 +38,7 @@ import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
 import * as fileIO from './fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, listFeedback } from './feedbackStore.js';
+import { stripEdgeRationale, type EdgesData } from './edgesApi.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
 import { computeNodeConflicts } from './nodeConflicts.js';
 import type { TaxNode, NodeConflict } from './nodeConflicts.js';
@@ -449,30 +450,44 @@ get('/api/lineage-info', async (_req, res) => {
 
 let edgesCache: unknown = null;
 
-get('/api/edges', async (_req, res) => {
+get('/api/edges', async (req, res) => {
   edgesCache = await fileIO.readEdgesFile();
-  json(res, edgesCache);
+  if (!edgesCache) { json(res, null); return; }
+  // ?include=rationale returns the full payload (backwards-compat for scripts).
+  if (query(req, 'include') === 'rationale') { json(res, edgesCache); return; }
+  json(res, stripEdgeRationale(edgesCache));
+});
+
+get('/api/edges/:index', async (req, res) => {
+  if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
+  const data = edgesCache as EdgesData | null;
+  const index = parseInt(param(req, 'index', '/api/edges/:index'), 10);
+  if (!data?.edges || isNaN(index) || index < 0 || index >= data.edges.length) {
+    error(res, 'Edge not found', 404);
+    return;
+  }
+  json(res, data.edges[index]);
 });
 
 put('/api/edges/status', async (_req, res, body) => {
   const { index, status: s } = body as { index: number; status: string };
   if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
   edgesCache = await fileIO.updateEdgeStatus(edgesCache, index, s);
-  json(res, edgesCache);
+  json(res, stripEdgeRationale(edgesCache));
 });
 
 put('/api/edges/swap', async (_req, res, body) => {
   const { index } = body as { index: number };
   if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
   edgesCache = await fileIO.swapEdgeDirection(edgesCache, index);
-  json(res, edgesCache);
+  json(res, stripEdgeRationale(edgesCache));
 });
 
 put('/api/edges/bulk-status', async (_req, res, body) => {
   const { indices, status: s } = body as { indices: number[]; status: string };
   if (!edgesCache) edgesCache = await fileIO.readEdgesFile();
   edgesCache = await fileIO.bulkUpdateEdges(edgesCache, indices, s);
-  json(res, edgesCache);
+  json(res, stripEdgeRationale(edgesCache));
 });
 
 // ── Source indexes ──
