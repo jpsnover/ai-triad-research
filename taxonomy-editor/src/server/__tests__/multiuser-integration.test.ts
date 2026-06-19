@@ -510,10 +510,11 @@ describe('Community Library workflow (integration)', () => {
     ).rejects.toThrow(/anonymous/i);
   });
 
-  it('max 5 pending submissions per user', async () => {
+  it('max 20 pending submissions per user', async () => {
+    // Limit raised from 5 to 20 in commit 4fadbdfe.
     const author = makeUserCtx('prolific', 'github', userContext.deriveStorageUserId);
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 20; i++) {
       await userContext.runWithUser(author, () =>
         community.submitToCommunity('chat', { id: `c${i}`, title: `Chat ${i}` })
       );
@@ -521,9 +522,9 @@ describe('Community Library workflow (integration)', () => {
 
     await expect(
       userContext.runWithUser(author, () =>
-        community.submitToCommunity('chat', { id: 'c6', title: 'One Too Many' })
+        community.submitToCommunity('chat', { id: 'c21', title: 'One Too Many' })
       )
-    ).rejects.toThrow(/5 pending/i);
+    ).rejects.toThrow(/20 pending/i);
   });
 
   it('approving a submission cannot be done twice', async () => {
