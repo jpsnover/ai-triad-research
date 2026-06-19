@@ -489,14 +489,17 @@ describe('Community Library workflow (integration)', () => {
     expect(debates).toHaveLength(0);
   });
 
-  it('anonymous users cannot submit', async () => {
+  it('anonymous users can submit (guarded by admin approval, not auth)', async () => {
+    // Commit 1d02a13 intentionally removed the anonymous guard on submitToCommunity:
+    // submissions are gated by admin review, and the guard was blocking Electron app
+    // users who lack Azure Easy Auth cookies. Anonymous users may still NOT copy
+    // community items (see the following test).
     const anon = makeAnonCtx('anon-123');
 
-    await expect(
-      userContext.runWithUser(anon, () =>
-        community.submitToCommunity('chat', { id: 'x', title: 'Anon Chat' })
-      )
-    ).rejects.toThrow(/anonymous/i);
+    const { submissionId } = await userContext.runWithUser(anon, () =>
+      community.submitToCommunity('chat', { id: 'x', title: 'Anon Chat' })
+    );
+    expect(submissionId).toBeTruthy();
   });
 
   it('anonymous users cannot copy community items', async () => {
