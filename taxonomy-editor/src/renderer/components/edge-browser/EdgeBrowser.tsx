@@ -12,6 +12,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import type { Edge, EdgeType, EdgeStatus, EdgesFile } from '../../types/taxonomy';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useEdgeRationale } from './EdgeDetailPanel';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -111,7 +112,8 @@ function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {
     if (f.searchText) {
       const q = f.searchText.toLowerCase();
       const edgeId = `edg-${String(e.index + 1).padStart(5, '0')}`;
-      const hay = [edgeId, e.source, e.target, e.sourceLabel, e.targetLabel, e.rationale, e.type, e.notes || ''].join(' ').toLowerCase();
+      // rationale is lazy-loaded (stripped from the list payload), so it can't be searched here.
+      const hay = [edgeId, e.source, e.target, e.sourceLabel, e.targetLabel, e.type, e.notes || ''].join(' ').toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -119,6 +121,19 @@ function applyFilters(edges: IndexedEdge[], f: FilterState): IndexedEdge[] {
 }
 
 // ── Main component ───────────────────────────────────────
+
+function EbRationale({ rationale }: { rationale: string | undefined }) {
+  return (
+    <div className="eb-detail-section">
+      <div className="eb-detail-section-label">Rationale</div>
+      {rationale === undefined ? (
+        <div className="eb-detail-rationale" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Loading rationale&hellip;</div>
+      ) : (
+        <div className="eb-detail-rationale">{rationale || '—'}</div>
+      )}
+    </div>
+  );
+}
 
 export function EdgeBrowser() {
   const { edgesFile, loadEdges, edgesLoading, getLabelForId, getDescriptionForId } = useTaxonomyStore();
@@ -148,6 +163,9 @@ export function EdgeBrowser() {
   const filteredEdges = useMemo(() => applyFilters(indexedEdges, filters), [indexedEdges, filters]);
 
   const selectedEdge = selectedIdx !== null ? indexedEdges[selectedIdx] : null;
+
+  // Rationale is stripped from the edges list (lazy loading) — fetch it on demand.
+  const { rationale: detailRationale } = useEdgeRationale(selectedEdge, edgesFile?.edges);
 
   const setFilter = useCallback((key: keyof FilterState, value: string | number | boolean) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -411,10 +429,7 @@ export function EdgeBrowser() {
                 </div>
               </div>
 
-              <div className="eb-detail-section">
-                <div className="eb-detail-section-label">Rationale</div>
-                <div className="eb-detail-rationale">{selectedEdge.rationale}</div>
-              </div>
+              <EbRationale rationale={detailRationale} />
 
               <div className="eb-detail-meta">
                 {selectedEdge.weight != null && <span title="How strong the relationship is">Weight: {Math.round(selectedEdge.weight * 100)}%</span>}

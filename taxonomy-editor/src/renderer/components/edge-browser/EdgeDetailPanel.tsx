@@ -47,7 +47,7 @@ function povLabel(id: string): string {
  * `rationale` is `undefined` while resolution is pending, `''` when the edge has no
  * rationale, or the rationale text.
  */
-function useEdgeRationale(
+export function useEdgeRationale(
   selectedEdge: Edge | null,
   edges: Edge[] | undefined,
 ): { rationale: string | undefined; loading: boolean } {
@@ -69,7 +69,8 @@ function useEdgeRationale(
       return;
     }
 
-    const cacheKey = `${selectedEdge.source} ${selectedEdge.target} ${selectedEdge.type}`;
+    // NUL separator can't appear in node IDs or edge types, so keys never collide.
+    const cacheKey = [selectedEdge.source, selectedEdge.target, selectedEdge.type].join('\0');
     const cached = cacheRef.current.get(cacheKey);
     if (cached !== undefined) {
       setRationale(cached);
@@ -100,12 +101,17 @@ function useEdgeRationale(
         const detail = (await api.getEdgeDetail(index)) as Edge | null;
         if (cancelled) return;
         const text = detail?.rationale ?? '';
+        // Cap the cache so a long browsing session can't grow it unbounded.
+        if (cacheRef.current.size >= 200) {
+          const oldest = cacheRef.current.keys().next().value;
+          if (oldest !== undefined) cacheRef.current.delete(oldest);
+        }
         cacheRef.current.set(cacheKey, text);
         setRationale(text);
       } catch (err) {
         if (cancelled) return;
         getGlobalRecorder()?.record({
-          type: 'system.error',
+          type: 'state.error',
           component: 'edge-detail-panel',
           level: 'error',
           message: 'Edge rationale fetch failed',
@@ -124,17 +130,15 @@ function useEdgeRationale(
   return { rationale, loading };
 }
 
-function RationaleSection({ inlineRationale, fetchedRationale, loading, clamped, onToggleClamp }: {
-  inlineRationale: string | undefined;
-  fetchedRationale: string | undefined;
+function RationaleSection({ rationale, loading, clamped, onToggleClamp }: {
+  rationale: string | undefined;
   loading: boolean;
   clamped: boolean;
   onToggleClamp: () => void;
 }) {
-  // Prefer an inline value (e.g. ?include=rationale); otherwise show the fetched value.
-  const hasInline = inlineRationale != null && inlineRationale !== '';
-  const text = hasInline ? inlineRationale : fetchedRationale;
-  const pending = !hasInline && (loading || fetchedRationale === undefined);
+  // `rationale` is undefined until resolved (the hook already merges inline + fetched).
+  const text = rationale;
+  const pending = loading || rationale === undefined;
   return (
     <div className="edge-detail-section">
       <div className="edge-detail-section-label">Rationale</div>
@@ -254,8 +258,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
 
         {/* Rationale */}
         <RationaleSection
-          inlineRationale={edge.rationale}
-          fetchedRationale={resolvedRationale}
+          rationale={resolvedRationale}
           loading={rationaleLoading}
           clamped={rationaleClamped}
           onToggleClamp={() => setRationaleClamped(!rationaleClamped)}
