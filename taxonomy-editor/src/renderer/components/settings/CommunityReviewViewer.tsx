@@ -76,6 +76,10 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
     setError(null);
     try {
       const d = await fetchDetail(groupId);
+      if ('found' in d && !d.found) {
+        setError('Submission not found — it may have been promoted or deleted.');
+        return;
+      }
       setDetail(d);
       setEditTitle(d.title ?? '');
       setEditDescription('');

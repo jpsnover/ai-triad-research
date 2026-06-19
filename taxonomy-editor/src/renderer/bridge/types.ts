@@ -193,6 +193,7 @@ export interface AppAPI {
   listCommunityDebates: () => Promise<unknown[]>;
   submitToCommunity: (type: 'chat' | 'debate', itemData: unknown, note?: string) => Promise<{ submissionId: string }>;
   copyFromCommunity: (type: 'chats' | 'debates', communityId: string) => Promise<{ newId: string }>;
+  loadCommunityDebateSession: (id: string) => Promise<unknown>;
   // Submit to a remote community server. In Electron this is proxied through the main
   // process (net.fetch) so it is not blocked by browser CORS; baseUrl is the server origin.
   communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;

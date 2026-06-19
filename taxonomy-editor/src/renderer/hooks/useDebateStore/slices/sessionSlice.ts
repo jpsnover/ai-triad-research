@@ -47,6 +47,7 @@ export interface SessionSlice {
   createSituationDebate: (ccNodeId: string) => Promise<string>;
   createConflictDebate: (claimId: string) => Promise<string>;
   loadDebate: (id: string) => Promise<void>;
+  loadDebateFromData: (raw: unknown, opts?: { readOnly?: boolean }) => void;
   deleteDebate: (id: string) => Promise<void>;
   renameDebate: (id: string, newTitle: string) => Promise<void>;
   closeDebate: () => void;
@@ -323,6 +324,56 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       getGlobalRecorder()?.record({ type: 'state.error', component: 'debate-store', level: 'error', debate_id: id, message: 'Failed to load debate', error: { name: 'LoadError', message: String(err), stack: (err as Error).stack } });
       set({ debateLoading: false, debateError: mapErrorToUserMessage(err) });
     }
+  },
+
+  loadDebateFromData: (raw, opts) => {
+    resetDoctrinalAnchoringCache();
+    resetSignalHistory();
+    resetGapInjectionCount();
+    resetNeutralMapping();
+    const session = raw as DebateSession;
+    session.active_povers = normalizeActivePovers(session.active_povers);
+    for (const entry of session.transcript) {
+      entry.speaker = migrateSpeakerId(entry.speaker) as SpeakerId;
+    }
+    if (session.opening_order) {
+      session.opening_order = session.opening_order.map(s => migrateSpeakerId(s)) as typeof session.opening_order;
+    }
+    if (session.argument_network?.nodes) {
+      for (const node of session.argument_network.nodes) {
+        node.speaker = migrateSpeakerId(node.speaker);
+      }
+    }
+    for (const entry of session.transcript) {
+      if (entry.type === 'concluding' && entry.metadata?.synthesis) {
+        const synthesis = entry.metadata.synthesis as { areas_of_disagreement?: { bdi_layer?: string }[] };
+        if (Array.isArray(synthesis.areas_of_disagreement)) {
+          for (const d of synthesis.areas_of_disagreement) {
+            if (d.bdi_layer) {
+              d.bdi_layer = normalizeBdiLayer(d.bdi_layer as Parameters<typeof normalizeBdiLayer>[0]);
+            }
+          }
+        }
+      }
+    }
+    const runId = generateId();
+    session.run_id = runId;
+    set({
+      activeDebateId: session.id,
+      activeDebate: session,
+      debateLoading: false,
+      debateError: null,
+      debateWarnings: [],
+      debateModel: session.debate_model || null,
+      debateTemperature: session.debate_temperature ?? null,
+      audience: session.audience ?? 'policymakers',
+      openingOrder: session.opening_order ?? [],
+      selectedDiagEntry: null,
+      communityReadOnly: opts?.readOnly ?? false,
+    });
+    setGapInjectionCount(session.gap_injections?.length ?? 0);
+    getGlobalRecorder()?.setEventContext({ debate_id: session.id, run_id: runId });
+    getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: session.id, run_id: runId, message: 'Debate loaded from data', data: { phase: session.phase, transcript_length: session.transcript.length, readOnly: opts?.readOnly ?? false } });
   },
 
   deleteDebate: async (id) => {

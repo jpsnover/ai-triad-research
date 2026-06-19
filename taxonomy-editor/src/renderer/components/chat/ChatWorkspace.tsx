@@ -184,7 +184,7 @@ function useSelectedNode(nodeId: string | null) {
 
 export function ChatWorkspace() {
   const {
-    activeChat, chatLoading, chatError, chatGenerating,
+    activeChat, chatLoading, chatError, chatGenerating, chatActivity,
     sendMessage, generateOpening, changeMode,
   } = useChatStore();
   const transcriptEndRef = useRef<HTMLDivElement>(null);
@@ -269,10 +269,19 @@ export function ChatWorkspace() {
 
         {/* Transcript */}
         <div className="chat-transcript">
-          {activeChat.transcript.map((entry) => (
-            <ChatMessage key={entry.id} entry={entry} selectedNodeId={selectedRefNodeId} onSelectNode={setSelectedRefNodeId} />
-          ))}
-          <ProgressIndicator />
+          {activeChat.transcript.length === 0 && chatGenerating ? (
+            <div className="chat-generating-hero">
+              <div className="chat-generating-spinner" />
+              <span>{chatActivity || 'Preparing conversation...'}</span>
+            </div>
+          ) : (
+            <>
+              {activeChat.transcript.map((entry) => (
+                <ChatMessage key={entry.id} entry={entry} selectedNodeId={selectedRefNodeId} onSelectNode={setSelectedRefNodeId} />
+              ))}
+              <ProgressIndicator />
+            </>
+          )}
           <div ref={transcriptEndRef} />
         </div>
 

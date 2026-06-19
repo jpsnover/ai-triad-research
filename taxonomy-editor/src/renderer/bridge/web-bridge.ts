@@ -495,6 +495,7 @@ const rawApi: AppAPI = {
   listCommunityDebates: () => get('/api/community/debates').catch(() => []),
   submitToCommunity: (type, itemData, note) => post('/api/community/submit', { type, data: itemData, note }),
   copyFromCommunity: (type, communityId) => post('/api/community/copy', { type, communityId }),
+  loadCommunityDebateSession: (id) => get(`/api/community/debates/${encodeURIComponent(id)}`),
   // Web mode is same-origin; baseUrl is ignored and the relative path is used.
   communitySubmit: (_baseUrl, payload) => post('/api/community/submit', payload),
 
@@ -612,7 +613,7 @@ const rawApi: AppAPI = {
     return () => { diagClosedCallbacks.delete(cb); };
   },
   openChatWindow: async () => {
-    window.open(`${window.location.origin}#chat-window`, 'pover-chat', 'width=700,height=800');
+    window.open(`${window.location.origin}#chat-window`, 'pover-chat', 'width=900,height=800');
   },
   onChatPopoutClosed: () => () => {},
   requestReExtractClaims: (entryId) => {

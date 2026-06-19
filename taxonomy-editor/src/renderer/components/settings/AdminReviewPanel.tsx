@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import ErrorBoundary from '../../../../lib/electron-shared/components/ErrorBoundary';
 import { CalibrationReviewViewer } from '../analysis';
 import { CommunityReviewViewer } from './CommunityReviewViewer';
 import './AdminReviewPanel.css';
@@ -146,11 +147,19 @@ function ViewerRouter({ selected, onActionComplete }: {
   }
 
   if (selected.domain === 'calibration') {
-    return <CalibrationReviewViewer groupId={selected.id} onActionComplete={onActionComplete} />;
+    return (
+      <ErrorBoundary key={selected.id} fallbackLabel="CalibrationReviewViewer">
+        <CalibrationReviewViewer groupId={selected.id} onActionComplete={onActionComplete} />
+      </ErrorBoundary>
+    );
   }
 
   if (selected.domain === 'community') {
-    return <CommunityReviewViewer groupId={selected.id} onActionComplete={onActionComplete} />;
+    return (
+      <ErrorBoundary key={selected.id} fallbackLabel="CommunityReviewViewer">
+        <CommunityReviewViewer groupId={selected.id} onActionComplete={onActionComplete} />
+      </ErrorBoundary>
+    );
   }
 
   return (

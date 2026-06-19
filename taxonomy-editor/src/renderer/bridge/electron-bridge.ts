@@ -190,6 +190,7 @@ export const api: AppAPI = {
   listCommunityDebates: async () => [],
   submitToCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
   copyFromCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
+  loadCommunityDebateSession: async () => { throw new Error('Community Library is only available in the web app'); },
   // Proxy through the main process so the cross-origin POST is not blocked by browser CORS.
   communitySubmit: (baseUrl, payload) => window.electronAPI.communitySubmit(baseUrl, payload),
 

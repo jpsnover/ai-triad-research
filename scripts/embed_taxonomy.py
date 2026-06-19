@@ -270,29 +270,34 @@ def _load_policy_registry():
 
 
 def _load_conflict_nodes():
-    """Read all conflict JSON files and return a list of conflict dicts.
+    """Read conflicts from conflicts.json and return a list of conflict dicts.
 
     Each dict has at minimum: claim_id, claim_label, description.
-    Files starting with '_' (e.g. _conflict-clusters.json) are skipped.
+    Falls back to empty list if conflicts.json is missing.
     """
-    if not CONFLICTS_DIR.exists():
+    if not CONFLICTS_DIR or not CONFLICTS_DIR.exists():
         print(f"Warning: conflicts directory not found at {CONFLICTS_DIR}", file=sys.stderr)
         return []
 
-    conflicts = []
-    for path in sorted(CONFLICTS_DIR.glob("*.json")):
-        if path.name.startswith("_"):
-            continue
-        try:
-            data = json.loads(path.read_text(encoding="utf-8-sig"))
-            conflicts.append({
-                "claim_id": data.get("claim_id", path.stem),
-                "claim_label": data.get("claim_label", ""),
-                "description": data.get("description", ""),
-            })
-        except (json.JSONDecodeError, OSError) as exc:
-            print(f"Warning: skipping conflict {path.name}: {exc}", file=sys.stderr)
-    return conflicts
+    conflicts_file = CONFLICTS_DIR / "conflicts.json"
+    if not conflicts_file.exists():
+        print(f"Warning: {conflicts_file} not found — no conflicts to embed", file=sys.stderr)
+        return []
+
+    try:
+        wrapper = json.loads(conflicts_file.read_text(encoding="utf-8"))
+        entries = wrapper.get("conflicts", [])
+        return [
+            {
+                "claim_id": c.get("claim_id", ""),
+                "claim_label": c.get("claim_label", ""),
+                "description": c.get("description", ""),
+            }
+            for c in entries
+        ]
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Warning: could not read {conflicts_file}: {exc}", file=sys.stderr)
+        return []
 
 
 def cmd_generate(args):

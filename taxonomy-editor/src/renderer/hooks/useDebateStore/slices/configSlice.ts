@@ -46,6 +46,9 @@ export interface ConfigSlice {
   reflections: ReflectionResult[];
   consensusClusters: ConsensusCluster[];
 
+  // Community read-only mode (viewing a shared debate without copying)
+  communityReadOnly: boolean;
+
   // News
   newsReport: string | null;
   newsReportLoading: boolean;
@@ -89,6 +92,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   taxonomyGapAnalysis: null,
   reflections: [],
   consensusClusters: [],
+  communityReadOnly: false,
   newsReport: null,
   newsReportLoading: false,
   newsReportError: null,

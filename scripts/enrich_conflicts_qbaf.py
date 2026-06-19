@@ -404,20 +404,25 @@ def main():
     node_meta = _load_taxonomy_nodes()
     _log(f"  Loaded {len(node_meta)} taxonomy nodes")
 
-    # Load conflict files
+    # Load conflicts from conflicts.json
     _log("\n[2/3] Loading conflicts...")
-    conflict_files = sorted(CONFLICTS_DIR.glob("*.json"))
-    conflict_files = [f for f in conflict_files if not f.name.startswith("_")]
+    conflicts_file = CONFLICTS_DIR / "conflicts.json"
+    if not conflicts_file.exists():
+        _log(f"  ERROR: {conflicts_file} not found")
+        return
 
+    try:
+        wrapper = json.loads(conflicts_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        _log(f"  ERROR reading {conflicts_file}: {exc}")
+        return
+
+    all_entries = wrapper.get("conflicts", [])
     conflicts = []
-    for p in conflict_files:
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            if args.id and data.get("claim_id") != args.id:
-                continue
-            conflicts.append((p, data))
-        except (json.JSONDecodeError, OSError) as exc:
-            _log(f"  SKIP: {p.name} — {exc}")
+    for data in all_entries:
+        if args.id and data.get("claim_id") != args.id:
+            continue
+        conflicts.append((conflicts_file, data))
 
     _log(f"  Loaded {len(conflicts)} conflicts")
 
@@ -509,13 +514,17 @@ def main():
         conflict["qbaf"] = qbaf
         enriched += 1
 
-        if args.write:
-            path.write_text(
-                json.dumps(conflict, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8", newline="\n",
-            )
-
     _log(f"  enriched={enriched} no_edges={no_edges} failed={failed}")
+
+    if args.write and enriched > 0:
+        from datetime import timezone
+        wrapper["last_modified"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        wrapper["conflict_count"] = len(wrapper.get("conflicts", []))
+        conflicts_file.write_text(
+            json.dumps(wrapper, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8", newline="\n",
+        )
+        _log(f"  Wrote updated conflicts.json ({enriched} enriched)")
 
     elapsed = time.time() - t0
 

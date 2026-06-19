@@ -33,23 +33,24 @@ const MAX_CLUSTERS = maxClustersArg >= 0 ? parseInt(args[maxClustersArg + 1], 10
 // ── Load conflicts ──────────────────────────────────────────────
 
 function loadConflicts() {
-  const files = fs.readdirSync(CONFLICTS_DIR)
-    .filter(f => f.endsWith('.json') && !f.startsWith('_'));
-  const conflicts = [];
-  for (const f of files) {
-    try {
-      const data = JSON.parse(fs.readFileSync(path.join(CONFLICTS_DIR, f), 'utf-8'));
-      conflicts.push({
-        claim_id: data.claim_id,
-        claim_label: data.claim_label || '',
-        description: data.description || '',
-        status: data.status || 'open',
-      });
-    } catch (err) {
-      console.warn(`  Skipping ${f}: ${err.message}`);
-    }
+  const conflictsFile = path.join(CONFLICTS_DIR, 'conflicts.json');
+  if (!fs.existsSync(conflictsFile)) {
+    console.warn(`  conflicts.json not found at ${conflictsFile}`);
+    return [];
   }
-  return conflicts.sort((a, b) => a.claim_label.localeCompare(b.claim_label));
+  try {
+    const wrapper = JSON.parse(fs.readFileSync(conflictsFile, 'utf-8'));
+    const entries = wrapper.conflicts || [];
+    return entries.map(c => ({
+      claim_id: c.claim_id,
+      claim_label: c.claim_label || '',
+      description: c.description || '',
+      status: c.status || 'open',
+    })).sort((a, b) => a.claim_label.localeCompare(b.claim_label));
+  } catch (err) {
+    console.error(`  Error reading ${conflictsFile}: ${err.message}`);
+    return [];
+  }
 }
 
 // ── Compute embeddings + clustering in Python ───────────────────

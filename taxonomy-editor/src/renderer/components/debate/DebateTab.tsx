@@ -823,6 +823,47 @@ function DebateDetailSummary({
 // ── Community Debate Detail ──
 
 function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
+  const [full, setFull] = useState<DebateSession | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFull(null);
+    setError(null);
+    setLoading(true);
+    api.loadCommunityDebateSession(debate.id).then(raw => {
+      if (cancelled) return;
+      if (raw && typeof raw === 'object' && 'found' in (raw as Record<string, unknown>) && !(raw as Record<string, unknown>).found) {
+        setError('Debate not found — it may have been removed.');
+        return;
+      }
+      setFull(raw as DebateSession);
+    }).catch(err => {
+      if (cancelled) return;
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'community-debate-detail',
+        level: 'error',
+        message: 'Failed to load community debate detail',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      setError('Could not load debate details.');
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [debate.id]);
+
+  const handleOpenWindow = useCallback(() => {
+    window.open(`${location.origin}/#debate-window?id=${encodeURIComponent(debate.id)}&source=community`, '_blank');
+  }, [debate.id]);
+
+  const topic = full?.topic ? (full.topic.final || full.topic.refined || full.topic.original) : null;
+  const turnCount = full?.transcript?.filter(t => t.type === 'statement' || t.type === 'opening').length ?? 0;
+  const anNodeCount = full?.argument_network?.nodes?.length ?? 0;
+  const anEdgeCount = full?.argument_network?.edges?.length ?? 0;
+
   return (
     <div className="debate-detail-summary">
       <div className="debate-detail-header">
@@ -836,8 +877,101 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
           </span>
         )}
       </div>
-      {debate.community_metadata && (
-        <div className="debate-detail-grid">
+
+      <div className="debate-detail-actions">
+        <button className="btn btn-primary" onClick={handleOpenWindow} disabled={loading || !!error}>
+          Open in Window
+        </button>
+      </div>
+
+      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '8px 0' }}>Loading debate details...</p>}
+      {error && <p style={{ color: 'var(--danger, #ef4444)', fontSize: '0.85rem', padding: '8px 0' }}>{error}</p>}
+
+      {/* Debaters */}
+      {full?.active_povers && full.active_povers.length > 0 && (
+        <div className="debate-detail-debaters-row">
+          <h3>Debaters</h3>
+          <div className="debate-detail-povers">
+            {full.active_povers.map(p => {
+              const info = POVER_LABELS[p] ?? { label: p, color: 'var(--text-muted)' };
+              return (
+                <span key={p} className="debate-detail-pover" style={{ borderColor: info.color }}>
+                  {info.label}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Topic */}
+      {topic && (
+        <div className="debate-detail-topic-row">
+          <h3>Topic</h3>
+          <div className="debate-detail-topic-scroll">
+            <p className="debate-detail-topic">{topic}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="debate-detail-grid">
+        {/* Source */}
+        {full?.source_type && (
+          <div className="debate-detail-section">
+            <h3>Source</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Type:</span>
+              <span>{SOURCE_TYPE_LABELS[full.source_type] ?? full.source_type}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Statistics */}
+        {full && (
+          <div className="debate-detail-section">
+            <h3>Statistics</h3>
+            <div className="debate-detail-stats">
+              <div className="debate-detail-stat">
+                <span className="debate-detail-stat-value">{turnCount}</span>
+                <span className="debate-detail-stat-label">Turns</span>
+              </div>
+              {anNodeCount > 0 && (
+                <div className="debate-detail-stat">
+                  <span className="debate-detail-stat-value">{anNodeCount}</span>
+                  <span className="debate-detail-stat-label">Arguments</span>
+                </div>
+              )}
+              {anEdgeCount > 0 && (
+                <div className="debate-detail-stat">
+                  <span className="debate-detail-stat-value">{anEdgeCount}</span>
+                  <span className="debate-detail-stat-label">Relations</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Configuration */}
+        {full && (full.audience || full.debate_model) && (
+          <div className="debate-detail-section">
+            <h3>Configuration</h3>
+            {full.audience && (
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Audience:</span>
+                <span>{full.audience.replace(/_/g, ' ')}</span>
+              </div>
+            )}
+            {full.debate_model && (
+              <div className="debate-detail-meta-row">
+                <span className="debate-detail-label">Model:</span>
+                <span>{full.debate_model}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Community Info */}
+        {debate.community_metadata && (
           <div className="debate-detail-section">
             <h3>Community Info</h3>
             <div className="debate-detail-meta-row">
@@ -853,19 +987,20 @@ function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
               <span>{formatDateLong(debate.community_metadata.approved_at)}</span>
             </div>
           </div>
-          <div className="debate-detail-section">
-            <h3>Timestamps</h3>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Created:</span>
-              <span>{formatDateLong(debate.created_at)}</span>
-            </div>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Updated:</span>
-              <span>{formatDateLong(debate.updated_at)}</span>
-            </div>
+        )}
+
+        <div className="debate-detail-section">
+          <h3>Timestamps</h3>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Created:</span>
+            <span>{formatDateLong(debate.created_at)}</span>
+          </div>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Updated:</span>
+            <span>{formatDateLong(debate.updated_at)}</span>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

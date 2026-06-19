@@ -256,6 +256,10 @@ export function CalibrationReviewViewer({ groupId, onActionComplete }: Calibrati
     setError(null);
     try {
       const d = await fetchDetail(groupId);
+      if ('found' in d && !d.found) {
+        setError('Submission not found — it may have been promoted or deleted.');
+        return;
+      }
       setDetail(d);
       setSelected(new Set());
       setDrafts({});

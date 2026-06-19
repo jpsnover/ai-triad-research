@@ -69,15 +69,22 @@ def _log(msg, **kwargs):
 
 
 def _load_conflicts():
-    """Load all conflict JSON files. Returns list of (path, data) tuples."""
-    conflicts = []
-    for p in sorted(CONFLICTS_DIR.glob("*.json")):
-        try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-            conflicts.append((p, data))
-        except (json.JSONDecodeError, OSError) as exc:
-            _log(f"  SKIP corrupt: {p.name} — {exc}")
-    return conflicts
+    """Load all conflicts from conflicts.json. Returns list of (None, data) tuples.
+
+    The first element of each tuple is None (no per-file path in single-file model).
+    Falls back to empty list if conflicts.json is missing.
+    """
+    conflicts_file = CONFLICTS_DIR / "conflicts.json"
+    if not conflicts_file.exists():
+        _log(f"  Warning: {conflicts_file} not found — returning empty list")
+        return []
+    try:
+        wrapper = json.loads(conflicts_file.read_text(encoding="utf-8"))
+        entries = wrapper.get("conflicts", [])
+        return [(None, c) for c in entries]
+    except (json.JSONDecodeError, OSError) as exc:
+        _log(f"  ERROR reading {conflicts_file}: {exc}")
+        return []
 
 
 def _load_taxonomy_embeddings():
@@ -383,57 +390,56 @@ def classify_attack_types(consolidated, nli_model):
 # ── Output ───────────────────────────────────────────────────────────────────
 
 def write_consolidated(consolidated, source_map, output_dir, replace=False):
-    """Write consolidated conflict files.
+    """Write consolidated conflicts to a single conflicts.json.
 
     Args:
         consolidated: list of merged conflict dicts
-        source_map: dict mapping claim_id -> list of original file paths
-        output_dir: where to write (staging dir or original conflicts dir)
-        replace: if True, also remove original files that were merged away
+        source_map: dict mapping claim_id -> merge source count (int)
+        output_dir: directory containing conflicts.json
+        replace: ignored (legacy flag from per-file model)
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     manifest = {
         "generated_at": datetime.now().isoformat(),
-        "original_count": sum(len(v) for v in source_map.values()),
+        "original_count": sum(source_map.values()),
         "consolidated_count": len(consolidated),
-        "reduction": f"{(1 - len(consolidated) / max(1, sum(len(v) for v in source_map.values()))) * 100:.0f}%",
+        "reduction": f"{(1 - len(consolidated) / max(1, sum(source_map.values()))) * 100:.0f}%",
         "clusters": {},
     }
 
     for conflict in consolidated:
         cid = conflict["claim_id"]
-        out_path = output_dir / f"{cid}.json"
-        out_path.write_text(
-            json.dumps(conflict, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8", newline="\n",
-        )
-
-        sources = source_map.get(cid, [])
+        count = source_map.get(cid, 1)
         manifest["clusters"][cid] = {
             "instance_count": len(conflict.get("instances", [])),
             "linked_nodes": len(conflict.get("linked_taxonomy_nodes", [])),
-            "merged_from": len(sources),
-            "source_files": [str(p.name) for p in sources],
+            "merged_from": count,
         }
+
+    consolidated.sort(key=lambda c: c.get("claim_id", ""))
+
+    wrapper = {
+        "_schema_version": "2.0",
+        "_doc": "All conflict entries. Per-entry schema unchanged from conflict.schema.json.",
+        "last_modified": datetime.now().isoformat(),
+        "conflict_count": len(consolidated),
+        "conflicts": consolidated,
+    }
+
+    conflicts_path = output_dir / "conflicts.json"
+    conflicts_path.write_text(
+        json.dumps(wrapper, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    _log(f"  Wrote {len(consolidated)} conflicts to {conflicts_path}")
 
     manifest_path = output_dir / "_consolidation_manifest.json"
     manifest_path.write_text(
         json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8", newline="\n",
     )
-
-    if replace:
-        # Remove originals that were merged into another conflict
-        removed = 0
-        for cid, sources in source_map.items():
-            keep_path = output_dir / f"{cid}.json"
-            for src in sources:
-                if src.name != keep_path.name and src.exists():
-                    src.unlink()
-                    removed += 1
-        _log(f"  Removed {removed} merged-away original files")
 
     return manifest
 
@@ -519,12 +525,12 @@ def main():
     # ── Merge clusters ──
     _log("\n[5/6] Merging clusters...")
     consolidated = []
-    source_map = {}  # claim_id -> [original paths]
+    source_map = {}  # claim_id -> merge count (int)
 
     for cluster in clusters:
         merged, source_paths = merge_cluster(cluster)
         consolidated.append(merged)
-        source_map[merged["claim_id"]] = source_paths
+        source_map[merged["claim_id"]] = len(source_paths)
 
     # ── Phase 2: Enrich ──
     _log(f"\n[6/6] Phase 2: Enrichment...")

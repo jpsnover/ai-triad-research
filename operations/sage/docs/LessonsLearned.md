@@ -452,19 +452,23 @@ Institutional memory for failure patterns across the AI Triad Research project.
 
 ## [Build] Overlay Repo (ogit) Requires Special Git Handling
 
-**Pattern:** The Orca overlay repo (`ogit`) has two recurring git pitfalls: (1) `git add` rejects files that match the main repo's `.gitignore`, and (2) push contention occurs just like the main repo.
+**Pattern:** The Orca overlay repo (`ogit`) has three recurring git pitfalls: (1) `ogit` is a shell alias unavailable in non-interactive shells (Bash tool), (2) `git add` rejects files that match the main repo's `.gitignore` — and negation patterns like `!**/AGENTS.md` can't re-include files under already-excluded parent dirs, (3) push contention occurs just like the main repo.
 
 **Instances:**
 - 2026-05-27 — Taxonomy Editor: `ogit add` rejected paths ignored by main repo's `.gitignore`. Fixed with `git add -f` since the overlay intentionally tracks files like `.orca.yaml` and `AGENTS.md` that the main repo ignores (p/6#7).
 - 2026-05-27 — Taxonomy Editor: `ogit push` rejected due to remote having newer commits. Fixed with `git pull --rebase` then push (p/6#7).
+- 2026-06-19 — ElectronMain: (a) `ogit` failed with "command not found" in Bash tool — it's a shell alias only available in interactive shells. Fixed by expanding to `git --git-dir=.orca-git --work-tree=.`. (b) `git add` of a new nested `AGENTS.md` rejected as "ignored by .gitignore" — `.orca-gitignore` has `!**/AGENTS.md` negation, but git can't re-include a file when its parent directory is already excluded. Fixed with `git add -f` (p/98#1).
 
-**Root Cause:** (1) The overlay repo shares the working tree with the main repo, so the main repo's `.gitignore` affects `ogit add`. But the overlay intentionally tracks files the main repo ignores (`.orca.yaml`, `AGENTS.md`, `.orca/`). (2) Multiple agents update overlay files in parallel, causing the same push contention as the main repo.
+**Root Cause:** (1) `ogit` is defined as a shell alias (`alias ogit='git --git-dir=.orca-git --work-tree=.'`), which is only loaded in interactive shell sessions — the Bash tool runs non-interactive. (2) The overlay repo shares the working tree with the main repo, so `.gitignore` affects `ogit add`. Negation patterns (`!**/AGENTS.md`) cannot re-include files when a parent directory is already excluded by a broader rule. (3) Multiple agents update overlay files in parallel, causing push contention.
 
 **Prevention:**
-1. Always use `ogit add -f <path>` (force) when staging overlay files — they will be gitignored by the main repo by design.
-2. Before pushing, run `ogit pull --rebase` to incorporate remote changes.
-3. Remember: `ogit` commands must be run from the repo root — `.orca-git` is not visible from subdirectories.
-4. Never use `git add` or `git commit` for overlay-tracked files — always use `ogit`.
+1. **Never use `ogit` in the Bash tool** — expand it to `git --git-dir=.orca-git --work-tree=.` since shell aliases aren't available in non-interactive shells.
+2. Always use `-f` (force) when staging overlay files — they will be gitignored by the main repo by design. This applies to both existing and new files, especially nested `AGENTS.md` files under already-excluded parent directories.
+3. Before pushing, run `git --git-dir=.orca-git --work-tree=. pull --rebase` to incorporate remote changes.
+4. Must be run from the repo root — `.orca-git` is not visible from subdirectories.
+5. Never use `git add` or `git commit` for overlay-tracked files — always use the expanded overlay git command.
+
+**Status:** Resolved — root AGENTS.md Orca Overlay Repo section updated with non-interactive shell expansion note and `ogit add -f` requirement (p/8#28).
 
 **Applies To:** All agents committing to the overlay repo (AGENTS.md, .orca.yaml, .orca/ directory).
 

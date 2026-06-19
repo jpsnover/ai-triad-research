@@ -259,12 +259,10 @@ export function loadTaxonomy(repoRoot: string): LoadedTaxonomy {
 export function loadConflicts(repoRoot: string): ConflictFile[] {
   const dataRoot = resolveDataRoot(repoRoot);
   const config = loadConfig(repoRoot);
-  const conflictsDir = path.join(dataRoot, config.conflicts_dir);
-
-  if (!fs.existsSync(conflictsDir)) return [];
-
-  const files = fs.readdirSync(conflictsDir).filter(f => f.endsWith('.json'));
-  return files.map(f => loadJsonSafe<ConflictFile>(path.join(conflictsDir, f), null as unknown as ConflictFile)).filter(Boolean);
+  const conflictsPath = path.join(dataRoot, config.conflicts_dir, 'conflicts.json');
+  const raw = loadJsonSafe<{ conflicts?: ConflictFile[] } | null>(conflictsPath, null);
+  if (!raw || !Array.isArray(raw.conflicts)) return [];
+  return raw.conflicts;
 }
 
 // ── Vocabulary loading ──────────────────────────────────

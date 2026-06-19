@@ -422,79 +422,141 @@ export function readConflictClusters(): unknown | null {
   } catch { /* telemetry — silent by design */ return null; }
 }
 
-export function readAllConflictFiles(): unknown[] {
-  if (!fs.existsSync(CONFLICTS_DIR)) {
-    return [];
-  }
-  const files = fs.readdirSync(CONFLICTS_DIR).filter(f => f.endsWith('.json') && !f.startsWith('_'));
-  const results: unknown[] = [];
-  for (const f of files) {
-    try {
-      results.push(parseJsonFile(path.join(CONFLICTS_DIR, f)));
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'file-io',
-        level: 'error',
-        message: 'Operation failed',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      console.warn(`[fileIO] Skipping corrupt conflict file ${f}:`, err);
-    }
-  }
-  return results;
+// Conflicts are stored in a single consolidated file (schema v2.0) rather than
+// one file per claim. Mirrors the server fileIO contract but synchronous.
+const CONFLICTS_FILE = path.join(CONFLICTS_DIR, 'conflicts.json');
+
+interface ConflictsWrapper {
+  _schema_version: string;
+  last_modified: string;
+  conflict_count: number;
+  conflicts: Record<string, unknown>[];
+  [k: string]: unknown;
 }
 
-export function writeConflictFile(claimId: string, data: unknown): void {
-  const filePath = path.join(CONFLICTS_DIR, `${claimId}.json`);
-  if (!fs.existsSync(filePath)) {
-    throw new ActionableError({
-      goal: 'Load conflict definition',
-      problem: `Conflict file not found: ${claimId}`,
-      location: 'main/fileIO.ts → writeConflictFile',
-      nextSteps: [
-        `Verify that ${claimId}.json exists in ${CONFLICTS_DIR}`,
-        'Use createConflictFile() to create a new conflict instead of writeConflictFile()',
-        'Run readAllConflictFiles() to list available conflict files',
-      ],
-    });
-  }
-  writeJsonFileAtomic(filePath, data);
+function getClaimId(conflict: unknown): string | undefined {
+  return (conflict as { claim_id?: string } | null)?.claim_id;
 }
 
-export function createConflictFile(claimId: string, data: unknown): void {
+/** Read the consolidated conflicts.json wrapper. Returns null if absent. Throws ActionableError on corrupt JSON. */
+function readConflictsWrapper(): ConflictsWrapper | null {
+  if (!fs.existsSync(CONFLICTS_FILE)) return null;
+  const parsed = parseJsonFile(CONFLICTS_FILE) as ConflictsWrapper;
+  if (!parsed || !Array.isArray(parsed.conflicts)) return null;
+  return parsed;
+}
+
+/** Persist the conflicts array back to conflicts.json, refreshing wrapper metadata (preserves extra fields like _doc). */
+function writeConflictsWrapper(wrapper: ConflictsWrapper): void {
   if (!fs.existsSync(CONFLICTS_DIR)) {
     fs.mkdirSync(CONFLICTS_DIR, { recursive: true });
   }
-  const filePath = path.join(CONFLICTS_DIR, `${claimId}.json`);
-  if (fs.existsSync(filePath)) {
+  const out: ConflictsWrapper = {
+    ...wrapper,
+    _schema_version: wrapper._schema_version ?? '2.0',
+    last_modified: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    conflict_count: wrapper.conflicts.length,
+    conflicts: wrapper.conflicts,
+  };
+  writeJsonFileAtomic(CONFLICTS_FILE, out);
+}
+
+export function readAllConflictFiles(): unknown[] {
+  try {
+    const wrapper = readConflictsWrapper();
+    return wrapper ? wrapper.conflicts : [];
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'error',
+      message: 'Failed to read conflicts.json',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    console.warn('[fileIO] Failed to read conflicts.json:', err);
+    return [];
+  }
+}
+
+export function writeConflictFile(claimId: string, data: unknown): void {
+  const wrapper = readConflictsWrapper();
+  if (!wrapper) {
     throw new ActionableError({
-      goal: 'Create conflict definition',
-      problem: `Conflict file already exists: ${claimId}`,
-      location: 'main/fileIO.ts → createConflictFile',
+      goal: 'Update conflict definition',
+      problem: `conflicts.json not found or unreadable in ${CONFLICTS_DIR}`,
+      location: 'main/fileIO.ts → writeConflictFile',
       nextSteps: [
-        `Use writeConflictFile() to update the existing ${claimId}.json`,
-        'Delete the existing file first if you intend to replace it',
+        `Verify that conflicts.json exists in ${CONFLICTS_DIR}`,
+        'Re-run the consolidation pipeline to regenerate conflicts.json',
       ],
     });
   }
-  writeJsonFileAtomic(filePath, data);
+  const idx = wrapper.conflicts.findIndex(c => getClaimId(c) === claimId);
+  if (idx === -1) {
+    throw new ActionableError({
+      goal: 'Update conflict definition',
+      problem: `Conflict not found: ${claimId}`,
+      location: 'main/fileIO.ts → writeConflictFile',
+      nextSteps: [
+        `Verify that a conflict with claim_id "${claimId}" exists in conflicts.json`,
+        'Use createConflictFile() to create a new conflict instead of writeConflictFile()',
+        'Run readAllConflictFiles() to list available conflicts',
+      ],
+    });
+  }
+  wrapper.conflicts[idx] = data as Record<string, unknown>;
+  writeConflictsWrapper(wrapper);
+}
+
+export function createConflictFile(claimId: string, data: unknown): void {
+  const wrapper = readConflictsWrapper() ?? {
+    _schema_version: '2.0',
+    last_modified: '',
+    conflict_count: 0,
+    conflicts: [],
+  };
+  if (wrapper.conflicts.some(c => getClaimId(c) === claimId)) {
+    throw new ActionableError({
+      goal: 'Create conflict definition',
+      problem: `Conflict already exists: ${claimId}`,
+      location: 'main/fileIO.ts → createConflictFile',
+      nextSteps: [
+        `Use writeConflictFile() to update the existing conflict "${claimId}"`,
+        'Delete the existing conflict first if you intend to replace it',
+      ],
+    });
+  }
+  wrapper.conflicts.push(data as Record<string, unknown>);
+  writeConflictsWrapper(wrapper);
 }
 
 export function deleteConflictFile(claimId: string): void {
-  const filePath = path.join(CONFLICTS_DIR, `${claimId}.json`);
-  if (!fs.existsSync(filePath)) {
+  const wrapper = readConflictsWrapper();
+  if (!wrapper) {
     throw new ActionableError({
       goal: 'Delete conflict definition',
-      problem: `Conflict file not found: ${claimId}`,
+      problem: `conflicts.json not found or unreadable in ${CONFLICTS_DIR}`,
       location: 'main/fileIO.ts → deleteConflictFile',
       nextSteps: [
-        `Verify that ${claimId}.json exists in ${CONFLICTS_DIR}`,
-        'The file may have already been deleted — check if the operation can be skipped',
+        `Verify that conflicts.json exists in ${CONFLICTS_DIR}`,
+        'The conflict may have already been removed — check if the operation can be skipped',
       ],
     });
   }
-  fs.unlinkSync(filePath);
+  const before = wrapper.conflicts.length;
+  wrapper.conflicts = wrapper.conflicts.filter(c => getClaimId(c) !== claimId);
+  if (wrapper.conflicts.length === before) {
+    throw new ActionableError({
+      goal: 'Delete conflict definition',
+      problem: `Conflict not found: ${claimId}`,
+      location: 'main/fileIO.ts → deleteConflictFile',
+      nextSteps: [
+        `Verify that a conflict with claim_id "${claimId}" exists in conflicts.json`,
+        'The conflict may have already been removed — check if the operation can be skipped',
+      ],
+    });
+  }
+  writeConflictsWrapper(wrapper);
 }
 
 // ── Summaries & Sources ──

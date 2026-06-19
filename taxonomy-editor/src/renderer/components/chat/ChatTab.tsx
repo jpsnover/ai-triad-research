@@ -34,6 +34,7 @@ export function ChatTab() {
   const {
     sessions, sessionsLoading, loadSessions,
     activeChatId, loadChat, deleteChat, renameChat,
+    chatGenerating, chatActivity, chatError,
   } = useChatStore();
   const { toolbarPanel } = useTaxonomyStore();
   const { width, onMouseDown } = useResizablePanel();
@@ -106,6 +107,9 @@ export function ChatTab() {
             <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My</button>
             <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => setListView('community')}>Community</button>
           </div>
+          {chatError && isPhone && !activeChatId && (
+            <div className="chat-error" style={{ margin: '8px', fontSize: '0.8rem' }}>{chatError}</div>
+          )}
           {listView === 'my' ? (
             <div className="list-panel-items">
               {sessionsLoading && sessions.length === 0 && (
@@ -163,7 +167,14 @@ export function ChatTab() {
                     <span className="chat-session-pover" style={{ color: POVER_INFO[s.pover]?.color }}>
                       {POVER_INFO[s.pover]?.label || s.pover}
                     </span>
-                    <span className="chat-session-item-date">{formatDate(s.updated_at)}</span>
+                    {s.id === activeChatId && chatGenerating ? (
+                      <span className="chat-session-generating">
+                        <span className="dot-animation" />
+                        {chatActivity || 'Generating...'}
+                      </span>
+                    ) : (
+                      <span className="chat-session-item-date">{formatDate(s.updated_at)}</span>
+                    )}
                   </div>
                   {confirmDeleteId === s.id ? (
                     <div className="chat-session-item-confirm">
