@@ -3255,8 +3255,15 @@ server.listen(PORT, () => {
     // Initialize GitHubAPIBackend (token + cache check) AFTER health check is
     // ready. Health passes immediately, then async init.
     log.storage.info('Initializing GitHubAPIBackend');
-    githubBackend.initialize().then(() => {
+    githubBackend.initialize().then(async () => {
       log.storage.info('GitHubAPIBackend initialized');
+      // Warm the conflicts cache in the background so the first user request
+      // doesn't pay the 5s cold-start penalty (1,242 individual file reads).
+      try {
+        const data = await fileIO.readAllConflictFiles();
+        conflictsCache = { data, ts: Date.now() };
+        log.server.info({ count: data.length }, 'Conflicts cache warmed');
+      } catch (e) { log.server.warn({ err: e }, 'Conflicts cache warm failed (non-fatal)'); }
     }).catch((err) => {
       log.storage.error({ err }, 'GitHubAPIBackend initialization failed');
       serverRecorder.record({

@@ -226,10 +226,10 @@ function MainApp() {
       if (!available) {
         setShowFirstRun(true);
       } else {
-        void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
+        void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initAnalytics(); initDebateSessions(); });
       }
     });
-  }, [loadAll]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show onboarding tour after data loads for first-time users without an API key
   useEffect(() => {
@@ -265,7 +265,7 @@ function MainApp() {
             if (available) {
               setShowFirstRun(false);
               setCopyStatus(null);
-              void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
+              void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initAnalytics(); initDebateSessions(); });
             }
             // If still not available after copy complete, DeploymentErrorScreen will show
           });
@@ -275,7 +275,7 @@ function MainApp() {
     poll();
     const interval = setInterval(poll, 2000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [showFirstRun, dataRoot, loadAll]);
+  }, [showFirstRun, dataRoot]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check for data updates after initial load
   useEffect(() => {
@@ -302,7 +302,7 @@ function MainApp() {
         setDataUpdate(null);
         // Reload taxonomy data with new data
         setTimeout(() => {
-          void useTaxonomyStore.getState().loadAll();
+          void useTaxonomyStore.getState().loadAll(true);
           setPullResult(null);
         }, 1000);
       } else {
@@ -349,7 +349,7 @@ function MainApp() {
   // Listen for menu-triggered taxonomy reload
   useEffect(() => {
     const unsub = api.onReloadTaxonomy(() => {
-      void useTaxonomyStore.getState().loadAll();
+      void useTaxonomyStore.getState().loadAll(true);
     });
     return unsub;
   }, []);

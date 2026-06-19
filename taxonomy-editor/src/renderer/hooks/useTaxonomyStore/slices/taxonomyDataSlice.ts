@@ -109,7 +109,7 @@ export interface TaxonomyDataSlice {
   setSelectedNodeId: (id: string | null) => void;
   navigateToNode: (tab: TabId, id: string) => void;
 
-  loadAll: () => Promise<void>;
+  loadAll: (force?: boolean) => Promise<void>;
   save: () => Promise<void>;
   dismissSaveError: () => void;
 
@@ -205,7 +205,10 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
     getGlobalRecorder()?.record({ type: 'ui.navigate', component: 'tab-bar', level: 'info', message: 'node.navigate', data: { from: prev, to: tab, nodeId: id } });
   },
 
-  loadAll: async () => {
+  loadAll: async (force = false) => {
+    const state = get();
+    if (state.loading) return;
+    if (!force && state.accelerationist) return;
     const steps = [
       'Accelerationist', 'Safetyist', 'Skeptic', 'Situations',
       'Policy Registry',
@@ -246,9 +249,14 @@ export const createTaxonomyDataSlice: StateCreator<TaxonomyStore, [], [], Taxono
         track(steps[3], api.loadTaxonomyFile('situations')),
         track(steps[4], api.loadPolicyRegistry()),
       ]);
-      void api.loadConflictFiles().then((c) => set({ conflicts: c as ConflictFile[] })).catch((err) => {
-        getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict files (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      });
+      // Defer conflict file load — on cold starts this triggers 1,242 individual
+      // API reads (5s). Let critical taxonomy data render first; the server-side
+      // cache warm will likely complete before this fires.
+      setTimeout(() => {
+        void api.loadConflictFiles().then((c) => set({ conflicts: c as ConflictFile[] })).catch((err) => {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to load conflict files (deferred)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        });
+      }, 3000);
       void api.loadConflictClusters().then((d) => {
         const clusters = d && typeof d === 'object' && Array.isArray((d as { clusters: unknown }).clusters)
           ? (d as { clusters: { label: string; nodeIds: string[] }[] }).clusters : null;
