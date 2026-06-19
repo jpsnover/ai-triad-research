@@ -100,11 +100,11 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
   const backend = getBackend();
   const dir = submissionsDir();
 
-  // Rate limit: max 5 pending submissions per user
+  // Rate limit: max 20 pending submissions per user
   const existing = await listSubmissionsForUser(userId);
   const pending = existing.filter(s => s.status === 'pending');
-  if (pending.length >= 5) {
-    throw Object.assign(new Error('Maximum 5 pending submissions allowed'), { statusCode: 429 });
+  if (pending.length >= 20) {
+    throw Object.assign(new Error('Maximum 20 pending submissions allowed'), { statusCode: 429 });
   }
 
   const item = itemData as { id: string };
