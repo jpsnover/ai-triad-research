@@ -34,7 +34,7 @@ export async function listCommunityChats(): Promise<unknown[]> {
   const items: unknown[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(dir, f));
+      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
       if (raw === null) continue;
       const parsed = JSON.parse(raw);
       items.push({
@@ -57,7 +57,7 @@ export async function listCommunityDebates(): Promise<unknown[]> {
   const items: unknown[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(dir, f));
+      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
       if (raw === null) continue;
       const parsed = JSON.parse(raw);
       items.push({
@@ -77,7 +77,7 @@ export async function loadCommunityItem(type: 'chats' | 'debates', id: string): 
   const backend = getBackend();
   const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
   const prefix = type === 'chats' ? 'chat-' : 'debate-';
-  const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`));
+  const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`), { ref: 'main' });
   return raw ? JSON.parse(raw) : null;
 }
 
@@ -143,7 +143,7 @@ async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
   const subs: Submission[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(dir, f));
+      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
       if (raw === null) continue;
       const s = JSON.parse(raw) as Submission;
       if (s.submittedBy === userId) subs.push(s);
@@ -159,7 +159,7 @@ export async function listSubmissions(statusFilter?: string): Promise<unknown[]>
   const subs: Submission[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(dir, f));
+      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
       if (raw === null) continue;
       const s = JSON.parse(raw) as Submission;
       if (!statusFilter || s.status === statusFilter) subs.push(s);
@@ -206,7 +206,7 @@ export async function approveSubmission(
 ): Promise<{ communityId: string }> {
   const backend = getBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
-  const raw = await backend.readFile(subPath);
+  const raw = await backend.readFile(subPath, { ref: 'main' });
   if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
 
   const submission = JSON.parse(raw) as Submission;
@@ -238,7 +238,7 @@ export async function approveSubmission(
 export async function rejectSubmission(submissionId: string, reason?: string): Promise<void> {
   const backend = getBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
-  const raw = await backend.readFile(subPath);
+  const raw = await backend.readFile(subPath, { ref: 'main' });
   if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
 
   const submission = JSON.parse(raw) as Submission;

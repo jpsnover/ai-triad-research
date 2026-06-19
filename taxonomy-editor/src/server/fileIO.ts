@@ -1216,7 +1216,7 @@ function parseJsonlEntries<T = CalibrationLogEntry>(raw: string | null): T[] {
 
 /** Read the promote/reject audit log. Returns [] when absent. */
 export async function readCalibrationIntegrationLog(): Promise<CalibrationIntegrationRecord[]> {
-  return parseJsonlEntries<CalibrationIntegrationRecord>(await backend.readFile(calibrationIntegrationLogPath()));
+  return parseJsonlEntries<CalibrationIntegrationRecord>(await backend.readFile(calibrationIntegrationLogPath(), { ref: 'main' }));
 }
 
 /** Resolution is per-kind: a debate can have both a calibration-log and an
@@ -1234,7 +1234,7 @@ async function resolvedCalibrationDebateIds(kind: CalibrationKind = 'calibration
 
 /** Read one user's JSONL calibration entries for a given kind. */
 async function readUserCalibrationLog(origin: string, kind: CalibrationKind = 'calibration-log'): Promise<CalibrationLogEntry[]> {
-  return parseJsonlEntries(await backend.readFile(calibrationUserLogPath(origin, kind)));
+  return parseJsonlEntries(await backend.readFile(calibrationUserLogPath(origin, kind), { ref: 'main' }));
 }
 
 /**
@@ -1276,7 +1276,7 @@ function parseCalibrationSource(source: string): string {
 /** Append a record to the integration audit log (read-modify-write via backend). */
 async function appendIntegrationRecord(record: CalibrationIntegrationRecord): Promise<void> {
   const logPath = calibrationIntegrationLogPath();
-  const existing = (await backend.readFile(logPath)) ?? '';
+  const existing = (await backend.readFile(logPath, { ref: 'main' })) ?? '';
   const prefix = existing.length > 0 && !existing.endsWith('\n') ? existing + '\n' : existing;
   await backend.writeFile(logPath, prefix + JSON.stringify(record) + '\n');
 }
@@ -1316,7 +1316,7 @@ export async function promoteCalibrationEntries(
 
   if (toPromote.length > 0) {
     const corePath = calibrationCoreLogPath(kind);
-    const existing = (await backend.readFile(corePath)) ?? '';
+    const existing = (await backend.readFile(corePath, { ref: 'main' })) ?? '';
     const prefix = existing.length > 0 && !existing.endsWith('\n') ? existing + '\n' : existing;
     const appended = toPromote.map(e => JSON.stringify(e)).join('\n') + '\n';
     await backend.writeFile(corePath, prefix + appended);
@@ -1368,7 +1368,7 @@ export async function rejectCalibrationEntries(
 
 /** Read the curated core JSONL entries for a kind (for averages / comparison). */
 export async function readCoreCalibrationEntries(kind: CalibrationKind = 'calibration-log'): Promise<CalibrationLogEntry[]> {
-  return parseJsonlEntries(await backend.readFile(calibrationCoreLogPath(kind)));
+  return parseJsonlEntries(await backend.readFile(calibrationCoreLogPath(kind), { ref: 'main' }));
 }
 
 // ── Lineage enrichments curation (keyed-map variant, t/621#2 / t/647) ──
@@ -1393,7 +1393,8 @@ export async function readUserLineageEnrichmentsMap(origin: string): Promise<Rec
 
 /** Parse a topic-keyed enrichment map; tolerant of a missing/garbled file. */
 async function readLineageMap(filePath: string): Promise<Record<string, unknown>> {
-  const raw = await backend.readFile(filePath);
+  // Lineage maps are shared calibration data on main, not on a session branch.
+  const raw = await backend.readFile(filePath, { ref: 'main' });
   if (!raw) return {};
   try {
     const data = JSON.parse(raw.replace(/^﻿/, ''));

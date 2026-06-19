@@ -252,7 +252,21 @@ export class GitHubAPIBackend implements StorageBackend {
 
   // ── StorageBackend interface ───────────────────────────────────────────
 
-  async readFile(filePath: string): Promise<string | null> {
+  /**
+   * Read a file as UTF-8, or null if absent.
+   *
+   * `opts.ref` pins the GitHub API fallback to a specific ref (e.g. 'main') for
+   * shared data that lives on main rather than the caller's session branch —
+   * community submissions, calibration logs. Without it, a cache miss fetches
+   * with the effective session-branch ref, which 404s for shared files (the file
+   * doesn't exist on the branch) and burns rate limit. See t/684.
+   *
+   * The session overlay is still consulted first regardless of `opts.ref`, so
+   * in-session writes remain visible (read-your-writes) — this is required by the
+   * read-modify-write flows in community/calibration curation, where the same
+   * shared file is appended to multiple times within one request.
+   */
+  async readFile(filePath: string, opts?: { ref?: string }): Promise<string | null> {
     const repoPath = this.toRepoPath(filePath);
 
     // Check session overlay first
@@ -305,7 +319,8 @@ export class GitHubAPIBackend implements StorageBackend {
       return null; // Circuit open — serve null (file not available)
     }
 
-    const ref = this.getEffectiveRef();
+    // Pinned ref (e.g. 'main') for shared data; else the effective session ref.
+    const ref = opts?.ref ?? this.getEffectiveRef();
     const result = await this.fetchFileFromGitHub(repoPath, ref);
     if (result === null) return null;
 
