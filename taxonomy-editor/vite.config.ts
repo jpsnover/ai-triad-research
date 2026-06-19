@@ -4,9 +4,18 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'child_process';
 import path from 'path';
 
 const isWeb = process.env.VITE_TARGET === 'web';
+
+function getGitVersion(): string {
+  try {
+    return execSync('git describe --tags --always', { encoding: 'utf8' }).trim();
+  } catch {
+    return require('./package.json').version;
+  }
+}
 
 export default defineConfig({
   plugins: [
@@ -57,7 +66,7 @@ export default defineConfig({
   define: {
     // Expose build target to renderer code
     'import.meta.env.VITE_TARGET': JSON.stringify(process.env.VITE_TARGET || 'electron'),
-    __APP_VERSION__: JSON.stringify(require('./package.json').version),
+    __APP_VERSION__: JSON.stringify(getGitVersion()),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
     __COMPONENT_VERSIONS__: JSON.stringify({
       react: require('react/package.json').version,
