@@ -1,0 +1,13 @@
+{
+  "name": "github-runner-webhook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "main": "src/functions/*.js",
+  "dependencies": {
+    "@azure/functions": "^4.5.0",
+    "@azure/identity": "^4.0.0",
+    "@azure/arm-containerinstance": "^9.1.0"
+  }
+}

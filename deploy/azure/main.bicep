@@ -112,6 +112,18 @@ param githubWebhookSecret string = ''
 @description('GitHub PAT with read:packages scope for pulling container images from ghcr.io')
 param ghcrPassword string = ''
 
+// ── Ephemeral self-hosted runner (ACI + Azure Function) ──
+@description('Enable ephemeral GitHub Actions runner infrastructure (Azure Function + ACI)')
+param ephemeralRunnerEnabled bool = false
+
+@secure()
+@description('GitHub PAT with repo + admin:org scope for runner registration tokens')
+param githubRunnerPat string = ''
+
+@secure()
+@description('HMAC secret for verifying GitHub runner webhook signatures')
+param githubRunnerWebhookSecret string = ''
+
 var googleEnabled = !empty(googleClientId) && !empty(googleClientSecret)
 var githubEnabled = !empty(githubClientId) && !empty(githubClientSecret)
 var aadEnabled = !empty(aadClientId) && !empty(aadClientSecret)
@@ -797,6 +809,19 @@ resource branchDivergence 'Microsoft.Insights/scheduledQueryRules@2023-03-15-pre
   }
 }
 
+// ── Ephemeral Runner Module ──
+module ephemeralRunner 'runner/runner.bicep' = {
+  name: 'ephemeral-runner'
+  params: {
+    location: location
+    uniqueSuffix: uniqueSuffix
+    enabled: ephemeralRunnerEnabled
+    githubRunnerPat: githubRunnerPat
+    githubRunnerWebhookSecret: githubRunnerWebhookSecret
+    logAnalyticsWorkspaceId: logAnalytics.id
+  }
+}
+
 // ── Outputs ──
 
 output appUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
@@ -806,3 +831,4 @@ output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output stagingUrl string = 'https://${containerAppStaging.properties.configuration.ingress.fqdn}'
 output appInsightsName string = appInsights.name
+output runnerWebhookUrl string = ephemeralRunner.outputs.webhookUrl
