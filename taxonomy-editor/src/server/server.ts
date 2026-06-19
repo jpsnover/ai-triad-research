@@ -1116,6 +1116,15 @@ get('/api/community/chats', async (_req, res) => {
   catch (err) { error(res, String(err)); }
 });
 
+get('/api/community/chats/:id', async (req, res) => {
+  try {
+    const id = param(req, 'id', '/api/community/chats/:id');
+    const item = await community.loadCommunityItem('chats', id);
+    if (!item) { json(res, { found: false }, 200); return; }
+    json(res, item);
+  } catch (err) { error(res, String(err), 404); }
+});
+
 get('/api/community/debates', async (_req, res) => {
   try { json(res, await community.listCommunityDebates()); }
   catch (err) { error(res, String(err)); }

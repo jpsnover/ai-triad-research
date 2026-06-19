@@ -33,8 +33,11 @@ export interface StorageBackend {
   writeFile(filePath: string, content: string, opts?: { ref?: string }): Promise<void>;
 
   /** List entries (files and directories) in a directory. Returns [] if the
-   *  directory does not exist. */
-  listDirectory(dirPath: string): Promise<string[]>;
+   *  directory does not exist.
+   *  `opts.ref` pins the listing to a specific ref (e.g. 'main') for shared
+   *  directories that live on main rather than a per-user session branch.
+   *  Backends without branches ignore it. */
+  listDirectory(dirPath: string, opts?: { ref?: string }): Promise<string[]>;
 
   /** Delete a file. No-op if the file does not exist. */
   deleteFile(filePath: string): Promise<void>;

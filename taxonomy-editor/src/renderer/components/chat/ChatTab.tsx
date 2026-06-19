@@ -17,7 +17,10 @@ import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
 import { POVER_INFO } from '../../types/debate';
-import type { ChatSessionSummary, ChatMode } from '../../types/chat';
+import type { ChatSessionSummary, ChatMode, ChatSession } from '../../types/chat';
+import { api } from '@bridge';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const MODE_LABELS: Record<ChatMode, string> = {
   brainstorm: 'Brainstorm',
@@ -304,9 +307,57 @@ export function ChatTab() {
 
 // ── Community Chat Detail ──
 
+function speakerLabel(speaker: string): string {
+  if (speaker === 'user') return 'You';
+  if (speaker === 'system') return 'System';
+  const info = POVER_INFO[speaker as keyof typeof POVER_INFO];
+  return info?.label || speaker;
+}
+
+function speakerColor(speaker: string): string | undefined {
+  if (speaker === 'user' || speaker === 'system') return undefined;
+  return POVER_INFO[speaker as keyof typeof POVER_INFO]?.color;
+}
+
 function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
+  const [full, setFull] = useState<ChatSession | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFull(null);
+    setError(null);
+    setLoading(true);
+    api.loadCommunityChatSession(chat.id).then(raw => {
+      if (cancelled) return;
+      if (raw && typeof raw === 'object' && 'found' in (raw as Record<string, unknown>) && !(raw as Record<string, unknown>).found) {
+        setError('Chat not found — it may have been removed.');
+        return;
+      }
+      setFull(raw as ChatSession);
+    }).catch(err => {
+      if (cancelled) return;
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'community-chat-detail',
+        level: 'error',
+        message: 'Failed to load community chat detail',
+        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+      });
+      setError('Could not load chat details.');
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [chat.id]);
+
+  const poverInfo = full?.pover ? POVER_INFO[full.pover as keyof typeof POVER_INFO] : null;
+  const messageCount = full?.transcript?.length ?? 0;
+
   return (
-    <div className="debate-detail-summary">
+    <div className="community-chat-detail">
+      {/* Header */}
       <div className="debate-detail-header">
         <div>
           <h2 className="debate-detail-title">{chat.title}</h2>
@@ -318,8 +369,53 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
           </span>
         )}
       </div>
-      {chat.community_metadata && (
-        <div className="debate-detail-grid">
+
+      {loading && <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic', padding: '8px 0' }}>Loading chat...</p>}
+      {error && <p style={{ color: 'var(--danger, #ef4444)', fontSize: '0.85rem', padding: '8px 0' }}>{error}</p>}
+
+      {/* POVer + Topic */}
+      {full && poverInfo && (
+        <div className="debate-detail-debaters-row">
+          <h3>Talking to</h3>
+          <div className="debate-detail-povers">
+            <span className="debate-detail-pover" style={{ borderColor: poverInfo.color }}>
+              {poverInfo.label}
+            </span>
+          </div>
+        </div>
+      )}
+      {full?.topic && (
+        <div className="debate-detail-topic-row">
+          <h3>Topic</h3>
+          <div className="debate-detail-topic-scroll">
+            <p className="debate-detail-topic">{full.topic}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Meta grid */}
+      <div className="debate-detail-grid">
+        {full && (
+          <div className="debate-detail-section">
+            <h3>Statistics</h3>
+            <div className="debate-detail-stats">
+              <div className="debate-detail-stat">
+                <span className="debate-detail-stat-value">{messageCount}</span>
+                <span className="debate-detail-stat-label">Messages</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {full?.chat_model && (
+          <div className="debate-detail-section">
+            <h3>Configuration</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Model:</span>
+              <span>{full.chat_model}</span>
+            </div>
+          </div>
+        )}
+        {chat.community_metadata && (
           <div className="debate-detail-section">
             <h3>Community Info</h3>
             <div className="debate-detail-meta-row">
@@ -335,16 +431,41 @@ function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
               <span>{formatDate(chat.community_metadata.approved_at)}</span>
             </div>
           </div>
-          <div className="debate-detail-section">
-            <h3>Timestamps</h3>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Created:</span>
-              <span>{formatDate(chat.created_at)}</span>
-            </div>
-            <div className="debate-detail-meta-row">
-              <span className="debate-detail-label">Updated:</span>
-              <span>{formatDate(chat.updated_at)}</span>
-            </div>
+        )}
+        <div className="debate-detail-section">
+          <h3>Timestamps</h3>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Created:</span>
+            <span>{formatDate(chat.created_at)}</span>
+          </div>
+          <div className="debate-detail-meta-row">
+            <span className="debate-detail-label">Updated:</span>
+            <span>{formatDate(chat.updated_at)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Transcript */}
+      {full?.transcript && full.transcript.length > 0 && (
+        <div className="community-chat-transcript">
+          <h3>Conversation</h3>
+          <div className="chat-transcript" style={{ maxHeight: 'none' }}>
+            {full.transcript.map((entry) => {
+              const color = speakerColor(entry.speaker);
+              const isUser = entry.speaker === 'user';
+              return (
+                <div key={entry.id} className={`chat-message chat-speaker-${entry.speaker}${isUser ? ' chat-message-user' : ''}`}>
+                  <div className="chat-message-header">
+                    <span className="chat-message-speaker" style={color ? { color } : undefined}>
+                      {speakerLabel(entry.speaker)}
+                    </span>
+                  </div>
+                  <div className="chat-message-content markdown-body">
+                    <Markdown remarkPlugins={[remarkGfm]}>{entry.content}</Markdown>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

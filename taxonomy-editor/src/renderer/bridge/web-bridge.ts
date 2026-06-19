@@ -496,6 +496,7 @@ const rawApi: AppAPI = {
   submitToCommunity: (type, itemData, note) => post('/api/community/submit', { type, data: itemData, note }),
   copyFromCommunity: (type, communityId) => post('/api/community/copy', { type, communityId }),
   loadCommunityDebateSession: (id) => get(`/api/community/debates/${encodeURIComponent(id)}`),
+  loadCommunityChatSession: (id) => get(`/api/community/chats/${encodeURIComponent(id)}`),
   // Web mode is same-origin; baseUrl is ignored and the relative path is used.
   communitySubmit: (_baseUrl, payload) => post('/api/community/submit', payload),
 

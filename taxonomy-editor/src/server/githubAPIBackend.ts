@@ -449,7 +449,7 @@ export class GitHubAPIBackend implements StorageBackend {
     await this.writeToDiskCache(repoPath, content, newSha, '');
   }
 
-  async listDirectory(dirPath: string): Promise<string[]> {
+  async listDirectory(dirPath: string, opts?: { ref?: string }): Promise<string[]> {
     const repoPath = this.toRepoPath(dirPath);
     const prefix = repoPath ? repoPath + '/' : '';
 
@@ -469,7 +469,7 @@ export class GitHubAPIBackend implements StorageBackend {
     } else if (!(this.circuitState === 'open' && !this.shouldProbe())) {
       const creds = await this.getCredsCached();
       if (creds) {
-        const ref = this.getEffectiveRef();
+        const ref = opts?.ref ?? this.getEffectiveRef();
         const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
         const resp = await this.apiRequest(creds, 'GET',
           `/repos/${creds.repo}/contents/${repoPath}${qRef}`);

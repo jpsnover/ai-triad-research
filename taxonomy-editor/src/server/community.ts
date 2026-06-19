@@ -30,7 +30,7 @@ export function isAdmin(userId?: string): boolean {
 export async function listCommunityChats(): Promise<unknown[]> {
   const backend = getBackend();
   const dir = communityChatsDir();
-  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
+  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
   const items: unknown[] = [];
   for (const f of files) {
     try {
@@ -53,7 +53,7 @@ export async function listCommunityChats(): Promise<unknown[]> {
 export async function listCommunityDebates(): Promise<unknown[]> {
   const backend = getBackend();
   const dir = communityDebatesDir();
-  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
+  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
   const items: unknown[] = [];
   for (const f of files) {
     try {
@@ -143,7 +143,7 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
 async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
   const backend = getBackend();
   const dir = submissionsDir();
-  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
+  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
   const subs: Submission[] = [];
   for (const f of files) {
     try {
@@ -159,7 +159,7 @@ async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
 export async function listSubmissions(statusFilter?: string): Promise<unknown[]> {
   const backend = getBackend();
   const dir = submissionsDir();
-  const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
+  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
   const subs: Submission[] = [];
   for (const f of files) {
     try {

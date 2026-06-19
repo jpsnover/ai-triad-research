@@ -185,12 +185,18 @@ export const api: AppAPI = {
   // Telemetry — no-op in Electron (single-user desktop, no server-side telemetry)
   trackEvent: () => {},
 
-  // Community Library — stubs in Electron (single-user desktop mode)
+  // Community Library — listing/copying are server-only, but sharing works via communitySubmit proxy
   listCommunityChats: async () => [],
   listCommunityDebates: async () => [],
-  submitToCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
+  submitToCommunity: async (type, itemData, note) => {
+    const { useTaxonomyStore } = await import('../hooks/useTaxonomyStore');
+    const url = useTaxonomyStore.getState().communityServerUrl?.replace(/\/+$/, '');
+    if (!url) throw new Error('Community server URL not configured. Set it in Settings to share.');
+    return window.electronAPI.communitySubmit(url, { type, data: itemData, note });
+  },
   copyFromCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
   loadCommunityDebateSession: async () => { throw new Error('Community Library is only available in the web app'); },
+  loadCommunityChatSession: async () => { throw new Error('Community Library is only available in the web app'); },
   // Proxy through the main process so the cross-origin POST is not blocked by browser CORS.
   communitySubmit: (baseUrl, payload) => window.electronAPI.communitySubmit(baseUrl, payload),
 

@@ -172,7 +172,7 @@ const SYNTHETIC_POV_KEYS = new Set(['acc', 'saf', 'skp']);
 export async function loadSyntheticCorpus(pov: string): Promise<unknown | null> {
   if (!SYNTHETIC_POV_KEYS.has(pov)) return null;
   const filePath = path.join(getTaxonomyDir(), 'synthetic', `corpus_${pov}.json`);
-  const raw = await backend.readFile(filePath);
+  const raw = await backend.readFile(filePath, { ref: 'main' });
   if (raw === null) return null;
   return JSON.parse(raw.replace(/^﻿/, ''));
 }
@@ -188,7 +188,7 @@ export async function loadSyntheticEmbeddings(): Promise<Record<string, { pov: s
 
     const [npyBuf, idxRaw] = await Promise.all([
       backend.readBinaryFile(npyPath),
-      backend.readFile(idxPath),
+      backend.readFile(idxPath, { ref: 'main' }),
     ]);
     if (!npyBuf || !idxRaw) continue;
 
