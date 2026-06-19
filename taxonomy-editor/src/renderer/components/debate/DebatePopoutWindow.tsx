@@ -17,6 +17,7 @@ export function DebatePopoutWindow() {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeDebateId = useDebateStore(s => s.activeDebateId);
+  const debateError = useDebateStore(s => s.debateError);
 
   // Apply theme — popouts don't go through MainApp which sets data-theme
   useEffect(() => {
@@ -49,13 +50,27 @@ export function DebatePopoutWindow() {
     // Web mode: parse debate ID from hash query string
     const hash = window.location.hash;
     const idMatch = hash.match(/[?&]id=([^&]+)/);
+    const isCommunity = hash.includes('source=community');
     if (idMatch) {
       const debateId = decodeURIComponent(idMatch[1]);
-      console.log('[DebatePopout] Web mode — loading debate from hash:', debateId);
-      useDebateStore.getState().loadDebate(debateId).catch(err => {
-        getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate from URL hash', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
-        setError(`Failed to load debate: ${err}`);
-      });
+      console.log('[DebatePopout] Web mode — loading debate from hash:', debateId, isCommunity ? '(community)' : '');
+      if (isCommunity) {
+        api.loadCommunityDebateSession(debateId).then(raw => {
+          if (raw && typeof raw === 'object' && 'found' in (raw as Record<string, unknown>) && !(raw as Record<string, unknown>).found) {
+            setError('Community debate not found');
+            return;
+          }
+          useDebateStore.getState().loadDebateFromData(raw, { readOnly: true });
+        }).catch(err => {
+          getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load community debate from URL hash', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
+          setError(`Failed to load community debate: ${err}`);
+        });
+      } else {
+        useDebateStore.getState().loadDebate(debateId).catch(err => {
+          getGlobalRecorder()?.record({ type: 'state.error', component: 'debatePopout', level: 'error', message: 'Failed to load debate from URL hash', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { debateId } });
+          setError(`Failed to load debate: ${err}`);
+        });
+      }
     }
 
     // Electron mode: receive debate ID via IPC
@@ -77,7 +92,8 @@ export function DebatePopoutWindow() {
     return unsub;
   }, []);
 
-  if (error) {
+  const displayError = error || debateError;
+  if (displayError) {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -85,7 +101,7 @@ export function DebatePopoutWindow() {
       }}>
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
           <h3 style={{ color: 'var(--danger, #ef4444)' }}>Error</h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{error}</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{displayError}</p>
         </div>
       </div>
     );
