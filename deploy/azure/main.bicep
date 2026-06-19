@@ -328,6 +328,26 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               failureThreshold: 30
             }
           ]
+          volumeMounts: [
+            // Shared persistent Azure Files mount — survives revision/replica
+            // restarts and is visible to ALL replicas (not an ephemeral
+            // per-replica emptyDir). Backs replica-independent anonymous
+            // session storage (t/683); the server writes session files under
+            // <mountPath>/anon-sessions/.
+            {
+              volumeName: 'shared-data'
+              mountPath: '/mnt/shared'
+            }
+          ]
+        }
+      ]
+      volumes: [
+        {
+          name: 'shared-data'
+          storageType: 'AzureFile'
+          // References the managed-environment storage 'taxonomy-data'
+          // (Azure Files share on staitriadkvwl3nywge4iw, accessMode ReadWrite).
+          storageName: 'taxonomy-data'
         }
       ]
       scale: {
