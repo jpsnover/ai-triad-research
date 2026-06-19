@@ -2,8 +2,11 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useChatStore } from '../../hooks/useChatStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useCommunityStore } from '../../hooks/useCommunityStore';
+import type { CommunityChat } from '../../hooks/useCommunityStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { NewChatDialog } from './NewChatDialog';
@@ -44,10 +47,18 @@ export function ChatTab() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
+  const [listView, setListView] = useState<'my' | 'community'>('my');
+  const { chats: communityChats, loading: communityLoading, fetchChats: fetchCommunityChats, copyItem } = useCommunityStore();
+  const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [selectedCommunityChat, setSelectedCommunityChat] = useState<CommunityChat | null>(null);
 
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
+
+  useEffect(() => {
+    if (listView === 'community') void fetchCommunityChats();
+  }, [listView, fetchCommunityChats]);
 
   const handleSelect = (session: ChatSessionSummary) => {
     if (session.id !== activeChatId) {
@@ -83,88 +94,152 @@ export function ChatTab() {
           <div className="list-panel-header">
             <h2>Chats</h2>
             <div className="list-panel-header-actions">
-              <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
-                + New
-              </button>
+              {listView === 'my' && (
+                <button className="btn btn-sm" onClick={() => setShowNewDialog(true)}>
+                  + New
+                </button>
+              )}
               <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
             </div>
           </div>
-          <div className="list-panel-items">
-            {sessionsLoading && sessions.length === 0 && (
-              <div className="chat-session-empty">Loading...</div>
-            )}
-            {!sessionsLoading && sessions.length === 0 && (
-              <div className="chat-session-empty">
-                No chats yet.
-                <br />
-                Click <strong>+ New</strong> to start one.
-              </div>
-            )}
-            {sessions.map((s) => (
-              <div
-                key={s.id}
-                className={`chat-session-item ${s.id === activeChatId ? 'selected' : ''}`}
-                onClick={() => handleSelect(s)}
-              >
-                {renamingId === s.id ? (
-                  <input
-                    className="chat-session-item-rename"
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && renameValue.trim()) {
-                        e.stopPropagation();
-                        void renameChat(s.id, renameValue.trim());
-                        setRenamingId(null);
-                      } else if (e.key === 'Escape') {
-                        setRenamingId(null);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (renameValue.trim() && renameValue.trim() !== s.title) {
-                        void renameChat(s.id, renameValue.trim());
-                      }
-                      setRenamingId(null);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    autoFocus
-                  />
-                ) : (
-                  <div
-                    className="chat-session-item-title"
-                    onDoubleClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
-                    title="Double-click to rename"
-                  >
-                    {s.title}
-                  </div>
-                )}
-                <div className="chat-session-item-meta">
-                  <span className={`chat-mode-badge mode-${s.mode}`}>
-                    {MODE_LABELS[s.mode] || s.mode}
-                  </span>
-                  <span className="chat-session-pover" style={{ color: POVER_INFO[s.pover]?.color }}>
-                    {POVER_INFO[s.pover]?.label || s.pover}
-                  </span>
-                  <span className="chat-session-item-date">{formatDate(s.updated_at)}</span>
-                </div>
-                {confirmDeleteId === s.id ? (
-                  <div className="chat-session-item-confirm">
-                    <span>Delete?</span>
-                    <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); void handleDelete(s.id); }}>Yes</button>
-                    <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
-                  </div>
-                ) : (
-                  <button
-                    className="chat-session-item-delete"
-                    title="Delete chat"
-                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id); }}
-                  >
-                    &times;
-                  </button>
-                )}
-              </div>
-            ))}
+          <div className="list-view-tabs">
+            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My</button>
+            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => setListView('community')}>Community</button>
           </div>
+          {listView === 'my' ? (
+            <div className="list-panel-items">
+              {sessionsLoading && sessions.length === 0 && (
+                <div className="chat-session-empty">Loading...</div>
+              )}
+              {!sessionsLoading && sessions.length === 0 && (
+                <div className="chat-session-empty">
+                  No chats yet.
+                  <br />
+                  Click <strong>+ New</strong> to start one.
+                </div>
+              )}
+              {sessions.map((s) => (
+                <div
+                  key={s.id}
+                  className={`chat-session-item ${s.id === activeChatId ? 'selected' : ''}`}
+                  onClick={() => handleSelect(s)}
+                >
+                  {renamingId === s.id ? (
+                    <input
+                      className="chat-session-item-rename"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && renameValue.trim()) {
+                          e.stopPropagation();
+                          void renameChat(s.id, renameValue.trim());
+                          setRenamingId(null);
+                        } else if (e.key === 'Escape') {
+                          setRenamingId(null);
+                        }
+                      }}
+                      onBlur={() => {
+                        if (renameValue.trim() && renameValue.trim() !== s.title) {
+                          void renameChat(s.id, renameValue.trim());
+                        }
+                        setRenamingId(null);
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                    />
+                  ) : (
+                    <div
+                      className="chat-session-item-title"
+                      onDoubleClick={(e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
+                      title="Double-click to rename"
+                    >
+                      {s.title}
+                    </div>
+                  )}
+                  <div className="chat-session-item-meta">
+                    <span className={`chat-mode-badge mode-${s.mode}`}>
+                      {MODE_LABELS[s.mode] || s.mode}
+                    </span>
+                    <span className="chat-session-pover" style={{ color: POVER_INFO[s.pover]?.color }}>
+                      {POVER_INFO[s.pover]?.label || s.pover}
+                    </span>
+                    <span className="chat-session-item-date">{formatDate(s.updated_at)}</span>
+                  </div>
+                  {confirmDeleteId === s.id ? (
+                    <div className="chat-session-item-confirm">
+                      <span>Delete?</span>
+                      <button className="btn btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); void handleDelete(s.id); }}>Yes</button>
+                      <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}>No</button>
+                    </div>
+                  ) : (
+                    <button
+                      className="chat-session-item-delete"
+                      title="Delete chat"
+                      onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(s.id); }}
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="list-panel-items">
+              {communityLoading && communityChats.length === 0 && (
+                <div className="chat-session-empty">Loading community chats...</div>
+              )}
+              {!communityLoading && communityChats.length === 0 && (
+                <div className="chat-session-empty">No community chats available yet.</div>
+              )}
+              {communityChats.map((cc) => (
+                <div
+                  key={cc.id}
+                  className={`chat-session-item${selectedCommunityChat?.id === cc.id ? ' selected' : ''}`}
+                  onClick={() => setSelectedCommunityChat(cc)}
+                >
+                  <div className="chat-session-item-title">{cc.title}</div>
+                  <div className="chat-session-item-meta">
+                    {cc.mode && (
+                      <span className={`chat-mode-badge mode-${cc.mode}`}>
+                        {MODE_LABELS[cc.mode as ChatMode] || cc.mode}
+                      </span>
+                    )}
+                    {cc.community_metadata?.submitted_by_display && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{cc.community_metadata.submitted_by_display}</span>
+                    )}
+                    <span className="chat-session-item-date">{formatDate(cc.updated_at)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 2 }}>
+                    <button
+                      className="btn btn-sm"
+                      style={{ fontSize: '0.7rem', padding: '1px 6px' }}
+                      disabled={copyingId === cc.id}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        setCopyingId(cc.id);
+                        try {
+                          await copyItem('chats', cc.id);
+                          void loadSessions();
+                        } catch (err) {
+                          getGlobalRecorder()?.record({
+                            type: 'system.error',
+                            component: 'chat-tab',
+                            level: 'error',
+                            message: 'Failed to copy community chat',
+                            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+                          });
+                        } finally {
+                          setCopyingId(null);
+                        }
+                      }}
+                    >
+                      {copyingId === cc.id ? 'Copying...' : 'Copy to My'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -202,12 +277,66 @@ export function ChatTab() {
                 </button>
               </div>
             )}
-            <ChatWorkspace />
+            {listView === 'community' && selectedCommunityChat ? (
+              <CommunityChatDetail chat={selectedCommunityChat} />
+            ) : (
+              <ChatWorkspace />
+            )}
           </div>
         </>
       )}
 
       {showNewDialog && <NewChatDialog onClose={() => setShowNewDialog(false)} />}
+    </div>
+  );
+}
+
+// ── Community Chat Detail ──
+
+function CommunityChatDetail({ chat }: { chat: CommunityChat }) {
+  return (
+    <div className="debate-detail-summary">
+      <div className="debate-detail-header">
+        <div>
+          <h2 className="debate-detail-title">{chat.title}</h2>
+          <span style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: 'var(--text-muted)', userSelect: 'all' }}>{chat.id}</span>
+        </div>
+        {chat.mode && (
+          <span className={`chat-mode-badge mode-${chat.mode}`}>
+            {MODE_LABELS[chat.mode as ChatMode] || chat.mode}
+          </span>
+        )}
+      </div>
+      {chat.community_metadata && (
+        <div className="debate-detail-grid">
+          <div className="debate-detail-section">
+            <h3>Community Info</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Shared by:</span>
+              <span>{chat.community_metadata.submitted_by_display}</span>
+            </div>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Submitted:</span>
+              <span>{formatDate(chat.community_metadata.submitted_at)}</span>
+            </div>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Approved:</span>
+              <span>{formatDate(chat.community_metadata.approved_at)}</span>
+            </div>
+          </div>
+          <div className="debate-detail-section">
+            <h3>Timestamps</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Created:</span>
+              <span>{formatDate(chat.created_at)}</span>
+            </div>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Updated:</span>
+              <span>{formatDate(chat.updated_at)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

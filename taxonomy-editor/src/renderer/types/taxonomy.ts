@@ -301,7 +301,7 @@ export interface Edge {
   bidirectional: boolean;
   confidence: number;
   weight?: number;
-  rationale: string;
+  rationale?: string;
   status: EdgeStatus;
   discovered_at: string;
   model: string;

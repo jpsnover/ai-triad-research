@@ -225,6 +225,207 @@
   font-size: 0.8rem;
 }
 
+/* ── Tab bar ── */
+
+.admin-review-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.admin-review-tab {
+  padding: 4px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.admin-review-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.admin-review-tab.active {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+/* ── Feedback section ── */
+
+.admin-feedback {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.admin-feedback-summary {
+  display: flex;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.admin-feedback-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 56px;
+}
+
+.admin-feedback-stat-value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-feedback-stat-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.admin-feedback-filters {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.admin-feedback-table {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 4px;
+}
+
+.admin-feedback-row {
+  display: grid;
+  grid-template-columns: 80px 100px 44px 80px 1fr;
+  gap: 8px;
+  padding: 8px 12px;
+  align-items: center;
+  font-size: 0.78rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.admin-feedback-row:hover {
+  background: var(--bg-hover);
+}
+
+.admin-feedback-row--header {
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  cursor: default;
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  z-index: 1;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-feedback-row--header:hover {
+  background: var(--bg-primary);
+}
+
+.admin-feedback-row--expanded {
+  background: color-mix(in srgb, var(--focus-ring) 6%, transparent);
+}
+
+.admin-feedback-col-date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.admin-feedback-col-user {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: monospace;
+  font-size: 0.7rem;
+}
+
+.admin-feedback-col-rating {
+  text-align: center;
+  font-size: 1rem;
+}
+
+.admin-feedback-col-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.admin-feedback-cat-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.admin-feedback-detail {
+  padding: 8px 16px 12px 24px;
+  font-size: 0.78rem;
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-feedback-detail-section {
+  margin-bottom: 6px;
+}
+
+.admin-feedback-detail-section p {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+}
+
+.admin-feedback-context {
+  margin: 4px 0 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  font-size: 0.7rem;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.admin-feedback-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 /* ── Toolbar badge ── */
 
 .admin-review-badge {

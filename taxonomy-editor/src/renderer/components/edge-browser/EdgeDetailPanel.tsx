@@ -1,9 +1,12 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
+import { api } from '@bridge';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import type { Edge } from '../../types/taxonomy';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 interface EdgeDetailPanelProps {
   width?: number;
@@ -35,10 +38,135 @@ function povLabel(id: string): string {
   return (pov && POV_LABEL[pov]) || 'Unknown';
 }
 
+/**
+ * Resolve an edge's rationale on demand. Rationale is stripped from the edges list
+ * response (lazy loading, t/672), so when a selected edge lacks it we fetch the full
+ * edge via `api.getEdgeDetail(index)`. Results are cached by edge identity so
+ * re-selecting the same edge doesn't refetch.
+ *
+ * `rationale` is `undefined` while resolution is pending, `''` when the edge has no
+ * rationale, or the rationale text.
+ */
+function useEdgeRationale(
+  selectedEdge: Edge | null,
+  edges: Edge[] | undefined,
+): { rationale: string | undefined; loading: boolean } {
+  const cacheRef = useRef<Map<string, string>>(new Map());
+  const [rationale, setRationale] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!selectedEdge) {
+      setRationale(undefined);
+      setLoading(false);
+      return;
+    }
+
+    // Already carried inline (e.g. ?include=rationale) — nothing to fetch.
+    if (selectedEdge.rationale != null && selectedEdge.rationale !== '') {
+      setRationale(selectedEdge.rationale);
+      setLoading(false);
+      return;
+    }
+
+    const cacheKey = `${selectedEdge.source} ${selectedEdge.target} ${selectedEdge.type}`;
+    const cached = cacheRef.current.get(cacheKey);
+    if (cached !== undefined) {
+      setRationale(cached);
+      setLoading(false);
+      return;
+    }
+
+    // Resolve the edge's position in the full edges array for the detail fetch.
+    // indexOf works for the live reference; the triple fallback covers edges whose
+    // reference broke across an edgesFile reload.
+    let index = edges ? edges.indexOf(selectedEdge) : -1;
+    if (index < 0 && edges) {
+      index = edges.findIndex(
+        (e) => e.source === selectedEdge.source && e.target === selectedEdge.target && e.type === selectedEdge.type,
+      );
+    }
+    if (index < 0) {
+      setRationale('');
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRationale(undefined);
+    setLoading(true);
+    void (async () => {
+      try {
+        const detail = (await api.getEdgeDetail(index)) as Edge | null;
+        if (cancelled) return;
+        const text = detail?.rationale ?? '';
+        cacheRef.current.set(cacheKey, text);
+        setRationale(text);
+      } catch (err) {
+        if (cancelled) return;
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'edge-detail-panel',
+          level: 'error',
+          message: 'Edge rationale fetch failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setRationale('');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedEdge, edges]);
+
+  return { rationale, loading };
+}
+
+function RationaleSection({ inlineRationale, fetchedRationale, loading, clamped, onToggleClamp }: {
+  inlineRationale: string | undefined;
+  fetchedRationale: string | undefined;
+  loading: boolean;
+  clamped: boolean;
+  onToggleClamp: () => void;
+}) {
+  // Prefer an inline value (e.g. ?include=rationale); otherwise show the fetched value.
+  const hasInline = inlineRationale != null && inlineRationale !== '';
+  const text = hasInline ? inlineRationale : fetchedRationale;
+  const pending = !hasInline && (loading || fetchedRationale === undefined);
+  return (
+    <div className="edge-detail-section">
+      <div className="edge-detail-section-label">Rationale</div>
+      {pending ? (
+        <div className="edge-detail-rationale" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          Loading rationale&hellip;
+        </div>
+      ) : text ? (
+        <>
+          <div className={`edge-detail-rationale${clamped ? ' clamped' : ''}`}>{text}</div>
+          {text.length > 200 && (
+            <button className="edge-detail-rationale-toggle" onClick={onToggleClamp}>
+              {clamped ? 'Show more' : 'Show less'}
+            </button>
+          )}
+        </>
+      ) : (
+        <div className="edge-detail-rationale" style={{ color: 'var(--text-muted)' }}>&mdash;</div>
+      )}
+    </div>
+  );
+}
+
 export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [rationaleClamped, setRationaleClamped] = useState(true);
   const { selectedEdge, selectEdge, getLabelForId, edgesFile, setActiveTab, setSelectedNodeId, showRelatedEdges } = useTaxonomyStore();
+
+  const { rationale: resolvedRationale, loading: rationaleLoading } = useEdgeRationale(selectedEdge, edgesFile?.edges);
+
+  // Reset clamp when the selected edge changes.
+  useEffect(() => { setRationaleClamped(true); }, [selectedEdge]);
 
   if (!selectedEdge) return null;
 
@@ -108,7 +236,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
           </div>
 
           <div className="edge-detail-arrow">
-            {edge.bidirectional ? '\u2194' : '\u2192'}
+            {edge.bidirectional ? '↔' : '→'}
           </div>
 
           <div className="edge-detail-endpoint">
@@ -125,15 +253,13 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
         </div>
 
         {/* Rationale */}
-        <div className="edge-detail-section">
-          <div className="edge-detail-section-label">Rationale</div>
-          <div className={`edge-detail-rationale${rationaleClamped ? ' clamped' : ''}`}>{edge.rationale}</div>
-          {edge.rationale.length > 200 && (
-            <button className="edge-detail-rationale-toggle" onClick={() => setRationaleClamped(!rationaleClamped)}>
-              {rationaleClamped ? 'Show more' : 'Show less'}
-            </button>
-          )}
-        </div>
+        <RationaleSection
+          inlineRationale={edge.rationale}
+          fetchedRationale={resolvedRationale}
+          loading={rationaleLoading}
+          clamped={rationaleClamped}
+          onToggleClamp={() => setRationaleClamped(!rationaleClamped)}
+        />
 
         {/* Weight & Confidence */}
         <div className="edge-detail-section">
@@ -161,7 +287,7 @@ export function EdgeDetailPanel({ width }: EdgeDetailPanelProps) {
           <div className="edge-detail-section">
             <div className="edge-detail-section-label">Status</div>
             <span className={`edge-detail-status-badge status-${edge.status}`}>
-              {edge.status === 'rejected' ? '\u2717 ' : '\u25CF '}{edge.status}
+              {edge.status === 'rejected' ? '✗ ' : '● '}{edge.status}
             </span>
           </div>
         )}

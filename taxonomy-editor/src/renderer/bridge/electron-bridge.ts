@@ -35,6 +35,7 @@ export const api: AppAPI = {
   loadLineageCategories: () => window.electronAPI.loadLineageCategories(),
   loadLineageInfo: () => (window.electronAPI as Record<string, unknown> & typeof window.electronAPI).loadLineageInfo() as Promise<Record<string, unknown>>,
   loadEdges: () => window.electronAPI.loadEdges(),
+  getEdgeDetail: (index) => window.electronAPI.getEdgeDetail(index),
   updateEdgeStatus: (i, s) => window.electronAPI.updateEdgeStatus(i, s),
   swapEdgeDirection: (i) => window.electronAPI.swapEdgeDirection(i),
   bulkUpdateEdges: (indices, s) => window.electronAPI.bulkUpdateEdges(indices, s),
@@ -178,7 +179,7 @@ export const api: AppAPI = {
   updateSyntheticEmbeddings: (nodeId, pov, vectors) => window.electronAPI.updateSyntheticEmbeddings(nodeId, pov, vectors),
 
   // Feedback & error reporting
-  submitFeedback: (rating, text) => window.electronAPI.submitFeedback(rating, text),
+  submitFeedback: (rating, text, category, context) => window.electronAPI.submitFeedback(rating, text, category, context),
   reportError: (err, context) => window.electronAPI.reportError(err, context),
 
   // Telemetry — no-op in Electron (single-user desktop, no server-side telemetry)
@@ -189,6 +190,8 @@ export const api: AppAPI = {
   listCommunityDebates: async () => [],
   submitToCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
   copyFromCommunity: async () => { throw new Error('Community Library is only available in the web app'); },
+  // Proxy through the main process so the cross-origin POST is not blocked by browser CORS.
+  communitySubmit: (baseUrl, payload) => window.electronAPI.communitySubmit(baseUrl, payload),
 
   // Calibration
   getCalibrationHistory: () => window.electronAPI.getCalibrationHistory(),
@@ -270,4 +273,5 @@ export const api: AppAPI = {
   focusNodeInMainWindow: (nodeId) => window.electronAPI.focusNodeInMainWindow(nodeId),
   onTerminalData: (cb) => window.electronAPI.onTerminalData(cb),
   onTerminalExit: (cb) => window.electronAPI.onTerminalExit(cb),
+  captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
 };

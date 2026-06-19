@@ -120,8 +120,15 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
 
   submitItem: async (type, data, note) => {
     const base = getCommunityBaseUrl();
-    if (isElectronMode() && !base) {
-      throw new Error('Community server URL not configured. Set it in Settings to share debates.');
+    if (isElectronMode()) {
+      // Electron renderer fetch to the remote server is blocked by browser CORS
+      // (the renderer origin is never in the server's allowlist). Route through the
+      // main process (net.fetch), which is not subject to CORS.
+      if (!base) {
+        throw new Error('Community server URL not configured. Set it in Settings to share debates.');
+      }
+      const result = await api.communitySubmit(base, { type, data, note });
+      return result.submissionId;
     }
     const result = await fetchJson<{ submissionId: string }>(`${base}/api/community/submit`, {
       method: 'POST',

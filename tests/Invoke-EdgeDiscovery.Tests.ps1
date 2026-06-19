@@ -35,7 +35,9 @@ Describe 'Edge validation (gaps 7.1-7.4)' {
             Mock Resolve-AIApiKey { 'fake-key' }
 
             $script:CapturedEdgesJson = $null
-            Mock Write-Utf8NoBom { $script:CapturedEdgesJson = $Value }
+            Mock Write-Utf8NoBom {
+                if ($Path -like '*edges.json') { $script:CapturedEdgesJson = $Value }
+            }
 
             Mock Invoke-NodeEdgeDiscovery {
                 [PSCustomObject]@{
@@ -93,7 +95,9 @@ Describe 'Edge validation (gaps 7.1-7.4)' {
             Mock Resolve-AIApiKey { 'fake-key' }
 
             $script:CapturedEdgesJson = $null
-            Mock Write-Utf8NoBom { $script:CapturedEdgesJson = $Value }
+            Mock Write-Utf8NoBom {
+                if ($Path -like '*edges.json') { $script:CapturedEdgesJson = $Value }
+            }
 
             Mock Invoke-NodeEdgeDiscovery {
                 $edges = @()

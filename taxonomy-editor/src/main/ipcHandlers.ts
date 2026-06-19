@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { app, ipcMain, shell, dialog, BrowserWindow, clipboard } from 'electron';
+import { app, ipcMain, shell, dialog, BrowserWindow, clipboard, net } from 'electron';
 import fs from 'fs';
 import { execFile } from 'child_process';
 import {
@@ -643,7 +643,32 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('load-edges', () => {
-    return readEdgesFile();
+    const data = readEdgesFile() as { edges: Record<string, unknown>[]; [k: string]: unknown } | null;
+    if (!data?.edges) return data;
+    return {
+      ...data,
+      edges: data.edges.map(({ rationale, ...rest }) => rest),
+    };
+  });
+
+  ipcMain.handle('load-edge-detail', (_event, index: number) => {
+    const data = readEdgesFile() as { edges: Record<string, unknown>[] } | null;
+    if (!data?.edges) throw new ActionableError({
+      goal: 'Load edge detail with rationale',
+      problem: 'No edges.json found in the active taxonomy directory',
+      location: 'ipcHandlers.loadEdgeDetail',
+      nextSteps: [
+        'Verify the data directory is configured correctly (Settings > Data Root)',
+        'Check that edges.json exists in the active taxonomy directory',
+      ],
+    });
+    if (index < 0 || index >= data.edges.length) throw new ActionableError({
+      goal: 'Load edge detail with rationale',
+      problem: `Edge index ${index} is out of range (0..${data.edges.length - 1})`,
+      location: 'ipcHandlers.loadEdgeDetail',
+      nextSteps: ['Reload the edges list to get current indices'],
+    });
+    return data.edges[index];
   });
 
   ipcMain.handle('update-edge-status', (_event, index: number, status: string) => {
@@ -1016,6 +1041,48 @@ export function registerIpcHandlers(): void {
     }
   });
 
+  // Submit a debate/chat to the remote Community Library.
+  // Routed through the main process (net.fetch) rather than a renderer fetch:
+  // the renderer origin (http://localhost:5173 in dev, file:// when packaged) is
+  // never in the server's CORS allowlist, so a renderer fetch is blocked with
+  // "Failed to fetch". Main-process requests are not subject to browser CORS.
+  ipcMain.handle(
+    'community-submit',
+    async (_event, baseUrl: unknown, payload: unknown) => {
+      // Validate untrusted IPC input at the boundary (TS types are erased at runtime).
+      const base = z.string().url().parse(baseUrl).replace(/\/+$/, '');
+      // S-SSRF: only allow http/https to prevent file:// and internal protocols.
+      if (!/^https?:\/\//i.test(base)) {
+        throw new Error('Community server URL must be an http(s) URL. Set it in Settings to share debates.');
+      }
+      const submitPayload = z
+        .object({ type: z.enum(['chat', 'debate']), data: z.unknown(), note: z.string().optional() })
+        .parse(payload);
+      const url = `${base}/api/community/submit`;
+      try {
+        const res = await net.fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(submitPayload),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        return (await res.json()) as { submissionId: string };
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'ipc-handlers',
+          level: 'error',
+          message: 'Community submit failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        throw err;
+      }
+    },
+  );
+
   ipcMain.handle('pick-document-file', async () => {
     const win = BrowserWindow.getFocusedWindow();
     if (!win) return { cancelled: true };
@@ -1300,15 +1367,40 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSyntheticEmbeddings(nodeId, pov, vectors);
   });
 
-  ipcMain.handle('submit-feedback', (_event, rating: string, text?: string) => {
+  ipcMain.handle('submit-feedback', (_event, rating: string, text?: string, category?: string, context?: Record<string, unknown>) => {
     if (rating !== 'up' && rating !== 'down') return { ok: false };
     const feedbackDir = path.join(getDataRootPath(), 'admin', 'feedback');
     fs.mkdirSync(feedbackDir, { recursive: true });
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const ts = new Date().toISOString().replace(/:/g, '-');
-    const entry = { id, timestamp: new Date().toISOString(), rating, text: text?.trim() || null };
+    const entry = { id, timestamp: new Date().toISOString(), rating, text: text?.trim() || null, category: category || 'general', context: context || null };
     fs.writeFileSync(path.join(feedbackDir, `feedback-${ts}-${id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
     return { ok: true, id };
+  });
+
+  ipcMain.handle('capture-screenshot', async (_event, opts?: { width?: number; height?: number; defaultName?: string }) => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return { cancelled: true };
+
+    const width = opts?.width ?? 960;
+    const height = opts?.height ?? 600;
+    const originalBounds = win.getBounds();
+
+    // Resize, wait for paint, capture, restore
+    win.setContentSize(width, height);
+    await new Promise(r => setTimeout(r, 500));
+    const image = await win.webContents.capturePage();
+    win.setBounds(originalBounds);
+
+    const result = await dialog.showSaveDialog(win, {
+      title: 'Save Screenshot',
+      defaultPath: opts?.defaultName ?? 'screenshot.png',
+      filters: [{ name: 'PNG Image', extensions: ['png'] }],
+    });
+    if (result.canceled || !result.filePath) return { cancelled: true };
+
+    fs.writeFileSync(result.filePath, image.toPNG());
+    return { cancelled: false, filePath: result.filePath };
   });
 
   ipcMain.handle('report-error', (_event, error: Record<string, unknown>, context?: Record<string, unknown>) => {

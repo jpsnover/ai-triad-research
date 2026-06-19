@@ -16,8 +16,9 @@ import { ConflictsTab } from './components/conflict/ConflictsTab';
 import { DebateTab } from './components/debate/DebateTab';
 import { ChatTab } from './components/chat/ChatTab';
 import { FirstRunDialog } from './components/settings/FirstRunDialog';
+import { OnboardingTour } from './components/OnboardingTour';
 import { DeploymentErrorScreen } from './components/shared/DeploymentErrorScreen';
-import { FeedbackWidget } from './components/shared/FeedbackWidget';
+
 import { StartupProgressScreen } from './components/shared/StartupProgressScreen';
 import { DiagnosticsWindow } from './components/debate-diagnostics';
 import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
@@ -180,7 +181,7 @@ export function App() {
   }
 
   // Route between CLI file viewer and main app
-  return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AppRouter /><FeedbackWidget /></ErrorBoundary>;
+  return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AppRouter /></ErrorBoundary>;
 }
 
 /** Handles CLI-mode detection — hooks are always called in same order */
@@ -213,6 +214,7 @@ function MainApp() {
   const [showFirstRun, setShowFirstRun] = useState(false);
   const [dataRoot, setDataRoot] = useState('');
   const [copyStatus, setCopyStatus] = useState<{ state: string; dir?: string; copied?: number; total?: number } | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     // Check if data is available before loading
@@ -228,6 +230,23 @@ function MainApp() {
       }
     });
   }, [loadAll]);
+
+  // Show onboarding tour after data loads for first-time users without an API key
+  useEffect(() => {
+    if (loading || showFirstRun) return;
+    const dismissed = localStorage.getItem('taxonomy-editor-onboarding-dismissed') === 'true';
+    if (dismissed) return;
+    void api.hasApiKey().then(has => {
+      if (!has) setShowOnboarding(true);
+    }).catch(() => { /* telemetry — silent by design: offline/error just skips the tour */ });
+  }, [loading, showFirstRun]);
+
+  // Listen for "show tour" requests from HelpDialog
+  useEffect(() => {
+    const handler = () => setShowOnboarding(true);
+    window.addEventListener('show-onboarding-tour', handler);
+    return () => window.removeEventListener('show-onboarding-tour', handler);
+  }, []);
 
   // Poll copy status while showFirstRun is true in web mode
   useEffect(() => {
@@ -422,6 +441,18 @@ function MainApp() {
     return () => window.removeEventListener('keydown', handler);
   }, [zoomIn, zoomOut, zoomReset]);
 
+  // Screenshot capture: Ctrl+Shift+S — resizes to 960x600, captures, saves via dialog
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'S') {
+        e.preventDefault();
+        void api.captureScreenshot({ width: 960, height: 600 });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const handleFirstRunComplete = () => {
     setShowFirstRun(false);
     void initAIModels().then(() => { void loadAll(); void initAnalytics(); initDebateSessions(); });
@@ -589,6 +620,7 @@ function MainApp() {
       {UpdatePrompt && <Suspense fallback={null}><UpdatePrompt /></Suspense>}
       <PrecacheToast progress={precacheProgress} onCancel={cancelPrecache} onDismiss={dismissPrecache} />
       {isMobile && <DiagnosticsDrawer />}
+      {showOnboarding && <OnboardingTour onDismiss={() => setShowOnboarding(false)} />}
     </div>
   );
 }

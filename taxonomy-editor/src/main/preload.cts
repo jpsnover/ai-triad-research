@@ -328,6 +328,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadEdges: (): Promise<unknown> =>
     ipcRenderer.invoke('load-edges'),
 
+  getEdgeDetail: (index: number): Promise<unknown> =>
+    ipcRenderer.invoke('load-edge-detail', index),
+
   updateEdgeStatus: (index: number, status: string): Promise<unknown> =>
     ipcRenderer.invoke('update-edge-status', index, status),
 
@@ -389,6 +392,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fetchUrlContent: (url: string): Promise<{ content: string; error?: string }> =>
     ipcRenderer.invoke('fetch-url-content', url),
 
+  // Community submit (from main process to avoid renderer CORS against the remote server)
+  communitySubmit: (
+    baseUrl: string,
+    payload: { type: 'chat' | 'debate'; data: unknown; note?: string },
+  ): Promise<{ submissionId: string }> =>
+    ipcRenderer.invoke('community-submit', baseUrl, payload),
+
   // File picker
   pickDocumentFile: (): Promise<{ cancelled: boolean; filePath?: string; content?: string }> =>
     ipcRenderer.invoke('pick-document-file'),
@@ -420,14 +430,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('load-synthetic-embeddings'),
 
   // Feedback & error reporting
-  submitFeedback: (rating: string, text?: string): Promise<{ ok: boolean; id?: string }> =>
-    ipcRenderer.invoke('submit-feedback', rating, text),
+  submitFeedback: (rating: string, text?: string, category?: string, context?: Record<string, unknown>): Promise<{ ok: boolean; id?: string }> =>
+    ipcRenderer.invoke('submit-feedback', rating, text, category, context),
   reportError: (error: Record<string, unknown>, context?: Record<string, unknown>): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('report-error', error, context),
 
   // Clipboard (Electron 40: renderer clipboard API deprecated)
   clipboardWriteText: (text: string): Promise<void> =>
     ipcRenderer.invoke('clipboard-write-text', text),
+
+  // Screenshot capture
+  captureScreenshot: (opts?: { width?: number; height?: number; defaultName?: string }): Promise<{ cancelled: boolean; filePath?: string }> =>
+    ipcRenderer.invoke('capture-screenshot', opts),
 
   // Terminal
   terminalSpawn: (): Promise<void> =>

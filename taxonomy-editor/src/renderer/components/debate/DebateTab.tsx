@@ -6,6 +6,8 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useCommunityStore } from '../../hooks/useCommunityStore';
+import type { CommunityDebate } from '../../hooks/useCommunityStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useMobileNav } from '../../hooks/useMobileNav';
@@ -86,6 +88,10 @@ export function DebateTab() {
   const [listCollapsed, setListCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [listView, setListView] = useState<'my' | 'community'>('my');
+  const { debates: communityDebates, loading: communityLoading, fetchDebates: fetchCommunityDebates, copyItem } = useCommunityStore();
+  const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [selectedCommunityDebate, setSelectedCommunityDebate] = useState<CommunityDebate | null>(null);
 
   // Custom sort order (persisted to localStorage)
   const [customOrder, setCustomOrder] = useState<string[]>(() => {
@@ -158,6 +164,10 @@ export function DebateTab() {
     void loadSessions();
   }, [loadSessions]);
 
+  useEffect(() => {
+    if (listView === 'community') void fetchCommunityDebates();
+  }, [listView, fetchCommunityDebates]);
+
   const handleSelect = (session: { id: string }) => {
     if (session.id !== activeDebateId) {
       void loadDebate(session.id);
@@ -227,7 +237,7 @@ export function DebateTab() {
           <div className="list-panel-header">
             <h2>Debates</h2>
             <div className="list-panel-header-actions">
-              {editMode ? (
+              {listView === 'my' && editMode ? (
                 <>
                   <button className="btn btn-sm" onClick={() => setSelectedIds(new Set(sessions.map(s => s.id)))}>All</button>
                   <button className="btn btn-sm" onClick={() => setSelectedIds(new Set())}>None</button>
@@ -243,7 +253,7 @@ export function DebateTab() {
                   )}
                   <button className="btn btn-sm btn-ghost" onClick={exitEditMode}>Done</button>
                 </>
-              ) : (
+              ) : listView === 'my' ? (
                 <>
                   {sessions.length > 0 && (
                     <button className="btn btn-sm btn-ghost" onClick={() => setEditMode(true)} title="Edit, rename, reorder, or delete debates">
@@ -255,161 +265,226 @@ export function DebateTab() {
                   </button>
                   <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
                 </>
+              ) : (
+                <button className="pane-collapse-btn" onClick={() => setListCollapsed(true)} title="Collapse">&lsaquo;</button>
               )}
             </div>
           </div>
-          {sessions.length > 0 && !editMode && (
-            <div style={{ padding: '4px 10px 2px' }}>
-              <input
-                type="text"
-                placeholder="Search debates..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%', padding: '4px 8px', fontSize: '0.8rem',
-                  border: '1px solid var(--border-color)', borderRadius: 4,
-                  background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                  outline: 'none',
-                }}
-              />
-            </div>
-          )}
-          <div
-            className="list-panel-items"
-            tabIndex={0}
-            style={{ outline: 'none' }}
-            onKeyDown={(e) => {
-              if (editMode || filteredSessions.length === 0) return;
-              if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-              e.preventDefault();
-              const currentIdx = filteredSessions.findIndex(s => s.id === activeDebateId);
-              const nextIdx = e.key === 'ArrowUp'
-                ? Math.max(0, currentIdx - 1)
-                : Math.min(filteredSessions.length - 1, currentIdx + 1);
-              if (nextIdx !== currentIdx && filteredSessions[nextIdx]) {
-                void loadDebate(filteredSessions[nextIdx].id);
-                // Scroll the newly selected item into view
-                const container = e.currentTarget;
-                const items = container.querySelectorAll('.debate-session-item');
-                items[nextIdx]?.scrollIntoView({ block: 'nearest' });
-              }
-            }}
-          >
-            {sessionsLoading && sessions.length === 0 && (
-              <div className="debate-session-empty">Loading...</div>
-            )}
-            {!sessionsLoading && sessions.length === 0 && (
-              <div className="debate-session-empty">
-                No debates yet.
-                <br />
-                Click <strong>+ New</strong> to start one.
-              </div>
-            )}
-            {searchQuery && filteredSessions.length === 0 && sessions.length > 0 && (
-              <div className="debate-session-empty">No debates match &ldquo;{searchQuery}&rdquo;</div>
-            )}
-            {filteredSessions.map((s, idx) => (
-              <div
-                key={s.id}
-                className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${editMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
-                onClick={editMode ? () => setSelectedIds(prev => {
-                  const next = new Set(prev);
-                  next.has(s.id) ? next.delete(s.id) : next.add(s.id);
-                  return next;
-                }) : () => handleSelect(s)}
-              >
-                {editMode && (
+          <div className="list-view-tabs">
+            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => { setListView('my'); exitEditMode(); }}>My</button>
+            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); exitEditMode(); }}>Community</button>
+          </div>
+          {listView === 'my' ? (
+            <>
+              {sessions.length > 0 && !editMode && (
+                <div style={{ padding: '4px 10px 2px' }}>
                   <input
-                    type="checkbox"
-                    className="bulk-select-checkbox"
-                    checked={selectedIds.has(s.id)}
-                    onChange={() => setSelectedIds(prev => {
+                    type="text"
+                    placeholder="Search debates..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      width: '100%', padding: '4px 8px', fontSize: '0.8rem',
+                      border: '1px solid var(--border-color)', borderRadius: 4,
+                      background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              )}
+              <div
+                className="list-panel-items"
+                tabIndex={0}
+                style={{ outline: 'none' }}
+                onKeyDown={(e) => {
+                  if (editMode || filteredSessions.length === 0) return;
+                  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                  e.preventDefault();
+                  const currentIdx = filteredSessions.findIndex(s => s.id === activeDebateId);
+                  const nextIdx = e.key === 'ArrowUp'
+                    ? Math.max(0, currentIdx - 1)
+                    : Math.min(filteredSessions.length - 1, currentIdx + 1);
+                  if (nextIdx !== currentIdx && filteredSessions[nextIdx]) {
+                    void loadDebate(filteredSessions[nextIdx].id);
+                    const container = e.currentTarget;
+                    const items = container.querySelectorAll('.debate-session-item');
+                    items[nextIdx]?.scrollIntoView({ block: 'nearest' });
+                  }
+                }}
+              >
+                {sessionsLoading && sessions.length === 0 && (
+                  <div className="debate-session-empty">Loading...</div>
+                )}
+                {!sessionsLoading && sessions.length === 0 && (
+                  <div className="debate-session-empty">
+                    No debates yet.
+                    <br />
+                    Click <strong>+ New</strong> to start one.
+                  </div>
+                )}
+                {searchQuery && filteredSessions.length === 0 && sessions.length > 0 && (
+                  <div className="debate-session-empty">No debates match &ldquo;{searchQuery}&rdquo;</div>
+                )}
+                {filteredSessions.map((s, idx) => (
+                  <div
+                    key={s.id}
+                    className={`debate-session-item ${s.id === activeDebateId ? 'selected' : ''}${editMode && selectedIds.has(s.id) ? ' bulk-selected' : ''}`}
+                    onClick={editMode ? () => setSelectedIds(prev => {
                       const next = new Set(prev);
                       next.has(s.id) ? next.delete(s.id) : next.add(s.id);
                       return next;
-                    })}
-                  />
-                )}
-                {renamingId === s.id ? (
-                  <input
-                    className="debate-session-item-rename"
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && renameValue.trim()) {
-                        e.stopPropagation();
-                        void renameDebate(s.id, renameValue.trim());
-                        setRenamingId(null);
-                      } else if (e.key === 'Escape') {
-                        setRenamingId(null);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (renameValue.trim() && renameValue.trim() !== s.title) {
-                        void renameDebate(s.id, renameValue.trim());
-                      }
-                      setRenamingId(null);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    autoFocus
-                  />
-                ) : (
-                  <div
-                    className="debate-session-item-title"
-                    onDoubleClick={editMode ? undefined : (e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
-                    title={editMode ? s.title : 'Double-click to rename'}
+                    }) : () => handleSelect(s)}
                   >
-                    {s.title}
+                    {editMode && (
+                      <input
+                        type="checkbox"
+                        className="bulk-select-checkbox"
+                        checked={selectedIds.has(s.id)}
+                        onChange={() => setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          next.has(s.id) ? next.delete(s.id) : next.add(s.id);
+                          return next;
+                        })}
+                      />
+                    )}
+                    {renamingId === s.id ? (
+                      <input
+                        className="debate-session-item-rename"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && renameValue.trim()) {
+                            e.stopPropagation();
+                            void renameDebate(s.id, renameValue.trim());
+                            setRenamingId(null);
+                          } else if (e.key === 'Escape') {
+                            setRenamingId(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (renameValue.trim() && renameValue.trim() !== s.title) {
+                            void renameDebate(s.id, renameValue.trim());
+                          }
+                          setRenamingId(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        autoFocus
+                      />
+                    ) : (
+                      <div
+                        className="debate-session-item-title"
+                        onDoubleClick={editMode ? undefined : (e) => { e.stopPropagation(); setRenamingId(s.id); setRenameValue(s.title); }}
+                        title={editMode ? s.title : 'Double-click to rename'}
+                      >
+                        {s.title}
+                      </div>
+                    )}
+                    <div className="debate-session-item-meta">
+                      <span className={`debate-phase-badge phase-${s.phase}`}>
+                        {PHASE_LABELS[s.phase] || s.phase}
+                      </span>
+                      {s.model && <span className="debate-session-item-model">{s.model}</span>}
+                    </div>
+                    <div className="debate-session-item-meta">
+                      {s.turn_count != null && <span className="debate-session-item-turns">{s.turn_count} turn{s.turn_count !== 1 ? 's' : ''}</span>}
+                      <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
+                    </div>
+                    {editMode ? (
+                      <div className="debate-session-item-edit-actions" onClick={e => e.stopPropagation()}>
+                        <button
+                          className="debate-edit-btn"
+                          onClick={() => { setRenamingId(s.id); setRenameValue(s.title); }}
+                          title="Rename"
+                        >
+                          &#9998;
+                        </button>
+                        <button
+                          className="debate-edit-btn"
+                          onClick={() => moveSession(s.id, 'up')}
+                          disabled={idx === 0}
+                          title="Move up"
+                        >
+                          &#9650;
+                        </button>
+                        <button
+                          className="debate-edit-btn"
+                          onClick={() => moveSession(s.id, 'down')}
+                          disabled={idx === filteredSessions.length - 1}
+                          title="Move down"
+                        >
+                          &#9660;
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="debate-session-item-delete"
+                        title="Delete debate"
+                        onClick={(e) => { e.stopPropagation(); setEditMode(true); setSelectedIds(new Set([s.id])); }}
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
-                )}
-                <div className="debate-session-item-meta">
-                  <span className={`debate-phase-badge phase-${s.phase}`}>
-                    {PHASE_LABELS[s.phase] || s.phase}
-                  </span>
-                  {s.model && <span className="debate-session-item-model">{s.model}</span>}
-                </div>
-                <div className="debate-session-item-meta">
-                  {s.turn_count != null && <span className="debate-session-item-turns">{s.turn_count} turn{s.turn_count !== 1 ? 's' : ''}</span>}
-                  <span className="debate-session-item-date">{formatDate(s.updated_at)}</span>
-                </div>
-                {editMode ? (
-                  <div className="debate-session-item-edit-actions" onClick={e => e.stopPropagation()}>
-                    <button
-                      className="debate-edit-btn"
-                      onClick={() => { setRenamingId(s.id); setRenameValue(s.title); }}
-                      title="Rename"
-                    >
-                      &#9998;
-                    </button>
-                    <button
-                      className="debate-edit-btn"
-                      onClick={() => moveSession(s.id, 'up')}
-                      disabled={idx === 0}
-                      title="Move up"
-                    >
-                      &#9650;
-                    </button>
-                    <button
-                      className="debate-edit-btn"
-                      onClick={() => moveSession(s.id, 'down')}
-                      disabled={idx === filteredSessions.length - 1}
-                      title="Move down"
-                    >
-                      &#9660;
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    className="debate-session-item-delete"
-                    title="Delete debate"
-                    onClick={(e) => { e.stopPropagation(); setEditMode(true); setSelectedIds(new Set([s.id])); }}
-                  >
-                    ×
-                  </button>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <div className="list-panel-items">
+              {communityLoading && communityDebates.length === 0 && (
+                <div className="debate-session-empty">Loading community debates...</div>
+              )}
+              {!communityLoading && communityDebates.length === 0 && (
+                <div className="debate-session-empty">No community debates available yet.</div>
+              )}
+              {communityDebates.map((cd) => (
+                <div
+                  key={cd.id}
+                  className={`debate-session-item${selectedCommunityDebate?.id === cd.id ? ' selected' : ''}`}
+                  onClick={() => setSelectedCommunityDebate(cd)}
+                >
+                  <div className="debate-session-item-title">{cd.title}</div>
+                  <div className="debate-session-item-meta">
+                    {cd.phase && (
+                      <span className={`debate-phase-badge phase-${cd.phase}`}>
+                        {PHASE_LABELS[cd.phase] || cd.phase}
+                      </span>
+                    )}
+                    {cd.community_metadata?.submitted_by_display && (
+                      <span className="debate-session-item-model">{cd.community_metadata.submitted_by_display}</span>
+                    )}
+                  </div>
+                  <div className="debate-session-item-meta">
+                    <span className="debate-session-item-date">{formatDate(cd.updated_at)}</span>
+                    <button
+                      className="btn btn-sm"
+                      style={{ marginLeft: 'auto', fontSize: '0.7rem', padding: '1px 6px' }}
+                      disabled={copyingId === cd.id}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        setCopyingId(cd.id);
+                        try {
+                          await copyItem('debates', cd.id);
+                          void loadSessions();
+                        } catch (err) {
+                          getGlobalRecorder()?.record({
+                            type: 'system.error',
+                            component: 'debate-tab',
+                            level: 'error',
+                            message: 'Failed to copy community debate',
+                            error: { name: (err as Error).name ?? 'Error', message: String(err) },
+                          });
+                        } finally {
+                          setCopyingId(null);
+                        }
+                      }}
+                    >
+                      {copyingId === cd.id ? 'Copying...' : 'Copy to My'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -447,7 +522,9 @@ export function DebateTab() {
                 </button>
               </div>
             )}
-            {activeDebate ? (
+            {listView === 'community' && selectedCommunityDebate ? (
+              <CommunityDebateDetail debate={selectedCommunityDebate} />
+            ) : activeDebate ? (
               <DebateDetailSummary
                 debate={activeDebate}
                 onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch(() => {})}
@@ -739,6 +816,56 @@ function DebateDetailSummary({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Community Debate Detail ──
+
+function CommunityDebateDetail({ debate }: { debate: CommunityDebate }) {
+  return (
+    <div className="debate-detail-summary">
+      <div className="debate-detail-header">
+        <div>
+          <h2 className="debate-detail-title">{debate.title}</h2>
+          <span style={{ fontFamily: 'monospace', fontSize: '0.68rem', color: 'var(--text-muted)', userSelect: 'all' }}>{debate.id}</span>
+        </div>
+        {debate.phase && (
+          <span className={`debate-phase-badge phase-${debate.phase}`}>
+            {PHASE_LABELS[debate.phase] || debate.phase}
+          </span>
+        )}
+      </div>
+      {debate.community_metadata && (
+        <div className="debate-detail-grid">
+          <div className="debate-detail-section">
+            <h3>Community Info</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Shared by:</span>
+              <span>{debate.community_metadata.submitted_by_display}</span>
+            </div>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Submitted:</span>
+              <span>{formatDateLong(debate.community_metadata.submitted_at)}</span>
+            </div>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Approved:</span>
+              <span>{formatDateLong(debate.community_metadata.approved_at)}</span>
+            </div>
+          </div>
+          <div className="debate-detail-section">
+            <h3>Timestamps</h3>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Created:</span>
+              <span>{formatDateLong(debate.created_at)}</span>
+            </div>
+            <div className="debate-detail-meta-row">
+              <span className="debate-detail-label">Updated:</span>
+              <span>{formatDateLong(debate.updated_at)}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

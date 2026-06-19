@@ -246,6 +246,7 @@ const rawApi: AppAPI = {
   loadLineageCategories: () => get('/api/lineage-categories'),
   loadLineageInfo: () => get<Record<string, unknown>>('/api/lineage-info'),
   loadEdges: () => get('/api/edges'),
+  getEdgeDetail: (index) => get(`/api/edges/${index}`),
   updateEdgeStatus: (index, status) => put('/api/edges/status', { index, status }),
   swapEdgeDirection: (index) => put('/api/edges/swap', { index }),
   bulkUpdateEdges: (indices, status) => put('/api/edges/bulk-status', { indices, status }),
@@ -474,7 +475,7 @@ const rawApi: AppAPI = {
   listPsPrompts: () => get('/api/ps-prompts'),
 
   // Feedback & error reporting
-  submitFeedback: (rating, text) => post('/api/admin/feedback', { rating, text, context: { url: location.href, userAgent: navigator.userAgent } }),
+  submitFeedback: (rating, text, category, context) => post('/api/admin/feedback', { rating, text, category: category ?? 'general', context: { ...context, url: location.href, userAgent: navigator.userAgent } }),
   reportError: (err, context) => post('/api/admin/errors', { error: err, context: { ...context, url: location.href, userAgent: navigator.userAgent } }).catch(() => ({ ok: false }) /* telemetry — silent by design: logging error-report failures would cause infinite loops */),
 
   // Telemetry
@@ -494,6 +495,8 @@ const rawApi: AppAPI = {
   listCommunityDebates: () => get('/api/community/debates').catch(() => []),
   submitToCommunity: (type, itemData, note) => post('/api/community/submit', { type, data: itemData, note }),
   copyFromCommunity: (type, communityId) => post('/api/community/copy', { type, communityId }),
+  // Web mode is same-origin; baseUrl is ignored and the relative path is used.
+  communitySubmit: (_baseUrl, payload) => post('/api/community/submit', payload),
 
   // Calibration
   getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
@@ -634,6 +637,7 @@ const rawApi: AppAPI = {
     terminalExitCallbacks.add(cb);
     return () => { terminalExitCallbacks.delete(cb); };
   },
+  captureScreenshot: () => Promise.resolve({ cancelled: true }),
 };
 
 export const api = instrumentBridge(rawApi);

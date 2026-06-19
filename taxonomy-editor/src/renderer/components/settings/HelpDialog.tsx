@@ -266,6 +266,28 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               Built with Electron 35, React 19, TypeScript, Vite, and Zustand.
               AI backends: Google Gemini, Anthropic Claude, Groq, OpenAI, DeepSeek, Ollama.
             </p>
+            <p style={{ marginTop: 16 }}>
+              <span
+                role="button"
+                tabIndex={0}
+                style={{ fontSize: '0.85em', color: 'var(--accent-color, var(--focus-ring))', cursor: 'pointer', textDecoration: 'underline' }}
+                onClick={() => {
+                  try { localStorage.removeItem('taxonomy-editor-onboarding-dismissed'); } catch { /* telemetry — silent by design */ }
+                  window.dispatchEvent(new Event('show-onboarding-tour'));
+                  onClose();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    try { localStorage.removeItem('taxonomy-editor-onboarding-dismissed'); } catch { /* telemetry — silent by design */ }
+                    window.dispatchEvent(new Event('show-onboarding-tour'));
+                    onClose();
+                  }
+                }}
+              >
+                &#9656; Show Welcome Tour
+              </span>
+            </p>
           </div>
         )}
 

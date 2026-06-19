@@ -299,8 +299,7 @@ export const createSettingsSlice: StateCreator<TaxonomyStore, [], [], SettingsSl
   },
 
   communityServerUrl: (() => {
-    // null (never set) → production default; '' (user cleared it) → stays empty.
-    try { return localStorage.getItem('taxonomy-editor-community-url') ?? DEFAULT_COMMUNITY_SERVER_URL; } catch (err) {
+    try { return localStorage.getItem('taxonomy-editor-community-url') || DEFAULT_COMMUNITY_SERVER_URL; } catch (err) {
       getGlobalRecorder()?.record({ type: 'system.error', component: 'taxonomy-store', level: 'warn', message: 'Failed to read community server URL from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       return DEFAULT_COMMUNITY_SERVER_URL;
     }

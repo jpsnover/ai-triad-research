@@ -47,6 +47,7 @@ export interface AppAPI {
   loadLineageCategories: () => Promise<unknown>;
   loadLineageInfo: () => Promise<Record<string, unknown>>;
   loadEdges: () => Promise<unknown>;
+  getEdgeDetail: (index: number) => Promise<unknown>;
   updateEdgeStatus: (index: number, status: string) => Promise<unknown>;
   swapEdgeDirection: (index: number) => Promise<unknown>;
   bulkUpdateEdges: (indices: number[], status: string) => Promise<unknown>;
@@ -181,7 +182,7 @@ export interface AppAPI {
   updateSyntheticEmbeddings: (nodeId: string, pov: string, vectors: number[][]) => Promise<void>;
 
   // --- Feedback & error reporting ---
-  submitFeedback: (rating: 'up' | 'down', text?: string) => Promise<{ ok: boolean; id?: string }>;
+  submitFeedback: (rating: 'up' | 'down', text?: string, category?: 'bug' | 'feature_request' | 'confusing' | 'general', context?: Record<string, unknown>) => Promise<{ ok: boolean; id?: string }>;
   reportError: (error: { name: string; message: string; stack?: string; componentStack?: string }, context?: Record<string, unknown>) => Promise<{ ok: boolean }>;
 
   // --- Telemetry ---
@@ -192,6 +193,9 @@ export interface AppAPI {
   listCommunityDebates: () => Promise<unknown[]>;
   submitToCommunity: (type: 'chat' | 'debate', itemData: unknown, note?: string) => Promise<{ submissionId: string }>;
   copyFromCommunity: (type: 'chats' | 'debates', communityId: string) => Promise<{ newId: string }>;
+  // Submit to a remote community server. In Electron this is proxied through the main
+  // process (net.fetch) so it is not blocked by browser CORS; baseUrl is the server origin.
+  communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
 
   // --- Calibration ---
   getCalibrationHistory: () => Promise<{ current: unknown; history: unknown[] }>;
@@ -262,4 +266,7 @@ export interface AppAPI {
   focusNodeInMainWindow: (nodeId: string) => void;
   onTerminalData: (callback: (data: string) => void) => () => void;
   onTerminalExit: (callback: () => void) => () => void;
+
+  // --- Screenshot capture ---
+  captureScreenshot: (opts?: { width?: number; height?: number; defaultName?: string }) => Promise<{ cancelled: boolean; filePath?: string }>;
 }

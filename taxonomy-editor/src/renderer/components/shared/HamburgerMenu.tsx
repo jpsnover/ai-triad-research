@@ -6,6 +6,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { api } from '@bridge';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
+import { FeedbackPopover } from './FeedbackPopover';
 import { useAuthStatus } from '../../hooks/useAuthStatus';
 
 function AuthSection() {
@@ -71,6 +72,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
   } = useTaxonomyStore();
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const drawerRef = useRef<HTMLDivElement>(null);
   const touchRef = useRef({ startX: 0, currentX: 0, swiping: false });
@@ -322,6 +324,15 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
           <div className="hamburger-divider" />
           <button
             className="hamburger-item"
+            onClick={() => { setShowFeedback(true); onClose(); }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 18.5L3 22l1-7L1 8h7l4-7 4 7h7l-3 7 1 7z" />
+            </svg>
+            <span>Feedback</span>
+          </button>
+          <button
+            className="hamburger-item"
             onClick={() => { setShowHelp(true); onClose(); }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -344,6 +355,13 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
 
       {showHelp && <HelpDialog onClose={() => setShowHelp(false)} />}
       {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
+      {showFeedback && (
+        <div className="dialog-overlay" onClick={() => setShowFeedback(false)}>
+          <div onClick={e => e.stopPropagation()}>
+            <FeedbackPopover onClose={() => setShowFeedback(false)} />
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -169,6 +169,20 @@ function Invoke-EdgeDiscovery {
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
 
+    function Save-DiscoveryLog {
+        param(
+            [string]$Path,
+            [System.Collections.Generic.List[PSObject]]$Entries
+        )
+        $LogFile = [ordered]@{
+            _schema_version = '1.0.0'
+            _doc            = 'Edge discovery run log. Written by Invoke-EdgeDiscovery.'
+            last_modified   = (Get-Date).ToString('yyyy-MM-dd')
+            entries         = @($Entries)
+        }
+        $LogFile | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $Path
+    }
+
     # ForEach-Object -Parallel is PS 7+ only. The AITriad module supports
     # Windows PowerShell 5.1 as a hard requirement (see AITriad.psd1), so on
     # 5.1 we clamp -MaxConcurrent to 1 and use the sequential code path.
@@ -255,7 +269,6 @@ function Invoke-EdgeDiscovery {
                 [PSCustomObject]@{ type = 'SUPPORTED_BY'; bidirectional = $false; definition = 'Source claim is backed by evidence in target.' }
             )
             edges           = @()
-            discovery_log   = @()
         }
     }
 
@@ -284,12 +297,26 @@ function Invoke-EdgeDiscovery {
     # ── Step 4: Determine which nodes to process ──
     $NodesToProcess = [System.Collections.Generic.List[PSObject]]::new()
 
+    # ── Load discovery log from standalone file ──
+    $DiscLogPath = Join-Path $TaxDir 'edge_discovery_log.json'
+    $DiscLogEntries = [System.Collections.Generic.List[PSObject]]::new()
+    if (Test-Path $DiscLogPath) {
+        $DiscLogData = Get-Content -Raw -Path $DiscLogPath | ConvertFrom-Json
+        if ($DiscLogData.PSObject.Properties['entries'] -and $DiscLogData.entries) {
+            foreach ($E in @($DiscLogData.entries)) {
+                if ($null -ne $E) { $DiscLogEntries.Add($E) }
+            }
+        }
+    } elseif ($EdgesData.PSObject.Properties['discovery_log'] -and $EdgesData.discovery_log) {
+        foreach ($E in @($EdgesData.discovery_log)) {
+            if ($null -ne $E) { $DiscLogEntries.Add($E) }
+        }
+    }
+
     $DiscoveredNodeIds = [System.Collections.Generic.HashSet[string]]::new()
-    # Build evaluated_pairs set: "nodeA|nodeB" (sorted) — skip these in incremental runs
     $EvaluatedPairs = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($Entry in $EdgesData.discovery_log) {
+    foreach ($Entry in $DiscLogEntries) {
         [void]$DiscoveredNodeIds.Add($Entry.node_id)
-        # Each discovery_log entry now tracks which candidates were evaluated
         if ($Entry.PSObject.Properties['candidates_evaluated']) {
             foreach ($CandId in $Entry.candidates_evaluated) {
                 $PairKey = if ($Entry.node_id -lt $CandId) { "$($Entry.node_id)|$CandId" } else { "$CandId|$($Entry.node_id)" }
@@ -668,8 +695,8 @@ Omit pairs with no relationship. No markdown fences.
         $EdgesData.edges = @($EdgesList)
         $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
 
-        # Add discovery log entries for evaluated pairs
-        $LogEntry = [ordered]@{
+        # Add discovery log entry for this run
+        $DiscLogEntries.Add([PSCustomObject][ordered]@{
             node_id              = 'embedding-first-batch'
             timestamp            = (Get-Date).ToString('o')
             model                = $Model
@@ -678,10 +705,10 @@ Omit pairs with no relationship. No markdown fences.
             candidate_pairs      = $CandidatePairs.Count
             new_edges            = $NewEdgeCount
             batches              = $ClassifyBatches.Count
-        }
-        $EdgesData.discovery_log = @($EdgesData.discovery_log) + @($LogEntry)
+        })
 
         $EdgesData | ConvertTo-Json -Depth 20 | Write-Utf8NoBom -Path $EdgesPath
+        Save-DiscoveryLog -Path $DiscLogPath -Entries $DiscLogEntries
 
         Write-Host "`n=== EMBEDDING-FIRST COMPLETE ===" -ForegroundColor Cyan
         Write-Host "  Candidate pairs: $($CandidatePairs.Count)"
@@ -885,14 +912,14 @@ $BatchSchemaPrompt
             Write-OK "Batch ${BatchNum}: $BatchEdgeCount edge(s) proposed"
 
             # Log all pairs in this batch as evaluated
-            $EdgesData.discovery_log += [PSCustomObject][ordered]@{
+            $DiscLogEntries.Add([PSCustomObject][ordered]@{
                 node_id              = "batch-$BatchNum"
                 discovered_at        = (Get-Date).ToString('yyyy-MM-dd')
                 model                = $Model
                 edge_count           = $BatchEdgeCount
                 candidates_evaluated = $BatchNodeIds
                 batch_mode           = $true
-            }
+            })
 
             # Update evaluated_pairs for all pairs in this batch
             for ($i = 0; $i -lt $BatchNodeIds.Count; $i++) {
@@ -1194,13 +1221,13 @@ $SchemaPrompt
             Write-OK "$($Disc.NodeId): $NodeEdgeCount edge(s) proposed"
 
             $CandIds = $NodeCandidateIds[$Disc.NodeId]
-            $EdgesData.discovery_log += [PSCustomObject][ordered]@{
+            $DiscLogEntries.Add([PSCustomObject][ordered]@{
                 node_id                = $Disc.NodeId
                 discovered_at          = (Get-Date).ToString('yyyy-MM-dd')
                 model                  = $Model
                 edge_count             = $NodeEdgeCount
                 candidates_evaluated   = if ($CandIds) { $CandIds } else { @() }
-            }
+            })
 
             # Update evaluated_pairs set for subsequent nodes in this run
             if ($CandIds) {
@@ -1318,13 +1345,13 @@ $SchemaPrompt
             Write-OK "$($Disc.NodeId): $NodeEdgeCount edge(s)"
 
             $CandIds2 = $NodeCandidateIds[$Disc.NodeId]
-            $EdgesData.discovery_log += [PSCustomObject][ordered]@{
+            $DiscLogEntries.Add([PSCustomObject][ordered]@{
                 node_id                = $Disc.NodeId
                 discovered_at          = (Get-Date).ToString('yyyy-MM-dd')
                 model                  = $Model
                 edge_count             = $NodeEdgeCount
                 candidates_evaluated   = if ($CandIds2) { $CandIds2 } else { @() }
-            }
+            })
 
             $TotalProcessed++
         }
@@ -1348,14 +1375,17 @@ $SchemaPrompt
         }
     }
 
-    # ── Step 10: Write edges file ──
+    # ── Step 10: Write edges file + discovery log ──
     if ($TotalProcessed -gt 0) {
         if ($PSCmdlet.ShouldProcess($EdgesPath, 'Write edges file')) {
             $EdgesData.edges        = $EdgesList.ToArray()
             $EdgesData.last_modified = (Get-Date).ToString('yyyy-MM-dd')
+            if ($EdgesData.PSObject.Properties['discovery_log']) {
+                $EdgesData.PSObject.Properties.Remove('discovery_log')
+            }
             $Json = $EdgesData | ConvertTo-Json -Depth 20
             try {
-                Write-Utf8NoBom -Path $EdgesPath -Value $Json 
+                Write-Utf8NoBom -Path $EdgesPath -Value $Json
                 Write-OK "Saved edges to $EdgesPath"
             } catch {
                 Write-Fail "Failed to write edges.json — $($_.Exception.Message)"
@@ -1363,6 +1393,7 @@ $SchemaPrompt
                 throw
             }
         }
+        Save-DiscoveryLog -Path $DiscLogPath -Entries $DiscLogEntries
     }
 
     # ── Summary ──
