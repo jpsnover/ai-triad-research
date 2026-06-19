@@ -1,18 +1,35 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import fs from 'fs';
+import fsp from 'fs/promises';
+import os from 'os';
+import path from 'path';
 import { log } from './logger.js';
 
-interface AnonymousSession {
-  chats: Map<string, unknown>;
-  debates: Map<string, unknown>;
-  debateComments: Map<string, unknown>;
-  totalSizeBytes: number;
-  lastAccessed: number;
-  createdAt: number;
-}
+/**
+ * Replica-independent store for anonymous (not-signed-in) users' ephemeral
+ * chats, debates, and debate comments.
+ *
+ * Backed by a shared filesystem (an Azure Files volume mounted at /mnt/shared in
+ * production — see t/683) so any container replica can serve a given session.
+ * Previously this was per-process in-memory Maps, which broke when a request
+ * (e.g. a debate popout window) was routed to a different replica than the one
+ * that created the data.
+ *
+ * Layout:  <baseDir>/<sessionId>/{chats,debates,comments}/<id>.json
+ *
+ * - lastAccessed is the session directory's mtime, touched on every read/write,
+ *   so TTL/LRU work across replicas without shared in-memory bookkeeping.
+ * - All methods are async (network filesystem — never block the event loop).
+ * - Concurrent writes across replicas are last-write-wins, acceptable for
+ *   low-stakes ephemeral anonymous data.
+ */
 
 interface AnonymousSessionStoreOptions {
+  /** Root directory for session files. Defaults to ANON_SESSION_DIR, then
+   *  /mnt/shared/anon-sessions if that mount exists, else an OS temp dir. */
+  baseDir?: string;
   maxSessions?: number;
   sessionTtlMs?: number;
   maxSessionSizeBytes?: number;
@@ -24,220 +41,248 @@ const DEFAULT_MAX_SESSIONS = 100;
 const DEFAULT_MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 const DEFAULT_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
-function estimateSize(obj: unknown): number {
-  return JSON.stringify(obj).length * 2;
+const SHARED_MOUNT = '/mnt/shared';
+type Kind = 'chats' | 'debates' | 'comments';
+
+function defaultBaseDir(): string {
+  if (process.env.ANON_SESSION_DIR) return process.env.ANON_SESSION_DIR;
+  try {
+    if (fs.existsSync(SHARED_MOUNT)) return path.join(SHARED_MOUNT, 'anon-sessions');
+  } catch { /* not mounted — fall through to temp */ }
+  return path.join(os.tmpdir(), 'aitriad-anon-sessions');
+}
+
+/** Restrict a session/item id to a path-safe token (no traversal). */
+function safeSegment(id: string, label: string): string {
+  if (typeof id !== 'string' || id.length === 0 || id.length > 200) {
+    throw Object.assign(new Error(`Invalid anonymous ${label}`), { statusCode: 400 });
+  }
+  if (!/^[A-Za-z0-9._-]+$/.test(id) || id === '.' || id === '..') {
+    throw Object.assign(new Error(`Invalid anonymous ${label}`), { statusCode: 400 });
+  }
+  return id;
 }
 
 export class AnonymousSessionStore {
-  private sessions = new Map<string, AnonymousSession>();
+  private baseDir: string;
   private maxSessions: number;
   private sessionTtlMs: number;
   private maxSessionSizeBytes: number;
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(opts: AnonymousSessionStoreOptions = {}) {
+    this.baseDir = opts.baseDir ?? defaultBaseDir();
     this.maxSessions = opts.maxSessions ?? DEFAULT_MAX_SESSIONS;
     this.sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_TTL_MS;
     this.maxSessionSizeBytes = opts.maxSessionSizeBytes ?? DEFAULT_MAX_SIZE_BYTES;
 
     const interval = opts.cleanupIntervalMs ?? DEFAULT_CLEANUP_INTERVAL_MS;
-    this.cleanupTimer = setInterval(() => this.cleanup(), interval);
+    this.cleanupTimer = setInterval(() => { this.cleanup().catch(() => { /* sweep is best-effort */ }); }, interval);
     if (this.cleanupTimer.unref) this.cleanupTimer.unref();
   }
 
-  private touch(session: AnonymousSession): void {
-    session.lastAccessed = Date.now();
+  // ── Path helpers ──
+
+  private sessionDir(sessionId: string): string {
+    return path.join(this.baseDir, safeSegment(sessionId, 'session id'));
+  }
+  private kindDir(sessionId: string, kind: Kind): string {
+    return path.join(this.sessionDir(sessionId), kind);
+  }
+  private itemPath(sessionId: string, kind: Kind, id: string): string {
+    return path.join(this.kindDir(sessionId, kind), `${safeSegment(id, 'item id')}.json`);
   }
 
-  private getOrCreate(sessionId: string): AnonymousSession {
-    let session = this.sessions.get(sessionId);
-    if (session) {
-      this.touch(session);
-      return session;
-    }
-
-    if (this.sessions.size >= this.maxSessions) {
-      this.evictLRU();
-    }
-
-    session = {
-      chats: new Map(),
-      debates: new Map(),
-      debateComments: new Map(),
-      totalSizeBytes: 0,
-      lastAccessed: Date.now(),
-      createdAt: Date.now(),
-    };
-    this.sessions.set(sessionId, session);
-    return session;
+  /** Update the session directory's mtime to now (best-effort access marker). */
+  private async touch(sessionId: string): Promise<void> {
+    const dir = this.sessionDir(sessionId);
+    const now = new Date();
+    try { await fsp.utimes(dir, now, now); } catch { /* dir may not exist yet */ }
   }
 
-  private evictLRU(): void {
-    let oldest: string | null = null;
-    let oldestTime = Infinity;
-    for (const [id, s] of this.sessions) {
-      if (s.lastAccessed < oldestTime) {
-        oldestTime = s.lastAccessed;
-        oldest = id;
+  /** Sum of all file sizes under a session directory. */
+  private async sessionSize(sessionId: string): Promise<number> {
+    let total = 0;
+    for (const kind of ['chats', 'debates', 'comments'] as Kind[]) {
+      const dir = this.kindDir(sessionId, kind);
+      let files: string[];
+      try { files = await fsp.readdir(dir); } catch { continue; }
+      for (const f of files) {
+        try { total += (await fsp.stat(path.join(dir, f))).size; } catch { /* gone */ }
       }
     }
+    return total;
+  }
+
+  private async readJson(filePath: string): Promise<unknown | null> {
+    try {
+      return JSON.parse(await fsp.readFile(filePath, 'utf-8'));
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Write an item, enforcing the per-session size cap. Evicts the LRU session
+   * first if this is a brand-new session that would exceed maxSessions.
+   */
+  private async writeItem(sessionId: string, kind: Kind, id: string, value: unknown): Promise<void> {
+    const dir = this.kindDir(sessionId, kind);
+    const file = this.itemPath(sessionId, kind, id);
+
+    const isNewSession = !fs.existsSync(this.sessionDir(sessionId));
+    if (isNewSession) await this.evictIfFull();
+
+    const serialized = JSON.stringify(value);
+    const newSize = Buffer.byteLength(serialized, 'utf-8');
+    let oldSize = 0;
+    try { oldSize = (await fsp.stat(file)).size; } catch { /* new item */ }
+    const projected = (await this.sessionSize(sessionId)) - oldSize + newSize;
+    if (projected > this.maxSessionSizeBytes) {
+      throw Object.assign(new Error('Anonymous session storage limit exceeded'), { statusCode: 429 });
+    }
+
+    await fsp.mkdir(dir, { recursive: true });
+    await fsp.writeFile(file, serialized);
+    await this.touch(sessionId);
+  }
+
+  private async evictIfFull(): Promise<void> {
+    let entries: string[];
+    try { entries = await fsp.readdir(this.baseDir); } catch { return; }
+    if (entries.length < this.maxSessions) return;
+
+    // Evict the least-recently-accessed session (oldest dir mtime).
+    let oldest: string | null = null;
+    let oldestTime = Infinity;
+    for (const name of entries) {
+      try {
+        const m = (await fsp.stat(path.join(this.baseDir, name))).mtimeMs;
+        if (m < oldestTime) { oldestTime = m; oldest = name; }
+      } catch { /* skip */ }
+    }
     if (oldest) {
-      this.sessions.delete(oldest);
+      await fsp.rm(path.join(this.baseDir, oldest), { recursive: true, force: true });
       log.server.info(`Anonymous session evicted (LRU): ${oldest.slice(0, 8)}...`);
     }
   }
 
+  private async listKind(sessionId: string, kind: Kind): Promise<Record<string, unknown>[]> {
+    const dir = this.kindDir(sessionId, kind);
+    let files: string[];
+    try { files = await fsp.readdir(dir); } catch { return []; }
+    const items: Record<string, unknown>[] = [];
+    for (const f of files) {
+      if (!f.endsWith('.json')) continue;
+      const data = await this.readJson(path.join(dir, f));
+      if (data && typeof data === 'object') items.push(data as Record<string, unknown>);
+    }
+    await this.touch(sessionId);
+    return items;
+  }
+
   // ── Chat CRUD ──
 
-  listChats(sessionId: string): unknown[] {
-    const session = this.sessions.get(sessionId);
-    if (!session) return [];
-    this.touch(session);
-    const summaries: unknown[] = [];
-    for (const chat of session.chats.values()) {
-      const c = chat as Record<string, unknown>;
-      summaries.push({
-        id: c.id,
-        title: c.title || 'Untitled',
-        created_at: c.created_at || '',
-        updated_at: c.updated_at || c.created_at || '',
-        mode: c.mode || '',
-        pover: c.pover || '',
-      });
-    }
-    return summaries.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  async listChats(sessionId: string): Promise<unknown[]> {
+    const chats = await this.listKind(sessionId, 'chats');
+    return chats.map(c => ({
+      id: c.id,
+      title: c.title || 'Untitled',
+      created_at: c.created_at || '',
+      updated_at: c.updated_at || c.created_at || '',
+      mode: c.mode || '',
+      pover: c.pover || '',
+    })).sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
   }
 
-  loadChat(sessionId: string, chatId: string): unknown | null {
-    const session = this.sessions.get(sessionId);
-    if (!session) return null;
-    this.touch(session);
-    return session.chats.get(chatId) ?? null;
+  async loadChat(sessionId: string, chatId: string): Promise<unknown | null> {
+    const data = await this.readJson(this.itemPath(sessionId, 'chats', chatId));
+    if (data !== null) await this.touch(sessionId);
+    return data;
   }
 
-  saveChat(sessionId: string, chat: unknown): void {
-    const session = this.getOrCreate(sessionId);
+  async saveChat(sessionId: string, chat: unknown): Promise<void> {
     const c = chat as { id: string };
-    const oldSize = session.chats.has(c.id) ? estimateSize(session.chats.get(c.id)) : 0;
-    const newSize = estimateSize(chat);
-    const projectedTotal = session.totalSizeBytes - oldSize + newSize;
-
-    if (projectedTotal > this.maxSessionSizeBytes) {
-      throw Object.assign(new Error('Anonymous session storage limit exceeded'), { statusCode: 429 });
-    }
-
-    session.chats.set(c.id, chat);
-    session.totalSizeBytes = projectedTotal;
-    this.touch(session);
+    await this.writeItem(sessionId, 'chats', c.id, chat);
   }
 
-  deleteChat(sessionId: string, chatId: string): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-    const existing = session.chats.get(chatId);
-    if (existing) {
-      session.totalSizeBytes -= estimateSize(existing);
-      session.chats.delete(chatId);
-    }
-    this.touch(session);
+  async deleteChat(sessionId: string, chatId: string): Promise<void> {
+    await fsp.rm(this.itemPath(sessionId, 'chats', chatId), { force: true });
+    await this.touch(sessionId);
   }
 
   // ── Debate CRUD ──
 
-  listDebates(sessionId: string): unknown[] {
-    const session = this.sessions.get(sessionId);
-    if (!session) return [];
-    this.touch(session);
-    const summaries: unknown[] = [];
-    for (const debate of session.debates.values()) {
-      const d = debate as Record<string, unknown>;
-      summaries.push({
-        id: d.id,
-        title: d.title || d.topic || 'Untitled Debate',
-        created_at: d.created_at || '',
-        updated_at: d.updated_at || d.created_at || '',
-        phase: d.phase || 'unknown',
-      });
-    }
-    return summaries.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  async listDebates(sessionId: string): Promise<unknown[]> {
+    const debates = await this.listKind(sessionId, 'debates');
+    return debates.map(d => ({
+      id: d.id,
+      title: d.title || d.topic || 'Untitled Debate',
+      created_at: d.created_at || '',
+      updated_at: d.updated_at || d.created_at || '',
+      phase: d.phase || 'unknown',
+    })).sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
   }
 
-  listDebatesMeta(sessionId: string): unknown[] {
+  async listDebatesMeta(sessionId: string): Promise<unknown[]> {
     return this.listDebates(sessionId);
   }
 
-  loadDebate(sessionId: string, debateId: string): unknown | null {
-    const session = this.sessions.get(sessionId);
-    if (!session) return null;
-    this.touch(session);
-    return session.debates.get(debateId) ?? null;
+  async loadDebate(sessionId: string, debateId: string): Promise<unknown | null> {
+    const data = await this.readJson(this.itemPath(sessionId, 'debates', debateId));
+    if (data !== null) await this.touch(sessionId);
+    return data;
   }
 
-  saveDebate(sessionId: string, debate: unknown): void {
-    const session = this.getOrCreate(sessionId);
+  async saveDebate(sessionId: string, debate: unknown): Promise<void> {
     const d = debate as { id: string };
-    const oldSize = session.debates.has(d.id) ? estimateSize(session.debates.get(d.id)) : 0;
-    const newSize = estimateSize(debate);
-    const projectedTotal = session.totalSizeBytes - oldSize + newSize;
-
-    if (projectedTotal > this.maxSessionSizeBytes) {
-      throw Object.assign(new Error('Anonymous session storage limit exceeded'), { statusCode: 429 });
-    }
-
-    session.debates.set(d.id, debate);
-    session.totalSizeBytes = projectedTotal;
-    this.touch(session);
+    await this.writeItem(sessionId, 'debates', d.id, debate);
   }
 
-  deleteDebate(sessionId: string, debateId: string): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-    const existing = session.debates.get(debateId);
-    if (existing) {
-      session.totalSizeBytes -= estimateSize(existing);
-      session.debates.delete(debateId);
-    }
+  async deleteDebate(sessionId: string, debateId: string): Promise<void> {
+    await fsp.rm(this.itemPath(sessionId, 'debates', debateId), { force: true });
     // Also clean up comments
-    session.debateComments.delete(debateId);
-    this.touch(session);
+    await fsp.rm(this.itemPath(sessionId, 'comments', debateId), { force: true });
+    await this.touch(sessionId);
   }
 
   // ── Debate comments ──
 
-  loadDebateComments(sessionId: string, debateId: string): unknown | null {
-    const session = this.sessions.get(sessionId);
-    if (!session) return null;
-    this.touch(session);
-    return session.debateComments.get(debateId) ?? null;
+  async loadDebateComments(sessionId: string, debateId: string): Promise<unknown | null> {
+    const data = await this.readJson(this.itemPath(sessionId, 'comments', debateId));
+    if (data !== null) await this.touch(sessionId);
+    return data;
   }
 
-  saveDebateComments(sessionId: string, debateId: string, data: unknown): void {
-    const session = this.getOrCreate(sessionId);
-    const oldSize = session.debateComments.has(debateId) ? estimateSize(session.debateComments.get(debateId)) : 0;
-    const newSize = estimateSize(data);
-    session.totalSizeBytes += newSize - oldSize;
-    session.debateComments.set(debateId, data);
-    this.touch(session);
+  async saveDebateComments(sessionId: string, debateId: string, data: unknown): Promise<void> {
+    await this.writeItem(sessionId, 'comments', debateId, data);
   }
 
   // ── Lifecycle ──
 
-  cleanup(): void {
+  /** Delete sessions whose last access (dir mtime) is older than the TTL. */
+  async cleanup(): Promise<void> {
+    let entries: string[];
+    try { entries = await fsp.readdir(this.baseDir); } catch { return; }
     const now = Date.now();
     let evicted = 0;
-    for (const [id, session] of this.sessions) {
-      if (now - session.lastAccessed > this.sessionTtlMs) {
-        this.sessions.delete(id);
-        evicted++;
-      }
+    for (const name of entries) {
+      const dir = path.join(this.baseDir, name);
+      try {
+        if (now - (await fsp.stat(dir)).mtimeMs > this.sessionTtlMs) {
+          await fsp.rm(dir, { recursive: true, force: true });
+          evicted++;
+        }
+      } catch { /* skip */ }
     }
     if (evicted > 0) {
-      log.server.info(`Anonymous session cleanup: evicted ${evicted} expired sessions, ${this.sessions.size} remaining`);
+      log.server.info(`Anonymous session cleanup: evicted ${evicted} expired sessions`);
     }
   }
 
-  destroy(sessionId: string): void {
-    this.sessions.delete(sessionId);
+  async destroy(sessionId: string): Promise<void> {
+    await fsp.rm(this.sessionDir(sessionId), { recursive: true, force: true });
   }
 
   stop(): void {
@@ -247,8 +292,8 @@ export class AnonymousSessionStore {
     }
   }
 
-  get activeSessionCount(): number {
-    return this.sessions.size;
+  async activeSessionCount(): Promise<number> {
+    try { return (await fsp.readdir(this.baseDir)).length; } catch { return 0; }
   }
 }
 

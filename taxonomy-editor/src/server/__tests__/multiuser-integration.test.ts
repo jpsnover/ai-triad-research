@@ -210,9 +210,12 @@ describe('Multi-user data isolation (integration)', () => {
 
 describe('Anonymous session isolation (integration)', () => {
   let store: AnonymousSessionStore;
+  let anonDir: string;
 
   beforeEach(() => {
+    anonDir = fs.mkdtempSync(path.join(os.tmpdir(), 'anon-iso-'));
     store = new AnonymousSessionStore({
+      baseDir: anonDir,
       maxSessions: 10,
       sessionTtlMs: 60_000,
       maxSessionSizeBytes: 1024 * 1024,
@@ -222,40 +225,41 @@ describe('Anonymous session isolation (integration)', () => {
 
   afterEach(() => {
     store.stop();
+    fs.rmSync(anonDir, { recursive: true, force: true });
   });
 
-  it('different anonymous sessions are isolated', () => {
-    store.saveChat('session-a', { id: 'c1', title: 'Session A Chat' });
-    store.saveChat('session-b', { id: 'c2', title: 'Session B Chat' });
+  it('different anonymous sessions are isolated', async () => {
+    await store.saveChat('session-a', { id: 'c1', title: 'Session A Chat' });
+    await store.saveChat('session-b', { id: 'c2', title: 'Session B Chat' });
 
-    expect(store.listChats('session-a')).toHaveLength(1);
-    expect((store.listChats('session-a')[0] as any).title).toBe('Session A Chat');
+    expect(await store.listChats('session-a')).toHaveLength(1);
+    expect(((await store.listChats('session-a'))[0] as any).title).toBe('Session A Chat');
 
-    expect(store.listChats('session-b')).toHaveLength(1);
-    expect((store.listChats('session-b')[0] as any).title).toBe('Session B Chat');
+    expect(await store.listChats('session-b')).toHaveLength(1);
+    expect(((await store.listChats('session-b'))[0] as any).title).toBe('Session B Chat');
 
-    expect(store.loadChat('session-a', 'c2')).toBeNull();
-    expect(store.loadChat('session-b', 'c1')).toBeNull();
+    expect(await store.loadChat('session-a', 'c2')).toBeNull();
+    expect(await store.loadChat('session-b', 'c1')).toBeNull();
   });
 
-  it('destroying one session does not affect another', () => {
-    store.saveChat('s1', { id: 'c1', title: 'First' });
-    store.saveChat('s2', { id: 'c2', title: 'Second' });
+  it('destroying one session does not affect another', async () => {
+    await store.saveChat('s1', { id: 'c1', title: 'First' });
+    await store.saveChat('s2', { id: 'c2', title: 'Second' });
 
-    store.destroy('s1');
+    await store.destroy('s1');
 
-    expect(store.listChats('s1')).toHaveLength(0);
-    expect(store.listChats('s2')).toHaveLength(1);
+    expect(await store.listChats('s1')).toHaveLength(0);
+    expect(await store.listChats('s2')).toHaveLength(1);
   });
 
-  it('concurrent saves across sessions maintain correct size tracking', () => {
+  it('concurrent saves across sessions maintain correct size tracking', async () => {
     const data = { id: 'd1', title: 'test', content: 'x'.repeat(100) };
-    store.saveDebate('s1', data);
-    store.saveDebate('s2', data);
+    await store.saveDebate('s1', data);
+    await store.saveDebate('s2', data);
 
-    expect(store.listDebates('s1')).toHaveLength(1);
-    expect(store.listDebates('s2')).toHaveLength(1);
-    expect(store.activeSessionCount).toBe(2);
+    expect(await store.listDebates('s1')).toHaveLength(1);
+    expect(await store.listDebates('s2')).toHaveLength(1);
+    expect(await store.activeSessionCount()).toBe(2);
   });
 });
 
