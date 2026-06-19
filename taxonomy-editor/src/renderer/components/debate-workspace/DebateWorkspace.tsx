@@ -124,7 +124,9 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
         message: 'Failed to submit debate to community',
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
-      setResult({ ok: false, message: (err as Error).message });
+      const raw = (err as Error).message;
+      const reason = raw.replace(/^(Error:\s*)+/i, '').replace(/^Error invoking remote method '[^']+': /i, '');
+      setResult({ ok: false, message: reason || 'Unknown error' });
     } finally {
       setSharing(false);
     }
@@ -148,7 +150,7 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
           style={{ color: result.ok ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)', marginLeft: 4, fontSize: '0.75rem' }}
           title={result.message}
         >
-          {result.ok ? result.message : 'Failed'}
+          {result.ok ? result.message : `Failed: ${result.message}`}
         </span>
       )}
     </span>

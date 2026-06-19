@@ -229,7 +229,7 @@ function MainApp() {
         void initAIModels().then(() => { void useTaxonomyStore.getState().loadAll(); void initAnalytics(); initDebateSessions(); });
       }
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Show onboarding tour after data loads for first-time users without an API key
   useEffect(() => {
@@ -275,7 +275,7 @@ function MainApp() {
     poll();
     const interval = setInterval(poll, 2000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [showFirstRun, dataRoot]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showFirstRun, dataRoot]);
 
   // Check for data updates after initial load
   useEffect(() => {
