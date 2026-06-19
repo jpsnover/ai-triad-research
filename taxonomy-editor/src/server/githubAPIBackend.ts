@@ -429,45 +429,69 @@ export class GitHubAPIBackend implements StorageBackend {
 
   async listDirectory(dirPath: string): Promise<string[]> {
     const repoPath = this.toRepoPath(dirPath);
+    const prefix = repoPath ? repoPath + '/' : '';
 
-    // Use the in-memory tree if available
+    // Build the base listing (direct children) from the in-memory tree, falling
+    // back to the GitHub Contents API. Collected as a Set so the session overlay
+    // merge below can add/remove entries idempotently.
+    const seen = new Set<string>();
+
     if (this.repoTree.size > 0) {
-      const prefix = repoPath ? repoPath + '/' : '';
-      const entries: string[] = [];
-      const seen = new Set<string>();
       for (const [p] of this.repoTree) {
         if (prefix && !p.startsWith(prefix)) continue;
-        if (!prefix && p.includes('/')) {
-          // Top-level: extract first segment
-          const seg = p.split('/')[0];
-          if (!seen.has(seg)) { seen.add(seg); entries.push(seg); }
-          continue;
-        }
         const rest = prefix ? p.slice(prefix.length) : p;
         if (!rest) continue;
-        // Direct children only
-        const seg = rest.split('/')[0];
-        if (!seen.has(seg)) { seen.add(seg); entries.push(seg); }
+        // Direct children only — first path segment under the prefix.
+        seen.add(rest.split('/')[0]);
       }
-      return entries;
+    } else if (!(this.circuitState === 'open' && !this.shouldProbe())) {
+      const creds = await this.getCredsCached();
+      if (creds) {
+        const ref = this.getEffectiveRef();
+        const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
+        const resp = await this.apiRequest(creds, 'GET',
+          `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
+        if (resp.ok && Array.isArray(resp.data)) {
+          for (const e of resp.data as Array<{ name: string }>) seen.add(e.name);
+        }
+      }
     }
 
-    // Fallback: GitHub Contents API
-    if (this.circuitState === 'open' && !this.shouldProbe()) return [];
+    // Merge the session overlay so files written this session are visible and
+    // tombstoned files are hidden — mirroring readFile()/fileExists() semantics.
+    // Without this, submissions written to the overlay (e.g. community submits)
+    // are invisible to listDirectory() until the overlay is flushed on commit.
+    this.mergeOverlayIntoListing(prefix, seen);
 
-    const creds = await this.getCredsCached();
-    if (!creds) return [];
+    return [...seen];
+  }
 
-    const ref = this.getEffectiveRef();
-    const qRef = ref === 'main' ? '' : `?ref=${encodeURIComponent(ref)}`;
-    const resp = await this.apiRequest(creds, 'GET',
-      `/repos/${creds.repo}/contents/${repoPath}${qRef}`);
+  /**
+   * Merge the active session overlay into a base directory listing (in place).
+   * Adds the direct-child segment of each non-tombstoned overlay entry under
+   * `prefix`, and removes direct-file children that have been tombstoned.
+   * Tombstones for files nested in subdirectories do not remove the subdirectory
+   * segment, since other (non-deleted) files may still live under it.
+   */
+  private mergeOverlayIntoListing(prefix: string, entries: Set<string>): void {
+    if (this.getEffectiveRef() === 'main') return;
+    const userId = this.getEffectiveUserId();
+    if (!userId) return;
+    const overlay = this.sessionOverlays.get(userId);
+    if (!overlay) return;
 
-    if (!resp.ok) return [];
-
-    const data = resp.data;
-    if (!Array.isArray(data)) return [];
-    return (data as Array<{ name: string }>).map(e => e.name);
+    for (const [p, content] of overlay) {
+      if (prefix && !p.startsWith(prefix)) continue;
+      const rest = prefix ? p.slice(prefix.length) : p;
+      if (!rest) continue;
+      const seg = rest.split('/')[0];
+      const isDirectFile = !rest.includes('/');
+      if (content === GitHubAPIBackend.TOMBSTONE) {
+        if (isDirectFile) entries.delete(seg);
+      } else {
+        entries.add(seg);
+      }
+    }
   }
 
   async deleteFile(filePath: string): Promise<void> {

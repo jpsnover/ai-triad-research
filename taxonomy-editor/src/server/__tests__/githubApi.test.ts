@@ -1214,6 +1214,103 @@ describe('GitHubAPIBackend — cache behavior', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// listDirectory OVERLAY MERGE (t/681 — admin review queue fix)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — listDirectory overlay merge (t/681)', () => {
+  it('includes files written to the session overlay but not yet committed', async () => {
+    // Repro of the admin-review bug: submissions written to the overlay were
+    // invisible to listDirectory() until the overlay was flushed on commit.
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    await backend.writeFile('/community/_submissions/sub-1.json', '{"id":"1"}');
+    await backend.writeFile('/community/_submissions/sub-2.json', '{"id":"2"}');
+
+    const entries = await backend.listDirectory('/community/_submissions');
+    expect(entries).toContain('sub-1.json');
+    expect(entries).toContain('sub-2.json');
+
+    backend.shutdown();
+  });
+
+  it('merges overlay files into an existing tree-backed directory without duplicates', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    // taxonomy/ already holds nodes.json + edges.json from the repo tree.
+    await backend.writeFile('/taxonomy/new-file.json', '{"new":true}');
+
+    const entries = await backend.listDirectory('/taxonomy');
+    expect(entries).toContain('nodes.json');    // from tree
+    expect(entries).toContain('edges.json');     // from tree
+    expect(entries).toContain('new-file.json');  // from overlay
+    expect(new Set(entries).size).toBe(entries.length); // no dupes
+
+    backend.shutdown();
+  });
+
+  it('hides tombstoned (deleted) files from the listing', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    // edges.json exists in the tree; delete it in this session (overlay tombstone).
+    await backend.deleteFile('/taxonomy/edges.json');
+
+    const entries = await backend.listDirectory('/taxonomy');
+    expect(entries).toContain('nodes.json');
+    expect(entries).not.toContain('edges.json');
+
+    backend.shutdown();
+  });
+
+  it('surfaces a new subdirectory created only in the overlay', async () => {
+    const backend = await createBackend();
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+
+    await backend.writeFile('/community/chats/chat-1.json', '{}');
+
+    const top = await backend.listDirectory('/community');
+    expect(top).toContain('chats');
+
+    const sub = await backend.listDirectory('/community/chats');
+    expect(sub).toContain('chat-1.json');
+
+    backend.shutdown();
+  });
+
+  it('does not merge overlay when the effective ref is main', async () => {
+    const backend = await createBackend();
+    // Write under an active session branch...
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    await backend.writeFile('/taxonomy/session-only.json', '{}');
+
+    // ...then drop to a main-ref context (no branch name).
+    backend.setSessionContext({ userId: 'alice' });
+    const entries = await backend.listDirectory('/taxonomy');
+    expect(entries).not.toContain('session-only.json');
+
+    backend.shutdown();
+  });
+
+  it('keeps overlays isolated per user', async () => {
+    const backend = await createBackend();
+
+    backend.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    await backend.writeFile('/community/_submissions/alice.json', '{}');
+
+    backend.setSessionContext({ userId: 'bob', branchName: 'api-session/bob' });
+    await backend.writeFile('/community/_submissions/bob.json', '{}');
+
+    const bobEntries = await backend.listDirectory('/community/_submissions');
+    expect(bobEntries).toContain('bob.json');
+    expect(bobEntries).not.toContain('alice.json');
+
+    backend.shutdown();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // DIAGNOSTIC ACCESSORS
 // ═══════════════════════════════════════════════════════════════════════════
 
