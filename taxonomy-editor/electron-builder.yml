@@ -35,7 +35,7 @@ mac:
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  x64ArchFiles: "Contents/Resources/app.asar.unpacked/**"
+  x64ArchFiles: "**/onnxruntime-node/bin/**"
 
 dmg:
   contents:
