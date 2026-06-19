@@ -26,8 +26,11 @@ export interface StorageBackend {
   readFile(filePath: string, opts?: { ref?: string }): Promise<string | null>;
 
   /** Write content to a file (UTF-8). Creates parent directories and uses
-   *  atomic write (tmp+rename) where the backend supports it. */
-  writeFile(filePath: string, content: string): Promise<void>;
+   *  atomic write (tmp+rename) where the backend supports it.
+   *  `opts.ref` pins the write to a specific ref (e.g. 'main') for shared data
+   *  that must commit straight to main rather than a per-user session branch
+   *  (community submissions). Backends without branches ignore it. */
+  writeFile(filePath: string, content: string, opts?: { ref?: string }): Promise<void>;
 
   /** List entries (files and directories) in a directory. Returns [] if the
    *  directory does not exist. */

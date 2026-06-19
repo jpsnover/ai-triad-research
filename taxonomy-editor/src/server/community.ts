@@ -120,9 +120,13 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
     data: itemData,
   };
 
+  // Submissions are shared data on main — submitters (often without a session
+  // branch / merge rights) need them visible to admins immediately, so commit
+  // straight to main rather than the submitter's session overlay (t/694).
   await backend.writeFile(
     path.join(dir, `sub-${submissionId}.json`),
     JSON.stringify(submission, null, 2),
+    { ref: 'main' },
   );
 
   log.server.info({ submissionId, type, userId }, 'Community submission created');

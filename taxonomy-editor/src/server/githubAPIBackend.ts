@@ -359,19 +359,26 @@ export class GitHubAPIBackend implements StorageBackend {
     return result.content;
   }
 
-  async writeFile(filePath: string, content: string): Promise<void> {
+  async writeFile(filePath: string, content: string, opts?: { ref?: string }): Promise<void> {
     const repoPath = this.toRepoPath(filePath);
-    const ref = this.getEffectiveRef();
+    // opts.ref pins the write to a specific ref (e.g. 'main') for shared data
+    // that must commit straight to main rather than the caller's session branch
+    // — e.g. community submissions, which submitters (often without merge rights)
+    // need visible to admins immediately (t/694). Without a ref, writes keep the
+    // overlay/session-branch semantics that calibration RMW flows depend on.
+    const forceRef = opts?.ref;
+    const ref = forceRef ?? this.getEffectiveRef();
 
-    // When on a session branch, write to overlay only — no API call.
-    // The overlay is flushed to GitHub via commitOverlay() (Trees API batch).
-    if (ref !== 'main' && this.hasSessionContext()) {
+    // When on a session branch (and no ref is forced), write to overlay only —
+    // no API call. The overlay is flushed via commitOverlay() (Trees API batch).
+    if (!forceRef && ref !== 'main' && this.hasSessionContext()) {
       this.writeToOverlay(filePath, content);
       return;
     }
 
-    // Writes must go to a session branch — caller should create one first
-    if (ref === 'main' && this.hasSessionContext()) {
+    // Without a forced ref, writes must go to a session branch — caller should
+    // create one first. A forced ref is an explicit opt-in to a direct commit.
+    if (!forceRef && ref === 'main' && this.hasSessionContext()) {
       throw new ActionableError({
         goal: 'Write file to GitHub',
         problem: 'Cannot write directly to main. Create a session branch first.',

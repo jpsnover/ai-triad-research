@@ -21,6 +21,7 @@ type ReadOpts = { ref?: string } | undefined;
 
 class SpyBackend implements StorageBackend {
   calls: { path: string; opts: ReadOpts }[] = [];
+  writeCalls: { path: string; opts: ReadOpts }[] = [];
   private returns = new Map<string, string>();
   private dirs = new Map<string, string[]>();
 
@@ -29,6 +30,9 @@ class SpyBackend implements StorageBackend {
   optsFor(substr: string): ReadOpts[] {
     return this.calls.filter(c => c.path.includes(substr)).map(c => c.opts);
   }
+  writeOptsFor(substr: string): ReadOpts[] {
+    return this.writeCalls.filter(c => c.path.includes(substr)).map(c => c.opts);
+  }
 
   async readFile(filePath: string, opts?: { ref?: string }): Promise<string | null> {
     const p = filePath.replace(/\\/g, '/');
@@ -36,7 +40,9 @@ class SpyBackend implements StorageBackend {
     for (const [sub, content] of this.returns) if (p.includes(sub)) return content;
     return null;
   }
-  async writeFile(): Promise<void> {}
+  async writeFile(filePath: string, _content: string, opts?: { ref?: string }): Promise<void> {
+    this.writeCalls.push({ path: filePath.replace(/\\/g, '/'), opts });
+  }
   async listDirectory(dirPath: string): Promise<string[]> {
     const d = dirPath.replace(/\\/g, '/');
     for (const [sub, entries] of this.dirs) if (d.includes(sub)) return entries;
@@ -92,6 +98,14 @@ describe('community/calibration reads target main (t/684)', () => {
     const opts = spy.optsFor('_submissions/sub-1.json');
     expect(opts.length).toBeGreaterThan(0);
     expect(opts.every(o => o?.ref === 'main')).toBe(true);
+  });
+
+  it('submitToCommunity writes the submission with { ref: "main" } (t/694)', async () => {
+    spy.stubDir('_submissions', []); // no existing pending submissions
+    const { submissionId } = await userContext.runWithUser(authedCtx, () =>
+      community.submitToCommunity('chat', { id: 'chat-x', title: 'My Chat' }));
+    const writes = spy.writeOptsFor(`_submissions/sub-${submissionId}.json`);
+    expect(writes).toEqual([{ ref: 'main' }]);
   });
 
   it('approveSubmission reads the submission from main', async () => {
