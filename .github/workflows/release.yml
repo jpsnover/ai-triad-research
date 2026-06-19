@@ -164,7 +164,7 @@ jobs:
   # ── Build Electron app (Windows) ──────────────────────────
   build-electron-win:
     needs: [test, resolve-version]
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       RELEASE_VERSION: ${{ needs.resolve-version.outputs.version }}
     steps:
