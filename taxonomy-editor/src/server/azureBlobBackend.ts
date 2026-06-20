@@ -25,6 +25,7 @@ import { DefaultAzureCredential } from '@azure/identity';
 import { getDataRoot } from './config.js';
 import type { StorageBackend } from './storageBackend.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 export interface AzureBlobBackendOptions {
   /** e.g. https://<account>.blob.core.windows.net — from AZURE_STORAGE_ACCOUNT_URL. */
@@ -57,9 +58,22 @@ function isNotFound(err: unknown): boolean {
     : false;
 }
 
-/** Wrap a raw Blob SDK error in an ActionableError (never includes credentials —
- *  auth is via the credential object, not the message). */
+/** Record a Blob error to the flight recorder (incl. stack) for trace debugging. */
+function recordBlobError(err: unknown, op: string, blob: string, level: 'warn' | 'error'): void {
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'azure-blob-backend',
+    level,
+    message: `${op} failed: ${blob}`,
+    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+  });
+}
+
+/** Record + wrap a raw Blob SDK error in an ActionableError. Preserves the
+ *  original error via innerError (stack). Never includes credentials — auth is
+ *  via the credential object, not the message. */
 function wrapBlobError(err: unknown, op: string, blob: string): ActionableError {
+  recordBlobError(err, op, blob, 'error');
   return new ActionableError({
     goal: `Azure Blob ${op}`,
     problem: `Blob operation "${op}" failed for "${blob}": ${(err as Error)?.message ?? String(err)}`,
@@ -68,6 +82,7 @@ function wrapBlobError(err: unknown, op: string, blob: string): ActionableError 
       'Verify the storage account is reachable and the managed identity has data-plane access',
       'Check Azure Blob service health and retry; the operation is idempotent',
     ],
+    innerError: err,
   });
 }
 
@@ -124,7 +139,7 @@ export class AzureBlobBackend implements StorageBackend {
       const resp = await this.containerFor(blob).getBlobClient(blob).download();
       return await streamToBuffer(resp.readableStreamBody);
     } catch (err) {
-      if (isNotFound(err)) return null;
+      if (isNotFound(err)) { recordBlobError(err, 'readFile', blob, 'warn'); return null; }
       throw wrapBlobError(err, 'readFile', blob);
     }
   }
@@ -147,7 +162,7 @@ export class AzureBlobBackend implements StorageBackend {
     try {
       await this.containerFor(blob).getBlobClient(blob).delete();
     } catch (err) {
-      if (isNotFound(err)) return; // no-op on missing
+      if (isNotFound(err)) { recordBlobError(err, 'deleteFile', blob, 'warn'); return; } // no-op on missing
       throw wrapBlobError(err, 'deleteFile', blob);
     }
   }
