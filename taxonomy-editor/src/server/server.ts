@@ -32,6 +32,7 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
+import { AzureBlobBackend } from './azureBlobBackend.js';
 import { runWithUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
@@ -156,6 +157,34 @@ if (STORAGE_MODE === 'github-api') {
     message: `Storage mode: github-api (cache: ${CACHE_DIR})`,
     data: { mode: 'github-api', cacheDir: CACHE_DIR },
   });
+
+  // Dual-backend routing (t/698): user content (chats / debates / community) can
+  // live in Azure Blob while taxonomy/conflicts/calibration stay on GitHub.
+  // Gated by USER_CONTENT_STORAGE for rollback safety — default 'github-api'
+  // leaves everything on GitHub (userContentBackend falls back to taxonomy).
+  const userContentStorage = process.env.USER_CONTENT_STORAGE === 'azure-blob' ? 'azure-blob' : 'github-api';
+  const blobAccountUrl = process.env.AZURE_STORAGE_ACCOUNT_URL;
+  if (userContentStorage === 'azure-blob' && blobAccountUrl) {
+    fileIO.setUserContentBackend(new AzureBlobBackend({
+      accountUrl: blobAccountUrl,
+      userContentContainer: process.env.AZURE_USER_CONTENT_CONTAINER || 'user-content',
+      communityContainer: process.env.AZURE_COMMUNITY_CONTAINER || 'community',
+    }));
+    serverRecorder.record({
+      type: 'storage.mode', component: 'storage', level: 'info',
+      message: 'User content storage: azure-blob',
+      data: { userContentStorage: 'azure-blob', accountUrl: blobAccountUrl },
+    });
+  } else {
+    if (userContentStorage === 'azure-blob' && !blobAccountUrl) {
+      log.storage.warn('USER_CONTENT_STORAGE=azure-blob but AZURE_STORAGE_ACCOUNT_URL is unset — user content stays on GitHub');
+    }
+    serverRecorder.record({
+      type: 'storage.mode', component: 'storage', level: 'info',
+      message: 'User content storage: github-api (rollback path)',
+      data: { userContentStorage: 'github-api' },
+    });
+  }
 } else {
   // FilesystemBackend is the default in fileIO.ts — no action needed
   serverRecorder.record({

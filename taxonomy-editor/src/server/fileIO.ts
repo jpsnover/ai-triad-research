@@ -28,11 +28,24 @@ import { getAnonymousSessionStore } from './anonymousSessionStore.js';
 import { checkQuota } from './quotas.js';
 // ── Backend injection ──
 
+// Taxonomy / conflicts / calibration / summaries / sources use `backend`.
+// User content (chats, debates, community) routes through `userContentBackend`,
+// which falls back to `backend` when not separately configured — i.e. Electron /
+// filesystem mode, and the github-api rollback path (USER_CONTENT_STORAGE=
+// github-api). In the Azure Blob migration `userContentBackend` is set to an
+// AzureBlobBackend while `backend` stays on GitHubAPIBackend. See t/698.
 let backend: StorageBackend = new FilesystemBackend();
+let userContentBackend: StorageBackend | null = null;
 
-/** Replace the storage backend (e.g. with GitHubAPIBackend for Azure). */
+/** Replace the taxonomy/default storage backend. */
 export function setBackend(b: StorageBackend): void { backend = b; }
 export function getBackend(): StorageBackend { return backend; }
+/** Alias of setBackend, for explicit dual-backend wiring. */
+export function setTaxonomyBackend(b: StorageBackend): void { backend = b; }
+/** Set the backend for user content (chats/debates/community). */
+export function setUserContentBackend(b: StorageBackend): void { userContentBackend = b; }
+/** User-content backend; falls back to the taxonomy backend when unset. */
+export function getUserContentBackend(): StorageBackend { return userContentBackend ?? backend; }
 
 // ── Path safety ──
 
@@ -662,6 +675,7 @@ const DEBATE_INDEX_FILE = '_index.json';
 
 /** Read the lightweight debate index (one file read).  Returns null if the index doesn't exist. */
 async function readDebateIndex(): Promise<{ id: string; title: string; created_at: string; updated_at: string; phase: string }[] | null> {
+  const backend = getUserContentBackend();
   const raw = await backend.readFile(path.join(getDebatesDir(), DEBATE_INDEX_FILE));
   if (raw === null) return null;
   try { return JSON.parse(raw); } catch { /* telemetry — silent by design */ return null; }
@@ -669,6 +683,7 @@ async function readDebateIndex(): Promise<{ id: string; title: string; created_a
 
 /** Write the debate index to disk. */
 async function writeDebateIndex(entries: { id: string; title: string; created_at: string; updated_at: string; phase: string }[]): Promise<void> {
+  const backend = getUserContentBackend();
   await backend.writeFile(
     path.join(getDebatesDir(), DEBATE_INDEX_FILE),
     JSON.stringify(entries, null, 2),
@@ -699,6 +714,7 @@ async function removeFromDebateIndex(id: string): Promise<void> {
  */
 export async function listDebateSessionsMeta(): Promise<unknown[]> {
   if (isAnonymousUser()) { const a = getAnonStore(); return a ? await a.store.listDebatesMeta(a.sessionId) : []; }
+  const backend = getUserContentBackend();
   const dir = getDebatesDir();
   const cached = await readDebateIndex();
   if (cached !== null && cached.length > 0) {
@@ -730,6 +746,7 @@ async function rebuildDebateIndex(): Promise<unknown[]> {
 
 export async function listDebateSessions(): Promise<unknown[]> {
   if (isAnonymousUser()) { const a = getAnonStore(); return a ? await a.store.listDebates(a.sessionId) : []; }
+  const backend = getUserContentBackend();
   const dir = getDebatesDir();
   const summaries: { id: string; title: string; created_at: string; updated_at: string; phase: string; model?: string; turn_count?: number }[] = [];
 
@@ -777,6 +794,7 @@ export async function loadDebateSession(id: string): Promise<unknown> {
     if (data === null) throw new ActionableError({ goal: 'Load debate session', problem: `Debate session not found: ${id}`, location: 'server/fileIO.ts → loadDebateSession (anonymous)', nextSteps: ['Verify the debate ID exists'] });
     return data;
   }
+  const backend = getUserContentBackend();
   const filePath = path.join(getDebatesDir(), `debate-${id}.json`);
   const raw = await backend.readFile(filePath);
   if (raw === null) throw new ActionableError({
@@ -792,6 +810,7 @@ export async function saveDebateSession(session: unknown): Promise<void> {
   const s = session as { id: string; title?: string; topic?: { final?: string; original?: string }; created_at?: string; updated_at?: string; phase?: string };
   assertSafeId(s.id, 'debate id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) await a.store.saveDebate(a.sessionId, session); return; }
+  const backend = getUserContentBackend();
   const debatePath = path.join(getDebatesDir(), `debate-${s.id}.json`);
   const isNew = (await backend.readFile(debatePath)) === null;
   if (isNew) {
@@ -815,6 +834,7 @@ export async function saveDebateSession(session: unknown): Promise<void> {
 export async function deleteDebateSession(id: string): Promise<void> {
   assertSafeId(id, 'debate id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) await a.store.deleteDebate(a.sessionId, id); return; }
+  const backend = getUserContentBackend();
   await backend.deleteFile(path.join(getDebatesDir(), `debate-${id}.json`));
   void removeFromDebateIndex(id).catch((err) => { log.server.warn({ err, debateId: id }, 'Debate index removal failed (best-effort)'); });
 }
@@ -825,6 +845,7 @@ export async function loadDebateComments(debateId: string): Promise<unknown> {
     const a = getAnonStore();
     return (await a?.store.loadDebateComments(a.sessionId, debateId)) ?? { _schema_version: '1', debateId, comments: [] };
   }
+  const backend = getUserContentBackend();
   const filePath = path.join(getDebatesDir(), `debate-${debateId}-comments.json`);
   const raw = await backend.readFile(filePath);
   if (raw === null) {
@@ -836,6 +857,7 @@ export async function loadDebateComments(debateId: string): Promise<unknown> {
 export async function saveDebateComments(debateId: string, data: unknown): Promise<void> {
   assertSafeId(debateId, 'debate id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) await a.store.saveDebateComments(a.sessionId, debateId, data); return; }
+  const backend = getUserContentBackend();
   await backend.writeFile(
     path.join(getDebatesDir(), `debate-${debateId}-comments.json`),
     JSON.stringify(data, null, 2),
@@ -852,6 +874,7 @@ function getChatsDir(): string {
 
 export async function listChatSessions(): Promise<unknown[]> {
   if (isAnonymousUser()) { const a = getAnonStore(); return a ? await a.store.listChats(a.sessionId) : []; }
+  const backend = getUserContentBackend();
   const dir = getChatsDir();
   const files = (await backend.listDirectory(dir)).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
   const summaries: { id: string; title: string; created_at: string; updated_at: string; mode: string; pover: string }[] = [];
@@ -881,6 +904,7 @@ export async function loadChatSession(id: string): Promise<unknown> {
     if (data === null) throw new ActionableError({ goal: 'Load chat session', problem: `Chat session not found: ${id}`, location: 'server/fileIO.ts → loadChatSession (anonymous)', nextSteps: ['Verify the chat ID exists'] });
     return data;
   }
+  const backend = getUserContentBackend();
   const raw = await backend.readFile(path.join(getChatsDir(), `chat-${id}.json`));
   if (raw === null) throw new ActionableError({
     goal: 'Load chat session',
@@ -895,6 +919,7 @@ export async function saveChatSession(session: unknown): Promise<void> {
   const s = session as { id: string };
   assertSafeId(s.id, 'chat id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) await a.store.saveChat(a.sessionId, session); return; }
+  const backend = getUserContentBackend();
   const chatPath = path.join(getChatsDir(), `chat-${s.id}.json`);
   const isNew = (await backend.readFile(chatPath)) === null;
   if (isNew) {
@@ -910,6 +935,7 @@ export async function saveChatSession(session: unknown): Promise<void> {
 export async function deleteChatSession(id: string): Promise<void> {
   assertSafeId(id, 'chat id');
   if (isAnonymousUser()) { const a = getAnonStore(); if (a) await a.store.deleteChat(a.sessionId, id); return; }
+  const backend = getUserContentBackend();
   await backend.deleteFile(path.join(getChatsDir(), `chat-${id}.json`));
 }
 

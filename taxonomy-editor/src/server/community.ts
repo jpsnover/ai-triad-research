@@ -3,7 +3,7 @@
 
 import crypto from 'crypto';
 import { resolveDataPath } from './config.js';
-import { getBackend } from './fileIO.js';
+import { getUserContentBackend } from './fileIO.js';
 import { getStorageUserId, isAnonymousUser } from './userContext.js';
 import { log } from './logger.js';
 import path from 'path';
@@ -28,7 +28,7 @@ export function isAdmin(userId?: string): boolean {
 // ── Community read ──
 
 export async function listCommunityChats(): Promise<unknown[]> {
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const dir = communityChatsDir();
   const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
   const items: unknown[] = [];
@@ -51,7 +51,7 @@ export async function listCommunityChats(): Promise<unknown[]> {
 }
 
 export async function listCommunityDebates(): Promise<unknown[]> {
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const dir = communityDebatesDir();
   const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
   const items: unknown[] = [];
@@ -74,7 +74,7 @@ export async function listCommunityDebates(): Promise<unknown[]> {
 }
 
 export async function loadCommunityItem(type: 'chats' | 'debates', id: string): Promise<unknown | null> {
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
   const prefix = type === 'chats' ? 'chat-' : 'debate-';
   const raw = await backend.readFile(path.join(dir, `${prefix}${id}.json`), { ref: 'main' });
@@ -97,7 +97,7 @@ interface Submission {
 
 export async function submitToCommunity(type: 'chat' | 'debate', itemData: unknown, note?: string): Promise<{ submissionId: string }> {
   const userId = getStorageUserId();
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const dir = submissionsDir();
 
   // Rate limit: max 20 pending submissions per user
@@ -141,7 +141,7 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
 }
 
 async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const dir = submissionsDir();
   const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
   const subs: Submission[] = [];
@@ -157,7 +157,7 @@ async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
 }
 
 export async function listSubmissions(statusFilter?: string): Promise<unknown[]> {
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const dir = submissionsDir();
   const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
   const subs: Submission[] = [];
@@ -208,7 +208,7 @@ export async function approveSubmission(
   submissionId: string,
   edits?: Record<string, unknown>,
 ): Promise<{ communityId: string }> {
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
   const raw = await backend.readFile(subPath, { ref: 'main' });
   if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
@@ -240,7 +240,7 @@ export async function approveSubmission(
 }
 
 export async function rejectSubmission(submissionId: string, reason?: string): Promise<void> {
-  const backend = getBackend();
+  const backend = getUserContentBackend();
   const subPath = path.join(submissionsDir(), `sub-${submissionId}.json`);
   const raw = await backend.readFile(subPath, { ref: 'main' });
   if (!raw) throw Object.assign(new Error('Submission not found'), { statusCode: 404 });
