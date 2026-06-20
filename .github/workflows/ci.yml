@@ -204,29 +204,39 @@ jobs:
             ai-triad-test:ci
           echo "Waiting for container to start..."
 
-          # Diagnostics: verify container is actually running
-          sleep 3
+          # Diagnostics: verify container is actually running and port is bound
+          sleep 5
           echo "=== Container state ==="
           docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}} Pid={{.State.Pid}}'
           echo "=== Port bindings ==="
           docker port smoke-test 2>/dev/null || echo "No port bindings"
-          echo "=== Internal health check ==="
-          docker exec smoke-test curl -s --max-time 5 http://localhost:7862/health 2>/dev/null || echo "Internal curl failed (exit $?)"
+          echo "=== Listening sockets inside container ==="
+          docker exec smoke-test sh -c 'ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo "no ss/netstat"'
+          echo "=== Node.js HTTP check (bypasses curl) ==="
+          docker exec smoke-test node -e "
+            const h = require('http');
+            const r = h.get('http://127.0.0.1:7862/health', {timeout: 5000}, res => {
+              let d = ''; res.on('data', c => d += c);
+              res.on('end', () => { console.log('HTTP ' + res.statusCode + ': ' + d); process.exit(0); });
+            });
+            r.on('timeout', () => { console.log('TIMEOUT'); r.destroy(); process.exit(1); });
+            r.on('error', e => { console.log('ERROR: ' + e.message); process.exit(1); });
+          " || echo "Node HTTP check failed"
+          echo "=== Process list ==="
+          docker exec smoke-test ps aux 2>/dev/null || docker top smoke-test
+          echo "=== Container logs so far ==="
+          docker logs smoke-test
           echo ""
 
-          # Health check: 36 attempts × 8s sleep ≈ 288s budget (+ curl overhead)
-          for i in $(seq 1 36); do
+          # Health check: 18 attempts × 10s sleep ≈ 180s budget
+          for i in $(seq 1 18); do
             STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || true)
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed on attempt $i!"
               break
             fi
-            # Every 6th attempt, print container state for diagnostics
-            if [ $((i % 6)) -eq 0 ]; then
-              echo "  [diag] $(docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}}' 2>/dev/null || echo 'inspect failed')"
-            fi
-            echo "  Attempt $i/36 — status: ${STATUS:-000}"
-            sleep 8
+            echo "  Attempt $i/18 — status: ${STATUS:-000}"
+            sleep 10
           done
 
           if [ "$STATUS" != "200" ]; then
