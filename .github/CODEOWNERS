@@ -1,0 +1,12 @@
+# Security-critical paths require review before merge.
+# GitHub enforces these when branch protection "Require review from Code Owners" is enabled.
+
+# CI/CD pipelines and deployment infrastructure
+.github/workflows/    @jpsnover
+deploy/               @jpsnover
+
+# Container images
+Dockerfile*           @jpsnover
+
+# Authentication middleware
+taxonomy-editor/src/server/server.ts  @jpsnover

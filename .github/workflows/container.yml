@@ -24,6 +24,8 @@ permissions:
   contents: read
   packages: write
   security-events: write  # For SARIF upload
+  id-token: write          # For build provenance attestation
+  attestations: write      # For build provenance attestation
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -222,6 +224,14 @@ jobs:
         with:
           name: sbom
           path: sbom.spdx.json
+
+      - name: Attest build provenance
+        if: steps.push_mode.outputs.push == 'true' && steps.build.outputs.digest != ''
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184ef3e05d3cf  # v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
       - name: Image size report
         if: success()

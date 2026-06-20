@@ -105,6 +105,11 @@ jobs:
         # are still audited at --audit-level=high.
         run: npm audit --audit-level=high --omit=dev
 
+      - name: Verify package provenance signatures
+        working-directory: ${{ matrix.app }}
+        continue-on-error: true
+        run: npm audit signatures
+
       - name: Lint
         working-directory: ${{ matrix.app }}
         run: npm run lint --if-present

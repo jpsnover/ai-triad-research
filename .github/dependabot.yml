@@ -4,19 +4,43 @@ updates:
     directory: /taxonomy-editor
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 10
+
   - package-ecosystem: npm
     directory: /workflow-app
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
   - package-ecosystem: npm
     directory: /poviewer
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
   - package-ecosystem: npm
     directory: /summary-viewer
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
