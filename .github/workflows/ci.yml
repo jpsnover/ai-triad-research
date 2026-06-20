@@ -194,7 +194,7 @@ jobs:
           tags: ai-triad-test:ci
 
       - name: Run container smoke test (GitHub API-first mode)
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: |
           # No data volume mounted — the app starts with baked fallback data
           # and fetches from GitHub API. In CI we just verify it starts cleanly.
@@ -204,21 +204,16 @@ jobs:
             ai-triad-test:ci
           echo "Waiting for container to start..."
 
-          # Health check: 18 × 5s = 90s max
-          # --max-time 4 prevents curl from hanging when the server accepts
-          # the TCP connection but stalls during initialization.
-          for i in $(seq 1 18); do
-            # `|| true` is required: the step runs under `bash -e`, so an
-            # unguarded failing command-substitution (curl exits non-zero while
-            # the container is still starting) aborts the whole step on attempt 1
-            # instead of retrying. Tolerate the failure and let the loop retry.
+          # Health check: 36 attempts × 8s sleep ≈ 288s budget (+ curl overhead)
+          # Server cold-starts in ~160s on GitHub runners; step timeout 8 min.
+          for i in $(seq 1 36); do
             STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || true)
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed on attempt $i!"
               break
             fi
-            echo "  Attempt $i/18 — status: ${STATUS:-000}"
-            sleep 5
+            echo "  Attempt $i/36 — status: ${STATUS:-000}"
+            sleep 8
           done
 
           if [ "$STATUS" != "200" ]; then
