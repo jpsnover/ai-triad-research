@@ -1,0 +1,105 @@
+# ─── Migrate user content to Azure Blob ───
+# What:  One-time (re-runnable) migration of user chats/debates + community items
+#        from the GitHub data repo into the Azure Blob containers, ahead of
+#        flipping USER_CONTENT_STORAGE=azure-blob (t/698/t/699, epic t/695).
+# How:   Checks out ai-triad-data, builds the server, and runs
+#        scripts/migrateUserContentToBlob.js with a FILESYSTEM source (reads the
+#        checked-out data repo) and an AzureBlobBackend dest (OIDC / DefaultAzure
+#        Credential). Idempotent; supports a dry-run preview.
+# Run:   Actions → "Migrate user content to Blob" → Run workflow. Do dry_run=true
+#        first, review the MigrationSummary (0 failures + 0 verify failures), then
+#        re-run with dry_run=false.
+#
+# DevOps prerequisites (confirm before first run):
+#   1. secrets.DATA_REPO_TOKEN — read access to the private jpsnover/ai-triad-data.
+#   2. The Azure OIDC identity (AZURE_CLIENT_ID) needs the "Storage Blob Data
+#      Contributor" role on the storage account (DefaultAzureCredential writes
+#      blobs data-plane, not just control-plane).
+#   3. AZURE_STORAGE_ACCOUNT_URL is read live from the container app env.
+
+name: Migrate user content to Blob
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (read + count only; no writes to Blob)'
+        type: boolean
+        default: true
+      environment:
+        description: 'Target environment'
+        type: choice
+        default: production
+        options:
+          - production
+          - staging
+
+permissions:
+  contents: read
+  id-token: write # Azure OIDC
+
+concurrency:
+  group: migrate-user-content-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  RESOURCE_GROUP: ai-triad
+  CONTAINER_APP_NAME: taxonomy-editor
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Checkout data repo (migration source)
+        uses: actions/checkout@v6
+        with:
+          repository: jpsnover/ai-triad-data
+          path: ai-triad-data
+          fetch-depth: 1
+          token: ${{ secrets.DATA_REPO_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: taxonomy-editor/package-lock.json
+
+      - name: Install deps + build server
+        working-directory: taxonomy-editor
+        run: |
+          npm ci
+          (cd ../lib && npm ci)
+          npm run build:server
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve storage account URL from container app
+        id: acct
+        run: |
+          URL=$(az containerapp show -n "$CONTAINER_APP_NAME" -g "$RESOURCE_GROUP" \
+            --query "properties.template.containers[0].env[?name=='AZURE_STORAGE_ACCOUNT_URL'].value | [0]" -o tsv)
+          if [ -z "$URL" ] || [ "$URL" = "null" ]; then
+            echo "::error::AZURE_STORAGE_ACCOUNT_URL not set on the container app — wire it in Bicep first."
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Storage account URL resolved."
+
+      - name: Run migration (source = checked-out data repo)
+        working-directory: ai-triad-data
+        env:
+          MIGRATION_SOURCE: filesystem
+          AZURE_STORAGE_ACCOUNT_URL: ${{ steps.acct.outputs.url }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: |
+          echo "dry_run=${{ inputs.dry_run }} (DRY_RUN=$DRY_RUN)"
+          node "$GITHUB_WORKSPACE/taxonomy-editor/dist/server/taxonomy-editor/src/server/scripts/migrateUserContentToBlob.js"
