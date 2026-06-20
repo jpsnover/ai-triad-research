@@ -135,7 +135,23 @@ serverRecorder.setContextProvider(() => {
 /* eslint-enable @typescript-eslint/no-use-before-define */
 
 setGlobalRecorder(serverRecorder);
-serverRecorder.startPipeListener(process.pid);
+// The flight-recorder named-pipe listener is Windows-only desktop/dev IPC — its
+// path (\\.\pipe\…) is invalid on Linux, where it emits a noisy EACCES and is
+// useless to the headless server (which exposes flight-recorder dumps over HTTP).
+// Only start it on Windows, and never let a failure abort server startup. (t/722)
+if (process.platform === 'win32') {
+  try {
+    serverRecorder.startPipeListener(process.pid);
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'warn',
+      message: 'Flight-recorder pipe listener failed to start (non-fatal)',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
+}
 
 export { serverRecorder };
 
@@ -2948,21 +2964,6 @@ const FORBIDDEN_PAGE = (name: string) => `<!DOCTYPE html>
 const AZURE_AUTH_ENABLED = process.env.WEBSITE_AUTH_ENABLED === 'True'
   || process.env.WEBSITE_AUTH_ENABLED === 'true';
 
-// S-ADMIN: Admin API key for headless scripts (e.g., Sync-AzureTriadData.ps1).
-// Set ADMIN_API_KEY on the container to enable. Minimum 16 chars enforced.
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
-
-function isAdminRequest(req: http.IncomingMessage): boolean {
-  if (!ADMIN_API_KEY || ADMIN_API_KEY.length < 16) return false;
-  const key = (req.headers['x-admin-key'] as string) || '';
-  if (!key) return false;
-  // Constant-time comparison to prevent timing attacks
-  const keyBuf = Buffer.from(key);
-  const expectedBuf = Buffer.from(ADMIN_API_KEY);
-  if (keyBuf.length !== expectedBuf.length) return false;
-  return crypto.timingSafeEqual(keyBuf, expectedBuf);
-}
-
 const server = http.createServer((req, res) => { void handleRequest(req, res); });
 async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse) {
   // Correlation ID: use incoming header or generate a new one
@@ -3084,7 +3085,7 @@ async function handleRequestInner(
     ]);
   }
 
-  if (!isPublicPath && !authDisabled && !isAdminRequest(req)) {
+  if (!isPublicPath && !authDisabled) {
     if (authOptional) {
       // Optional mode: show login page unless user signed in or chose anonymous
       if (!principalName) {
