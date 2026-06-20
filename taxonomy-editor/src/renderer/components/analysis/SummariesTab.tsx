@@ -6,6 +6,7 @@ import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { useResizablePanel } from '../../hooks/useResizablePanel';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import type { Pov, Category } from '../../types/taxonomy';
 
 // ── Types ──
@@ -136,7 +137,15 @@ export function SummariesTab() {
     setSourcesLoading(true);
     api.discoverSources()
       .then((data) => setSources((data as SourceInfo[]).filter(s => s.hasSummary)))
-      .catch(err => console.error('Failed to load sources:', err))
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'summaries-tab',
+          level: 'error',
+          message: 'Failed to load sources',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      })
       .finally(() => setSourcesLoading(false));
   }, []);
 
@@ -146,7 +155,16 @@ export function SummariesTab() {
     setSummaryLoading(true);
     api.loadSummary(selectedSourceId)
       .then(data => setSummary(data as Summary | null))
-      .catch(() => setSummary(null))
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'summaries-tab',
+          level: 'warn',
+          message: 'Summary unavailable for source — falling back to none',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setSummary(null);
+      })
       .finally(() => setSummaryLoading(false));
   }, [selectedSourceId]);
 
@@ -156,7 +174,16 @@ export function SummariesTab() {
     setSnapshotLoading(true);
     api.loadSnapshot(selectedSourceId)
       .then(data => setSnapshot(data?.content ?? null))
-      .catch(() => setSnapshot(null))
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'summaries-tab',
+          level: 'warn',
+          message: 'Snapshot unavailable for source — falling back to none',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setSnapshot(null);
+      })
       .finally(() => setSnapshotLoading(false));
   }, [viewMode, selectedSourceId, snapshot]);
 

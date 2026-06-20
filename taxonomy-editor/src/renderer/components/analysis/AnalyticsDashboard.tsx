@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 // ── Types ──
 
@@ -242,7 +243,16 @@ function SessionExplorer({ from, to, selectedUser, categoryFilter }: {
         setEvents(data.events);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'analytics-dashboard',
+          level: 'warn',
+          message: 'Failed to load analytics events — showing empty result',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setLoading(false);
+      });
   }, [selectedUser, from, to]);
 
   const filtered = useMemo(() => {
@@ -355,7 +365,17 @@ export function AnalyticsDashboard() {
     fetch(`/api/analytics/query?from=${from}&to=${to}`)
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
       .then((d: QueryResult) => { setData(d); setLoading(false); })
-      .catch(err => { setError(String(err)); setLoading(false); });
+      .catch(err => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'analytics-dashboard',
+          level: 'error',
+          message: 'Analytics query failed',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        setError(String(err));
+        setLoading(false);
+      });
   }, [from, to]);
 
   const handleSort = useCallback((col: SortCol) => {
