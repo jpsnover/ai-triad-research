@@ -147,12 +147,31 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const { GitHubAPIBackend } = await import('../githubAPIBackend.js');
   const { AzureBlobBackend } = await import('../azureBlobBackend.js');
-  const { CACHE_DIR } = await import('../config.js');
 
-  const source = new GitHubAPIBackend({ cacheDir: CACHE_DIR, pollIntervalMs: 999_999_999, coherencyProbeRate: 0 });
-  await source.initialize();
+  // Source selection:
+  //  - 'filesystem' (CI default): read a checked-out copy of the data repo from
+  //    the current working directory (paths are cwd-relative). No GitHub App
+  //    creds needed — the workflow just checks out ai-triad-data and runs here.
+  //  - 'github': read live via the GitHub Contents/Trees API (needs GitHub App
+  //    creds; matches the runtime backend).
+  const sourceMode = process.env.MIGRATION_SOURCE ?? 'github';
+  let source: import('../storageBackend.js').StorageBackend;
+  let shutdownSource: () => void = () => {};
+  if (sourceMode === 'filesystem') {
+    const { FilesystemBackend } = await import('../filesystemBackend.js');
+    source = new FilesystemBackend();
+    log.server.info({ cwd: process.cwd() }, 'Migration source: filesystem (cwd-relative)');
+  } else {
+    const { GitHubAPIBackend } = await import('../githubAPIBackend.js');
+    const { CACHE_DIR } = await import('../config.js');
+    const gh = new GitHubAPIBackend({ cacheDir: CACHE_DIR, pollIntervalMs: 999_999_999, coherencyProbeRate: 0 });
+    await gh.initialize();
+    source = gh;
+    shutdownSource = () => gh.shutdown();
+    log.server.info('Migration source: github-api');
+  }
+
   const dest = new AzureBlobBackend({
     accountUrl,
     userContentContainer: process.env.AZURE_USER_CONTENT_CONTAINER || 'user-content',
@@ -164,7 +183,7 @@ async function main(): Promise<void> {
 
   const summary = await migrateUserContent(source, dest, { log: (m) => log.server.info(m), dryRun });
   log.server.info({ summary, dryRun }, 'User-content → Blob migration summary');
-  source.shutdown();
+  shutdownSource();
 
   const hadErrors = summary.failures.length + summary.verifyFailures.length > 0;
   process.exit(hadErrors ? 1 : 0);
