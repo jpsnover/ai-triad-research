@@ -16,6 +16,7 @@
 //   - Container App (the Taxonomy Editor, system-assigned managed identity)
 //   - Log Analytics Workspace (diagnostics)
 //   - Key Vault (per-user BYOK secrets + GitHub App PEM, accessed via managed identity)
+//   - Storage Account (Azure Blob — per-user content + community library)
 //
 // Usage:
 //   az deployment group create -g ai-triad -f main.bicep
@@ -243,6 +244,52 @@ resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
+// ── Azure Blob Storage (user content + community library) ──
+// User-generated content (chats, debates, settings) and the community library
+// live in Blob Storage instead of the GitHub repo. Auth via managed identity
+// (DefaultAzureCredential) — no connection strings or SAS tokens.
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
+  name: 'staitriad${uniqueSuffix}'
+  location: location
+  tags: tags
+  sku: { name: 'Standard_LRS' }
+  kind: 'StorageV2'
+  properties: {
+    accessTier: 'Hot'
+    allowBlobPublicAccess: false
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+  }
+}
+
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+  parent: storageAccount
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: {
+      enabled: true
+      days: 7
+    }
+  }
+}
+
+resource userContentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'user-content'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource communityContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'community'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
 // ── Container App ──
 
 var baseEnv = [
@@ -276,6 +323,9 @@ var baseEnv = [
   { name: 'GITHUB_APP_PRIVATE_KEY_SECRET_NAME', value: githubAppPrivateKeySecretName }
   // Application Insights — runtime error monitoring and request tracing.
   { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+  // Azure Blob Storage — user content (chats, debates) and community library.
+  // Auth via managed identity (DefaultAzureCredential), no connection string needed.
+  { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storageAccount.properties.primaryEndpoints.blob }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
@@ -459,6 +509,32 @@ resource kvRoleAssignmentStaging 'Microsoft.Authorization/roleAssignments@2022-0
     principalId: containerAppStaging.identity.principalId
     principalType: 'ServicePrincipal'
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsOfficerRoleId)
+  }
+}
+
+// ── Role assignment: container apps → Blob Storage ──
+// Grants 'Storage Blob Data Contributor' (read/write/delete blobs) to both
+// prod and staging container apps via their system-assigned managed identities.
+
+var blobDataContributorRoleId = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+
+resource blobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: storageAccount
+  name: guid(storageAccount.id, containerApp.id, blobDataContributorRoleId)
+  properties: {
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRoleId)
+  }
+}
+
+resource blobRoleAssignmentStaging 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: storageAccount
+  name: guid(storageAccount.id, containerAppStaging.id, blobDataContributorRoleId)
+  properties: {
+    principalId: containerAppStaging.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRoleId)
   }
 }
 
@@ -831,4 +907,6 @@ output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri
 output stagingUrl string = 'https://${containerAppStaging.properties.configuration.ingress.fqdn}'
 output appInsightsName string = appInsights.name
+output storageAccountName string = storageAccount.name
+output storageAccountBlobUrl string = storageAccount.properties.primaryEndpoints.blob
 output runnerWebhookUrl string = ephemeralRunner.outputs.webhookUrl
