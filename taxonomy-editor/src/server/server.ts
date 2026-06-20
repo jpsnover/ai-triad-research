@@ -248,7 +248,28 @@ function json(res: http.ServerResponse, data: unknown, status = 200) {
 }
 
 function error(res: http.ServerResponse, message: string, status = 500) {
+  // M4: don't leak internal detail (file paths, stack) to clients on server
+  // errors in production — record the real message server-side, return generic.
+  if (status >= 500 && process.env.NODE_ENV === 'production') {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Server error response (detail withheld from client)',
+      error: { name: 'Error', message },
+    });
+    json(res, { error: 'Internal server error' }, status);
+    return;
+  }
   json(res, { error: message }, status);
+}
+
+// Best-effort client IP for rate limiting — first X-Forwarded-For hop (Azure
+// ingress sets it) else the socket address. (M7)
+function getClientIp(req: http.IncomingMessage): string {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) return xff.split(',')[0].trim();
+  return req.socket.remoteAddress || 'unknown';
 }
 
 // Structured 429 for GitHub-API rate-limit exhaustion (t/685). Surfaces seconds
@@ -318,6 +339,9 @@ get('/healthz', async (_req, res) => {
 });
 
 get('/health', (_req, res) => {
+  // M5: liveness probes (unauthenticated) get a minimal OK. Operational detail
+  // (versions, storage internals, GitHub rate limits, paths) only for admins.
+  if (!community.isAdmin()) { json(res, { status: 'ok' }); return; }
   const base: Record<string, unknown> = {
     status: 'ok',
     version: SERVER_VERSION,
@@ -1269,6 +1293,16 @@ post('/api/community/submit', async (_req, res, body) => {
     // leaves a half-written/uncommittable submission behind (t/685).
     if (githubBackend && githubBackend.getRateLimitRemaining() <= 0) {
       respondRateLimited(res);
+      return;
+    }
+
+    // M6: per-user submission rate limit (5/hour) — throttles burst abuse of the
+    // shared community queue (distinct from the 20-pending cap in community.ts).
+    const submitRate = rateLimiter.checkRate(`community-submit:${getStorageUserId()}`, 5, 3_600_000);
+    if (!submitRate.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((submitRate.retryAfterMs ?? 3_600_000) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      json(res, { error: 'rate_limited', message: 'Too many community submissions; please try again later.', retryAfter }, 429);
       return;
     }
 
@@ -3143,6 +3177,17 @@ async function handleRequestInner(
     const url = new URL(req.url!, 'http://localhost');
     const route = matchRoute(req.method!, url.pathname);
 
+    // M7: per-IP rate limit on API write methods (100/min) — basic DoS/abuse guard.
+    if (route && (req.method === 'POST' || req.method === 'PUT' || req.method === 'DELETE') && url.pathname.startsWith('/api/')) {
+      const wr = rateLimiter.checkRate(`write:${getClientIp(req)}`, 100, 60_000);
+      if (!wr.allowed) {
+        const retryAfter = Math.max(1, Math.ceil((wr.retryAfterMs ?? 60_000) / 1000));
+        res.setHeader('Retry-After', String(retryAfter));
+        json(res, { error: 'rate_limited', message: 'Too many requests', retryAfter }, 429);
+        return;
+      }
+    }
+
     if (route) {
       try {
         const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
@@ -3157,7 +3202,10 @@ async function handleRequestInner(
         });
         log.server.error({ err, method: req.method, path: url.pathname }, 'Error handling request');
         const status = (err as { statusCode?: number }).statusCode ?? 500;
-        const payload: Record<string, unknown> = { error: String(err) };
+        // M4: full detail is recorded/logged above; clients get a generic message
+        // for server errors in production (the error string can carry file paths).
+        const clientError = (status >= 500 && process.env.NODE_ENV === 'production') ? 'Internal server error' : String(err);
+        const payload: Record<string, unknown> = { error: clientError };
         if ((err as { quotaInfo?: unknown }).quotaInfo) payload.quotaInfo = (err as { quotaInfo: unknown }).quotaInfo;
         json(res, payload, status);
       }
@@ -3176,7 +3224,9 @@ async function handleRequestInner(
 
 // ── WebSocket: Terminal ──
 
-const wss = new WebSocketServer({ noServer: true });
+// M8: cap WebSocket frames at 1 MB (chat/debate messages are far smaller); the
+// ws default is 100 MB, an easy memory-exhaustion vector.
+const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
 const eventClients = new Set<WebSocket>();
 
 function broadcastEvent(type: string, data: unknown) {

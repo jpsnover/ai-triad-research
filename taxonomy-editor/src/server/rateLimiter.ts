@@ -29,6 +29,28 @@ export function checkRequestRate(userId: string, limit: number): RateCheckResult
   return { allowed: true, current: timestamps.length, limit };
 }
 
+// ── Generic sliding-window limiter (arbitrary key + window) ──
+// Separate from checkRequestRate's fixed 60s window so callers can use other
+// windows (e.g. per-user community submits per hour, per-IP writes per minute).
+
+const genericWindows = new Map<string, { ts: number[]; windowMs: number }>();
+
+export function checkRate(key: string, limit: number, windowMs: number): RateCheckResult {
+  const now = Date.now();
+  let entry = genericWindows.get(key);
+  if (!entry) { entry = { ts: [], windowMs }; genericWindows.set(key, entry); }
+  entry.windowMs = windowMs;
+
+  const cutoff = now - windowMs;
+  while (entry.ts.length > 0 && entry.ts[0] < cutoff) entry.ts.shift();
+
+  if (entry.ts.length >= limit) {
+    return { allowed: false, current: entry.ts.length, limit, retryAfterMs: entry.ts[0] + windowMs - now };
+  }
+  entry.ts.push(now);
+  return { allowed: true, current: entry.ts.length, limit };
+}
+
 // ── Daily token accumulator ──
 
 interface DailyTokenBucket {
@@ -87,5 +109,10 @@ setInterval(() => {
   const d = today();
   for (const [key, bucket] of dailyTokens) {
     if (bucket.date !== d) dailyTokens.delete(key);
+  }
+  for (const [key, entry] of genericWindows) {
+    const c = now - entry.windowMs;
+    while (entry.ts.length > 0 && entry.ts[0] < c) entry.ts.shift();
+    if (entry.ts.length === 0) genericWindows.delete(key);
   }
 }, 600_000).unref();
