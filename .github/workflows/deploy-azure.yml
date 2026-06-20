@@ -62,9 +62,11 @@ jobs:
 
       - name: Resolve image tag
         id: resolve_tag
+        env:
+          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
-          if [ -n "${{ inputs.image_tag }}" ]; then
-            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_IMAGE_TAG" ]; then
+            echo "tag=$INPUT_IMAGE_TAG" >> $GITHUB_OUTPUT
           else
             TAG="${GITHUB_REF_NAME#v}"
             if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
@@ -116,9 +118,11 @@ jobs:
 
       - name: Resolve image tag
         id: resolve_tag
+        env:
+          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
-          if [ -n "${{ inputs.image_tag }}" ]; then
-            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          if [ -n "$INPUT_IMAGE_TAG" ]; then
+            echo "tag=$INPUT_IMAGE_TAG" >> $GITHUB_OUTPUT
           else
             # Use the git tag name if triggered from a tag context, else 'latest'
             TAG="${GITHUB_REF_NAME#v}"

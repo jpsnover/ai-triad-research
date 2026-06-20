@@ -163,16 +163,17 @@ jobs:
           echo "Base image tag: $TAG"
 
       - name: Pull or build base image
+        env:
+          BASE_TAG: ${{ steps.base_tag.outputs.tag }}
         run: |
-          TAG=${{ steps.base_tag.outputs.tag }}
-          if docker pull ghcr.io/jpsnover/ai-triad-base:$TAG 2>/dev/null; then
+          if docker pull "ghcr.io/jpsnover/ai-triad-base:$BASE_TAG" 2>/dev/null; then
             echo "Pulled base image from GHCR"
           else
             echo "Base image not in GHCR — building locally"
             docker buildx build --load \
               -f deploy/azure/Dockerfile.base \
               --build-arg PRELOAD_MODEL=false \
-              -t ghcr.io/jpsnover/ai-triad-base:$TAG .
+              -t "ghcr.io/jpsnover/ai-triad-base:$BASE_TAG" .
           fi
 
       - name: Build app container image
