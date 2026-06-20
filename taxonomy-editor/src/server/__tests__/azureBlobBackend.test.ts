@@ -132,4 +132,10 @@ describe('AzureBlobBackend (Azurite)', () => {
     await backend.writeFile('taxonomy/ref.json', 'x', { ref: 'main' });
     expect(await backend.readFile('taxonomy/ref.json', { ref: 'some-branch' })).toBe('x');
   });
+
+  it('rejects path traversal, including sequences that only escape after normalization', async () => {
+    await expect(backend.readFile('a/../../etc/passwd')).rejects.toThrow(/unsafe path/i);
+    await expect(backend.writeFile('foo/../../bar.json', 'x')).rejects.toThrow(/unsafe path/i);
+    await expect(backend.readFile('.git/config')).rejects.toThrow(/unsafe path/i);
+  });
 });

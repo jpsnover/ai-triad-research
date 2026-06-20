@@ -19,6 +19,7 @@
  * connection strings. Tests inject a shared-key client via `opts.serviceClient`.
  */
 
+import path from 'path';
 import { BlobServiceClient, type ContainerClient, RestError } from '@azure/storage-blob';
 import { DefaultAzureCredential } from '@azure/identity';
 import { getDataRoot } from './config.js';
@@ -56,6 +57,20 @@ function isNotFound(err: unknown): boolean {
     : false;
 }
 
+/** Wrap a raw Blob SDK error in an ActionableError (never includes credentials —
+ *  auth is via the credential object, not the message). */
+function wrapBlobError(err: unknown, op: string, blob: string): ActionableError {
+  return new ActionableError({
+    goal: `Azure Blob ${op}`,
+    problem: `Blob operation "${op}" failed for "${blob}": ${(err as Error)?.message ?? String(err)}`,
+    location: `AzureBlobBackend.${op}`,
+    nextSteps: [
+      'Verify the storage account is reachable and the managed identity has data-plane access',
+      'Check Azure Blob service health and retry; the operation is idempotent',
+    ],
+  });
+}
+
 export class AzureBlobBackend implements StorageBackend {
   private readonly userContentClient: ContainerClient;
   private readonly communityClient: ContainerClient;
@@ -74,7 +89,14 @@ export class AzureBlobBackend implements StorageBackend {
     if (p === root) p = '';
     else if (p.startsWith(root + '/')) p = p.slice(root.length + 1);
     p = p.replace(/^\/+/, '');
-    if (p === '.git' || p.startsWith('.git/') || p.split('/').includes('..')) {
+    if (p === '') return '';
+    // Normalize BEFORE the traversal check so sequences that resolve to an
+    // escape (e.g. "a/../../b" → "../b") are caught, not just literal ".." segments.
+    const normalized = path.posix.normalize(p).replace(/\/+$/, '');
+    if (
+      normalized === '..' || normalized.startsWith('../') ||
+      normalized === '.git' || normalized.startsWith('.git/')
+    ) {
       throw new ActionableError({
         goal: 'Resolve blob path',
         problem: `Rejected unsafe path: "${filePath}"`,
@@ -82,7 +104,7 @@ export class AzureBlobBackend implements StorageBackend {
         nextSteps: ['Use a clean path within the data root'],
       });
     }
-    return p;
+    return normalized;
   }
 
   /** Route to the community container for `community/…`, else user-content. */
@@ -103,17 +125,21 @@ export class AzureBlobBackend implements StorageBackend {
       return await streamToBuffer(resp.readableStreamBody);
     } catch (err) {
       if (isNotFound(err)) return null;
-      throw err;
+      throw wrapBlobError(err, 'readFile', blob);
     }
   }
 
   async writeFile(filePath: string, content: string, _opts?: { ref?: string }): Promise<void> {
     const blob = this.toBlobPath(filePath);
     const data = Buffer.from(content, 'utf-8');
-    // upload() overwrites an existing blob. No mkdir needed (virtual dirs).
-    await this.containerFor(blob).getBlockBlobClient(blob).upload(data, data.byteLength, {
-      blobHTTPHeaders: { blobContentType: 'application/json; charset=utf-8' },
-    });
+    try {
+      // upload() overwrites an existing blob. No mkdir needed (virtual dirs).
+      await this.containerFor(blob).getBlockBlobClient(blob).upload(data, data.byteLength, {
+        blobHTTPHeaders: { blobContentType: 'application/json; charset=utf-8' },
+      });
+    } catch (err) {
+      throw wrapBlobError(err, 'writeFile', blob);
+    }
   }
 
   async deleteFile(filePath: string): Promise<void> {
@@ -122,24 +148,32 @@ export class AzureBlobBackend implements StorageBackend {
       await this.containerFor(blob).getBlobClient(blob).delete();
     } catch (err) {
       if (isNotFound(err)) return; // no-op on missing
-      throw err;
+      throw wrapBlobError(err, 'deleteFile', blob);
     }
   }
 
   async fileExists(filePath: string): Promise<boolean> {
     const blob = this.toBlobPath(filePath);
-    return this.containerFor(blob).getBlobClient(blob).exists();
+    try {
+      return await this.containerFor(blob).getBlobClient(blob).exists();
+    } catch (err) {
+      throw wrapBlobError(err, 'fileExists', blob);
+    }
   }
 
-  async listDirectory(dirPath: string): Promise<string[]> {
+  async listDirectory(dirPath: string, _opts?: { ref?: string }): Promise<string[]> {
     const dir = this.toBlobPath(dirPath);
-    const prefix = dir === '' ? '' : dir.replace(/\/+$/, '') + '/';
+    const prefix = dir === '' ? '' : dir + '/';
     const names = new Set<string>();
-    const iter = this.containerFor(prefix || dir).listBlobsByHierarchy('/', { prefix });
-    for await (const item of iter) {
-      // Blobs: item.name = "<prefix><file>". Virtual dirs: item.name = "<prefix><sub>/".
-      const seg = item.name.slice(prefix.length).replace(/\/$/, '');
-      if (seg) names.add(seg);
+    try {
+      const iter = this.containerFor(prefix || dir).listBlobsByHierarchy('/', { prefix });
+      for await (const item of iter) {
+        // Blobs: item.name = "<prefix><file>". Virtual dirs: item.name = "<prefix><sub>/".
+        const seg = item.name.slice(prefix.length).replace(/\/$/, '');
+        if (seg) names.add(seg);
+      }
+    } catch (err) {
+      throw wrapBlobError(err, 'listDirectory', dir);
     }
     return [...names];
   }
