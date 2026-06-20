@@ -53,7 +53,62 @@ env:
   CONTAINER_APP_NAME: taxonomy-editor
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve_tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve image tag
+        id: resolve_tag
+        run: |
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            TAG="${GITHUB_REF_NAME#v}"
+            if [[ "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "tag=$TAG" >> $GITHUB_OUTPUT
+            else
+              echo "tag=latest" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Verify CI passed for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking CI status for ${{ github.sha }}..."
+          CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
+            --jq '.workflow_runs[0].conclusion // empty' 2>/dev/null || echo "")
+          if [ "$CONCLUSION" = "success" ]; then
+            echo "CI passed for this commit"
+          elif [ -z "$CONCLUSION" ]; then
+            echo "::error::No CI run found for commit ${{ github.sha }}. CI must pass before deploying."
+            exit 1
+          else
+            echo "::error::CI status is '$CONCLUSION' for commit ${{ github.sha }}. CI must pass before deploying."
+            exit 1
+          fi
+
+      - name: Verify container image exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.resolve_tag.outputs.tag }}"
+          echo "Checking for image ghcr.io/${{ github.repository_owner }}/taxonomy-editor:$TAG..."
+          TAGS=$(gh api user/packages/container/taxonomy-editor/versions \
+            --jq '.[].metadata.container.tags[]' 2>/dev/null || echo "")
+          if echo "$TAGS" | grep -qx "$TAG"; then
+            echo "Container image tag '$TAG' exists in GHCR"
+          else
+            echo "::error::Container image tag '$TAG' not found in GHCR. Run the Container Image workflow first."
+            echo "Available tags: $(echo $TAGS | head -5 | tr '\n' ', ')"
+            exit 1
+          fi
+
   deploy:
+    needs: [preflight]
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
@@ -200,36 +255,171 @@ jobs:
             --revision "${{ steps.new_revision.outputs.revision }}" \
             --query "properties.fqdn" -o tsv 2>/dev/null || echo "")
 
-          # Fall back to main app URL if revision FQDN unavailable
           if [ -z "$REV_FQDN" ]; then
-            HEALTH_URL="${{ steps.deploy.outputs.appUrl }}/health"
+            BASE_URL="${{ steps.deploy.outputs.appUrl }}"
           else
-            HEALTH_URL="https://${REV_FQDN}/health"
+            BASE_URL="https://${REV_FQDN}"
           fi
-          echo "Health check URL: $HEALTH_URL"
+          echo "base_url=$BASE_URL" >> $GITHUB_OUTPUT
 
-          # 30 attempts × 10s = 5 min — allows time for data copy + app init
-          # --max-time 15 prevents Envoy 504 gateway timeouts (~4min each) from
-          # turning a 5-minute check into a 2-hour wait.
+          # ── Phase 1: Server started ──
+          # /health returns 200 once Node.js is listening.
+          # 30 attempts × 10s = 5 min. --max-time 15 prevents Envoy 504 gateway
+          # timeouts (~4min each) from turning a 5-minute check into a 2-hour wait.
+          echo "Phase 1: checking $BASE_URL/health ..."
           HEALTHY="false"
           for i in $(seq 1 30); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --connect-timeout 5 "$HEALTH_URL" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --connect-timeout 5 "$BASE_URL/health" || echo "000")
             if [ "$STATUS" = "200" ]; then
-              echo "Health check passed!"
+              echo "Phase 1 passed — server is up"
               HEALTHY="true"
               break
             fi
-            echo "Waiting for container to start... (attempt $i/30, status: $STATUS)"
+            echo "  Waiting for container to start... (attempt $i/30, status: $STATUS)"
             sleep 10
           done
 
-          echo "healthy=$HEALTHY" >> $GITHUB_OUTPUT
           if [ "$HEALTHY" != "true" ]; then
-            echo "::error::Health check failed after 5 minutes"
+            echo "healthy=false" >> $GITHUB_OUTPUT
+            echo "::error::Phase 1 failed — server did not start within 5 minutes"
+            exit 0
+          fi
+
+          # ── Phase 2: Data loaded ──
+          # /healthz returns 503 when taxonomy data isn't available. A deploy where
+          # the container starts but can't read data is broken — catch it here before
+          # traffic shifts. 12 attempts × 10s = 2 min for GitHub API initial fetch.
+          echo "Phase 2: checking $BASE_URL/healthz (data availability)..."
+          for i in $(seq 1 12); do
+            HZ_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$BASE_URL/healthz" || echo "000")
+            if [ "$HZ_STATUS" = "200" ]; then
+              echo "Phase 2 passed — taxonomy data loaded"
+              echo "healthy=true" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            echo "  Data not ready (attempt $i/12, /healthz: $HZ_STATUS)"
+            sleep 10
+          done
+
+          echo "healthy=false" >> $GITHUB_OUTPUT
+          echo "::error::Phase 2 failed — server started but taxonomy data not loaded after 2 minutes"
+
+      - name: Acceptance tests (pre-traffic shift)
+        id: acceptance
+        if: steps.health_check.outputs.healthy == 'true'
+        run: |
+          BASE_URL="${{ steps.health_check.outputs.base_url }}"
+          echo "=== Acceptance tests against 0% revision: $BASE_URL ==="
+          echo ""
+          PASS=0; FAIL=0; ERRORS=""
+
+          # check LABEL URL [BODY_REGEX]
+          # Verifies HTTP 200 and optionally that the body matches a regex
+          check() {
+            local label=$1 url=$2 expect_body=$3
+            BODY=$(curl -s --max-time 15 --connect-timeout 5 "$url" 2>/dev/null || echo "")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --connect-timeout 5 "$url" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              if [ -n "$expect_body" ]; then
+                if echo "$BODY" | grep -qE "$expect_body"; then
+                  PASS=$((PASS + 1))
+                  echo "  PASS  $label"
+                else
+                  FAIL=$((FAIL + 1))
+                  ERRORS="${ERRORS}$label: body did not match '$expect_body' (got: $(echo "$BODY" | head -c 120))\n"
+                  echo "  FAIL  $label — body mismatch"
+                fi
+              else
+                PASS=$((PASS + 1))
+                echo "  PASS  $label"
+              fi
+            else
+              FAIL=$((FAIL + 1))
+              ERRORS="${ERRORS}$label: HTTP $STATUS\n"
+              echo "  FAIL  $label (HTTP $STATUS)"
+            fi
+          }
+
+          # ── 1. Infrastructure ──
+          echo "--- Infrastructure ---"
+          check "health" "${BASE_URL}/health" '"status"'
+          check "liveness" "${BASE_URL}/healthz"
+          check "data available" "${BASE_URL}/api/data/available" "true"
+
+          # ── 2. Taxonomy viewer (core user workflow) ──
+          echo ""
+          echo "--- Taxonomy viewer ---"
+          check "accelerationist POV" "${BASE_URL}/api/taxonomy/accelerationist" '"nodes"'
+          check "safetyist POV" "${BASE_URL}/api/taxonomy/safetyist" '"nodes"'
+          check "skeptic POV" "${BASE_URL}/api/taxonomy/skeptic" '"nodes"'
+          check "edges/relationships" "${BASE_URL}/api/edges" '\['
+          check "policy registry" "${BASE_URL}/api/policy-registry" '"pol-'
+          check "conflicts" "${BASE_URL}/api/conflicts" '\['
+
+          # ── 3. Debate & chat (can list, even if no sessions exist) ──
+          echo ""
+          echo "--- Debate & chat ---"
+          check "debate listing" "${BASE_URL}/api/debates/list"
+          check "chat listing" "${BASE_URL}/api/chats"
+
+          # ── 4. Community library ──
+          echo ""
+          echo "--- Community ---"
+          check "community debates" "${BASE_URL}/api/community/debates"
+
+          # ── 5. Reference data ──
+          echo ""
+          echo "--- Reference data ---"
+          check "AI models" "${BASE_URL}/api/models"
+          check "lineage categories" "${BASE_URL}/api/lineage-categories"
+
+          # ── 6. Sync & auth ──
+          echo ""
+          echo "--- Sync & auth ---"
+          check "sync status" "${BASE_URL}/api/sync/status" '"branch"'
+          check "auth endpoint" "${BASE_URL}/api/auth/me"
+
+          # ── 7. SPA renders ──
+          echo ""
+          echo "--- Frontend ---"
+          MAIN_PAGE=$(curl -s --max-time 15 "${BASE_URL}/" 2>/dev/null || echo "")
+          if echo "$MAIN_PAGE" | grep -q '<div id="root"'; then
+            # Verify JS bundle is referenced (not just empty HTML shell)
+            if echo "$MAIN_PAGE" | grep -qE 'src="[^"]*\.js"'; then
+              PASS=$((PASS + 1))
+              echo "  PASS  SPA shell + JS bundle"
+            else
+              FAIL=$((FAIL + 1))
+              ERRORS="${ERRORS}SPA: root div present but no JS bundle reference\n"
+              echo "  FAIL  SPA — no JS bundle"
+            fi
+          else
+            FAIL=$((FAIL + 1))
+            ERRORS="${ERRORS}SPA: <div id=\"root\"> not found in HTML\n"
+            echo "  FAIL  SPA shell not found"
+          fi
+
+          # ── Summary ──
+          echo ""
+          echo "--- Health detail ---"
+          curl -s --max-time 10 "${BASE_URL}/health" \
+            | jq '{version, uptime, storage, github: {rateLimit: .github.rateLimit, circuitState: .github.circuitState}}' \
+            2>/dev/null || echo "(no structured health)"
+
+          echo ""
+          echo "=== Acceptance: $PASS passed, $FAIL failed ==="
+
+          if [ "$FAIL" -gt 0 ]; then
+            echo "accepted=false" >> $GITHUB_OUTPUT
+            echo ""
+            echo "::error::Acceptance tests failed — NOT shifting traffic"
+            printf "Failures:\n$ERRORS"
+          else
+            echo "accepted=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Shift traffic to new revision
-        if: steps.health_check.outputs.healthy == 'true'
+        if: steps.health_check.outputs.healthy == 'true' && steps.acceptance.outputs.accepted == 'true'
         run: |
           echo "New revision healthy — waiting for provisioning to settle..."
           sleep 30
@@ -249,7 +439,7 @@ jobs:
           exit 1
 
       - name: Collect failure diagnostics
-        if: steps.health_check.outputs.healthy != 'true'
+        if: steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false'
         run: |
           echo "=== Revision Status ==="
           az containerapp revision show \
@@ -275,7 +465,7 @@ jobs:
             --type system --tail 50 2>/dev/null || echo "(no system logs)"
 
       - name: Re-authenticate before rollback
-        if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
+        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
         uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -283,7 +473,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Rollback on failure
-        if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision != ''
+        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
         run: |
           echo "::error::New revision unhealthy — rolling back to ${{ steps.current_revision.outputs.revision }}"
           # Deactivate the failed revision
@@ -300,19 +490,54 @@ jobs:
           exit 1
 
       - name: Fail if unhealthy (no previous revision to rollback to)
-        if: steps.health_check.outputs.healthy != 'true' && steps.current_revision.outputs.revision == ''
+        if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false') && steps.current_revision.outputs.revision == ''
         run: |
           echo "::error::Health check failed and no previous revision exists for rollback"
           exit 1
 
-      - name: Post-deploy smoke test
-        if: steps.health_check.outputs.healthy == 'true'
+      - name: Post-deploy verification (traffic shifted)
+        if: steps.acceptance.outputs.accepted == 'true'
         continue-on-error: true
         run: |
           APP_URL="${{ steps.deploy.outputs.appUrl }}"
-          echo "=== Smoke test ==="
-          echo "Health:"
-          curl -s --max-time 10 "${APP_URL}/health" | jq '{status, storage: .storage, github: .github}' 2>/dev/null || echo "(no structured health)"
-          echo "Data available:"
-          curl -s --max-time 10 "${APP_URL}/api/data/available" || echo "false"
+          PASS=0; FAIL=0
+
+          check() {
+            local label=$1 url=$2 validate=$3
+            BODY=$(curl -s --max-time 10 --connect-timeout 5 "$url" 2>/dev/null)
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 --connect-timeout 5 "$url" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              PASS=$((PASS + 1))
+              echo "  ✓ $label ($STATUS)"
+              if [ -n "$validate" ]; then
+                echo "    $BODY" | head -c 200
+                echo ""
+              fi
+            else
+              FAIL=$((FAIL + 1))
+              echo "  ✗ $label ($STATUS)"
+            fi
+          }
+
+          echo "=== Post-deploy smoke test ==="
           echo ""
+
+          echo "--- Health & liveness ---"
+          check "/health" "${APP_URL}/health"
+          check "/healthz" "${APP_URL}/healthz"
+          check "/api/data/available" "${APP_URL}/api/data/available" show
+
+          echo ""
+          echo "--- API layer ---"
+          check "/api/models" "${APP_URL}/api/models" show
+          check "/api/auth/me" "${APP_URL}/api/auth/me" show
+          check "/api/user/profile" "${APP_URL}/api/user/profile" show
+
+          echo ""
+          echo "--- Health detail ---"
+          curl -s --max-time 10 "${APP_URL}/health" \
+            | jq '{version, uptime, storage, github: {rateLimit: .github.rateLimit, circuitState: .github.circuitState}, flightRecorder}' \
+            2>/dev/null || echo "(no structured health)"
+
+          echo ""
+          echo "=== Smoke test results: $PASS passed, $FAIL failed ==="

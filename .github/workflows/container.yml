@@ -31,7 +31,29 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/taxonomy-editor
 
 jobs:
+  ci-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CI passed for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking CI status for ${{ github.sha }}..."
+          # Find the most recent CI run for this commit
+          CONCLUSION=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&per_page=1" \
+            --jq '.workflow_runs[0].conclusion // empty' 2>/dev/null || echo "")
+          if [ "$CONCLUSION" = "success" ]; then
+            echo "CI passed for this commit"
+          elif [ -z "$CONCLUSION" ]; then
+            echo "::error::No CI run found for commit ${{ github.sha }}. Push to main to trigger CI first."
+            exit 1
+          else
+            echo "::error::CI status is '$CONCLUSION' for commit ${{ github.sha }}. CI must pass before building a container image."
+            exit 1
+          fi
+
   build-and-push:
+    needs: [ci-gate]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.meta.outputs.version }}
