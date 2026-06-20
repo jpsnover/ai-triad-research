@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
@@ -21,7 +22,9 @@ function useAdminReviewCount(): number {
       fetch('/api/admin/review/stats')
         .then(r => r.ok ? r.json() : null)
         .then(s => { if (!cancelled && s) setCount(s.total ?? 0); })
-        .catch(() => { /* telemetry — silent by design */ });
+        .catch((err) => {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'Toolbar', level: 'warn', message: 'Admin review stats poll failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        });
     };
     poll();
     const id = setInterval(poll, 60_000);

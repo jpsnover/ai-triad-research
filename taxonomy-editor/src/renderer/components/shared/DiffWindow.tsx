@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 export function DiffWindow() {
   const [filePath, setFilePath] = useState<string | null>(null);
@@ -21,7 +22,10 @@ export function DiffWindow() {
     setFilePath(file);
     api.getFileDiff(file)
       .then(d => setDiff(d))
-      .catch(err => setError(String(err)))
+      .catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'DiffWindow', level: 'error', message: 'Failed to load file diff', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        setError(String(err));
+      })
       .finally(() => setLoading(false));
   }, []);
 

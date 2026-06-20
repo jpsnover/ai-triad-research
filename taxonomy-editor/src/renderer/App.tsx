@@ -238,7 +238,9 @@ function MainApp() {
     if (dismissed) return;
     void api.hasApiKey().then(has => {
       if (!has) setShowOnboarding(true);
-    }).catch(() => { /* telemetry — silent by design: offline/error just skips the tour */ });
+    }).catch((err) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'app', level: 'warn', message: 'Tour API key check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    });
   }, [loading, showFirstRun]);
 
   // Listen for "show tour" requests from HelpDialog
@@ -287,7 +289,9 @@ function MainApp() {
           setDataUpdate(s);
         }
       })
-      .catch(() => { /* offline or no git — silent */ });
+      .catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'app', level: 'warn', message: 'Data update check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      });
   }, [loading]);
 
   const handlePullUpdates = async () => {

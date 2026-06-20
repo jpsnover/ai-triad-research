@@ -58,7 +58,8 @@ function getStoredVersions(): Record<string, string> {
   try {
     const raw = localStorage.getItem(VERSION_KEY);
     return raw ? JSON.parse(raw) : {};
-  } catch { /* telemetry — silent by design: corrupted localStorage is non-fatal, returns empty default */
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'precache', level: 'warn', message: 'Failed to read precache versions from localStorage', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return {};
   }
 }
@@ -121,7 +122,9 @@ export function usePrecache(activePov?: string) {
 
         try {
           await navigator.storage?.persist?.();
-        } catch { /* storage persist — best-effort, silent by design */ }
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'precache', level: 'debug', message: 'Storage persist request failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        }
 
         const versions = getStoredVersions();
         const ordered = orderEndpoints(activePov);

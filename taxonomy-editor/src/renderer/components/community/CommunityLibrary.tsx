@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useCommunityStore, type CommunityChat, type CommunityDebate } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 type Tab = 'chats' | 'debates';
 
@@ -56,6 +57,7 @@ export function CommunityLibrary() {
       setCopyMsg('Copied to your library!');
       setTimeout(() => setCopyMsg(null), 3000);
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'CommunityLibrary', level: 'error', message: 'Failed to copy community item', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       setCopyMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
       setTimeout(() => setCopyMsg(null), 5000);
     }

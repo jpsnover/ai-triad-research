@@ -6,6 +6,7 @@ import { POV_KEYS } from '@lib/debate/types';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { PROMPT_CATALOG, type PromptCatalogEntry, type PromptGroup } from '../../data/promptCatalog';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 const GROUP_LABELS: Record<PromptGroup, string> = {
   'debate-setup': 'Debate Setup',
@@ -228,7 +229,9 @@ export function PromptDetailPanel({ entry }: PromptDetailPanelProps) {
       api.clipboardWriteText(text).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-      }).catch(() => {});
+      }).catch((err) => {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'prompts-panel', level: 'debug', message: 'Auto-copy to clipboard failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      });
       setTimeout(() => textareaRef.current?.focus(), 50);
     }
   }, [generatePromptText]);

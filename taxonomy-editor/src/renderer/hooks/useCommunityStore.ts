@@ -66,7 +66,10 @@ function getCommunityBaseUrl(): string {
 async function fetchJson<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, opts);
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
+    const body = await res.json().catch((err) => {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'warn', message: 'Failed to parse response body', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    return { error: res.statusText };
+  });
     throw new Error(body.error || `HTTP ${res.status}`);
   }
   return res.json();

@@ -41,10 +41,10 @@ export function PovProgressionWindow() {
     void (async () => {
       try {
         const files = await Promise.all([
-          api.loadTaxonomyFile('accelerationist').catch(() => null),
-          api.loadTaxonomyFile('safetyist').catch(() => null),
-          api.loadTaxonomyFile('skeptic').catch(() => null),
-          api.loadTaxonomyFile('situations').catch(() => null),
+          api.loadTaxonomyFile('accelerationist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'pov-progression', level: 'warn', message: 'Failed to load accelerationist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); return null; }),
+          api.loadTaxonomyFile('safetyist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'pov-progression', level: 'warn', message: 'Failed to load safetyist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); return null; }),
+          api.loadTaxonomyFile('skeptic').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'pov-progression', level: 'warn', message: 'Failed to load skeptic taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); return null; }),
+          api.loadTaxonomyFile('situations').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'pov-progression', level: 'warn', message: 'Failed to load situations taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); return null; }),
         ]);
         if (cancelled) return;
         const labels = new Map<string, string>();

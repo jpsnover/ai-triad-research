@@ -25,7 +25,8 @@ async function isAnonymous(): Promise<boolean> {
     } else {
       _authAnonymous = true;
     }
-  } catch { /* telemetry — silent by design */
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'web-bridge', level: 'warn', message: 'Auth check failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     _authAnonymous = true;
   }
   return _authAnonymous;
@@ -72,7 +73,7 @@ async function post<T = unknown>(path: string, body?: unknown, timeoutMs = 180_0
   }
   clearTimeout(timer);
   if (res.status === 429) {
-    const data = await res.json().catch(() => ({})) as Record<string, unknown>; /* telemetry — silent by design: extracting error payload from already-throwing path */
+    const data = await res.json().catch(bridgeWarn('Failed to parse rate-limit response body', {})) as Record<string, unknown>;
     const msg = data.limitType === 'tokens_per_day'
       ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
       : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;
@@ -125,6 +126,19 @@ async function del<T = unknown>(path: string): Promise<T> {
     });
   }
   return res.json();
+}
+
+function bridgeWarn<T>(message: string, fallback: T) {
+  return (err: unknown) => {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'web-bridge',
+      level: 'warn',
+      message,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return fallback;
+  };
 }
 
 // ── WebSocket event bus ──
@@ -263,14 +277,14 @@ const rawApi: AppAPI = {
 
   // Summaries & Sources
   discoverSources: () => get('/api/sources'),
-  loadSummary: (docId) => get(`/api/summaries/${encodeURIComponent(docId)}`).catch(() => null),
-  loadSnapshot: (sourceId) => get(`/api/snapshots/${encodeURIComponent(sourceId)}`).then(r => r as { content: string } | null).catch(() => null),
-  resolveSourceDocument: (docId) => get(`/api/source-documents/${encodeURIComponent(docId)}`).then(r => r as SourceDocumentResolution).catch(() => ({ available: false, type: null })),
+  loadSummary: (docId) => get(`/api/summaries/${encodeURIComponent(docId)}`).catch(bridgeWarn('loadSummary failed', null)),
+  loadSnapshot: (sourceId) => get(`/api/snapshots/${encodeURIComponent(sourceId)}`).then(r => r as { content: string } | null).catch(bridgeWarn('loadSnapshot failed', null)),
+  resolveSourceDocument: (docId) => get(`/api/source-documents/${encodeURIComponent(docId)}`).then(r => r as SourceDocumentResolution).catch(bridgeWarn('resolveSourceDocument failed', { available: false, type: null })),
 
   // Data management
   isDataAvailable: () => get('/api/data/available'),
   getDataRoot: () => get('/api/data/root'),
-  getCopyStatus: () => get<{ state: string; dir?: string; copied?: number; total?: number }>('/status').catch(() => ({ state: 'unknown' })),
+  getCopyStatus: () => get<{ state: string; dir?: string; copied?: number; total?: number }>('/status').catch(bridgeWarn('getCopyStatus failed', { state: 'unknown' })),
   cloneDataRepo: (targetPath) => post('/api/data/clone', { targetPath }),
   setDataRoot: (newRoot) => post('/api/data/set-root', { newRoot }),
   pickDirectory: () => Promise.resolve({ cancelled: true }),
@@ -292,8 +306,8 @@ const rawApi: AppAPI = {
     return JSON.parse(lines[lines.length - 1]);
   },
 
-  getChangedFiles: () => post<{ path: string; status: string }[]>('/api/data/changed-files').catch(() => []),
-  getFileDiff: (filePath) => post<string>('/api/data/file-diff', { filePath }).catch(() => ''),
+  getChangedFiles: () => post<{ path: string; status: string }[]>('/api/data/changed-files').catch(bridgeWarn('getChangedFiles failed', [])),
+  getFileDiff: (filePath) => post<string>('/api/data/file-diff', { filePath }).catch(bridgeWarn('getFileDiff failed', '')),
 
   // AI models & keys
   loadAIModels: () => get('/api/models'),
@@ -375,10 +389,10 @@ const rawApi: AppAPI = {
   nliClassify: (pairs) => post('/api/nli/classify', { pairs }),
 
   // Source evidence
-  loadSourceEvidenceIndex: () => get<Record<string, unknown> | null>('/api/source-evidence-index').catch(() => null),
-  loadDocTitles: () => get<Record<string, string> | null>('/api/doc-titles').catch(() => null),
+  loadSourceEvidenceIndex: () => get<Record<string, unknown> | null>('/api/source-evidence-index').catch(bridgeWarn('loadSourceEvidenceIndex failed', null)),
+  loadDocTitles: () => get<Record<string, string> | null>('/api/doc-titles').catch(bridgeWarn('loadDocTitles failed', null)),
   getSourceEvidence: (nodeIds, pov) => post('/api/source-evidence', { nodeIds, pov }),
-  runEvidenceQbaf: (claimText, claimId, model) => post('/api/evidence-qbaf', { claimText, claimId, model }).catch(() => null),
+  runEvidenceQbaf: (claimText, claimId, model) => post('/api/evidence-qbaf', { claimText, claimId, model }).catch(bridgeWarn('runEvidenceQbaf failed', null)),
 
   // Debate sessions
   listDebateSessions: () => get('/api/debates'),
@@ -476,23 +490,23 @@ const rawApi: AppAPI = {
 
   // Feedback & error reporting
   submitFeedback: (rating, text, category, context) => post('/api/admin/feedback', { rating, text, category: category ?? 'general', context: { ...context, url: location.href, userAgent: navigator.userAgent } }),
-  reportError: (err, context) => post('/api/admin/errors', { error: err, context: { ...context, url: location.href, userAgent: navigator.userAgent } }).catch(() => ({ ok: false }) /* telemetry — silent by design: logging error-report failures would cause infinite loops */),
+  reportError: (err, context) => post('/api/admin/errors', { error: err, context: { ...context, url: location.href, userAgent: navigator.userAgent } }).catch(bridgeWarn('Error report submission failed', { ok: false })),
 
   // Telemetry
-  trackEvent: (type, view, metadata) => { void post('/api/admin/telemetry', { type, view, metadata }).catch(() => { /* telemetry — silent by design */ }); },
+  trackEvent: (type, view, metadata) => { void post('/api/admin/telemetry', { type, view, metadata }).catch(bridgeWarn('Telemetry event failed', undefined)); },
 
   // Research file access
-  readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`).catch(() => null),
+  readResearchFile: (relativePath) => get(`/api/research/${encodeURIComponent(relativePath)}`).catch(bridgeWarn('readResearchFile failed', null)),
   writeResearchFile: (relativePath, data) => put(`/api/research/${encodeURIComponent(relativePath)}`, data).then(() => {}),
 
   // Synthetic corpus
-  loadSyntheticCorpus: (pov) => get(`/api/taxonomy/synthetic/${encodeURIComponent(pov)}`).catch(() => null),
-  loadSyntheticEmbeddings: () => get('/api/taxonomy/synthetic-embeddings').catch(() => null),
+  loadSyntheticCorpus: (pov) => get(`/api/taxonomy/synthetic/${encodeURIComponent(pov)}`).catch(bridgeWarn('loadSyntheticCorpus failed', null)),
+  loadSyntheticEmbeddings: () => get('/api/taxonomy/synthetic-embeddings').catch(bridgeWarn('loadSyntheticEmbeddings failed', null)),
   updateSyntheticEmbeddings: (nodeId, pov, vectors) => post('/api/taxonomy/synthetic-embeddings', { nodeId, pov, vectors }).then(() => {}),
 
   // Community Library
-  listCommunityChats: () => get('/api/community/chats').catch(() => []),
-  listCommunityDebates: () => get('/api/community/debates').catch(() => []),
+  listCommunityChats: () => get('/api/community/chats').catch(bridgeWarn('listCommunityChats failed', [])),
+  listCommunityDebates: () => get('/api/community/debates').catch(bridgeWarn('listCommunityDebates failed', [])),
   submitToCommunity: (type, itemData, note) => post('/api/community/submit', { type, data: itemData, note }),
   copyFromCommunity: (type, communityId) => post('/api/community/copy', { type, communityId }),
   loadCommunityDebateSession: (id) => get(`/api/community/debates/${encodeURIComponent(id)}`),
@@ -501,8 +515,8 @@ const rawApi: AppAPI = {
   communitySubmit: (_baseUrl, payload) => post('/api/community/submit', payload),
 
   // Calibration
-  getCalibrationHistory: () => get('/api/calibration/history').catch(() => ({ current: null, history: [] })),
-  getCalibrationLog: () => get('/api/calibration/log').catch(() => ({ entries: [], validationReport: null })),
+  getCalibrationHistory: () => get('/api/calibration/history').catch(bridgeWarn('getCalibrationHistory failed', { current: null, history: [] })),
+  getCalibrationLog: () => get('/api/calibration/log').catch(bridgeWarn('getCalibrationLog failed', { entries: [], validationReport: null })),
 
   // Sync
   syncCommit: (message) => post('/api/sync/commit', message ? { message } : undefined),

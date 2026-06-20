@@ -49,13 +49,21 @@ async function postAction(body: Record<string, unknown>): Promise<void> {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
+    const text = await res.text().catch((err) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'CommunityReviewViewer', level: 'warn', message: 'Failed to read error response text', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      return '';
+    });
     throw new Error(`POST action failed: HTTP ${res.status} ${text}`);
   }
 }
 
 function formatDate(iso: string): string {
-  try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  try {
+    return new Date(iso).toLocaleString();
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'CommunityReviewViewer', level: 'debug', message: 'Date format failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    return iso;
+  }
 }
 
 // ── Component ──

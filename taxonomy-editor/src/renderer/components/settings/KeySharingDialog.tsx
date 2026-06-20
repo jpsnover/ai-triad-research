@@ -113,7 +113,9 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
     const video = videoRef.current;
     if (!video) return;
     video.srcObject = streamRef.current;
-    video.play().catch(() => { /* autoplay blocked — user will see frozen frame */ });
+    video.play().catch((err) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'key-sharing-dialog', level: 'debug', message: 'Video autoplay blocked', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    });
 
     scanIntervalRef.current = window.setInterval(() => {
       const canvas = canvasRef.current;

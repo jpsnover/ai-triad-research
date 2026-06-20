@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useCommunityStore, type Submission } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 
 function formatDate(iso: string): string {
   if (!iso) return '';
@@ -77,7 +78,10 @@ export function AdminPanel() {
       await approveSubmission(id);
       setMsg('Submission approved');
       void fetchSubmissions(filter || undefined);
-    } catch (err) { setMsg(`Error: ${err instanceof Error ? err.message : String(err)}`); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'AdminPanel', level: 'error', message: 'Failed to approve submission', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      setMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    }
     setTimeout(() => setMsg(null), 3000);
   };
 
@@ -86,7 +90,10 @@ export function AdminPanel() {
       await rejectSubmission(id);
       setMsg('Submission rejected');
       void fetchSubmissions(filter || undefined);
-    } catch (err) { setMsg(`Error: ${err instanceof Error ? err.message : String(err)}`); }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'AdminPanel', level: 'error', message: 'Failed to reject submission', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      setMsg(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    }
     setTimeout(() => setMsg(null), 3000);
   };
 
