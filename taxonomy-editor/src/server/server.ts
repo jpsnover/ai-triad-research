@@ -365,7 +365,16 @@ get('/api/taxonomy/synthetic-embeddings', async (_req, res) => {
   try {
     const data = await fileIO.loadSyntheticEmbeddings();
     json(res, data);
-  } catch (err) { error(res, String(err)); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to load synthetic embeddings',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 get('/api/taxonomy/synthetic/:pov', async (req, res) => {
@@ -397,7 +406,7 @@ put('/api/taxonomy/:pov', async (req, res, body) => {
       try {
         const existing = await fileIO.readTaxonomyFile(pov) as { nodes?: unknown[] };
         oldNodes = existing?.nodes ?? [];
-      } catch { /* first write or missing file — treat as empty */ }
+      } catch { /* telemetry — silent by design: first write or missing file — treat as empty */ }
       incoming.nodes = stampNodeAuthorship(
         oldNodes as Parameters<typeof stampNodeAuthorship>[0],
         incoming.nodes as Parameters<typeof stampNodeAuthorship>[1],
@@ -972,7 +981,16 @@ get('/api/flight-recorder/list', (_req, res) => {
       })
       .sort((a, b) => b.modified.localeCompare(a.modified));
     json(res, { files });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to list flight-recorder dumps',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 get('/api/flight-recorder/download/:filename', (req, res) => {
@@ -1053,6 +1071,13 @@ put('/api/debates', async (_req, res, body) => {
     json(res, { ok: true });
   }
   catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to save debate session',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     const qi = (err as { quotaInfo?: { resource: string; current: number; limit: number } }).quotaInfo;
     if (qi) { json(res, { error: 'quota_exceeded', resource: qi.resource, current: qi.current, limit: qi.limit, message: String(err) }, status); }
@@ -1129,6 +1154,13 @@ get('/api/chats/:id', async (req, res) => {
 put('/api/chats', async (_req, res, body) => {
   try { await ensureSessionBranch(); await fileIO.saveChatSession(body); json(res, { ok: true }); }
   catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to save chat session',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     const qi = (err as { quotaInfo?: { resource: string; current: number; limit: number } }).quotaInfo;
     if (qi) { json(res, { error: 'quota_exceeded', resource: qi.resource, current: qi.current, limit: qi.limit, message: String(err) }, status); }
@@ -1148,7 +1180,16 @@ del('/api/chats/:id', async (req, res) => {
 
 get('/api/community/chats', async (_req, res) => {
   try { json(res, await community.listCommunityChats()); }
-  catch (err) { error(res, String(err)); }
+  catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to list community chats',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 get('/api/community/chats/:id', async (req, res) => {
@@ -1157,12 +1198,30 @@ get('/api/community/chats/:id', async (req, res) => {
     const item = await community.loadCommunityItem('chats', id);
     if (!item) { json(res, { found: false }, 200); return; }
     json(res, item);
-  } catch (err) { error(res, String(err), 404); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to load community chat item',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 404);
+  }
 });
 
 get('/api/community/debates', async (_req, res) => {
   try { json(res, await community.listCommunityDebates()); }
-  catch (err) { error(res, String(err)); }
+  catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to list community debates',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 get('/api/community/debates/:id', async (req, res) => {
@@ -1171,7 +1230,16 @@ get('/api/community/debates/:id', async (req, res) => {
     const item = await community.loadCommunityItem('debates', id);
     if (!item) { json(res, { found: false }, 200); return; }
     json(res, item);
-  } catch (err) { error(res, String(err), 404); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to load community debate item',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 404);
+  }
 });
 
 post('/api/community/submit', async (_req, res, body) => {
@@ -1190,6 +1258,13 @@ post('/api/community/submit', async (_req, res, body) => {
 
     json(res, await community.submitToCommunity(type, data, note));
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Community submission failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     // Map a rate-limit failure that slipped past the pre-check to 429, not 500.
     const status = (err as { statusCode?: number }).statusCode;
     if (status === 429 || status === 403 || /rate.?limit/i.test(String(err))) {
@@ -1207,6 +1282,13 @@ post('/api/community/copy', async (_req, res, body) => {
     if (!type || !communityId) { json(res, { error: 'type and communityId required' }, 400); return; }
     json(res, await community.copyFromCommunity(type, communityId));
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to copy from community',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     json(res, { error: String(err) }, status);
   }
@@ -1220,7 +1302,16 @@ get('/api/admin/submissions', async (req, res) => {
     const url = new URL(req.url!, 'http://localhost');
     const status = url.searchParams.get('status') || undefined;
     json(res, await community.listSubmissions(status));
-  } catch (err) { error(res, String(err)); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to list community submissions',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 post('/api/admin/submissions/:id/approve', async (req, res) => {
@@ -1229,6 +1320,13 @@ post('/api/admin/submissions/:id/approve', async (req, res) => {
     await ensureSessionBranch();
     json(res, await community.approveSubmission(param(req, 'id', '/api/admin/submissions/:id/approve')));
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to approve community submission',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     json(res, { error: String(err) }, status);
   }
@@ -1240,6 +1338,13 @@ post('/api/admin/submissions/:id/reject', async (req, res) => {
     await ensureSessionBranch();
     json(res, await community.rejectSubmission(param(req, 'id', '/api/admin/submissions/:id/reject')));
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to reject community submission',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     const status = (err as { statusCode?: number }).statusCode ?? 500;
     json(res, { error: String(err) }, status);
   }
@@ -1538,7 +1643,16 @@ get('/api/admin/health', (_req, res) => {
       feedbackCount = files.length;
       recentFeedback = files.slice(0, 5).map(f => {
         try { return JSON.parse(fs.readFileSync(path.join(feedbackDir, f), 'utf-8')); }
-        catch { return { file: f, parseError: true }; }
+        catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'server',
+            level: 'warn',
+            message: 'Failed to parse feedback file',
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+          return { file: f, parseError: true };
+        }
       });
     } catch { /* telemetry — silent by design: dir may not exist yet */ }
 
@@ -1551,7 +1665,16 @@ get('/api/admin/health', (_req, res) => {
       recentFeedback,
       storageMode: STORAGE_MODE,
     });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to build admin status report',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 // ── Admin: Usage telemetry ──
@@ -1613,7 +1736,16 @@ get('/api/admin/telemetry/summary', (req, res) => {
     }
 
     json(res, { days, summaries });
-  } catch (err) { error(res, String(err)); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to build telemetry summaries',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 // ── Harvest ──
@@ -3347,7 +3479,16 @@ server.listen(PORT, () => {
         const data = await fileIO.readAllConflictFiles();
         conflictsCache = { data, ts: Date.now() };
         log.server.info({ count: data.length }, 'Conflicts cache warmed');
-      } catch (e) { log.server.warn({ err: e }, 'Conflicts cache warm failed (non-fatal)'); }
+      } catch (e) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'server',
+          level: 'warn',
+          message: 'Conflicts cache warm failed (non-fatal)',
+          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+        });
+        log.server.warn({ err: e }, 'Conflicts cache warm failed (non-fatal)');
+      }
     }).catch((err) => {
       log.storage.error({ err }, 'GitHubAPIBackend initialization failed');
       serverRecorder.record({

@@ -85,6 +85,13 @@ export class FilesystemBackend implements StorageBackend {
     try {
       return await fs.readFile(filePath);
     } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'filesystem-backend',
+        level: 'error',
+        message: 'Operation failed',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw err;
     }

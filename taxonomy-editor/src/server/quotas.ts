@@ -6,6 +6,7 @@ import path from 'path';
 import { getDataRoot } from './config.js';
 import { log } from './logger.js';
 import { getStorageUserId } from './userContext.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 export interface QuotaLimits {
   maxChats: number;
@@ -48,7 +49,14 @@ function loadQuotaConfig(): QuotaConfig {
     _cacheMtime = stat.mtimeMs;
     log.server.debug({ path: configPath }, 'Loaded quota config');
     return _cache;
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'quotas',
+      level: 'warn',
+      message: 'Failed to load quota config — using defaults',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     return DEFAULT_CONFIG;
   }
 }

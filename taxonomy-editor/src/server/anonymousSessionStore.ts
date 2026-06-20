@@ -6,6 +6,7 @@ import fsp from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 /**
  * Replica-independent store for anonymous (not-signed-in) users' ephemeral
@@ -48,7 +49,16 @@ function defaultBaseDir(): string {
   if (process.env.ANON_SESSION_DIR) return process.env.ANON_SESSION_DIR;
   try {
     if (fs.existsSync(SHARED_MOUNT)) return path.join(SHARED_MOUNT, 'anon-sessions');
-  } catch { /* not mounted — fall through to temp */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'anonymous-session-store',
+      level: 'warn',
+      message: 'Failed to stat shared mount; falling back to temp dir',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    /* not mounted — fall through to temp */
+  }
   return path.join(os.tmpdir(), 'aitriad-anon-sessions');
 }
 
@@ -97,7 +107,16 @@ export class AnonymousSessionStore {
   private async touch(sessionId: string): Promise<void> {
     const dir = this.sessionDir(sessionId);
     const now = new Date();
-    try { await fsp.utimes(dir, now, now); } catch { /* dir may not exist yet */ }
+    try { await fsp.utimes(dir, now, now); } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'anonymous-session-store',
+        level: 'warn',
+        message: 'Failed to touch session dir mtime',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      /* dir may not exist yet */
+    }
   }
 
   /** Sum of all file sizes under a session directory. */
@@ -106,9 +125,27 @@ export class AnonymousSessionStore {
     for (const kind of ['chats', 'debates', 'comments'] as Kind[]) {
       const dir = this.kindDir(sessionId, kind);
       let files: string[];
-      try { files = await fsp.readdir(dir); } catch { continue; }
+      try { files = await fsp.readdir(dir); } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'anonymous-session-store',
+          level: 'warn',
+          message: 'Failed to read kind dir while sizing session',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        continue;
+      }
       for (const f of files) {
-        try { total += (await fsp.stat(path.join(dir, f))).size; } catch { /* gone */ }
+        try { total += (await fsp.stat(path.join(dir, f))).size; } catch (err) {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'anonymous-session-store',
+            level: 'warn',
+            message: 'Failed to stat file while sizing session',
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+          /* gone */
+        }
       }
     }
     return total;
@@ -118,6 +155,13 @@ export class AnonymousSessionStore {
     try {
       return JSON.parse(await fsp.readFile(filePath, 'utf-8'));
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'anonymous-session-store',
+        level: 'warn',
+        message: 'Failed to read/parse session JSON file',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
       throw err;
     }
@@ -137,7 +181,16 @@ export class AnonymousSessionStore {
     const serialized = JSON.stringify(value);
     const newSize = Buffer.byteLength(serialized, 'utf-8');
     let oldSize = 0;
-    try { oldSize = (await fsp.stat(file)).size; } catch { /* new item */ }
+    try { oldSize = (await fsp.stat(file)).size; } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'anonymous-session-store',
+        level: 'warn',
+        message: 'Failed to stat existing item; treating as new',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      /* new item */
+    }
     const projected = (await this.sessionSize(sessionId)) - oldSize + newSize;
     if (projected > this.maxSessionSizeBytes) {
       throw Object.assign(new Error('Anonymous session storage limit exceeded'), { statusCode: 429 });
@@ -150,7 +203,16 @@ export class AnonymousSessionStore {
 
   private async evictIfFull(): Promise<void> {
     let entries: string[];
-    try { entries = await fsp.readdir(this.baseDir); } catch { return; }
+    try { entries = await fsp.readdir(this.baseDir); } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'anonymous-session-store',
+        level: 'warn',
+        message: 'Failed to read base dir during eviction check',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return;
+    }
     if (entries.length < this.maxSessions) return;
 
     // Evict the least-recently-accessed session (oldest dir mtime).
@@ -160,7 +222,16 @@ export class AnonymousSessionStore {
       try {
         const m = (await fsp.stat(path.join(this.baseDir, name))).mtimeMs;
         if (m < oldestTime) { oldestTime = m; oldest = name; }
-      } catch { /* skip */ }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'anonymous-session-store',
+          level: 'warn',
+          message: 'Failed to stat session dir during LRU eviction',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        /* skip */
+      }
     }
     if (oldest) {
       await fsp.rm(path.join(this.baseDir, oldest), { recursive: true, force: true });
@@ -171,7 +242,16 @@ export class AnonymousSessionStore {
   private async listKind(sessionId: string, kind: Kind): Promise<Record<string, unknown>[]> {
     const dir = this.kindDir(sessionId, kind);
     let files: string[];
-    try { files = await fsp.readdir(dir); } catch { return []; }
+    try { files = await fsp.readdir(dir); } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'anonymous-session-store',
+        level: 'warn',
+        message: 'Failed to read kind dir; returning empty list',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return [];
+    }
     const items: Record<string, unknown>[] = [];
     for (const f of files) {
       if (!f.endsWith('.json')) continue;
@@ -264,7 +344,16 @@ export class AnonymousSessionStore {
   /** Delete sessions whose last access (dir mtime) is older than the TTL. */
   async cleanup(): Promise<void> {
     let entries: string[];
-    try { entries = await fsp.readdir(this.baseDir); } catch { return; }
+    try { entries = await fsp.readdir(this.baseDir); } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'anonymous-session-store',
+        level: 'warn',
+        message: 'Failed to read base dir during cleanup sweep',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return;
+    }
     const now = Date.now();
     let evicted = 0;
     for (const name of entries) {
@@ -274,7 +363,16 @@ export class AnonymousSessionStore {
           await fsp.rm(dir, { recursive: true, force: true });
           evicted++;
         }
-      } catch { /* skip */ }
+      } catch (err) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'anonymous-session-store',
+          level: 'warn',
+          message: 'Failed to stat/remove session dir during cleanup',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+        /* skip */
+      }
     }
     if (evicted > 0) {
       log.server.info(`Anonymous session cleanup: evicted ${evicted} expired sessions`);
@@ -293,7 +391,16 @@ export class AnonymousSessionStore {
   }
 
   async activeSessionCount(): Promise<number> {
-    try { return (await fsp.readdir(this.baseDir)).length; } catch { return 0; }
+    try { return (await fsp.readdir(this.baseDir)).length; } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'anonymous-session-store',
+        level: 'warn',
+        message: 'Failed to read base dir for active session count',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return 0;
+    }
   }
 }
 

@@ -6,6 +6,7 @@ import { resolveDataPath } from './config.js';
 import { getUserContentBackend } from './fileIO.js';
 import { getStorageUserId, isAnonymousUser } from './userContext.js';
 import { log } from './logger.js';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 import path from 'path';
 
 // ── Paths ──
@@ -45,7 +46,16 @@ export async function listCommunityChats(): Promise<unknown[]> {
         mode: parsed.mode || '',
         community_metadata: parsed.community_metadata || null,
       });
-    } catch { /* skip malformed */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'community',
+        level: 'warn',
+        message: 'Skipping malformed community chat file',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      /* skip malformed */
+    }
   }
   return items.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }
@@ -68,7 +78,16 @@ export async function listCommunityDebates(): Promise<unknown[]> {
         phase: parsed.phase || 'unknown',
         community_metadata: parsed.community_metadata || null,
       });
-    } catch { /* skip malformed */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'community',
+        level: 'warn',
+        message: 'Skipping malformed community debate file',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      /* skip malformed */
+    }
   }
   return items.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }
@@ -151,7 +170,16 @@ async function listSubmissionsForUser(userId: string): Promise<Submission[]> {
       if (raw === null) continue;
       const s = JSON.parse(raw) as Submission;
       if (s.submittedBy === userId) subs.push(s);
-    } catch { /* skip */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'community',
+        level: 'warn',
+        message: 'Skipping malformed submission file (user list)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      /* skip */
+    }
   }
   return subs;
 }
@@ -167,7 +195,16 @@ export async function listSubmissions(statusFilter?: string): Promise<unknown[]>
       if (raw === null) continue;
       const s = JSON.parse(raw) as Submission;
       if (!statusFilter || s.status === statusFilter) subs.push(s);
-    } catch { /* skip */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'community',
+        level: 'warn',
+        message: 'Skipping malformed submission file (admin list)',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      /* skip */
+    }
   }
   return subs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
 }

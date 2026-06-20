@@ -25,6 +25,7 @@
 import crypto from 'crypto';
 import { pathToFileURL } from 'url';
 import type { StorageBackend } from '../storageBackend.js';
+import { getGlobalRecorder } from '../../../../lib/flight-recorder/index.js';
 
 export interface MigrationSummary {
   filesMigrated: number;
@@ -123,6 +124,13 @@ export async function migrateUserContent(
 
       if (summary.filesMigrated % 50 === 0) log(`  …${summary.filesMigrated} migrated`);
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'migration',
+        level: 'warn',
+        message: 'Failed to migrate user-content file — continuing',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       const error = (err as Error)?.message ?? String(err);
       summary.failures.push({ path: p, error });
       log(`  ! failed: ${p} — ${error}`);
@@ -191,5 +199,15 @@ async function main(): Promise<void> {
 
 const invokedDirectly = !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (invokedDirectly) {
-  main().catch((err) => { console.error(err); process.exit(1); });
+  main().catch((err) => {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'migration',
+      level: 'error',
+      message: 'User-content → Blob migration failed',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    console.error(err);
+    process.exit(1);
+  });
 }

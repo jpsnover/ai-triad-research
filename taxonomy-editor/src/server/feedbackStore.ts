@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 /**
  * Server-side feedback storage helpers for the admin feedback API.
@@ -52,6 +53,13 @@ export function listFeedback(feedbackDir: string, q: FeedbackQuery = {}): Feedba
   try {
     files = fs.readdirSync(feedbackDir).filter(f => f.startsWith('feedback-') && f.endsWith('.json'));
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'feedback-store',
+      level: 'warn',
+      message: 'Failed to read feedback directory',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
   }
 
@@ -62,7 +70,14 @@ export function listFeedback(feedbackDir: string, q: FeedbackQuery = {}): Feedba
       const entry = JSON.parse(fs.readFileSync(path.join(feedbackDir, f), 'utf-8')) as Record<string, unknown>;
       if (entry.category === undefined || entry.category === null) entry.category = 'general';
       items.push(entry);
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'feedback-store',
+        level: 'warn',
+        message: 'Failed to read/parse feedback entry; skipping',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       skipped.push(f);
     }
   }

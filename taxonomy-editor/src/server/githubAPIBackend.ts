@@ -1451,7 +1451,14 @@ export class GitHubAPIBackend implements StorageBackend {
     const diskPath = path.join(this.cacheDir, repoPath);
     try {
       return await fs.readFile(diskPath);
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'github-api',
+        level: 'warn',
+        message: 'Failed to read binary file from disk cache',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       return null;
     }
   }

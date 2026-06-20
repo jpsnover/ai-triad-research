@@ -401,7 +401,16 @@ function computeBatchViaLocalPython(texts: string[], ids: string[]): Promise<num
         const vectors = ids.map(id => map[id]);
         if (vectors.some(v => !v || !Array.isArray(v))) { reject(new Error('Incomplete vectors from batch-encode')); return; }
         resolve(vectors as number[][]);
-      } catch (e) { reject(new Error(`Parse failed: ${e}`)); }
+      } catch (e) {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'ai-backends',
+          level: 'warn',
+          message: 'Failed to parse batch-encode output',
+          error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack },
+        });
+        reject(new Error(`Parse failed: ${e}`));
+      }
     });
     child.stdin?.write(JSON.stringify(input));
     child.stdin?.end();
@@ -467,7 +476,14 @@ export async function computeQueryEmbedding(text: string): Promise<number[]> {
       const vec = await computeQueryViaLocalPython(text);
       setCachedQueryEmbedding(text, vec);
       return vec;
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'ai-backends',
+        level: 'warn',
+        message: 'Local Python embedding failed; falling back to API',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       _pythonAvailable = false;
     }
   }

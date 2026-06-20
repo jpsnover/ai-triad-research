@@ -160,7 +160,16 @@ async function getInstallationToken(): Promise<string | null> {
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => '');
+    const body = await res.text().catch((err) => {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'github-app-auth',
+        level: 'warn',
+        message: 'Failed to read installation token error response body',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      return '';
+    });
     log.auth.warn({ status: res.status }, 'Installation token mint failed');
     return null;
   }
