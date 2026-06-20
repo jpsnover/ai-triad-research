@@ -204,13 +204,26 @@ jobs:
             ai-triad-test:ci
           echo "Waiting for container to start..."
 
+          # Diagnostics: verify container is actually running
+          sleep 3
+          echo "=== Container state ==="
+          docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}} Pid={{.State.Pid}}'
+          echo "=== Port bindings ==="
+          docker port smoke-test 2>/dev/null || echo "No port bindings"
+          echo "=== Internal health check ==="
+          docker exec smoke-test curl -s --max-time 5 http://localhost:7862/health 2>/dev/null || echo "Internal curl failed (exit $?)"
+          echo ""
+
           # Health check: 36 attempts × 8s sleep ≈ 288s budget (+ curl overhead)
-          # Server cold-starts in ~160s on GitHub runners; step timeout 8 min.
           for i in $(seq 1 36); do
             STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || true)
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed on attempt $i!"
               break
+            fi
+            # Every 6th attempt, print container state for diagnostics
+            if [ $((i % 6)) -eq 0 ]; then
+              echo "  [diag] $(docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}}' 2>/dev/null || echo 'inspect failed')"
             fi
             echo "  Attempt $i/36 — status: ${STATUS:-000}"
             sleep 8
@@ -218,6 +231,9 @@ jobs:
 
           if [ "$STATUS" != "200" ]; then
             echo "::error::Container smoke test failed — health check did not pass"
+            echo "=== Final container state ==="
+            docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}}' 2>/dev/null || true
+            echo "=== Container logs ==="
             docker logs smoke-test
             exit 1
           fi
