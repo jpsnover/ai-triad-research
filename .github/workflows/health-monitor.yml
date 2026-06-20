@@ -51,7 +51,7 @@ jobs:
 
       - name: Create issue on sustained failure
         if: steps.health.outputs.healthy == 'false'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
         with:
           script: |
             // Check for existing open issue to avoid duplicates
@@ -103,7 +103,7 @@ jobs:
 
       - name: Auto-close resolved issues
         if: steps.health.outputs.healthy == 'true'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
         with:
           script: |
             const existing = await github.rest.issues.listForRepo({

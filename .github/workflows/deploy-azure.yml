@@ -58,7 +58,7 @@ jobs:
     outputs:
       tag: ${{ steps.resolve_tag.outputs.tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Resolve image tag
         id: resolve_tag
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
 
       - name: Resolve image tag
         id: resolve_tag
@@ -136,7 +136,7 @@ jobs:
           echo "Deploying image tag: $(cat $GITHUB_OUTPUT | grep tag= | cut -d= -f2)"
 
       - name: Log in to Azure
-        uses: azure/login@v3
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43  # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -166,7 +166,6 @@ jobs:
               githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }} \
               githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }} \
               githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }} \
-              ghcrPassword=${{ secrets.GHCR_PAT }} \
             --no-pretty-print 2>&1) || true
           echo "$RESULT"
 
@@ -177,7 +176,7 @@ jobs:
           fi
 
       - name: Deploy Bicep template
-        uses: azure/arm-deploy@v2
+        uses: azure/arm-deploy@a1361c2c2cd398621955b16ca32e01c65ea340f5  # v2
         id: deploy
         with:
           # Bicep emits compile warnings (e.g. BCP422/BCP318 from runner.bicep)
@@ -207,7 +206,6 @@ jobs:
             githubAppInstallationId=${{ vars.SYNC_GITHUB_APP_INSTALLATION_ID }}
             githubAppPrivateKeySecretName=${{ vars.SYNC_GITHUB_APP_PRIVATE_KEY_SECRET_NAME }}
             githubWebhookSecret=${{ secrets.SYNC_GITHUB_WEBHOOK_SECRET }}
-            ghcrPassword=${{ secrets.GHCR_PAT }}
 
       - name: Get current active revision
         id: current_revision
@@ -477,7 +475,7 @@ jobs:
 
       - name: Re-authenticate before rollback
         if: (steps.health_check.outputs.healthy != 'true' || steps.acceptance.outputs.accepted == 'false') && steps.current_revision.outputs.revision != ''
-        uses: azure/login@v3
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43  # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
