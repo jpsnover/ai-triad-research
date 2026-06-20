@@ -2,7 +2,7 @@
 
 # AI Triad Base Image — heavy system dependencies, rebuilt monthly.
 #
-# Contains: Node 22, system packages, PowerShell 7, Python ML venv (torch,
+# Contains: Node 22, system packages, Python ML venv (torch,
 # sentence-transformers, pre-downloaded embedding model), and the aitriad
 # non-root user. No application code.
 #
@@ -14,11 +14,11 @@
 FROM node:22-bookworm-slim
 
 LABEL org.opencontainers.image.source="https://github.com/jpsnover/ai-triad-research"
-LABEL org.opencontainers.image.description="AI Triad Research — base image with Node 22, Python ML, PowerShell 7"
+LABEL org.opencontainers.image.description="AI Triad Research — base image with Node 22, Python ML"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# System dependencies + build tools for native Node modules (node-pty)
-# Consolidated into a single apt-get to avoid stale package cache on a second invocation.
+# System dependencies (runtime only — build tools like make/g++ live in the app
+# Dockerfile's builder stage, not here).
 # hadolint ignore=DL3008,DL3009
 RUN apt-get update \
     && apt-get upgrade -y \
@@ -28,25 +28,11 @@ RUN apt-get update \
     python3 \
     python3-pip \
     python3-venv \
-    python3-dev \
     poppler-utils \
     curl \
     libicu72 \
     tini \
-    make \
-    g++ \
     && rm -rf /var/lib/apt/lists/*
-
-# PowerShell 7
-ARG PS_VERSION=7.6.0
-RUN ARCH=$(dpkg --print-architecture) \
-    && if [ "$ARCH" = "amd64" ]; then PS_ARCH="x64"; elif [ "$ARCH" = "arm64" ]; then PS_ARCH="arm64"; else echo "Unsupported arch: $ARCH" && exit 1; fi \
-    && curl -fsSL "https://github.com/PowerShell/PowerShell/releases/download/v${PS_VERSION}/powershell-${PS_VERSION}-linux-${PS_ARCH}.tar.gz" -o /tmp/ps.tar.gz \
-    && mkdir -p /opt/microsoft/powershell/7 \
-    && tar xzf /tmp/ps.tar.gz -C /opt/microsoft/powershell/7 \
-    && rm /tmp/ps.tar.gz \
-    && chmod +x /opt/microsoft/powershell/7/pwsh \
-    && ln -s /opt/microsoft/powershell/7/pwsh /usr/local/bin/pwsh
 
 # Python ML environment (isolated venv, CPU-only PyTorch)
 RUN python3 -m venv /opt/ml-env
