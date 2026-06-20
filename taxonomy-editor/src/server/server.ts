@@ -32,7 +32,6 @@ import {
 } from './config.js';
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
-import { AzureBlobBackend } from './azureBlobBackend.js';
 import { runWithUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
@@ -165,6 +164,13 @@ if (STORAGE_MODE === 'github-api') {
   const userContentStorage = process.env.USER_CONTENT_STORAGE === 'azure-blob' ? 'azure-blob' : 'github-api';
   const blobAccountUrl = process.env.AZURE_STORAGE_ACCOUNT_URL;
   if (userContentStorage === 'azure-blob' && blobAccountUrl) {
+    // Dynamic import: only pull in the Azure SDK (@azure/identity +
+    // @azure/storage-blob, ~2MB) when blob storage is actually enabled. A static
+    // top-level import made DefaultAzureCredential's IMDS probing run at startup
+    // even when disabled, blocking the event loop in CI containers (no Azure
+    // IMDS) and hurting cold start. Top-level await keeps the backend set before
+    // the server starts listening. (t/698 follow-up.)
+    const { AzureBlobBackend } = await import('./azureBlobBackend.js');
     fileIO.setUserContentBackend(new AzureBlobBackend({
       accountUrl: blobAccountUrl,
       userContentContainer: process.env.AZURE_USER_CONTENT_CONTAINER || 'user-content',
