@@ -2738,7 +2738,9 @@ async function readBody(req: http.IncomingMessage): Promise<unknown> {
   let totalBytes = 0;
   for await (const chunk of req) {
     totalBytes += (chunk as Buffer).length;
-    if (totalBytes > MAX_BODY_BYTES) throw new Error('Request body too large');
+    // L10: cap request/upload body size, surfaced as HTTP 413 (covers
+    // /api/upload-document and every other POST/PUT, which all read via readBody).
+    if (totalBytes > MAX_BODY_BYTES) throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
     chunks.push(chunk as Buffer);
   }
   const raw = Buffer.concat(chunks).toString('utf-8');
@@ -3048,15 +3050,22 @@ async function handleRequestInner(
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // L8: deny powerful features the app never uses.
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   if (process.env.NODE_ENV === 'production' || process.env.ALLOWED_ORIGINS) {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    // L9: style-src keeps 'unsafe-inline' — accepted risk. React applies inline
+    // style attributes (style={{…}}) which CSP blocks without it; removing it
+    // breaks the UI. script-src has NO unsafe-inline, so the XSS surface is small.
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' wss:; font-src 'self'; worker-src 'self'");
   }
 
-  // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev
+  // CORS headers — locked to ALLOWED_ORIGINS in production, permissive in dev.
+  // (L11: X-Admin-Key dropped — the static admin-key auth path was removed;
+  //  admin access is OAuth + ADMIN_USERS only, so there's no key to brute-force.)
   res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req));
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename, X-Admin-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename');
   if (ALLOWED_ORIGINS) res.setHeader('Vary', 'Origin');
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
