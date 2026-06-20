@@ -200,7 +200,11 @@ jobs:
           # --max-time 4 prevents curl from hanging when the server accepts
           # the TCP connection but stalls during initialization.
           for i in $(seq 1 18); do
-            STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null)
+            # `|| true` is required: the step runs under `bash -e`, so an
+            # unguarded failing command-substitution (curl exits non-zero while
+            # the container is still starting) aborts the whole step on attempt 1
+            # instead of retrying. Tolerate the failure and let the loop retry.
+            STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || true)
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed on attempt $i!"
               break
