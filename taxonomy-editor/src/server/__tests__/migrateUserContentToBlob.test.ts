@@ -113,4 +113,13 @@ describe('migrateUserContent (t/699)', () => {
     expect(summary.verified).toBe(0);
     expect(summary.filesMigrated).toBe(6);
   });
+
+  it('dry run reports would-migrate counts without writing to the destination', async () => {
+    const summary = await migrateUserContent(source, dest, { dryRun: true });
+    expect(summary.filesMigrated).toBe(6);        // would-migrate count
+    expect(summary.bytesTransferred).toBeGreaterThan(0);
+    expect(summary.verified).toBe(0);             // nothing written → nothing verified
+    expect(summary.failures).toEqual([]);
+    expect(dest.files.size).toBe(0);              // destination untouched
+  });
 });

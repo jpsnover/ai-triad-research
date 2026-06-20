@@ -39,6 +39,10 @@ export interface MigrateOptions {
   log?: (msg: string) => void;
   /** Read each blob back and SHA-compare after write. Default true. */
   verify?: boolean;
+  /** Preview only: enumerate + read source (to confirm readability/size) but
+   *  make NO writes to the destination. `filesMigrated`/`bytesTransferred`
+   *  report what WOULD be copied. Default false. */
+  dryRun?: boolean;
 }
 
 const COMMUNITY_DIRS = ['community/chats', 'community/debates', 'community/_submissions'];
@@ -84,17 +88,25 @@ export async function migrateUserContent(
 ): Promise<MigrationSummary> {
   const log = opts.log ?? (() => {});
   const verify = opts.verify ?? true;
+  const dryRun = opts.dryRun ?? false;
   const summary: MigrationSummary = {
     filesMigrated: 0, bytesTransferred: 0, verified: 0, failures: [], verifyFailures: [],
   };
 
   const paths = await collectUserContentPaths(source);
-  log(`Found ${paths.length} user-content files to migrate.`);
+  log(`${dryRun ? '[DRY RUN] ' : ''}Found ${paths.length} user-content files to migrate.`);
 
   for (const p of paths) {
     try {
       const content = await source.readFile(p);
       if (content === null) { summary.failures.push({ path: p, error: 'source returned null' }); continue; }
+
+      // Dry run: confirm the source is readable + sized, but write nothing.
+      if (dryRun) {
+        summary.filesMigrated++; // would-migrate count
+        summary.bytesTransferred += Buffer.byteLength(content, 'utf-8');
+        continue;
+      }
 
       await dest.writeFile(p, content);
       summary.filesMigrated++;
@@ -118,8 +130,9 @@ export async function migrateUserContent(
   }
 
   log(
-    `Migration complete: ${summary.filesMigrated} files, ${summary.bytesTransferred} bytes, ` +
-    `${summary.verified} verified, ${summary.failures.length} failures, ${summary.verifyFailures.length} verify failures.`,
+    `${dryRun ? '[DRY RUN] would migrate' : 'Migration complete:'} ${summary.filesMigrated} files, ` +
+    `${summary.bytesTransferred} bytes, ${summary.verified} verified, ` +
+    `${summary.failures.length} failures, ${summary.verifyFailures.length} verify failures.`,
   );
   return summary;
 }
@@ -146,8 +159,11 @@ async function main(): Promise<void> {
     communityContainer: process.env.AZURE_COMMUNITY_CONTAINER || 'community',
   });
 
-  const summary = await migrateUserContent(source, dest, { log: (m) => log.server.info(m) });
-  log.server.info({ summary }, 'User-content → Blob migration summary');
+  const dryRun = process.env.DRY_RUN === '1' || process.argv.includes('--dry-run');
+  if (dryRun) log.server.info('DRY RUN — no writes will be made to Blob');
+
+  const summary = await migrateUserContent(source, dest, { log: (m) => log.server.info(m), dryRun });
+  log.server.info({ summary, dryRun }, 'User-content → Blob migration summary');
   source.shutdown();
 
   const hadErrors = summary.failures.length + summary.verifyFailures.length > 0;
