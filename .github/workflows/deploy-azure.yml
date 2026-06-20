@@ -176,6 +176,13 @@ jobs:
         uses: azure/arm-deploy@v2
         id: deploy
         with:
+          # Bicep emits compile warnings (e.g. BCP422/BCP318 from runner.bicep)
+          # to stderr. arm-deploy defaults failOnStdErr:true, which would fail
+          # this step on those warnings even though the ARM deployment succeeds —
+          # masking real failures and skipping the blue-green / DEPLOY_SHA steps
+          # below. Tolerate stderr; real deploy failures still surface via the
+          # action's non-zero exit. (t/702)
+          failOnStdErr: false
           resourceGroupName: ${{ env.RESOURCE_GROUP }}
           template: deploy/azure/main.bicep
           parameters: >-
