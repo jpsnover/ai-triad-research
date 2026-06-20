@@ -97,7 +97,8 @@ export default defineConfig({
   build: {
     outDir: '../../dist/renderer',
     emptyOutDir: true,
-    minify: isWeb ? false : true, // unminified for web/container to get readable errors
+    minify: true,
+    sourcemap: true,
   },
   test: {
     include: [

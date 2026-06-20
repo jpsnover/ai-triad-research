@@ -11,25 +11,11 @@ import { Toolbar } from './components/shared/Toolbar';
 import { TabBar } from './components/shared/TabBar';
 import { SaveBar } from './components/sync/SaveBar';
 import { PovTab } from './components/taxonomy/PovTab';
-import { SituationsTab } from './components/debate/SituationsTab';
-import { ConflictsTab } from './components/conflict/ConflictsTab';
-import { DebateTab } from './components/debate/DebateTab';
-import { ChatTab } from './components/chat/ChatTab';
 import { FirstRunDialog } from './components/settings/FirstRunDialog';
 import { OnboardingTour } from './components/OnboardingTour';
 import { DeploymentErrorScreen } from './components/shared/DeploymentErrorScreen';
 
 import { StartupProgressScreen } from './components/shared/StartupProgressScreen';
-import { DiagnosticsWindow } from './components/debate-diagnostics';
-import { PovProgressionWindow } from './components/PovProgression/PovProgressionWindow';
-import { DebatePopoutWindow } from './components/debate/DebatePopoutWindow';
-import { ChatWindow } from './components/chat/ChatWindow';
-import { PromptDiffWindow } from './components/chat/PromptDiffWindow';
-import { DiffWindow } from './components/shared/DiffWindow';
-import { HarvestDialog } from './components/shared/HarvestDialog';
-import { SummariesTab } from './components/analysis/SummariesTab';
-import { CruxesTab } from './components/debate/CruxesTab';
-import { ValidationTab } from './components/taxonomy/ValidationTab';
 
 import { initFlightRecorder } from './lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
@@ -38,16 +24,34 @@ import { useBreakpoint } from './hooks/useBreakpoint';
 import { useIsTouchDevice } from './hooks/useIsTouchDevice';
 import { BottomNav } from './components/shared/BottomNav';
 import { HamburgerMenu } from './components/shared/HamburgerMenu';
-import { AnalyticsDashboard } from './components/analysis/AnalyticsDashboard';
-import { CommunityLibrary } from './components/community/CommunityLibrary';
-import { AdminPanel } from './components/settings/AdminPanel';
-import { AdminReviewPanel } from './components/settings/AdminReviewPanel';
 import { GitProgressBanner } from './components/sync/GitProgressBanner';
 import { AnonymousBanner } from './components/community/AnonymousBanner';
 import { pullDataTracked } from './utils/syncApi';
 import { PrecacheToast } from './components/shared/PrecacheToast';
 import { usePrecache } from './hooks/usePrecache';
 import { DiagnosticsDrawer } from './components/shared/DiagnosticsDrawer';
+
+// Lazy-loaded tab components — only fetched when their tab is selected
+const SituationsTab = lazy(() => import('./components/debate/SituationsTab').then(m => ({ default: m.SituationsTab })));
+const ConflictsTab = lazy(() => import('./components/conflict/ConflictsTab').then(m => ({ default: m.ConflictsTab })));
+const DebateTab = lazy(() => import('./components/debate/DebateTab').then(m => ({ default: m.DebateTab })));
+const ChatTab = lazy(() => import('./components/chat/ChatTab').then(m => ({ default: m.ChatTab })));
+const SummariesTab = lazy(() => import('./components/analysis/SummariesTab').then(m => ({ default: m.SummariesTab })));
+const CruxesTab = lazy(() => import('./components/debate/CruxesTab').then(m => ({ default: m.CruxesTab })));
+const ValidationTab = lazy(() => import('./components/taxonomy/ValidationTab').then(m => ({ default: m.ValidationTab })));
+
+// Lazy-loaded window/panel components — separate Electron windows or hash routes
+const DiagnosticsWindow = lazy(() => import('./components/debate-diagnostics').then(m => ({ default: m.DiagnosticsWindow })));
+const PovProgressionWindow = lazy(() => import('./components/PovProgression/PovProgressionWindow').then(m => ({ default: m.PovProgressionWindow })));
+const DebatePopoutWindow = lazy(() => import('./components/debate/DebatePopoutWindow').then(m => ({ default: m.DebatePopoutWindow })));
+const ChatWindow = lazy(() => import('./components/chat/ChatWindow').then(m => ({ default: m.ChatWindow })));
+const PromptDiffWindow = lazy(() => import('./components/chat/PromptDiffWindow').then(m => ({ default: m.PromptDiffWindow })));
+const DiffWindow = lazy(() => import('./components/shared/DiffWindow').then(m => ({ default: m.DiffWindow })));
+const HarvestDialog = lazy(() => import('./components/shared/HarvestDialog').then(m => ({ default: m.HarvestDialog })));
+const AnalyticsDashboard = lazy(() => import('./components/analysis/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
+const CommunityLibrary = lazy(() => import('./components/community/CommunityLibrary').then(m => ({ default: m.CommunityLibrary })));
+const AdminPanel = lazy(() => import('./components/settings/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const AdminReviewPanel = lazy(() => import('./components/settings/AdminReviewPanel').then(m => ({ default: m.AdminReviewPanel })));
 
 const UpdatePrompt = import.meta.env.VITE_TARGET === 'web'
   ? lazy(() => import('./components/shared/UpdatePrompt').then(m => ({ default: m.UpdatePrompt })))
@@ -108,7 +112,7 @@ function FileViewerApp() {
   }
 
   if (fileArg?.type === 'diagnostics' && fileArg.data) {
-    return <DiagnosticsWindow initialData={fileArg.data as Record<string, unknown>} />;
+    return <Suspense fallback={null}><DiagnosticsWindow initialData={fileArg.data as Record<string, unknown>} /></Suspense>;
   }
 
   if (fileArg?.type === 'harvest' && fileArg.data) {
@@ -129,7 +133,7 @@ function FileViewerApp() {
           {' '}{(harvestData.verdicts as unknown[])?.length ?? 0} verdicts,
           {' '}{(harvestData.concepts as unknown[])?.length ?? 0} concepts
         </p>
-        <HarvestDialog onClose={() => window.close()} fileData={harvestData} />
+        <Suspense fallback={null}><HarvestDialog onClose={() => window.close()} fileData={harvestData} /></Suspense>
       </div>
     );
   }
@@ -150,34 +154,34 @@ export function App() {
 
   // If this window was opened as a diagnostics popout, render only that
   if (hash === '#diagnostics-window') {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DiagnosticsWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DiagnosticsWindow /></Suspense></ErrorBoundary>;
   }
   if (hash === '#pov-progression-window') {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PovProgressionWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><PovProgressionWindow /></Suspense></ErrorBoundary>;
   }
   if (hash.startsWith('#debate-window')) {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DebatePopoutWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DebatePopoutWindow /></Suspense></ErrorBoundary>;
   }
   if (hash.startsWith('#prompt-diff-window')) {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><PromptDiffWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><PromptDiffWindow /></Suspense></ErrorBoundary>;
   }
   if (hash.startsWith('#diff-window')) {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><DiffWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><DiffWindow /></Suspense></ErrorBoundary>;
   }
   if (hash === '#chat-window') {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><ChatWindow /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><ChatWindow /></Suspense></ErrorBoundary>;
   }
   if (hash === '#analytics' && import.meta.env.VITE_TARGET === 'web') {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AnalyticsDashboard /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AnalyticsDashboard /></Suspense></ErrorBoundary>;
   }
   if (hash === '#community' && import.meta.env.VITE_TARGET === 'web') {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><CommunityLibrary /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><CommunityLibrary /></Suspense></ErrorBoundary>;
   }
   if (hash === '#admin' && import.meta.env.VITE_TARGET === 'web') {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AdminReviewPanel /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AdminReviewPanel /></Suspense></ErrorBoundary>;
   }
   if (hash === '#admin-legacy' && import.meta.env.VITE_TARGET === 'web') {
-    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><AdminPanel /></ErrorBoundary>;
+    return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AdminPanel /></Suspense></ErrorBoundary>;
   }
 
   // Route between CLI file viewer and main app
@@ -610,12 +614,14 @@ function MainApp() {
           {activeTab === 'accelerationist' && <PovTab pov="accelerationist" />}
           {activeTab === 'safetyist' && <PovTab pov="safetyist" />}
           {activeTab === 'skeptic' && <PovTab pov="skeptic" />}
-          {activeTab === 'situations' && <SituationsTab />}
-          {activeTab === 'conflicts' && <ConflictsTab />}
-          {activeTab === 'cruxes' && <CruxesTab />}
-          {activeTab === 'debate' && <DebateTab />}
-          {activeTab === 'summaries' && <SummariesTab />}
-          {activeTab === 'validation' && <ValidationTab />}
+          <Suspense fallback={<div className="loading"><div className="loading-title">Loading...</div></div>}>
+            {activeTab === 'situations' && <SituationsTab />}
+            {activeTab === 'conflicts' && <ConflictsTab />}
+            {activeTab === 'cruxes' && <CruxesTab />}
+            {activeTab === 'debate' && <DebateTab />}
+            {activeTab === 'summaries' && <SummariesTab />}
+            {activeTab === 'validation' && <ValidationTab />}
+          </Suspense>
         </div>
       </div>
       <SaveBar />

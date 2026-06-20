@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { DiagnosticsWindow } from '../debate-diagnostics';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
+
+const DiagnosticsWindow = lazy(() => import('../debate-diagnostics').then(m => ({ default: m.DiagnosticsWindow })));
 
 export const DIAG_DRAWER_EVENT = 'open-diagnostics-drawer';
 
@@ -54,7 +55,7 @@ export function DiagnosticsDrawer() {
           <button className="diag-drawer-close" onClick={close}>&times;</button>
         </div>
         <div className="diag-drawer-body">
-          {open && <DiagnosticsWindow />}
+          {open && <Suspense fallback={null}><DiagnosticsWindow /></Suspense>}
         </div>
       </div>
     </>
