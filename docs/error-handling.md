@@ -199,11 +199,49 @@ try {
 | Validation / precondition checks | `if (!condition)` → `New-ActionableError -Throw` / `throw new ActionableError(...)` |
 | Partial results acceptable | Catch per-item, accumulate errors, report summary at end |
 
+## Flight Recorder (MANDATORY)
+
+**Every `catch` block** in `taxonomy-editor/src/server/`, `taxonomy-editor/src/renderer/`, and `lib/debate/` **MUST** call `getGlobalRecorder()?.record()` before throwing or returning. This is not optional — it is the primary diagnostic channel for production debugging.
+
+### Required fields
+
+```typescript
+import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
+
+// In EVERY catch block:
+getGlobalRecorder()?.record({
+  type: 'system.error',          // or domain-specific: 'storage.error', 'api.error', etc.
+  component: 'your-component',   // e.g. 'azure-blob-backend', 'filesystem-backend'
+  level: 'error',                // 'error' for failures, 'warn' for expected-but-notable (e.g. 404)
+  message: `Operation failed: ${context}`,
+  error: {
+    name: (err as Error).name ?? 'Error',
+    message: String(err),
+    stack: (err as Error).stack,  // REQUIRED — stack traces are essential for diagnosis
+  },
+});
+```
+
+### Rules
+
+1. **Record before throwing** — call `getGlobalRecorder()?.record()` THEN throw the ActionableError. The recorder captures the event even if the throw is caught higher up.
+2. **Record expected errors too** — 404/ENOENT that return `null` or `[]` should still record at `level: 'warn'`. These are invisible without the recorder and are critical for debugging "why isn't my data showing up?" issues.
+3. **Always include `stack`** — `(err as Error).stack` preserves the original call site. Without it, the recorder entry points at the catch block, not the origin.
+4. **Always pass `innerError`** — when wrapping in ActionableError, pass `innerError: err` to preserve the original Error object for programmatic access.
+5. **Reference implementation** — `filesystemBackend.ts` is the canonical pattern for StorageBackend implementations. New backends must match its recording behavior.
+
+### Only two exceptions (must have explicit comment)
+
+1. `fileExists()` returning `false` on any error — `/* telemetry — silent by design */`
+2. Test-only code (`.test.ts` / `.spec.ts` files) — no flight recorder needed
+
 ## Audit Checklist
 
 When reviewing or modifying code, verify:
 
 - [ ] Every `try/catch` produces an actionable error (not bare `throw` or `console.error`)
+- [ ] Every `catch` block calls `getGlobalRecorder()?.record()` with `type`, `component`, `level`, `message`, and `error` (including `stack`)
+- [ ] ActionableError includes `innerError: err` when wrapping a caught error
 - [ ] External calls (API, file I/O, IPC, subprocess) have error handling
 - [ ] Transient failures have retry logic
 - [ ] Error messages include all four fields (goal, problem, location, next steps)
