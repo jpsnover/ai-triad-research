@@ -185,6 +185,7 @@ jobs:
           tags: ai-triad-test:ci
 
       - name: Run container smoke test (GitHub API-first mode)
+        timeout-minutes: 5
         run: |
           # No data volume mounted — the app starts with baked fallback data
           # and fetches from GitHub API. In CI we just verify it starts cleanly.
@@ -194,14 +195,16 @@ jobs:
             ai-triad-test:ci
           echo "Waiting for container to start..."
 
-          # Health check: 18 × 5s = 90s
+          # Health check: 18 × 5s = 90s max
+          # --max-time 4 prevents curl from hanging when the server accepts
+          # the TCP connection but stalls during initialization.
           for i in $(seq 1 18); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || echo "000")
+            STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null)
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed on attempt $i!"
               break
             fi
-            echo "  Attempt $i/18 — status: $STATUS"
+            echo "  Attempt $i/18 — status: ${STATUS:-000}"
             sleep 5
           done
 
@@ -212,13 +215,13 @@ jobs:
           fi
 
           # Verify health response structure
-          HEALTH=$(curl -s http://localhost:7862/health)
+          HEALTH=$(curl -s --max-time 10 http://localhost:7862/health)
           echo "Health response:"
           echo "$HEALTH" | python3 -m json.tool 2>/dev/null || echo "$HEALTH"
 
           # Verify /healthz exists (liveness probe endpoint)
           # May return 503 in CI without GitHub credentials — that's OK
-          HZ_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:7862/healthz)
+          HZ_STATUS=$(curl -s --max-time 10 -o /dev/null -w "%{http_code}" http://localhost:7862/healthz)
           if [ "$HZ_STATUS" = "200" ]; then
             echo "Liveness probe (/healthz) passed!"
           else
@@ -226,7 +229,7 @@ jobs:
           fi
 
           # Check data availability (may be false in CI without GitHub credentials — that's OK)
-          DATA_AVAILABLE=$(curl -s http://localhost:7862/api/data/available)
+          DATA_AVAILABLE=$(curl -s --max-time 10 http://localhost:7862/api/data/available)
           echo "Data available: $DATA_AVAILABLE"
           if [ "$DATA_AVAILABLE" = "true" ]; then
             echo "Data availability check passed (fallback data loaded)"
