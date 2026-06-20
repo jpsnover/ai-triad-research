@@ -12,6 +12,7 @@ import type { PovNode, SituationNode, EdgesFile } from './taxonomyTypes.js';
 import type { PolicyRef } from './taxonomyContext.js';
 import { ActionableError } from './errors.js';
 import { parseNpy, extractNodeVectors } from '../npy.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -140,6 +141,13 @@ function loadConfig(repoRoot: string): AiTriadConfig {
   try {
     return JSON.parse(fs.readFileSync(configPath, 'utf-8').replace(/^\uFEFF/, ''));
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'taxonomy-loader',
+      level: 'error',
+      message: `Failed to parse config file: ${configPath}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     throw new ActionableError({
       goal: 'Parse AI model configuration',
       problem: `Failed to parse ${configPath}: ${err instanceof Error ? err.message : err}`,
@@ -164,6 +172,13 @@ function loadJsonSafe<T>(filePath: string, fallback: T): T {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, '')) as T;
   } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'taxonomy-loader',
+      level: 'warn',
+      message: `Failed to parse ${filePath} — using empty default`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     process.stderr.write(`[taxonomy-loader] Warning: Failed to parse ${filePath}: ${err instanceof Error ? err.message : err} — using empty default\n`);
     return fallback;
   }

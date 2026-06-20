@@ -30,6 +30,7 @@ import { createCLIAdapter } from './aiAdapter.js';
 import { DEFAULT_MODEL } from '../ai-client/index.js';
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
 import type { ArgumentNetworkNode } from './types.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── CLI argument parsing ─────────────────────────────────
 
@@ -162,7 +163,8 @@ async function main(): Promise<void> {
     let session: { id: string; argument_network?: { nodes: ArgumentNetworkNode[] } };
     try {
       session = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'backfill-evidence-qbaf', level: 'warn', message: `Parse error reading session file: ${file}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       log(`SKIP ${file}: parse error — ${err instanceof Error ? err.message : err}`);
       continue;
     }
@@ -232,7 +234,8 @@ async function main(): Promise<void> {
 
         applyResult(node, result, session.id, stats, opts.dryRun);
         debateModified = true;
-      } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'backfill-evidence-qbaf', level: 'warn', message: `Node processing error for ${node.id} in ${file}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         stats.nodesFailed++;
         log(`  FAIL ${node.id} in ${file}: ${err instanceof Error ? err.message.slice(0, 100) : err}`);
         // Cache failure as empty to avoid retrying same claim
@@ -246,7 +249,8 @@ async function main(): Promise<void> {
         fs.writeFileSync(filePath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
         stats.debatesModified++;
         log(`  WROTE ${file}`);
-      } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'backfill-evidence-qbaf', level: 'warn', message: `File write error for ${file}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
         log(`  WRITE ERROR ${file}: ${err instanceof Error ? err.message : err}`);
       }
     } else if (debateModified) {
@@ -323,5 +327,6 @@ function applyResult(
 
 main().catch(err => {
   log(`FATAL: ${err instanceof Error ? err.message : err}`);
+  getGlobalRecorder()?.record({ type: 'system.error', component: 'backfill-evidence-qbaf', level: 'error', message: 'Unhandled fatal error in backfill-evidence-qbaf', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   process.exit(1);
 });

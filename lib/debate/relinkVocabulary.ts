@@ -23,6 +23,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { resolveRepoRoot, resolveDataRoot } from './taxonomyLoader.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Types ─────────────────────────────────────────────
 
@@ -224,5 +225,12 @@ async function main(): Promise<void> {
 
 main().catch(err => {
   console.error(err);
+  getGlobalRecorder().record({
+    type: 'system.error',
+    level: 'error',
+    component: 'relink-vocabulary',
+    message: 'Fatal unhandled error',
+    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+  });
   process.exitCode = 1;
 });

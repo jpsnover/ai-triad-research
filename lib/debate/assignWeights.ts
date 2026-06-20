@@ -28,6 +28,7 @@ import { POVER_INFO } from './types.js';
 import type { PovNode, EdgesFile } from './taxonomyTypes.js';
 import type { Edge } from './taxonomyTypes.js';
 import { execFileSync } from 'child_process';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Helpers ─────────────────────────────────────────────
 
@@ -132,9 +133,16 @@ async function main(): Promise<void> {
   try {
     boundaryEmbeddings = embedBoundariesLocal(repoRoot);
     console.log('  Done.\n');
-  } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
+  } catch (err) {
     console.error(`  Failed: ${err instanceof Error ? err.message : err}`);
     console.error('  Continuing without doctrinal anchoring.\n');
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'assign-weights',
+      level: 'warn',
+      message: 'embedBoundariesLocal failed — continuing without doctrinal anchoring',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
   }
 
   const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -244,5 +252,12 @@ async function main(): Promise<void> {
 
 main().catch(err => {
   console.error(err);
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'assign-weights',
+    level: 'error',
+    message: 'Unhandled error in assignWeights main()',
+    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+  });
   process.exit(1);
 });

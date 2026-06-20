@@ -60,7 +60,7 @@ jobs:
           repository: jpsnover/ai-triad-data
           path: ai-triad-data
           fetch-depth: 1
-          token: ${{ secrets.DATA_REPO_TOKEN }}
+          token: ${{ secrets.DATA_REPO_TOKEN }}  # Scope: contents:read on jpsnover/ai-triad-data (read-only checkout)
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e  # v6
         with:

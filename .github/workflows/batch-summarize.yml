@@ -33,7 +33,7 @@ jobs:
         with:
           repository: jpsnover/ai-triad-sources
           path: ai-triad-sources
-          token: ${{ secrets.DATA_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DATA_REPO_TOKEN || secrets.GITHUB_TOKEN }}  # Scope: contents:read on jpsnover/ai-triad-sources (read-only checkout)
           fetch-depth: 1
 
       - name: Show taxonomy version

@@ -22,6 +22,7 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -203,7 +204,14 @@ export function applyRelevanceThresholdAdaptation(
 
     fs.writeFileSync(targetPath, JSON.stringify(weights, null, 2) + '\n', 'utf-8');
     return { applied: true, reason: `adjusted ${oldValue} → ${newValue}: ${recommendation.rationale}` };
-  } catch (err) { /* telemetry — silent by design: standalone batch CLI, no flight recorder */
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'calibration-optimizer',
+      level: 'warn',
+      message: 'Failed to write relevance threshold adaptation to calibration-config.json',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
     return { applied: false, reason: `write failed: ${(err as Error).message}` };
   }
 }
@@ -889,8 +897,15 @@ export function recalibrateParameters(
           changes,
         }, dataRoot);
       }
-    } catch {
+    } catch (err) {
       // Failed to apply — report still has recommendations
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'calibration-optimizer',
+        level: 'warn',
+        message: 'Failed to apply calibration parameter recommendations to calibration-config.json',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
     }
   }
 
@@ -899,7 +914,16 @@ export function recalibrateParameters(
 
     const reportPath = path.join(dataRoot, 'calibration', 'last-report.json');
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n', 'utf-8');
-  } catch { /* non-critical */ }
+  } catch (err) {
+    /* non-critical */
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'calibration-optimizer',
+      level: 'warn',
+      message: 'Failed to write calibration report to last-report.json',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+  }
 
   return report;
 }

@@ -35,6 +35,7 @@ export class FlightRecorder {
   readonly buffer: RingBuffer;
   private contextProvider: ContextProvider = () => ({});
   private eventContext: Partial<RecordInput> = {};
+  private _selfRecording = false;
 
   constructor(config?: Partial<FlightRecorderConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -218,6 +219,14 @@ export class FlightRecorder {
             conn.end(JSON.stringify({ error: `Unknown action: ${req.action}` }) + '\n');
           }
         } catch (err) {
+          if (!this._selfRecording) {
+            this._selfRecording = true;
+            try {
+              this.record({ type: 'system.error', component: 'flight-recorder', level: 'error', message: `Pipe listener parse error: ${err instanceof Error ? err.message : String(err)}`, error: { name: err instanceof Error ? err.name : 'Error', message: String(err), stack: err instanceof Error ? err.stack : undefined } });
+            } finally {
+              this._selfRecording = false;
+            }
+          }
           conn.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }) + '\n');
         }
       });

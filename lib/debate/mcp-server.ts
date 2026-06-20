@@ -14,6 +14,7 @@ import { createCLIAdapter } from './aiAdapter.js';
 import { loadTaxonomy, resolveRepoRoot, resolveDataRoot, type LoadedTaxonomy } from './taxonomyLoader.js';
 import type { DebateSession } from './types.js';
 import { listDebateSessionsIndexed, updateDebateIndexEntry } from './debateIndex.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolveRepoRoot(__dirname);
@@ -80,6 +81,7 @@ server.tool(
       const session = loadDebateSession(id);
       return { content: [{ type: 'text', text: JSON.stringify(session, null, 2) }] };
     } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'mcp-server', level: 'error', message: 'Failed to load debate session', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       return { content: [{ type: 'text', text: `Error: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
     }
   },
@@ -217,6 +219,7 @@ server.tool(
       fs.writeFileSync(outPath, JSON.stringify(session, null, 2) + '\n', 'utf-8');
       updateDebateIndexEntry(debatesDir, session as unknown as Record<string, unknown>);
     }).catch((err) => {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'mcp-server', level: 'error', message: 'Debate engine promise rejected', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
       state.error = err instanceof Error ? err.message : String(err);
       state.status = controller.signal.aborted ? 'cancelled' : 'failed';
     });
@@ -293,6 +296,7 @@ async function main() {
 }
 
 main().catch((err) => {
+  getGlobalRecorder()?.record({ type: 'system.error', component: 'mcp-server', level: 'error', message: 'Fatal MCP server crash', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   process.stderr.write(`[debate-mcp] Fatal: ${err}\n`);
   process.exit(1);
 });

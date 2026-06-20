@@ -858,12 +858,18 @@ export class DebateEngine {
     });
   }
 
-  /** Log a non-fatal warning — records in diagnostics and emits progress */
+  /** Log a non-fatal warning — records in diagnostics, flight recorder, and emits progress */
   private warn(operation: string, error: unknown, recovery: string): void {
     const msg = error instanceof Error ? error.message : String(error);
     const warning = `[WARNING] ${operation}: ${msg}. Recovery: ${recovery}`;
     process.stderr.write(`[debate-engine] ${warning}\n`);
     this.onProgress?.({ phase: 'warning', message: warning });
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'debate-engine', level: 'warn',
+      debate_id: this.session?.id,
+      message: `${operation}: ${msg}`,
+      error: { name: error instanceof Error ? error.name : 'Warning', message: msg, stack: error instanceof Error ? error.stack : undefined },
+    });
   }
 
   /** Check if the debate has been cancelled via AbortSignal. Throws ActionableError if aborted. */

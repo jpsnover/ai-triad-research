@@ -288,7 +288,8 @@ function parseStageResponse<T>(raw: string, stage: TurnStageId): { product: T; e
   try {
     const parsed = parseJsonRobust(raw) as T;
     return { product: parsed };
-  } catch (err) { /* telemetry — silent by design: error returned to caller via result.error */
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'turn-pipeline', level: 'warn', message: `${stage} stage JSON parse failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return {
       product: {} as T,
       error: `${stage} stage parse error: ${err instanceof Error ? err.message : String(err)}`,

@@ -184,7 +184,9 @@ export async function countTokens(
         const data = await resp.json() as { totalTokens: number };
         return { tokenCount: data.totalTokens, accurate: true };
       }
-    } catch { /* fall through to heuristic */ }
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'ai-adapter', level: 'warn', message: 'Token count API call failed — falling back to heuristic', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+    }
   }
   const charsPerToken = /^\s*[\[{]/.test(text) ? 2.5 : 3.2;
   return { tokenCount: Math.ceil(text.length / charsPerToken), accurate: false };
@@ -204,7 +206,9 @@ function computeEmbeddingViaPython(repoRoot: string, text: string): number[] | n
     }).toString('utf-8');
     const vector = JSON.parse(stdout) as number[];
     if (Array.isArray(vector) && vector.length > 0) return vector;
-  } catch { /* fall through to API-based embedding */ }
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'ai-adapter', level: 'warn', message: 'Python embedding computation failed — falling back to API', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+  }
   return null;
 }
 
@@ -270,7 +274,10 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
         const fb = resolveModel(registry, fbModel);
         if (isAuthError && fb.backend === backend) continue;
         let fbKey: string;
-        try { fbKey = resolveApiKey(fb.backend, explicitApiKey); } catch { continue; }
+        try { fbKey = resolveApiKey(fb.backend, explicitApiKey); } catch (err) {
+          getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback key resolution failed for ${fb.backend}/${fb.apiModelId}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+          continue;
+        }
         process.stderr.write(`[cascade] ${backend}/${apiModelId} failed, trying ${fb.backend}/${fb.apiModelId}\n`);
         try {
           const fbOpts = { ...opts, timeoutMs: getDefaultTimeout(fbModel) };
@@ -280,7 +287,10 @@ export function createCLIAdapter(repoRoot: string, explicitApiKey?: string): Ext
           );
           emitUsageTelemetry(fb.backend, fb.apiModelId, performance.now() - t0, fbResult.usage);
           return fbResult.text;
-        } catch { continue; }
+        } catch (err) {
+          getGlobalRecorder()?.record({ type: 'ai.fallback', component: 'ai-adapter', level: 'warn', message: `Fallback provider ${fb.backend}/${fb.apiModelId} failed`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+          continue;
+        }
       }
       throw primaryErr;
     }

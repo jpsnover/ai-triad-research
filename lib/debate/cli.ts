@@ -529,6 +529,7 @@ async function main(): Promise<void> {
 main().catch(err => {
   const msg = err instanceof Error ? err.message : String(err);
   log(`FATAL: ${msg}`);
+  getGlobalRecorder()?.record({ type: 'system.error', component: 'cli', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   console.log(JSON.stringify({ success: false, error: msg }));
   process.exit(1);
 });

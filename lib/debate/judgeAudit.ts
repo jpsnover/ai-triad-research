@@ -159,7 +159,8 @@ function parseJudgeVerdict(raw: string): JudgeVerdict {
         : [],
       recommend,
     };
-  } catch {
+  } catch (err) {
+    getGlobalRecorder()?.record({ type: 'system.error', component: 'judge-audit', level: 'warn', message: 'Failed to parse judge response JSON', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return fallback;
   }
 }
@@ -457,6 +458,7 @@ Example:
 }
 
 main().catch(err => {
+  getGlobalRecorder()?.record({ type: 'system.error', component: 'judge-audit', level: 'error', message: 'Fatal unhandled error', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
   process.stderr.write(`Fatal: ${err.message}\n`);
   process.exit(1);
 });

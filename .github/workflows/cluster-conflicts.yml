@@ -45,7 +45,7 @@ jobs:
         with:
           repository: jpsnover/ai-triad-data
           path: ai-triad-data
-          token: ${{ secrets.DATA_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DATA_REPO_TOKEN || secrets.GITHUB_TOKEN }}  # Scope: contents:write on jpsnover/ai-triad-data (checkout + git push)
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6

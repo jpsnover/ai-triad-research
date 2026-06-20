@@ -3,6 +3,7 @@
 
 import { useState, useRef } from 'react';
 import { api } from '@bridge';
+import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { POVER_INFO } from '../../../types/debate';
 import type { SpeakerId } from '../../../types/debate';
 
@@ -21,8 +22,8 @@ function CopyButton({ targetRef }: { targetRef: React.RefObject<HTMLDivElement |
       onClick={(e) => {
         e.stopPropagation();
         const text = targetRef.current?.innerText ?? '';
-        void navigator.clipboard.writeText(text).catch(() => {
-          // fallback for Electron
+        void navigator.clipboard.writeText(text).catch((err) => {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-panel', level: 'warn', message: 'Clipboard write failed, using Electron fallback', error: { name: (err as Error).name ?? 'Error', message: String(err) } });
           void api.clipboardWriteText(text);
         });
         setCopied(true);

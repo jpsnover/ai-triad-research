@@ -6,6 +6,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { SoulDocumentSchema, type SoulDocument } from './soulDocSchema.js';
 import { ActionableError } from '../errors.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SOUL_DOCS_DIR = resolve(__dirname, 'soul-docs');
@@ -27,6 +28,13 @@ export function loadSoulDocuments(): Map<CharacterId, SoulDocument> {
     try {
       raw = readFileSync(filePath, 'utf-8');
     } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'soul-doc-loader',
+        level: 'error',
+        message: `Failed to read soul document file: ${filePath}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw new ActionableError({
         goal: `Load soul document for ${pov}`,
         problem: `File not found or unreadable: ${filePath}`,
@@ -38,7 +46,14 @@ export function loadSoulDocuments(): Map<CharacterId, SoulDocument> {
     let parsed: unknown;
     try {
       parsed = JSON.parse(raw);
-    } catch {
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'soul-doc-loader',
+        level: 'error',
+        message: `Failed to parse soul document JSON: ${filePath}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       throw new ActionableError({
         goal: `Parse soul document for ${pov}`,
         problem: `Invalid JSON in ${filePath}`,

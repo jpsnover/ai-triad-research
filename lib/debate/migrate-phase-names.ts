@@ -21,6 +21,7 @@
 
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, resolve } from 'path';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const PHASE_RENAMES: Record<string, string> = {
   'thesis-antithesis': 'confrontation',
@@ -120,6 +121,13 @@ function main() {
       }
     } catch (err) {
       console.error(`ERROR processing ${file}: ${err}`);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'migrate-phase-names',
+        level: 'warn',
+        message: `Failed to process file: ${file}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
     }
   }
 

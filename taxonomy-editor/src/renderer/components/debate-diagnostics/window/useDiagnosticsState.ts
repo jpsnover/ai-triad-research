@@ -106,10 +106,10 @@ export function useDiagnosticsState(initialData?: Record<string, unknown>) {
   const loadTaxonomyData = useCallback(async (signal: { cancelled: boolean }) => {
     try {
       const files = await Promise.all([
-        api.loadTaxonomyFile('accelerationist').catch(() => null),
-        api.loadTaxonomyFile('safetyist').catch(() => null),
-        api.loadTaxonomyFile('skeptic').catch(() => null),
-        api.loadTaxonomyFile('situations').catch(() => null),
+        api.loadTaxonomyFile('accelerationist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load accelerationist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
+        api.loadTaxonomyFile('safetyist').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load safetyist taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
+        api.loadTaxonomyFile('skeptic').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load skeptic taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
+        api.loadTaxonomyFile('situations').catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-window', level: 'warn', message: 'Failed to load situations taxonomy', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); return null; }),
       ]);
       if (signal.cancelled) return;
       const m = new Map<string, Record<string, unknown>>();

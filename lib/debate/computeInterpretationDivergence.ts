@@ -23,6 +23,7 @@ import { resolveRepoRoot, resolveDataRoot } from './taxonomyLoader.js';
 import { cosineSimilarity } from './taxonomyRelevance.js';
 import { isBdiInterpretation } from './taxonomyTypes.js';
 import type { SituationNode, Interpretation } from './taxonomyTypes.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Helpers ─────────────────────────────────────────────
 
@@ -273,5 +274,12 @@ async function main(): Promise<void> {
 
 main().catch(err => {
   console.error(err);
+  getGlobalRecorder().record({
+    type: 'system.error',
+    level: 'error',
+    component: 'compute-interpretation-divergence',
+    message: 'Fatal unhandled error',
+    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+  });
   process.exit(1);
 });

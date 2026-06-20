@@ -332,7 +332,7 @@ export function EntryDetailRouter({
     ? entryTab
     : (tabs.find(t => t.has)?.id ?? tabs.find(t => t.ranEmpty)?.id ?? 'details');
   const active = tabs.find(t => t.id === activeTab)!;
-  const handleCopy = () => { if (active.copy) navigator.clipboard?.writeText(active.copy).catch(() => { /* telemetry — silent by design: clipboard write is best-effort UI convenience */ }); };
+  const handleCopy = () => { if (active.copy) navigator.clipboard?.writeText(active.copy).catch((err) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'diagnostics-entry-detail', level: 'warn', message: 'Clipboard write failed', error: { name: (err as Error).name ?? 'Error', message: String(err) } }); }); };
 
   const tabBtnStyle = (t: typeof tabs[0]): React.CSSProperties => {
     const enabled = tabEnabled(t);

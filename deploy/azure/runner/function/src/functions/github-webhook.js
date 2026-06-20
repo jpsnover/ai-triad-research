@@ -119,7 +119,12 @@ app.http('github-webhook', {
     const body = await request.text();
     const signature = request.headers.get('x-hub-signature-256');
 
-    if (WEBHOOK_SECRET && !verifySignature(body, signature)) {
+    if (!WEBHOOK_SECRET) {
+      context.error('GITHUB_RUNNER_WEBHOOK_SECRET not configured — rejecting all requests (fail-closed)');
+      return { status: 500, body: 'Webhook secret not configured' };
+    }
+
+    if (!verifySignature(body, signature)) {
       context.warn('Invalid webhook signature');
       return { status: 401, body: 'Invalid signature' };
     }

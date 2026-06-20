@@ -86,6 +86,9 @@ param adminUsers string = 'jpsnover'
 // once (`az keyvault secret set --name github-app-private-key --file key.pem`)
 // and pass the secret NAME here.
 
+@description('User content storage backend: "github-api" (default, legacy) or "azure-blob" (production target). Controls where chats, debates, and community data are read/written.')
+param userContentStorage string = 'azure-blob'
+
 @description('Enable GitHub data-sync feature. "1" = on, empty = off.')
 param gitSyncEnabled string = ''
 
@@ -109,10 +112,6 @@ param githubToken string = ''
 @description('HMAC shared secret for the Phase-3 GitHub webhook. When set, /api/sync/webhook/github verifies X-Hub-Signature-256 and flags upstream-updated.')
 param githubWebhookSecret string = ''
 
-@secure()
-@description('GitHub PAT with read:packages scope for pulling container images from ghcr.io')
-param ghcrPassword string = ''
-
 // ── Ephemeral self-hosted runner (ACI + Azure Function) ──
 @description('Enable ephemeral GitHub Actions runner infrastructure (Azure Function + ACI)')
 param ephemeralRunnerEnabled bool = false
@@ -135,15 +134,12 @@ var githubTokenSecretName = 'github-sync-token'
 var githubWebhookSecretName = 'github-webhook-secret'
 var githubTokenProvided = !empty(githubToken)
 var githubWebhookSecretProvided = !empty(githubWebhookSecret)
-var ghcrConfigured = !empty(ghcrPassword)
-var ghcrSecretName = 'ghcr-password'
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
   githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
   aadEnabled ? [ { name: aadClientSecretName, value: aadClientSecret } ] : [],
   githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
-  githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : [],
-  ghcrConfigured ? [ { name: ghcrSecretName, value: ghcrPassword } ] : []
+  githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : []
 )
 
 // ── Log Analytics ──
@@ -154,7 +150,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   tags: tags
   properties: {
     sku: { name: 'PerGB2018' }
-    retentionInDays: 30
+    retentionInDays: 90
   }
 }
 
@@ -172,9 +168,13 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     sku: { family: 'A', name: 'standard' }
     enableRbacAuthorization: true
     enableSoftDelete: true
-    softDeleteRetentionInDays: 7
+    softDeleteRetentionInDays: 90
     enablePurgeProtection: true
     publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Deny'
+      bypass: 'AzureServices'
+    }
   }
 }
 
@@ -223,7 +223,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   properties: {
     Application_Type: 'web'
     WorkspaceResourceId: logAnalytics.id
-    RetentionInDays: 30
+    RetentionInDays: 90
   }
 }
 
@@ -260,6 +260,13 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     allowBlobPublicAccess: false
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
+    // allowSharedKeyAccess left enabled — Azure Files mount (taxonomy-data)
+    // uses account key via managed environment storage; disabling breaks the mount.
+    // Migrate environment storage to identity-based auth before enabling.
+    networkAcls: {
+      defaultAction: 'Deny'
+      bypass: 'AzureServices, Logging, Metrics'
+    }
   }
 }
 
@@ -269,7 +276,11 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
   properties: {
     deleteRetentionPolicy: {
       enabled: true
-      days: 7
+      days: 30
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: true
+      days: 30
     }
   }
 }
@@ -285,6 +296,27 @@ resource userContentContainer 'Microsoft.Storage/storageAccounts/blobServices/co
 resource communityContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
   parent: blobService
   name: 'community'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// ── Staging-isolated blob containers (H5) ──
+// Staging writes to its own containers to prevent cross-contamination with
+// production user data. The staging Container App env needs updating to
+// use these container names (BLOB_CONTAINER_PREFIX=staging-).
+
+resource stagingUserContentContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'staging-user-content'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource stagingCommunityContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+  parent: blobService
+  name: 'staging-community'
   properties: {
     publicAccess: 'None'
   }
@@ -326,6 +358,9 @@ var baseEnv = [
   // Azure Blob Storage — user content (chats, debates) and community library.
   // Auth via managed identity (DefaultAzureCredential), no connection string needed.
   { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storageAccount.properties.primaryEndpoints.blob }
+  // User content storage routing — 'azure-blob' sends chats/debates/community
+  // to Blob Storage; 'github-api' keeps them in the GitHub data repo (legacy).
+  { name: 'USER_CONTENT_STORAGE', value: userContentStorage }
 ]
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
@@ -352,13 +387,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: ghcrConfigured ? [
-        {
-          server: 'ghcr.io'
-          username: 'jpsnover'
-          passwordSecretRef: ghcrSecretName
-        }
-      ] : []
+      registries: []
     }
     template: {
       containers: [
@@ -451,13 +480,7 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: ghcrConfigured ? [
-        {
-          server: 'ghcr.io'
-          username: 'jpsnover'
-          passwordSecretRef: ghcrSecretName
-        }
-      ] : []
+      registries: []
     }
     template: {
       containers: [
@@ -503,13 +526,17 @@ resource kvRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   }
 }
 
+// Staging gets read-only Key Vault access (Secrets User, not Officer)
+// to prevent staging from modifying production user secrets (H5).
+var kvSecretsUserRoleId = '4633458b-17de-408a-b874-0445c86b69e6'
+
 resource kvRoleAssignmentStaging 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: keyVault
-  name: guid(keyVault.id, containerAppStaging.id, kvSecretsOfficerRoleId)
+  name: guid(keyVault.id, containerAppStaging.id, kvSecretsUserRoleId)
   properties: {
     principalId: containerAppStaging.identity.principalId
     principalType: 'ServicePrincipal'
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsOfficerRoleId)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', kvSecretsUserRoleId)
   }
 }
 
@@ -529,9 +556,21 @@ resource blobRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01'
   }
 }
 
-resource blobRoleAssignmentStaging 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: storageAccount
-  name: guid(storageAccount.id, containerAppStaging.id, blobDataContributorRoleId)
+// Staging blob access scoped to staging-specific containers only (H5).
+// Prevents staging from reading/writing production user data.
+resource blobRoleAssignmentStagingUserContent 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: stagingUserContentContainer
+  name: guid(stagingUserContentContainer.id, containerAppStaging.id, blobDataContributorRoleId)
+  properties: {
+    principalId: containerAppStaging.identity.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', blobDataContributorRoleId)
+  }
+}
+
+resource blobRoleAssignmentStagingCommunity 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: stagingCommunityContainer
+  name: guid(stagingCommunityContainer.id, containerAppStaging.id, blobDataContributorRoleId)
   properties: {
     principalId: containerAppStaging.identity.principalId
     principalType: 'ServicePrincipal'
@@ -896,6 +935,7 @@ module ephemeralRunner 'runner/runner.bicep' = {
     githubRunnerPat: githubRunnerPat
     githubRunnerWebhookSecret: githubRunnerWebhookSecret
     logAnalyticsWorkspaceId: logAnalytics.id
+    keyVaultName: keyVault.name
   }
 }
 

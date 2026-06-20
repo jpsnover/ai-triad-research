@@ -14,6 +14,7 @@
 
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join, resolve } from 'path';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 const RENAMES: Record<string, string> = {
   ai_rubric: 'bdi_criteria',
@@ -91,6 +92,13 @@ function main() {
       }
     } catch (err) {
       console.error(`ERROR processing ${file}: ${err}`);
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'migrate-scoring-method',
+        level: 'warn',
+        message: `Failed to process file: ${file}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
     }
   }
 

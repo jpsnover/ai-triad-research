@@ -3,14 +3,15 @@
 
 <#
 .SYNOPSIS
-    Trigger a GitHub data sync on the Azure-hosted Taxonomy Editor.
+    [DEPRECATED] Trigger a GitHub data sync on the Azure-hosted Taxonomy Editor.
 .DESCRIPTION
-    Calls the Taxonomy Editor server's REST API to check for updates and pull
-    latest data from GitHub into the Azure-mounted data volume. Requires an
-    admin API key (ADMIN_API_KEY) configured on the container.
+    DEPRECATED: The ADMIN_API_KEY auth mechanism was removed from the server
+    (security finding M11 — bypassed OAuth). This script no longer authenticates.
+    Use the "Update Data" button in the app UI instead, or re-implement this
+    script with OAuth-based authentication (Easy Auth token).
 
-    The server's /api/data/pull endpoint fetches origin and resets to
-    origin/main — the same operation as clicking "Update Data" in the UI.
+    Previously called the Taxonomy Editor server's REST API to check for updates
+    and pull latest data from GitHub into the Azure-mounted data volume.
 .PARAMETER ServerUrl
     Base URL of the Azure-hosted Taxonomy Editor.
     Default: https://taxonomy-editor.yellowbush-aeda037d.eastus.azurecontainerapps.io

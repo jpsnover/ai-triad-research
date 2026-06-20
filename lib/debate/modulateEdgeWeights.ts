@@ -21,6 +21,7 @@ import { resolveRepoRoot, resolveDataRoot } from './taxonomyLoader.js';
 import type { PovNode, Edge, EdgesFile } from './taxonomyTypes.js';
 import { extractCategoryFromId } from './validateNodeId.js';
 import type { Category } from './taxonomyTypes.js';
+import { getGlobalRecorder } from '../flight-recorder/index.js';
 
 // ── Helpers ─────────────────────────────────────────────
 
@@ -250,5 +251,12 @@ async function main(): Promise<void> {
 
 main().catch(err => {
   console.error(err);
+  getGlobalRecorder().record({
+    type: 'system.error',
+    level: 'error',
+    component: 'modulate-edge-weights',
+    message: 'Fatal unhandled error',
+    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+  });
   process.exit(1);
 });
