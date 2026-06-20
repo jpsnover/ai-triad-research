@@ -527,7 +527,15 @@ export function DebateTab() {
             ) : activeDebate ? (
               <DebateDetailSummary
                 debate={activeDebate}
-                onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch(() => {})}
+                onOpenWindow={() => api.openDebateWindow(activeDebate.id).catch((err) => {
+                  getGlobalRecorder()?.record({
+                    type: 'system.error',
+                    component: 'debate-tab',
+                    level: 'warn',
+                    message: 'Failed to open debate popout window — debate stays inline',
+                    error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+                  });
+                })}
                 onExport={handleExport}
                 exportStatus={exportStatus}
               />
@@ -623,6 +631,13 @@ function DebateDetailSummary({
       setShareStatus(`Shared! (${submissionId.slice(0, 8)})`);
       setTimeout(() => setShareStatus(null), 4000);
     } catch (err: unknown) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'debate-detail-summary',
+        level: 'error',
+        message: 'Failed to share debate to community',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
       const msg = err instanceof Error ? err.message : String(err);
       setShareStatus(`Failed: ${msg}`);
       setTimeout(() => setShareStatus(null), 4000);
