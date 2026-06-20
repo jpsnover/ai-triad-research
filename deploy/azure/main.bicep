@@ -413,16 +413,17 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        // STOPGAP (t/683): pinned to a single replica. Anonymous debate state
-        // lives in per-process in-memory state (AnonymousSessionStore), and
-        // sticky-session affinity is unavailable in Multiple revision mode
-        // (required by the blue-green deploy workflow). Multiple replicas with
-        // no affinity caused "Debate session not found" on the popout window
-        // (a GET landing on a different replica than created the debate).
-        // Restore maxReplicas + the http-scaler once replica-independent
-        // session storage lands (t/683).
+        // Scale-out restored after t/683 (ed489b9): AnonymousSessionStore is now
+        // file-backed on the shared /mnt/shared volume, so debate state is
+        // replica-independent — the single-replica stopgap is no longer needed.
         minReplicas: 1
-        maxReplicas: 1
+        maxReplicas: 5
+        rules: [
+          {
+            name: 'http-scaler'
+            http: { metadata: { concurrentRequests: '10' } }
+          }
+        ]
       }
       terminationGracePeriodSeconds: 60
     }
