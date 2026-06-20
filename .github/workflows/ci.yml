@@ -95,7 +95,12 @@ jobs:
 
       - name: Audit dependencies
         working-directory: ${{ matrix.app }}
-        run: npm audit --audit-level=high
+        # Audit production deps only — devDependencies (test/build tooling such as
+        # the azurite Storage emulator) never ship in the container, which is
+        # built with `npm ci --omit=dev`. Auditing them gated CI on advisories in
+        # tooling that has no production impact (t/697 azurite tree). Prod deps
+        # are still audited at --audit-level=high.
+        run: npm audit --audit-level=high --omit=dev
 
       - name: Lint
         working-directory: ${{ matrix.app }}
