@@ -2770,7 +2770,7 @@ const ALLOWED_ORIGINS = (() => {
 function getCorsOrigin(req: http.IncomingMessage): string {
   if (!ALLOWED_ORIGINS) return '*';
   const origin = req.headers.origin || '';
-  return ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return ALLOWED_ORIGINS.includes(origin) ? origin : (ALLOWED_ORIGINS[0] ?? '');
 }
 
 function parseCookies(req: http.IncomingMessage): Record<string, string> {
@@ -3519,7 +3519,7 @@ initAnonymousSessionStore({
 
 // ── Start ──
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   serverRecorder.record({ type: 'lifecycle', component: 'server', level: 'info', message: 'Server started', data: { port: PORT, version: SERVER_VERSION, dataRoot: getDataRoot(), platform: process.platform, arch: process.arch, storageMode: STORAGE_MODE } });
   log.server.info({ port: PORT }, 'Taxonomy Editor running');
   log.server.info({ dataRoot: getDataRoot() }, 'Data root');

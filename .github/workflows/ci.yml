@@ -194,7 +194,7 @@ jobs:
           tags: ai-triad-test:ci
 
       - name: Run container smoke test (GitHub API-first mode)
-        timeout-minutes: 8
+        timeout-minutes: 5
         run: |
           # No data volume mounted — the app starts with baked fallback data
           # and fetches from GitHub API. In CI we just verify it starts cleanly.
@@ -204,25 +204,7 @@ jobs:
             ai-triad-test:ci
           echo "Waiting for container to start..."
 
-          # Diagnostics: test if Node.js can serve HTTP at all inside this image
-          sleep 3
-          echo "=== Sanity: can Node.js serve HTTP inside this image? ==="
-          docker exec -d smoke-test node -e "
-            require('http').createServer((q,r)=>{r.end('DIAG_OK')}).listen(9999,'0.0.0.0',()=>console.log('diag-server:9999'));
-          "
-          sleep 2
-          docker exec smoke-test curl -s --max-time 3 http://localhost:9999/ 2>/dev/null || echo "DIAG_FAILED: Node.js can't serve HTTP in this image"
-          echo ""
-          echo "=== Container state ==="
-          docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} Pid={{.State.Pid}}'
-          echo "=== Container logs ==="
-          docker logs smoke-test 2>&1 | tail -20
-          echo "=== strace node process (2s sample) ==="
-          docker exec smoke-test sh -c 'cat /proc/1/status 2>/dev/null | head -5 || echo "no /proc"'
-          docker top smoke-test
-          echo ""
-
-          # Health check: 18 attempts × 10s sleep
+          # Health check: 18 attempts × 5s sleep = 90s max
           for i in $(seq 1 18); do
             STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || true)
             if [ "$STATUS" = "200" ]; then
@@ -230,12 +212,12 @@ jobs:
               break
             fi
             echo "  Attempt $i/18 — status: ${STATUS:-000}"
-            sleep 10
+            sleep 5
           done
 
           if [ "$STATUS" != "200" ]; then
             echo "::error::Container smoke test failed — health check did not pass"
-            echo "=== Final container state ==="
+            echo "=== Container state ==="
             docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}}' 2>/dev/null || true
             echo "=== Container logs ==="
             docker logs smoke-test
