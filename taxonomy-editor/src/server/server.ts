@@ -40,6 +40,7 @@ import * as fileIO from './fileIO.js';
 import { FEEDBACK_CATEGORIES, isFeedbackCategory, listFeedback } from './feedbackStore.js';
 import { stripEdgeRationale, type EdgesData } from './edgesApi.js';
 import { rateLimitResponseBody } from './rateLimitResponse.js';
+import { escapeForInlineScript } from './flightRecorderViewer.js';
 import { stampNodeAuthorship, diffNodes, changedFields } from './editMeta.js';
 import { computeNodeConflicts } from './nodeConflicts.js';
 import type { TaxNode, NodeConflict } from './nodeConflicts.js';
@@ -1046,14 +1047,13 @@ get('/api/flight-recorder/view/:filename', (req, res) => {
     const dumpContent = fs.readFileSync(filePath, 'utf-8');
     const viewerHtml = fs.readFileSync(viewerPath, 'utf-8');
 
-    const escaped = dumpContent
-      .replace(/\\/g, '\\\\')
-      .replace(/`/g, '\\`')
-      .replace(/\$/g, '\\$');
+    // Escape for inline <script> embedding — crucially neutralizes any
+    // `</script>` sequence in the dump so it can't break out (reflected XSS, M3).
+    const escaped = escapeForInlineScript(dumpContent);
 
     const autoLoadScript = `<script>
 document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('fileName').textContent = '${filename.replace(/'/g, "\\'")}';
+  document.getElementById('fileName').textContent = '${escapeForInlineScript(filename)}';
   parseNdjson(\`${escaped}\`);
 });
 </script>`;

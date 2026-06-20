@@ -3,7 +3,7 @@
 
 import crypto from 'crypto';
 import { resolveDataPath } from './config.js';
-import { getUserContentBackend } from './fileIO.js';
+import { getUserContentBackend, assertSafeId } from './fileIO.js';
 import { getStorageUserId, isAnonymousUser } from './userContext.js';
 import { log } from './logger.js';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
@@ -93,6 +93,7 @@ export async function listCommunityDebates(): Promise<unknown[]> {
 }
 
 export async function loadCommunityItem(type: 'chats' | 'debates', id: string): Promise<unknown | null> {
+  assertSafeId(id, 'community id'); // block path traversal (M2)
   const backend = getUserContentBackend();
   const dir = type === 'chats' ? communityChatsDir() : communityDebatesDir();
   const prefix = type === 'chats' ? 'chat-' : 'debate-';

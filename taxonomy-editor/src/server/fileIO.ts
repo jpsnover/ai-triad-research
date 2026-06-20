@@ -53,14 +53,14 @@ const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 const SAFE_POV_RE = /^[a-z_-]+$/;
 const SAFE_FILENAME_RE = /^[a-zA-Z0-9_.-]+$/;
 
-function assertSafeId(value: string, label: string): void {
+export function assertSafeId(value: string, label: string): void {
   if (!value || !SAFE_ID_RE.test(value))
-    throw new ActionableError({
+    throw Object.assign(new ActionableError({
       goal: 'Validate input parameter',
       problem: `Invalid ${label}: must be alphanumeric/hyphens/underscores, got "${value}"`,
       location: `server/fileIO.ts → assertSafeId(${label})`,
       nextSteps: ['Check the input value contains only allowed characters (a-z, A-Z, 0-9, hyphens, underscores)'],
-    });
+    }), { statusCode: 400 });
 }
 
 function assertSafePov(value: string): void {
@@ -73,14 +73,14 @@ function assertSafePov(value: string): void {
     });
 }
 
-function assertSafeFilename(value: string, label: string): void {
+export function assertSafeFilename(value: string, label: string): void {
   if (!value || !SAFE_FILENAME_RE.test(value) || value.includes('..'))
-    throw new ActionableError({
+    throw Object.assign(new ActionableError({
       goal: 'Validate input parameter',
       problem: `Invalid ${label}: must be alphanumeric/hyphens/underscores/dots, got "${value}"`,
       location: `server/fileIO.ts → assertSafeFilename(${label})`,
       nextSteps: ['Check the input value contains only allowed characters (a-z, A-Z, 0-9, hyphens, underscores, dots)'],
-    });
+    }), { statusCode: 400 });
 }
 
 // ── Taxonomy directories ──
@@ -1606,6 +1606,7 @@ export async function loadDictionary(): Promise<{ standardized: unknown[]; collo
 // ── PowerShell prompts (project-root I/O — always local) ──
 
 export async function readPsPrompt(promptName: string): Promise<{ text: string | null; error?: string }> {
+  assertSafeFilename(promptName, 'prompt name'); // block path traversal (M1)
   const promptsDir = path.join(getProjectRoot(), 'scripts', 'AITriad', 'Prompts');
   const filePath = path.join(promptsDir, `${promptName}.prompt`);
   try {
