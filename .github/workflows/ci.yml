@@ -204,31 +204,25 @@ jobs:
             ai-triad-test:ci
           echo "Waiting for container to start..."
 
-          # Diagnostics: verify container is actually running and port is bound
-          sleep 5
+          # Diagnostics: test if Node.js can serve HTTP at all inside this image
+          sleep 3
+          echo "=== Sanity: can Node.js serve HTTP inside this image? ==="
+          docker exec -d smoke-test node -e "
+            require('http').createServer((q,r)=>{r.end('DIAG_OK')}).listen(9999,'0.0.0.0',()=>console.log('diag-server:9999'));
+          "
+          sleep 2
+          docker exec smoke-test curl -s --max-time 3 http://localhost:9999/ 2>/dev/null || echo "DIAG_FAILED: Node.js can't serve HTTP in this image"
+          echo ""
           echo "=== Container state ==="
-          docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} ExitCode={{.State.ExitCode}} Pid={{.State.Pid}}'
-          echo "=== Port bindings ==="
-          docker port smoke-test 2>/dev/null || echo "No port bindings"
-          echo "=== Listening sockets inside container ==="
-          docker exec smoke-test sh -c 'ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || echo "no ss/netstat"'
-          echo "=== Node.js HTTP check (bypasses curl) ==="
-          docker exec smoke-test node -e "
-            const h = require('http');
-            const r = h.get('http://127.0.0.1:7862/health', {timeout: 5000}, res => {
-              let d = ''; res.on('data', c => d += c);
-              res.on('end', () => { console.log('HTTP ' + res.statusCode + ': ' + d); process.exit(0); });
-            });
-            r.on('timeout', () => { console.log('TIMEOUT'); r.destroy(); process.exit(1); });
-            r.on('error', e => { console.log('ERROR: ' + e.message); process.exit(1); });
-          " || echo "Node HTTP check failed"
-          echo "=== Process list ==="
-          docker exec smoke-test ps aux 2>/dev/null || docker top smoke-test
-          echo "=== Container logs so far ==="
-          docker logs smoke-test
+          docker inspect smoke-test --format 'Status={{.State.Status}} Running={{.State.Running}} Pid={{.State.Pid}}'
+          echo "=== Container logs ==="
+          docker logs smoke-test 2>&1 | tail -20
+          echo "=== strace node process (2s sample) ==="
+          docker exec smoke-test sh -c 'cat /proc/1/status 2>/dev/null | head -5 || echo "no /proc"'
+          docker top smoke-test
           echo ""
 
-          # Health check: 18 attempts × 10s sleep ≈ 180s budget
+          # Health check: 18 attempts × 10s sleep
           for i in $(seq 1 18); do
             STATUS=$(curl -s --max-time 4 -o /dev/null -w "%{http_code}" http://localhost:7862/health 2>/dev/null || true)
             if [ "$STATUS" = "200" ]; then
