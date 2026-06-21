@@ -1264,6 +1264,30 @@ del('/api/chats/:id', async (req, res) => {
 
 // ── Community Library ──
 
+// Admin hard-delete of a published community item, with an audit trail (t/748).
+// Renderer sends DELETE with an optional JSON body { reason }.
+del('/api/community/:type/:id', async (req, res, body) => {
+  if (!community.isAdmin()) { json(res, { error: 'Forbidden' }, 403); return; }
+  try {
+    const type = param(req, 'type', '/api/community/:type/:id');
+    if (type !== 'chats' && type !== 'debates') { error(res, 'type must be "chats" or "debates"', 400); return; }
+    await ensureSessionBranch();
+    const id = param(req, 'id', '/api/community/:type/:id');
+    const reason = (body as { reason?: string } | undefined)?.reason;
+    await community.removeCommunityItem(type, id, typeof reason === 'string' ? reason : undefined);
+    json(res, { ok: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'server',
+      level: 'error',
+      message: 'Failed to remove community item',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, (err as Error).message ?? String(err), (err as { statusCode?: number }).statusCode ?? 500, err);
+  }
+});
+
 get('/api/community/chats', async (_req, res) => {
   try { json(res, await community.listCommunityChats()); }
   catch (err) {
@@ -3250,7 +3274,7 @@ async function handleRequestInner(
     if (route) {
       (res as any).__routePath = route.routePath;
       try {
-        const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
+        const body = ['POST', 'PUT', 'DELETE'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);
       } catch (err) {
         getGlobalRecorder()?.record({
