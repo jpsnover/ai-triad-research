@@ -26,70 +26,142 @@ export function isAdmin(userId?: string): boolean {
   return uid !== '_local' && getAdminUsers().includes(uid);
 }
 
-// ── Community read ──
+// ── Listing index (t/726) ──
+//
+// Community chats/debates are append-only shared data on `main`. Listing them by
+// reading every file (1 listDirectory + N readFile) cost ~51 GitHub API calls /
+// 10-15s for 50 items on a cold cache. Instead each directory keeps a sibling
+// `_index.json` holding the lean metadata each listing returns; reads serve from
+// it (1 read) and a count-based staleness check — listDirectory() uses the
+// in-memory repoTree, so it costs 0 API calls — triggers a rebuild when the file
+// count drifts. The index is a cache only: a missing/stale index always falls
+// back to a full scan, so it can never serve data the directory doesn't have.
+//
+// This mirrors listDebateSessionsMeta() in fileIO.ts. Submissions are
+// intentionally NOT indexed here: their records are mutable (status flips on
+// approve/reject) under a split-ref write model (submit → main, approve/reject →
+// session branch), so a count-based index would serve stale statuses. They keep
+// per-file reads until the write flow is unified or moved to blob storage (t/695).
 
-export async function listCommunityChats(): Promise<unknown[]> {
+const COMMUNITY_INDEX_FILE = '_index.json';
+
+interface ListingIndexSpec<T> {
+  dir: string;
+  prefix: string;
+  toEntry: (parsed: any) => T;
+  malformedMessage: string;
+}
+
+/** Direct-child item files in `dir` matching `prefix` (excludes `_index.json`). */
+async function listIndexedFiles(dir: string, prefix: string): Promise<string[]> {
   const backend = getUserContentBackend();
-  const dir = communityChatsDir();
-  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('chat-') && f.endsWith('.json'));
-  const items: unknown[] = [];
+  return (await backend.listDirectory(dir, { ref: 'main' }))
+    .filter(f => f.startsWith(prefix) && f.endsWith('.json'));
+}
+
+/** Full scan: read every item file, build the lean index, persist it (best-effort). */
+async function rebuildListingIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
+  const backend = getUserContentBackend();
+  const files = await listIndexedFiles(spec.dir, spec.prefix);
+  const entries: T[] = [];
   for (const f of files) {
     try {
-      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
+      const raw = await backend.readFile(path.join(spec.dir, f), { ref: 'main' });
       if (raw === null) continue;
-      const parsed = JSON.parse(raw);
-      items.push({
-        id: parsed.id,
-        title: parsed.title || 'Untitled',
-        created_at: parsed.created_at || '',
-        updated_at: parsed.updated_at || parsed.created_at || '',
-        mode: parsed.mode || '',
-        community_metadata: parsed.community_metadata || null,
-      });
+      entries.push(spec.toEntry(JSON.parse(raw)));
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'community',
         level: 'warn',
-        message: 'Skipping malformed community chat file',
+        message: spec.malformedMessage,
         error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       /* skip malformed */
     }
   }
-  return items.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  // Best-effort: a read-only context (or exhausted API) just keeps full-scanning.
+  await backend.writeFile(
+    path.join(spec.dir, COMMUNITY_INDEX_FILE),
+    JSON.stringify(entries, null, 2),
+    { ref: 'main' },
+  ).catch((err) => { log.server.warn({ err }, 'Community listing index write failed (best-effort)'); });
+  return entries;
+}
+
+/**
+ * Serve a community listing from its `_index.json`, rebuilding when the index is
+ * absent (cold start) or its entry count no longer matches the directory. When a
+ * stale index exists, the cached copy is returned immediately and the rebuild
+ * runs in the background. Returns entries unsorted — callers apply their own sort.
+ */
+async function listViaIndex<T>(spec: ListingIndexSpec<T>): Promise<T[]> {
+  const backend = getUserContentBackend();
+  let cached: T[] | null = null;
+  try {
+    const raw = await backend.readFile(path.join(spec.dir, COMMUNITY_INDEX_FILE), { ref: 'main' });
+    if (raw !== null) cached = JSON.parse(raw) as T[];
+  } catch { /* telemetry — silent by design */ cached = null; }
+
+  if (cached !== null) {
+    try {
+      const files = await listIndexedFiles(spec.dir, spec.prefix);
+      if (files.length === cached.length) return cached;
+      // Count drift — refresh in the background, serve the cached copy now for speed.
+      void rebuildListingIndex(spec).catch((err) => { log.server.warn({ err }, 'Background community index rebuild failed'); });
+      return cached;
+    } catch {
+      /* telemetry — silent by design */
+      return cached; // tree unavailable — trust the index
+    }
+  }
+  return rebuildListingIndex(spec);
+}
+
+// ── Community read ──
+
+interface CommunityChatEntry {
+  id: unknown; title: string; created_at: string; updated_at: string;
+  mode: string; community_metadata: unknown;
+}
+
+interface CommunityDebateEntry {
+  id: unknown; title: string; created_at: string; updated_at: string;
+  phase: string; community_metadata: unknown;
+}
+
+export async function listCommunityChats(): Promise<unknown[]> {
+  const items = await listViaIndex<CommunityChatEntry>({
+    dir: communityChatsDir(),
+    prefix: 'chat-',
+    malformedMessage: 'Skipping malformed community chat file',
+    toEntry: (parsed) => ({
+      id: parsed.id,
+      title: parsed.title || 'Untitled',
+      created_at: parsed.created_at || '',
+      updated_at: parsed.updated_at || parsed.created_at || '',
+      mode: parsed.mode || '',
+      community_metadata: parsed.community_metadata || null,
+    }),
+  });
+  return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }
 
 export async function listCommunityDebates(): Promise<unknown[]> {
-  const backend = getUserContentBackend();
-  const dir = communityDebatesDir();
-  const files = (await backend.listDirectory(dir, { ref: 'main' })).filter(f => f.startsWith('debate-') && f.endsWith('.json'));
-  const items: unknown[] = [];
-  for (const f of files) {
-    try {
-      const raw = await backend.readFile(path.join(dir, f), { ref: 'main' });
-      if (raw === null) continue;
-      const parsed = JSON.parse(raw);
-      items.push({
-        id: parsed.id,
-        title: parsed.title || parsed.topic?.final || parsed.topic?.original || 'Untitled Debate',
-        created_at: parsed.created_at || '',
-        updated_at: parsed.updated_at || parsed.created_at || '',
-        phase: parsed.phase || 'unknown',
-        community_metadata: parsed.community_metadata || null,
-      });
-    } catch (err) {
-      getGlobalRecorder()?.record({
-        type: 'system.error',
-        component: 'community',
-        level: 'warn',
-        message: 'Skipping malformed community debate file',
-        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
-      });
-      /* skip malformed */
-    }
-  }
-  return items.sort((a: any, b: any) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+  const items = await listViaIndex<CommunityDebateEntry>({
+    dir: communityDebatesDir(),
+    prefix: 'debate-',
+    malformedMessage: 'Skipping malformed community debate file',
+    toEntry: (parsed) => ({
+      id: parsed.id,
+      title: parsed.title || parsed.topic?.final || parsed.topic?.original || 'Untitled Debate',
+      created_at: parsed.created_at || '',
+      updated_at: parsed.updated_at || parsed.created_at || '',
+      phase: parsed.phase || 'unknown',
+      community_metadata: parsed.community_metadata || null,
+    }),
+  });
+  return [...items].sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 }
 
 export async function loadCommunityItem(type: 'chats' | 'debates', id: string): Promise<unknown | null> {
