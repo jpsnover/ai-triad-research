@@ -324,12 +324,17 @@ jobs:
           echo ""
           PASS=0; FAIL=0; ERRORS=""
 
+          # AUTH_OPTIONAL mode requires an anonymous session cookie for
+          # non-public endpoints. Establish it once, reuse for all checks.
+          COOKIE_JAR=$(mktemp)
+          curl -s -o /dev/null -c "$COOKIE_JAR" -L --max-time 10 "${BASE_URL}/.auth/anonymous" 2>/dev/null || true
+
           # check LABEL URL [BODY_REGEX]
           # Verifies HTTP 200 and optionally that the body matches a regex
           check() {
             local label=$1 url=$2 expect_body=$3
-            BODY=$(curl -s --max-time 15 --connect-timeout 5 "$url" 2>/dev/null || echo "")
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --connect-timeout 5 "$url" 2>/dev/null || echo "000")
+            BODY=$(curl -s -b "$COOKIE_JAR" --max-time 15 --connect-timeout 5 "$url" 2>/dev/null || echo "")
+            STATUS=$(curl -s -b "$COOKIE_JAR" -o /dev/null -w "%{http_code}" --max-time 15 --connect-timeout 5 "$url" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               if [ -n "$expect_body" ]; then
                 if echo "$BODY" | grep -qE "$expect_body"; then
@@ -393,7 +398,7 @@ jobs:
           # ── 7. SPA renders ──
           echo ""
           echo "--- Frontend ---"
-          MAIN_PAGE=$(curl -s --max-time 15 "${BASE_URL}/" 2>/dev/null || echo "")
+          MAIN_PAGE=$(curl -s -b "$COOKIE_JAR" --max-time 15 "${BASE_URL}/" 2>/dev/null || echo "")
           if echo "$MAIN_PAGE" | grep -q '<div id="root"'; then
             # Verify JS bundle is referenced (not just empty HTML shell)
             if echo "$MAIN_PAGE" | grep -qE 'src="[^"]*\.js"'; then
@@ -411,6 +416,7 @@ jobs:
           fi
 
           # ── Summary ──
+          rm -f "$COOKIE_JAR"
           echo ""
           echo "--- Health detail ---"
           curl -s --max-time 10 "${BASE_URL}/health" \
