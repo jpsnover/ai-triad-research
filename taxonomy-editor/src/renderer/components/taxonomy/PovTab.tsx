@@ -180,11 +180,20 @@ function DataRecovery({ pov }: { pov: string }) {
     const sig = ac.signal;
     let diagLines: string[] = [];
 
+    // In electron mode, steps 0-2 (health, data availability, auth) use HTTP
+    // endpoints that only exist on the deployed server — not on the Vite dev
+    // server. Skip straight to loadAll() which uses IPC.
+    const isElectronMode = import.meta.env.VITE_TARGET !== 'web';
+    if (isElectronMode && startFrom < 3) {
+      setSteps(prev => prev.map((s, i) => i < 3 ? { ...s, status: 'ok', detail: 'electron' } : { ...s, status: 'pending', detail: '', error: undefined }));
+      startFrom = 3;
+    }
+
     setSteps(prev => prev.map((s, i) => i < startFrom ? s : { ...s, status: 'pending', detail: '', error: undefined }));
     setActiveStep(startFrom);
 
     try {
-      // Step 0: Server health
+      // Step 0: Server health (web mode only)
       if (startFrom <= 0) {
         updateStep(0, { status: 'running', detail: 'Checking...' });
         try {
