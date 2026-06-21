@@ -97,6 +97,58 @@ describe('community ReviewDomainHandler (t/650)', () => {
     expect(detail.sanitization.willAdd.join(' ')).toContain('community_metadata');
   });
 
+  it('getDetailForViewer surfaces debate transcript preview + phase/audience/activePovers', async () => {
+    writeSubmission({
+      id: 'd1', type: 'debate', originalId: 'orig-d1', submittedBy: 'alice',
+      submittedAt: '2026-06-10T00:00:00.000Z', status: 'pending',
+      data: {
+        id: 'orig-d1', title: 'Should AI be paused?', model: 'gemini',
+        phase: 'synthesis', audience: 'policymakers',
+        activePovers: ['accelerationist', 'safetyist'],
+        transcript: [
+          { speaker: 'accelerationist', content: 'Progress matters', type: 'argument' },
+          { speaker: 'safetyist', content: 'Risk matters', type: 'argument' },
+        ],
+      },
+    });
+    const detail = await asUser(() => handler.getDetailForViewer('community:d1')) as {
+      type: string;
+      transcriptPreview: Array<{ speaker: string; content: string; type: string }>;
+      metadata: { phase: string; audience: string; activePovers: string[]; turnCount: number };
+    };
+    expect(detail.type).toBe('debate');
+    expect(detail.metadata).toMatchObject({ phase: 'synthesis', audience: 'policymakers', turnCount: 2 });
+    expect(detail.metadata.activePovers).toEqual(['accelerationist', 'safetyist']);
+    expect(detail.transcriptPreview).toHaveLength(2);
+    expect(detail.transcriptPreview[0]).toEqual({ speaker: 'accelerationist', content: 'Progress matters', type: 'argument' });
+  });
+
+  it('activePovers falls back to characters when activePovers is absent', async () => {
+    writeSubmission({
+      id: 'd2', type: 'debate', originalId: 'orig-d2', submittedBy: 'alice',
+      submittedAt: '2026-06-10T00:00:00.000Z', status: 'pending',
+      data: { id: 'orig-d2', title: 'T', characters: ['accelerationist', 'skeptic'], transcript: [] },
+    });
+    const detail = await asUser(() => handler.getDetailForViewer('community:d2')) as {
+      metadata: { activePovers: string[] };
+    };
+    expect(detail.metadata.activePovers).toEqual(['accelerationist', 'skeptic']);
+  });
+
+  it('debate detail leaves phase/audience null when the debate omits them', async () => {
+    writeSubmission({
+      id: 'd3', type: 'debate', originalId: 'orig-d3', submittedBy: 'alice',
+      submittedAt: '2026-06-10T00:00:00.000Z', status: 'pending',
+      data: { id: 'orig-d3', title: 'T', transcript: [{ speaker: 'skeptic', content: 'hm', type: 'q' }] },
+    });
+    const detail = await asUser(() => handler.getDetailForViewer('community:d3')) as {
+      metadata: { phase: string | null; audience: string | null; activePovers: string[] };
+    };
+    expect(detail.metadata.phase).toBeNull();
+    expect(detail.metadata.audience).toBeNull();
+    expect(detail.metadata.activePovers).toEqual([]);
+  });
+
   it('getDetailForViewer reports not-found for unknown id', async () => {
     const detail = await asUser(() => handler.getDetailForViewer('community:nope')) as { found: boolean };
     expect(detail.found).toBe(false);

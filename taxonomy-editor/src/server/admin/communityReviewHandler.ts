@@ -74,18 +74,51 @@ function scanSensitive(obj: unknown, found = new Set<string>()): Set<string> {
   return found;
 }
 
-/** Best-effort transcript preview from common chat/debate shapes. */
+/** Turn-bearing array across chat/debate shapes (debates use `transcript`). */
+function turnsOf(d: Record<string, unknown>): unknown[] {
+  const turns = d.transcript ?? d.messages ?? d.turns ?? d.rounds ?? [];
+  return Array.isArray(turns) ? turns : [];
+}
+
+/** Best-effort flat-text preview + turn count from common chat/debate shapes. */
 function buildPreview(data: unknown): { preview: string; turnCount: number } {
   const d = asRecord(data);
-  const turns = (d.messages ?? d.turns ?? d.rounds ?? []) as unknown[];
-  const turnCount = Array.isArray(turns) ? turns.length : 0;
-  const text = Array.isArray(turns)
+  const turns = turnsOf(d);
+  const text = turns.length
     ? turns.map(t => {
         const r = asRecord(t);
         return String(r.content ?? r.text ?? r.message ?? '');
       }).filter(Boolean).join('\n')
     : JSON.stringify(d);
-  return { preview: text.slice(0, 500), turnCount };
+  return { preview: text.slice(0, 500), turnCount: turns.length };
+}
+
+interface TranscriptEntry { speaker: string; content: string; type: string; }
+
+/** Structured transcript preview (first `limit` turns) for the review viewer. */
+function buildTranscriptPreview(data: unknown, limit = 12): TranscriptEntry[] {
+  return turnsOf(asRecord(data)).slice(0, limit).map(t => {
+    const r = asRecord(t);
+    return {
+      speaker: String(r.speaker ?? r.character ?? r.role ?? r.pov ?? r.author ?? ''),
+      content: String(r.content ?? r.text ?? r.message ?? '').slice(0, 600),
+      type: String(r.type ?? r.phase ?? r.kind ?? ''),
+    };
+  }).filter(e => e.content);
+}
+
+/** Coerce a value into a string[] — accepts string elements or {pov|id|name} objects. */
+function toStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map(x => typeof x === 'string' ? x : String(asRecord(x).pov ?? asRecord(x).id ?? asRecord(x).name ?? ''))
+    .filter(Boolean);
+}
+
+/** Active POVers from `activePovers` / `active_povers`, falling back to `characters`. */
+function activePoversOf(d: Record<string, unknown>): string[] {
+  const direct = toStringArray(d.activePovers ?? d.active_povers);
+  return direct.length ? direct : toStringArray(d.characters);
 }
 
 async function findPendingSubmission(id: string): Promise<Submission | null> {
@@ -131,9 +164,13 @@ export const communityReviewHandler: ReviewDomainHandler = {
       title: titleOf(sub.data),
       topic: extractString(d.topic) || null,
       preview,
+      transcriptPreview: buildTranscriptPreview(sub.data),
       metadata: {
         model: (d.model as string) ?? null,
         turnCount,
+        phase: (d.phase as string) ?? null,
+        audience: (d.audience as string) ?? null,
+        activePovers: activePoversOf(d),
         taxonomyRefs: (d.taxonomy_refs ?? d.taxonomyRefs ?? []) as unknown,
       },
       sanitization: {
