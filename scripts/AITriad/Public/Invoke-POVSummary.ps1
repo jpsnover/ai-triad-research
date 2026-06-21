@@ -37,6 +37,13 @@ function Invoke-POVSummary {
         Force FIRE iterative extraction.
     .PARAMETER AutoFire
         Enable two-stage FIRE sniff (auto-detect whether FIRE is worthwhile).
+    .PARAMETER ReExtract
+        Batch re-extraction mode. Finds all documents with summary_status
+        "needs_reextraction" and re-processes them using -ModelEscalation model.
+        When used, -DocId is ignored.
+    .PARAMETER ModelEscalation
+        Model to use for re-extraction of under-extracted documents.
+        Default: "gemini-2.5-flash".
     .EXAMPLE
         Invoke-POVSummary -DocId "altman-2024-agi-path"
     .EXAMPLE
@@ -69,11 +76,44 @@ function Invoke-POVSummary {
 
         [switch]$AutoFire,
 
+        [switch]$ReExtract,
+
+        [ValidateScript({ Test-AIModelId $_ })]
+        [ArgumentCompleter({ param($cmd, $param, $word) $script:ValidModelIds | Where-Object { $_ -like "$word*" } })]
+        [string]$ModelEscalation = "gemini-2.5-flash",
+
         [int]$RagMaxTotal = 300
     )
 
     Set-StrictMode -Version Latest
     $ErrorActionPreference = 'Stop'
+
+    # -- ReExtract dispatch: find all needs_reextraction docs and recurse -----
+    if ($ReExtract) {
+        $SourcesDir = Get-SourcesDir
+        $Flagged = @()
+        foreach ($DocDir in (Get-ChildItem -Path $SourcesDir -Directory)) {
+            $MetaPath = Join-Path $DocDir.FullName 'metadata.json'
+            if (-not (Test-Path $MetaPath)) { continue }
+            $Meta = Get-Content $MetaPath -Raw | ConvertFrom-Json
+            if ($Meta.PSObject.Properties['summary_status'] -and $Meta.summary_status -eq 'needs_reextraction') {
+                $Flagged += $DocDir.Name
+            }
+        }
+        if ($Flagged.Count -eq 0) {
+            Write-OK "No documents flagged for re-extraction."
+            return
+        }
+        Write-Host "`n  RE-EXTRACTION: $($Flagged.Count) document(s) flagged" -ForegroundColor Yellow
+        foreach ($FlaggedId in $Flagged) {
+            Write-Host "    - $FlaggedId" -ForegroundColor Gray
+        }
+        Write-Host ''
+        foreach ($FlaggedId in $Flagged) {
+            Invoke-POVSummary -DocId $FlaggedId -Model $ModelEscalation -Force -ApiKey $ApiKey -RepoRoot $RepoRoot -AutoFire:$AutoFire
+        }
+        return
+    }
 
     # -- STEP 0 — Validate inputs and resolve paths ---------------------------
     Write-Step "Validating inputs"
@@ -355,14 +395,18 @@ function Invoke-POVSummary {
         $metaUpdated["summary_status"]  = "current"
         $metaUpdated["summary_updated"] = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
 
-        # Summary statistics
-        $claimsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
+        # Summary statistics — node reference counts (sum may exceed total_claims for multi-mapped claims)
+        $nodeRefsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
+        $primaryPovDist = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
         foreach ($claim in @($summaryObject.factual_claims)) {
+            if ($null -eq $claim) { continue }
+            $PrimaryAssigned = $false
             foreach ($nodeId in @($claim.linked_taxonomy_nodes)) {
-                if     ($nodeId -like 'acc-*') { $claimsByPov['accelerationist']++ }
-                elseif ($nodeId -like 'saf-*') { $claimsByPov['safetyist']++ }
-                elseif ($nodeId -like 'skp-*') { $claimsByPov['skeptic']++ }
-                elseif ($nodeId -like 'sit-*') { $claimsByPov['situations']++ }
+                if ($null -eq $nodeId) { continue }
+                if     ($nodeId -like 'acc-*') { $nodeRefsByPov['accelerationist']++; if (-not $PrimaryAssigned) { $primaryPovDist['accelerationist']++; $PrimaryAssigned = $true } }
+                elseif ($nodeId -like 'saf-*') { $nodeRefsByPov['safetyist']++;       if (-not $PrimaryAssigned) { $primaryPovDist['safetyist']++;       $PrimaryAssigned = $true } }
+                elseif ($nodeId -like 'skp-*') { $nodeRefsByPov['skeptic']++;         if (-not $PrimaryAssigned) { $primaryPovDist['skeptic']++;         $PrimaryAssigned = $true } }
+                elseif ($nodeId -like 'sit-*') { $nodeRefsByPov['situations']++;      if (-not $PrimaryAssigned) { $primaryPovDist['situations']++;      $PrimaryAssigned = $true } }
             }
         }
         $totalFacts = 0
@@ -372,22 +416,42 @@ function Invoke-POVSummary {
                 $totalFacts += @($campData.key_points).Count
             }
         }
-        $metaUpdated["total_claims"]       = $factualClaimCount
-        $metaUpdated["claims_by_pov"]      = $claimsByPov
+
+        # Quality gate: flag under-extracted large documents
+        $snapshotSizeKB = [Math]::Round((Get-Item $paths.SnapshotFile).Length / 1024, 1)
+        if ($factualClaimCount -lt 3 -and $snapshotSizeKB -gt 30) {
+            $metaUpdated["summary_status"] = "needs_reextraction"
+            Write-Warn "Under-extraction detected: $factualClaimCount claims from ${snapshotSizeKB}KB snapshot. Queued for re-extraction with stronger model."
+            Write-Info "Run Invoke-POVSummary -ReExtract to re-process flagged documents."
+        }
+
+        $metaUpdated["total_claims"]              = $factualClaimCount
+        $metaUpdated["node_references_by_pov"]   = $nodeRefsByPov
+        $metaUpdated["primary_pov_distribution"] = $primaryPovDist
+        $metaUpdated.Remove("claims_by_pov")
         $metaUpdated["total_facts"]        = $totalFacts
         $metaUpdated["unmapped_concepts"]  = $unmappedConceptCount
 
         if ($ContextRotObj) {
-            $WorstStage = $ContextRotStages | Sort-Object { $_.ratio } | Select-Object -First 1
+            $SameUnitStages = @($ContextRotStages | Where-Object { $_.in_units -eq $_.out_units })
+            $WorstStage = $SameUnitStages | Sort-Object { $_.ratio } | Select-Object -First 1
+
+            $ExtractionStage = @($ContextRotStages | Where-Object { $_.stage -eq 'extraction' }) | Select-Object -First 1
+            $ExtractionDensity = if ($ExtractionStage -and $ExtractionStage.in_count -gt 0) {
+                [Math]::Round(($ExtractionStage.out_count / $ExtractionStage.in_count) * 1000, 4)
+            } else { $null }
+
             $metaUpdated['context_rot'] = [ordered]@{
                 cumulative_retention = $ContextRotObj.cumulative_retention
                 worst_stage          = if ($WorstStage) { $WorstStage.stage } else { $null }
                 worst_ratio          = if ($WorstStage) { $WorstStage.ratio } else { $null }
+                extraction_density   = $ExtractionDensity
             }
         }
 
         Write-Utf8NoBom -Path $paths.MetadataFile -Value ($metaUpdated | ConvertTo-Json -Depth 10)
-        Write-OK "metadata.json updated: summary_status=current, summary_version=$taxonomyVersion"
+        $WrittenStatus = $metaUpdated["summary_status"]
+        Write-OK "metadata.json updated: summary_status=$WrittenStatus, summary_version=$taxonomyVersion"
 
         # Rebuild source index so Get-AITSource picks up updated stats
         try { Update-AITSourceIndex -Quiet } catch { Write-Verbose "Index rebuild skipped: $_" }
@@ -555,6 +619,8 @@ function Invoke-POVSummary {
     Write-Host "`n$('═' * 72)" -ForegroundColor Cyan
     Write-Host "  Files written:" -ForegroundColor White
     Write-Host "    summaries/$DocId.json" -ForegroundColor Green
-    Write-Host "    sources/$DocId/metadata.json  (summary_status=current)" -ForegroundColor Green
+    $FinalStatus = if ($factualClaimCount -lt 3 -and ([Math]::Round((Get-Item $paths.SnapshotFile).Length / 1024, 1)) -gt 30) { 'needs_reextraction' } else { 'current' }
+    $StatusColor = if ($FinalStatus -eq 'current') { 'Green' } else { 'Yellow' }
+    Write-Host "    sources/$DocId/metadata.json  (summary_status=$FinalStatus)" -ForegroundColor $StatusColor
     Write-Host "$('═' * 72)`n" -ForegroundColor Cyan
 }

@@ -24,11 +24,12 @@ import type {
 // because they are the strongest indicators of productive debate.
 
 export const PROCESS_REWARD_WEIGHTS = {
-  engagement:   0.25,
-  novelty:      0.25,
-  consistency:  0.20,
-  grounding:    0.15,
-  move_quality: 0.15,
+  engagement:      0.20,
+  novelty:         0.20,
+  consistency:     0.20,
+  grounding:       0.15,
+  move_quality:    0.10,
+  crux_relevance:  0.15,
 } as const;
 
 // ── Types ────────────────────────────────────────────────────
@@ -44,6 +45,8 @@ export interface ProcessRewardComponents {
   grounding: number;
   /** Move quality: move diversity + specificity + constructive move usage. */
   move_quality: number;
+  /** Crux relevance: did this turn engage an active crux? Rewards head-on crux engagement. */
+  crux_relevance: number;
 }
 
 export interface ProcessRewardScore {
@@ -72,6 +75,8 @@ export interface ProcessRewardInput {
   taxonomyRefCount: number;
   /** Total taxonomy nodes injected into context for this turn. */
   injectedNodeCount?: number;
+  /** Number of currently active (non-resolved, non-irreducible) cruxes. 0 if no cruxes yet. */
+  activeCruxCount?: number;
 }
 
 // ── Computation ──────────────────────────────────────────────
@@ -117,12 +122,16 @@ export function computeProcessReward(input: ProcessRewardInput): ProcessRewardSc
   const phaseBonus = computePhaseBonus(tv, cs, phase);
   const move_quality = clamp(advancementPass * 0.4 + moveDiversity * 0.3 + phaseBonus * 0.3);
 
+  // 6. Crux relevance: did this turn engage an active crux?
+  const crux_relevance = computeCruxRelevance(cs, input.activeCruxCount);
+
   const components: ProcessRewardComponents = {
     engagement,
     novelty,
     consistency,
     grounding,
     move_quality,
+    crux_relevance,
   };
 
   const w = PROCESS_REWARD_WEIGHTS;
@@ -131,7 +140,8 @@ export function computeProcessReward(input: ProcessRewardInput): ProcessRewardSc
     components.novelty * w.novelty +
     components.consistency * w.consistency +
     components.grounding * w.grounding +
-    components.move_quality * w.move_quality,
+    components.move_quality * w.move_quality +
+    components.crux_relevance * w.crux_relevance,
   );
 
   return { score, components, weights: PROCESS_REWARD_WEIGHTS };
@@ -187,4 +197,26 @@ function computePhaseBonus(
     default:
       return 0.5;
   }
+}
+
+/**
+ * Crux relevance: reward turns that engage active cruxes.
+ * - No active cruxes → neutral (0.5) — can't penalize when nothing to engage.
+ * - Active cruxes exist + engaged this turn → high (0.7 base + follow-through bonus).
+ * - Active cruxes exist + NOT engaged → low (0.2) — missed opportunity.
+ */
+function computeCruxRelevance(
+  cs: ConvergenceSignals,
+  activeCruxCount?: number,
+): number {
+  if (activeCruxCount === undefined || activeCruxCount === 0) return 0.5;
+
+  const ce = cs.crux_engagement_rate;
+  if (ce.used_this_turn) {
+    const followThroughRate = ce.cumulative_count > 0
+      ? ce.cumulative_follow_through / ce.cumulative_count
+      : 0;
+    return clamp(0.7 + followThroughRate * 0.3);
+  }
+  return 0.2;
 }

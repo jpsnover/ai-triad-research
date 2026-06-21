@@ -69,7 +69,6 @@ import {
   crossRespondSelectionPrompt,
   formatCriticalQuestions,
   selectReframingMetaphor,
-  debateSynthesisPrompt,
   probingQuestionsPrompt,
   entrySummarizationPrompt,
   missingArgumentsPrompt,
@@ -86,6 +85,7 @@ import {
   extractSpeakerVocabulary,
   formatVocabularyExclusion,
   entailmentRepairPrompt,
+  cruxRefreshPrompt,
 } from './prompts.js';
 import { extractClaimsPrompt, classifyClaimsPrompt, formatArgumentNetworkContext, formatCommitments, formatEstablishedPoints, updateUnansweredLedger, formatUnansweredClaimsHint, formatSpecifyHint, formatConcessionCandidatesHint, processExtractedClaims, factCheckToBaseStrength, computeClaimTaxonomyAttribution, sampleNodesForEntailment, type RawExtractedClaim } from './argumentNetwork.js';
 import { embedDoctrinalBoundaries, computeDoctrinalAnchoring, checkThresholdAnomalies } from './doctrinalAnchoring.js';
@@ -103,9 +103,9 @@ import {
 import { resolveRepoRoot, resolveDataRoot, resolveSourcesDir } from './taxonomyLoader.js';
 import { retrieveEvidence } from './evidenceRetriever.js';
 import { buildEvidenceQbaf } from './evidenceQbaf.js';
-import { updateCruxTracker, formatCruxResolutionContext } from './cruxResolution.js';
+import { updateCruxTracker, formatCruxResolutionContext, detectConcessionCascade, transitionCrux } from './cruxResolution.js';
 import { persistDebateCruxes, loadRegistry, findRelevantPriorCruxes, formatPriorCruxContext } from './cruxRegistry.js';
-import { computeConvergenceSignals } from './convergenceSignals.js';
+import { computeConvergenceSignals, boostConvergenceOnConcession } from './convergenceSignals.js';
 import { computeProcessReward } from './processReward.js';
 import { runSynthesisPhases } from './synthesisPhases.js';
 import { buildMediumTierSummary, buildDistantTierSummary } from './tieredCompression.js';
@@ -166,6 +166,7 @@ import {
   getConcludingResponder,
   MOVE_RESPONSE_CONFIG,
   DIRECT_RESPONSE_PATTERNS,
+  updateCruxEngagement,
 } from './moderator.js';
 import { runModeratorSelection, executeTurnWithRetry } from './orchestration.js';
 import type { ModeratorSelectionCallbacks, ModeratorSelectionInput, TurnRetryCallbacks, TurnRetryInput } from './orchestration.js';
@@ -1499,7 +1500,7 @@ export class DebateEngine {
       embeddingThreshold: 0.48,
       lexicalThreshold: 0.22,
       minPerCategory: parseInt(process.env.TAXONOMY_MIN_PER_BDI || '') || 3,
-      maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 25,
+      maxTotal: parseInt(process.env.TAXONOMY_MAX_NODES || '') || 12,
       nodeEmbeddings: roundFocusVector ? this.taxonomy.embeddings as Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }> : undefined,
       queryVector: roundFocusVector ?? undefined,
     };
@@ -1743,11 +1744,11 @@ export class DebateEngine {
 
     const allNodes = an.nodes.map(n => ({
       id: n.id,
-      text: n.text,
+      text: n.canonical_proposition || n.text,
       speaker: POVER_INFO[n.speaker as Exclude<SpeakerId, 'user'>]?.label ?? n.speaker,
     }));
 
-    return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 10, an.edges);
+    return formatEstablishedPoints(allNodes, POVER_INFO[poverId].label, 14, an.edges);
   }
 
   // ── Phase: Topic Critique ──────────────────────────────────
@@ -3395,6 +3396,9 @@ export class DebateEngine {
     this.summarizeEntry(entry).catch(err => this.warn('Summarization', String(err), 'Entry summarization skipped'));
 
     // ── Update active moderator state for next round ──
+    if (this.session.crux_tracker && this.session.crux_tracker.length > 0) {
+      updateCruxEngagement(this._moderatorState!, this.session.crux_tracker, this.activePovers, an.nodes);
+    }
     const validationResult = activeIntervention
       ? { proceed: true, validated_move: activeIntervention.move, validated_family: activeIntervention.family, validated_target: activeIntervention.target_debater } as import('./types').EngineValidationResult
       : { proceed: false, validated_move: 'PIN' as InterventionMove, validated_family: 'elicitation' as import('./types').InterventionFamily, validated_target: responder } as import('./types').EngineValidationResult;
@@ -3713,8 +3717,8 @@ export class DebateEngine {
           const label = POVER_INFO[pos.pover as Exclude<SpeakerId, 'user'>]?.label ?? pos.pover;
           lines.push(`    - ${label}: ${pos.stance}`);
         }
-        const resolvability = (d as Record<string, unknown>).resolvability as string | undefined;
-        if (resolvability) {
+        const resolvability = (d as Record<string, unknown>).resolvability;
+        if (typeof resolvability === 'string' && resolvability) {
           lines.push(`    - *Resolution path: ${resolvability.replace(/_/g, ' ')}*`);
         }
       }
@@ -5123,6 +5127,94 @@ Return ONLY JSON (no markdown, no code fences):
       if (!this.session.convergence_signals) this.session.convergence_signals = [];
       this.session.convergence_signals.push(sig);
 
+      if (sig.concession_opportunity.outcome === 'taken' && this.session.convergence_tracker) {
+        const cruxIds = this.session.crux_tracker
+          ? new Set(this.session.crux_tracker.flatMap(c => c.attacking_claim_ids))
+          : undefined;
+        const boostedIds = boostConvergenceOnConcession(
+          this.session.convergence_tracker,
+          sig,
+          entryId,
+          speaker,
+          an.nodes,
+          an.edges,
+          turnNumber,
+          cruxIds,
+        );
+        if (boostedIds.length > 0) {
+          getGlobalRecorder()?.record({
+            type: 'debate.signal', component: 'debate-engine', level: 'info',
+            debate_id: this.session?.id,
+            message: `Concession convergence boost: ${boostedIds.length} issue(s) boosted for ${speaker}`,
+            data: { boosted_issue_ids: boostedIds, speaker },
+          });
+        }
+      }
+
+      // Crux refresh after concession cascade
+      if (this.session.convergence_signals && this.session.crux_tracker) {
+        const activeCruxes = this.session.crux_tracker.filter(c => c.state !== 'resolved' && c.state !== 'irreducible');
+        if (activeCruxes.length > 0) {
+          const cascade = detectConcessionCascade(this.session.convergence_signals);
+          if (cascade.detected) {
+            const recentConcessions = cascade.concessions.map(c => {
+              const entry = this.session.transcript.find(e => e.id === c.entry_id);
+              return { speaker: c.speaker, conceded_text: entry?.content?.slice(0, 300) ?? '' };
+            });
+            const recentTranscript = this.session.transcript
+              .slice(-6)
+              .map(e => `[${e.speaker}]: ${e.content?.slice(0, 200) ?? ''}`)
+              .join('\n');
+            const refreshPrompt = cruxRefreshPrompt(
+              activeCruxes.map(c => ({ id: c.id, description: c.description, polarity: c.support_polarity, disagreement_type: c.disagreement_type })),
+              recentConcessions,
+              recentTranscript,
+              this.session.topic?.text ?? '',
+            );
+            try {
+              const refreshRaw = await this.adapter.generateText(refreshPrompt, this.config.model, { timeoutMs: 15_000 });
+              const refreshData = parseJsonRobust(refreshRaw) as {
+                crux_verdicts?: { id: string; verdict: string; reason: string }[];
+                emerging_cruxes?: { description: string; speakers_involved: string[]; disagreement_type: string; reason: string }[];
+              };
+              let transitioned = 0;
+              if (refreshData?.crux_verdicts) {
+                for (const v of refreshData.crux_verdicts) {
+                  if (v.verdict === 'resolved' || v.verdict === 'superseded') {
+                    const idx = this.session.crux_tracker!.findIndex(c => c.id === v.id);
+                    if (idx >= 0) {
+                      this.session.crux_tracker![idx] = transitionCrux(
+                        this.session.crux_tracker![idx], 'resolved', turnNumber,
+                        `${v.verdict} by concession cascade: ${v.reason}`,
+                      );
+                      transitioned++;
+                    }
+                  }
+                }
+              }
+              getGlobalRecorder()?.record({
+                type: 'debate.crux_refresh', component: 'debate-engine', level: 'info',
+                debate_id: this.session?.id,
+                message: `Crux refresh after cascade: ${transitioned} transitioned, ${refreshData?.emerging_cruxes?.length ?? 0} emerging`,
+                data: {
+                  cascade_concessions: cascade.concessions.length,
+                  verdicts: refreshData?.crux_verdicts ?? [],
+                  emerging: refreshData?.emerging_cruxes ?? [],
+                  transitioned,
+                },
+              });
+            } catch (err) {
+              getGlobalRecorder()?.record({
+                type: 'system.error', component: 'debate-engine', level: 'warn',
+                debate_id: this.session?.id,
+                message: `Crux refresh failed: ${String(err)}`,
+                error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+              });
+            }
+          }
+        }
+      }
+
       // Process reward — requires turn validation from this entry
       const turnTrail = this.session.turn_validations?.[entryId];
       const turnValidation = turnTrail?.final;
@@ -5145,6 +5237,9 @@ Return ONLY JSON (no markdown, no code fences):
           moveCount: moveTypes.length,
           priorMoveCount: priorMoves.length > 0 ? priorMoves.length : undefined,
           taxonomyRefCount: currentEntry?.taxonomy_refs?.length ?? 0,
+          activeCruxCount: this.session.crux_tracker
+            ? this.session.crux_tracker.filter(c => c.state !== 'resolved' && c.state !== 'irreducible').length
+            : 0,
         });
 
         const prEntry: ProcessRewardEntry = {

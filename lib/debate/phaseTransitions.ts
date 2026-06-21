@@ -95,13 +95,13 @@ export function loadProvisionalWeights(debateDir?: string): ProvisionalWeights {
     thresholds: { argumentation_exit: 0.65, concluding_exit: 0.70, confidence_floor: 0.40, crux_semantic_novelty: 0.70 },
     phase_bounds: {
       min_confrontation_rounds: 1, max_confrontation_rounds: 2,
-      min_argumentation_rounds: 1, max_argumentation_rounds: 2,
-      min_concluding_rounds: 1, max_concluding_rounds: 1,
-      max_total_rounds_default: 5, max_regressions: 2, regression_ratchet: 0.10,
+      min_argumentation_rounds: 2, max_argumentation_rounds: 4,
+      min_concluding_rounds: 1, max_concluding_rounds: 2,
+      max_total_rounds_default: 10, max_regressions: 2, regression_ratchet: 0.10,
     },
     pacing_presets: {
       tight: { maxTotalRounds: 4, argumentationExit: 0.55, concludingExit: 0.60 },
-      moderate: { maxTotalRounds: 5, argumentationExit: 0.65, concludingExit: 0.70 },
+      moderate: { maxTotalRounds: 10, argumentationExit: 0.65, concludingExit: 0.70 },
       thorough: { maxTotalRounds: 8, argumentationExit: 0.80, concludingExit: 0.80 },
     },
     network: { gc_trigger: 175, gc_target: 150, hard_cap: 200 },

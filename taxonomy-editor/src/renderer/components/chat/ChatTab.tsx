@@ -51,18 +51,21 @@ export function ChatTab() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
-  const [listView, setListView] = useState<'my' | 'community'>('my');
+  const [listView, setListView] = useState<'my' | 'community' | null>(null);
   const { chats: communityChats, loading: communityLoading, fetchChats: fetchCommunityChats, copyItem } = useCommunityStore();
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedCommunityChat, setSelectedCommunityChat] = useState<CommunityChat | null>(null);
 
   useEffect(() => {
     void loadSessions();
-  }, [loadSessions]);
+    void fetchCommunityChats();
+  }, [loadSessions, fetchCommunityChats]);
 
   useEffect(() => {
-    if (listView === 'community') void fetchCommunityChats();
-  }, [listView, fetchCommunityChats]);
+    if (listView !== null) return;
+    if (sessionsLoading) return;
+    setListView(sessions.length > 0 ? 'my' : 'community');
+  }, [listView, sessionsLoading, sessions.length]);
 
   const handleSelect = (session: ChatSessionSummary) => {
     if (session.id !== activeChatId) {
@@ -107,8 +110,8 @@ export function ChatTab() {
             </div>
           </div>
           <div className="list-view-tabs">
-            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My</button>
-            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => setListView('community')}>Community</button>
+            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => setListView('my')}>My ({sessions.length})</button>
+            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => setListView('community')}>Community ({communityChats.length})</button>
           </div>
           {chatError && isPhone && !activeChatId && (
             <div className="chat-error" style={{ margin: '8px', fontSize: '0.8rem' }}>{chatError}</div>

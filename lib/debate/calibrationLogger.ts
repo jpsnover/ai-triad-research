@@ -81,6 +81,9 @@ export function computeAgentUtility(
 
   // ── Concession asymmetry: mean attack target strength minus mean conceded node strength ──
   // Identifies agents who concede only weak positions while pressing strong attacks.
+  // Crux-linked concessions weighted 1.5x — they represent principled engagement, not capitulation.
+  const CRUX_CONCESSION_WEIGHT = 1.5;
+  const cruxClaimIds = new Set(cruxNodes?.flatMap(c => c.attacking_claim_ids) ?? []);
   const concededNodeIds = new Set(
     edges.filter(e => e.type === 'supports' && nodes.find(n => n.id === e.source)?.speaker === speaker)
       .map(e => e.target),
@@ -89,12 +92,16 @@ export function computeAgentUtility(
     edges.filter(e => e.type === 'attacks' && nodes.find(n => n.id === e.source)?.speaker === speaker)
       .map(e => e.target),
   );
-  const concededStrength = concededNodeIds.size > 0
-    ? [...concededNodeIds].reduce((sum, id) => {
-        const n = nodes.find(nd => nd.id === id);
-        return sum + (n ? (n.computed_strength ?? n.base_strength ?? 0.5) : 0.5);
-      }, 0) / concededNodeIds.size
-    : 0.5;
+  let concededWeightedSum = 0;
+  let concededWeightTotal = 0;
+  for (const id of concededNodeIds) {
+    const n = nodes.find(nd => nd.id === id);
+    const strength = n ? (n.computed_strength ?? n.base_strength ?? 0.5) : 0.5;
+    const w_c = cruxClaimIds.has(id) ? CRUX_CONCESSION_WEIGHT : 1.0;
+    concededWeightedSum += strength * w_c;
+    concededWeightTotal += w_c;
+  }
+  const concededStrength = concededWeightTotal > 0 ? concededWeightedSum / concededWeightTotal : 0.5;
   const attackTargetStrength = agentAttackTargetIds.size > 0
     ? [...agentAttackTargetIds].reduce((sum, id) => {
         const n = nodes.find(nd => nd.id === id);
@@ -1255,8 +1262,10 @@ export function extractCalibrationData(
 // ── File I/O ────────────────────────────────────────────────
 
 /**
- * Append a calibration data point to the per-user JSONL log.
- * Writes to calibration/users/{origin}/calibration-log.jsonl.
+ * Append a calibration data point to both the per-user and core JSONL logs.
+ * Per-user: calibration/users/{origin}/calibration-log.jsonl
+ * Core:     calibration/core/calibration-log.jsonl
+ * The core log is the source of truth for the optimizer and regression analysis.
  * Creates directories on first write. Uses JSONL (one JSON object per line)
  * for append-only writes without full-file rewrite.
  */
@@ -1264,14 +1273,19 @@ export function appendCalibrationLog(
   dataPoint: CalibrationDataPoint,
   dataRoot: string,
 ): void {
+  const line = JSON.stringify(dataPoint) + '\n';
 
   const userDir = path.join(dataRoot, 'calibration', 'users', dataPoint.origin || 'local');
   if (!fs.existsSync(userDir)) {
     fs.mkdirSync(userDir, { recursive: true });
   }
+  fs.appendFileSync(path.join(userDir, 'calibration-log.jsonl'), line, 'utf-8');
 
-  const logPath = path.join(userDir, 'calibration-log.jsonl');
-  fs.appendFileSync(logPath, JSON.stringify(dataPoint) + '\n', 'utf-8');
+  const coreDir = path.join(dataRoot, 'calibration', 'core');
+  if (!fs.existsSync(coreDir)) {
+    fs.mkdirSync(coreDir, { recursive: true });
+  }
+  fs.appendFileSync(path.join(coreDir, 'calibration-log.jsonl'), line, 'utf-8');
 }
 
 /**

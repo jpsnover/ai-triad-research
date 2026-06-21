@@ -1412,4 +1412,42 @@ document.addEventListener('DOMContentLoaded', function() {
     fs.writeFileSync(path.join(errorsDir, `error-${ts}-${id.slice(0, 8)}.json`), JSON.stringify(entry, null, 2));
     return { ok: true };
   });
+
+  // ── Community Review (Azure Blob) ──
+
+  ipcMain.handle('admin-review-configured', () => {
+    const { isAzureReviewConfigured } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
+    return isAzureReviewConfigured();
+  });
+
+  ipcMain.handle('admin-review-queue', async () => {
+    const { adminReviewQueue } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
+    return adminReviewQueue();
+  });
+
+  ipcMain.handle('admin-review-stats', async () => {
+    const { adminReviewStats } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
+    return adminReviewStats();
+  });
+
+  ipcMain.handle('admin-review-detail', async (_event, groupId: string) => {
+    const { adminReviewDetail } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
+    return adminReviewDetail(groupId);
+  });
+
+  ipcMain.handle('admin-review-action', async (_event, action: {
+    groupId: string;
+    action: 'promote' | 'reject';
+    itemIds: string[];
+    reason?: string;
+    edits?: Record<string, Record<string, unknown>>;
+  }) => {
+    const { adminReviewAction } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
+    return adminReviewAction(action);
+  });
+
+  ipcMain.handle('admin-remove-community-item', async (_event, type: 'chats' | 'debates', id: string, reason?: string) => {
+    const { adminRemoveCommunityItem } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
+    return adminRemoveCommunityItem(type, id, reason);
+  });
 }

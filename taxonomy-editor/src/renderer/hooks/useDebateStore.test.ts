@@ -248,6 +248,9 @@ vi.mock('@lib/debate/prompts', () => ({
   decomposeResolutionPrompt: vi.fn().mockReturnValue('mock-decompose-prompt'),
   topicScopeExtractionPrompt: vi.fn().mockReturnValue('mock-scope-prompt'),
   setTopicScope: vi.fn(),
+  synthExtractPrompt: vi.fn().mockReturnValue('mock-synth-extract-prompt'),
+  synthMapPrompt: vi.fn().mockReturnValue('mock-synth-map-prompt'),
+  synthEvaluatePrompt: vi.fn().mockReturnValue('mock-synth-evaluate-prompt'),
 }));
 
 vi.mock('@lib/debate/phaseTransitions', () => ({

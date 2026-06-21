@@ -271,4 +271,12 @@ export interface AppAPI {
 
   // --- Screenshot capture ---
   captureScreenshot: (opts?: { width?: number; height?: number; defaultName?: string }) => Promise<{ cancelled: boolean; filePath?: string }>;
+
+  // --- Admin Review (Azure Blob in Electron, HTTP in web) ---
+  adminReviewConfigured: () => Promise<boolean>;
+  adminReviewQueue: () => Promise<{ items: { id: string; domain: string; submitter: string; submitterDisplay: string; submittedAt: string; summary: string; itemCount: number; status: string }[] }>;
+  adminReviewStats: () => Promise<{ total: number; byDomain: Record<string, number> }>;
+  adminReviewDetail: (groupId: string) => Promise<unknown>;
+  adminReviewAction: (action: { domain: string; groupId: string; action: string; itemIds: string[]; reason?: string; edits?: Record<string, unknown> }) => Promise<void>;
+  adminRemoveCommunityItem: (type: 'chats' | 'debates', id: string, reason?: string) => Promise<void>;
 }

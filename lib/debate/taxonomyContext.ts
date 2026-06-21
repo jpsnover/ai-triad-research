@@ -212,7 +212,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
   const lines: string[] = [];
 
   const hasScores = ctx.nodeScores && ctx.nodeScores.size > 0;
-  const PRIMARY_COUNT = cfg.primaryCount ?? 5;
+  const PRIMARY_COUNT = cfg.primaryCount ?? 3;
 
   if (hasScores) {
     lines.push('(★ = most relevant to current topic)');
@@ -256,15 +256,18 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
 
     for (let i = 0; i < sorted.length; i++) {
       const n = sorted[i];
-      const isPrimary = hasScores && i < PRIMARY_COUNT;
+      const isPrimary = !hasScores || i < PRIMARY_COUNT;
       const prefix = isPrimary ? '★ ' : '  ';
-      const weightLabel = nodeWeightLabel(n, cat);
-      // Compact node line: ID + weight + label + description (no raw relevance score — ★ marker suffices)
-      lines.push(`${prefix}[${n.id}]${weightLabel}`);
-      lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
-      // Per-node inline guidance replaces raw metadata labels
-      const guidance = generateNodeGuidance(n, cat);
-      lines.push(...guidance);
+
+      if (isPrimary) {
+        const weightLabel = nodeWeightLabel(n, cat);
+        lines.push(`${prefix}[${n.id}]${weightLabel}`);
+        lines.push(`  "${n.label}" — ${stripExcludes(n.description)}`);
+        const guidance = generateNodeGuidance(n, cat);
+        lines.push(...guidance);
+      } else {
+        lines.push(`${prefix}[${n.id}] "${n.label}"`);
+      }
     }
     lines.push('');
   }
@@ -290,7 +293,7 @@ export function formatTaxonomyContext(ctx: TaxonomyContext, pov: string, maxNode
 
   // Situations section — hierarchy-grouped with Lost-in-the-Middle ordering
   if (ctx.situationNodes.length > 0) {
-    const SIT_PRIMARY = cfg.sitPrimary ?? 8;
+    const SIT_PRIMARY = cfg.sitPrimary ?? 5;
     const otherPovs = POV_KEYS.filter(p => p !== pov);
 
     lines.push('=== SITUATIONS (contested concepts — cite sit- IDs in taxonomy_refs) ===');
@@ -473,8 +476,8 @@ export function computeInjectionManifest(
 ): ContextInjectionManifest {
   const cfg = config ?? {};
   const limit = cfg.maxNodes ?? maxNodes ?? 50;
-  const PRIMARY_COUNT = cfg.primaryCount ?? 5;
-  const SIT_PRIMARY = cfg.sitPrimary ?? 8;
+  const PRIMARY_COUNT = cfg.primaryCount ?? 3;
+  const SIT_PRIMARY = cfg.sitPrimary ?? 5;
 
   // Replicate the same filtering/slicing logic as formatTaxonomyContext
   let filteredNodes = ctx.povNodes;
@@ -521,9 +524,9 @@ export function computeInjectionManifest(
   const sitSlice = (ctx.situationNodes ?? []).slice(0, 8);
   const sitIds = sitSlice.map(n => n.id);
 
-  // Rough token estimate: ~75 tokens per POV node (inline guidance), ~150 per primary situation, ~50 per non-primary
-  const tokenEst = povSlice.length * 75
-    + Math.min(sitSlice.length, SIT_PRIMARY) * 150
+  // Token estimate calibrated from real debate data (~200-300 chars/node ≈ 50-75 tokens)
+  const tokenEst = povSlice.length * 125
+    + Math.min(sitSlice.length, SIT_PRIMARY) * 250
     + Math.max(0, sitSlice.length - SIT_PRIMARY) * 50
     + (ctx.policyRegistry?.length ?? 0) * 40;
     // Note: vulnerability tokens now included in per-node inline guidance estimate

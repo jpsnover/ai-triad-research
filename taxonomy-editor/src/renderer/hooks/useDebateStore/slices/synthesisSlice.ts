@@ -12,6 +12,8 @@ import { POVER_INFO, AI_POVERS, POV_KEYS } from '../../../types/debate';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { generateId, nowISO, stripCodeFences, parseAIJson, extractArraysFromPartialJson, formatRecentTranscript } from '@lib/debate/helpers';
+import { runSynthesisPhases } from '@lib/debate/synthesisPhases';
+import type { SynthesisInput } from '@lib/debate/synthesisPhases';
 import { formatTaxonomyContext } from '../../../utils/taxonomyContext';
 import { formatCommitments, formatEstablishedPoints, formatConcessionCandidatesHint } from '../../../prompts/argumentNetwork';
 import { formatVocabularyContext } from '@lib/debate/vocabularyContext';
@@ -34,7 +36,6 @@ import {
   generateTextWithProgress,
   createDebateGuard,
   pushWarning,
-  buildDebateSynthesisPrompt,
   buildProbingQuestionsPrompt,
   buildFactCheckPrompt,
   buildContextCompressionPrompt,
@@ -72,41 +73,59 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
     const model = getConfiguredModel();
     const fullTranscript = formatRecentTranscript(activeDebate.transcript, 50);
     const hasSourceDoc = activeDebate.source_type === 'document' || activeDebate.source_type === 'url';
-    const prompt = buildDebateSynthesisPrompt(activeDebate.topic.final, fullTranscript, hasSourceDoc, activeDebate.audience);
+
+    const policyRegistry = useTaxonomyStore.getState().policyRegistry ?? [];
+    const policyLines = policyRegistry.length > 0
+      ? policyRegistry.slice(0, 10).map(p => `${p.id}: ${p.action}`)
+      : undefined;
+
+    const synthInput: SynthesisInput = {
+      topic: activeDebate.topic.final,
+      transcript: fullTranscript,
+      audience: activeDebate.audience,
+      cruxTracker: activeDebate.crux_tracker,
+      policyLines,
+      hasSourceDoc,
+    };
 
     try {
-      const synthStartMs = Date.now();
-      const { text } = await generateTextWithProgress(prompt, model, `Generating synthesis (${model})`, set, 180_000);
-      const synthElapsedMs = Date.now() - synthStartMs;
-      if (!isStillValid()) return;
+      const result = await runSynthesisPhases(
+        synthInput,
+        async (prompt, label) => {
+          const { text } = await generateTextWithProgress(prompt, model, `${label} (${model})`, set, 180_000);
+          if (!isStillValid()) throw new Error('Debate changed during synthesis');
+          return text;
+        },
+        (_phase, label) => set({ debateActivity: label }),
+        (context, problem, nextStep) => {
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'debate-store',
+            level: 'warn',
+            debate_id: activeDebate.id,
+            message: `Synthesis warning: ${context} — ${problem}`,
+            data: { nextStep },
+          });
+          pushWarning(get, set, `${context}: ${problem}`);
+        },
+        () => { if (!isStillValid()) throw new Error('Debate changed during synthesis'); },
+      );
 
-    
-      let synthesis: any = parseAIJson(text);
-      if (!synthesis) {
-        // Synthesis responses are often truncated by token limits.
-        // Salvage complete top-level arrays from the partial JSON.
-        const stripped = stripCodeFences(text);
-        const salvaged = extractArraysFromPartialJson(stripped);
-        const hasData = Object.values(salvaged).some(v => Array.isArray(v) && v.length > 0);
-        if (hasData) {
-          synthesis = salvaged;
-        } else {
-          synthesis = { _raw_text: stripped, areas_of_agreement: [], areas_of_disagreement: [], unresolved_questions: [], taxonomy_coverage: [] };
-        }
-      }
+      const synthesis: any = result.data;
+      const synthElapsedMs = result.elapsed_ms;
 
       getGlobalRecorder()?.record({
         type: 'ai.response',
         component: 'debate-store',
         level: 'info',
         debate_id: activeDebate.id,
-        message: 'Synthesis parsed',
+        message: 'Synthesis parsed (3-phase pipeline)',
         data: {
           model,
-          parse_method: synthesis._raw_text ? 'raw_fallback' : 'json',
+          parse_method: '3-phase',
           schema: Object.fromEntries(
             Object.entries(synthesis).map(([k, v]) => [k,
-              v === null ? 'null' : Array.isArray(v) ? `array(${v.length})` : typeof v]),
+              v === null ? 'null' : Array.isArray(v) ? `array(${(v as unknown[]).length})` : typeof v]),
           ),
         },
       });
@@ -242,8 +261,8 @@ export const createSynthesisSlice: StateCreator<DebateStore, [], [], SynthesisSl
       });
 
       recordDiagnostic(get, set, synthEntryId, {
-        prompt,
-        raw_response: text,
+        prompt: '(3-phase synthesis pipeline — see raw_response for per-phase output)',
+        raw_response: JSON.stringify(result.rawResponses),
         model,
         response_time_ms: synthElapsedMs,
       });

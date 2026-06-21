@@ -711,6 +711,7 @@ export interface ProcessRewardEntry {
     consistency: number;
     grounding: number;
     move_quality: number;
+    crux_relevance: number;
   };
 }
 
@@ -1975,6 +1976,9 @@ export interface ModeratorState {
 
   /** Crux IDs that have already received a CRUX_FOCUS intervention (fires at most once per crux). */
   crux_focused_ids?: Set<string>;
+
+  /** Fraction of identified cruxes each debater has addressed (updated each round). */
+  crux_engagement_per_debater?: Record<string, number>;
 }
 
 export interface InterventionResponseFields {

@@ -40,6 +40,21 @@ function getElectronAPI(): {
 let _embeddingInfo: { backend: string; execution_provider?: string; calibration_version?: number } | null = null;
 void getElectronAPI()?.getEmbeddingInfo?.().then(info => { _embeddingInfo = info; }).catch(() => {});
 
+// ── Cached auth state (fetched once, used synchronously in context) ──
+let _authState: { mode: string; user_type: string } | null = null;
+if (getElectronAPI()) {
+  _authState = { mode: 'local', user_type: 'authenticated' };
+} else {
+  void fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(data => {
+    if (!data) return;
+    const isAnon = !!(data as { anonymous?: boolean }).anonymous;
+    _authState = {
+      mode: isAnon ? 'optional' : 'required',
+      user_type: isAnon ? 'anonymous' : 'authenticated',
+    };
+  }).catch(() => { /* flight recorder init — silent by design */ });
+}
+
 // ── Dump throttle state ──────────────────────────────────────────────────
 
 let lastDumpTime = 0;
@@ -373,6 +388,7 @@ export function initFlightRecorder(): FlightRecorder {
           enabled: !!debateState.diagnosticsEnabled,
           selected_entry: debateState.selectedDiagEntry ?? null,
         },
+        auth: _authState ?? { mode: 'unknown', user_type: 'unknown' },
         network: {
           online: navigator.onLine,
           deployment_mode: getDeploymentMode(),
@@ -517,20 +533,46 @@ export function dumpOnReactError(
   const recorder = getGlobalRecorder();
   if (!recorder) return;
 
+  // Snapshot store state for crash diagnosis — only runs on error, no perf impact on normal renders
+  let stateSnapshot: Record<string, unknown> | undefined;
+  try {
+    const stores = getStores();
+    if (stores) {
+      const taxState = (stores.useTaxonomyStore as { getState: () => Record<string, unknown> }).getState();
+      const debateState = (stores.useDebateStore as { getState: () => Record<string, unknown> }).getState();
+      const debate = debateState.activeDebate as Record<string, unknown> | null;
+      stateSnapshot = {
+        active_tab: taxState.activeTab ?? null,
+        toolbar_panel: taxState.toolbarPanel ?? null,
+        selected_node_id: taxState.selectedNodeId ?? null,
+        search_mode: taxState.findMode ?? null,
+        search_query: (taxState.findQuery as string)?.slice(0, 200) || null,
+        debate_phase: debate?.phase ?? null,
+        debate_generating: !!debateState.debateGenerating,
+        dirty_files: [...((taxState.dirty as Set<string>) ?? [])],
+      };
+    }
+  } catch { /* flight recorder init — silent by design (store may be corrupted) */ }
+
+  const data: Record<string, unknown> = {
+    ...(componentStack ? { component_stack: componentStack.slice(0, 1000) } : {}),
+    ...(stateSnapshot ? { state_snapshot: stateSnapshot } : {}),
+  };
+
   recorder.record({
     type: 'system.error',
     component: 'react-error-boundary',
     level: 'fatal',
     message: error.message,
     error: { name: error.name, message: error.message, stack: error.stack?.slice(0, 500) },
-    data: componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined,
+    data: Object.keys(data).length > 0 ? data : undefined,
   });
 
   // Error boundary dumps bypass cooldown — highest-priority trigger
   recordDump();
   void persistDump(recorder, 'error_boundary', {
     name: error.name, message: error.message, stack: error.stack?.slice(0, 500),
-  }, componentStack ? { component_stack: componentStack.slice(0, 1000) } : undefined);
+  }, Object.keys(data).length > 0 ? data : undefined);
 
   // Report to server for aggregation
   api.reportError(

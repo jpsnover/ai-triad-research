@@ -42,6 +42,26 @@ export interface SynthesisPhaseResult {
   elapsed_ms: number;
 }
 
+// ── Phase key scoping ───────────────────────────────────
+// Each phase only owns specific keys. Without scoping, fallback parsing
+// via extractArraysFromPartialJson returns ALL 8 keys with empty arrays,
+// and Object.assign clobbers earlier phases' populated data.
+const PHASE_KEYS = {
+  extract: ['areas_of_agreement', 'areas_of_disagreement', 'cruxes', 'unresolved_questions'],
+  map: ['taxonomy_coverage', 'argument_map', 'taxonomy_proposals', 'taxonomy_modifications'],
+  evaluate: ['preferences', 'policy_implications'],
+} as const;
+
+function mergePhaseData(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+  phaseKeys: readonly string[],
+): void {
+  for (const key of phaseKeys) {
+    if (key in source) target[key] = source[key];
+  }
+}
+
 // ── Phase runner ─────────────────────────────────────────
 
 function parsePhaseResponse(
@@ -109,7 +129,7 @@ export async function runSynthesisPhases(
   if (Object.keys(extractData).length === 0) {
     warn?.('Synthesis Phase 1', 'AI returned empty or unparseable output — synthesis data will be incomplete', 'Proceeding with partial synthesis');
   }
-  Object.assign(data, extractData);
+  mergePhaseData(data, extractData, PHASE_KEYS.extract);
 
   // Phase 2: Build argument map
   checkAborted?.();
@@ -119,11 +139,27 @@ export async function runSynthesisPhases(
     synthMapPrompt(input.topic, input.transcript, disagreementsSummary, input.hasSourceDoc ?? false, input.audience),
     'Synthesis Phase 2: Map',
   );
-  const mapData = parsePhaseResponse(mapRaw, 'Phase 2', warn);
+  let mapData = parsePhaseResponse(mapRaw, 'Phase 2', warn);
   if (Object.keys(mapData).length === 0) {
     warn?.('Synthesis Phase 2', 'AI returned empty or unparseable output — argument map will be incomplete', 'Proceeding with partial synthesis');
   }
-  Object.assign(data, mapData);
+  const argMapArr = mapData.argument_map;
+  if (!Array.isArray(argMapArr) || argMapArr.length === 0) {
+    warn?.('Synthesis Phase 2', 'argument_map is empty — retrying with focused extraction', 'One retry attempt');
+    checkAborted?.();
+    const retryRaw = await generate(
+      synthMapPrompt(input.topic, input.transcript, disagreementsSummary, input.hasSourceDoc ?? false, input.audience),
+      'Synthesis Phase 2: Map (retry)',
+    );
+    const retryData = parsePhaseResponse(retryRaw, 'Phase 2 retry', warn);
+    const retryArr = retryData.argument_map;
+    if (Array.isArray(retryArr) && retryArr.length > 0) {
+      mapData = retryData;
+    } else {
+      warn?.('Synthesis Phase 2', 'argument_map still empty after retry — structured synthesis will be incomplete', 'Proceeding without argument map');
+    }
+  }
+  mergePhaseData(data, mapData, PHASE_KEYS.map);
 
   // Phase 3: Evaluate preferences + policy implications
   checkAborted?.();
@@ -133,11 +169,27 @@ export async function runSynthesisPhases(
     synthEvaluatePrompt(input.topic, disagreementsSummary, argMapSummary, policyContext, input.audience),
     'Synthesis Phase 3: Evaluate',
   );
-  const evalData = parsePhaseResponse(evalRaw, 'Phase 3', warn);
+  let evalData = parsePhaseResponse(evalRaw, 'Phase 3', warn);
   if (Object.keys(evalData).length === 0) {
     warn?.('Synthesis Phase 3', 'AI returned empty or unparseable output — evaluation data will be incomplete', 'Proceeding with partial synthesis');
   }
-  Object.assign(data, evalData);
+  const prefsArr = evalData.preferences;
+  if (!Array.isArray(prefsArr) || prefsArr.length === 0) {
+    warn?.('Synthesis Phase 3', 'preferences is empty — retrying with focused evaluation', 'One retry attempt');
+    checkAborted?.();
+    const retryRaw = await generate(
+      synthEvaluatePrompt(input.topic, disagreementsSummary, argMapSummary, policyContext, input.audience),
+      'Synthesis Phase 3: Evaluate (retry)',
+    );
+    const retryData = parsePhaseResponse(retryRaw, 'Phase 3 retry', warn);
+    const retryPrefs = retryData.preferences;
+    if (Array.isArray(retryPrefs) && retryPrefs.length > 0) {
+      evalData = retryData;
+    } else {
+      warn?.('Synthesis Phase 3', 'preferences still empty after retry — preference data will be incomplete', 'Proceeding without preferences');
+    }
+  }
+  mergePhaseData(data, evalData, PHASE_KEYS.evaluate);
 
   return {
     data,

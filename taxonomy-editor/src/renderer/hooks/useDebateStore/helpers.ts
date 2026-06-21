@@ -40,7 +40,6 @@ import {
   openingStatementPrompt,
   debateResponsePrompt,
   crossRespondPrompt,
-  debateSynthesisPrompt,
   probingQuestionsPrompt,
   factCheckPrompt,
   contextCompressionPrompt,
@@ -2512,22 +2511,6 @@ export function buildCrossRespondPrompt(
 ): string {
   const info = POVER_INFO[poverId];
   return crossRespondPrompt(info.label, info.pov, info.personality, topic, taxonomyContext, recentTranscript, focusPoint, addressing, length, sourceContent, docAnalysis, info.doctrinal_boundaries);
-}
-
-export function buildDebateSynthesisPrompt(
-  topic: string,
-  transcript: string,
-  hasSourceDocument: boolean = false,
-  audience?: DebateAudience,
-): string {
-  // Include policy registry context for synthesis analysis
-  const policyRegistry = useTaxonomyStore.getState().policyRegistry ?? [];
-  let policyContext = '';
-  if (policyRegistry.length > 0) {
-    const policyLines = policyRegistry.slice(0, 30).map(p => `${p.id}: ${p.action}`);
-    policyContext = `\n\n=== POLICY REGISTRY (reference pol-NNN IDs for policy implications) ===\n${policyLines.join('\n')}`;
-  }
-  return debateSynthesisPrompt(topic, transcript, hasSourceDocument, policyContext, audience);
 }
 
 export function buildProbingQuestionsPrompt(

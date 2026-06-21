@@ -49,6 +49,7 @@ interface CommunityStore {
   fetchSubmissions: (status?: string) => Promise<void>;
   submitItem: (type: 'chat' | 'debate', data: unknown, note?: string) => Promise<string>;
   copyItem: (type: 'chats' | 'debates', communityId: string) => Promise<string>;
+  removeItem: (type: 'chats' | 'debates', id: string, reason?: string) => Promise<void>;
   approveSubmission: (id: string) => Promise<void>;
   rejectSubmission: (id: string) => Promise<void>;
 }
@@ -150,6 +151,28 @@ export const useCommunityStore = create<CommunityStore>((set) => ({
     });
     api.trackEvent('community_copy', 'community', { type, communityId });
     return result.newId;
+  },
+
+  removeItem: async (type, id, reason) => {
+    const listKey = type === 'chats' ? 'chats' : 'debates';
+    const prev = useCommunityStore.getState()[listKey];
+    set({ [listKey]: prev.filter(item => item.id !== id) });
+    try {
+      if (isElectronMode()) {
+        await api.adminRemoveCommunityItem(type, id, reason);
+      } else {
+        await fetchJson(`/api/community/${type}/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason }),
+        });
+      }
+      api.trackEvent('community_admin_remove', 'community', { type, id });
+    } catch (err) {
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'community-store', level: 'error', message: 'Failed to remove community item', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+      set({ [listKey]: prev });
+      throw err;
+    }
   },
 
   approveSubmission: async (id) => {

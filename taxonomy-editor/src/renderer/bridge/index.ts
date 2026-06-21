@@ -13,3 +13,7 @@ import { instrumentBridge } from './instrumentBridge';
 
 export const api = instrumentBridge(rawApi);
 export type { AppAPI } from './types';
+
+export function isElectronMode(): boolean {
+  return typeof window !== 'undefined' && 'electronAPI' in window;
+}

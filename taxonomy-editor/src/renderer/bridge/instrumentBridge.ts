@@ -145,6 +145,9 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
       } catch (err) {
         // Sync throw (rare for bridge methods)
         const duration_ms = Math.round(performance.now() - startTs);
+        const httpStatus = typeof (err as { httpStatus?: unknown }).httpStatus === 'number'
+          ? (err as { httpStatus: number }).httpStatus
+          : undefined;
         getGlobalRecorder()?.record({
           type: isAI ? 'ai.error' : 'system.error',
           component: recorder?.intern('component', 'bridge') as string | number,
@@ -152,7 +155,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
           message: `bridge.${key} failed (sync)`,
           duration_ms,
           error: normalizeError(err),
-          data: { method: key, category },
+          data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }) },
         });
         throw err;
       }
@@ -179,6 +182,9 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
         },
         (err) => {
           const duration_ms = Math.round(performance.now() - startTs);
+          const httpStatus = typeof (err as { httpStatus?: unknown }).httpStatus === 'number'
+            ? (err as { httpStatus: number }).httpStatus
+            : undefined;
           recorder?.record({
             type: isAI ? 'ai.error' : 'system.error',
             component: recorder.intern('component', 'bridge') as string | number,
@@ -186,7 +192,7 @@ export function instrumentBridge(raw: AppAPI): AppAPI {
             message: `bridge.${key} failed`,
             duration_ms,
             error: normalizeError(err),
-            data: { method: key, category },
+            data: { method: key, category, ...(httpStatus !== undefined && { http_status: httpStatus }) },
           });
           throw err;
         },

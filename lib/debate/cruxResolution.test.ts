@@ -5,6 +5,8 @@ import {
   checkOneSideConceded,
   inferDisagreementType,
   formatCruxResolutionContext,
+  detectConcessionCascade,
+  transitionCrux,
 } from './cruxResolution.js';
 import type {
   ArgumentNetworkNode,
@@ -365,5 +367,73 @@ describe('formatCruxResolutionContext', () => {
     expect(result).toContain('IRREDUCIBLE DISAGREEMENTS');
     expect(result).toContain('ACTIVE CRUXES');
     expect(result).toContain('0.42');
+  });
+});
+
+// ── detectConcessionCascade ──────────────────────────────
+
+describe('detectConcessionCascade', () => {
+  function makeSig(speaker: string, outcome: string, round: number) {
+    return { entry_id: `e-${round}-${speaker}`, round, speaker, concession_opportunity: { outcome } };
+  }
+
+  it('detects cascade when 2+ speakers concede within window', () => {
+    const signals = [
+      makeSig('accelerationist', 'taken', 3),
+      makeSig('safetyist', 'taken', 4),
+      makeSig('skeptic', 'missed', 5),
+    ];
+    const result = detectConcessionCascade(signals);
+    expect(result.detected).toBe(true);
+    expect(result.concessions).toHaveLength(2);
+  });
+
+  it('does not detect cascade with only one speaker conceding', () => {
+    const signals = [
+      makeSig('accelerationist', 'taken', 3),
+      makeSig('accelerationist', 'taken', 4),
+    ];
+    const result = detectConcessionCascade(signals);
+    expect(result.detected).toBe(false);
+  });
+
+  it('does not detect cascade with fewer than 2 concessions', () => {
+    const signals = [makeSig('accelerationist', 'taken', 3)];
+    const result = detectConcessionCascade(signals);
+    expect(result.detected).toBe(false);
+  });
+
+  it('does not detect cascade when all outcomes are missed', () => {
+    const signals = [
+      makeSig('accelerationist', 'missed', 3),
+      makeSig('safetyist', 'missed', 4),
+    ];
+    const result = detectConcessionCascade(signals);
+    expect(result.detected).toBe(false);
+  });
+});
+
+// ── transitionCrux (now exported) ────────────────────────
+
+describe('transitionCrux', () => {
+  it('transitions crux state and appends history', () => {
+    const crux = makeCrux({ id: 'AN-1', state: 'engaged' });
+    const updated = transitionCrux(crux, 'resolved', 5, 'superseded by concession cascade');
+    expect(updated.state).toBe('resolved');
+    expect(updated.history).toHaveLength(1);
+    expect(updated.history[0]).toMatchObject({
+      from: 'engaged',
+      to: 'resolved',
+      turn: 5,
+      trigger: 'superseded by concession cascade',
+    });
+  });
+
+  it('does not mutate the original crux', () => {
+    const crux = makeCrux({ id: 'AN-1', state: 'identified' });
+    const updated = transitionCrux(crux, 'engaged', 2, 'edges engaging');
+    expect(crux.state).toBe('identified');
+    expect(crux.history).toHaveLength(0);
+    expect(updated.state).toBe('engaged');
   });
 });

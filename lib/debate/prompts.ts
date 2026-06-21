@@ -1499,7 +1499,8 @@ Identify the most productive next exchange. Which debater should respond, to who
   * FALSIFIABILITY MISMATCH: If one debater is making empirical demands of a position that is fundamentally normative (low falsifiability), or if a debater is presenting a testable claim (high falsifiability) without citing evidence, direct the exchange toward the appropriate mode of argument — evidence for the testable, coherence for the normative.
   * SCOPE MISMATCH: If debaters are talking past each other — one arguing a specific claim while the other argues a general framework — direct one to match the other's scope, or explicitly ask a debater to zoom in (apply their scheme to the specific case) or zoom out (challenge the framework behind a specific claim).
   * EPISTEMIC TYPE MISMATCH: If debaters are arguing past each other because one is making an empirical claim while the other is arguing a normative prescription (or a definition, or a prediction), direct them to name the type of disagreement before continuing. "You're arguing about what IS true and your opponent is arguing about what SHOULD happen — address both dimensions."
-  * HIDDEN ASSUMPTIONS: If a debater's argument relies heavily on an assumption that opponents haven't challenged, direct an opponent to examine it — "The argument at [node-id] assumes [assumption]. Has anyone tested that premise?"${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
+  * HIDDEN ASSUMPTIONS: If a debater's argument relies heavily on an assumption that opponents haven't challenged, direct an opponent to examine it — "The argument at [node-id] assumes [assumption]. Has anyone tested that premise?"
+  * CRUX ENGAGEMENT BALANCE: If one debater's crux engagement rate is significantly lower than others (shown in the trigger context as "CRUX ENGAGEMENT IMBALANCE"), direct them to address an unresolved crux directly. A debater who deploys strong rhetoric on peripheral structural arguments while ignoring the central cruxes is not contributing to convergence — name the specific unaddressed crux and ask them to engage it.${metaphorReframe ? '\n- Would a metaphorical reframing (see above) break a deadlock or surface hidden assumptions?' : ''}
 
 If all debaters seem to be in agreement, say so and suggest what angle could be explored next.
 
@@ -1950,7 +1951,7 @@ Analyze the debate state and produce a structured brief. Focus on:
 4. What structural tensions exist that ${input.label} could exploit or must navigate?
 5. What does the current debate phase demand?
 ${input.pendingIntervention ? `6. MODERATOR DIRECTIVE: A moderator ${input.pendingIntervention.move} intervention is active${input.pendingIntervention.isTargeted ? ' and directed at YOU' : ` (directed at ${input.pendingIntervention.targetDebater})`}. Your situation_assessment MUST identify this directive and note what compliance requires.` : ''}
-
+${input.currentCruxContext ? `\nCRUX ENGAGEMENT: Your situation_assessment MUST identify which active cruxes (from IDENTIFIED CRUXES above) bear on the key claims. For each relevant crux, note whether this turn could advance, challenge, or resolve it.\n` : ''}
 GROUNDING DEPTH: Each claim MUST cite 2-4 grounding nodes from the taxonomy — a primary anchor plus 1-3 supporting or contrasting nodes. Draw from different BDI categories (Beliefs for evidence, Desires for values, Intentions for strategy). A single-node grounding is too shallow — show the full argumentative structure.
 
 GROUNDING WEIGHTS: For Belief grounding nodes, include "confidence" (0.0–1.0) from the taxonomy context. For Desire grounding nodes, include "priority" (1–5). For Intention grounding nodes, include "operationality" (1–5). These help downstream stages calibrate rhetorical strength.
@@ -2028,13 +2029,17 @@ Consider how the moderator's point relates to your own position and plan a brief
     ? `\n=== CLAIMS TO PRESERVE ===\nThese concessions are valuable — keep them in your revised response.\n\n${input.preserveConcessions.map(c => `- "${c.text}"\n  ${c.reason}`).join('\n')}\n`
     : '';
 
+  const cruxBlock = input.currentCruxContext
+    ? `\n=== ACTIVE CRUXES ===\n${input.currentCruxContext}\nYour plan MUST engage at least one active crux. Identify which planned move addresses which crux.\n`
+    : '';
+
   return `You are ${input.label}, planning your argumentative strategy for your next debate turn.
 ${getCharacterBlock(input.pov)}
 Your perspective: ${input.pov}.
 ${formatDoctrinalBoundaries(input.pov)}
 === SITUATION BRIEF ===
 ${brief}
-${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}
+${moveHistoryBlock}${flaggedBlock}${phaseContextBlock}${interventionBlock}${strategicHintsBlock}${strongFoundationsBlock}${avoidClaimsBlock}${preserveConcessionsBlock}${cruxBlock}
 === AVAILABLE DIALECTICAL MOVES ===
 The 10 canonical moves: DISTINGUISH, COUNTEREXAMPLE, CONCEDE-AND-PIVOT, REFRAME, EMPIRICAL CHALLENGE, EXTEND, UNDERCUT, SPECIFY, INTEGRATE, BURDEN-SHIFT${constructiveMoveList}
 
@@ -2054,7 +2059,7 @@ NODE-ID ACCURACY: Copy taxonomy node IDs exactly as they appear in the situation
 
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "strategic_goal": "1-2 sentences: what this turn should accomplish",
+  "strategic_goal": "1-2 sentences: what this turn should accomplish${input.currentCruxContext ? ' — reference which active crux(es) you will engage' : ''}",
   "planned_moves": [
     {"move": "DISTINGUISH", "target": "AN-3", "detail": "Separate regulatory capture from legitimate oversight"},
     {"move": "EXTEND", "detail": "Build on the innovation metrics argument with new evidence"}
@@ -2141,7 +2146,7 @@ ${brief}
 
 === YOUR ARGUMENT PLAN ===
 ${plan}
-${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}${input.salienceBeacon && input.topicScope ? `
+${interventionBlock}${buildTargetNodesBlock(plan, input.taxonomyContext)}${input.vocabularyExclusion ?? ''}${input.currentCruxContext ? `\n=== ACTIVE CRUXES ===\n${input.currentCruxContext}\n` : ''}${input.salienceBeacon && input.topicScope ? `
 === SALIENCE BEACON ===
 ATTENTION: Monitor your argument's structural fidelity to the debate scope.
 - Domain: ${input.topicScope.domain}
@@ -2168,7 +2173,7 @@ OUTPUT CONSTRAINTS:
 - ATTRIBUTION FIDELITY: You may only attribute positions to other debaters that they have explicitly stated in the debate history. Do not infer, extrapolate, or fabricate positions. Phrases like "your solution is X" or "you're arguing for Y" must correspond to something actually said — not an implication you've constructed. Misrepresenting another debater's position undermines the debate's integrity and will be flagged.
 - NODE-ID PROHIBITION: Never surface AN-IDs or taxonomy node IDs in your statement text. Use plain language.
 - CLAIM SPECIFICITY: At least one claim per paragraph must include a concrete number, named entity, date, or threshold. If source evidence is provided above, use it — cite the specific statistic, year, or finding rather than paraphrasing vaguely. Abstract claims without any specifics weaken your argument.
-- CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.${!input.pendingIntervention?.isTargeted ? `\n- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.` : ''}
+- CLAIM SKETCHING: Identify 2-5 claims from your statement — the headline assertion AND supporting sub-claims. For each, extract a near-verbatim sentence and note which prior claims it engages with.${input.currentCruxContext ? `\n- CRUX ENGAGEMENT: At least one claim_sketch MUST directly address an active crux. Engage the core disagreement head-on rather than circling around it.` : ''}${!input.pendingIntervention?.isTargeted ? `\n- TURN SYMBOLS: Choose 1-3 Unicode symbols (emoji) that capture your argument's essence. Tooltip: 1-sentence analogy connecting the symbol to your argument.` : ''}
 
 ${getStyleReinforcement(input.audience)}
 ${pi?.isTargeted && pi.responseField ? `\n⚠ ACTIVE INTERVENTION: Your response JSON MUST include a "${pi.responseField}" field. Omitting it will trigger a retry.\n` : ''}
@@ -2523,14 +2528,16 @@ Tasks:
    DESCRIPTION RULES: Use domain-specific terminology — no colloquialisms. Every description must include Encompasses: and Excludes: clauses.
 4. Identify existing taxonomy nodes that should be modified based on what this debate revealed — descriptions that are too narrow, categories that are wrong, or nodes that should be split. For each, specify the node ID, modification type, suggested change, and rationale.
 
+CRITICAL: The argument_map array below is the primary output. It MUST contain at least 3 claims — never return an empty argument_map.
+
 Respond ONLY with a JSON object (no markdown, no code fences):
 {
-  "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
   "argument_map": [
     {"claim_id": "C1", "claim": "near-verbatim from transcript", "claimant": "accelerationist", "type": "empirical or normative or definitional", "supported_by": [{"claim_id": "C3", "scheme": "argument_from_evidence", "warrant": "1 sentence: WHY C3 supports C1"}], "attacked_by": [
       {"claim_id": "C2", "claim": "the attacking claim text", "claimant": "safetyist", "attack_type": "rebut or undercut or undermine", "scheme": "COUNTEREXAMPLE or DISTINGUISH or REDUCE or REFRAME or CONCEDE or ESCALATE", "argumentation_scheme": "ARGUMENT_FROM_EVIDENCE or ARGUMENT_FROM_ANALOGY or PRACTICAL_REASONING etc", "critical_question_addressed": 2}
     ]}
   ],
+  "taxonomy_coverage": [{"node_id": "e.g. acc-desires-002", "how_used": "brief description"}],
   "taxonomy_proposals": [
     {"label": "Mitigating Workforce Displacement Risk", "description": "A Desire within safetyist discourse that [differentia].\nEncompasses: [concrete sub-themes].\nExcludes: [neighboring concepts].", "pov": "accelerationist or safetyist or skeptic or situations", "category": "Beliefs or Desires or Intentions", "rationale": "why this debate surfaced a gap", "source_claims": ["C1", "C3"]}
   ],
@@ -4139,6 +4146,56 @@ Instructions:
 4. If the claim is already self-contained with no context-dependent references, return it unchanged.
 
 Respond in JSON only (no markdown): {"decontextualized": "the self-contained claim text", "changes_made": ["list of specific expansions, or empty if unchanged"]}`;
+}
+
+// ── Post-cascade crux refresh ──────────────────────────────────────
+
+export function cruxRefreshPrompt(
+  activeCruxes: { id: string; description: string; polarity: number; disagreement_type?: string }[],
+  recentConcessions: { speaker: string; conceded_text: string }[],
+  recentTranscript: string,
+  topic: string,
+): string {
+  const cruxBlock = activeCruxes.map(c =>
+    `- [${c.id}] "${c.description}" (polarity: ${c.polarity.toFixed(2)}${c.disagreement_type ? `, type: ${c.disagreement_type}` : ''})`
+  ).join('\n');
+
+  const concessionBlock = recentConcessions.map(c =>
+    `- ${c.speaker}: "${c.conceded_text}"`
+  ).join('\n');
+
+  return `You are a debate analyst evaluating whether active cruxes remain valid after a concession cascade.
+
+=== DEBATE TOPIC ===
+"${topic}"
+
+=== ACTIVE CRUXES ===
+${cruxBlock}
+
+=== RECENT CONCESSIONS ===
+${concessionBlock}
+
+=== RECENT TRANSCRIPT ===
+${recentTranscript}
+
+After these concessions, some cruxes may no longer represent the actual locus of disagreement. For each active crux, determine:
+1. Is this crux RESOLVED by the concessions (a speaker's concession makes the crux moot)?
+2. Is this crux SUPERSEDED (the debate has moved to a deeper or different disagreement)?
+3. Is this crux STILL ACTIVE (the concessions did not affect this disagreement)?
+
+For cruxes that are resolved or superseded, identify what NEW disagreement (if any) has emerged in its place.
+
+Respond in JSON only (no markdown, no code fences):
+{
+  "crux_verdicts": [
+    {"id": "crux-id", "verdict": "resolved" | "superseded" | "active", "reason": "one sentence explaining why"}
+  ],
+  "emerging_cruxes": [
+    {"description": "the new fundamental disagreement", "speakers_involved": ["speaker1", "speaker2"], "disagreement_type": "empirical" | "values" | "definitional", "reason": "what concession created this new frontier"}
+  ]
+}
+
+emerging_cruxes should only contain genuinely NEW disagreements that emerged FROM the concession cascade — not restatements of existing active cruxes. If no new cruxes emerged, return an empty array.`;
 }
 
 // ── Off-scope drift classification (t/394) ────────────────────────

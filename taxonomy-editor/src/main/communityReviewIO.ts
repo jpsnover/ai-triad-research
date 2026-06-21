@@ -1,0 +1,388 @@
+// Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+
+import crypto from 'crypto';
+
+let _client: CommunityReviewClient | null = null;
+
+interface Submission {
+  id: string;
+  type: 'chat' | 'debate';
+  originalId: string;
+  submittedBy: string;
+  submittedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  note?: string;
+  rejectionReason?: string;
+  data: unknown;
+}
+
+interface ReviewItem {
+  id: string;
+  domain: string;
+  submitter: string;
+  submitterDisplay: string;
+  submittedAt: string;
+  summary: string;
+  itemCount: number;
+  status: 'pending' | 'viewed';
+}
+
+interface TranscriptEntry { speaker: string; content: string; type: string }
+
+const SENSITIVE_KEYS = new Set([
+  'api_key', 'apiKey', 'api_keys', 'apiKeys',
+  'secret', 'token', 'password', 'credential', 'credentials',
+  'authorization', 'auth_token', 'access_token', 'refresh_token',
+  'private_key', 'privateKey',
+  'flight_recorder', 'debug', '_internal', 'diagnostics_state',
+]);
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {};
+}
+
+function extractString(val: unknown): string {
+  if (typeof val === 'string') return val;
+  if (val && typeof val === 'object') {
+    const obj = val as Record<string, unknown>;
+    for (const key of ['final', 'refined', 'original']) {
+      if (typeof obj[key] === 'string') return obj[key];
+    }
+  }
+  return '';
+}
+
+function titleOf(data: unknown): string {
+  const d = asRecord(data);
+  return extractString(d.title) || extractString(d.topic) || '(untitled)';
+}
+
+function turnsOf(d: Record<string, unknown>): unknown[] {
+  const turns = d.transcript ?? d.messages ?? d.turns ?? d.rounds ?? [];
+  return Array.isArray(turns) ? turns : [];
+}
+
+function buildPreview(data: unknown): { preview: string; turnCount: number } {
+  const d = asRecord(data);
+  const turns = turnsOf(d);
+  const text = turns.length
+    ? turns.map(t => {
+        const r = asRecord(t);
+        const speaker = String(r.speaker ?? r.role ?? '');
+        const content = String(r.content ?? r.text ?? r.message ?? '');
+        return speaker ? `${speaker}: ${content}` : content;
+      }).filter(Boolean).join('\n')
+    : JSON.stringify(d);
+  return { preview: text.slice(0, 500), turnCount: turns.length };
+}
+
+function buildTranscriptPreview(data: unknown, limit = 50): TranscriptEntry[] {
+  return turnsOf(asRecord(data)).slice(0, limit).map(t => {
+    const r = asRecord(t);
+    return {
+      speaker: String(r.speaker ?? r.character ?? r.role ?? r.pov ?? r.author ?? ''),
+      content: String(r.content ?? r.text ?? r.message ?? '').slice(0, 600),
+      type: String(r.type ?? r.phase ?? r.kind ?? ''),
+    };
+  }).filter(e => e.content);
+}
+
+function toStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map(x => typeof x === 'string' ? x : String(asRecord(x).pov ?? asRecord(x).id ?? asRecord(x).name ?? ''))
+    .filter(Boolean);
+}
+
+function activePoversOf(d: Record<string, unknown>): string[] {
+  const direct = toStringArray(d.activePovers ?? d.active_povers);
+  return direct.length ? direct : toStringArray(d.characters);
+}
+
+function scanSensitive(obj: unknown, found = new Set<string>()): Set<string> {
+  if (!obj || typeof obj !== 'object') return found;
+  if (Array.isArray(obj)) { for (const v of obj) scanSensitive(v, found); return found; }
+  for (const [k, v] of Object.entries(obj)) {
+    if (SENSITIVE_KEYS.has(k)) found.add(k);
+    scanSensitive(v, found);
+  }
+  return found;
+}
+
+function stripSensitiveKeys(obj: unknown): unknown {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripSensitiveKeys);
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (SENSITIVE_KEYS.has(key)) continue;
+    if (typeof value === 'string' && /^(sk-|AIza|gsk_|key-|xai-|Bearer\s)/.test(value)) continue;
+    result[key] = stripSensitiveKeys(value);
+  }
+  return result;
+}
+
+function sanitizeForCommunity(data: unknown, submittedBy: string): Record<string, unknown> {
+  const d = stripSensitiveKeys(JSON.parse(JSON.stringify(data))) as Record<string, unknown>;
+  d.community_metadata = {
+    submitted_by_display: submittedBy,
+    submitted_at: new Date().toISOString(),
+    approved_at: new Date().toISOString(),
+    original_id: d.id,
+  };
+  d.id = crypto.randomUUID();
+  return d;
+}
+
+// ── Azure Blob Client ──
+
+class CommunityReviewClient {
+  // Lazily-resolved Azure SDK imports (avoids startup cost when Azure isn't configured)
+  private communityClient: import('@azure/storage-blob').ContainerClient | null = null;
+  private readonly accountUrl: string;
+  private readonly communityContainer: string;
+  private initPromise: Promise<void> | null = null;
+
+  constructor(accountUrl: string, communityContainer = 'community') {
+    this.accountUrl = accountUrl;
+    this.communityContainer = communityContainer;
+  }
+
+  private async init(): Promise<void> {
+    if (this.communityClient) return;
+    if (this.initPromise) { await this.initPromise; return; }
+    this.initPromise = (async () => {
+      const { BlobServiceClient } = await import('@azure/storage-blob');
+      const { DefaultAzureCredential } = await import('@azure/identity');
+      const service = new BlobServiceClient(this.accountUrl, new DefaultAzureCredential());
+      this.communityClient = service.getContainerClient(this.communityContainer);
+    })();
+    await this.initPromise;
+  }
+
+  private async readBlob(blobName: string): Promise<string | null> {
+    await this.init();
+    try {
+      const resp = await this.communityClient!.getBlobClient(blobName).download();
+      const chunks: Buffer[] = [];
+      if (resp.readableStreamBody) {
+        for await (const chunk of resp.readableStreamBody) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : typeof chunk === 'string' ? Buffer.from(chunk, 'utf-8') : Buffer.from(chunk as Uint8Array));
+        }
+      }
+      return Buffer.concat(chunks).toString('utf-8');
+    } catch (err: unknown) {
+      if ((err as { statusCode?: number }).statusCode === 404) return null;
+      throw err;
+    }
+  }
+
+  private async writeBlob(blobName: string, content: string): Promise<void> {
+    await this.init();
+    const data = Buffer.from(content, 'utf-8');
+    await this.communityClient!.getBlockBlobClient(blobName).upload(data, data.byteLength, {
+      blobHTTPHeaders: { blobContentType: 'application/json; charset=utf-8' },
+    });
+  }
+
+  private async deleteBlob(blobName: string): Promise<boolean> {
+    await this.init();
+    try {
+      await this.communityClient!.getBlobClient(blobName).delete();
+      return true;
+    } catch (err: unknown) {
+      if ((err as { statusCode?: number }).statusCode === 404) return false;
+      throw err;
+    }
+  }
+
+  private async listBlobs(prefix: string): Promise<string[]> {
+    await this.init();
+    const names: string[] = [];
+    const iter = this.communityClient!.listBlobsByHierarchy('/', { prefix });
+    for await (const item of iter) {
+      const seg = item.name.slice(prefix.length).replace(/\/$/, '');
+      if (seg) names.push(seg);
+    }
+    return names;
+  }
+
+  // ── Public API ──
+
+  async listPendingSubmissions(): Promise<Submission[]> {
+    const prefix = 'community/_submissions/';
+    const files = (await this.listBlobs(prefix)).filter(f => f.startsWith('sub-') && f.endsWith('.json'));
+    const subs: Submission[] = [];
+    for (const f of files) {
+      try {
+        const raw = await this.readBlob(prefix + f);
+        if (!raw) continue;
+        const s = JSON.parse(raw) as Submission;
+        if (s.status === 'pending') subs.push(s);
+      } catch { /* skip malformed */ }
+    }
+    return subs.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+  }
+
+  async getQueue(): Promise<{ items: ReviewItem[] }> {
+    const pending = await this.listPendingSubmissions();
+    return {
+      items: pending.map(s => ({
+        id: `community:${s.id}`,
+        domain: 'community',
+        submitter: s.submittedBy,
+        submitterDisplay: s.submittedBy,
+        submittedAt: s.submittedAt,
+        summary: `1 ${s.type}: ${titleOf(s.data)}`,
+        itemCount: 1,
+        status: 'pending' as const,
+      })),
+    };
+  }
+
+  async getStats(): Promise<{ total: number; byDomain: Record<string, number> }> {
+    const pending = await this.listPendingSubmissions();
+    return { total: pending.length, byDomain: { community: pending.length } };
+  }
+
+  async getDetail(groupId: string): Promise<unknown> {
+    const id = groupId.startsWith('community:') ? groupId.slice('community:'.length) : groupId;
+    const raw = await this.readBlob(`community/_submissions/sub-${id}.json`);
+    if (!raw) return { domain: 'community', submissionId: id, found: false };
+
+    const sub = JSON.parse(raw) as Submission;
+    const d = asRecord(sub.data);
+    const { preview, turnCount } = buildPreview(sub.data);
+
+    return {
+      domain: 'community',
+      submissionId: sub.id,
+      itemId: sub.id,
+      type: sub.type,
+      submitter: sub.submittedBy,
+      submittedAt: sub.submittedAt,
+      note: sub.note ?? null,
+      title: titleOf(sub.data),
+      topic: extractString(d.topic) || null,
+      preview,
+      transcriptPreview: buildTranscriptPreview(sub.data),
+      metadata: {
+        model: (d.model as string) ?? (d.debate_model as string) ?? null,
+        turnCount,
+        phase: (d.phase as string) ?? null,
+        audience: (d.audience as string) ?? null,
+        activePovers: activePoversOf(d),
+        taxonomyRefs: (d.taxonomy_refs ?? d.taxonomyRefs ?? []) as unknown,
+      },
+      sanitization: {
+        willStrip: [...scanSensitive(sub.data)],
+        willAdd: ['community_metadata (attribution)', 'regenerated id'],
+      },
+    };
+  }
+
+  async removePublishedItem(type: 'chats' | 'debates', id: string, reason?: string): Promise<void> {
+    const prefix = type === 'chats' ? 'chat-' : 'debate-';
+    const blobName = `community/${type}/${prefix}${id}.json`;
+
+    const raw = await this.readBlob(blobName);
+    if (!raw) throw new Error(`Community item not found: ${type}/${id}`);
+
+    const itemData = JSON.parse(raw) as Record<string, unknown>;
+    await this.deleteBlob(blobName);
+
+    const auditRecord = {
+      id,
+      type,
+      title: titleOf(itemData),
+      submitted_by: (asRecord(itemData.community_metadata as unknown).submitted_by_display as string) ?? 'unknown',
+      removed_by: '_local',
+      removed_at: new Date().toISOString(),
+      reason: reason ?? null,
+    };
+    await this.writeBlob(
+      `community/_removals/rem-${crypto.randomUUID()}.json`,
+      JSON.stringify(auditRecord, null, 2),
+    );
+  }
+
+  async executeAction(action: {
+    groupId: string;
+    action: 'promote' | 'reject';
+    itemIds: string[];
+    reason?: string;
+    edits?: Record<string, Record<string, unknown>>;
+  }): Promise<void> {
+    for (const rawId of action.itemIds) {
+      const id = rawId.startsWith('community:') ? rawId.slice('community:'.length) : rawId;
+      const subPath = `community/_submissions/sub-${id}.json`;
+      const raw = await this.readBlob(subPath);
+      if (!raw) throw new Error(`Submission not found: ${id}`);
+
+      const submission = JSON.parse(raw) as Submission;
+      if (submission.status !== 'pending') throw new Error(`Submission already ${submission.status}`);
+
+      if (action.action === 'promote') {
+        const edits = action.edits?.[rawId] ?? action.edits?.[id];
+        const dataToPublish = (edits && typeof edits === 'object' && submission.data && typeof submission.data === 'object')
+          ? { ...(submission.data as Record<string, unknown>), ...edits }
+          : submission.data;
+        const sanitized = sanitizeForCommunity(dataToPublish, submission.submittedBy);
+        const dir = submission.type === 'chat' ? 'community/chats' : 'community/debates';
+        const prefix = submission.type === 'chat' ? 'chat-' : 'debate-';
+        await this.writeBlob(`${dir}/${prefix}${sanitized.id}.json`, JSON.stringify(sanitized, null, 2));
+        submission.status = 'approved';
+        await this.writeBlob(subPath, JSON.stringify(submission, null, 2));
+      } else {
+        submission.status = 'rejected';
+        if (action.reason) submission.rejectionReason = action.reason;
+        await this.writeBlob(subPath, JSON.stringify(submission, null, 2));
+      }
+    }
+  }
+}
+
+// ── Module-level API ──
+
+export function isAzureReviewConfigured(): boolean {
+  return !!process.env.AZURE_STORAGE_ACCOUNT_URL;
+}
+
+function getClient(): CommunityReviewClient {
+  if (!_client) {
+    const url = process.env.AZURE_STORAGE_ACCOUNT_URL;
+    if (!url) throw new Error('AZURE_STORAGE_ACCOUNT_URL not set — configure it to use community review from the desktop app.');
+    _client = new CommunityReviewClient(url, process.env.AZURE_COMMUNITY_CONTAINER || 'community');
+  }
+  return _client;
+}
+
+export async function adminReviewQueue(): Promise<{ items: ReviewItem[] }> {
+  return getClient().getQueue();
+}
+
+export async function adminReviewStats(): Promise<{ total: number; byDomain: Record<string, number> }> {
+  return getClient().getStats();
+}
+
+export async function adminReviewDetail(groupId: string): Promise<unknown> {
+  return getClient().getDetail(groupId);
+}
+
+export async function adminReviewAction(action: {
+  groupId: string;
+  action: 'promote' | 'reject';
+  itemIds: string[];
+  reason?: string;
+  edits?: Record<string, Record<string, unknown>>;
+}): Promise<void> {
+  return getClient().executeAction(action);
+}
+
+export async function adminRemoveCommunityItem(
+  type: 'chats' | 'debates',
+  id: string,
+  reason?: string,
+): Promise<void> {
+  return getClient().removePublishedItem(type, id, reason);
+}

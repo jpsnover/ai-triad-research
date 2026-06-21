@@ -159,7 +159,7 @@ function makeEdge(overrides: Partial<ArgumentNetworkEdge> = {}): ArgumentNetwork
 describe('INodeRow', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it('hides claim text when collapsed (default)', async () => {
+  it('always shows claim text even when collapsed', async () => {
     const INodeRow = await getINodeRow();
     render(
       <INodeRow
@@ -173,7 +173,7 @@ describe('INodeRow', () => {
         onUpdateSubScore={vi.fn()}
       />,
     );
-    expect(screen.queryByText('AI development should be regulated')).not.toBeInTheDocument();
+    expect(screen.getByText('AI development should be regulated')).toBeInTheDocument();
   });
 
   it('renders claim text when expanded', async () => {

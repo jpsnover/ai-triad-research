@@ -115,6 +115,12 @@ export interface ElectronAPI {
   terminalKill: () => Promise<void>;
   onTerminalData: (callback: (data: string) => void) => () => void;
   onTerminalExit: (callback: () => void) => () => void;
+  adminReviewConfigured: () => Promise<boolean>;
+  adminReviewQueue: () => Promise<unknown>;
+  adminReviewStats: () => Promise<unknown>;
+  adminReviewDetail: (groupId: string) => Promise<unknown>;
+  adminReviewAction: (action: unknown) => Promise<void>;
+  adminRemoveCommunityItem: (type: string, id: string, reason?: string) => Promise<void>;
 }
 
 declare global {

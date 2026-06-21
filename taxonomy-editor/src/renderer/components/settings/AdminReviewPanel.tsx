@@ -4,12 +4,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUserProfile } from '../../hooks/useAuthStatus';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { api, isElectronMode } from '@bridge';
 import ErrorBoundary from '../../../../../lib/electron-shared/components/ErrorBoundary';
 import { CalibrationReviewViewer } from '../analysis';
 import { CommunityReviewViewer } from './CommunityReviewViewer';
 import './AdminReviewPanel.css';
 
-// ── Types mirroring server/admin/types.ts (web-only, no bridge needed) ──
+// ── Types mirroring server/admin/types.ts ──
 
 interface ReviewItem {
   id: string;
@@ -49,21 +50,19 @@ type FeedbackRating = 'up' | 'down' | 'all';
 // ── API helpers ──
 
 async function fetchQueue(): Promise<ReviewItem[]> {
-  const res = await fetch('/api/admin/review/queue');
-  if (!res.ok) throw new Error(`GET queue failed: HTTP ${res.status}`);
-  const body = await res.json();
-  return body.items ?? body;
+  const result = await api.adminReviewQueue();
+  return result.items as ReviewItem[];
 }
 
 async function fetchStats(): Promise<ReviewStats> {
-  const res = await fetch('/api/admin/review/stats');
-  if (!res.ok) throw new Error(`GET stats failed: HTTP ${res.status}`);
-  return res.json();
+  return api.adminReviewStats();
 }
 
 async function fetchFeedback(opts: {
   limit?: number; offset?: number; category?: string; rating?: string;
 }): Promise<FeedbackResponse> {
+  // Feedback is server-only (no Azure Blob equivalent)
+  if (isElectronMode()) return { items: [], total: 0, hasMore: false };
   const params = new URLSearchParams();
   if (opts.limit) params.set('limit', String(opts.limit));
   if (opts.offset) params.set('offset', String(opts.offset));
@@ -393,7 +392,19 @@ export function AdminReviewPanel() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [azureConfigured, setAzureConfigured] = useState<boolean | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // In Electron mode, local user is admin when Azure review is configured
+  const isAdmin = isElectronMode()
+    ? azureConfigured === true
+    : profile?.isAdmin === true;
+
+  useEffect(() => {
+    if (isElectronMode()) {
+      void api.adminReviewConfigured().then(setAzureConfigured);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -407,7 +418,7 @@ export function AdminReviewPanel() {
         component: 'AdminReviewPanel',
         level: 'error',
         message: 'Failed to load admin review queue',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setError(String(err));
     } finally {
@@ -416,13 +427,16 @@ export function AdminReviewPanel() {
   }, []);
 
   useEffect(() => {
-    if (profile && !profile.isAdmin) return;
+    if (!isAdmin) return;
     void load();
     pollRef.current = setInterval(() => void load(), 60_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [load, profile?.isAdmin]);
+  }, [load, isAdmin]);
 
-  if (profile && !profile.isAdmin) {
+  if (!isAdmin) {
+    const message = isElectronMode() && azureConfigured === false
+      ? 'Set AZURE_STORAGE_ACCOUNT_URL to review community submissions from the desktop app.'
+      : 'You do not have admin access.';
     return (
       <div className="admin-review">
         <div className="admin-review-header">
@@ -432,7 +446,7 @@ export function AdminReviewPanel() {
           </button>
           <h2>Admin Review</h2>
         </div>
-        <div className="admin-review-empty">You do not have admin access.</div>
+        <div className="admin-review-empty">{message}</div>
       </div>
     );
   }

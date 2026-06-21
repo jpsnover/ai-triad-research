@@ -462,4 +462,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('terminal:exit', handler);
     return () => { ipcRenderer.removeListener('terminal:exit', handler); };
   },
+
+  // Community review (Azure Blob — desktop admin)
+  adminReviewConfigured: (): Promise<boolean> =>
+    ipcRenderer.invoke('admin-review-configured'),
+  adminReviewQueue: (): Promise<unknown> =>
+    ipcRenderer.invoke('admin-review-queue'),
+  adminReviewStats: (): Promise<unknown> =>
+    ipcRenderer.invoke('admin-review-stats'),
+  adminReviewDetail: (groupId: string): Promise<unknown> =>
+    ipcRenderer.invoke('admin-review-detail', groupId),
+  adminReviewAction: (action: unknown): Promise<void> =>
+    ipcRenderer.invoke('admin-review-action', action),
+  adminRemoveCommunityItem: (type: string, id: string, reason?: string): Promise<void> =>
+    ipcRenderer.invoke('admin-remove-community-item', type, id, reason),
 });

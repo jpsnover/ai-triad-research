@@ -4,7 +4,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
-import jsQR from 'jsqr';
+import type jsQRType from 'jsqr';
+
+let _jsQR: typeof jsQRType | null = null;
+async function loadJsQR() {
+  if (!_jsQR) {
+    const mod = await import('jsqr');
+    _jsQR = mod.default;
+  }
+  return _jsQR;
+}
 
 type Mode = 'choose' | 'export' | 'import-scan' | 'import-paste';
 
@@ -93,7 +102,10 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
   const startCamera = async () => {
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const [stream] = await Promise.all([
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }),
+        loadJsQR(),
+      ]);
       streamRef.current = stream;
       setScanning(true);
     } catch (err) {
@@ -126,7 +138,8 @@ export function KeySharingDialog({ onClose, onKeysImported }: KeySharingDialogPr
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (!_jsQR) return;
+      const code = _jsQR(imageData.data, imageData.width, imageData.height);
       if (code?.data) {
         stopCamera();
         setPasteInput(code.data);

@@ -26,12 +26,16 @@ interface DebateIndex {
 
 const INDEX_FILE = 'debates-index.json';
 
-function extractSummary(data: Record<string, unknown>): DebateSessionSummary {
+export function extractSummary(data: Record<string, unknown>): DebateSessionSummary {
   const transcript = Array.isArray(data.transcript) ? data.transcript : [];
   const topic = data.topic as { final?: string; original?: string } | undefined;
   return {
     id: data.id as string,
-    title: (data.title || data.topic || 'Untitled') as string,
+    title: typeof data.title === 'string' && data.title
+      ? data.title
+      : typeof data.topic === 'string'
+        ? data.topic
+        : topic?.final ?? topic?.original ?? 'Untitled',
     created_at: data.created_at as string,
     updated_at: data.updated_at as string,
     phase: data.phase as string,

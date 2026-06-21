@@ -424,6 +424,9 @@ Export-ModuleMember -Function @(
     'Update-SyntheticCorpus'
     'Sync-SyntheticCorpus'
     'Export-SyntheticEmbeddings'
+    'Test-SynthesisCompleteness'
+    'Get-ImportReport'
+    'Get-CalibrationTrend'
 ) -Alias @(
     'Import-Document'
     'TaxonomyEditor'

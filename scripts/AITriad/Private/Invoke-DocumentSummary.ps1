@@ -938,18 +938,23 @@ function Finalize-Summary {
         $MetaUpdated['summary_updated'] = $Now
 
         # Summary statistics for Source objects
-        $claimsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
+        $nodeRefsByPov = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
+        $primaryPovDist = @{ accelerationist = 0; safetyist = 0; skeptic = 0; situations = 0 }
         foreach ($claim in @($FactualClaims)) {
             if (-not $claim.PSObject.Properties['linked_taxonomy_nodes']) { continue }
+            $PrimaryAssigned = $false
             foreach ($nodeId in @($claim.linked_taxonomy_nodes)) {
-                if     ($nodeId -like 'acc-*') { $claimsByPov['accelerationist']++ }
-                elseif ($nodeId -like 'saf-*') { $claimsByPov['safetyist']++ }
-                elseif ($nodeId -like 'skp-*') { $claimsByPov['skeptic']++ }
-                elseif ($nodeId -like 'sit-*') { $claimsByPov['situations']++ }
+                if ($null -eq $nodeId) { continue }
+                if     ($nodeId -like 'acc-*') { $nodeRefsByPov['accelerationist']++; if (-not $PrimaryAssigned) { $primaryPovDist['accelerationist']++; $PrimaryAssigned = $true } }
+                elseif ($nodeId -like 'saf-*') { $nodeRefsByPov['safetyist']++;       if (-not $PrimaryAssigned) { $primaryPovDist['safetyist']++;       $PrimaryAssigned = $true } }
+                elseif ($nodeId -like 'skp-*') { $nodeRefsByPov['skeptic']++;         if (-not $PrimaryAssigned) { $primaryPovDist['skeptic']++;         $PrimaryAssigned = $true } }
+                elseif ($nodeId -like 'sit-*') { $nodeRefsByPov['situations']++;      if (-not $PrimaryAssigned) { $primaryPovDist['situations']++;      $PrimaryAssigned = $true } }
             }
         }
-        $MetaUpdated['total_claims']      = $FactualCount
-        $MetaUpdated['claims_by_pov']     = $claimsByPov
+        $MetaUpdated['total_claims']              = $FactualCount
+        $MetaUpdated['node_references_by_pov']    = $nodeRefsByPov
+        $MetaUpdated['primary_pov_distribution']  = $primaryPovDist
+        $MetaUpdated.Remove('claims_by_pov')
         $MetaUpdated['total_facts']       = $TotalPoints
         $MetaUpdated['unmapped_concepts'] = $UnmappedCount
         if ($ContextRotObj) {

@@ -177,7 +177,7 @@ export function App() {
   if (hash === '#community' && import.meta.env.VITE_TARGET === 'web') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><CommunityLibrary /></Suspense></ErrorBoundary>;
   }
-  if (hash === '#admin' && import.meta.env.VITE_TARGET === 'web') {
+  if (hash === '#admin') {
     return <ErrorBoundary buildInfo={BUILD_FINGERPRINT}><Suspense fallback={null}><AdminReviewPanel /></Suspense></ErrorBoundary>;
   }
   if (hash === '#admin-legacy' && import.meta.env.VITE_TARGET === 'web') {

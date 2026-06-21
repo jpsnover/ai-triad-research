@@ -21,6 +21,11 @@
       "license": "Copyright (c) Microsoft Corporation."
     },
     {
+      "name": "@azure/core-http-compat",
+      "version": "2.4.0",
+      "license": "Copyright (c) Microsoft Corporation."
+    },
+    {
       "name": "@azure/core-lro",
       "version": "2.7.2",
       "license": "MIT"
@@ -43,6 +48,11 @@
     {
       "name": "@azure/core-util",
       "version": "1.13.1",
+      "license": "Copyright (c) Microsoft Corporation."
+    },
+    {
+      "name": "@azure/core-xml",
+      "version": "1.5.1",
       "license": "Copyright (c) Microsoft Corporation."
     },
     {
@@ -86,6 +96,16 @@
       "license": "MIT"
     },
     {
+      "name": "@azure/storage-blob",
+      "version": "12.32.0",
+      "license": "Copyright (c) Microsoft Corporation."
+    },
+    {
+      "name": "@azure/storage-common",
+      "version": "12.4.0",
+      "license": "MIT"
+    },
+    {
       "name": "@emnapi/runtime",
       "version": "1.10.0",
       "license": "MIT"
@@ -114,6 +134,11 @@
       "name": "@img/sharp-win32-x64",
       "version": "0.34.5",
       "license": "Apache License"
+    },
+    {
+      "name": "@nodable/entities",
+      "version": "2.2.0",
+      "license": "MIT"
     },
     {
       "name": "@pinojs/redact",
@@ -148,11 +173,6 @@
     {
       "name": "@protobufjs/float",
       "version": "1.0.2",
-      "license": "Unknown"
-    },
-    {
-      "name": "@protobufjs/inquire",
-      "version": "1.1.2",
       "license": "Unknown"
     },
     {
@@ -263,6 +283,11 @@
     {
       "name": "ansi-styles",
       "version": "4.3.0",
+      "license": "MIT"
+    },
+    {
+      "name": "anynum",
+      "version": "1.0.1",
       "license": "MIT"
     },
     {
@@ -456,8 +481,23 @@
       "license": "MIT"
     },
     {
+      "name": "events",
+      "version": "3.3.0",
+      "license": "MIT"
+    },
+    {
       "name": "extend",
       "version": "3.0.2",
+      "license": "MIT"
+    },
+    {
+      "name": "fast-xml-builder",
+      "version": "1.2.0",
+      "license": "MIT"
+    },
+    {
+      "name": "fast-xml-parser",
+      "version": "5.9.3",
       "license": "MIT"
     },
     {
@@ -583,6 +623,11 @@
     {
       "name": "is-plain-obj",
       "version": "4.1.0",
+      "license": "MIT"
+    },
+    {
+      "name": "is-unsafe",
+      "version": "1.0.1",
       "license": "MIT"
     },
     {
@@ -1001,6 +1046,11 @@
       "license": "MIT"
     },
     {
+      "name": "path-expression-matcher",
+      "version": "1.5.0",
+      "license": "MIT"
+    },
+    {
       "name": "pino",
       "version": "10.3.1",
       "license": "MIT"
@@ -1042,7 +1092,7 @@
     },
     {
       "name": "protobufjs",
-      "version": "7.6.1",
+      "version": "7.6.4",
       "license": "Unknown"
     },
     {
@@ -1226,6 +1276,11 @@
       "license": "MIT"
     },
     {
+      "name": "strnum",
+      "version": "2.4.1",
+      "license": "MIT"
+    },
+    {
       "name": "style-to-js",
       "version": "1.1.21",
       "license": "MIT"
@@ -1332,6 +1387,11 @@
     },
     {
       "name": "wsl-utils",
+      "version": "0.1.0",
+      "license": "MIT"
+    },
+    {
+      "name": "xml-naming",
       "version": "0.1.0",
       "license": "MIT"
     },
@@ -2176,10 +2236,6 @@
           "version": "1.0.2"
         },
         {
-          "name": "@protobufjs/inquire",
-          "version": "1.1.2"
-        },
-        {
           "name": "@protobufjs/path",
           "version": "1.1.2"
         },
@@ -2264,6 +2320,10 @@
           "version": "1.10.1"
         },
         {
+          "name": "@azure/core-http-compat",
+          "version": "2.4.0"
+        },
+        {
           "name": "@azure/core-rest-pipeline",
           "version": "1.23.0"
         },
@@ -2274,6 +2334,10 @@
         {
           "name": "@azure/core-util",
           "version": "1.13.1"
+        },
+        {
+          "name": "@azure/core-xml",
+          "version": "1.5.1"
         },
         {
           "name": "@azure/identity",
@@ -2290,6 +2354,10 @@
         {
           "name": "@azure/logger",
           "version": "1.3.0"
+        },
+        {
+          "name": "@azure/storage-blob",
+          "version": "12.32.0"
         },
         {
           "name": "@typespec/ts-http-runtime",
@@ -2432,6 +2500,10 @@
     {
       "packages": [
         {
+          "name": "@nodable/entities",
+          "version": "2.2.0"
+        },
+        {
           "name": "isarray",
           "version": "1.0.0"
         },
@@ -2458,10 +2530,24 @@
         {
           "name": "onnxruntime-web",
           "version": "1.26.0-dev.20260416-b7804b056c"
+        },
+        {
+          "name": "xml-naming",
+          "version": "0.1.0"
         }
       ],
       "licenseType": "MIT",
       "licenseText": "MIT"
+    },
+    {
+      "packages": [
+        {
+          "name": "events",
+          "version": "3.3.0"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "MIT\n\nCopyright Joyent, Inc. and other Node contributors.\n\nPermission is hereby granted, free of charge, to any person obtaining a\ncopy of this software and associated documentation files (the\n\"Software\"), to deal in the Software without restriction, including\nwithout limitation the rights to use, copy, modify, merge, publish,\ndistribute, sublicense, and/or sell copies of the Software, and to permit\npersons to whom the Software is furnished to do so, subject to the\nfollowing conditions:\n\nThe above copyright notice and this permission notice shall be included\nin all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS\nOR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF\nMERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN\nNO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,\nDAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR\nOTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE\nUSE OR OTHER DEALINGS IN THE SOFTWARE."
     },
     {
       "packages": [
@@ -2472,6 +2558,16 @@
       ],
       "licenseType": "MIT",
       "licenseText": "MIT License\n\nCopyright (c) 2012 Another-D-Mention Software and other contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    },
+    {
+      "packages": [
+        {
+          "name": "fast-xml-parser",
+          "version": "5.9.3"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "MIT License\n\nCopyright (c) 2017 Amit Kumar Gupta\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "packages": [
@@ -2526,6 +2622,16 @@
       ],
       "licenseType": "MIT",
       "licenseText": "MIT License\n\nCopyright (c) 2021 Matteo Collina\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    },
+    {
+      "packages": [
+        {
+          "name": "strnum",
+          "version": "2.4.1"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "MIT License\n\nCopyright (c) 2021 Natural Intelligence\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "packages": [
@@ -2590,6 +2696,16 @@
     {
       "packages": [
         {
+          "name": "path-expression-matcher",
+          "version": "1.5.0"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "MIT License\n\nCopyright (c) 2024\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    },
+    {
+      "packages": [
+        {
           "name": "es-define-property",
           "version": "1.0.1"
         },
@@ -2620,6 +2736,24 @@
       ],
       "licenseType": "MIT",
       "licenseText": "MIT License\n\nCopyright (c) 2025 pinojs contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    },
+    {
+      "packages": [
+        {
+          "name": "anynum",
+          "version": "1.0.1"
+        },
+        {
+          "name": "fast-xml-builder",
+          "version": "1.2.0"
+        },
+        {
+          "name": "is-unsafe",
+          "version": "1.0.1"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "MIT License\n\nCopyright (c) 2026 Natural Intelligence\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
     },
     {
       "packages": [
@@ -3004,6 +3138,16 @@
     {
       "packages": [
         {
+          "name": "@azure/storage-common",
+          "version": "12.4.0"
+        }
+      ],
+      "licenseType": "MIT",
+      "licenseText": "The MIT License (MIT)\n\nCopyright (c) 2018 Microsoft\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the \"Software\"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE."
+    },
+    {
+      "packages": [
+        {
           "name": "style-to-js",
           "version": "1.1.21"
         }
@@ -3151,7 +3295,7 @@
       "packages": [
         {
           "name": "protobufjs",
-          "version": "7.6.1"
+          "version": "7.6.4"
         }
       ],
       "licenseType": "Unknown",

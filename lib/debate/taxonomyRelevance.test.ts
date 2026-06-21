@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { selectRelevantNodes, selectRelevantSituationNodes, buildSituationRootLookup, scoreNodeRelevanceMeanTopN, cosineSimilarity, computePolicymakerRelevanceBoost, filterByTopicConstraints } from './taxonomyRelevance.js';
-import type { LineageBoostConfig, LineageBoostResult, BranchBoostResult, RelevanceOptions, ScoredPovNode, ScoredSituationNode } from './taxonomyRelevance.js';
+import type { LineageBoostConfig, LineageBoostResult, BranchBoostResult, RelevanceOptions, ScoredPovNode, ScoredSituationNode, PovDiversityResult } from './taxonomyRelevance.js';
 import type { TopicScope } from './types.js';
 import type { PovNode, Category, SituationNode } from './taxonomyTypes.js';
 
@@ -84,6 +84,7 @@ describe('selectRelevantNodes — lineage boost', () => {
     const result = selectRelevantNodes(nodes, scores, {
       embeddingThreshold: 0.48,
       minPerCategory: 0,
+      minPerPov: 0,
       lineageBoost,
     });
 
@@ -167,6 +168,7 @@ describe('selectRelevantNodes — lineage boost', () => {
     const result = selectRelevantNodes(nodes, scores, {
       embeddingThreshold: 0.48,
       minPerCategory: 0,
+      minPerPov: 0,
       lineageBoost,
     });
 
@@ -199,6 +201,7 @@ describe('selectRelevantNodes — lineage boost', () => {
     const result = selectRelevantNodes(nodes, scores, {
       embeddingThreshold: 0.48,
       minPerCategory: 0,
+      minPerPov: 0,
       lineageBoost,
     });
 
@@ -704,5 +707,212 @@ describe('scoreNodeRelevanceMeanTopN', () => {
     const scores = scoreNodeRelevanceMeanTopN(unitX, embeddings, 3);
     expect(scores.get('node-A')).toBeCloseTo(1.0);
     expect(scores.get('node-B')).toBeCloseTo(0.0);
+  });
+});
+
+// ── selectRelevantNodes — POV diversity floor ──────────────
+
+describe('selectRelevantNodes — POV diversity floor', () => {
+  it('fills underrepresented POVs from best-scoring candidates', () => {
+    // All high-scoring nodes are acc — saf and skp are below threshold
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('acc-intentions-001', 'Intentions'),
+      makeNode('saf-beliefs-001', 'Beliefs'),
+      makeNode('saf-desires-001', 'Desires'),
+      makeNode('skp-beliefs-001', 'Beliefs'),
+      makeNode('skp-desires-001', 'Desires'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.80],
+      ['acc-desires-001', 0.75],
+      ['acc-intentions-001', 0.70],
+      ['saf-beliefs-001', 0.30],
+      ['saf-desires-001', 0.25],
+      ['skp-beliefs-001', 0.28],
+      ['skp-desires-001', 0.22],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 2,
+    });
+
+    const ids = result.map(r => r.node.id);
+    // acc nodes above threshold — included naturally
+    expect(ids).toContain('acc-beliefs-001');
+    expect(ids).toContain('acc-desires-001');
+    expect(ids).toContain('acc-intentions-001');
+    // saf and skp floor — 2 each, best-scoring from each POV
+    expect(ids).toContain('saf-beliefs-001');
+    expect(ids).toContain('saf-desires-001');
+    expect(ids).toContain('skp-beliefs-001');
+    expect(ids).toContain('skp-desires-001');
+    expect(result).toHaveLength(7);
+  });
+
+  it('does not add nodes when POV already meets floor', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('saf-beliefs-001', 'Beliefs'),
+      makeNode('skp-beliefs-001', 'Beliefs'),
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('saf-desires-001', 'Desires'),
+      makeNode('skp-desires-001', 'Desires'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.60], ['saf-beliefs-001', 0.55], ['skp-beliefs-001', 0.52],
+      ['acc-desires-001', 0.58], ['saf-desires-001', 0.54], ['skp-desires-001', 0.50],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 2,
+    });
+
+    // All above threshold, all POVs have >= 2 — no diversity additions
+    expect(result).toHaveLength(6);
+    const diag = (result as typeof result & { _povDiversity?: PovDiversityResult })._povDiversity;
+    expect(diag).toBeUndefined();
+  });
+
+  it('handles single-POV input gracefully', () => {
+    // Only acc nodes available — can't fill saf/skp floor
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('acc-intentions-001', 'Intentions'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.60],
+      ['acc-desires-001', 0.55],
+      ['acc-intentions-001', 0.50],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 2,
+    });
+
+    // Only 3 acc nodes — no saf/skp available to add
+    expect(result).toHaveLength(3);
+  });
+
+  it('minPerPov=0 disables diversity enforcement', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('saf-beliefs-001', 'Beliefs'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.60],
+      ['saf-beliefs-001', 0.30],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 0,
+    });
+
+    // Only acc above threshold, no diversity floor
+    expect(result).toHaveLength(1);
+    expect(result[0].node.id).toBe('acc-beliefs-001');
+  });
+
+  it('protects POV floor nodes when maxTotal trims the result', () => {
+    // 4 acc above threshold + 1 saf floor + 1 skp floor = 6, maxTotal = 5
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-beliefs-002', 'Beliefs'),
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('acc-intentions-001', 'Intentions'),
+      makeNode('saf-beliefs-001', 'Beliefs'),
+      makeNode('skp-beliefs-001', 'Beliefs'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.80],
+      ['acc-beliefs-002', 0.70],
+      ['acc-desires-001', 0.65],
+      ['acc-intentions-001', 0.55],
+      ['saf-beliefs-001', 0.30],
+      ['skp-beliefs-001', 0.28],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 1,
+      maxTotal: 5,
+    });
+
+    expect(result).toHaveLength(5);
+    const ids = result.map(r => r.node.id);
+    // Protected: 1 acc (0.80) + 1 saf (0.30) + 1 skp (0.28) = 3 protected
+    // Remaining 2 slots filled by top-scoring non-protected: acc-beliefs-002 (0.70), acc-desires-001 (0.65)
+    // acc-intentions-001 (0.55) gets trimmed
+    expect(ids).toContain('saf-beliefs-001');
+    expect(ids).toContain('skp-beliefs-001');
+    expect(ids).toContain('acc-beliefs-001');
+    expect(ids).toContain('acc-beliefs-002');
+    expect(ids).toContain('acc-desires-001');
+    expect(ids).not.toContain('acc-intentions-001');
+  });
+
+  it('exposes POV diversity diagnostics on result', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('acc-desires-001', 'Desires'),
+      makeNode('saf-beliefs-001', 'Beliefs'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.60],
+      ['acc-desires-001', 0.55],
+      ['saf-beliefs-001', 0.30],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 2,
+    });
+
+    const diag = (result as typeof result & { _povDiversity?: PovDiversityResult })._povDiversity;
+    expect(diag).toBeDefined();
+    expect(diag!.povCounts['accelerationist']).toBe(2);
+    expect(diag!.povCounts['safetyist']).toBe(0);
+    expect(diag!.addedNodeIds).toContain('saf-beliefs-001');
+    expect(diag!.addedCount).toBe(1);
+  });
+
+  it('picks highest-scoring candidates when filling POV deficit', () => {
+    const nodes = [
+      makeNode('acc-beliefs-001', 'Beliefs'),
+      makeNode('saf-beliefs-001', 'Beliefs'),
+      makeNode('saf-beliefs-002', 'Beliefs'),
+      makeNode('saf-desires-001', 'Desires'),
+    ];
+    const scores = new Map([
+      ['acc-beliefs-001', 0.60],
+      ['saf-beliefs-001', 0.40],
+      ['saf-beliefs-002', 0.35],
+      ['saf-desires-001', 0.20],
+    ]);
+
+    const result = selectRelevantNodes(nodes, scores, {
+      embeddingThreshold: 0.48,
+      minPerCategory: 0,
+      minPerPov: 2,
+    });
+
+    const ids = result.map(r => r.node.id);
+    // saf-beliefs-001 (0.40) and saf-beliefs-002 (0.35) are top 2 saf nodes
+    expect(ids).toContain('saf-beliefs-001');
+    expect(ids).toContain('saf-beliefs-002');
+    // saf-desires-001 (0.20) should NOT be added — deficit is only 2, filled by top 2
+    expect(ids).not.toContain('saf-desires-001');
   });
 });

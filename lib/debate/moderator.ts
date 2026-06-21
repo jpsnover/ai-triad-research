@@ -607,6 +607,8 @@ export interface TriggerEvaluationContext {
   budget_epoch: number;
   refill_gap: number;
   convergence_signal_count: number;
+  crux_engagement_per_debater?: Record<string, number>;
+  crux_engagement_imbalance?: string;
 }
 
 export function computeTriggerEvaluationContext(
@@ -653,6 +655,7 @@ export function computeTriggerEvaluationContext(
     budget_epoch: state.budget_epoch ?? 0,
     refill_gap: state.refill_gap ?? 1,
     convergence_signal_count: state.health_history.length,
+    crux_engagement_per_debater: state.crux_engagement_per_debater ? { ...state.crux_engagement_per_debater } : undefined,
   };
 }
 
@@ -689,6 +692,21 @@ export function formatTriggerContext(ctx: TriggerEvaluationContext): string {
     .join(', ');
   lines.push(`Turn counts: ${turnLines}`);
   lines.push(`Intervention history: ${ctx.intervention_history_summary}`);
+
+  if (ctx.crux_engagement_per_debater) {
+    const cruxLines = Object.entries(ctx.crux_engagement_per_debater)
+      .map(([d, r]) => `${d}: ${(r * 100).toFixed(0)}%`)
+      .join(', ');
+    lines.push(`Crux engagement: ${cruxLines}`);
+    const rates = Object.values(ctx.crux_engagement_per_debater);
+    const maxRate = Math.max(...rates);
+    const minRate = Math.min(...rates);
+    if (maxRate > 0 && minRate < maxRate * 0.5) {
+      const laggard = Object.entries(ctx.crux_engagement_per_debater)
+        .sort(([, a], [, b]) => a - b)[0][0];
+      lines.push(`⚠ CRUX ENGAGEMENT IMBALANCE: ${laggard} has engaged far fewer cruxes than peers — consider directing them to address an unresolved crux`);
+    }
+  }
 
   return lines.join('\n');
 }
@@ -1166,6 +1184,65 @@ export function buildCruxFocusInterventionText(candidate: CruxFocusCandidate, ne
 
   const term = contestedTerm ? `"${contestedTerm}"` : 'a key term';
   return `MODERATOR: The debaters may be using ${term} to mean different things: "${description}"\n\n${nextSpeakerLabel}, before continuing this thread:\n1. Define your key term precisely — what is included and excluded.\n2. Ask the opponent whether they accept your definition or use a different one.\n\nYou may discover you agree more than you think once terms are aligned.`;
+}
+
+// ── Crux engagement balance ──────────────────────────
+
+export const CRUX_ENGAGEMENT_IMBALANCE_RATIO = 0.5;
+
+export interface CruxEngagementImbalance {
+  laggard: SpeakerId;
+  laggardRate: number;
+  leaderRate: number;
+  unaddressedCruxIds: string[];
+}
+
+export function updateCruxEngagement(
+  state: ModeratorState,
+  cruxTracker: ReadonlyArray<{ id: string; speakers_involved: SpeakerId[]; attacking_claim_ids: string[] }>,
+  activePovers: SpeakerId[],
+  nodes: ReadonlyArray<{ id: string; speaker: string }>,
+): void {
+  if (cruxTracker.length === 0) return;
+  const engagement: Record<string, number> = {};
+  for (const p of activePovers) {
+    const addressed = cruxTracker.filter(crux =>
+      crux.speakers_involved.includes(p) ||
+      crux.attacking_claim_ids.some(cid => nodes.some(n => n.id === cid && n.speaker === p)),
+    ).length;
+    engagement[p] = addressed / cruxTracker.length;
+  }
+  state.crux_engagement_per_debater = engagement;
+}
+
+export function detectCruxEngagementImbalance(
+  state: ModeratorState,
+  cruxTracker: ReadonlyArray<{ id: string; speakers_involved: SpeakerId[]; attacking_claim_ids: string[] }>,
+  activePovers: SpeakerId[],
+  nodes: ReadonlyArray<{ id: string; speaker: string }>,
+): CruxEngagementImbalance | null {
+  const engagement = state.crux_engagement_per_debater;
+  if (!engagement || cruxTracker.length === 0) return null;
+
+  const rates = activePovers.map(p => ({ speaker: p, rate: engagement[p] ?? 0 }));
+  rates.sort((a, b) => b.rate - a.rate);
+  const leader = rates[0];
+  const laggard = rates[rates.length - 1];
+
+  if (leader.rate === 0) return null;
+  if (laggard.rate >= leader.rate * CRUX_ENGAGEMENT_IMBALANCE_RATIO) return null;
+
+  const unaddressed = cruxTracker.filter(crux =>
+    !crux.speakers_involved.includes(laggard.speaker) &&
+    !crux.attacking_claim_ids.some(cid => nodes.some(n => n.id === cid && n.speaker === laggard.speaker)),
+  ).map(c => c.id);
+
+  return {
+    laggard: laggard.speaker,
+    laggardRate: laggard.rate,
+    leaderRate: leader.rate,
+    unaddressedCruxIds: unaddressed.slice(0, 3),
+  };
 }
 
 // ── Exports ────────────────────────────────────────────

@@ -88,7 +88,7 @@ export function DebateTab() {
   const [listCollapsed, setListCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [listView, setListView] = useState<'my' | 'community'>('my');
+  const [listView, setListView] = useState<'my' | 'community' | null>(null);
   const { debates: communityDebates, loading: communityLoading, fetchDebates: fetchCommunityDebates, copyItem } = useCommunityStore();
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [selectedCommunityDebate, setSelectedCommunityDebate] = useState<CommunityDebate | null>(null);
@@ -162,11 +162,14 @@ export function DebateTab() {
 
   useEffect(() => {
     void loadSessions();
-  }, [loadSessions]);
+    void fetchCommunityDebates();
+  }, [loadSessions, fetchCommunityDebates]);
 
   useEffect(() => {
-    if (listView === 'community') void fetchCommunityDebates();
-  }, [listView, fetchCommunityDebates]);
+    if (listView !== null) return;
+    if (sessionsLoading) return;
+    setListView(sessions.length > 0 ? 'my' : 'community');
+  }, [listView, sessionsLoading, sessions.length]);
 
   const handleSelect = (session: { id: string }) => {
     if (session.id !== activeDebateId) {
@@ -271,8 +274,8 @@ export function DebateTab() {
             </div>
           </div>
           <div className="list-view-tabs">
-            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => { setListView('my'); exitEditMode(); }}>My</button>
-            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); exitEditMode(); }}>Community</button>
+            <button className={`list-view-tab${listView === 'my' ? ' active' : ''}`} onClick={() => { setListView('my'); exitEditMode(); }}>My ({sessions.length})</button>
+            <button className={`list-view-tab${listView === 'community' ? ' active' : ''}`} onClick={() => { setListView('community'); exitEditMode(); }}>Community ({communityDebates.length})</button>
           </div>
           {listView === 'my' ? (
             <>

@@ -3,11 +3,11 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { api } from '@bridge';
+import { api, isElectronMode } from '@bridge';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { FeedbackPopover } from './FeedbackPopover';
-import { useAuthStatus } from '../../hooks/useAuthStatus';
+import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
 
 function AuthSection() {
   const auth = useAuthStatus();
@@ -70,6 +70,7 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     attributeInfo, showAttributeInfo,
     clearAttributeInfo,
   } = useTaxonomyStore();
+  const profile = useUserProfile();
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -254,13 +255,21 @@ export function HamburgerMenu({ isOpen, onClose }: HamburgerMenuProps) {
     },
   ];
 
+  const showAdminItems = isElectronMode() || profile?.isAdmin;
+
   const systemItems: MenuItem[] = [
-    {
+    ...(showAdminItems ? [{
+      id: 'admin-review', label: 'Admin Review',
+      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>,
+      active: window.location.hash === '#admin',
+      action: () => { window.location.hash = '#admin'; window.location.reload(); },
+    }] : []),
+    ...(profile?.isAdmin ? [{
       id: 'console', label: 'Console',
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>,
       active: toolbarPanel === 'console',
       action: () => toggle('console'),
-    },
+    }] : []),
     {
       id: 'prompts', label: 'Prompts',
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>,

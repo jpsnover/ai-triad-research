@@ -143,10 +143,11 @@ function Get-AITSource {
                 if ($Ingested -ne $TodayStr) { continue }
             }
 
-            # Build claims-by-pov from index
+            # Build node-references-by-pov from index (fallback to legacy claims_by_pov)
             $ClaimsPov = [PSCustomObject]@{ Accelerationist = 0; Safetyist = 0; Skeptic = 0; Situations = 0 }
-            if ($Props['claims_by_pov'] -and $Entry.claims_by_pov) {
-                $Cbp = $Entry.claims_by_pov
+            $CbpKey = if ($Props['node_references_by_pov']) { 'node_references_by_pov' } elseif ($Props['claims_by_pov']) { 'claims_by_pov' } else { $null }
+            if ($CbpKey -and $Entry.$CbpKey) {
+                $Cbp = $Entry.$CbpKey
                 $CbpProps = $Cbp.PSObject.Properties
                 $ClaimsPov.Accelerationist = if ($CbpProps['accelerationist']) { [int]$Cbp.accelerationist } else { 0 }
                 $ClaimsPov.Safetyist       = if ($CbpProps['safetyist'])       { [int]$Cbp.safetyist }       else { 0 }
@@ -273,8 +274,9 @@ function Get-AITSource {
                 $TotalClaims      = [int]$Meta.total_claims
                 if ($Props['total_facts']) { $TotalFacts = [int]$Meta.total_facts } else { $TotalFacts = 0 }
                 if ($Props['unmapped_concepts'] -and $Meta.unmapped_concepts -is [int]) { $UnmappedConcepts = [int]$Meta.unmapped_concepts } else { $UnmappedConcepts = 0 }
-                if ($Props['claims_by_pov'] -and $Meta.claims_by_pov) {
-                    $Cbp = $Meta.claims_by_pov
+                $CbpKey2 = if ($Props['node_references_by_pov']) { 'node_references_by_pov' } elseif ($Props['claims_by_pov']) { 'claims_by_pov' } else { $null }
+                if ($CbpKey2 -and $Meta.$CbpKey2) {
+                    $Cbp = $Meta.$CbpKey2
                     $CbpProps = $Cbp.PSObject.Properties
                     $ClaimsPov.Accelerationist = if ($CbpProps['accelerationist']) { [int]$Cbp.accelerationist } else { 0 }
                     $ClaimsPov.Safetyist       = if ($CbpProps['safetyist'])       { [int]$Cbp.safetyist }       else { 0 }

@@ -37,29 +37,31 @@ function Compare-DebateRuns {
         $S = Get-Content $Path -Raw | ConvertFrom-Json
 
         $AnNodes = 0; $AnEdges = 0
-        if ($S.argument_network) {
-            if ($S.argument_network.nodes) { $AnNodes = @($S.argument_network.nodes).Count }
-            if ($S.argument_network.edges) { $AnEdges = @($S.argument_network.edges).Count }
+        if ($S.PSObject.Properties['argument_network'] -and $S.argument_network) {
+            if ($S.argument_network.PSObject.Properties['nodes'] -and $S.argument_network.nodes) { $AnNodes = @($S.argument_network.nodes).Count }
+            if ($S.argument_network.PSObject.Properties['edges'] -and $S.argument_network.edges) { $AnEdges = @($S.argument_network.edges).Count }
         }
 
         $ClaimCoverage = 0
-        if ($S.claim_coverage) {
+        if ($S.PSObject.Properties['claim_coverage'] -and $S.claim_coverage) {
             $Total = @($S.claim_coverage).Count
-            $Discussed = @($S.claim_coverage | Where-Object { $_.discussed }).Count
+            $Discussed = @($S.claim_coverage | Where-Object { $_.PSObject.Properties['discussed'] -and $_.discussed }).Count
             if ($Total -gt 0) { $ClaimCoverage = [Math]::Round($Discussed / $Total * 100, 1) }
         }
 
         $AcceptRate = 0
-        if ($S.extraction_summary) {
+        if ($S.PSObject.Properties['extraction_summary'] -and $S.extraction_summary) {
             $AcceptRate = [Math]::Round(($S.extraction_summary.acceptance_rate ?? 0) * 100, 1)
         }
 
         $UniqueNodes = 0
         $AllNodeIds = [System.Collections.Generic.HashSet[string]]::new()
-        if ($S.transcript) {
+        if ($S.PSObject.Properties['transcript'] -and $S.transcript) {
             foreach ($Entry in $S.transcript) {
-                if ($Entry.taxonomy_refs) {
+                if ($null -eq $Entry) { continue }
+                if ($Entry.PSObject.Properties['taxonomy_refs'] -and $Entry.taxonomy_refs) {
                     foreach ($Ref in $Entry.taxonomy_refs) {
+                        if ($null -eq $Ref) { continue }
                         [void]$AllNodeIds.Add($Ref.node_id ?? $Ref)
                     }
                 }
@@ -68,7 +70,8 @@ function Compare-DebateRuns {
         }
 
         $TaxUtilization = 0
-        if ($S.taxonomy_gap_analysis -and $S.taxonomy_gap_analysis.pov_coverage) {
+        if ($S.PSObject.Properties['taxonomy_gap_analysis'] -and $S.taxonomy_gap_analysis -and
+            $S.taxonomy_gap_analysis.PSObject.Properties['pov_coverage'] -and $S.taxonomy_gap_analysis.pov_coverage) {
             $Rates = @()
             foreach ($Pov in @('accelerationist','safetyist','skeptic')) {
                 $PovData = $S.taxonomy_gap_analysis.pov_coverage.$Pov
@@ -80,40 +83,93 @@ function Compare-DebateRuns {
         }
 
         $NeutralScore = 0
-        if ($S.neutral_evaluations -and @($S.neutral_evaluations).Count -gt 0) {
+        if ($S.PSObject.Properties['neutral_evaluations'] -and $S.neutral_evaluations -and @($S.neutral_evaluations).Count -gt 0) {
             $Last = @($S.neutral_evaluations)[-1]
-            if ($Last.overall_score) { $NeutralScore = [Math]::Round($Last.overall_score, 2) }
+            if ($null -ne $Last -and $Last.PSObject.Properties['overall_score'] -and $Last.overall_score) {
+                $NeutralScore = [Math]::Round($Last.overall_score, 2)
+            }
         }
 
         $TotalAiTime = 0
-        if ($S.diagnostics -and $S.diagnostics.overview) {
+        if ($S.PSObject.Properties['diagnostics'] -and $S.diagnostics -and
+            $S.diagnostics.PSObject.Properties['overview'] -and $S.diagnostics.overview) {
             $TotalAiTime = [Math]::Round(($S.diagnostics.overview.total_response_time_ms ?? 0) / 1000, 1)
         }
 
         $CharsTruncated = 0; $SectionsLost = 0
-        if ($S.context_rot -and $S.context_rot.stages) {
-            $TruncStage = @($S.context_rot.stages | Where-Object { $_.stage -eq 'document_truncation' }) | Select-Object -First 1
-            if ($TruncStage -and $TruncStage.flags) {
+        if ($S.PSObject.Properties['context_rot'] -and $S.context_rot -and
+            $S.context_rot.PSObject.Properties['stages'] -and $S.context_rot.stages) {
+            $TruncStage = @($S.context_rot.stages | Where-Object { $_.PSObject.Properties['stage'] -and $_.stage -eq 'document_truncation' }) | Select-Object -First 1
+            if ($TruncStage -and $TruncStage.PSObject.Properties['flags'] -and $TruncStage.flags) {
                 $CharsTruncated = $TruncStage.flags.chars_truncated ?? 0
                 $SectionsLost = $TruncStage.flags.sections_lost ?? 0
             }
         }
 
         $Retention = 0
-        if ($S.context_rot) { $Retention = $S.context_rot.cumulative_retention ?? 0 }
+        if ($S.PSObject.Properties['context_rot'] -and $S.context_rot) { $Retention = $S.context_rot.cumulative_retention ?? 0 }
+
+        # ── Calibration log metrics ──
+        $CruxAddressed = 0; $RepetitionRate2 = 0; $ClaimsForgotten = 0
+        $ProcessRewardMean = 0; $ConcessionCascades = 0; $SitCruxAlignment = 0
+        $AgentCompositeAvg = 0; $SynthesisFields = 0
+
+        if ($S.PSObject.Properties['calibration_log'] -and $S.calibration_log) {
+            $CL = $S.calibration_log
+            if ($CL.PSObject.Properties['crux_addressed_ratio'])     { $CruxAddressed     = [Math]::Round(($CL.crux_addressed_ratio ?? 0) * 100, 1) }
+            if ($CL.PSObject.Properties['repetition_rate'])          { $RepetitionRate2    = [Math]::Round(($CL.repetition_rate ?? 0) * 100, 1) }
+            if ($CL.PSObject.Properties['claims_forgotten_rate'])    { $ClaimsForgotten    = [Math]::Round(($CL.claims_forgotten_rate ?? 0) * 100, 1) }
+            if ($CL.PSObject.Properties['process_reward_mean'])      { $ProcessRewardMean  = [Math]::Round($CL.process_reward_mean ?? 0, 3) }
+            if ($CL.PSObject.Properties['concession_cascades'])      { $ConcessionCascades = $CL.concession_cascades ?? 0 }
+            if ($CL.PSObject.Properties['situation_crux_alignment']) { $SitCruxAlignment   = [Math]::Round(($CL.situation_crux_alignment ?? 0) * 100, 1) }
+
+            if ($CL.PSObject.Properties['agent_utilities'] -and $CL.agent_utilities) {
+                $Composites = [System.Collections.Generic.List[double]]::new()
+                foreach ($Prop in $CL.agent_utilities.PSObject.Properties) {
+                    if ($null -ne $Prop.Value -and $Prop.Value.PSObject.Properties['composite']) {
+                        $Composites.Add([double]$Prop.Value.composite)
+                    }
+                }
+                if ($Composites.Count -gt 0) {
+                    $AgentCompositeAvg = [Math]::Round(($Composites | Measure-Object -Average).Average, 3)
+                }
+            }
+        }
+
+        # Synthesis completeness: count non-empty arrays in concluding entry
+        $ConcludingEntry = @($S.transcript | Where-Object { $_.PSObject.Properties['type'] -and $_.type -eq 'concluding' }) | Select-Object -First 1
+        if ($null -ne $ConcludingEntry -and $ConcludingEntry.PSObject.Properties['metadata'] -and
+            $ConcludingEntry.metadata.PSObject.Properties['synthesis'] -and $ConcludingEntry.metadata.synthesis) {
+            $Syn = $ConcludingEntry.metadata.synthesis
+            $ExpectedKeys = @('areas_of_agreement','areas_of_disagreement','cruxes','unresolved_questions',
+                              'taxonomy_coverage','argument_map','preferences','policy_implications')
+            foreach ($K in $ExpectedKeys) {
+                if ($Syn.PSObject.Properties[$K] -and $Syn.$K -and @($Syn.$K).Count -gt 0) {
+                    $SynthesisFields++
+                }
+            }
+        }
 
         return [ordered]@{
-            an_nodes         = $AnNodes
-            an_edges         = $AnEdges
-            claim_coverage   = $ClaimCoverage
-            accept_rate      = $AcceptRate
-            unique_nodes     = $UniqueNodes
-            tax_utilization  = $TaxUtilization
-            neutral_score    = $NeutralScore
-            total_ai_time_s  = $TotalAiTime
-            chars_truncated  = $CharsTruncated
-            sections_lost    = $SectionsLost
+            an_nodes             = $AnNodes
+            an_edges             = $AnEdges
+            claim_coverage       = $ClaimCoverage
+            accept_rate          = $AcceptRate
+            unique_nodes         = $UniqueNodes
+            tax_utilization      = $TaxUtilization
+            neutral_score        = $NeutralScore
+            total_ai_time_s      = $TotalAiTime
+            chars_truncated      = $CharsTruncated
+            sections_lost        = $SectionsLost
             cumulative_retention = $Retention
+            crux_addressed       = $CruxAddressed
+            repetition_rate      = $RepetitionRate2
+            claims_forgotten     = $ClaimsForgotten
+            process_reward_mean  = $ProcessRewardMean
+            concession_cascades  = $ConcessionCascades
+            sit_crux_alignment   = $SitCruxAlignment
+            synthesis_fields     = $SynthesisFields
+            agent_composite_avg  = $AgentCompositeAvg
         }
     }
 
@@ -139,17 +195,25 @@ function Compare-DebateRuns {
 
     # Pretty-print table
     $Labels = @{
-        an_nodes         = 'AN nodes'
-        an_edges         = 'AN edges'
-        claim_coverage   = 'Claim coverage %'
-        accept_rate      = 'Extraction accept %'
-        unique_nodes     = 'Unique taxonomy nodes'
-        tax_utilization  = 'Taxonomy utilization %'
-        neutral_score    = 'Neutral eval score'
-        total_ai_time_s  = 'Total AI time (s)'
-        chars_truncated  = 'Chars truncated'
-        sections_lost    = 'Sections lost'
+        an_nodes             = 'AN nodes'
+        an_edges             = 'AN edges'
+        claim_coverage       = 'Claim coverage %'
+        accept_rate          = 'Extraction accept %'
+        unique_nodes         = 'Unique taxonomy nodes'
+        tax_utilization      = 'Taxonomy utilization %'
+        neutral_score        = 'Neutral eval score'
+        total_ai_time_s      = 'Total AI time (s)'
+        chars_truncated      = 'Chars truncated'
+        sections_lost        = 'Sections lost'
         cumulative_retention = 'Context retention'
+        crux_addressed       = 'Crux addressed %'
+        repetition_rate      = 'Repetition rate %'
+        claims_forgotten     = 'Claims forgotten %'
+        process_reward_mean  = 'Process reward'
+        concession_cascades  = 'Concession cascades'
+        sit_crux_alignment   = 'Sit-crux alignment %'
+        synthesis_fields     = 'Synthesis fields (/8)'
+        agent_composite_avg  = 'Avg agent composite'
     }
 
     $Header = "  A/B COMPARISON: $LabelA vs $LabelB"
@@ -161,9 +225,9 @@ function Compare-DebateRuns {
     foreach ($Key in $MetricsA.Keys) {
         $VA = $MetricsA[$Key]
         $VB = $MetricsB[$Key]
-        $Delta = $VB - $VA
+        $Delta = [Math]::Round($VB - $VA, 3)
         $DeltaStr = if ($Delta -gt 0) { "+$Delta" } elseif ($Delta -eq 0) { '=' } else { "$Delta" }
-        $Color = if ($Key -eq 'total_ai_time_s' -or $Key -eq 'chars_truncated' -or $Key -eq 'sections_lost') {
+        $Color = if ($Key -in @('total_ai_time_s','chars_truncated','sections_lost','repetition_rate','claims_forgotten','concession_cascades')) {
             if ($Delta -le 0) { 'Green' } elseif ($Delta -gt 0) { 'Yellow' } else { 'Gray' }
         } else {
             if ($Delta -gt 0) { 'Green' } elseif ($Delta -lt 0) { 'Yellow' } else { 'Gray' }

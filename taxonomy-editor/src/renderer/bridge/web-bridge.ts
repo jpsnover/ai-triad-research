@@ -11,6 +11,11 @@ import { ActionableError } from '@lib/debate/errors';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { encryptKeysForSharing, decryptKeysFromSharing } from '../utils/keyShareCrypto';
 
+function throwHttpError(status: number, err: ActionableError): never {
+  (err as ActionableError & { httpStatus: number }).httpStatus = status;
+  throw err;
+}
+
 // ── Auth state cache ──
 
 let _authAnonymous: boolean | null = null;
@@ -38,12 +43,12 @@ async function get<T = unknown>(path: string): Promise<T> {
   const res = await fetch(path);
   if (!res.ok) {
     const text = await res.text();
-    throw new ActionableError({
+    throwHttpError(res.status, new ActionableError({
       goal: 'Fetch data from server',
       problem: `GET ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.get',
       nextSteps: ['Check the server is running', 'Verify your authentication'],
-    });
+    }));
   }
   return res.json();
 }
@@ -77,21 +82,21 @@ async function post<T = unknown>(path: string, body?: unknown, timeoutMs = 180_0
     const msg = data.limitType === 'tokens_per_day'
       ? 'Daily token limit exceeded. Try again tomorrow or use your own API key.'
       : `Rate limit exceeded. Retry in ${Math.ceil((data.retryAfterMs as number || 60000) / 1000)}s.`;
-    throw new ActionableError({
+    throwHttpError(429, new ActionableError({
       goal: 'Call AI backend',
       problem: msg,
       location: 'web-bridge.post',
       nextSteps: ['Wait for the rate limit to reset', 'Use your own API key to avoid shared limits'],
-    });
+    }));
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new ActionableError({
+    throwHttpError(res.status, new ActionableError({
       goal: 'Send data to server',
       problem: `POST ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.post',
       nextSteps: ['Check the server is running', 'Verify your authentication'],
-    });
+    }));
   }
   return res.json();
 }
@@ -104,12 +109,12 @@ async function put<T = unknown>(path: string, body?: unknown): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new ActionableError({
+    throwHttpError(res.status, new ActionableError({
       goal: 'Update data on server',
       problem: `PUT ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.put',
       nextSteps: ['Check the server is running', 'Verify your authentication'],
-    });
+    }));
   }
   return res.json();
 }
@@ -118,12 +123,12 @@ async function del<T = unknown>(path: string): Promise<T> {
   const res = await fetch(path, { method: 'DELETE' });
   if (!res.ok) {
     const text = await res.text();
-    throw new ActionableError({
+    throwHttpError(res.status, new ActionableError({
       goal: 'Delete data on server',
       problem: `DELETE ${path} failed with HTTP ${res.status}: ${text}`,
       location: 'web-bridge.del',
       nextSteps: ['Check the server is running', 'Verify your authentication'],
-    });
+    }));
   }
   return res.json();
 }
@@ -654,6 +659,41 @@ const rawApi: AppAPI = {
     return () => { terminalExitCallbacks.delete(cb); };
   },
   captureScreenshot: () => Promise.resolve({ cancelled: true }),
+
+  // Admin Review (HTTP to server)
+  adminReviewConfigured: () => Promise.resolve(true),
+  adminReviewQueue: async () => {
+    const res = await fetch('/api/admin/review/queue');
+    if (!res.ok) throw new Error(`GET queue failed: HTTP ${res.status}`);
+    const body = await res.json();
+    return { items: body.items ?? body };
+  },
+  adminReviewStats: async () => {
+    const res = await fetch('/api/admin/review/stats');
+    if (!res.ok) throw new Error(`GET stats failed: HTTP ${res.status}`);
+    return res.json();
+  },
+  adminReviewDetail: async (groupId: string) => {
+    const res = await fetch(`/api/admin/review/detail/${encodeURIComponent(groupId)}`);
+    if (!res.ok) throw new Error(`GET detail failed: HTTP ${res.status}`);
+    return res.json();
+  },
+  adminReviewAction: async (action: unknown) => {
+    const res = await fetch('/api/admin/review/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(action),
+    });
+    if (!res.ok) throw new Error(`POST action failed: HTTP ${res.status}`);
+  },
+  adminRemoveCommunityItem: async (type, id, reason) => {
+    const res = await fetch(`/api/community/${encodeURIComponent(type)}/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    });
+    if (!res.ok) throw new Error(`DELETE community item failed: HTTP ${res.status}`);
+  },
 };
 
 export const api = instrumentBridge(rawApi);

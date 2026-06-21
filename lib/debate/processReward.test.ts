@@ -64,7 +64,7 @@ describe('computeProcessReward', () => {
     expect(result.score).toBeLessThanOrEqual(1);
   });
 
-  it('returns all five component scores in [0,1]', () => {
+  it('returns all six component scores in [0,1]', () => {
     const result = computeProcessReward(makeInput());
     for (const key of Object.keys(result.components) as (keyof typeof result.components)[]) {
       expect(result.components[key]).toBeGreaterThanOrEqual(0);
@@ -240,6 +240,50 @@ describe('computeProcessReward', () => {
     expect(goodSynthesis.components.move_quality).toBeGreaterThan(poorSynthesis.components.move_quality);
   });
 
+  // ── Crux relevance ──
+
+  it('rewards crux engagement when active cruxes exist', () => {
+    const engaged = computeProcessReward(makeInput({
+      convergenceSignals: makeConvergenceSignals({
+        crux_engagement_rate: { used_this_turn: true, cumulative_count: 2, cumulative_follow_through: 1 },
+      }),
+      activeCruxCount: 3,
+    }));
+    const notEngaged = computeProcessReward(makeInput({
+      convergenceSignals: makeConvergenceSignals({
+        crux_engagement_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
+      }),
+      activeCruxCount: 3,
+    }));
+    expect(engaged.components.crux_relevance).toBeGreaterThan(notEngaged.components.crux_relevance);
+  });
+
+  it('returns neutral crux_relevance when no active cruxes', () => {
+    const result = computeProcessReward(makeInput({ activeCruxCount: 0 }));
+    expect(result.components.crux_relevance).toBeCloseTo(0.5, 2);
+  });
+
+  it('returns neutral crux_relevance when activeCruxCount is undefined', () => {
+    const result = computeProcessReward(makeInput());
+    expect(result.components.crux_relevance).toBeCloseTo(0.5, 2);
+  });
+
+  it('rewards higher follow-through rate', () => {
+    const highFollowThrough = computeProcessReward(makeInput({
+      convergenceSignals: makeConvergenceSignals({
+        crux_engagement_rate: { used_this_turn: true, cumulative_count: 4, cumulative_follow_through: 4 },
+      }),
+      activeCruxCount: 2,
+    }));
+    const lowFollowThrough = computeProcessReward(makeInput({
+      convergenceSignals: makeConvergenceSignals({
+        crux_engagement_rate: { used_this_turn: true, cumulative_count: 4, cumulative_follow_through: 1 },
+      }),
+      activeCruxCount: 2,
+    }));
+    expect(highFollowThrough.components.crux_relevance).toBeGreaterThan(lowFollowThrough.components.crux_relevance);
+  });
+
   // ── Edge cases ──
 
   it('handles zero moves gracefully', () => {
@@ -262,7 +306,8 @@ describe('computeProcessReward', () => {
       result.components.novelty * w.novelty +
       result.components.consistency * w.consistency +
       result.components.grounding * w.grounding +
-      result.components.move_quality * w.move_quality;
+      result.components.move_quality * w.move_quality +
+      result.components.crux_relevance * w.crux_relevance;
     expect(result.score).toBeCloseTo(expected, 10);
   });
 });

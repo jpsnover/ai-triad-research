@@ -8,6 +8,7 @@ import type {
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   ConvergenceSignals,
+  ConvergenceTracker,
   ProcessRewardEntry,
   TurnValidation,
   TrackedCrux,
@@ -255,6 +256,68 @@ export function computeConvergenceSignals(
   };
 }
 
+// ── Concession-driven convergence boost ──────────────────
+export const CONCESSION_CONVERGENCE_BOOST = 0.15;
+
+/**
+ * Boost convergence tracker scores when a concession event is detected.
+ * A concession (CONCEDE AND PIVOT) is the strongest convergence signal —
+ * the debater explicitly acknowledges the opponent's point. The QBAF-only
+ * convergence computation misses this because the revised position uses
+ * different vocabulary, causing embedding dissimilarity.
+ *
+ * Returns IDs of issues that were boosted.
+ */
+export const CRUX_CONCESSION_BOOST_MULTIPLIER = 1.5;
+
+export function boostConvergenceOnConcession(
+  tracker: ConvergenceTracker,
+  sig: ConvergenceSignals,
+  entryId: string,
+  speaker: SpeakerId,
+  nodes: readonly ArgumentNetworkNode[],
+  edges: readonly ArgumentNetworkEdge[],
+  turnNumber: number,
+  cruxClaimIds?: ReadonlySet<string>,
+): string[] {
+  if (sig.concession_opportunity.outcome !== 'taken') return [];
+
+  const turnNodeIds = new Set(
+    nodes.filter(n => n.source_entry_id === entryId).map(n => n.id),
+  );
+  const speakerNodeIds = new Set(
+    nodes.filter(n => n.speaker === speaker).map(n => n.id),
+  );
+
+  const neighborhood = new Set<string>(turnNodeIds);
+  for (const id of speakerNodeIds) neighborhood.add(id);
+  for (const e of edges) {
+    if (turnNodeIds.has(e.source)) neighborhood.add(e.target);
+    if (turnNodeIds.has(e.target)) neighborhood.add(e.source);
+  }
+
+  const boostedIssueIds: string[] = [];
+  for (const issue of tracker.issues) {
+    const engaged = issue.claim_ids.some(id => neighborhood.has(id));
+    if (!engaged) continue;
+
+    const isCruxLinked = cruxClaimIds ? issue.claim_ids.some(id => cruxClaimIds.has(id)) : false;
+    const boost = isCruxLinked
+      ? CONCESSION_CONVERGENCE_BOOST * CRUX_CONCESSION_BOOST_MULTIPLIER
+      : CONCESSION_CONVERGENCE_BOOST;
+    issue.convergence = Math.min(1, (issue.convergence ?? 0) + boost);
+    const lastHistory = issue.history[issue.history.length - 1];
+    if (lastHistory && lastHistory.turn === turnNumber) {
+      lastHistory.value = issue.convergence;
+    } else {
+      issue.history.push({ turn: turnNumber, value: issue.convergence });
+    }
+    boostedIssueIds.push(issue.id);
+  }
+
+  return boostedIssueIds;
+}
+
 // ── Process reward computation (PRM) ─────────────────────
 // Computes a continuous [0,1] per-turn quality score from convergence signals
 // and turn validation grounding. This is the "process reward" in PRM terms:
@@ -263,11 +326,12 @@ export function computeConvergenceSignals(
 
 /** Default component weights for the process reward composite. */
 export const PROCESS_REWARD_WEIGHTS = {
-  engagement: 0.25,
-  novelty: 0.25,
-  consistency: 0.20,
-  grounding: 0.15,
-  move_quality: 0.15,
+  engagement:      0.20,
+  novelty:         0.20,
+  consistency:     0.20,
+  grounding:       0.15,
+  move_quality:    0.10,
+  crux_relevance:  0.15,
 } as const;
 
 export interface ProcessRewardInput {
@@ -332,14 +396,19 @@ export function computeProcessReward(input: ProcessRewardInput): { score: number
   const diversityBonus = input.priorMoveCount != null && input.moveCount !== input.priorMoveCount ? 0.1 : 0;
   const move_quality = Math.min(1, phaseAppropriate + diversityBonus);
 
+  // 6. Crux relevance — reward engaging active cruxes
+  const ce = sig.crux_engagement_rate;
+  const crux_relevance = ce.used_this_turn ? Math.min(1, 0.7 + (ce.cumulative_count > 0 ? ce.cumulative_follow_through / ce.cumulative_count : 0) * 0.3) : 0.5;
+
   const score =
     w.engagement * engagement +
     w.novelty * novelty +
     w.consistency * consistency +
     w.grounding * grounding +
-    w.move_quality * move_quality;
+    w.move_quality * move_quality +
+    w.crux_relevance * crux_relevance;
 
-  return { score, components: { engagement, novelty, consistency, grounding, move_quality } };
+  return { score, components: { engagement, novelty, consistency, grounding, move_quality, crux_relevance } };
 }
 
 // ── Anti-sycophancy: 3-tier uncertainty metric (t/26) ─────────────
@@ -354,6 +423,9 @@ const UNCERTAINTY_WEIGHTS = {
 /** Composite threshold above which agreement is considered suspicious. */
 const COLLAPSE_THRESHOLD = 0.55;
 
+/** Concession rate gap between most- and least-conceding speakers that triggers a warning. */
+export const CONCESSION_ASYMMETRY_THRESHOLD = 0.35;
+
 export interface UncertaintyMetric {
   /** Self-contradiction score: agents attacking their own prior claims. */
   intra_agent: number;
@@ -365,6 +437,10 @@ export interface UncertaintyMetric {
   composite: number;
   /** True when composite exceeds threshold AND agreement appears superficial. */
   collapse_warning: boolean;
+  /** True when the gap between most- and least-conceding speakers exceeds CONCESSION_ASYMMETRY_THRESHOLD. */
+  concession_asymmetry_warning: boolean;
+  /** Per-speaker concession rates: fraction of each speaker's support edges vs total edges. */
+  concession_rates_per_speaker?: Record<string, number>;
 }
 
 /**
@@ -460,5 +536,24 @@ export function computeUncertaintyMetric(
   // Collapse warning: high uncertainty AND superficial agreement (high support ratio, low attacks)
   const collapse_warning = composite > COLLAPSE_THRESHOLD && supportRatio > 0.6;
 
-  return { intra_agent, inter_agent, system_level, composite, collapse_warning };
+  // ── Per-speaker concession asymmetry ──
+  // Concession rate = fraction of a speaker's outgoing edges that are supports (to opponent nodes)
+  const concessionRates: Record<string, number> = {};
+  for (const [speaker, nodeSet] of speakerNodeSets) {
+    let speakerSupports = 0;
+    let speakerTotal = 0;
+    for (const edge of edges) {
+      if (nodeSet.has(edge.source) && !nodeSet.has(edge.target)) {
+        speakerTotal++;
+        if (edge.type === 'supports') speakerSupports++;
+      }
+    }
+    concessionRates[speaker] = speakerTotal > 0 ? speakerSupports / speakerTotal : 0;
+  }
+  const rates = Object.values(concessionRates);
+  const maxRate = rates.length > 0 ? Math.max(...rates) : 0;
+  const minRate = rates.length > 0 ? Math.min(...rates) : 0;
+  const concession_asymmetry_warning = rates.length >= 2 && (maxRate - minRate) > CONCESSION_ASYMMETRY_THRESHOLD;
+
+  return { intra_agent, inter_agent, system_level, composite, collapse_warning, concession_asymmetry_warning, concession_rates_per_speaker: concessionRates };
 }

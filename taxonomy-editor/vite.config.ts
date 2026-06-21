@@ -99,6 +99,18 @@ export default defineConfig({
     emptyOutDir: true,
     minify: true,
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules/react-dom/') || id.includes('node_modules/react/')) return 'react';
+          if (id.includes('node_modules/zustand/')) return 'zustand';
+          if (id.includes('node_modules/zod/')) return 'zod';
+          if (id.includes('node_modules/react-markdown/') || id.includes('node_modules/remark-gfm/')) return 'markdown';
+          if (id.includes('node_modules/@xterm/')) return 'xterm';
+          if (id.includes('node_modules/jszip/')) return 'jszip';
+        },
+      },
+    },
   },
   test: {
     include: [

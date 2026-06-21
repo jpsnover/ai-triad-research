@@ -113,6 +113,9 @@
         'Update-SyntheticCorpus'
         'Sync-SyntheticCorpus'
         'Export-SyntheticEmbeddings'
+        'Test-SynthesisCompleteness'
+        'Get-ImportReport'
+        'Get-CalibrationTrend'
     )
 
     # Aliases exported from this module

@@ -3,9 +3,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { api } from '@bridge';
 import './CommunityReviewViewer.css';
 
 // ── Types ──
+
+interface TranscriptEntry {
+  speaker: string;
+  content: string;
+  type: string;
+}
 
 interface CommunityDetail {
   submissionId: string;
@@ -16,9 +23,13 @@ interface CommunityDetail {
   title?: string;
   topic?: string;
   preview: string;
+  transcriptPreview?: TranscriptEntry[];
   metadata: {
     model?: string;
     turnCount?: number;
+    phase?: string;
+    audience?: string;
+    activePovers?: string[];
     taxonomyRefs?: string[];
   };
   sanitization: {
@@ -37,24 +48,11 @@ export interface CommunityReviewViewerProps {
 // ── API helpers ──
 
 async function fetchDetail(groupId: string): Promise<CommunityDetail> {
-  const res = await fetch(`/api/admin/review/detail/${encodeURIComponent(groupId)}`);
-  if (!res.ok) throw new Error(`GET detail failed: HTTP ${res.status}`);
-  return res.json();
+  return api.adminReviewDetail(groupId) as Promise<CommunityDetail>;
 }
 
 async function postAction(body: Record<string, unknown>): Promise<void> {
-  const res = await fetch('/api/admin/review/action', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch((err) => {
-      getGlobalRecorder()?.record({ type: 'system.error', component: 'CommunityReviewViewer', level: 'warn', message: 'Failed to read error response text', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-      return '';
-    });
-    throw new Error(`POST action failed: HTTP ${res.status} ${text}`);
-  }
+  await api.adminReviewAction(body as Parameters<typeof api.adminReviewAction>[0]);
 }
 
 function formatDate(iso: string): string {
@@ -64,6 +62,57 @@ function formatDate(iso: string): string {
     getGlobalRecorder()?.record({ type: 'system.error', component: 'CommunityReviewViewer', level: 'debug', message: 'Date format failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
     return iso;
   }
+}
+
+const SPEAKER_COLORS: Record<string, string> = {
+  accelerationist: '#10b981',
+  safetyist: '#3b82f6',
+  skeptic: '#f59e0b',
+  system: '#6b7280',
+  user: '#8b5cf6',
+};
+
+const SPEAKER_LABELS: Record<string, string> = {
+  accelerationist: 'Accelerationist',
+  safetyist: 'Safetyist',
+  skeptic: 'Skeptic',
+  system: 'System',
+  user: 'User',
+};
+
+const INITIAL_VISIBLE = 10;
+
+function TranscriptPreview({ entries }: { entries: TranscriptEntry[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? entries : entries.slice(0, INITIAL_VISIBLE);
+  const hasMore = entries.length > INITIAL_VISIBLE;
+
+  return (
+    <div className="crv-transcript">
+      {visible.map((entry, i) => (
+        <div key={i} className="crv-transcript-entry">
+          <span
+            className="crv-transcript-speaker"
+            style={{ color: SPEAKER_COLORS[entry.speaker] ?? 'var(--text-secondary)' }}
+          >
+            {SPEAKER_LABELS[entry.speaker] ?? entry.speaker}
+          </span>
+          {entry.type !== 'statement' && entry.type !== 'opening' && (
+            <span className="crv-transcript-type">{entry.type}</span>
+          )}
+          <div className="crv-transcript-content">{entry.content}</div>
+        </div>
+      ))}
+      {hasMore && (
+        <button
+          className="btn btn-sm btn-ghost crv-transcript-toggle"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? 'Show less' : `Show all ${entries.length} entries`}
+        </button>
+      )}
+    </div>
+  );
 }
 
 // ── Component ──
@@ -98,7 +147,7 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
         component: 'CommunityReviewViewer',
         level: 'error',
         message: 'Failed to fetch community review detail',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setError(String(err));
     } finally {
@@ -133,7 +182,7 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
         component: 'CommunityReviewViewer',
         level: 'error',
         message: 'Failed to promote community submission',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setToast(`Error: ${(err as Error).message}`);
     } finally {
@@ -161,7 +210,7 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
         component: 'CommunityReviewViewer',
         level: 'error',
         message: 'Failed to reject community submission',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       setToast(`Error: ${(err as Error).message}`);
     } finally {
@@ -175,6 +224,7 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
   if (!detail) return <div className="crv-empty">No detail available.</div>;
 
   const { metadata, sanitization } = detail;
+  const hasTranscript = detail.transcriptPreview && detail.transcriptPreview.length > 0;
 
   return (
     <div className="crv">
@@ -199,13 +249,29 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
             <span className="crv-meta-label">Turns:</span> {metadata.turnCount}
           </div>
         )}
+        {metadata.phase && (
+          <div className="crv-meta-item">
+            <span className="crv-meta-label">Phase:</span> {metadata.phase}
+          </div>
+        )}
+        {metadata.audience && (
+          <div className="crv-meta-item">
+            <span className="crv-meta-label">Audience:</span> {metadata.audience}
+          </div>
+        )}
+        {metadata.activePovers && metadata.activePovers.length > 0 && (
+          <div className="crv-meta-item">
+            <span className="crv-meta-label">Participants:</span>{' '}
+            {metadata.activePovers.map(p => SPEAKER_LABELS[p] ?? p).join(', ')}
+          </div>
+        )}
         {metadata.taxonomyRefs && metadata.taxonomyRefs.length > 0 && (
           <div className="crv-meta-item">
             <span className="crv-meta-label">Refs:</span> {metadata.taxonomyRefs.join(', ')}
           </div>
         )}
         {detail.topic && (
-          <div className="crv-meta-item">
+          <div className="crv-meta-item crv-meta-topic">
             <span className="crv-meta-label">Topic:</span> {typeof detail.topic === 'string' ? detail.topic : String(detail.topic)}
           </div>
         )}
@@ -216,9 +282,17 @@ export function CommunityReviewViewer({ groupId, onActionComplete }: CommunityRe
         )}
       </div>
 
-      {/* Transcript preview */}
-      <div className="crv-section-label">Preview</div>
-      <div className="crv-preview">{detail.preview}</div>
+      {/* Transcript / Preview */}
+      <div className="crv-section-label">
+        {hasTranscript ? `Transcript (${detail.transcriptPreview!.length} entries)` : 'Preview'}
+      </div>
+      {hasTranscript ? (
+        <TranscriptPreview entries={detail.transcriptPreview!} />
+      ) : detail.preview ? (
+        <div className="crv-preview">{detail.preview}</div>
+      ) : (
+        <div className="crv-preview crv-preview-empty">No preview available — the submission data may use an unrecognized format.</div>
+      )}
 
       {/* Sanitization preview */}
       {(sanitization.willStrip.length > 0 || sanitization.willAdd.length > 0) && (

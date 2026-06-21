@@ -23,7 +23,7 @@ export function LineageTermsView({ content }: { content: string }) {
           <div key={i} style={{ marginBottom: 10, padding: '4px 8px' }}>
             <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{name}</div>
             {info?.summary && (
-              <div style={{ marginLeft: 16, marginTop: 2, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              <div style={{ marginLeft: 16, marginTop: 2, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                 {info.summary}
               </div>
             )}

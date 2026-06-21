@@ -114,7 +114,7 @@ export function inferDisagreementType(
   return 'definitional';
 }
 
-function transitionCrux(
+export function transitionCrux(
   crux: TrackedCrux,
   newState: CruxResolutionState,
   turn: number,
@@ -291,6 +291,31 @@ export function updateCruxTracker(
       ? { ...crux, last_computed_strength: nodes.find(n => n.id === crux.id)?.computed_strength ?? crux.last_computed_strength }
       : evaluateCruxState(crux, nodes, edges, commitments, currentTurn)
   );
+}
+
+// ── Concession cascade detection ────────────────────────────────
+const CASCADE_WINDOW = 3;
+const CASCADE_MIN_CONCESSIONS = 2;
+
+export interface ConcessionCascadeInfo {
+  detected: boolean;
+  concessions: { speaker: string; entry_id: string; round: number }[];
+}
+
+export function detectConcessionCascade(
+  signals: ReadonlyArray<{ entry_id: string; round: number; speaker: string; concession_opportunity: { outcome: string } }>,
+): ConcessionCascadeInfo {
+  if (signals.length < CASCADE_MIN_CONCESSIONS) return { detected: false, concessions: [] };
+
+  const recent = signals.slice(-CASCADE_WINDOW);
+  const concessions = recent
+    .filter(s => s.concession_opportunity.outcome === 'taken')
+    .map(s => ({ speaker: s.speaker, entry_id: s.entry_id, round: s.round }));
+
+  if (concessions.length < CASCADE_MIN_CONCESSIONS) return { detected: false, concessions: [] };
+
+  const speakers = new Set(concessions.map(c => c.speaker));
+  return { detected: speakers.size >= 2, concessions };
 }
 
 export function formatCruxResolutionContext(tracker: TrackedCrux[]): string {

@@ -11,6 +11,7 @@ import type { PovNode, SituationNode } from './taxonomyTypes.js';
 import type { TrackedCrux, ArgumentNetworkNode } from './types.js';
 import { stripExcludes } from './helpers.js';
 import { filterByExclusionRatio, type ExclusionFilterResult } from './exclusionGuard.js';
+import { POV_PREFIXES } from './nodeIdUtils.js';
 
 export interface NodeRelevanceScore {
   nodeId: string;
@@ -40,6 +41,8 @@ export interface RelevanceOptions {
   nodeEmbeddings?: Record<string, { pov: string; vector: number[]; exclusion_vector?: number[] }>;
   /** Query embedding vector — required for exclusion filtering. */
   queryVector?: number[];
+  /** Minimum nodes per POV (accelerationist/safetyist/skeptic) to include. Default 2. */
+  minPerPov?: number;
   /** Branch-aware situation selection — boosts nodes in topic-relevant root categories. */
   situationBranchBoost?: SituationBranchBoostConfig;
 }
@@ -69,6 +72,16 @@ export interface LineageBoostConfig {
   lineageByNode: Record<string, string[]>;
   /** Name-to-Level2-cluster mapping. */
   nameToCluster: Record<string, string>;
+}
+
+/** Result of applying POV diversity floor — for diagnostics logging. */
+export interface PovDiversityResult {
+  /** Node counts per POV before diversity enforcement. */
+  povCounts: Record<string, number>;
+  /** Node IDs added to fill POV deficits. */
+  addedNodeIds: string[];
+  /** Number of nodes added. */
+  addedCount: number;
 }
 
 /** Result of applying lineage boost — for diagnostics logging. */
@@ -229,10 +242,62 @@ export function selectRelevantNodes(
     result.push(...selected);
   }
 
+  // POV diversity floor: ensure minimum representation from each active POV
+  const minPov = opts.minPerPov ?? 2;
+  let _povDiversityResult: PovDiversityResult | undefined;
+  if (minPov > 0) {
+    const selectedIds = new Set(result.map(s => s.node.id));
+    const povCounts: Record<string, number> = {};
+    for (const [prefix, pov] of Object.entries(POV_PREFIXES)) {
+      povCounts[pov] = result.filter(s => s.node.id.startsWith(prefix)).length;
+    }
+    const addedNodeIds: string[] = [];
+    for (const [prefix, pov] of Object.entries(POV_PREFIXES)) {
+      const count = povCounts[pov];
+      if (count >= minPov) continue;
+      const deficit = minPov - count;
+      const candidates = povNodes
+        .filter(n => n.id.startsWith(prefix) && !selectedIds.has(n.id))
+        .map(n => ({ node: n, score: effectiveScores.get(n.id) || 0 }))
+        .sort((a, b) => b.score - a.score);
+      for (let i = 0; i < Math.min(deficit, candidates.length); i++) {
+        result.push(candidates[i]);
+        selectedIds.add(candidates[i].node.id);
+        addedNodeIds.push(candidates[i].node.id);
+      }
+    }
+    if (addedNodeIds.length > 0) {
+      _povDiversityResult = { povCounts, addedNodeIds, addedCount: addedNodeIds.length };
+    }
+  }
+
+  // Apply maxTotal — when POV diversity is active, protect floor nodes from trimming
+  let sliced: ScoredPovNode[];
+  if (maxTotal != null && result.length > maxTotal && minPov > 0) {
+    const protectedIds = new Set<string>();
+    for (const prefix of Object.keys(POV_PREFIXES)) {
+      const povInResult = result
+        .filter(s => s.node.id.startsWith(prefix))
+        .sort((a, b) => b.score - a.score);
+      for (let i = 0; i < Math.min(minPov, povInResult.length); i++) {
+        protectedIds.add(povInResult[i].node.id);
+      }
+    }
+    const protectedSlice = result.filter(s => protectedIds.has(s.node.id));
+    const rest = result
+      .filter(s => !protectedIds.has(s.node.id))
+      .sort((a, b) => b.score - a.score);
+    sliced = [...protectedSlice, ...rest.slice(0, Math.max(0, maxTotal - protectedSlice.length))];
+  } else {
+    sliced = maxTotal != null ? result.slice(0, maxTotal) : result;
+  }
+
   // Stash diagnostics on the result array for callers that want it
-  let sliced = maxTotal != null ? result.slice(0, maxTotal) : result;
   if (_lineageBoostResult) {
     (sliced as ScoredPovNode[] & { _lineageBoost?: LineageBoostResult })._lineageBoost = _lineageBoostResult;
+  }
+  if (_povDiversityResult) {
+    (sliced as ScoredPovNode[] & { _povDiversity?: PovDiversityResult })._povDiversity = _povDiversityResult;
   }
 
   // Apply exclusion ratio filter when embeddings and query vector are provided

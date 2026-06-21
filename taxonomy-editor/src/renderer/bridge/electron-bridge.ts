@@ -281,4 +281,12 @@ export const api: AppAPI = {
   onTerminalData: (cb) => window.electronAPI.onTerminalData(cb),
   onTerminalExit: (cb) => window.electronAPI.onTerminalExit(cb),
   captureScreenshot: (opts) => window.electronAPI.captureScreenshot(opts),
+
+  // Admin Review (Azure Blob via main process)
+  adminReviewConfigured: () => window.electronAPI.adminReviewConfigured(),
+  adminReviewQueue: () => window.electronAPI.adminReviewQueue() as Promise<{ items: { id: string; domain: string; submitter: string; submitterDisplay: string; submittedAt: string; summary: string; itemCount: number; status: string }[] }>,
+  adminReviewStats: () => window.electronAPI.adminReviewStats() as Promise<{ total: number; byDomain: Record<string, number> }>,
+  adminReviewDetail: (groupId) => window.electronAPI.adminReviewDetail(groupId),
+  adminReviewAction: (action) => window.electronAPI.adminReviewAction(action),
+  adminRemoveCommunityItem: (type, id, reason) => window.electronAPI.adminRemoveCommunityItem(type, id, reason),
 };

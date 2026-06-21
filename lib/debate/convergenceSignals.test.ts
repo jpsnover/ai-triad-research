@@ -2,13 +2,15 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { describe, it, expect } from 'vitest';
-import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD, computeUncertaintyMetric } from './convergenceSignals.js';
+import { computeConvergenceSignals, SEMANTIC_RECYCLING_THRESHOLD, ARCO_DRIFT_THRESHOLD, computeUncertaintyMetric, boostConvergenceOnConcession, CONCESSION_CONVERGENCE_BOOST } from './convergenceSignals.js';
 import type {
   SpeakerId,
   TranscriptEntry,
   ArgumentNetworkNode,
   ArgumentNetworkEdge,
   ConvergenceSignals,
+  ConvergenceTracker,
+  ConvergenceIssue,
   TrackedCrux,
 } from './types.js';
 
@@ -1703,5 +1705,161 @@ describe('computeUncertaintyMetric — collapse_warning', () => {
     const result = computeUncertaintyMetric(nodes, edges, signals, 'argumentation');
     // Support ratio = 1/3 ≈ 0.33, below 0.6
     expect(result.collapse_warning).toBe(false);
+  });
+});
+
+// ── boostConvergenceOnConcession ──────────────────────────
+
+describe('boostConvergenceOnConcession', () => {
+  function makeIssue(id: string, claimIds: string[], convergence: number, history?: { turn: number; value: number }[]): ConvergenceIssue {
+    return {
+      id,
+      label: `Issue ${id}`,
+      taxonomy_ref: null,
+      convergence,
+      claim_ids: claimIds,
+      history: history ?? [],
+    };
+  }
+
+  function makeTracker(issues: ConvergenceIssue[]): ConvergenceTracker {
+    return { issues, available_issues: [], last_updated_turn: 0 };
+  }
+
+  function makeSig(outcome: 'taken' | 'missed' | 'none'): ConvergenceSignals {
+    return {
+      entry_id: 'e1', round: 5, speaker: 'skeptic' as SpeakerId,
+      move_polarity: { confrontational: 0, collaborative: 1, ratio: 1 },
+      dialectical_engagement: { targeted: 1, standalone: 0, ratio: 1 },
+      argument_redundancy: { avg_self_overlap: 0, max_self_overlap: 0 },
+      dominant_counterargument: null,
+      concession_opportunity: { strong_attacks_faced: 1, concession_used: outcome === 'taken', outcome },
+      position_drift: { overlap_with_opening: 0.5, drift: 0.1 },
+      crux_engagement_rate: { used_this_turn: false, cumulative_count: 0, cumulative_follow_through: 0 },
+    };
+  }
+
+  const turnNodes: ArgumentNetworkNode[] = [
+    { id: 'c1', text: 'claim 1', speaker: 'skeptic', source_entry_id: 'e1', turn_number: 5, base_strength: 0.5 },
+    { id: 'c2', text: 'claim 2', speaker: 'skeptic', source_entry_id: 'e1', turn_number: 5, base_strength: 0.5 },
+  ] as ArgumentNetworkNode[];
+
+  const priorNodes: ArgumentNetworkNode[] = [
+    { id: 'p1', text: 'prior claim', speaker: 'accelerationist', source_entry_id: 'e0', turn_number: 4, base_strength: 0.6 },
+  ] as ArgumentNetworkNode[];
+
+  const edges: ArgumentNetworkEdge[] = [
+    { source: 'c1', target: 'p1', type: 'supports', weight: 0.5 },
+  ] as ArgumentNetworkEdge[];
+
+  it('boosts engaged issues when concession is taken', () => {
+    const issue = makeIssue('iss-1', ['p1', 'old-claim'], 0.0, [{ turn: 5, value: 0.0 }]);
+    const tracker = makeTracker([issue]);
+
+    const boosted = boostConvergenceOnConcession(
+      tracker, makeSig('taken'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+
+    expect(boosted).toEqual(['iss-1']);
+    expect(issue.convergence).toBeCloseTo(CONCESSION_CONVERGENCE_BOOST);
+    expect(issue.history[issue.history.length - 1].value).toBeCloseTo(CONCESSION_CONVERGENCE_BOOST);
+  });
+
+  it('does not boost when concession outcome is not taken', () => {
+    const issue = makeIssue('iss-1', ['p1'], 0.0);
+    const tracker = makeTracker([issue]);
+
+    const missed = boostConvergenceOnConcession(
+      tracker, makeSig('missed'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+    expect(missed).toEqual([]);
+    expect(issue.convergence).toBe(0.0);
+
+    const none = boostConvergenceOnConcession(
+      tracker, makeSig('none'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+    expect(none).toEqual([]);
+  });
+
+  it('does not boost issues with no overlapping claims', () => {
+    const issue = makeIssue('iss-1', ['unrelated-1', 'unrelated-2'], 0.0);
+    const tracker = makeTracker([issue]);
+
+    const boosted = boostConvergenceOnConcession(
+      tracker, makeSig('taken'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+
+    expect(boosted).toEqual([]);
+    expect(issue.convergence).toBe(0.0);
+  });
+
+  it('updates existing history entry when turn matches', () => {
+    const issue = makeIssue('iss-1', ['p1'], 0.2, [{ turn: 5, value: 0.2 }]);
+    const tracker = makeTracker([issue]);
+
+    boostConvergenceOnConcession(
+      tracker, makeSig('taken'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+
+    expect(issue.history).toHaveLength(1);
+    expect(issue.history[0].value).toBeCloseTo(0.2 + CONCESSION_CONVERGENCE_BOOST);
+  });
+
+  it('appends new history entry when turn differs', () => {
+    const issue = makeIssue('iss-1', ['p1'], 0.2, [{ turn: 4, value: 0.2 }]);
+    const tracker = makeTracker([issue]);
+
+    boostConvergenceOnConcession(
+      tracker, makeSig('taken'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+
+    expect(issue.history).toHaveLength(2);
+    expect(issue.history[1]).toEqual({ turn: 5, value: 0.2 + CONCESSION_CONVERGENCE_BOOST });
+  });
+
+  it('caps convergence at 1.0', () => {
+    const issue = makeIssue('iss-1', ['p1'], 0.95, [{ turn: 5, value: 0.95 }]);
+    const tracker = makeTracker([issue]);
+
+    boostConvergenceOnConcession(
+      tracker, makeSig('taken'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+
+    expect(issue.convergence).toBe(1.0);
+  });
+
+  it('engages via speaker node ownership (not just edges)', () => {
+    const issue = makeIssue('iss-1', ['c1'], 0.0);
+    const tracker = makeTracker([issue]);
+
+    const boosted = boostConvergenceOnConcession(
+      tracker, makeSig('taken'), 'e1', 'skeptic' as SpeakerId,
+      turnNodes, [], 5,
+    );
+
+    expect(boosted).toEqual(['iss-1']);
+    expect(issue.convergence).toBeCloseTo(CONCESSION_CONVERGENCE_BOOST);
+  });
+
+  it('boosts multiple issues when multiple are engaged', () => {
+    const issue1 = makeIssue('iss-1', ['p1'], 0.0);
+    const issue2 = makeIssue('iss-2', ['c2'], 0.1);
+    const tracker = makeTracker([issue1, issue2]);
+
+    const boosted = boostConvergenceOnConcession(
+      tracker, makeSig('taken'), 'e1', 'skeptic' as SpeakerId,
+      [...turnNodes, ...priorNodes], edges, 5,
+    );
+
+    expect(boosted).toEqual(['iss-1', 'iss-2']);
+    expect(issue1.convergence).toBeCloseTo(CONCESSION_CONVERGENCE_BOOST);
+    expect(issue2.convergence).toBeCloseTo(0.1 + CONCESSION_CONVERGENCE_BOOST);
   });
 });

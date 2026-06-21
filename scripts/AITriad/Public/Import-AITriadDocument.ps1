@@ -29,6 +29,8 @@ function Import-AITriadDocument {
         Skip the Wayback Machine archival submission.
     .PARAMETER NoSummaryQueue
         Do not mark the document for AI summarisation.
+    .PARAMETER Force
+        Allow re-ingesting a document that already exists in the corpus.
     .PARAMETER SkipAiMeta
         Skip the AI metadata-enrichment step.
     .PARAMETER Model
@@ -75,6 +77,8 @@ function Import-AITriadDocument {
         [switch]$NoSummaryQueue,
 
         [switch]$SkipAiMeta,
+
+        [switch]$Force,
 
         [switch]$NoSummarize,
 
@@ -140,12 +144,20 @@ function Import-AITriadDocument {
             [string[]]$TopicTags   = @()
         )
 
-        # -- Idempotency check -----------------------------------------------
-        $ExistingDocId = Find-ExistingSource -Url $SourceUrl -FilePath $SourceFile
-        if ($ExistingDocId) {
-            $MatchType = if (-not [string]::IsNullOrWhiteSpace($SourceUrl)) { "URL '$SourceUrl'" } else { "file '$(Split-Path $SourceFile -Leaf)'" }
-            Write-Warn "Duplicate detected: $MatchType already ingested as '$ExistingDocId' — skipping"
-            return $ExistingDocId
+        # -- Duplicate check -------------------------------------------------
+        if (-not $Force) {
+            $ExistingDocId = Find-ExistingSource -Url $SourceUrl -FilePath $SourceFile
+            if ($ExistingDocId) {
+                $MatchType = if (-not [string]::IsNullOrWhiteSpace($SourceUrl)) { "URL '$SourceUrl'" } else { "file '$(Split-Path $SourceFile -Leaf)'" }
+                throw (New-ActionableError `
+                    -Goal     "Ingest document" `
+                    -Problem  "Duplicate source: $MatchType already ingested as '$ExistingDocId'" `
+                    -Location 'Import-AITriadDocument' `
+                    -NextSteps @(
+                        "To re-ingest, use: Import-AITriadDocument ... -Force"
+                        "To view existing source: Get-AITSource -DocId '$ExistingDocId'"
+                    ))
+            }
         }
 
         $RawContent   = $null
@@ -349,6 +361,36 @@ function Import-AITriadDocument {
         # -- Normalize markdown (encoding artifacts, ligatures, etc.) ----------
         $MarkdownText = Repair-Markdown -Text $MarkdownText
 
+        # -- Strip vertical-text artifacts (ArXiv watermarks, rotated margin text) --
+        $Lines = $MarkdownText -split "`n"
+        $CleanLines = [System.Collections.Generic.List[string]]::new($Lines.Count)
+        $RunBuf     = [System.Collections.Generic.List[int]]::new()
+        $ShortCount = 0
+        for ($i = 0; $i -lt $Lines.Count; $i++) {
+            $Trimmed = $Lines[$i].Trim()
+            $IsShort = ($Trimmed.Length -ge 1 -and $Trimmed.Length -le 2 -and $Trimmed -match '^\S{1,2}$')
+            $IsBlank = ($Trimmed.Length -eq 0)
+            if ($IsShort -or ($IsBlank -and $RunBuf.Count -gt 0)) {
+                $RunBuf.Add($i)
+                if ($IsShort) { $ShortCount++ }
+            } else {
+                if ($ShortCount -ge 10) {
+                    Write-Info "Stripped $($RunBuf.Count) lines of vertical-text artifact (lines $($RunBuf[0]+1)-$($RunBuf[$RunBuf.Count-1]+1))"
+                } else {
+                    foreach ($j in $RunBuf) { $CleanLines.Add($Lines[$j]) }
+                }
+                $CleanLines.Add($Lines[$i])
+                $RunBuf.Clear()
+                $ShortCount = 0
+            }
+        }
+        if ($ShortCount -ge 10) {
+            Write-Info "Stripped $($RunBuf.Count) lines of vertical-text artifact (lines $($RunBuf[0]+1)-$($RunBuf[$RunBuf.Count-1]+1))"
+        } elseif ($RunBuf.Count -gt 0) {
+            foreach ($j in $RunBuf) { $CleanLines.Add($Lines[$j]) }
+        }
+        $MarkdownText = $CleanLines -join "`n"
+
         # -- Add provenance header and write snapshot.md ----------------------
         $FinalMarkdown = Add-SnapshotHeader `
             -Markdown    $MarkdownText `
@@ -373,8 +415,25 @@ function Import-AITriadDocument {
 
         if ($null -ne $AiMeta) {
             if ($AiMeta.date_published) {
-                $Metadata['date_published'] = $AiMeta.date_published
-                $Metadata['source_time']    = $AiMeta.date_published
+                $ValidatedDate = $AiMeta.date_published
+                $ParsedDate = $null
+                if ([datetime]::TryParse($ValidatedDate, [ref]$ParsedDate)) {
+                    $Now = Get-Date
+                    $DaysAhead = ($ParsedDate - $Now).Days
+                    if ($DaysAhead -gt 30) {
+                        Write-Warn "date_published '$ValidatedDate' is $DaysAhead days in the future — likely extraction error, clearing"
+                        $ValidatedDate = $null
+                    } elseif ($DaysAhead -gt 0) {
+                        Write-Info "Pre-print: publication date $ValidatedDate is $DaysAhead day(s) ahead of import"
+                    }
+                    if ($ParsedDate.Month -eq 1 -and $ParsedDate.Day -eq 1) {
+                        Write-Info "Generic date detected ($ValidatedDate) — may be incomplete metadata"
+                    }
+                }
+                if ($ValidatedDate) {
+                    $Metadata['date_published'] = $ValidatedDate
+                    $Metadata['source_time']    = $ValidatedDate
+                }
             }
             if ($AiMeta.one_liner) { $Metadata['one_liner'] = $AiMeta.one_liner }
         }

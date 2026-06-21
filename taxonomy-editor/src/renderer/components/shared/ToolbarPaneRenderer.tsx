@@ -1,7 +1,9 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
+import React, { Suspense, lazy } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useUserProfile } from '../../hooks/useAuthStatus';
 
 import { SearchPanel } from '../edge-browser/SearchPanel';
 import { RelatedEdgesPanel } from '../edge-browser/RelatedEdgesPanel';
@@ -11,12 +13,13 @@ import { LineagePanel } from '../analysis/LineagePanel';
 import { PromptsPanel } from '../chat/PromptsPanel';
 import { FallacyPanel } from '../analysis/FallacyPanel';
 import { EdgeBrowser } from '../edge-browser/EdgeBrowser';
-import { TerminalPanel } from './TerminalPanel';
 import { PolicyAlignmentPanel } from '../analysis/PolicyAlignmentPanel';
 import { PolicyDashboard } from '../analysis/PolicyDashboard';
 import { VocabularyPanel } from './VocabularyPanel';
 import { CalibrationDashboard } from '../analysis/CalibrationDashboard';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
+
+const TerminalPanel = lazy(() => import('./TerminalPanel').then(m => ({ default: m.TerminalPanel })));
 
 const FULL_WIDTH_PANELS = new Set([
   'edges', 'console', 'policyAlignment', 'policyDashboard',
@@ -48,6 +51,7 @@ export function ToolbarPaneRenderer({
   onSelectPrompt,
   onInspectorToggle,
 }: ToolbarPaneRendererProps) {
+  const profile = useUserProfile();
   switch (panel) {
     case 'search': return <SearchPanel onSelectResult={onSelectResult} onAnalyze={onAnalyze} />;
     case 'related': return <RelatedEdgesPanel />;
@@ -57,7 +61,9 @@ export function ToolbarPaneRenderer({
     case 'prompts': return <PromptsPanel onSelectPrompt={onSelectPrompt} onInspectorToggle={onInspectorToggle} />;
     case 'fallacy': return <FallacyPanel onSelectFallacy={onSelectFallacy} />;
     case 'edges': return <EdgeBrowser />;
-    case 'console': return <TerminalPanel />;
+    case 'console': return profile?.isAdmin
+      ? <Suspense fallback={<div style={{ padding: 16, color: 'var(--text-muted)' }}>Loading terminal...</div>}><TerminalPanel /></Suspense>
+      : null;
     case 'policyAlignment': return <PolicyAlignmentPanel />;
     case 'policyDashboard': return <PolicyDashboard />;
     case 'vocabulary': return <VocabularyPanel />;

@@ -680,7 +680,7 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
 
   try {
     const parsed = parseJsonRobust(text) as Record<string, unknown>;
-    statement = (parsed.statement as string) || text.trim();
+    statement = (typeof parsed.statement === 'string' ? parsed.statement : String(parsed.statement ?? '')) || text.trim();
     if (Array.isArray(parsed.taxonomy_refs)) {
       taxonomyRefs = parsed.taxonomy_refs
         .filter((r: Record<string, unknown>) => r.node_id && typeof r.node_id === 'string')
@@ -713,7 +713,7 @@ export function parsePoverResponse(text: string): { statement: string; taxonomyR
     if (idx > 0) {
       try {
         const parsed = parseJsonRobust(text.slice(idx)) as Record<string, unknown>;
-        statement = (parsed.statement as string) || text.trim();
+        statement = (typeof parsed.statement === 'string' ? parsed.statement : String(parsed.statement ?? '')) || text.trim();
         if (Array.isArray(parsed.taxonomy_refs)) {
           taxonomyRefs = parsed.taxonomy_refs
             .filter((r: Record<string, unknown>) => r.node_id && typeof r.node_id === 'string')

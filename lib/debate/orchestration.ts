@@ -402,7 +402,7 @@ export async function runModeratorSelection(
         );
 
         const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
-        const interventionText = stage2Parsed.text as string;
+        const interventionText = typeof stage2Parsed.text === 'string' ? stage2Parsed.text : String(stage2Parsed.text ?? '');
 
         if (interventionText && interventionText.trim().length > 0) {
           activeIntervention = buildIntervention(
@@ -487,7 +487,7 @@ export async function runModeratorSelection(
             `Round ${round}: Moderator POLICY_CHALLENGE → ${poverInfo[policyChallengeTarget]?.label}`,
           );
           const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
-          const interventionText = stage2Parsed.text as string;
+          const interventionText = typeof stage2Parsed.text === 'string' ? stage2Parsed.text : String(stage2Parsed.text ?? '');
           if (interventionText && interventionText.trim().length > 0) {
             activeIntervention = buildIntervention(
               engineValidation, interventionText,
@@ -739,13 +739,13 @@ export async function runModeratorSelection(
             }
 
             const stage2Parsed = parseJsonRobust(stage2Text) as Record<string, unknown>;
-            let interventionText = (stage2Parsed.text as string) ?? stage2Text;
+            let interventionText = typeof stage2Parsed.text === 'string' ? stage2Parsed.text : String(stage2Parsed.text ?? stage2Text);
             let effectiveValidation = engineValidation;
 
             // REVOICE propositional gate: validate that revoiced text preserves
             // propositional content before allowing the intervention through.
             if (engineValidation.validated_move === 'REVOICE' && interventionText?.trim()) {
-              const originalClaimText = (stage2Parsed.original_claim_text as string) ?? '';
+              const originalClaimText = typeof stage2Parsed.original_claim_text === 'string' ? stage2Parsed.original_claim_text : '';
               if (originalClaimText && callbacks.computeEmbedding && input.nodeEmbeddings) {
                 try {
                   const [origVec, revoicedVec] = await Promise.all([

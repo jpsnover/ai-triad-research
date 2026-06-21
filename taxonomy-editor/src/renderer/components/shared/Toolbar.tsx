@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
-import { api } from '@bridge';
+import { api, isElectronMode } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
@@ -16,11 +16,23 @@ function useAdminReviewCount(): number {
   const profile = useUserProfile();
   const [count, setCount] = useState(0);
   useEffect(() => {
-    if (!profile?.isAdmin) return;
+    // In Electron mode, check if Azure review is configured; in web mode, check profile.isAdmin
+    if (!isElectronMode() && !profile?.isAdmin) return;
     let cancelled = false;
+    let configChecked = false;
     const poll = () => {
-      fetch('/api/admin/review/stats')
-        .then(r => r.ok ? r.json() : null)
+      if (isElectronMode() && !configChecked) {
+        api.adminReviewConfigured().then(configured => {
+          configChecked = true;
+          if (!configured) return;
+          doPoll();
+        }).catch(() => {});
+        return;
+      }
+      doPoll();
+    };
+    const doPoll = () => {
+      api.adminReviewStats()
         .then(s => { if (!cancelled && s) setCount(s.total ?? 0); })
         .catch((err) => {
           getGlobalRecorder()?.record({ type: 'system.error', component: 'Toolbar', level: 'warn', message: 'Admin review stats poll failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
@@ -169,7 +181,8 @@ export function Toolbar() {
     return () => window.removeEventListener('mousedown', handler);
   }, [showMore]);
 
-  const morePanels: ToolbarPanel[] = ['lineage', 'edges', 'policyAlignment', 'policyDashboard', 'fallacy', 'vocabulary', 'calibration', 'console', 'prompts'];
+  const profile = useUserProfile();
+  const morePanels: ToolbarPanel[] = ['lineage', 'edges', 'policyAlignment', 'policyDashboard', 'fallacy', 'vocabulary', 'calibration', ...(profile?.isAdmin ? ['console' as const] : []), 'prompts'];
   const moreTabsActive = ['situations', 'conflicts', 'cruxes', 'summaries', 'validation'].includes(activeTab) && toolbarPanel === null;
   const moreHasActive = morePanels.includes(toolbarPanel as ToolbarPanel) || moreTabsActive;
 
@@ -445,6 +458,7 @@ export function Toolbar() {
                 <span>Calibration</span>
               </button>
               <div className="toolbar-more-divider" />
+              {profile?.isAdmin && (
               <button
                 className={`toolbar-more-item${toolbarPanel === 'console' ? ' active' : ''}`}
                 onClick={() => { toggle('console'); setShowMore(false); }}
@@ -455,6 +469,7 @@ export function Toolbar() {
                 </svg>
                 <span>Console</span>
               </button>
+              )}
               <button
                 className={`toolbar-more-item${toolbarPanel === 'prompts' ? ' active' : ''}`}
                 onClick={() => { toggle('prompts'); setShowMore(false); }}

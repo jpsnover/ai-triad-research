@@ -333,7 +333,7 @@ export function DetailsTab({ entry, entryIdx, diag, meta, debate, an, turnValTra
                 title={SUPPRESSION_REASON_TOOLTIPS[(suppressedIntervention as any).intervention_suppressed_reason] ?? ''}
                 style={{ cursor: 'default', borderBottom: '1px dotted #92400e' }}
               >
-                {((suppressedIntervention as any).intervention_suppressed_reason as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                {String((suppressedIntervention as any).intervention_suppressed_reason ?? '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
               </span>
             )}
             {(suppressedIntervention as any).intervention_suppression_explanation

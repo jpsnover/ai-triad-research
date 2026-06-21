@@ -544,7 +544,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                 )}
                 {!activeModelExcluded && !activeModelHasKey && (
                   <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
-                    No API key configured for {activeModelBackend}. Configure in Settings or choose a different model.
+                    No API key configured for {activeModelBackend}.{' '}
+                    {activeModelBackend === 'gemini' && (
+                      <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>aistudio.google.com/apikey</a>. </>
+                    )}
+                    Configure in Settings or choose a different model.
                   </div>
                 )}
                 {activeModelHasKey && fallbackWarnings.length > 0 && (
@@ -850,7 +854,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                       </select>
                       {hasApiKey[modalBackend] === false && (
                         <div style={{ color: 'var(--error, #ef4444)', fontSize: '0.75rem', marginTop: 4 }}>
-                          No API key for {AI_BACKENDS.find(b => b.value === modalBackend)?.label ?? modalBackend}. Configure in Settings to use these models.
+                          No API key for {AI_BACKENDS.find(b => b.value === modalBackend)?.label ?? modalBackend}.{' '}
+                          {modalBackend === 'gemini' && (
+                            <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>aistudio.google.com/apikey</a>. </>
+                          )}
+                          Configure in Settings to use these models.
                         </div>
                       )}
                     </div>
