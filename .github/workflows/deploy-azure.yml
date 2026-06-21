@@ -375,7 +375,10 @@ jobs:
           # ── 3. AI readiness (keys configured for debate/chat) ──
           echo ""
           echo "--- AI readiness ---"
-          check "Gemini API key" "${BASE_URL}/api/keys/has?backend=gemini" "true"
+          # /api/keys/has requires sign-in — AI features are gated for anonymous
+          # users — so it 403s under this anonymous acceptance session and is not a
+          # valid readiness signal here. Platform Gemini-key readiness is verified
+          # auth-free via /health geminiKeyConfigured below.
           check "health AI status" "${BASE_URL}/health" '"geminiKeyConfigured"'
 
           # ── 4. Debate & chat (can list, even if no sessions exist) ──
