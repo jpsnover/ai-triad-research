@@ -16,7 +16,7 @@ import { createRequire } from 'module';
 import { getGlobalRecorder } from '../../../lib/flight-recorder/index.js';
 
 const require = createRequire(import.meta.url);
-import { getApiKey, getProjectRoot, EMBED_SCRIPT, type AIBackend } from './config.js';
+import { getApiKey, getProjectRoot, EMBED_SCRIPT, resolveDataPath, type AIBackend } from './config.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
 import { tavilySearch, buildSearchAugmentedPrompt } from '../../../lib/search/tavily.js';
 import {
@@ -363,7 +363,6 @@ interface EmbeddingsFile {
 let embeddingsCache: EmbeddingsFile | null = null;
 
 function getEmbeddingsPath(): string {
-  const { resolveDataPath } = require('./config');
   return path.join(resolveDataPath('taxonomy/Origin'), 'embeddings.json');
 }
 

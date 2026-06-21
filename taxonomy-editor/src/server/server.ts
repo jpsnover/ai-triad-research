@@ -1019,9 +1019,9 @@ get('/api/calibration/log', (_req, res) => {
 });
 
 // ── Calibration parameter history ──
-get('/api/calibration/history', (_req, res) => {
+get('/api/calibration/history', async (_req, res) => {
   try {
-    const { readParameterHistory, captureSnapshot } = require('../../../lib/debate/calibrationLogger');
+    const { readParameterHistory, captureSnapshot } = await import('../../../lib/debate/calibrationLogger.js');
     const history = readParameterHistory(getDataRoot());
     const current = captureSnapshot();
     json(res, { current, history });
@@ -1173,8 +1173,11 @@ put('/api/debates', async (_req, res, body) => {
     try {
       const session = body as { id?: string; transcript?: { type: string }[]; neutral_evaluations?: unknown[] };
       if (session?.transcript?.some(e => e.type === 'concluding')) {
-        const { extractCalibrationData, appendCalibrationLog } = require('../../../lib/debate/calibrationLogger');
-        const dataPoint = extractCalibrationData(session, getStorageUserId());
+        const { extractCalibrationData, appendCalibrationLog } = await import('../../../lib/debate/calibrationLogger.js');
+        // `body` is the saved debate session at runtime; the local narrow type
+        // above is only for the transcript check. The await import() is now typed
+        // (require's `any` previously hid this), so cast to the function's param.
+        const dataPoint = extractCalibrationData(session as unknown as Parameters<typeof extractCalibrationData>[0], getStorageUserId());
         appendCalibrationLog(dataPoint, getDataRoot());
       }
     } catch { /* telemetry — silent by design;  calibration logging never blocks save */ }

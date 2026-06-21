@@ -63,9 +63,9 @@ async function loadPrivateKey(): Promise<string | null> {
   if (vaultUrl && secretName) {
     try {
        
-      const { SecretClient } = require('@azure/keyvault-secrets');
-      const identity = require('@azure/identity');
-       
+      const { SecretClient } = await import('@azure/keyvault-secrets');
+      const identity = await import('@azure/identity');
+
       const credential = process.env.NODE_ENV === 'production'
         ? new identity.ManagedIdentityCredential()
         : new identity.DefaultAzureCredential();

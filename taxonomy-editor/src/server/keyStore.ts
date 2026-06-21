@@ -120,23 +120,31 @@ interface AzureSecretClient {
 }
 
 class AzureKeyVaultKeyStore implements KeyStore {
-  private client: AzureSecretClient;
+  private client: AzureSecretClient | null = null;
+  private readonly vaultUrl: string;
   private cache = new Map<string, { value: string; expires: number }>();
   private readonly cacheTtlMs = 5 * 60 * 1000;
 
   constructor(vaultUrl: string) {
-    // Lazy require so local installs that skip the Azure packages still build.
-    // In Azure, these packages are installed in the container image.
-     
-    const { SecretClient } = require('@azure/keyvault-secrets');
-    const identity = require('@azure/identity');
-     
-    // Use ManagedIdentityCredential in production to avoid multi-second startup
-    // delays from DefaultAzureCredential probing credential types that won't work.
+    this.vaultUrl = vaultUrl;
+  }
+
+  /**
+   * Lazily build the Key Vault client on first use. The Azure SDKs are loaded via
+   * dynamic import() (ESM-safe; a bare require() crashes under native ESM) so
+   * local installs that skip the optional Azure packages still build and run.
+   */
+  private async getClient(): Promise<AzureSecretClient> {
+    if (this.client) return this.client;
+    const { SecretClient } = await import('@azure/keyvault-secrets');
+    const identity = await import('@azure/identity');
+    // ManagedIdentityCredential in production avoids multi-second startup delays
+    // from DefaultAzureCredential probing credential types that won't work.
     const credential = process.env.NODE_ENV === 'production'
       ? new identity.ManagedIdentityCredential()
       : new identity.DefaultAzureCredential();
-    this.client = new SecretClient(vaultUrl, credential) as AzureSecretClient;
+    this.client = new SecretClient(this.vaultUrl, credential) as AzureSecretClient;
+    return this.client;
   }
 
   private secretName(backend: AIBackend, userId: string): string {
@@ -151,7 +159,8 @@ class AzureKeyVaultKeyStore implements KeyStore {
     const hit = this.cache.get(name);
     if (hit && hit.expires > Date.now()) return hit.value;
     try {
-      const resp = await this.client.getSecret(name);
+      const client = await this.getClient();
+      const resp = await client.getSecret(name);
       const value = resp?.value ?? null;
       if (value) this.cache.set(name, { value, expires: Date.now() + this.cacheTtlMs });
       return value;
@@ -173,7 +182,8 @@ class AzureKeyVaultKeyStore implements KeyStore {
 
   async set(backend: AIBackend, userId: string, key: string): Promise<void> {
     const name = this.secretName(backend, userId);
-    await this.client.setSecret(name, key);
+    const client = await this.getClient();
+    await client.setSecret(name, key);
     this.cache.delete(name);
   }
 }
