@@ -697,3 +697,7 @@ const rawApi: AppAPI = {
 };
 
 export const api = instrumentBridge(rawApi);
+
+export function isElectronMode(): boolean {
+  return typeof window !== 'undefined' && 'electronAPI' in window;
+}
