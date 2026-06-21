@@ -2922,8 +2922,11 @@ function isAnonAllowedRoute(method: string, urlPath: string): boolean {
   if (method === 'GET') return true;
 
   // Anonymous users can save/delete their own ephemeral chats and debates
-  if (method === 'PUT' && (urlPath.startsWith('/api/chats/') || urlPath.startsWith('/api/debates/'))) return true;
-  if (method === 'DELETE' && (urlPath.startsWith('/api/chats/') || urlPath.startsWith('/api/debates/'))) return true;
+  // Match both '/api/debates' (create/save) and '/api/debates/{id}' (update/delete)
+  const isUserContent = urlPath === '/api/chats' || urlPath.startsWith('/api/chats/')
+    || urlPath === '/api/debates' || urlPath.startsWith('/api/debates/');
+  if (method === 'PUT' && isUserContent) return true;
+  if (method === 'DELETE' && isUserContent) return true;
 
   if (method === 'PUT' || method === 'DELETE') return false;
 
@@ -2934,6 +2937,7 @@ function isAnonAllowedRoute(method: string, urlPath: string): boolean {
     '/api/debates/export',
     '/api/source-evidence',
     '/api/analytics/event',
+    '/api/admin/telemetry',
     '/api/data/check-updates',
     '/api/community/submit',
     '/focus-node',
