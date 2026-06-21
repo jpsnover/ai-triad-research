@@ -175,6 +175,19 @@ export async function storeApiKey(key: string, backend: AIBackend = 'gemini'): P
   await getKeyStore(getDataRoot).set(backend, getCurrentUserId(), key);
 }
 
+/** All user-configurable AI backends — iterated by deleteAllApiKeys(). */
+const ALL_AI_BACKENDS: AIBackend[] = ['gemini', 'claude', 'groq', 'openai', 'tavily', 'ollama', 'deepseek'];
+
+export async function deleteApiKey(backend: AIBackend = 'gemini'): Promise<void> {
+  await getKeyStore(getDataRoot).delete(backend, getCurrentUserId());
+}
+
+export async function deleteAllApiKeys(): Promise<void> {
+  const store = getKeyStore(getDataRoot);
+  const userId = getCurrentUserId();
+  await Promise.all(ALL_AI_BACKENDS.map(b => store.delete(b, userId)));
+}
+
 // ── Storage mode ──
 
 export type StorageMode = 'github-api' | 'filesystem';

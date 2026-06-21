@@ -28,6 +28,8 @@ import { log } from './logger.js';
 export interface KeyStore {
   get(backend: AIBackend, userId: string): Promise<string | null>;
   set(backend: AIBackend, userId: string, key: string): Promise<void>;
+  /** Remove the stored key for this backend/user. Idempotent (no-op if absent). */
+  delete(backend: AIBackend, userId: string): Promise<void>;
 }
 
 // ── Local file store (single-user, unchanged behavior) ────────────────────────
@@ -110,6 +112,21 @@ class LocalFileKeyStore implements KeyStore {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, combined);
   }
+
+  async delete(backend: AIBackend, _userId: string): Promise<void> {
+    const p = this.filePath(backend);
+    try {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'key-store',
+        level: 'warn',
+        message: `Failed to delete local key for ${backend}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    }
+  }
 }
 
 // ── Azure Key Vault store (per-user) ──────────────────────────────────────────
@@ -117,6 +134,7 @@ class LocalFileKeyStore implements KeyStore {
 interface AzureSecretClient {
   getSecret(name: string): Promise<{ value?: string } | null>;
   setSecret(name: string, value: string): Promise<unknown>;
+  beginDeleteSecret(name: string): Promise<unknown>;
 }
 
 class AzureKeyVaultKeyStore implements KeyStore {
@@ -185,6 +203,27 @@ class AzureKeyVaultKeyStore implements KeyStore {
     const client = await this.getClient();
     await client.setSecret(name, key);
     this.cache.delete(name);
+  }
+
+  async delete(backend: AIBackend, userId: string): Promise<void> {
+    const name = this.secretName(backend, userId);
+    this.cache.delete(name);
+    try {
+      const client = await this.getClient();
+      await client.beginDeleteSecret(name);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      const status = (err as { statusCode?: number })?.statusCode;
+      if (code === 'SecretNotFound' || status === 404) return; // already gone — idempotent
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'key-store',
+        level: 'warn',
+        message: `Failed to delete Key Vault secret for ${backend}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+      log.server.warn({ secretName: name, err }, 'Key Vault beginDeleteSecret failed');
+    }
   }
 }
 

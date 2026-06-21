@@ -26,7 +26,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import { WebSocketServer, WebSocket } from 'ws';
 import {
-  PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, resolveDataPath,
+  PORT, getDataRoot, getApiKey, hasApiKey, storeApiKey, deleteApiKey, deleteAllApiKeys, resolveDataPath,
   BROKER_SCRIPT, SCRIPTS_DIR, getProjectRoot, type AIBackend,
   STORAGE_MODE, CACHE_DIR,
 } from './config.js';
@@ -846,6 +846,37 @@ post('/api/keys', async (_req, res, body) => {
   const { key, backend } = body as { key: string; backend?: string };
   await storeApiKey(key, (backend || 'gemini') as AIBackend);
   json(res, { ok: true });
+});
+
+// Delete the current user's stored key for one backend / all backends. Mirrors
+// the web bridge contract. Anon-blocked by the /api/keys AI-route guard.
+post('/api/keys/delete', async (_req, res, body) => {
+  try {
+    const { backend } = body as { backend?: string };
+    await deleteApiKey((backend || 'gemini') as AIBackend);
+    json(res, { ok: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to delete API key',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
+post('/api/keys/delete-all', async (_req, res) => {
+  try {
+    await deleteAllApiKeys();
+    json(res, { ok: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to delete all API keys',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
 });
 
 // ── AI generation ──
