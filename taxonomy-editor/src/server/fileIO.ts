@@ -14,6 +14,7 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import os from 'os';
 import path from 'path';
+import dns from 'dns';
 import { execFile } from 'child_process';
 import { loadDataConfig, resolveDataPath, getDataRoot, getProjectRoot, getSourcesRoot, STORAGE_MODE } from './config.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
@@ -1661,6 +1662,54 @@ function isPrivateIP(hostname: string): boolean {
   return false;
 }
 
+/**
+ * L5 (t/720): classify a resolved IP literal (IPv4 or IPv6) as private/internal.
+ * Extends isPrivateIP with IPv6 loopback/ULA/link-local + IPv4-mapped handling,
+ * for vetting addresses DNS returns (rebinding / SSRF defense).
+ */
+export function isBlockedAddress(addr: string): boolean {
+  let ip = addr.trim().toLowerCase().split('%')[0]; // drop IPv6 zone id (fe80::1%eth0)
+  const mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/); // IPv4-mapped IPv6
+  if (mapped) ip = mapped[1];
+
+  if (ip.includes(':')) { // IPv6
+    if (ip === '::1' || ip === '::') return true;                 // loopback / unspecified
+    if (ip.startsWith('fc') || ip.startsWith('fd')) return true;  // fc00::/7 unique-local
+    if (/^fe[89ab]/.test(ip)) return true;                        // fe80::/10 link-local
+    return false;
+  }
+  // IPv4 — reuse isPrivateIP, plus the 0.0.0.0/8 "this-network" block.
+  if (Number(ip.split('.')[0]) === 0) return true;
+  return isPrivateIP(ip);
+}
+
+/**
+ * L5: resolve `hostname` and reject if ANY resolved address is private/internal.
+ * Defends against DNS rebinding where a public-looking host resolves to an
+ * internal IP (e.g. cloud metadata 169.254.169.254). Residual TOCTOU is
+ * minimized by checking immediately before the fetch.
+ */
+async function assertHostnameResolvesPublic(hostname: string): Promise<string | null> {
+  let addresses: { address: string }[];
+  try {
+    addresses = await dns.promises.lookup(hostname, { all: true });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'warn',
+      message: `DNS resolution failed for fetch host "${hostname}"`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    return 'DNS resolution failed';
+  }
+  if (addresses.length === 0) return 'DNS resolution returned no addresses';
+  for (const a of addresses) {
+    if (isBlockedAddress(a.address)) return 'URL resolves to a private/internal address';
+  }
+  return null;
+}
+
 function validateFetchUrl(url: string): string | null {
   let parsed: URL;
   try { parsed = new URL(url); } catch { /* telemetry — silent by design */ return 'Invalid URL'; }
@@ -1680,6 +1729,9 @@ function validateFetchUrl(url: string): string | null {
 export async function fetchUrlContent(url: string): Promise<{ content: string; error?: string }> {
   const validationError = validateFetchUrl(url);
   if (validationError) return { content: '', error: validationError };
+  // L5 (t/720): vet the resolved IP, not just the hostname literal (DNS rebinding / SSRF).
+  const dnsError = await assertHostnameResolvesPublic(new URL(url).hostname);
+  if (dnsError) return { content: '', error: dnsError };
 
   try {
     const resp = await fetch(url, { redirect: 'manual' });
@@ -1687,6 +1739,8 @@ export async function fetchUrlContent(url: string): Promise<{ content: string; e
       const location = resp.headers.get('location') || '';
       const redirectError = validateFetchUrl(location);
       if (redirectError) return { content: '', error: `Redirect blocked: ${redirectError}` };
+      const redirectDnsError = await assertHostnameResolvesPublic(new URL(location).hostname);
+      if (redirectDnsError) return { content: '', error: `Redirect blocked: ${redirectDnsError}` };
       const resp2 = await fetch(location, { redirect: 'manual' });
       if (!resp2.ok) return { content: '', error: `HTTP ${resp2.status}` };
       const html = await resp2.text();

@@ -6,10 +6,11 @@
  * L7: community submissions have a global pending-queue cap.
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import dns from 'dns';
 import type { StorageBackend } from '../storageBackend.js';
 import * as fileIO from '../fileIO.js';
 import * as community from '../community.js';
@@ -83,5 +84,52 @@ describe('t/720 server security fixes', () => {
         community.submitToCommunity('chat', { id: 'chat-y' }));
       expect(submissionId).toBeTruthy();
     });
+  });
+});
+
+describe('L5: SSRF / DNS-rebinding guard', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  describe('isBlockedAddress classifies resolved IPs', () => {
+    it('blocks private/internal IPv4', () => {
+      for (const ip of ['10.0.0.1', '172.16.5.5', '192.168.1.1', '127.0.0.1',
+        '169.254.169.254', '100.64.0.1', '0.0.0.0']) {
+        expect(fileIO.isBlockedAddress(ip)).toBe(true);
+      }
+    });
+    it('allows public IPv4', () => {
+      for (const ip of ['8.8.8.8', '1.1.1.1', '93.184.216.34']) {
+        expect(fileIO.isBlockedAddress(ip)).toBe(false);
+      }
+    });
+    it('blocks private/internal IPv6 (incl. IPv4-mapped + zone id)', () => {
+      for (const ip of ['::1', '::', 'fc00::1', 'fd12:3456::1', 'fe80::1',
+        'fe80::1%eth0', '::ffff:127.0.0.1']) {
+        expect(fileIO.isBlockedAddress(ip)).toBe(true);
+      }
+    });
+    it('allows public IPv6', () => {
+      for (const ip of ['2606:4700:4700::1111', '2001:4860:4860::8888']) {
+        expect(fileIO.isBlockedAddress(ip)).toBe(false);
+      }
+    });
+  });
+
+  it('rejects a public hostname that resolves to a private IP (rebinding)', async () => {
+    vi.spyOn(dns.promises, 'lookup').mockResolvedValue(
+      [{ address: '127.0.0.1', family: 4 }] as never,
+    );
+    const res = await fileIO.fetchUrlContent('https://totally-public.example.com/page');
+    expect(res.content).toBe('');
+    expect(res.error).toMatch(/private\/internal/);
+  });
+
+  it('still rejects non-HTTPS and credentialed URLs before any DNS lookup', async () => {
+    const lookup = vi.spyOn(dns.promises, 'lookup');
+    const http = await fileIO.fetchUrlContent('http://example.com');
+    expect(http.error).toMatch(/HTTPS/);
+    const creds = await fileIO.fetchUrlContent('https://user:pass@example.com');
+    expect(creds.error).toMatch(/credentials/);
+    expect(lookup).not.toHaveBeenCalled();
   });
 });
