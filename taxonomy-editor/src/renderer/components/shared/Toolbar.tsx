@@ -20,6 +20,13 @@ function useAdminReviewCount(): number {
     if (!isElectronMode() && !profile?.isAdmin) return;
     let cancelled = false;
     let configChecked = false;
+    const doPoll = () => {
+      api.adminReviewStats()
+        .then(s => { if (!cancelled && s) setCount(s.total ?? 0); })
+        .catch((err) => {
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'Toolbar', level: 'warn', message: 'Admin review stats poll failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        });
+    };
     const poll = () => {
       if (isElectronMode() && !configChecked) {
         api.adminReviewConfigured().then(configured => {
@@ -30,13 +37,6 @@ function useAdminReviewCount(): number {
         return;
       }
       doPoll();
-    };
-    const doPoll = () => {
-      api.adminReviewStats()
-        .then(s => { if (!cancelled && s) setCount(s.total ?? 0); })
-        .catch((err) => {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'Toolbar', level: 'warn', message: 'Admin review stats poll failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-        });
     };
     poll();
     const id = setInterval(poll, 60_000);
