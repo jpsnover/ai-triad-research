@@ -271,7 +271,11 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
     // uses account key via managed environment storage; disabling breaks the mount.
     // Migrate environment storage to identity-based auth before enabling.
     networkAcls: {
-      defaultAction: 'Deny'
+      // Allow required for consumption-tier ACA — SMB/CIFS mounts use Azure
+      // SNAT outbound IPs which are unpredictable and can't be allowlisted.
+      // VNet integration + private endpoints would allow Deny but exceed
+      // the $0-5/month cost target. Still protected by shared-key auth.
+      defaultAction: 'Allow'
       bypass: 'AzureServices, Logging, Metrics'
     }
   }
