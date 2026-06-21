@@ -43,6 +43,45 @@ describe('checkDolceCompliance', () => {
     expect(rules(v)).toContain('GENUS');
   });
 
+  // Rule 1b: Discourse (POV validation)
+  it('flags invalid POV discourse term', () => {
+    const v = checkDolceCompliance('A Belief within technological discourse that AI is transformative. Encompasses: x, y. Excludes: z.', 'acc-beliefs-001');
+    expect(rules(v)).toContain('DISCOURSE');
+    expect(v.find(x => x.rule === 'DISCOURSE')?.message).toContain('technological');
+  });
+
+  it('flags another invalid POV discourse term', () => {
+    const v = checkDolceCompliance('A Desire within progressive discourse that policy evolves. Encompasses: x, y. Excludes: z.', 'saf-desires-001');
+    expect(rules(v)).toContain('DISCOURSE');
+    expect(v.find(x => x.rule === 'DISCOURSE')?.message).toContain('progressive');
+  });
+
+  it('accepts accelerationist discourse', () => {
+    const v = checkDolceCompliance('A Belief within accelerationist discourse that AI progress is inevitable. Encompasses: x, y. Excludes: z.', 'acc-beliefs-001');
+    expect(rules(v)).not.toContain('DISCOURSE');
+  });
+
+  it('accepts safetyist discourse', () => {
+    const v = checkDolceCompliance(COMPLIANT_POV, 'saf-beliefs-001');
+    expect(rules(v)).not.toContain('DISCOURSE');
+  });
+
+  it('accepts skeptic discourse', () => {
+    const v = checkDolceCompliance('An Intention within skeptic discourse that advocates caution. Encompasses: a, b. Excludes: c.', 'skp-intentions-001');
+    expect(rules(v)).not.toContain('DISCOURSE');
+  });
+
+  it('skips discourse check for situation nodes', () => {
+    const v = checkDolceCompliance(COMPLIANT_SITUATION, 'cc-001');
+    expect(rules(v)).not.toContain('DISCOURSE');
+  });
+
+  it('assigns error severity to DISCOURSE violations', () => {
+    const v = checkDolceCompliance('A Belief within technological discourse that AI matters. Encompasses: x, y. Excludes: z.', 'acc-beliefs-001');
+    const disc = v.find(x => x.rule === 'DISCOURSE');
+    expect(disc?.severity).toBe('error');
+  });
+
   // Rule 2: Encompasses
   it('flags missing encompasses', () => {
     const v = checkDolceCompliance('A Belief within safetyist discourse that AI is risky. Excludes: minor bugs.', 'saf-beliefs-001');

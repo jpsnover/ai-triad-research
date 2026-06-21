@@ -1,10 +1,13 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useCommunityStore, type Submission } from '../../hooks/useCommunityStore';
 import { useUserProfile } from '../../hooks/useAuthStatus';
+import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
+import { useDebateStore } from '../../hooks/useDebateStore';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useShallow } from 'zustand/react/shallow';
 
 function formatDate(iso: string): string {
   if (!iso) return '';
@@ -50,6 +53,102 @@ function SubmissionRow({ sub, onApprove, onReject }: {
         </button>
       </td>
     </tr>
+  );
+}
+
+const POV_KEYS = ['accelerationist', 'safetyist', 'skeptic'] as const;
+
+function EnrichmentRepairSection() {
+  const taxState = useTaxonomyStore(useShallow(s => ({
+    accelerationist: s.accelerationist,
+    safetyist: s.safetyist,
+    skeptic: s.skeptic,
+  })));
+  const { retryEnrichment, enrichmentStatus } = useDebateStore(
+    useShallow(s => ({ retryEnrichment: s.retryEnrichment, enrichmentStatus: s.enrichmentStatus })),
+  );
+  const [repairing, setRepairing] = useState(false);
+  const [repairMsg, setRepairMsg] = useState<string | null>(null);
+
+  const pendingNodes: { id: string; label: string; pov: typeof POV_KEYS[number] }[] = [];
+  for (const pov of POV_KEYS) {
+    const data = taxState[pov];
+    if (!data?.nodes) continue;
+    for (const node of data.nodes) {
+      if (node.graph_attributes?._phrase_regen_pending) {
+        pendingNodes.push({ id: node.id, label: node.label, pov });
+      }
+    }
+  }
+
+  const handleRepairAll = useCallback(async () => {
+    setRepairing(true);
+    setRepairMsg(null);
+    let ok = 0;
+    let fail = 0;
+    const currentTaxState = useTaxonomyStore.getState();
+    const pending: { id: string; pov: typeof POV_KEYS[number] }[] = [];
+    for (const pov of POV_KEYS) {
+      for (const node of currentTaxState[pov]?.nodes ?? []) {
+        if (node.graph_attributes?._phrase_regen_pending) pending.push({ id: node.id, pov });
+      }
+    }
+    for (const { id, pov } of pending) {
+      try {
+        await retryEnrichment(id, pov);
+        ok++;
+      } catch (err) {
+        getGlobalRecorder()?.record({ type: 'system.error', component: 'admin-enrichment-repair', level: 'warn', message: `Batch enrichment repair failed for ${id}`, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+        fail++;
+      }
+    }
+    setRepairMsg(`Repair complete: ${ok} succeeded, ${fail} failed`);
+    setRepairing(false);
+    setTimeout(() => setRepairMsg(null), 5000);
+  }, [retryEnrichment]);
+
+  return (
+    <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border-color)' }}>
+      <h3 style={{ fontSize: '0.9rem', marginBottom: 8 }}>Enrichment Repair</h3>
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+        Nodes with incomplete phrase regeneration ({pendingNodes.length} found):
+      </p>
+      {pendingNodes.length === 0 ? (
+        <div style={{ fontSize: '0.75rem', color: '#22c55e' }}>All nodes are fully enriched.</div>
+      ) : (
+        <>
+          <div style={{ maxHeight: 200, overflow: 'auto', marginBottom: 8 }}>
+            {pendingNodes.map(n => {
+              const st = enrichmentStatus[n.id];
+              return (
+                <div key={n.id} style={{ fontSize: '0.7rem', padding: '3px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <code style={{ color: 'var(--text-muted)' }}>{n.id}</code>
+                  <span style={{ flex: 1 }}>{n.label}</span>
+                  {st?.status === 'pending' && <span style={{ color: '#3b82f6' }}>{'⧗'}</span>}
+                  {st?.status === 'success' && <span style={{ color: '#22c55e' }}>{'✓'}</span>}
+                  {st?.status === 'error' && <span style={{ color: '#ef4444' }} title={st.error}>{'✗'}</span>}
+                  <button
+                    className="btn btn-sm"
+                    style={{ fontSize: '0.6rem', padding: '1px 6px' }}
+                    disabled={repairing || st?.status === 'pending'}
+                    onClick={() => void retryEnrichment(n.id, n.pov)}
+                  >Retry</button>
+                </div>
+              );
+            })}
+          </div>
+          <button
+            className="btn btn-primary"
+            style={{ fontSize: '0.75rem' }}
+            disabled={repairing}
+            onClick={() => void handleRepairAll()}
+          >
+            {repairing ? 'Repairing…' : `Repair All (${pendingNodes.length})`}
+          </button>
+        </>
+      )}
+      {repairMsg && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 6 }}>{repairMsg}</div>}
+    </div>
   );
 }
 
@@ -144,6 +243,8 @@ export function AdminPanel() {
           </tbody>
         </table>
       )}
+
+      <EnrichmentRepairSection />
     </div>
   );
 }

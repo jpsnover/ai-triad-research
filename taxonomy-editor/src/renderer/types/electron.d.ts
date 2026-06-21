@@ -106,6 +106,8 @@ export interface ElectronAPI {
   getCalibrationLog: () => Promise<{ entries: unknown[]; validationReport: unknown }>;
   fetchUrlContent: (url: string) => Promise<{ content: string; error?: string }>;
   submitFeedback: (rating: string, text?: string, category?: string, context?: Record<string, unknown>) => Promise<{ ok: boolean; id?: string }>;
+  deleteApiKey: (backend?: string) => Promise<void>;
+  deleteAllApiKeys: () => Promise<void>;
   communitySubmit: (baseUrl: string, payload: { type: 'chat' | 'debate'; data: unknown; note?: string }) => Promise<{ submissionId: string }>;
   pickDocumentFile: () => Promise<{ cancelled: boolean; filePath?: string; content?: string }>;
   captureScreenshot: (opts?: { width?: number; height?: number; defaultName?: string }) => Promise<{ cancelled: boolean; filePath?: string }>;

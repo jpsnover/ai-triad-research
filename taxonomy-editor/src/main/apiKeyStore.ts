@@ -41,6 +41,18 @@ export function hasApiKey(backend?: Backend): boolean {
   return fs.existsSync(keyFilePath(backend));
 }
 
+/** Delete the stored key for a backend (no-op if absent). Omit backend for the default (gemini). */
+export function deleteApiKey(backend?: Backend): void {
+  fs.rmSync(keyFilePath(backend), { force: true });
+}
+
+/** Delete every stored API key across all backends. */
+export function deleteAllApiKeys(): void {
+  for (const backend of ALL_BACKENDS) {
+    deleteApiKey(backend);
+  }
+}
+
 export interface ApiKeySummaryEntry {
   backend: Backend;
   hasKey: boolean;

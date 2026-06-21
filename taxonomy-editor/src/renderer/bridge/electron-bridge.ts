@@ -76,6 +76,8 @@ export const api: AppAPI = {
   loadAIModels: () => window.electronAPI.loadAIModels(),
   refreshAIModels: () => window.electronAPI.refreshAIModels(),
   setApiKey: (key, backend) => window.electronAPI.setApiKey(key, backend),
+  deleteApiKey: (backend) => window.electronAPI.deleteApiKey(backend),
+  deleteAllApiKeys: () => window.electronAPI.deleteAllApiKeys(),
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
   getAvailableBackends: async () => {
     // Desktop has no community server; availability is local key presence.

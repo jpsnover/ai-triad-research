@@ -50,7 +50,7 @@ function getRuntime(): string {
   return 'Browser';
 }
 
-type HelpTab = 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'licenses';
+type HelpTab = 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'sbom' | 'licenses';
 
 const TABS: { id: HelpTab; label: string }[] = [
   { id: 'about', label: 'About' },
@@ -58,8 +58,190 @@ const TABS: { id: HelpTab; label: string }[] = [
   { id: 'documentation', label: 'Documentation' },
   { id: 'methods', label: 'Methods' },
   { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'sbom', label: 'SBOM' },
   { id: 'licenses', label: 'Licenses' },
 ];
+
+type SortCol = 'name' | 'version' | 'license';
+type SortDir = 'asc' | 'desc';
+
+const sbomSummary = (ossData as { summary: { name: string; version: string; license: string }[] }).summary;
+
+function compareSemver(a: string, b: string): number {
+  const pa = a.split('.').map(s => parseInt(s, 10) || 0);
+  const pb = b.split('.').map(s => parseInt(s, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function SbomPanel() {
+  const [filter, setFilter] = useState('');
+  const [sortCol, setSortCol] = useState<SortCol>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  const [lastClickedIdx, setLastClickedIdx] = useState<number | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
+  const filtered = useMemo(() => {
+    const rows = sbomSummary.map((row, originalIndex) => ({ ...row, originalIndex }));
+    const lc = filter.toLowerCase();
+    const matching = lc ? rows.filter(r =>
+      r.name.toLowerCase().includes(lc) ||
+      r.version.toLowerCase().includes(lc) ||
+      r.license.toLowerCase().includes(lc)
+    ) : rows;
+    matching.sort((a, b) => {
+      let cmp: number;
+      if (sortCol === 'version') {
+        cmp = compareSemver(a.version, b.version);
+      } else {
+        cmp = a[sortCol].localeCompare(b[sortCol], undefined, { sensitivity: 'base' });
+      }
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+    return matching;
+  }, [filter, sortCol, sortDir]);
+
+  const handleSort = useCallback((col: SortCol) => {
+    if (sortCol === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+  }, [sortCol]);
+
+  const handleRowClick = useCallback((displayIdx: number, e: React.MouseEvent) => {
+    setSelectedRows(prev => {
+      const next = new Set(prev);
+      if (e.shiftKey && lastClickedIdx !== null) {
+        const start = Math.min(lastClickedIdx, displayIdx);
+        const end = Math.max(lastClickedIdx, displayIdx);
+        for (let i = start; i <= end; i++) next.add(i);
+      } else if (e.ctrlKey || e.metaKey) {
+        if (next.has(displayIdx)) next.delete(displayIdx); else next.add(displayIdx);
+      } else {
+        next.clear();
+        next.add(displayIdx);
+      }
+      return next;
+    });
+    setLastClickedIdx(displayIdx);
+  }, [lastClickedIdx]);
+
+  const rowsToTsv = useCallback((rows: typeof filtered) => {
+    const header = 'Package\tVersion\tLicense';
+    const lines = rows.map(r => `${r.name}\t${r.version}\t${r.license}`);
+    return header + '\n' + lines.join('\n');
+  }, []);
+
+  const showCopyFeedback = useCallback((msg: string) => {
+    setCopyFeedback(msg);
+    setTimeout(() => setCopyFeedback(null), 2000);
+  }, []);
+
+  const handleCopyAll = useCallback(() => {
+    void navigator.clipboard.writeText(rowsToTsv(filtered)).then(
+      () => showCopyFeedback(`Copied ${filtered.length} rows`),
+      () => showCopyFeedback('Copy failed'),
+    );
+  }, [filtered, rowsToTsv, showCopyFeedback]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedRows.size > 0) {
+        const rows = [...selectedRows].sort((a, b) => a - b).map(i => filtered[i]).filter(Boolean);
+        if (rows.length === 0) return;
+        e.preventDefault();
+        void navigator.clipboard.writeText(rowsToTsv(rows)).then(
+          () => showCopyFeedback(`Copied ${rows.length} row${rows.length !== 1 ? 's' : ''}`),
+          () => showCopyFeedback('Copy failed'),
+        );
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedRows, filtered, rowsToTsv, showCopyFeedback]);
+
+  useEffect(() => { setSelectedRows(new Set()); setLastClickedIdx(null); }, [filter, sortCol, sortDir]);
+
+  const sortArrow = (col: SortCol) => sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+  return (
+    <div className="help-section" style={{ fontSize: '0.85rem' }}>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: 8 }}>
+        {filter
+          ? `${filtered.length} of ${sbomSummary.length} packages`
+          : `${sbomSummary.length} packages`
+        }
+      </p>
+      <input
+        type="text"
+        placeholder="Filter packages..."
+        value={filter}
+        onChange={e => setFilter(e.target.value)}
+        style={{
+          width: '100%', padding: '6px 10px', marginBottom: 10, borderRadius: 6,
+          border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+          color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box',
+        }}
+      />
+      <div style={{ overflowY: 'auto', maxHeight: 320, border: '1px solid var(--border)', borderRadius: 6 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+          <thead>
+            <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 1 }}>
+              <th
+                onClick={() => handleSort('name')}
+                style={{ textAlign: 'left', padding: '6px 8px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid var(--border)', fontWeight: 700 }}
+              >Package{sortArrow('name')}</th>
+              <th
+                onClick={() => handleSort('version')}
+                style={{ textAlign: 'left', padding: '6px 8px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid var(--border)', fontWeight: 700, whiteSpace: 'nowrap' }}
+              >Version{sortArrow('version')}</th>
+              <th
+                onClick={() => handleSort('license')}
+                style={{ textAlign: 'left', padding: '6px 8px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid var(--border)', fontWeight: 700 }}
+              >License{sortArrow('license')}</th>
+            </tr>
+          </thead>
+          <tbody ref={tbodyRef}>
+            {filtered.map((row, i) => (
+              <tr
+                key={row.originalIndex}
+                onClick={(e) => handleRowClick(i, e)}
+                style={{
+                  cursor: 'pointer',
+                  background: selectedRows.has(i) ? 'rgba(var(--accent-rgb, 59,130,246), 0.15)' : i % 2 === 0 ? 'transparent' : 'rgba(128,128,128,0.04)',
+                }}
+              >
+                <td style={{ padding: '3px 8px', fontFamily: 'monospace', fontSize: '0.78rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.name}</td>
+                <td style={{ padding: '3px 8px', fontFamily: 'monospace', fontSize: '0.78rem', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{row.version}</td>
+                <td
+                  style={{ padding: '3px 8px', borderBottom: '1px solid var(--border)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  title={row.license}
+                >{row.license}</td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={3} style={{ padding: 12, textAlign: 'center', color: 'var(--text-muted)' }}>No packages match &ldquo;{filter}&rdquo;</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+        <button className="btn btn-sm btn-ghost" onClick={handleCopyAll} title="Copy filtered rows as tab-separated text">
+          Copy All as TSV
+        </button>
+        {copyFeedback && <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{copyFeedback}</span>}
+      </div>
+    </div>
+  );
+}
 
 interface LicenseGroup {
   packages: { name: string; version: string }[];
@@ -432,6 +614,8 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             </table>
           </div>
         )}
+
+        {activeTab === 'sbom' && <SbomPanel />}
 
         {activeTab === 'licenses' && <LicensesPanel />}
 

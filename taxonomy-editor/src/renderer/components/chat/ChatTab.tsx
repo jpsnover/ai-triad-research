@@ -16,6 +16,7 @@ import { PromptDetailPanel } from './PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
+import { LineageDetailView } from '../shared/LineageDetailView';
 import { POVER_INFO } from '../../types/debate';
 import type { ChatSessionSummary, ChatMode, ChatSession } from '../../types/chat';
 import { api } from '@bridge';
@@ -48,6 +49,7 @@ export function ChatTab() {
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
+  const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
@@ -88,6 +90,7 @@ export function ChatTab() {
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={setSearchPreviewId}
+            onSelectLineageValue={setLineagePreviewValue}
             onSelectPrompt={setSelectedPromptEntry}
             onInspectorToggle={setPromptInspectorActive}
           />
@@ -274,6 +277,13 @@ export function ChatTab() {
           <div className="resize-handle" onMouseDown={onMouseDown} />
           <div className="detail-panel">
             <PromptDetailPanel entry={selectedPromptEntry} />
+          </div>
+        </>
+      ) : toolbarPanel === 'lineage' ? (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} />
+          <div className="detail-panel">
+            <LineageDetailView value={lineagePreviewValue} onSelectValue={setLineagePreviewValue} />
           </div>
         </>
       ) : toolbarPanel ? (

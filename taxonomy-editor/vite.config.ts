@@ -115,6 +115,7 @@ export default defineConfig({
   test: {
     include: [
       '**/*.test.{ts,tsx}',
+      '../main/**/*.test.ts',
       '../server/__tests__/**/*.test.ts',
       '../../../lib/debate/**/*.test.ts',
       // dictionary lint tests excluded — data consistency checks owned by data team

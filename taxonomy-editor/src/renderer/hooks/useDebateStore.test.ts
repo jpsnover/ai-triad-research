@@ -1387,7 +1387,7 @@ describe('Reflection edits', () => {
 
       const edits = useDebateStore.getState().reflections[0].edits;
       expect(edits[0].status).toBe('approved');
-      expect(result).toEqual({ ok: true });
+      expect(result).toMatchObject({ ok: true });
     });
 
     it('calls taxonomy store for revise edits', async () => {

@@ -2,7 +2,7 @@
 # Install: pip install -r scripts/requirements.txt
 
 # HTTP and web fetching
-requests>=2.31
+requests>=2.32.0
 httpx>=0.27
 
 # HTML to Markdown conversion
@@ -10,8 +10,8 @@ markdownify>=0.11
 trafilatura>=1.8
 
 # PDF text extraction
-pypdf>=4.0
-pdfminer.six>=20221105
+pypdf>=5.1.0
+pdfminer.six>=20231228
 
 # URL/slug utilities
 python-slugify>=8.0
@@ -24,7 +24,7 @@ anthropic>=0.30
 # google-generativeai>=0.7
 
 # Git inspection
-gitpython>=3.1
+gitpython>=3.1.44
 
 # Semantic embeddings (all-MiniLM-L6-v2) and NLI cross-encoder
 # (cross-encoder/nli-deberta-v3-small) for taxonomy search and

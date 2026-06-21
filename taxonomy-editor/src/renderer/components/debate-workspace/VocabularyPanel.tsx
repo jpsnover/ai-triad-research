@@ -6,6 +6,7 @@ import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { extractLineageNames } from '../../utils/lineageMatcher';
 import { getLineageInfo } from '../../data/lineageLookup';
+import { api } from '@bridge';
 import type { VocabResolution } from '../../utils/vocabularyAnnotations';
 import { POV_COLOR_VAR } from './utils';
 
@@ -25,6 +26,26 @@ export function LineageTermsView({ content }: { content: string }) {
             {info?.summary && (
               <div style={{ marginLeft: 16, marginTop: 2, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                 {info.summary}
+              </div>
+            )}
+            {info?.example && (
+              <div style={{ marginLeft: 16, marginTop: 4, fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                <span style={{ fontWeight: 600, fontStyle: 'normal' }}>Example:</span> {info.example}
+              </div>
+            )}
+            {info?.links && info.links.length > 0 && (
+              <div style={{ marginLeft: 16, marginTop: 4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {info.links.map((link, li) => (
+                  <a
+                    key={li}
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); void api.openExternal(link.url); }}
+                    title={link.url}
+                    style={{ fontSize: '0.72rem', color: 'var(--link-color, #3b82f6)', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+                  >
+                    {link.label}
+                  </a>
+                ))}
               </div>
             )}
           </div>

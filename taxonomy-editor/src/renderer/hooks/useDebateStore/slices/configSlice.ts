@@ -46,6 +46,9 @@ export interface ConfigSlice {
   reflections: ReflectionResult[];
   consensusClusters: ConsensusCluster[];
 
+  // Enrichment tracking — real-time status for in-session UI feedback
+  enrichmentStatus: Record<string, { status: 'pending' | 'success' | 'error'; error?: string }>;
+
   // Community read-only mode (viewing a shared debate without copying)
   communityReadOnly: boolean;
 
@@ -92,6 +95,7 @@ export const createConfigSlice: StateCreator<DebateStore, [], [], ConfigSlice> =
   taxonomyGapAnalysis: null,
   reflections: [],
   consensusClusters: [],
+  enrichmentStatus: {},
   communityReadOnly: false,
   newsReport: null,
   newsReportLoading: false,

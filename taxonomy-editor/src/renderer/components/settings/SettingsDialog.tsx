@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
@@ -37,14 +37,30 @@ const PROMPT_DEFAULT_ROWS: { label: string; key: string; type: 'number' | 'selec
   { label: 'Established Points: Max', key: 'establishedPoints.max', type: 'number', min: 5, max: 20 },
 ];
 
-function ShowKeysSection() {
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4M13 4v9.333a1.333 1.333 0 01-1.333 1.334H4.333A1.333 1.333 0 013 13.333V4" />
+    </svg>
+  );
+}
+
+function ShowKeysSection({ onKeysChanged }: { onKeysChanged?: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const [keySummary, setKeySummary] = useState<{ backend: string; hasKey: boolean; maskedKey: string | null }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const backendLabel: Record<string, string> = Object.fromEntries(
     AI_BACKENDS.map(b => [b.value, b.label]),
   );
+
+  const refreshSummary = useCallback(async () => {
+    const summary = await api.getApiKeySummary();
+    setKeySummary(summary);
+  }, []);
 
   const handleToggle = async () => {
     if (expanded) {
@@ -53,8 +69,7 @@ function ShowKeysSection() {
     }
     setLoading(true);
     try {
-      const summary = await api.getApiKeySummary();
-      setKeySummary(summary);
+      await refreshSummary();
     } catch (err) {
       getGlobalRecorder()?.record({
         type: 'system.error',
@@ -70,11 +85,60 @@ function ShowKeysSection() {
     }
   };
 
+  const handleDeleteKey = async (backend: string) => {
+    setDeleting(true);
+    try {
+      await api.deleteApiKey(backend);
+      await refreshSummary();
+      setConfirmingDelete(null);
+      onKeysChanged?.();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'settings-dialog',
+        level: 'error',
+        message: `Failed to delete API key for ${backend}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    setDeleting(true);
+    try {
+      await api.deleteAllApiKeys();
+      await refreshSummary();
+      setConfirmingDeleteAll(false);
+      onKeysChanged?.();
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error',
+        component: 'settings-dialog',
+        level: 'error',
+        message: 'Failed to delete all API keys',
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setConfirmingDelete(null);
+      setConfirmingDeleteAll(false);
+    }
+  }, []);
+
   const modelsForBackend = (backend: string) => {
     const models = MODELS_BY_BACKEND[backend as keyof typeof MODELS_BY_BACKEND];
     if (!models || models.length === 0) return 'no models configured';
     return models.map(m => m.label).join(', ');
   };
+
+  const keysWithValues = keySummary.filter(e => e.hasKey && e.backend !== 'ollama');
 
   return (
     <>
@@ -82,21 +146,108 @@ function ShowKeysSection() {
         {loading ? '...' : expanded ? 'Hide Keys' : 'Show Keys'}
       </button>
       {expanded && (
-        <div className="settings-key-summary">
+        <div className="settings-key-summary" onKeyDown={handleKeyDown}>
           {keySummary.length === 0 ? (
             <div className="settings-hint">No keys found</div>
           ) : (
-            keySummary.map(entry => (
-              <div key={entry.backend} className={`settings-key-summary-row${entry.hasKey ? '' : ' no-key'}`}>
-                <span className="settings-key-summary-backend">{backendLabel[entry.backend] ?? entry.backend}</span>
-                <span className="settings-key-summary-masked">
-                  {entry.backend === 'ollama' ? '(local — no key)' : entry.maskedKey ?? '—'}
-                </span>
-                <span className="settings-key-summary-models" title={modelsForBackend(entry.backend)}>
-                  {modelsForBackend(entry.backend)}
-                </span>
-              </div>
-            ))
+            <>
+              {keySummary.map(entry => {
+                const isOllama = entry.backend === 'ollama';
+                const isConfirming = confirmingDelete === entry.backend;
+
+                if (isConfirming) {
+                  return (
+                    <div key={entry.backend} className="settings-key-summary-row" style={{ justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.78rem' }}>
+                        {'Delete ' + (backendLabel[entry.backend] ?? entry.backend) + ' key?'}
+                      </span>
+                      <span style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          className="btn btn-sm"
+                          onClick={() => setConfirmingDelete(null)}
+                          disabled={deleting}
+                          autoFocus
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="btn btn-sm"
+                          style={{ background: '#ef4444', color: '#fff' }}
+                          onClick={() => void handleDeleteKey(entry.backend)}
+                          disabled={deleting}
+                        >
+                          {deleting ? '...' : 'Delete'}
+                        </button>
+                      </span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={entry.backend} className={`settings-key-summary-row${entry.hasKey ? '' : ' no-key'}`}>
+                    <span className="settings-key-summary-backend">{backendLabel[entry.backend] ?? entry.backend}</span>
+                    <span className="settings-key-summary-masked">
+                      {isOllama ? '(local — no key)' : entry.maskedKey ?? '—'}
+                    </span>
+                    <span className="settings-key-summary-models" title={modelsForBackend(entry.backend)}>
+                      {modelsForBackend(entry.backend)}
+                    </span>
+                    {entry.hasKey && !isOllama && (
+                      <button
+                        className="settings-key-delete-btn"
+                        onClick={() => setConfirmingDelete(entry.backend)}
+                        aria-label={`Delete ${backendLabel[entry.backend] ?? entry.backend} API key`}
+                        title="Delete key"
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer', padding: '4px 7px',
+                          color: 'var(--text-muted)', opacity: 0.5, transition: 'color 0.15s, opacity 0.15s',
+                          display: 'flex', alignItems: 'center', flexShrink: 0,
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.opacity = '1'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.opacity = '0.5'; }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {keysWithValues.length >= 2 && (
+                <div style={{ borderTop: '1px solid var(--border-color)', marginTop: 6, paddingTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
+                  {confirmingDeleteAll ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem' }}>
+                      <span>Delete all API keys? This cannot be undone.</span>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => setConfirmingDeleteAll(false)}
+                        disabled={deleting}
+                        autoFocus
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        style={{ background: '#ef4444', color: '#fff' }}
+                        onClick={() => void handleDeleteAll()}
+                        disabled={deleting}
+                      >
+                        {deleting ? '...' : 'Delete All'}
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      className="btn btn-sm"
+                      style={{ color: '#ef4444', background: 'none', border: 'none' }}
+                      onClick={() => setConfirmingDeleteAll(true)}
+                      aria-label="Delete all stored API keys"
+                    >
+                      Delete All Keys
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -176,6 +327,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [showKeySharing, setShowKeySharing] = useState(false);
   const [, forceUpdate] = useState(0);
+  const [keyRefreshTrigger, setKeyRefreshTrigger] = useState(0);
 
   const models = MODELS_BY_BACKEND[aiBackend] || [];
 
@@ -186,7 +338,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         return [b.value, has] as [string, boolean];
       }),
     ).then((results) => setHasKey(Object.fromEntries(results)));
-  }, [keySuccess]);
+  }, [keySuccess, keyRefreshTrigger]);
 
   const handleSaveKey = async () => {
     if (!keyInput.trim()) return;
@@ -346,7 +498,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           <button className="btn btn-sm" onClick={() => setShowKeySharing(true)}>
             Share / Import Keys via QR
           </button>
-          <ShowKeysSection />
+          <ShowKeysSection onKeysChanged={() => setKeyRefreshTrigger(n => n + 1)} />
         </div>
 
         {showKeySharing && (

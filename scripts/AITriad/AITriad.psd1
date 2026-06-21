@@ -93,6 +93,7 @@
         'Invoke-EdgeWeightEvaluation'
         'Repair-Markdown'
         'Compare-DebateRuns'
+        'Compare-DebateQuality'
         'Invoke-DebateAB'
         'Show-OSSLicenses'
         'Get-FlightRecorderDump'

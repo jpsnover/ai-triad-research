@@ -403,6 +403,7 @@ Export-ModuleMember -Function @(
     'Invoke-EdgeWeightEvaluation'
     'Repair-Markdown'
     'Compare-DebateRuns'
+    'Compare-DebateQuality'
     'Invoke-DebateAB'
     'Get-AICostReport'
     'Show-OSSLicenses'

@@ -198,6 +198,8 @@ export interface DebateConfig {
   evaluatorModel?: string;
   modelTier?: import('./types').ModelTier;
   speakerModels?: Record<string, string>;
+  /** Fallback model chain for per-speaker failover. On hard failure (403, 500, empty), the engine tries each model in order, then falls back to the base `model`. Provided by the caller (server or Electron main). */
+  fallbackChain?: string[];
   rounds: number;
   responseLength: 'brief' | 'medium' | 'detailed';
   enableClarification?: boolean;
@@ -830,6 +832,82 @@ export class DebateEngine {
 
   private resolveModelForSpeaker(speaker: string): string {
     return this.config.speakerModels?.[speaker] ?? this.config.model;
+  }
+
+  private buildFailoverChain(primaryModel: string): string[] {
+    const chain = [primaryModel];
+    if (this.config.fallbackChain) {
+      for (const m of this.config.fallbackChain) {
+        if (!chain.includes(m)) chain.push(m);
+      }
+    }
+    if (!chain.includes(this.config.model)) chain.push(this.config.model);
+    return chain;
+  }
+
+  private async executeWithModelFailover<T>(
+    speaker: string,
+    execute: (model: string) => Promise<T>,
+  ): Promise<T> {
+    const primaryModel = this.resolveModelForSpeaker(speaker);
+    const chain = this.buildFailoverChain(primaryModel);
+    if (chain.length <= 1) return execute(primaryModel);
+
+    let lastFailureReason = '';
+    for (let i = 0; i < chain.length; i++) {
+      try {
+        const result = await execute(chain[i]);
+        if (i > 0) {
+          if (!this.config.speakerModels) this.config.speakerModels = {};
+          this.config.speakerModels[speaker] = chain[i];
+          if (this.session) {
+            if (!this.session.speaker_models) this.session.speaker_models = {};
+            this.session.speaker_models[speaker] = chain[i];
+          }
+          getGlobalRecorder()?.record({
+            type: 'ai.fallback',
+            component: 'debateEngine',
+            level: 'warn',
+            debate_id: this.session?.id,
+            message: `Speaker ${speaker} failover: ${primaryModel} → ${chain[i]}`,
+            data: { characterId: speaker, originalModel: primaryModel, failureReason: lastFailureReason, newModel: chain[i], attemptedChain: chain.slice(0, i + 1) },
+          });
+        }
+        return result;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const lower = msg.toLowerCase();
+        const isHardFailure =
+          lower.includes('403') || lower.includes('401') ||
+          lower.includes('500') || lower.includes('empty') ||
+          lower.includes('failed after') || lower.includes('permission') ||
+          lower.includes('unauthorized') || lower.includes('forbidden');
+
+        if (isHardFailure && i < chain.length - 1) {
+          lastFailureReason = msg.slice(0, 300);
+          getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'debateEngine',
+            level: 'warn',
+            debate_id: this.session?.id,
+            message: `Speaker ${speaker} model ${chain[i]} hard failure, trying ${chain[i + 1]}`,
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+          this.warn(`Speaker ${speaker} model ${chain[i]}`, err, `Trying fallback ${chain[i + 1]}`);
+          continue;
+        }
+        getGlobalRecorder()?.record({
+            type: 'system.error',
+            component: 'debateEngine',
+            level: 'error',
+            debate_id: this.session?.id,
+            message: `Speaker ${speaker} model ${chain[i]} failed (no more fallbacks)`,
+            error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+          });
+          throw err;
+      }
+    }
+    throw new Error(`All models failed for speaker ${speaker}`);
   }
 
   private async generateWithEvaluator(prompt: string, label: string, timeoutMs?: number): Promise<string> {
@@ -2410,27 +2488,30 @@ export class DebateEngine {
         round: 0,
         turn_index: this.session.transcript.length,
       });
-      let pipelineResult = await runOpeningPipeline(
-        pipelineInput,
-        stageGenerate,
-        (_stage, label) => this.progress('opening', poverId, label),
-      );
+      let pipelineResult = await this.executeWithModelFailover(poverId, async (model) => {
+        const input = { ...pipelineInput, model };
+        let result = await runOpeningPipeline(
+          input,
+          stageGenerate,
+          (_stage, label) => this.progress('opening', poverId, label),
+        );
 
-      // Opening retry: if per-stage validation found errors, retry once with repair hints.
-      const repairHints = getOpeningRepairHints(pipelineResult);
-      if (repairHints.length > 0) {
-        this.progress('opening', poverId, `${info.label} retrying (${repairHints.length} issue${repairHints.length > 1 ? 's' : ''})`);
-        try {
-          pipelineResult = await runOpeningPipeline(
-            { ...pipelineInput, repairHints },
-            stageGenerate,
-            (_stage, label) => this.progress('opening', poverId, label),
-          );
-        } catch (err) {
-          getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Opening retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
-          this.warn('Opening retry', err, 'Using first attempt');
+        const repairHints = getOpeningRepairHints(result);
+        if (repairHints.length > 0) {
+          this.progress('opening', poverId, `${info.label} retrying (${repairHints.length} issue${repairHints.length > 1 ? 's' : ''})`);
+          try {
+            result = await runOpeningPipeline(
+              { ...input, repairHints },
+              stageGenerate,
+              (_stage, label) => this.progress('opening', poverId, label),
+            );
+          } catch (err) {
+            getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-engine', level: 'warn', debate_id: this.session?.id, message: 'Opening retry failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
+            this.warn('Opening retry', err, 'Using first attempt');
+          }
         }
-      }
+        return result;
+      });
 
       const { statement, taxonomyRefs, meta } = assembleOpeningPipelineResult(pipelineResult, this.getKnownNodeIds());
       this.enrichTaxonomyRefs(taxonomyRefs);
@@ -3166,7 +3247,11 @@ export class DebateEngine {
       round,
       turn_index: this.session.transcript.length,
     });
-    const turnResult = await executeTurnWithRetry(retryInput, retryCallbacks);
+    const turnResult = await this.executeWithModelFailover(responder, async (model) => {
+      pipelineInput.model = model;
+      retryInput.model = model;
+      return executeTurnWithRetry(retryInput, retryCallbacks);
+    });
     const { statement, taxonomyRefs, meta, validation, attempts, pipelineResult } = turnResult;
     this.enrichTaxonomyRefs(taxonomyRefs);
 

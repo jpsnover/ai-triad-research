@@ -291,6 +291,29 @@ void app.whenReady().then(() => {
 
   const mainRecorder = new FlightRecorder({ capacity: 2000, dumpOnError: true });
   setGlobalRecorder(mainRecorder);
+
+  // Forward main-process recorder events to the main window's renderer recorder so the
+  // unified flight-recorder timeline includes main-process events — notably errors from
+  // the AI client / model resolution in embeddings.ts. Without this, those land only in
+  // the separate main-process buffer and are invisible to a renderer dump (t/766).
+  // Mirrors the popup-shim forwarding in flightRecorderInit.ts (channel 'flight-event-
+  // from-popup', _origin tag); the original record() still buffers locally so the main
+  // process keeps its own dump-on-error.
+  const forwardMainRecord = mainRecorder.record.bind(mainRecorder);
+  mainRecorder.record = (input: Parameters<typeof mainRecorder.record>[0]) => {
+    forwardMainRecord(input);
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('flight-event-from-popup', {
+          ...input,
+          data: { ...input.data, _origin: 'main-process' },
+        });
+      }
+    } catch {
+      /* flight recorder forwarding — silent by design (main window may not exist yet) */
+    }
+  };
+
   mainRecorder.startPipeListener(process.pid);
   console.log(`[main] Flight recorder started, pipe listener on PID ${process.pid}`);
 

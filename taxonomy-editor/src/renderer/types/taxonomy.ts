@@ -36,6 +36,8 @@ export interface GraphAttributes {
   node_scope?: 'claim' | 'scheme' | 'bridging';
   /** Genus-differentia rewrite of the node description for embedding-based attribution. */
   attribution_text?: string;
+  /** Set before AI enrichment starts, cleared on success. Presence means enrichment incomplete. */
+  _phrase_regen_pending?: boolean;
 }
 
 export type ParentRelationship = 'is_a' | 'part_of' | 'specializes';

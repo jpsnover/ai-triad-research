@@ -95,4 +95,134 @@ describe('extractSummary', () => {
     });
     expect(result.turn_count).toBe(2);
   });
+
+  it('includes app_version when present', () => {
+    const result = extractSummary({
+      id: 'd8',
+      topic: { final: 'Test' },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+      phase: 'completed',
+      transcript: [],
+      app_version: 'v0.13.6-71',
+    });
+    expect(result.app_version).toBe('v0.13.6-71');
+  });
+
+  it('computes process_reward_mean from process_rewards', () => {
+    const result = extractSummary({
+      id: 'd9',
+      topic: { final: 'Test' },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+      phase: 'completed',
+      transcript: [],
+      process_rewards: [
+        { score: 0.6 },
+        { score: 0.8 },
+        { score: 1.0 },
+      ],
+    });
+    expect(result.process_reward_mean).toBeCloseTo(0.8, 5);
+  });
+
+  it('returns null process_reward_mean when no process_rewards', () => {
+    const result = extractSummary({
+      id: 'd10',
+      topic: { final: 'Test' },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+      phase: 'completed',
+      transcript: [],
+    });
+    expect(result.process_reward_mean).toBeNull();
+  });
+
+  it('computes crux_addressed_ratio from neutral evaluations', () => {
+    const result = extractSummary({
+      id: 'd11',
+      topic: { final: 'Test' },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+      phase: 'completed',
+      transcript: [],
+      neutral_evaluations: [
+        {
+          checkpoint: 'final',
+          cruxes: [
+            { status: 'addressed' },
+            { status: 'addressed' },
+            { status: 'unaddressed' },
+            { status: 'unaddressed' },
+          ],
+        },
+      ],
+    });
+    expect(result.crux_addressed_ratio).toBeCloseTo(0.5, 5);
+  });
+
+  it('computes claims_forgotten_rate from ledger and argument network', () => {
+    const result = extractSummary({
+      id: 'd12',
+      topic: { final: 'Test' },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+      phase: 'completed',
+      transcript: [],
+      argument_network: {
+        nodes: [{ id: 'n1' }, { id: 'n2' }, { id: 'n3' }, { id: 'n4' }],
+        edges: [],
+      },
+      unanswered_claims_ledger: [
+        { addressed_round: 2 },
+        { addressed_round: undefined },
+        { addressed_round: 3 },
+      ],
+    });
+    expect(result.claims_forgotten_rate).toBeCloseTo(0.25, 5);
+  });
+
+  it('computes taxonomy_mapped_ratio from AN nodes and transcript refs', () => {
+    const result = extractSummary({
+      id: 'd13',
+      topic: { final: 'Test' },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+      phase: 'completed',
+      transcript: [
+        { id: 'e1', type: 'statement', taxonomy_refs: [{ node_id: 'tax-1' }] },
+        { id: 'e2', type: 'statement', taxonomy_refs: [] },
+      ],
+      argument_network: {
+        nodes: [
+          { id: 'n1', source_entry_id: 'e1' },
+          { id: 'n2', source_entry_id: 'e2' },
+        ],
+        edges: [],
+      },
+    });
+    expect(result.taxonomy_mapped_ratio).toBeCloseTo(0.5, 5);
+  });
+
+  it('computes repetition_rate from turn validations', () => {
+    const result = extractSummary({
+      id: 'd14',
+      topic: { final: 'Test' },
+      created_at: '2026-01-01',
+      updated_at: '2026-01-02',
+      phase: 'completed',
+      transcript: [
+        { type: 'opening' },
+        { type: 'statement' },
+        { type: 'statement' },
+        { type: 'statement' },
+      ],
+      turn_validations: {
+        t1: { final: { issues: ['repetition detected'] } },
+        t2: { final: { issues: ['schema error'] } },
+        t3: { final: { issues: ['same moves used'] } },
+      },
+    });
+    expect(result.repetition_rate).toBeCloseTo(0.5, 5);
+  });
 });

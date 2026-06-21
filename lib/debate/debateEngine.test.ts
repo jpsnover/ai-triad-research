@@ -1277,6 +1277,120 @@ describe('Per-speaker model routing', () => {
   });
 });
 
+// ── Speaker model failover (t/773) ─────────────────────
+
+describe('Speaker model failover', () => {
+  it('accepts config with fallbackChain', () => {
+    const config = createDefaultConfig({
+      speakerModels: { accelerationist: 'model-a' },
+      fallbackChain: ['model-b', 'model-c'],
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    expect(engine).toBeDefined();
+  });
+
+  it('buildFailoverChain deduplicates and appends base model', () => {
+    const config = createDefaultConfig({
+      model: 'base-model',
+      speakerModels: { accelerationist: 'model-a' },
+      fallbackChain: ['model-b', 'model-a', 'base-model'],
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    const chain = (engine as any).buildFailoverChain('model-a');
+    expect(chain).toEqual(['model-a', 'model-b', 'base-model']);
+  });
+
+  it('buildFailoverChain with no fallbackChain returns [primary, base]', () => {
+    const config = createDefaultConfig({
+      model: 'base-model',
+      speakerModels: { accelerationist: 'speaker-model' },
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    const chain = (engine as any).buildFailoverChain('speaker-model');
+    expect(chain).toEqual(['speaker-model', 'base-model']);
+  });
+
+  it('buildFailoverChain returns single entry when primary equals base', () => {
+    const config = createDefaultConfig({ model: 'same-model' });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    const chain = (engine as any).buildFailoverChain('same-model');
+    expect(chain).toEqual(['same-model']);
+  });
+
+  it('executeWithModelFailover falls back on hard 403 error', async () => {
+    let attempt = 0;
+    const config = createDefaultConfig({
+      model: 'base-model',
+      speakerModels: { accelerationist: 'fail-model' },
+      fallbackChain: ['also-fail', 'base-model'],
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+
+    const result = await (engine as any).executeWithModelFailover(
+      'accelerationist',
+      async (model: string) => {
+        attempt++;
+        if (model === 'fail-model') throw new Error('API error 403: Permission denied');
+        if (model === 'also-fail') throw new Error('API error 500: Internal server error');
+        return `success-${model}`;
+      },
+    );
+
+    expect(result).toBe('success-base-model');
+    expect(attempt).toBe(3);
+    expect((engine as any).config.speakerModels.accelerationist).toBe('base-model');
+  });
+
+  it('executeWithModelFailover does not failover on non-hard errors', async () => {
+    const config = createDefaultConfig({
+      model: 'base-model',
+      speakerModels: { accelerationist: 'speaker-model' },
+      fallbackChain: ['fallback-model'],
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+
+    await expect(
+      (engine as any).executeWithModelFailover(
+        'accelerationist',
+        async () => { throw new Error('Network timeout'); },
+      ),
+    ).rejects.toThrow('Network timeout');
+  });
+
+  it('executeWithModelFailover skips failover when chain has one entry', async () => {
+    let callCount = 0;
+    const config = createDefaultConfig({ model: 'only-model' });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+
+    await expect(
+      (engine as any).executeWithModelFailover(
+        'accelerationist',
+        async () => { callCount++; throw new Error('API error 403: denied'); },
+      ),
+    ).rejects.toThrow('403');
+    expect(callCount).toBe(1);
+  });
+
+  it('executeWithModelFailover persists working model to session', async () => {
+    const config = createDefaultConfig({
+      model: 'base-model',
+      speakerModels: { safetyist: 'bad-model' },
+    });
+    const engine = new DebateEngine(config, createMockAdapter(), createMinimalTaxonomy());
+    (engine as any).initSession();
+
+    await (engine as any).executeWithModelFailover(
+      'safetyist',
+      async (model: string) => {
+        if (model === 'bad-model') throw new Error('HTTP 500 server error');
+        return 'ok';
+      },
+    );
+
+    expect((engine as any).session.speaker_models.safetyist).toBe('base-model');
+  });
+});
+
 // ── Adaptive situation re-scoring (t/455) ────────────────
 
 describe('_rescoreSituations', () => {

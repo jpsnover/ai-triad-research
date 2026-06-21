@@ -47,7 +47,7 @@ import {
   deleteChatSession,
 } from './chatIO.js';
 import { debateToText, debateToMarkdown, debateToPdf, debateToPackage } from './debateExport.js';
-import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing } from './apiKeyStore.js';
+import { storeApiKey, hasApiKey, getApiKeySummary, exportKeysForSharing, importKeysFromSharing, deleteApiKey, deleteAllApiKeys } from './apiKeyStore.js';
 import type { KeySharePayload } from './apiKeyStore.js';
 import { isDataAvailable, getDataRootPath, setDataRootPath, loadDataConfig, PROJECT_ROOT, getSourcesDir, writeJsonFileAtomic } from './fileIO.js';
 import { computeEmbeddings, computeQueryEmbedding, generateText, generateTextWithSearch, generateChatStream, updateNodeEmbeddings, classifyNli, setDebateTemperature, getEmbeddingInfo } from './embeddings.js';
@@ -57,6 +57,15 @@ import { checkForDataUpdates, pullDataUpdates, getChangedFiles, getFileDiff } fr
 import { diagnosePythonEmbeddings } from './diagnosePython.js';
 import type { NodeEmbeddingInput, NliPair } from './embeddings.js';
 import { ActionableError } from '../../../lib/debate/errors.js';
+import { stampNodeAuthorship } from '../server/editMeta.js';
+import {
+  isAzureReviewConfigured,
+  adminReviewQueue,
+  adminReviewStats,
+  adminReviewDetail,
+  adminReviewAction,
+  adminRemoveCommunityItem,
+} from './communityReviewIO.js';
 import { DEFAULT_MODEL, DEFAULT_TEMPERATURE } from '../../../lib/ai-client/index.js';
 import { z } from 'zod';
 import path from 'path';
@@ -97,6 +106,31 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('save-taxonomy-file', (event, pov: string, data: unknown) => {
     const parsed = VALID_POV.safeParse(pov);
     if (!parsed.success) throw new ActionableError({ goal: 'Save taxonomy file', problem: `Invalid POV: ${pov}`, location: 'ipcHandlers:save-taxonomy-file', nextSteps: ['Use a valid POV name'] });
+    // Stamp _edit_meta / _edit_history before writing so desktop edits record
+    // authorship just like the web server's PUT /api/taxonomy/:pov handler.
+    const incoming = data as { nodes?: unknown[] };
+    if (incoming.nodes && Array.isArray(incoming.nodes)) {
+      let oldNodes: unknown[] = [];
+      try {
+        const existing = readTaxonomyFile(parsed.data) as { nodes?: unknown[] };
+        oldNodes = existing?.nodes ?? [];
+      } catch (err) {
+        // Missing file on first write is benign (ENOENT); a corrupt existing file
+        // means we can't diff for history — record it but still save against an
+        // empty baseline so the edit is never blocked.
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'ipc-save-taxonomy',
+          level: 'warn',
+          message: 'Could not read existing taxonomy for edit-history diff; stamping against empty baseline',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      }
+      incoming.nodes = stampNodeAuthorship(
+        oldNodes as Parameters<typeof stampNodeAuthorship>[0],
+        incoming.nodes as Parameters<typeof stampNodeAuthorship>[1],
+      );
+    }
     writeTaxonomyFile(parsed.data, data);
     // Notify all other windows to reload taxonomy data
     for (const win of BrowserWindow.getAllWindows()) {
@@ -257,6 +291,14 @@ export function registerIpcHandlers(): void {
     return getApiKeySummary();
   });
 
+  ipcMain.handle('delete-api-key', (_event, backend?: string) => {
+    deleteApiKey(backend as Parameters<typeof deleteApiKey>[0]);
+  });
+
+  ipcMain.handle('delete-all-api-keys', () => {
+    deleteAllApiKeys();
+  });
+
   ipcMain.handle('export-keys-for-sharing', async (_event, passphrase: string) => {
     const payload = exportKeysForSharing(passphrase);
     const payloadStr = JSON.stringify(payload);
@@ -272,7 +314,7 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('get-embedding-info', () => {
     const info: Record<string, unknown> = getEmbeddingInfo();
     try {
-      const cfgPath = require('path').resolve(__dirname, '../../../lib/debate/calibration-config.json');
+      const cfgPath = path.join(PROJECT_ROOT, 'lib', 'debate', 'calibration-config.json');
       const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
       info.calibration_version = cfg.schema_version;
     } catch { /* telemetry — silent by design;  calibration config not found — leave undefined */ }
@@ -1416,22 +1458,18 @@ document.addEventListener('DOMContentLoaded', function() {
   // ── Community Review (Azure Blob) ──
 
   ipcMain.handle('admin-review-configured', () => {
-    const { isAzureReviewConfigured } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
     return isAzureReviewConfigured();
   });
 
   ipcMain.handle('admin-review-queue', async () => {
-    const { adminReviewQueue } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
     return adminReviewQueue();
   });
 
   ipcMain.handle('admin-review-stats', async () => {
-    const { adminReviewStats } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
     return adminReviewStats();
   });
 
   ipcMain.handle('admin-review-detail', async (_event, groupId: string) => {
-    const { adminReviewDetail } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
     return adminReviewDetail(groupId);
   });
 
@@ -1442,12 +1480,10 @@ document.addEventListener('DOMContentLoaded', function() {
     reason?: string;
     edits?: Record<string, Record<string, unknown>>;
   }) => {
-    const { adminReviewAction } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
     return adminReviewAction(action);
   });
 
   ipcMain.handle('admin-remove-community-item', async (_event, type: 'chats' | 'debates', id: string, reason?: string) => {
-    const { adminRemoveCommunityItem } = require('./communityReviewIO.js') as typeof import('./communityReviewIO.js');
     return adminRemoveCommunityItem(type, id, reason);
   });
 }

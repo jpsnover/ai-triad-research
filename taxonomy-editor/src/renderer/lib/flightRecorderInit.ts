@@ -207,7 +207,7 @@ export function initFlightRecorder(): FlightRecorder {
   const hash = window.location.hash;
   const isPopup = hash.startsWith('#debate-window') || hash === '#diagnostics-window' || hash === '#pov-progression-window' || hash === '#chat-window';
   const windowId = hash.startsWith('#debate-window')
-    ? `debate:${new URLSearchParams(hash.split('?')[1] || '').get('debateId')?.slice(0, 8) || 'unknown'}`
+    ? `debate:${new URLSearchParams(hash.split('?')[1] || '').get('id')?.slice(0, 8) || 'unknown'}`
     : hash === '#diagnostics-window' ? 'diagnostics'
     : hash === '#pov-progression-window' ? 'pov-progression'
     : hash === '#chat-window' ? 'chat'

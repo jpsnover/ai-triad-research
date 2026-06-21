@@ -17,6 +17,7 @@ import { PromptDetailPanel } from '../chat/PromptsPanel';
 import type { PromptCatalogEntry } from '../../data/promptCatalog';
 import { PROMPT_CATALOG } from '../../data/promptCatalog';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
+import { LineageDetailView } from '../shared/LineageDetailView';
 import type { DebateSession } from '../../types/debate';
 import { POVER_INFO } from '@lib/debate/types';
 import { ParameterHistoryPanel } from '../analysis/ParameterHistoryPanel';
@@ -87,6 +88,7 @@ export function DebateTab() {
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [listCollapsed, setListCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
+  const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [listView, setListView] = useState<'my' | 'community' | null>(null);
   const { debates: communityDebates, loading: communityLoading, fetchDebates: fetchCommunityDebates, copyItem } = useCommunityStore();
@@ -227,6 +229,7 @@ export function DebateTab() {
           <ToolbarPaneRenderer
             panel={toolbarPanel}
             onSelectResult={(id) => setSearchPreviewId(id)}
+            onSelectLineageValue={setLineagePreviewValue}
             onSelectPrompt={setSelectedPromptEntry}
             onInspectorToggle={setPromptInspectorActive}
           />
@@ -505,6 +508,13 @@ export function DebateTab() {
           <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
           <div className="detail-panel">
             <PromptDetailPanel entry={selectedPromptEntry} />
+          </div>
+        </>
+      ) : toolbarPanel === 'lineage' ? (
+        <>
+          <div className="resize-handle" onMouseDown={onMouseDown} onTouchStart={onTouchStart} />
+          <div className="detail-panel">
+            <LineageDetailView value={lineagePreviewValue} onSelectValue={setLineagePreviewValue} />
           </div>
         </>
       ) : toolbarPanel ? (

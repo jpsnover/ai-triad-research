@@ -120,6 +120,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getApiKeySummary: (): Promise<{ backend: string; hasKey: boolean; maskedKey: string | null }[]> =>
     ipcRenderer.invoke('get-api-key-summary'),
 
+  deleteApiKey: (backend?: string): Promise<void> =>
+    ipcRenderer.invoke('delete-api-key', backend),
+
+  deleteAllApiKeys: (): Promise<void> =>
+    ipcRenderer.invoke('delete-all-api-keys'),
+
   exportKeysForSharing: (passphrase: string): Promise<{ dataUrl: string; payloadText: string }> =>
     ipcRenderer.invoke('export-keys-for-sharing', passphrase),
 

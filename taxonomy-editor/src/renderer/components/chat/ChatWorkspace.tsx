@@ -16,6 +16,8 @@ import { SituationDetail } from '../debate/SituationDetail';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
+import { useUserProfile } from '../../hooks/useAuthStatus';
+import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -191,28 +193,31 @@ export function ChatWorkspace() {
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const hasTriggeredOpening = useRef(false);
   const [input, setInput] = useState('');
-  const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
+  const [shareError, setShareError] = useState<string | null>(null);
   const [selectedRefNodeId, setSelectedRefNodeId] = useState<string | null>(null);
   const selectedNode = useSelectedNode(selectedRefNodeId);
+  const profile = useUserProfile();
 
   const handleShare = useCallback(async () => {
     if (!activeChat) return;
     try {
-      setShareStatus('Sharing...');
-      const { submissionId } = await api.submitToCommunity('chat', activeChat);
-      setShareStatus(`Shared! (${submissionId.slice(0, 8)})`);
-      setTimeout(() => setShareStatus(null), 4000);
+      setShareState('sharing');
+      setShareError(null);
+      await api.submitToCommunity('chat', activeChat);
+      setShareState('success');
     } catch (err: unknown) {
       getGlobalRecorder()?.record({
         type: 'system.error',
         component: 'chat-workspace',
         level: 'error',
         message: 'Failed to share chat to community',
-        error: { name: (err as Error).name ?? 'Error', message: String(err) },
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
       });
       const msg = err instanceof Error ? err.message : String(err);
-      setShareStatus(`Failed: ${msg}`);
-      setTimeout(() => setShareStatus(null), 4000);
+      setShareError(msg);
+      setShareState('error');
+      setTimeout(() => { setShareState('idle'); setShareError(null); }, 4000);
     }
   }, [activeChat]);
 
@@ -283,10 +288,31 @@ export function ChatWorkspace() {
           <div className="chat-header-topic" title={activeChat.topic}>
             {activeChat.topic}
           </div>
-          <button className="btn btn-sm" onClick={handleShare} disabled={!!shareStatus} style={{ flexShrink: 0, fontSize: '0.72rem' }}>
-            {shareStatus || 'Share'}
+          <button
+            className="btn btn-sm"
+            onClick={handleShare}
+            disabled={shareState !== 'idle'}
+            title="Submit this chat for community review"
+            style={{ flexShrink: 0, fontSize: '0.72rem' }}
+          >
+            {shareState === 'sharing' ? 'Sharing...' : 'Share'}
           </button>
         </div>
+
+        {/* Share result banner */}
+        {shareState === 'success' && (
+          <CommunityShareBanner
+            isAdmin={!!profile?.isAdmin}
+            itemType="chat"
+            compact
+            onDismiss={() => setShareState('idle')}
+          />
+        )}
+        {shareState === 'error' && shareError && (
+          <div style={{ color: 'var(--red, #ef4444)', fontSize: '0.75rem', padding: '4px 12px' }}>
+            {'Failed: ' + shareError}
+          </div>
+        )}
 
         {/* Error bar */}
         {chatError && (

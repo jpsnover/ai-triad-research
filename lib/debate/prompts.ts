@@ -3472,7 +3472,8 @@ Violations found:
 ${violationLines}
 
 FIX the proposed_description to resolve ALL violations above. The required format is exactly:
-  Line 1: "A [Belief|Desire|Intention] within [POV] discourse that [ONE distinguishing concept]."
+  Line 1: "A [Belief|Desire|Intention] within [accelerationist|safetyist|skeptic] discourse that [ONE distinguishing concept]."
+  IMPORTANT: The POV discourse term MUST be exactly one of: accelerationist, safetyist, or skeptic. No other term is valid.
   Line 2: "Encompasses: [2-5 sub-themes as comma-separated list]."
   Line 3: "Excludes: [1-3 neighboring concepts named neutrally]."
 

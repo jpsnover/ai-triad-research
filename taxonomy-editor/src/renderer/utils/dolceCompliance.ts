@@ -8,7 +8,7 @@
  */
 
 export interface ComplianceViolation {
-  rule: 'GENUS' | 'ENCOMPASSES' | 'EXCLUDES' | 'FORBIDDEN' | 'CAUSAL' | 'MULTI_CONCEPT' | 'EDITORIAL' | 'MISSING';
+  rule: 'GENUS' | 'DISCOURSE' | 'ENCOMPASSES' | 'EXCLUDES' | 'FORBIDDEN' | 'CAUSAL' | 'MULTI_CONCEPT' | 'EDITORIAL' | 'MISSING';
   severity: 'error' | 'warning';
   message: string;
 }
@@ -17,6 +17,8 @@ export interface ComplianceViolation {
 
 const GENUS_RE = /^an?\s+(belief|desire|intention|situation)\s+within\s+/i;
 const SITUATION_GENUS_RE = /^a\s+situation\s+(within|that|concept|in|where)\s+/i;
+const VALID_POV_DISCOURSE = /^an?\s+(?:belief|desire|intention)\s+within\s+(accelerationist|safetyist|skeptic)\s+discourse\b/i;
+const POV_DISCOURSE_EXTRACT = /^an?\s+(?:belief|desire|intention)\s+within\s+(\S+)\s+discourse\b/i;
 const CAUSAL_CONNECTORS_RE = /\b(rendering|thereby|thus|therefore|which means|contingent on|hence)\b/gi;
 const FORBIDDEN_SECTIONS_RE = /^(Qualified by|Note|However|Additionally|Furthermore|Moreover)\s*:/gim;
 const EDITORIAL_IN_EXCLUDES_RE = /that\s+(functions? as|serves? as|acts? as|is essentially|amounts? to|which means)/gi;
@@ -57,6 +59,16 @@ function checkGenus(desc: string, nodeId: string): ComplianceViolation[] {
     }
   }
   return [];
+}
+
+function checkDiscourse(desc: string, nodeId: string): ComplianceViolation[] {
+  if (isSituationNode(nodeId)) return [];
+  const firstLine = desc.split('\n')[0].trim();
+  if (!GENUS_RE.test(firstLine)) return [];
+  if (VALID_POV_DISCOURSE.test(firstLine)) return [];
+  const extracted = POV_DISCOURSE_EXTRACT.exec(firstLine);
+  const found = extracted ? extracted[1] : 'unknown';
+  return [{ rule: 'DISCOURSE', severity: 'error', message: `Invalid POV discourse "${found}" — must be "accelerationist", "safetyist", or "skeptic"` }];
 }
 
 function checkEncompasses(desc: string): ComplianceViolation[] {
@@ -147,6 +159,7 @@ export function checkDolceCompliance(description: string, nodeId: string): Compl
 
   return [
     ...checkGenus(description, nodeId),
+    ...checkDiscourse(description, nodeId),
     ...checkEncompasses(description),
     ...checkExcludes(description),
     ...checkForbiddenSections(description),

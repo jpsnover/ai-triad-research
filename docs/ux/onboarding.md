@@ -191,42 +191,65 @@ Keep it minimal — the content is what matters.
 
 ## Re-access from Help dialog
 
-The HelpDialog (`HelpDialog.tsx`) has a tabbed layout: About, Overview, Documentation, Methods, Shortcuts, Licenses. Add a **"Welcome Tour"** link to the **About** tab, below the existing build info and description text.
+The HelpDialog (`HelpDialog.tsx`) has a tabbed sidebar layout. Add **"Welcome Tour"** as the **first item** in the tab list — above "About".
 
-### Placement in About tab
+### Tab list update
+
+Current `TABS` array:
+```
+About | Overview | Documentation | Methods | Shortcuts | SBOM | Licenses
+```
+
+New:
+```
+Welcome Tour | About | Overview | Documentation | Methods | Shortcuts | SBOM | Licenses
+```
+
+Add to the `HelpTab` type union and `TABS` array:
+```typescript
+type HelpTab = 'tour' | 'about' | 'overview' | ...;
+
+const TABS: { id: HelpTab; label: string }[] = [
+  { id: 'tour', label: 'Welcome Tour' },
+  { id: 'about', label: 'About' },
+  // ... existing tabs
+];
+```
+
+### "Tour" tab content
+
+When the "Welcome Tour" tab is active, the content area shows a brief description and a launch button:
 
 ```
-┌──────────────────────────────────────────────┐
-│  About  │  Version    0.8.0                  │
-│ *active*│  Built      June 16, 2026 10:32    │
-│  Overv. │  Runtime    Electron               │
-│  Docs   │                                    │
-│  Method │  AI Triad Research — multi-persp... │
-│  Short. │  Berkman Klein Center, 2026.        │
-│  Licen. │                                    │
-│         │  Built with Electron 35, React...   │
-│         │                                    │
-│         │  ▸ Show Welcome Tour               │  ← NEW
-│         │                                    │
-└──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ *Tour*  │                                        │
+│  About  │  Welcome Tour                          │
+│  Overv. │                                        │
+│  Docs   │  A guided walkthrough of the app's     │
+│  Method │  main tools: Taxonomy, Debates, Chat,  │
+│  Short. │  and Settings.                         │
+│  SBOM   │                                        │
+│  Licen. │  [Start Tour]                          │
+│         │                                        │
+└──────────────────────────────────────────────────┘
 ```
+
+- **Heading:** "Welcome Tour" — same `<h4>` style as other tab content headings
+- **Description:** "A guided walkthrough of the app's main tools: Taxonomy, Debates, Chat, and Settings." — `font-size: 0.85rem, color: var(--text-secondary)`
+- **Button:** "Start Tour" — `btn btn-primary btn-sm`
 
 ### Visual treatment
 
-- **Text:** "Show Welcome Tour" — styled as a clickable link (`color: var(--accent)`, `cursor: pointer`, `text-decoration: underline`)
-- **Prefix:** `▸` chevron, same accent color
-- **Font:** `0.85rem` — matches surrounding About tab text
-- **Spacing:** `margin-top: 16px` to separate from the build info section
-- **No icon** beyond the chevron — keep it minimal
+The "Welcome Tour" tab button uses the same styling as all other tabs — no special icon or color. It is a peer of About/Overview/etc.
 
 ### Behavior
 
-1. User clicks "Show Welcome Tour"
+1. User clicks "Start Tour" button in the tour tab content
 2. HelpDialog closes (calls `onClose`)
 3. `localStorage.removeItem('taxonomy-editor-onboarding-dismissed')` — clears the dismissed flag
 4. App re-renders the `OnboardingTour` component (since the dismissed flag is now gone)
 
-The HelpDialog's `onClose` prop already handles closing. The click handler needs to:
+The click handler:
 ```
 onClick={() => {
   localStorage.removeItem('taxonomy-editor-onboarding-dismissed');
@@ -237,11 +260,9 @@ onClick={() => {
 
 For App.tsx to react to this, use a Zustand action or a custom event. Simplest approach: add a `showOnboarding` state to the settings slice (or local App state) and expose a `triggerOnboarding()` action that sets it to true. The HelpDialog calls this action before closing.
 
-### Props change
+### Default active tab
 
-`HelpDialog` currently accepts `{ onClose: () => void }`. Either:
-- Import `useTaxonomyStore` directly in HelpDialog to call the action (preferred — no prop change needed), or
-- Add an `onShowTour: () => void` prop threaded from App.tsx
+The HelpDialog should still default to `'about'` when opened — not 'tour'. The tour tab is discoverable in the sidebar but not forced on every Help open.
 
 ## What NOT to do
 
@@ -260,7 +281,7 @@ For App.tsx to react to this, use a Zustand action or a custom event. Simplest a
 | `App.tsx` | Conditional render after FirstRunDialog, manage `showOnboarding` state |
 | `public/onboarding/*.png` | 4 screenshot images (light theme, 960x600) |
 | `styles.css` | `.onboarding-overlay`, `.onboarding-card`, `.onboarding-dots`, step transition classes |
-| `settings/HelpDialog.tsx` | Add "Show Welcome Tour" link to About tab (closes dialog, clears dismissed flag, triggers tour) |
+| `settings/HelpDialog.tsx` | Add 'tour' as first tab in TABS array; render tour content panel with "Start Tour" button (closes dialog, clears dismissed flag, triggers tour) |
 
 ## Accessibility
 

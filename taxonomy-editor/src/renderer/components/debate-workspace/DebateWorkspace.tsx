@@ -28,6 +28,8 @@ import type { NavigateCommand } from '../debate-diagnostics/chat';
 import { triggerManualDump } from '../../lib/flightRecorderInit';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { useCommunityStore } from '../../hooks/useCommunityStore';
+import { useUserProfile } from '../../hooks/useAuthStatus';
+import { CommunityShareBanner } from '../shared/CommunityShareBanner';
 import { CoverageBadge } from './TaxonomyRefs';
 import { StatementCard, ProbingCard, FactCheckCard, EntryDeleteControls, HighlightedText } from './StatementCard';
 import { PhaseProgressBar, ProgressIndicator, DebaterToggles, DebateActions } from './DebateActionBar';
@@ -98,17 +100,18 @@ function ExportButtonInline({ onExport }: { onExport: (format: string) => void }
 }
 
 function ShareToCommunityButton({ debate }: { debate: { id: string; topic: string; transcript: unknown[] } }) {
-  const [sharing, setSharing] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [shareState, setShareState] = useState<'idle' | 'sharing' | 'success' | 'error'>('idle');
+  const [shareError, setShareError] = useState<string | null>(null);
   const submitItem = useCommunityStore(s => s.submitItem);
   const communityUrl = useTaxonomyStore(s => s.communityServerUrl);
+  const profile = useUserProfile();
 
   const handleShare = async () => {
-    setSharing(true);
-    setResult(null);
+    setShareState('sharing');
+    setShareError(null);
     try {
       const submissionId = await submitItem('debate', debate);
-      setResult({ ok: true, message: `Submitted (${submissionId.slice(0, 8)})` });
+      setShareState('success');
       getGlobalRecorder()?.record({
         type: 'lifecycle',
         component: 'debate-workspace',
@@ -126,9 +129,9 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
       });
       const raw = (err as Error).message;
       const reason = raw.replace(/^(Error:\s*)+/i, '').replace(/^Error invoking remote method '[^']+': /i, '');
-      setResult({ ok: false, message: reason || 'Unknown error' });
-    } finally {
-      setSharing(false);
+      setShareError(reason || 'Unknown error');
+      setShareState('error');
+      setTimeout(() => { setShareState('idle'); setShareError(null); }, 4000);
     }
   };
 
@@ -139,18 +142,25 @@ function ShareToCommunityButton({ debate }: { debate: { id: string; topic: strin
       <button
         className="btn btn-sm"
         onClick={handleShare}
-        disabled={sharing || !configured}
-        title={!configured ? 'Set Community Server URL in Settings first' : 'Submit this debate to the Community Library'}
+        disabled={shareState !== 'idle' || !configured}
+        title={!configured ? 'Set Community Server URL in Settings first' : 'Submit this debate for community review'}
       >
-        {sharing ? 'Sharing...' : 'Share'}
+        {shareState === 'sharing' ? 'Sharing...' : 'Share'}
       </button>
-      {result && (
+      {shareState === 'success' && (
+        <CommunityShareBanner
+          isAdmin={!!profile?.isAdmin}
+          itemType="debate"
+          onDismiss={() => setShareState('idle')}
+        />
+      )}
+      {shareState === 'error' && shareError && (
         <span
           className="debate-toolbar-status"
-          style={{ color: result.ok ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)', marginLeft: 4, fontSize: '0.75rem' }}
-          title={result.message}
+          style={{ color: 'var(--red, #ef4444)', marginLeft: 4, fontSize: '0.75rem' }}
+          title={shareError}
         >
-          {result.ok ? result.message : `Failed: ${result.message}`}
+          {'Failed: ' + shareError}
         </span>
       )}
     </span>

@@ -324,6 +324,23 @@ const rawApi: AppAPI = {
       await post('/api/keys', { key, backend });
     }
   },
+  deleteApiKey: async (backend) => {
+    const storageKey = backend ? `byok-${backend}` : 'byok-api-key';
+    sessionStorage.removeItem(storageKey);
+    if (!(await isAnonymous())) {
+      await post('/api/keys/delete', { backend });
+    }
+  },
+  deleteAllApiKeys: async () => {
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    for (const b of ALL_BACKENDS) {
+      sessionStorage.removeItem(`byok-${b}`);
+    }
+    sessionStorage.removeItem('byok-api-key');
+    if (!(await isAnonymous())) {
+      await post('/api/keys/delete-all');
+    }
+  },
   hasApiKey: async (backend) => {
     if (await isAnonymous()) {
       const storageKey = backend ? `byok-${backend}` : 'byok-api-key';

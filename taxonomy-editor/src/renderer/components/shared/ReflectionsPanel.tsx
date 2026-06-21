@@ -97,16 +97,22 @@ function EditCard({ edit, pover, editIndex }: {
   pover: string;
   editIndex: number;
 }) {
-  const { applyReflectionEdit, retryReflectionEditAfterFix, dismissReflectionEdit, anNodes } = useDebateStore(
+  const { applyReflectionEdit, retryReflectionEditAfterFix, dismissReflectionEdit, retryEnrichment, clearEnrichmentStatus, anNodes, enrichmentStatus } = useDebateStore(
     useShallow(s => ({
       applyReflectionEdit: s.applyReflectionEdit,
       retryReflectionEditAfterFix: s.retryReflectionEditAfterFix,
       dismissReflectionEdit: s.dismissReflectionEdit,
+      retryEnrichment: s.retryEnrichment,
+      clearEnrichmentStatus: s.clearEnrichmentStatus,
       anNodes: (s.activeDebate as Record<string, unknown> | null)?.argument_network
         ? ((s.activeDebate as Record<string, unknown>).argument_network as { nodes: { id: string; text: string; speaker: string }[] }).nodes
         : [],
+      enrichmentStatus: s.enrichmentStatus,
     }))
   );
+  const [trackedEnrichNodeId, setTrackedEnrichNodeId] = useState<string | null>(null);
+  const enrichNodeId = trackedEnrichNodeId ?? (edit.edit_type !== 'add' ? edit.node_id : null);
+  const enrichStatus = enrichNodeId ? enrichmentStatus[enrichNodeId] : undefined;
   const typeInfo = EDIT_TYPE_LABELS[edit.edit_type] || EDIT_TYPE_LABELS.revise;
   const resolved = edit.status !== 'pending';
 
@@ -424,6 +430,8 @@ function EditCard({ edit, pover, editIndex }: {
                 );
                 if (!result.ok) {
                   setApplyError(result.error ?? 'Save failed — check SaveBar for details');
+                } else if (result.enrichNodeId) {
+                  setTrackedEnrichNodeId(result.enrichNodeId);
                 }
               } catch (err) {
                 getGlobalRecorder()?.record({ type: 'system.error', component: 'reflections-panel', level: 'error', message: 'reflection edit apply failed', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } });
@@ -460,6 +468,39 @@ function EditCard({ edit, pover, editIndex }: {
           >
             Dismiss
           </button>
+        </div>
+      )}
+      {/* Enrichment status indicator */}
+      {enrichStatus?.status === 'pending' && (
+        <div style={{ fontSize: '0.68rem', color: '#3b82f6', marginTop: 4, padding: '4px 8px', background: 'rgba(59,130,246,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ animation: 'pulse 1.5s infinite', display: 'inline-block' }}>{'⧗'}</span>
+          Enriching node — generating attributes & phrases…
+        </div>
+      )}
+      {enrichStatus?.status === 'success' && (
+        <div style={{ fontSize: '0.68rem', color: '#22c55e', marginTop: 4, padding: '4px 8px', background: 'rgba(34,197,94,0.06)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>{'✓'} Phrases regenerated successfully</span>
+          <button
+            className="btn btn-sm btn-ghost"
+            style={{ fontSize: '0.6rem', padding: '0 4px', color: 'var(--text-muted)' }}
+            onClick={() => enrichNodeId && clearEnrichmentStatus(enrichNodeId)}
+          >{'✕'}</button>
+        </div>
+      )}
+      {enrichStatus?.status === 'error' && (
+        <div style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: 4, padding: '4px 8px', background: 'rgba(239,68,68,0.06)', borderRadius: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>{'✗'} Enrichment failed: {enrichStatus.error}</span>
+            <button
+              className="btn btn-sm"
+              style={{ fontSize: '0.6rem', padding: '1px 8px', marginLeft: 8 }}
+              onClick={() => {
+                if (!enrichNodeId) return;
+                const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
+                retryEnrichment(enrichNodeId, povKey);
+              }}
+            >Retry</button>
+          </div>
         </div>
       )}
       {applyError && (

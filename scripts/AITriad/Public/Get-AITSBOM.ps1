@@ -1,4 +1,4 @@
-﻿# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
+# Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 # Licensed under the MIT License. See LICENSE file in the project root.
 
 function Get-AITSBOM {
@@ -8,6 +8,9 @@ function Get-AITSBOM {
     .DESCRIPTION
         Enumerates all project dependencies across PowerShell modules, Node.js
         packages, Python packages, system tools, AI models, and schemas.
+
+        Enriches entries with license, supplier, description, and integrity hash
+        from local lock files and package metadata (no network calls).
 
         With -CheckUpdates, queries package registries for latest versions.
         With -Update, upgrades outdated packages (prompts unless -Force).
@@ -26,7 +29,7 @@ function Get-AITSBOM {
     .EXAMPLE
         Get-AITSBOM -CheckUpdates
     .EXAMPLE
-        Get-AITSBOM -Update -Force
+        Get-AITSBOM -Format Json | Set-Content sbom.json
     .EXAMPLE
         Get-AITSBOM -Format CycloneDX | Set-Content sbom.cdx.json
     #>
@@ -54,7 +57,6 @@ function Get-AITSBOM {
     # ── 1. PowerShell modules ─────────────────────────────────────────────────
     Write-Verbose 'Scanning PowerShell modules...'
 
-    # From AITriad.psd1 RequiredModules
     $ManifestPath = Join-Path $script:ModuleRoot 'AITriad.psd1'
     if (Test-Path $ManifestPath) {
         try {
@@ -73,8 +75,13 @@ function Get-AITSBOM {
                         LatestVersion = $null
                         Status        = $null
                         Type          = 'ps-module'
+                        Scope         = 'required'
                         Source        = 'AITriad.psd1 RequiredModules'
+                        SourceUrl     = "https://www.powershellgallery.com/packages/$ModName/"
                         License       = $null
+                        Supplier      = $null
+                        Description   = $null
+                        Hash          = $null
                     })
                 }
             }
@@ -108,16 +115,20 @@ function Get-AITSBOM {
             LatestVersion = $null
             Status        = $null
             Type          = 'ps-module'
+            Scope         = 'required'
             Source        = "scripts/$Companion.psm1"
+            SourceUrl     = $null
             License       = 'MIT'
+            Supplier      = 'AI Triad Research'
+            Description   = $null
+            Hash          = $null
         })
     }
 
     # ── 2. Node.js packages ───────────────────────────────────────────────────
     Write-Verbose 'Scanning Node.js packages...'
 
-    $AppDirs = @('taxonomy-editor', 'poviewer', 'summary-viewer')
-    # Root package.json (shared lib)
+    $AppDirs = @('taxonomy-editor', 'poviewer', 'summary-viewer', 'workflow-app', 'lib')
     $RootPkg = Join-Path $RepoRoot 'package.json'
     if (Test-Path $RootPkg) { $AppDirs = @('') + $AppDirs }
 
@@ -131,17 +142,23 @@ function Get-AITSBOM {
 
             foreach ($DepType in @('dependencies', 'devDependencies')) {
                 if (-not $Pkg.PSObject.Properties[$DepType]) { continue }
+                $DepScope = if ($DepType -eq 'devDependencies') { 'development' } else { 'required' }
+                $PkgType  = if ($DepType -eq 'devDependencies') { 'npm-dev' } else { 'npm' }
                 foreach ($Prop in $Pkg.$DepType.PSObject.Properties) {
                     $CleanVer = $Prop.Value -replace '[\^~>=<]', ''
-                    if ($DepType -eq 'devDependencies') { $PkgType = 'npm-dev' } else { $PkgType = 'npm' }
                     $Entries.Add([PSCustomObject]@{
                         Name          = $Prop.Name
                         Version       = $CleanVer
                         LatestVersion = $null
                         Status        = $null
                         Type          = $PkgType
+                        Scope         = $DepScope
                         Source        = $SourceLabel
+                        SourceUrl     = "https://www.npmjs.com/package/$($Prop.Name)"
                         License       = $null
+                        Supplier      = $null
+                        Description   = $null
+                        Hash          = $null
                     })
                 }
             }
@@ -160,18 +177,23 @@ function Get-AITSBOM {
         foreach ($Line in $Lines) {
             $Line = $Line.Trim()
             if (-not $Line -or $Line.StartsWith('#')) { continue }
-            # Parse: package>=version or package[extras]>=version
             if ($Line -match '^([a-zA-Z0-9_.\-]+(?:\[[^\]]+\])?)(?:[><=!~]+(.+))?$') {
                 $PkgName = $Matches[1]
                 if ($Matches[2]) { $PkgVer = $Matches[2] } else { $PkgVer = 'any' }
+                $PyUrlName = $PkgName -replace '\[.*\]', ''
                 $Entries.Add([PSCustomObject]@{
                     Name          = $PkgName
                     Version       = $PkgVer
                     LatestVersion = $null
                     Status        = $null
                     Type          = 'python'
+                    Scope         = 'required'
                     Source        = 'scripts/requirements.txt'
+                    SourceUrl     = "https://pypi.org/project/$PyUrlName/"
                     License       = $null
+                    Supplier      = $null
+                    Description   = $null
+                    Hash          = $null
                 })
             }
         }
@@ -188,14 +210,17 @@ function Get-AITSBOM {
         @{ Name = 'pip';       VersionCmd = { if (Get-Command pip -EA SilentlyContinue) { $Cmd = 'pip' } else { $Cmd = 'pip3' }; (& $Cmd --version 2>&1) -replace 'pip\s+(\S+).*', '$1' } }
         @{ Name = 'pandoc';    VersionCmd = { pandoc --version | Select-Object -First 1 | ForEach-Object { $_ -replace 'pandoc\s*', '' } } }
         @{ Name = 'markitdown'; VersionCmd = { 'present' } }
+        @{ Name = 'gs';        VersionCmd = { (gs --version 2>&1) -replace '.*?(\d+\.\d+\S*)', '$1' | Select-Object -First 1 } }
     )
 
     foreach ($Tool in $SystemTools) {
         $ToolVer = 'not found'
+        $ToolPath = $null
         $Cmd = Get-Command $Tool.Name -ErrorAction SilentlyContinue
         if ($Cmd) {
             try { $ToolVer = & $Tool.VersionCmd }
             catch { $ToolVer = 'installed (version unknown)' }
+            $ToolPath = if ($Cmd.Source) { $Cmd.Source } else { $null }
         }
 
         $Entries.Add([PSCustomObject]@{
@@ -204,8 +229,13 @@ function Get-AITSBOM {
             LatestVersion = $null
             Status        = $null
             Type          = 'system'
+            Scope         = 'required'
             Source        = 'system PATH'
+            SourceUrl     = $ToolPath
             License       = $null
+            Supplier      = $null
+            Description   = $null
+            Hash          = $null
         })
     }
 
@@ -217,14 +247,30 @@ function Get-AITSBOM {
         try {
             $ModelConfig = Get-Content -Raw -Path $ModelsPath | ConvertFrom-Json
             foreach ($Model in $ModelConfig.models) {
+                $ModelUrl = $null
+                if ($Model.PSObject.Properties['backend']) {
+                    $ModelUrl = switch ($Model.backend) {
+                        'gemini'    { "https://ai.google.dev/models/$($Model.id)" }
+                        'anthropic' { "https://docs.anthropic.com/en/docs/about-claude/models" }
+                        'groq'      { "https://console.groq.com/docs/models" }
+                        'openai'    { "https://platform.openai.com/docs/models/$($Model.id)" }
+                        default     { $null }
+                    }
+                }
+                $ModelSupplier = if ($Model.PSObject.Properties['backend']) { $Model.backend } else { $null }
                 $Entries.Add([PSCustomObject]@{
                     Name          = $Model.id
                     Version       = if ($Model.PSObject.Properties['version']) { $Model.version } else { 'latest' }
                     LatestVersion = $null
                     Status        = $null
                     Type          = 'ai-model'
+                    Scope         = 'required'
                     Source        = 'ai-models.json'
+                    SourceUrl     = $ModelUrl
                     License       = if ($Model.PSObject.Properties['license']) { $Model.license } else { $null }
+                    Supplier      = $ModelSupplier
+                    Description   = if ($Model.PSObject.Properties['display_name']) { $Model.display_name } else { $null }
+                    Hash          = $null
                 })
             }
         }
@@ -253,9 +299,112 @@ function Get-AITSBOM {
                 LatestVersion = $null
                 Status        = $null
                 Type          = 'schema'
+                Scope         = 'required'
                 Source        = "taxonomy/schemas/$($SchemaFile.Name)"
-                License       = $null
+                SourceUrl     = $null
+                License       = 'MIT'
+                Supplier      = 'AI Triad Research'
+                Description   = $null
+                Hash          = $null
             })
+        }
+    }
+
+    # ── 7. Local metadata enrichment (no network) ─────────────────────────────
+    Write-Verbose 'Enriching from local metadata...'
+
+    # 7a. npm: parse lock files for license, integrity hash, download URL
+    $NpmEntries = @($Entries | Where-Object { $_.Type -in @('npm', 'npm-dev') })
+    if ($NpmEntries.Count -gt 0) {
+        $LockCache = @{}
+        $ProcessedSources = [System.Collections.Generic.HashSet[string]]::new()
+
+        foreach ($NpmEntry in $NpmEntries) {
+            $SourceKey = $NpmEntry.Source -replace '/package\.json$', ''
+            if (-not $ProcessedSources.Add($SourceKey)) { continue }
+
+            if ($SourceKey -eq 'package.json') { $LockPath = Join-Path $RepoRoot 'package-lock.json' }
+            else { $LockPath = Join-Path (Join-Path $RepoRoot $SourceKey) 'package-lock.json' }
+
+            if (-not (Test-Path $LockPath)) { continue }
+
+            try {
+                $Lock = Get-Content -Raw -Path $LockPath | ConvertFrom-Json -AsHashtable
+                if ($Lock.ContainsKey('packages')) {
+                    foreach ($Key in $Lock.packages.Keys) {
+                        if (-not $Key.StartsWith('node_modules/')) { continue }
+                        $PkgNameFromLock = $Key.Substring('node_modules/'.Length)
+                        $LockCache["$SourceKey|$PkgNameFromLock"] = $Lock.packages[$Key]
+                    }
+                }
+            }
+            catch {
+                Write-Verbose "Could not parse $LockPath`: $($_.Exception.Message)"
+            }
+        }
+
+        foreach ($NpmEntry in $NpmEntries) {
+            $SourceKey = $NpmEntry.Source -replace '/package\.json$', ''
+            $CacheKey = "$SourceKey|$($NpmEntry.Name)"
+            if ($LockCache.ContainsKey($CacheKey)) {
+                $LockData = $LockCache[$CacheKey]
+                if ($LockData.ContainsKey('license') -and $LockData.license)       { $NpmEntry.License   = $LockData.license }
+                if ($LockData.ContainsKey('integrity') -and $LockData.integrity)   { $NpmEntry.Hash      = $LockData.integrity }
+                if ($LockData.ContainsKey('resolved') -and $LockData.resolved)     { $NpmEntry.SourceUrl = $LockData.resolved }
+                if ($LockData.ContainsKey('version') -and $LockData.version)       { $NpmEntry.Version   = $LockData.version }
+            }
+        }
+    }
+
+    # 7b. Python: batch pip show for license, author, description
+    $PyEntries = @($Entries | Where-Object { $_.Type -eq 'python' })
+    if ($PyEntries.Count -gt 0) {
+        $PyCmd = if (Get-Command pip -ErrorAction SilentlyContinue) { 'pip' } else { 'pip3' }
+        $PyNames = @($PyEntries | ForEach-Object { $_.Name -replace '\[.*\]', '' })
+        try {
+            $PipOutput = & $PyCmd show @PyNames 2>$null
+            if ($PipOutput) {
+                $PipBlocks = @{}
+                $CurrentName = $null
+                $CurrentBlock = @{}
+                foreach ($PipLine in $PipOutput) {
+                    if ($PipLine -match '^---') {
+                        if ($CurrentName) { $PipBlocks[$CurrentName.ToLower()] = $CurrentBlock }
+                        $CurrentName = $null
+                        $CurrentBlock = @{}
+                        continue
+                    }
+                    if ($PipLine -match '^([^:]+):\s*(.*)$') {
+                        $FieldName = $Matches[1].Trim()
+                        $FieldVal  = $Matches[2].Trim()
+                        $CurrentBlock[$FieldName] = $FieldVal
+                        if ($FieldName -eq 'Name') { $CurrentName = $FieldVal }
+                    }
+                }
+                if ($CurrentName) { $PipBlocks[$CurrentName.ToLower()] = $CurrentBlock }
+
+                foreach ($PyEntry in $PyEntries) {
+                    $LookupName = ($PyEntry.Name -replace '\[.*\]', '').ToLower()
+                    if ($PipBlocks.ContainsKey($LookupName)) {
+                        $Info = $PipBlocks[$LookupName]
+                        if ($Info.ContainsKey('License') -and $Info.License -and $Info.License -ne 'UNKNOWN') {
+                            $PyEntry.License = $Info.License
+                        }
+                        if ($Info.ContainsKey('Author') -and $Info.Author -and $Info.Author -ne 'UNKNOWN') {
+                            $PyEntry.Supplier = $Info.Author
+                        }
+                        if ($Info.ContainsKey('Summary') -and $Info.Summary -and $Info.Summary -ne 'UNKNOWN') {
+                            $PyEntry.Description = $Info.Summary
+                        }
+                        if ($Info.ContainsKey('Version') -and $Info.Version) {
+                            $PyEntry.Version = $Info.Version
+                        }
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Verbose "pip show failed: $($_.Exception.Message)"
         }
     }
 
@@ -293,7 +442,7 @@ function Get-AITSBOM {
                 }
                 'python' {
                     try {
-                        $PkgName = $Entry.Name -replace '\[.*\]', ''  # Strip extras
+                        $PkgName = $Entry.Name -replace '\[.*\]', ''
                         if (Get-Command pip -EA SilentlyContinue) { $PyCmd = 'pip' } else { $PyCmd = 'pip3' }
                         $Info = & $PyCmd index versions $PkgName 2>$null
                         if ($Info -match 'Available versions:\s*(.+)') {
@@ -348,7 +497,6 @@ function Get-AITSBOM {
                     try {
                         switch ($Pkg.Type) {
                             { $_ -in @('npm', 'npm-dev') } {
-                                # Determine which app dir
                                 $AppDir = ($Pkg.Source -split '/')[0]
                                 if ($AppDir -eq 'package.json') { $WorkDir = $RepoRoot } else { $WorkDir = Join-Path $RepoRoot $AppDir }
                                 if ($PSCmdlet.ShouldProcess($Pkg.Name, "npm update in $AppDir")) {
@@ -392,16 +540,23 @@ function Get-AITSBOM {
     }
 
     # ── Output formatting ─────────────────────────────────────────────────────
+    $BaseFields = @('Name', 'Version', 'Type', 'Scope', 'License', 'Supplier', 'Source', 'SourceUrl', 'Description', 'Hash')
     if ($CheckUpdates) {
-        $OutputEntries = $Entries | Select-Object Name, Version, LatestVersion, Status, Type, Source, License
+        $AllFields = @('Name', 'Version', 'LatestVersion', 'Status') + @('Type', 'Scope', 'License', 'Supplier', 'Source', 'SourceUrl', 'Description', 'Hash')
+        $OutputEntries = $Entries | Select-Object $AllFields
     }
     else {
-        $OutputEntries = $Entries | Select-Object Name, Version, Type, Source, License
+        $OutputEntries = $Entries | Select-Object $BaseFields
     }
 
     switch ($Format) {
         'Table' {
-            $OutputEntries | Format-Table -AutoSize | Out-Host
+            if ($CheckUpdates) {
+                $Entries | Select-Object Name, Version, LatestVersion, Status, Type, Scope, License, Source | Format-Table -AutoSize | Out-Host
+            }
+            else {
+                $Entries | Select-Object Name, Version, Type, Scope, License, Source | Format-Table -AutoSize | Out-Host
+            }
             return $Entries
         }
         'Json' {
@@ -411,7 +566,6 @@ function Get-AITSBOM {
             return ($OutputEntries | ConvertTo-Csv -NoTypeInformation)
         }
         'CycloneDX' {
-            # CycloneDX 1.5 JSON format
             $Components = @($Entries | ForEach-Object {
                 $PurlType = switch ($_.Type) {
                     'npm'       { 'npm' }
@@ -420,19 +574,32 @@ function Get-AITSBOM {
                     'ps-module' { 'nuget' }
                     default     { 'generic' }
                 }
-                [ordered]@{
+                $Comp = [ordered]@{
                     type    = 'library'
                     name    = $_.Name
                     version = $_.Version
+                    scope   = if ($_.Scope -eq 'development') { 'excluded' } else { 'required' }
                     purl    = "pkg:$PurlType/$($_.Name)@$($_.Version)"
-                    properties = @(
-                        [ordered]@{ name = 'source'; value = $_.Source }
-                        [ordered]@{ name = 'component-type'; value = $_.Type }
-                    )
                 }
-                if ($_.License) {
-                    # Add license to last component
+                if ($_.Description) { $Comp['description'] = $_.Description }
+                if ($_.Supplier)    { $Comp['supplier'] = [ordered]@{ name = $_.Supplier } }
+                if ($_.License)     { $Comp['licenses'] = @( [ordered]@{ license = [ordered]@{ id = $_.License } } ) }
+                if ($_.Hash) {
+                    $HashAlg = if ($_.Hash -match '^sha512-') { 'SHA-512' }
+                               elseif ($_.Hash -match '^sha256-') { 'SHA-256' }
+                               elseif ($_.Hash -match '^sha1-') { 'SHA-1' }
+                               else { 'SHA-512' }
+                    $HashVal = $_.Hash -replace '^sha\d+-', ''
+                    $Comp['hashes'] = @( [ordered]@{ alg = $HashAlg; content = $HashVal } )
                 }
+                $ExtRefs = [System.Collections.Generic.List[hashtable]]::new()
+                if ($_.SourceUrl) { $ExtRefs.Add([ordered]@{ type = 'distribution'; url = $_.SourceUrl }) }
+                if ($ExtRefs.Count -gt 0) { $Comp['externalReferences'] = @($ExtRefs) }
+                $Comp['properties'] = @(
+                    [ordered]@{ name = 'source'; value = $_.Source }
+                    [ordered]@{ name = 'component-type'; value = $_.Type }
+                )
+                $Comp
             })
 
             $CycloneDX = [ordered]@{
@@ -453,23 +620,48 @@ function Get-AITSBOM {
             return ($CycloneDX | ConvertTo-Json -Depth 10)
         }
         'SPDX' {
-            # SPDX 2.3 JSON format
             $Packages = @($Entries | ForEach-Object {
-                [ordered]@{
+                $PurlType = switch ($_.Type) {
+                    'npm'       { 'npm' }
+                    'npm-dev'   { 'npm' }
+                    'python'    { 'pypi' }
+                    'ps-module' { 'nuget' }
+                    default     { 'generic' }
+                }
+                $SpdxPkg = [ordered]@{
                     SPDXID               = "SPDXRef-$($_.Name -replace '[^a-zA-Z0-9._-]', '-')"
                     name                 = $_.Name
                     versionInfo          = $_.Version
-                    downloadLocation     = 'NOASSERTION'
+                    downloadLocation     = if ($_.SourceUrl) { $_.SourceUrl } else { 'NOASSERTION' }
                     filesAnalyzed        = $false
-                    supplier             = 'NOASSERTION'
+                    supplier             = if ($_.Supplier) { "Organization: $($_.Supplier)" } else { 'NOASSERTION' }
+                    description          = if ($_.Description) { $_.Description } else { $null }
+                    primaryPackagePurpose = if ($_.Scope -eq 'development') { 'DOCUMENTATION' } else { 'LIBRARY' }
                     externalRefs         = @(
                         [ordered]@{
                             referenceCategory = 'PACKAGE-MANAGER'
                             referenceType     = 'purl'
-                            referenceLocator  = "pkg:generic/$($_.Name)@$($_.Version)"
+                            referenceLocator  = "pkg:$PurlType/$($_.Name)@$($_.Version)"
                         }
                     )
                 }
+                if ($_.License) {
+                    $SpdxPkg['licenseConcluded'] = $_.License
+                    $SpdxPkg['licenseDeclared']  = $_.License
+                }
+                else {
+                    $SpdxPkg['licenseConcluded'] = 'NOASSERTION'
+                    $SpdxPkg['licenseDeclared']  = 'NOASSERTION'
+                }
+                if ($_.Hash) {
+                    $HashAlg = if ($_.Hash -match '^sha512-') { 'SHA512' }
+                               elseif ($_.Hash -match '^sha256-') { 'SHA256' }
+                               elseif ($_.Hash -match '^sha1-') { 'SHA1' }
+                               else { 'SHA512' }
+                    $HashVal = $_.Hash -replace '^sha\d+-', ''
+                    $SpdxPkg['checksums'] = @( [ordered]@{ algorithm = $HashAlg; checksumValue = $HashVal } )
+                }
+                $SpdxPkg
             })
 
             $SPDX = [ordered]@{

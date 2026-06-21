@@ -84,6 +84,8 @@ export interface AppAPI {
   loadAIModels: () => Promise<unknown>;
   refreshAIModels: () => Promise<unknown>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
+  deleteApiKey: (backend?: string) => Promise<void>;
+  deleteAllApiKeys: () => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
   /**
    * Which AI backends are actually usable (key present + reachable). Backed by the

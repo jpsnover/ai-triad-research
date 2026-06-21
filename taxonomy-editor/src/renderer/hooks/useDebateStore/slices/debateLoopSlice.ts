@@ -128,11 +128,13 @@ export interface DebateLoopSlice {
   crossRespond: () => Promise<void>;
   generateNewsReport: () => Promise<void>;
   requestReflections: () => Promise<void>;
-  applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => Promise<{ ok: boolean; error?: string }>;
+  applyReflectionEdit: (pover: string, editIndex: number, overrides?: { label?: string; description?: string }, options?: { regeneratePhrases?: boolean }) => Promise<{ ok: boolean; error?: string; enrichNodeId?: string }>;
   retryReflectionEditAfterFix: (pover: string, editIndex: number) => Promise<{ ok: boolean; error?: string }>;
   dismissReflectionEdit: (pover: string, editIndex: number) => void;
   acceptConsensus: (clusterId: string) => Promise<{ ok: boolean; error?: string }>;
   rejectConsensus: (clusterId: string) => void;
+  retryEnrichment: (nodeId: string, pov: 'accelerationist' | 'safetyist' | 'skeptic') => Promise<void>;
+  clearEnrichmentStatus: (nodeId: string) => void;
 }
 
 export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoopSlice> = (set, get) => ({
@@ -1795,10 +1797,24 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       return { ok: false, error: detailedError };
     }
 
-    // Fire-and-forget: enrich with AI-generated graph attributes + synthetic embeddings
-    // Runs for new nodes AND edited nodes (skip deprecations — those are being retired)
+    // Enrich with AI-generated graph attributes + synthetic embeddings.
+    // Runs for new nodes AND edited nodes (skip deprecations — those are being retired).
+    // Uses a dirty flag (_phrase_regen_pending) so incomplete enrichments are detectable across sessions.
     const enrichNodeId = createdNodeId ?? (edit.node_id && edit.edit_type !== 'deprecate' ? edit.node_id : null);
     if (enrichNodeId) {
+      const shouldRegeneratePhrases = edit.edit_type === 'add' || !!options?.regeneratePhrases;
+      // Set dirty flag before starting enrichment
+      const preNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === enrichNodeId);
+      if (preNode) {
+        useTaxonomyStore.getState().updatePovNode(povKey, enrichNodeId, {
+          graph_attributes: { ...preNode.graph_attributes, _phrase_regen_pending: true },
+        });
+        await useTaxonomyStore.getState().save();
+      }
+      set({ enrichmentStatus: { ...get().enrichmentStatus, [enrichNodeId]: { status: 'pending' } } });
+      const enrichStartTime = performance.now();
+      getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.start', data: { node_id: enrichNodeId, pov: povKey, edit_type: edit.edit_type, regeneratePhrases: shouldRegeneratePhrases } });
+
       void (async () => {
         try {
           const { reflectionNodeEnrichmentPrompt } = await import('../../../prompts/analysis');
@@ -1828,12 +1844,10 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
             ...(enriched.node_scope && { node_scope: enriched.node_scope }),
             ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
           };
+          // Keep dirty flag until embeddings are also done
           currentTaxStore.updatePovNode(povKey, enrichNodeId, { graph_attributes: mergedAttrs });
           await currentTaxStore.save();
 
-          // Compute synthetic embeddings from attribution_text + synthetic_phrases
-          // For add edits: always regenerate. For revise/qualify: only when explicitly opted in.
-          const shouldRegeneratePhrases = edit.edit_type === 'add' || !!options?.regeneratePhrases;
           if (shouldRegeneratePhrases) {
             const phrasesToEmbed: string[] = [];
             if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
@@ -1857,14 +1871,27 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
             }
           }
 
-          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'reflectionEnrichment.complete', data: { node_id: enrichNodeId, fields: Object.keys(enriched), regeneratePhrases: shouldRegeneratePhrases } });
+          // Clear dirty flag only after attributes + embeddings are fully done
+          const finalNode = useTaxonomyStore.getState()[povKey]?.nodes.find(n => n.id === enrichNodeId);
+          if (finalNode?.graph_attributes?._phrase_regen_pending) {
+            const finalAttrs = { ...finalNode.graph_attributes };
+            delete finalAttrs._phrase_regen_pending;
+            useTaxonomyStore.getState().updatePovNode(povKey, enrichNodeId, { graph_attributes: finalAttrs });
+            await useTaxonomyStore.getState().save();
+          }
+
+          const enrichDuration = Math.round(performance.now() - enrichStartTime);
+          getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.complete', duration_ms: enrichDuration, data: { node_id: enrichNodeId, pov: povKey, fields: Object.keys(enriched), regeneratePhrases: shouldRegeneratePhrases } });
+          set({ enrichmentStatus: { ...get().enrichmentStatus, [enrichNodeId]: { status: 'success' } } });
         } catch (err) {
-          getGlobalRecorder()?.record({ type: 'state.error', component: 'reflection-edit', level: 'warn', message: 'reflectionEnrichment.failed', data: { node_id: enrichNodeId, error: String(err) } });
+          const enrichDuration = Math.round(performance.now() - enrichStartTime);
+          getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-enrichment', level: 'error', message: 'enrichment.failed', duration_ms: enrichDuration, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { node_id: enrichNodeId, pov: povKey, edit_type: edit.edit_type } });
+          set({ enrichmentStatus: { ...get().enrichmentStatus, [enrichNodeId]: { status: 'error', error: String(err) } } });
         }
       })();
     }
 
-    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, duration_ms: duration } });
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-edit', level: 'info', message: 'applyReflectionEdit.result', data: { ok: true, pover, editIndex, edit_type: edit.edit_type, node_id: edit.node_id, enrichNodeId, duration_ms: duration } });
     const updated = reflections.map(r => {
       if (r.pover !== pover) return r;
       return {
@@ -1873,7 +1900,7 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       };
     });
     set({ reflections: updated });
-    return { ok: true };
+    return { ok: true, enrichNodeId: enrichNodeId ?? undefined };
   },
 
   // "Fix it" recovery: a prior applyReflectionEdit already mutated the node in memory but
@@ -2059,5 +2086,97 @@ export const createDebateLoopSlice: StateCreator<DebateStore, [], [], DebateLoop
       c.id === clusterId ? { ...c, status: 'rejected' as const } : c
     );
     set({ consensusClusters: updated });
+  },
+
+  retryEnrichment: async (nodeId: string, pov: 'accelerationist' | 'safetyist' | 'skeptic') => {
+    const taxStore = useTaxonomyStore.getState();
+    const node = taxStore[pov]?.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    // Ensure dirty flag is set before starting so a crash mid-retry is detectable
+    useTaxonomyStore.getState().updatePovNode(pov, nodeId, {
+      graph_attributes: { ...node.graph_attributes, _phrase_regen_pending: true },
+    });
+    await useTaxonomyStore.getState().save();
+
+    set({ enrichmentStatus: { ...get().enrichmentStatus, [nodeId]: { status: 'pending' } } });
+    const startTime = performance.now();
+    getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.retry', data: { node_id: nodeId, pov } });
+
+    try {
+      const { reflectionNodeEnrichmentPrompt } = await import('../../../prompts/analysis');
+      const enrichPrompt = reflectionNodeEnrichmentPrompt({
+        id: nodeId,
+        label: node.label,
+        description: node.description,
+        category: node.category,
+        pov,
+      });
+      const enrichModel = getConfiguredModel();
+      const { text } = await api.generateText(enrichPrompt, enrichModel);
+      const enriched = JSON.parse(stripCodeFences(text));
+      const currentNode = useTaxonomyStore.getState()[pov]?.nodes.find(n => n.id === nodeId);
+      if (!currentNode) return;
+      const mergedAttrs: GraphAttributes = {
+        ...currentNode.graph_attributes,
+        ...(enriched.epistemic_type && { epistemic_type: enriched.epistemic_type }),
+        ...(enriched.rhetorical_strategy && { rhetorical_strategy: enriched.rhetorical_strategy }),
+        ...(enriched.assumes?.length > 0 && { assumes: enriched.assumes }),
+        ...(enriched.falsifiability && { falsifiability: enriched.falsifiability }),
+        ...(enriched.audience && { audience: enriched.audience }),
+        ...(enriched.emotional_register && { emotional_register: enriched.emotional_register }),
+        ...(enriched.intellectual_lineage?.length > 0 && { intellectual_lineage: enriched.intellectual_lineage }),
+        ...(enriched.steelman_vulnerability && { steelman_vulnerability: enriched.steelman_vulnerability }),
+        ...(enriched.node_scope && { node_scope: enriched.node_scope }),
+        ...(enriched.attribution_text && { attribution_text: enriched.attribution_text }),
+      };
+      // Keep dirty flag until embeddings are also done
+      useTaxonomyStore.getState().updatePovNode(pov, nodeId, { graph_attributes: mergedAttrs });
+      await useTaxonomyStore.getState().save();
+
+      const phrasesToEmbed: string[] = [];
+      if (enriched.attribution_text) phrasesToEmbed.push(enriched.attribution_text);
+      if (Array.isArray(enriched.synthetic_phrases)) {
+        for (const p of enriched.synthetic_phrases) {
+          if (typeof p === 'string' && p.length > 0) phrasesToEmbed.push(p);
+        }
+      }
+      if (phrasesToEmbed.length > 0) {
+        const vectors: number[][] = [];
+        for (const phrase of phrasesToEmbed) {
+          try {
+            const { vector } = await api.computeQueryEmbedding(phrase.slice(0, 500));
+            if (vector?.length > 0) vectors.push(vector);
+          } catch { /* per-phrase resilience */ }
+        }
+        if (vectors.length > 0) {
+          const povShort = pov === 'accelerationist' ? 'acc' : pov === 'safetyist' ? 'saf' : 'skp';
+          await api.updateSyntheticEmbeddings(nodeId, povShort, vectors);
+        }
+      }
+
+      // Clear dirty flag only after attributes + embeddings are fully done
+      const finalNode = useTaxonomyStore.getState()[pov]?.nodes.find(n => n.id === nodeId);
+      if (finalNode?.graph_attributes?._phrase_regen_pending) {
+        const finalAttrs = { ...finalNode.graph_attributes };
+        delete finalAttrs._phrase_regen_pending;
+        useTaxonomyStore.getState().updatePovNode(pov, nodeId, { graph_attributes: finalAttrs });
+        await useTaxonomyStore.getState().save();
+      }
+
+      const duration = Math.round(performance.now() - startTime);
+      getGlobalRecorder()?.record({ type: 'state.change', component: 'reflection-enrichment', level: 'info', message: 'enrichment.retry.complete', duration_ms: duration, data: { node_id: nodeId, pov, fields: Object.keys(enriched) } });
+      set({ enrichmentStatus: { ...get().enrichmentStatus, [nodeId]: { status: 'success' } } });
+    } catch (err) {
+      const duration = Math.round(performance.now() - startTime);
+      getGlobalRecorder()?.record({ type: 'system.error', component: 'reflection-enrichment', level: 'error', message: 'enrichment.retry.failed', duration_ms: duration, error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack }, data: { node_id: nodeId, pov } });
+      set({ enrichmentStatus: { ...get().enrichmentStatus, [nodeId]: { status: 'error', error: String(err) } } });
+    }
+  },
+
+  clearEnrichmentStatus: (nodeId: string) => {
+    const current = { ...get().enrichmentStatus };
+    delete current[nodeId];
+    set({ enrichmentStatus: current });
   },
 });

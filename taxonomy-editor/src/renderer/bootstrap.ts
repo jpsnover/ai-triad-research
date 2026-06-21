@@ -32,10 +32,10 @@ function showCrashScreen(error: unknown) {
           padding:8px 20px;border-radius:6px;border:none;background:#4a90d9;
           color:#fff;font-size:0.9rem;cursor:pointer;
         ">Reload</button>
-        <button onclick="try{require('electron').ipcRenderer.send('open-devtools')}catch(e){}" style="
-          padding:8px 20px;border-radius:6px;border:1px solid #555;background:transparent;
-          color:#aaa;font-size:0.9rem;cursor:pointer;
-        ">Open DevTools</button>
+        <span style="
+          padding:8px 16px;border-radius:6px;border:1px solid #555;
+          color:#777;font-size:0.8rem;
+        ">DevTools: Ctrl+Shift+I</span>
       </div>
     </div>
   `;

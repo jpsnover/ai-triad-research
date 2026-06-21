@@ -23,9 +23,8 @@ import { PromptDetailPanel } from '../chat/PromptsPanel';
 import { FallacyDetailPanel } from '../analysis/FallacyPanel';
 import { CruxDetail } from '../debate/CruxesTab';
 import { ToolbarPaneRenderer, isFullWidthPanel, PhoneToolClose } from '../shared/ToolbarPaneRenderer';
-import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
-import { getCategoryLabel, classifyLineage, getL2CategoryLabel } from '../../data/lineageCategories';
-import { POV_KEYS, POVER_INFO } from '@lib/debate/types';
+import { LineageDetailView } from '../shared/LineageDetailView';
+import { POVER_INFO } from '@lib/debate/types';
 import type { SpeakerId } from '@lib/debate/types';
 
 /** Map taxonomy POV name → POVER_INFO speaker key (identity map after speaker rename) */
@@ -40,49 +39,6 @@ import { useSyncStatus } from '../../hooks/useSyncStatus';
 
 interface PovTabProps {
   pov: Pov;
-}
-
-const SEE_ALSO_STOPWORDS = new Set([
-  'a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'by', 'for',
-  'with', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-  'this', 'that', 'these', 'those', 'it', 'its', 'into', 'which', 'who',
-  'not', 'no', 'but', 'if', 'then', 'than', 'so', 'also', 'such', 'other',
-  'about', 'their', 'they', 'them', 'theory', 'view', 'based',
-]);
-
-function tokenize(s: string): Set<string> {
-  const tokens = s.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? [];
-  return new Set(tokens.filter(t => !SEE_ALSO_STOPWORDS.has(t)));
-}
-
-/** Rank related lineage entries by shared label/summary tokens and category. */
-function computeSeeAlso(
-  rawKey: string,
-  info: { label: string; summary: string } | null,
-): { key: string; label: string }[] {
-  const lineages = getAllLineages();
-  const currentKey = Object.keys(lineages).find(k =>
-    k.toLowerCase() === rawKey.toLowerCase()
-  ) ?? rawKey;
-  const currentCat = classifyLineage(currentKey);
-  const currentTokens = tokenize(`${info?.label ?? currentKey} ${info?.summary ?? ''}`);
-
-  type Scored = { key: string; label: string; score: number };
-  const scored: Scored[] = [];
-  for (const [key, inf] of Object.entries(lineages)) {
-    if (key === currentKey) continue;
-    const cand = tokenize(`${inf.label} ${inf.summary}`);
-    let overlap = 0;
-    for (const t of cand) if (currentTokens.has(t)) overlap++;
-    if (overlap === 0) continue;
-    const sameCat = classifyLineage(key) === currentCat ? 2 : 0;
-    scored.push({ key, label: inf.label, score: overlap + sameCat });
-  }
-  scored.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
-  // Take top 6; require minimum 2-token overlap (or same-cat bonus) to keep quality high.
-  const top = scored.filter(s => s.score >= 2).slice(0, 6);
-  // If fewer than 2 survive the filter, fall back to the best candidates so we always surface something.
-  return top.length >= 2 ? top : scored.slice(0, Math.min(6, scored.length));
 }
 
 /** Extracted from PovTab IIFE to avoid conditional hook calls (React Rules of Hooks). */
@@ -384,7 +340,7 @@ export function PovTab({ pov }: PovTabProps) {
     selectedNodeId, setSelectedNodeId, createPovNode, pinnedStack, pinAtDepth,
     similarResults, similarLoading, similarError,
     runAnalyzeDistinction, analysisResult, analysisLoading, analysisError, clearAnalysis,
-    navigateToSearchRelated, navigateToLineage,
+    navigateToSearchRelated,
     attributeFilter, attributeInfo,
     clusterView, clusterLoading, clusterError, runClusterView, clearClusterView,
     relatedNodeId, showRelatedEdges, selectedEdge,
@@ -430,19 +386,8 @@ export function PovTab({ pov }: PovTabProps) {
   const [detailCollapsed, setDetailCollapsed] = useState(false);
   const [searchPreviewId, setSearchPreviewId] = useState<string | null>(null);
   const [lineagePreviewValue, setLineagePreviewValue] = useState<string | null>(null);
-  const [lineageSecondaryValue, setLineageSecondaryValue] = useState<string | null>(null);
   const [lineageLinkUrl, setLineageLinkUrl] = useState<string | null>(null);
-  const [refPreviewNodeId, setRefPreviewNodeId] = useState<string | null>(null);
-  const [lineageCtxMenu, setLineageCtxMenu] = useState<{ x: number; y: number; key: string } | null>(null);
-  // Close lineage context menu on outside click
-  useEffect(() => {
-    if (!lineageCtxMenu) return;
-    const handler = () => setLineageCtxMenu(null);
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [lineageCtxMenu]);
-  // Clear pane 3 webview + secondary/ref previews when a different lineage value is selected in pane 1
-  useEffect(() => { setLineageLinkUrl(null); setLineageSecondaryValue(null); setRefPreviewNodeId(null); }, [lineagePreviewValue]);
+  useEffect(() => { setLineageLinkUrl(null); }, [lineagePreviewValue]);
   const [selectedPromptEntry, setSelectedPromptEntry] = useState<PromptCatalogEntry | null>(PROMPT_CATALOG[0]);
   const [promptInspectorActive, setPromptInspectorActive] = useState(false);
   const handleSelectPrompt = useCallback((entry: PromptCatalogEntry | null) => setSelectedPromptEntry(entry), []);
@@ -696,280 +641,7 @@ export function PovTab({ pov }: PovTabProps) {
 
   // Search preview rendered via shared SearchPreview component
 
-  // Render lineage about info for Pane 2
-  const renderLineagePreview = () => {
-    // console.log('[PovTab] renderLineagePreview called. lineagePreviewValue:', JSON.stringify(lineagePreviewValue), '| toolbarPanel:', toolbarPanel);
-    if (!lineagePreviewValue) return <div className="detail-panel-empty">Select a lineage value to view details</div>;
-    const info = getLineageInfo(lineagePreviewValue);
-    // Compute See Also — sibling lineage entries ranked by relevance
-    const seeAlsoItems = computeSeeAlso(lineagePreviewValue, info);
-
-    // Compute Referenced By — POV nodes whose intellectual_lineage includes this value
-    const normalizedValue = lineagePreviewValue.toLowerCase();
-    const referencingNodes: { id: string; label: string; pov: string; category?: string }[] = [];
-    const state = useTaxonomyStore.getState();
-    for (const p of POV_KEYS) {
-      const povFile = state[p];
-      if (!povFile) continue;
-      for (const node of povFile.nodes) {
-        if (node.graph_attributes?.intellectual_lineage?.some(v => { const s = typeof v === 'string' ? v : (v as { name?: string })?.name; return s?.toLowerCase() === normalizedValue; })) {
-          referencingNodes.push({ id: node.id, label: node.label, pov: p, category: node.category });
-        }
-      }
-    }
-
-    const renderReferencedBy = () => referencingNodes.length > 0 && (
-      <div className="lineage-detail-section">
-        <div className="lineage-detail-label">Referenced By ({referencingNodes.length})</div>
-        <div className="lineage-detail-links">
-          {referencingNodes.map(ref => (
-            <button
-              key={ref.id}
-              className={`btn btn-sm${refPreviewNodeId === ref.id ? '' : ' btn-ghost'} lineage-ref-item`}
-              onClick={() => setRefPreviewNodeId(refPreviewNodeId === ref.id ? null : ref.id)}
-              title={`Preview ${ref.id}`}
-            >
-              <span className={`pov-badge pov-badge-${ref.pov.slice(0, 3)}`}>{ref.pov.slice(0, 3).toUpperCase()}</span>
-              <span className="lineage-ref-label">{ref.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-
-    const renderSeeAlso = () => seeAlsoItems.length > 0 && (
-      <div className="lineage-detail-section">
-        <div className="lineage-detail-label">See Also</div>
-        <div className="lineage-detail-links" style={{ position: 'relative' }}>
-          {seeAlsoItems.map(({ key, label }) => (
-            <button
-              key={key}
-              className={`btn btn-sm${lineageSecondaryValue === key ? '' : ' btn-ghost'}`}
-              onClick={() => setLineageSecondaryValue(lineageSecondaryValue === key ? null : key)}
-              onContextMenu={(e) => { e.preventDefault(); setLineageCtxMenu({ x: e.clientX, y: e.clientY, key }); }}
-              title={`Preview: ${label} (right-click → Go To)`}
-            >
-              {label}
-            </button>
-          ))}
-          {lineageCtxMenu && (
-            <div
-              style={{
-                position: 'fixed', left: lineageCtxMenu.x, top: lineageCtxMenu.y, zIndex: 9999,
-                background: 'var(--bg-primary, #1a1a2e)', border: '1px solid var(--border, #333)',
-                borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.3)', padding: '2px 0',
-                minWidth: 160,
-              }}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              <button
-                style={{
-                  display: 'block', width: '100%', padding: '6px 14px', border: 'none',
-                  background: 'transparent', color: 'var(--text-primary)', fontSize: '0.78rem',
-                  textAlign: 'left', cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'var(--accent, #3b82f6)'; (e.target as HTMLElement).style.color = '#fff'; }}
-                onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; (e.target as HTMLElement).style.color = 'var(--text-primary)'; }}
-                onClick={() => { navigateToLineage(lineageCtxMenu.key); setLineageCtxMenu(null); }}
-              >
-                Go To in Lineage Panel
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-
-    const renderSecondary = () => {
-      if (!lineageSecondaryValue) return null;
-      const secInfo = getLineageInfo(lineageSecondaryValue);
-      return (
-        <div className="lineage-detail-secondary">
-          <div className="lineage-detail-secondary-header">
-            <div>
-              <div className="lineage-detail-secondary-eyebrow">See Also</div>
-              <h3 className="lineage-detail-secondary-title">{secInfo?.label ?? lineageSecondaryValue}</h3>
-              <div className="lineage-category-badge">{getCategoryLabel(lineageSecondaryValue)}{getL2CategoryLabel(lineageSecondaryValue) ? ` › ${getL2CategoryLabel(lineageSecondaryValue)}` : ''}</div>
-            </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                className="btn btn-sm btn-ghost"
-                onClick={() => { setLineagePreviewValue(lineageSecondaryValue); }}
-                title="Open as primary"
-              >Open</button>
-              <button
-                className="btn btn-sm btn-ghost"
-                onClick={() => setLineageSecondaryValue(null)}
-                title="Close secondary pane"
-              >Close</button>
-            </div>
-          </div>
-          {secInfo ? (
-            <>
-              <div className="lineage-detail-section">
-                <div className="lineage-detail-label">Summary</div>
-                <p className="lineage-detail-text">{secInfo.summary}</p>
-              </div>
-              <div className="lineage-detail-section">
-                <div className="lineage-detail-label">Example</div>
-                <p className="lineage-detail-text">{secInfo.example}</p>
-              </div>
-              <div className="lineage-detail-section">
-                <div className="lineage-detail-label">Frequency</div>
-                <p className="lineage-detail-text">{secInfo.frequency}</p>
-              </div>
-              {secInfo.links && secInfo.links.length > 0 && (
-                <div className="lineage-detail-section">
-                  <div className="lineage-detail-label">Links</div>
-                  <div className="lineage-detail-links">
-                    {secInfo.links.map((link, i) => (
-                      <button
-                        key={i}
-                        className={`btn btn-sm${lineageLinkUrl === link.url ? '' : ' btn-ghost'}`}
-                        onClick={() => setLineageLinkUrl(link.url)}
-                      >
-                        {link.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="lineage-detail-section">
-              <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available.</p>
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const renderRefPreview = () => {
-      if (!refPreviewNodeId) return null;
-      const st = useTaxonomyStore.getState();
-      let refNode: (import('../types/taxonomy').PovNode & { pov: string }) | null = null;
-      for (const p of POV_KEYS) {
-        const found = st[p]?.nodes.find(n => n.id === refPreviewNodeId);
-        if (found) { refNode = { ...found, pov: p }; break; }
-      }
-      if (!refNode) return null;
-
-      const sv = refNode.graph_attributes?.steelman_vulnerability;
-      const svText = typeof sv === 'string' ? sv : sv
-        ? Object.entries(sv).map(([k, v]) => `${k}: ${v}`).join('\n')
-        : null;
-      const lineageItems = refNode.graph_attributes?.intellectual_lineage ?? [];
-
-      return (
-        <div className="lineage-detail-secondary">
-          <div className="lineage-detail-secondary-header">
-            <div>
-              <div className="lineage-detail-secondary-eyebrow">Referenced By</div>
-              <h3 className="lineage-detail-secondary-title">
-                <span className={`pov-badge pov-badge-${refNode.pov.slice(0, 3)}`}>{refNode.pov.slice(0, 3).toUpperCase()}</span>
-                {' '}{refNode.category && <span className="lineage-category-badge">{refNode.category}</span>}
-              </h3>
-              <h3 className="lineage-detail-secondary-title">{refNode.label}</h3>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.85em' }}>{refNode.id}</div>
-            </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              <button
-                className="btn btn-sm btn-ghost"
-                onClick={() => void useTaxonomyStore.getState().navigateToNode(refNode!.pov as any, refNode!.id)}
-                title="Go to this node"
-              >Go to</button>
-              <button
-                className="btn btn-sm btn-ghost"
-                onClick={() => setRefPreviewNodeId(null)}
-                title="Close preview"
-              >Close</button>
-            </div>
-          </div>
-          <div className="lineage-detail-section">
-            <div className="lineage-detail-label">Description</div>
-            <p className="lineage-detail-text">{refNode.description}</p>
-          </div>
-          {svText && (
-            <div className="lineage-detail-section">
-              <div className="lineage-detail-label">Steelman Vulnerability</div>
-              <p className="lineage-detail-text">{svText}</p>
-            </div>
-          )}
-          {lineageItems.length > 0 && (
-            <div className="lineage-detail-section">
-              <div className="lineage-detail-label">Intellectual Lineage</div>
-              <div className="lineage-detail-links">
-                {lineageItems.map((v, i) => {
-                  const s = typeof v === 'string' ? v : (v as { name?: string })?.name;
-                  if (!s) return null;
-                  return (
-                    <button
-                      key={i}
-                      className="btn btn-sm btn-ghost"
-                      onClick={() => setLineagePreviewValue(s)}
-                      title={`View lineage: ${s}`}
-                    >{s}</button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    if (!info) return (
-      <div className="lineage-detail">
-        <h2 className="lineage-detail-title">{lineagePreviewValue}</h2>
-        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}{getL2CategoryLabel(lineagePreviewValue) ? ` › ${getL2CategoryLabel(lineagePreviewValue)}` : ''}</div>
-        <div className="lineage-detail-section">
-          <p className="lineage-detail-text" style={{ color: 'var(--text-muted)' }}>No detailed information available for this lineage value.</p>
-        </div>
-        {renderReferencedBy()}
-        {renderRefPreview()}
-        {renderSeeAlso()}
-        {renderSecondary()}
-      </div>
-    );
-    return (
-      <div className="lineage-detail">
-        <h2 className="lineage-detail-title">{info.label}</h2>
-        <div className="lineage-category-badge">{getCategoryLabel(lineagePreviewValue)}{getL2CategoryLabel(lineagePreviewValue) ? ` › ${getL2CategoryLabel(lineagePreviewValue)}` : ''}</div>
-        <div className="lineage-detail-section">
-          <div className="lineage-detail-label">Summary</div>
-          <p className="lineage-detail-text">{info.summary}</p>
-        </div>
-        <div className="lineage-detail-section">
-          <div className="lineage-detail-label">Example</div>
-          <p className="lineage-detail-text">{info.example}</p>
-        </div>
-        <div className="lineage-detail-section">
-          <div className="lineage-detail-label">Frequency</div>
-          <p className="lineage-detail-text">{info.frequency}</p>
-        </div>
-        {info.links && info.links.length > 0 && (
-          <div className="lineage-detail-section">
-            <div className="lineage-detail-label">Links</div>
-            <div className="lineage-detail-links">
-              {info.links.map((link, i) => (
-                <button
-                  key={i}
-                  className={`btn btn-sm${lineageLinkUrl === link.url ? '' : ' btn-ghost'}`}
-                  onClick={() => setLineageLinkUrl(link.url)}
-                >
-                  {link.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {renderReferencedBy()}
-        {renderRefPreview()}
-        {renderSeeAlso()}
-        {renderSecondary()}
-      </div>
-    );
-  };
+  // Lineage detail rendered via shared LineageDetailView component
 
   if (!file) {
     return <DataRecovery pov={pov} />;
@@ -1077,7 +749,7 @@ export function PovTab({ pov }: PovTabProps) {
       ) : toolbarPanel === 'lineage' ? (
         <>
           <div className="detail-panel">
-            {renderLineagePreview()}
+            <LineageDetailView value={lineagePreviewValue} onSelectValue={setLineagePreviewValue} onOpenLink={setLineageLinkUrl} />
           </div>
           {lineageLinkUrl && (
             <>

@@ -13,6 +13,12 @@ export interface DebateSessionSummary {
   topic_text?: string;
   model?: string;
   turn_count?: number;
+  app_version?: string;
+  crux_addressed_ratio?: number | null;
+  process_reward_mean?: number | null;
+  claims_forgotten_rate?: number | null;
+  taxonomy_mapped_ratio?: number | null;
+  repetition_rate?: number | null;
 }
 
 interface IndexEntry extends DebateSessionSummary {
@@ -29,6 +35,49 @@ const INDEX_FILE = 'debates-index.json';
 export function extractSummary(data: Record<string, unknown>): DebateSessionSummary {
   const transcript = Array.isArray(data.transcript) ? data.transcript : [];
   const topic = data.topic as { final?: string; original?: string } | undefined;
+  const turnEntries = transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening');
+
+  const neutralEvals = data.neutral_evaluations as { checkpoint?: string; cruxes?: { status: string }[] }[] | undefined;
+  const finalEval = (neutralEvals ?? []).find(e => e.checkpoint === 'final');
+  let cruxAddressedRatio: number | null = null;
+  if (finalEval?.cruxes && finalEval.cruxes.length > 0) {
+    cruxAddressedRatio = finalEval.cruxes.filter(c => c.status === 'addressed').length / finalEval.cruxes.length;
+  }
+
+  const processRewards = data.process_rewards as { score: number }[] | undefined;
+  let processRewardMean: number | null = null;
+  if (processRewards && processRewards.length > 0) {
+    processRewardMean = processRewards.reduce((s, pr) => s + pr.score, 0) / processRewards.length;
+  }
+
+  const an = data.argument_network as { nodes: { source_entry_id?: string }[] } | undefined;
+  const ledger = data.unanswered_claims_ledger as { addressed_round?: number }[] | undefined;
+  const totalClaims = an?.nodes.length ?? 0;
+  const forgottenClaims = (ledger ?? []).filter(c => !c.addressed_round).length;
+  const claimsForgottenRate = totalClaims > 0 ? forgottenClaims / totalClaims : null;
+
+  let taxonomyMappedRatio: number | null = null;
+  if (an && an.nodes.length > 0) {
+    const mapped = an.nodes.filter(n => {
+      const entryRefs = transcript
+        .filter((e: { id?: string }) => e.id === n.source_entry_id)
+        .flatMap((e: { taxonomy_refs?: { node_id: string }[] }) => e.taxonomy_refs ?? []);
+      return entryRefs.length > 0;
+    }).length;
+    taxonomyMappedRatio = mapped / an.nodes.length;
+  }
+
+  const validations = (data.turn_validations ?? {}) as Record<string, unknown>;
+  const totalTurns = turnEntries.length;
+  let repetitionWarnings = 0;
+  for (const v of Object.values(validations)) {
+    const issues = (v as any)?.final?.issues ?? (v as any)?.attempts?.flatMap((a: any) => a.issues ?? []) ?? [];
+    for (const issue of issues) {
+      const text = typeof issue === 'string' ? issue : (issue as any)?.message ?? '';
+      if (/repeat|repetition|same moves/i.test(text)) repetitionWarnings++;
+    }
+  }
+
   return {
     id: data.id as string,
     title: typeof data.title === 'string' && data.title
@@ -41,7 +90,13 @@ export function extractSummary(data: Record<string, unknown>): DebateSessionSumm
     phase: data.phase as string,
     topic_text: topic?.final ?? topic?.original ?? '',
     model: data.debate_model as string | undefined,
-    turn_count: transcript.filter((t: { type?: string }) => t.type === 'statement' || t.type === 'opening').length,
+    turn_count: turnEntries.length,
+    app_version: typeof data.app_version === 'string' ? data.app_version : undefined,
+    crux_addressed_ratio: cruxAddressedRatio,
+    process_reward_mean: processRewardMean,
+    claims_forgotten_rate: claimsForgottenRate,
+    taxonomy_mapped_ratio: taxonomyMappedRatio,
+    repetition_rate: totalTurns > 0 ? repetitionWarnings / totalTurns : null,
   };
 }
 
