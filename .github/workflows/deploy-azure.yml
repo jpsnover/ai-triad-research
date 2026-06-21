@@ -392,7 +392,7 @@ jobs:
           # ── 6. Sync & auth ──
           echo ""
           echo "--- Sync & auth ---"
-          check "sync status" "${BASE_URL}/api/sync/status" '"branch"'
+          check "sync status" "${BASE_URL}/api/sync/status" '"enabled"'
           check "auth endpoint" "${BASE_URL}/api/auth/me"
 
           # ── 7. SPA renders ──
