@@ -387,7 +387,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: []
+      registries: [
+        {
+          server: 'ghcr.io'
+        }
+      ]
     }
     template: {
       containers: [
@@ -480,7 +484,11 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: []
+      registries: [
+        {
+          server: 'ghcr.io'
+        }
+      ]
     }
     template: {
       containers: [
