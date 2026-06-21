@@ -179,7 +179,11 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
     enablePurgeProtection: true
     publicNetworkAccess: 'Enabled'
     networkAcls: {
-      defaultAction: 'Deny'
+      // Allow required for consumption-tier ACA — managed identity calls
+      // use unpredictable Azure SNAT IPs that can't be allowlisted, and
+      // ACA is not a Key Vault "trusted service" for bypass purposes.
+      // Still protected by RBAC (only the container app's MSI has access).
+      defaultAction: 'Allow'
       bypass: 'AzureServices'
     }
   }
