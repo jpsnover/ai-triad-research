@@ -93,6 +93,7 @@
         'Invoke-EdgeWeightEvaluation'
         'Repair-Markdown'
         'Compare-DebateRuns'
+        'Compare-DebateQuality'
         'Invoke-DebateAB'
         'Show-OSSLicenses'
         'Get-FlightRecorderDump'
@@ -113,6 +114,9 @@
         'Update-SyntheticCorpus'
         'Sync-SyntheticCorpus'
         'Export-SyntheticEmbeddings'
+        'Test-SynthesisCompleteness'
+        'Get-ImportReport'
+        'Get-CalibrationTrend'
     )
 
     # Aliases exported from this module
