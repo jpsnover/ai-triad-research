@@ -1,0 +1,78 @@
+# ─── Cache Cleanup ───
+# What:  Deletes stale GitHub Actions caches to stay under the 10 GB free-tier limit.
+#        Targets: CodeQL TRAP (per-commit, never reused after 7d), Trivy DB
+#        (date-keyed, only latest matters), npm (stale lock-file hashes).
+# Before: Runs weekly on Sunday at 03:00 UTC or manually. No prerequisites.
+# After:  Stale caches are deleted. Active caches are preserved.
+
+name: Cache Cleanup
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly, Sunday 3 AM UTC (before GHCR cleanup at 4 AM)
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete stale caches
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "=== Cache inventory before cleanup ==="
+          gh cache list -R "$REPO" --sort size --order desc --limit 100 | head -30
+          echo ""
+
+          DELETED=0
+          FREED_KB=0
+          NOW=$(date -u +%s)
+
+          # Fetch all caches (paginated)
+          CACHES=$(gh cache list -R "$REPO" --limit 200 --json id,key,sizeInBytes,lastAccessedAt 2>/dev/null || echo "[]")
+
+          echo "$CACHES" | jq -r '.[] | "\(.id)\t\(.key)\t\(.sizeInBytes)\t\(.lastAccessedAt)"' | while IFS=$'\t' read -r ID KEY SIZE ACCESSED; do
+            DELETE=false
+            REASON=""
+            ACCESSED_TS=$(date -u -d "$ACCESSED" +%s 2>/dev/null || echo "0")
+            AGE_DAYS=$(( (NOW - ACCESSED_TS) / 86400 ))
+
+            # CodeQL TRAP caches: per-commit, never reused — delete after 7 days
+            if echo "$KEY" | grep -qi "codeql\|trap" && [ "$AGE_DAYS" -gt 7 ]; then
+              DELETE=true
+              REASON="CodeQL TRAP cache older than 7 days ($AGE_DAYS days)"
+            fi
+
+            # Trivy DB caches: date-keyed, only latest matters — delete after 2 days
+            if echo "$KEY" | grep -qi "trivy" && [ "$AGE_DAYS" -gt 2 ]; then
+              DELETE=true
+              REASON="Trivy DB cache older than 2 days ($AGE_DAYS days)"
+            fi
+
+            # npm caches: stale lock-file hashes — delete after 3 days of no access
+            if echo "$KEY" | grep -qi "node.*cache\|npm" && [ "$AGE_DAYS" -gt 3 ]; then
+              DELETE=true
+              REASON="npm cache not accessed in 3+ days ($AGE_DAYS days)"
+            fi
+
+            if [ "$DELETE" = "true" ]; then
+              SIZE_MB=$(( SIZE / 1048576 ))
+              echo "Deleting: $KEY (${SIZE_MB} MB) — $REASON"
+              gh cache delete "$ID" -R "$REPO" 2>/dev/null || echo "  Failed to delete $ID"
+              DELETED=$((DELETED + 1))
+              FREED_KB=$((FREED_KB + SIZE / 1024))
+            fi
+          done
+
+          echo ""
+          echo "=== Cache inventory after cleanup ==="
+          gh cache list -R "$REPO" --sort size --order desc --limit 100 | head -30
+          echo ""
+          echo "Done."
