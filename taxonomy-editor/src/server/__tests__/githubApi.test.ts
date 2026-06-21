@@ -1461,3 +1461,57 @@ describe('GitHubAPIBackend — manifest mutex', () => {
     backend.shutdown();
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SESSION OVERLAY MEMORY CAP (t/727)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GitHubAPIBackend — session overlay memory cap (t/727)', () => {
+  async function cappedBackend(capBytes: number) {
+    const { GitHubAPIBackend } = await import('../githubAPIBackend');
+    const b = new GitHubAPIBackend({
+      cacheDir: '/tmp/test-cache',
+      recorder: createTestRecorder(),
+      pollIntervalMs: 999_999_999,
+      coherencyProbeRate: 0,
+      maxOverlayBytesPerUser: capBytes,
+    });
+    await b.initialize();
+    b.setSessionContext({ userId: 'alice', branchName: 'api-session/alice' });
+    return b;
+  }
+
+  it('allows writes under the cap and reports overlay bytes in stats', async () => {
+    const b = await cappedBackend(2000);
+    await b.writeFile('/taxonomy/a.json', 'x'.repeat(1000));
+    const stats = b.getOverlayStats();
+    expect(stats.totalBytes).toBe(1000);
+    expect(stats.users).toBe(1);
+    expect(stats.maxUserBytes).toBe(1000);
+    expect(stats.capBytes).toBe(2000);
+    b.shutdown();
+  });
+
+  it('rejects a write that would exceed the per-user cap with statusCode 413', async () => {
+    const b = await cappedBackend(2000);
+    await b.writeFile('/taxonomy/a.json', 'x'.repeat(1000));
+    await expect(b.writeFile('/taxonomy/b.json', 'y'.repeat(1500))).rejects.toMatchObject({ statusCode: 413 });
+    expect(b.getOverlayStats().totalBytes).toBe(1000); // rejected write not stored
+    b.shutdown();
+  });
+
+  it('uses replace semantics — overwriting the same path does not double-count', async () => {
+    const b = await cappedBackend(2000);
+    await b.writeFile('/taxonomy/a.json', 'x'.repeat(1500));
+    await b.writeFile('/taxonomy/a.json', 'y'.repeat(1500)); // replaces; projected 1500 ≤ 2000
+    expect(b.getOverlayStats().totalBytes).toBe(1500);
+    b.shutdown();
+  });
+
+  it('rejects a single write larger than the entire cap', async () => {
+    const b = await cappedBackend(2000);
+    await expect(b.writeFile('/taxonomy/big.json', 'z'.repeat(3000))).rejects.toMatchObject({ statusCode: 413 });
+    expect(b.getOverlayStats().totalBytes).toBe(0);
+    b.shutdown();
+  });
+});

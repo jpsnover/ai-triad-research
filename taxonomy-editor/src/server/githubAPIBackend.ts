@@ -79,6 +79,7 @@ export interface GitHubAPIBackendConfig {
   recorder?: FlightRecorder;
   pollIntervalMs?: number;
   coherencyProbeRate?: number;   // 0.0–1.0, default 0.01
+  maxOverlayBytesPerUser?: number; // per-user uncommitted-overlay cap (t/727)
 }
 
 // ── Constants ────────────────────────────────────────────────────────────
@@ -90,6 +91,10 @@ const API_VERSION = '2022-11-28';
 const MAX_RETRIES = 3;
 const BACKOFF_BASE_MS = [100, 300, 900];
 const BACKOFF_JITTER_MS = 100;
+
+// t/727: cap uncommitted session-overlay memory per user (taxonomy POV files are
+// 1–2 MB each; many concurrent editors could otherwise exhaust memory).
+const DEFAULT_MAX_OVERLAY_BYTES_PER_USER = 20 * 1024 * 1024; // 20 MB
 
 const CIRCUIT_FAILURE_THRESHOLD = 5;
 const CIRCUIT_PROBE_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000]; // 30s→1m→2m→5m cap
@@ -123,6 +128,7 @@ export class GitHubAPIBackend implements StorageBackend {
   // Tombstone sentinel: overlay entry with this value means "delete this file"
   static readonly TOMBSTONE = '\0__DELETED__\0';
   private sessionOverlays: Map<string, Map<string, string>> = new Map();
+  private maxOverlayBytesPerUser: number = DEFAULT_MAX_OVERLAY_BYTES_PER_USER;
 
   // Rate limit tracking
   private rateLimit: RateLimitInfo = { remaining: 5000, limit: 5000, resetsAt: 0 };
@@ -157,6 +163,8 @@ export class GitHubAPIBackend implements StorageBackend {
     this.recorder = config.recorder ?? null;
     this.pollIntervalMs = config.pollIntervalMs ?? POLL_INTERVAL_MS;
     this.coherencyProbeRate = config.coherencyProbeRate ?? 0.01;
+    this.maxOverlayBytesPerUser = config.maxOverlayBytesPerUser
+      ?? (process.env.OVERLAY_MAX_BYTES_PER_USER ? parseInt(process.env.OVERLAY_MAX_BYTES_PER_USER, 10) : DEFAULT_MAX_OVERLAY_BYTES_PER_USER);
 
     this.registerSigHandler();
   }
@@ -1943,7 +1951,54 @@ export class GitHubAPIBackend implements StorageBackend {
       overlay = new Map();
       this.sessionOverlays.set(userId, overlay);
     }
+
+    // t/727: cap per-user overlay memory. Project the post-write total using
+    // replace semantics (the new content supersedes any existing entry for this
+    // path). Reject with 413 rather than silently growing unbounded.
+    const newBytes = Buffer.byteLength(content, 'utf-8');
+    const existing = overlay.get(repoPath);
+    const oldBytes = existing && existing !== GitHubAPIBackend.TOMBSTONE ? Buffer.byteLength(existing, 'utf-8') : 0;
+    const projected = this.overlayBytes(userId) - oldBytes + newBytes;
+    if (projected > this.maxOverlayBytesPerUser) {
+      this.recordEvent({
+        type: 'system.error',
+        component: 'github-api',
+        level: 'warn',
+        message: 'Session overlay size cap exceeded',
+        data: { userId, projectedBytes: projected, capBytes: this.maxOverlayBytesPerUser },
+      });
+      throw Object.assign(new ActionableError({
+        goal: 'Stage an edit in the session overlay',
+        problem: `Uncommitted changes exceed the per-user limit (${Math.round(projected / 1024 / 1024)} MB > ${Math.round(this.maxOverlayBytesPerUser / 1024 / 1024)} MB).`,
+        location: 'GitHubAPIBackend.writeToOverlay',
+        nextSteps: ['Commit your pending changes (sync) to flush the overlay to GitHub', 'Or discard changes to free space'],
+      }), { statusCode: 413 });
+    }
+
     overlay.set(repoPath, content);
+  }
+
+  /** Total bytes of non-tombstone overlay content for a user (t/727). */
+  private overlayBytes(userId: string): number {
+    const overlay = this.sessionOverlays.get(userId);
+    if (!overlay) return 0;
+    let total = 0;
+    for (const v of overlay.values()) {
+      if (v !== GitHubAPIBackend.TOMBSTONE) total += Buffer.byteLength(v, 'utf-8');
+    }
+    return total;
+  }
+
+  /** Overlay memory stats for /health monitoring (t/727). */
+  getOverlayStats(): { users: number; totalBytes: number; maxUserBytes: number; capBytes: number } {
+    let totalBytes = 0;
+    let maxUserBytes = 0;
+    for (const userId of this.sessionOverlays.keys()) {
+      const b = this.overlayBytes(userId);
+      totalBytes += b;
+      if (b > maxUserBytes) maxUserBytes = b;
+    }
+    return { users: this.sessionOverlays.size, totalBytes, maxUserBytes, capBytes: this.maxOverlayBytesPerUser };
   }
 
   /**

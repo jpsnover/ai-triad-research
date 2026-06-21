@@ -367,6 +367,7 @@ get('/health', (_req, res) => {
     (base.storage as Record<string, unknown>).cacheFileCount = githubBackend.getCachedFileCount();
     (base.storage as Record<string, unknown>).cacheGeneration = githubBackend.getCacheGeneration();
     (base.storage as Record<string, unknown>).fallbackActive = githubBackend.getCircuitState() === 'open';
+    (base.storage as Record<string, unknown>).overlay = githubBackend.getOverlayStats(); // t/727 memory monitoring
 
     base.github = {
       rateLimit: {
