@@ -42,3 +42,47 @@ export function isTerminalAccessAllowed(opts: {
   if (!opts.principalName) return false;
   return opts.isAdmin;
 }
+
+// AI/inference routes anonymous users can never reach (keys, AI, embeddings, NLI).
+const AI_ROUTE_PREFIXES = ['/api/keys', '/api/ai/', '/api/embeddings/', '/api/nli/'];
+
+/**
+ * Whether an anonymous (signed-out) user may call `method urlPath` in
+ * AUTH_OPTIONAL mode. Anonymous users get read-only, non-AI access plus
+ * save/delete of their own ephemeral chats/debates. Returning false drives the
+ * `anon_route_blocked` 403 in the auth gate (t/763).
+ */
+export function isAnonAllowedRoute(method: string, urlPath: string): boolean {
+  // Block all AI-related routes regardless of method
+  if (AI_ROUTE_PREFIXES.some(p => urlPath.startsWith(p))) return false;
+  if (urlPath === '/api/evidence-qbaf') return false;
+  if (urlPath === '/api/models/refresh') return false;
+  if (urlPath.startsWith('/api/harvest/')) return false;
+  if (/^\/api\/debates\/[^/]+\/news-report$/.test(urlPath)) return false;
+
+  if (method === 'GET') return true;
+
+  // Anonymous users can save/delete their own ephemeral chats and debates.
+  // Matches both '/api/debates' (create/save) and '/api/debates/{id}' (update/delete).
+  const isUserContent = urlPath === '/api/chats' || urlPath.startsWith('/api/chats/')
+    || urlPath === '/api/debates' || urlPath.startsWith('/api/debates/');
+  if (method === 'PUT' && isUserContent) return true;
+  if (method === 'DELETE' && isUserContent) return true;
+
+  if (method === 'PUT' || method === 'DELETE') return false;
+
+  // POST: allowlist read-like operations, block everything else
+  const safePostPaths = [
+    '/api/flight-recorder/dump',
+    '/api/flight-recorder/server-dump',
+    '/api/debates/export',
+    '/api/source-evidence',
+    '/api/analytics/event',
+    '/api/admin/telemetry',
+    '/api/data/check-updates',
+    '/api/community/submit',
+    '/focus-node',
+    '/debug/events',
+  ];
+  return safePostPaths.some(p => urlPath === p);
+}

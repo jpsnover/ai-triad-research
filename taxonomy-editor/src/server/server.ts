@@ -33,7 +33,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
-import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed } from './accessControl.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed, isAnonAllowedRoute } from './accessControl.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -2932,42 +2932,17 @@ function isUserAuthorized(principalName: string, idp: string): boolean {
 
 // ── Anonymous route guard ──
 // When AUTH_OPTIONAL is enabled, anonymous users get read-only, non-AI access.
-// This function returns true if the request is allowed for anonymous users.
-const AI_ROUTE_PREFIXES = ['/api/keys', '/api/ai/', '/api/embeddings/', '/api/nli/'];
+// Auth-gate 403 rejection reason codes, surfaced in the response and the flight
+// recorder so a 403 can be triaged without reading the auth code (t/763).
+type AuthDenyReason = 'anon_route_blocked' | 'no_auth_header' | 'user_not_in_allowlist';
 
-function isAnonAllowedRoute(method: string, urlPath: string): boolean {
-  // Block all AI-related routes regardless of method
-  if (AI_ROUTE_PREFIXES.some(p => urlPath.startsWith(p))) return false;
-  if (urlPath === '/api/evidence-qbaf') return false;
-  if (urlPath === '/api/models/refresh') return false;
-  if (urlPath.startsWith('/api/harvest/')) return false;
-  if (/^\/api\/debates\/[^/]+\/news-report$/.test(urlPath)) return false;
-
-  if (method === 'GET') return true;
-
-  // Anonymous users can save/delete their own ephemeral chats and debates
-  // Match both '/api/debates' (create/save) and '/api/debates/{id}' (update/delete)
-  const isUserContent = urlPath === '/api/chats' || urlPath.startsWith('/api/chats/')
-    || urlPath === '/api/debates' || urlPath.startsWith('/api/debates/');
-  if (method === 'PUT' && isUserContent) return true;
-  if (method === 'DELETE' && isUserContent) return true;
-
-  if (method === 'PUT' || method === 'DELETE') return false;
-
-  // POST: allowlist read-like operations, block everything else
-  const safePostPaths = [
-    '/api/flight-recorder/dump',
-    '/api/flight-recorder/server-dump',
-    '/api/debates/export',
-    '/api/source-evidence',
-    '/api/analytics/event',
-    '/api/admin/telemetry',
-    '/api/data/check-updates',
-    '/api/community/submit',
-    '/focus-node',
-    '/debug/events',
-  ];
-  return safePostPaths.some(p => urlPath === p);
+function recordAuthDenied(reason: AuthDenyReason, method: string, urlPath: string): void {
+  getGlobalRecorder()?.record({
+    type: 'system.error',
+    component: 'auth',
+    level: 'warn',
+    message: `Auth gate 403 (${reason}): ${method} ${urlPath}`,
+  });
 }
 
 function buildLoginPage(showAnonymous: boolean): string {
@@ -3216,13 +3191,24 @@ async function handleRequestInner(
     } else if (getAuthorizedUsers()) {
       // Required mode: must sign in and be in the allowlist
       if (!principalName) {
+        // API clients can't act on an HTML login page — return a structured 403
+        // with a machine-readable reason (t/763). Browser routes keep the login
+        // page so the sign-in flow is unchanged.
+        if (urlPath.startsWith('/api/')) {
+          recordAuthDenied('no_auth_header', req.method || 'GET', urlPath);
+          res.writeHead(403, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'no_auth_header' });
+          res.end(JSON.stringify({ error: 'Sign in required', reason: 'no_auth_header' }));
+          return;
+        }
         res.writeHead(200, { 'Content-Type': 'text/html' });
         res.end(buildLoginPage(false));
         return;
       }
 
       if (!isUserAuthorized(principalName, idp)) {
-        res.writeHead(403, { 'Content-Type': 'text/html' });
+        recordAuthDenied('user_not_in_allowlist', req.method || 'GET', urlPath);
+        // Browser-facing forbidden page; reason exposed via header for triage.
+        res.writeHead(403, { 'Content-Type': 'text/html', 'X-Auth-Reason': 'user_not_in_allowlist' });
         res.end(FORBIDDEN_PAGE(principalName));
         return;
       }
@@ -3233,8 +3219,9 @@ async function handleRequestInner(
   if (authOptional && !principalName && !isPublicPath) {
     const method = req.method || 'GET';
     if (!isAnonAllowedRoute(method, urlPath)) {
-      res.writeHead(403, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Sign in required', detail: 'AI features and editing require authentication. Sign in at /.auth/login/github to unlock full access.' }));
+      recordAuthDenied('anon_route_blocked', method, urlPath);
+      res.writeHead(403, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'anon_route_blocked' });
+      res.end(JSON.stringify({ error: 'Sign in required', reason: 'anon_route_blocked', detail: 'AI features and editing require authentication. Sign in at /.auth/login/github to unlock full access.' }));
       return;
     }
   }
