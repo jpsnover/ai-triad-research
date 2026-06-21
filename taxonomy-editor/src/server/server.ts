@@ -338,10 +338,12 @@ get('/healthz', async (_req, res) => {
   }
 });
 
-get('/health', (_req, res) => {
+get('/health', async (_req, res) => {
   // M5: liveness probes (unauthenticated) get a minimal OK. Operational detail
   // (versions, storage internals, GitHub rate limits, paths) only for admins.
-  if (!community.isAdmin()) { json(res, { status: 'ok' }); return; }
+  // AI key status is always included so deployment gates can verify readiness.
+  const geminiReady = await hasApiKey('gemini');
+  if (!community.isAdmin()) { json(res, { status: 'ok', ai: { geminiKeyConfigured: geminiReady } }); return; }
   const base: Record<string, unknown> = {
     status: 'ok',
     version: SERVER_VERSION,
@@ -854,14 +856,28 @@ post('/api/ai/generate', async (req, res, body) => {
     }
 
     json(res, { text: result.text, tokenUsage: result.tokenUsage });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'ai-generate', level: 'error',
+      message: `AI generate failed: ${String(err)}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 post('/api/ai/search', async (_req, res, body) => {
   const { prompt, model } = body as { prompt: string; model?: string };
   try {
     json(res, await ai.generateTextWithSearch(prompt, model));
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'ai-search', level: 'error',
+      message: `AI search failed: ${String(err)}`,
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err));
+  }
 });
 
 // ── Proxy info endpoints ──

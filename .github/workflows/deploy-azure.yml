@@ -372,30 +372,36 @@ jobs:
           check "policy registry" "${BASE_URL}/api/policy-registry" '"pol-'
           check "conflicts" "${BASE_URL}/api/conflicts" '\['
 
-          # ── 3. Debate & chat (can list, even if no sessions exist) ──
+          # ── 3. AI readiness (keys configured for debate/chat) ──
+          echo ""
+          echo "--- AI readiness ---"
+          check "Gemini API key" "${BASE_URL}/api/keys/has?backend=gemini" "true"
+          check "health AI status" "${BASE_URL}/health" '"geminiKeyConfigured"'
+
+          # ── 4. Debate & chat (can list, even if no sessions exist) ──
           echo ""
           echo "--- Debate & chat ---"
           check "debate listing" "${BASE_URL}/api/debates/list"
           check "chat listing" "${BASE_URL}/api/chats"
 
-          # ── 4. Community library ──
+          # ── 5. Community library ──
           echo ""
           echo "--- Community ---"
           check "community debates" "${BASE_URL}/api/community/debates"
 
-          # ── 5. Reference data ──
+          # ── 6. Reference data ──
           echo ""
           echo "--- Reference data ---"
           check "AI models" "${BASE_URL}/api/models"
           check "lineage categories" "${BASE_URL}/api/lineage-categories"
 
-          # ── 6. Sync & auth ──
+          # ── 7. Sync & auth ──
           echo ""
           echo "--- Sync & auth ---"
           check "sync status" "${BASE_URL}/api/sync/status" '"enabled"'
           check "auth endpoint" "${BASE_URL}/api/auth/me"
 
-          # ── 7. SPA renders ──
+          # ── 8. SPA renders ──
           echo ""
           echo "--- Frontend ---"
           MAIN_PAGE=$(curl -s -b "$COOKIE_JAR" --max-time 15 "${BASE_URL}/" 2>/dev/null || echo "")
