@@ -497,7 +497,7 @@ function EditCard({ edit, pover, editIndex }: {
               onClick={() => {
                 if (!enrichNodeId) return;
                 const povKey = pover as 'accelerationist' | 'safetyist' | 'skeptic';
-                retryEnrichment(enrichNodeId, povKey);
+                void retryEnrichment(enrichNodeId, povKey);
               }}
             >Retry</button>
           </div>
