@@ -188,7 +188,69 @@ export async function loadSyntheticCorpus(pov: string): Promise<unknown | null> 
   const filePath = path.join(getTaxonomyDir(), 'synthetic', `corpus_${pov}.json`);
   const raw = await backend.readFile(filePath, { ref: 'main' });
   if (raw === null) return null;
-  return JSON.parse(raw.replace(/^﻿/, ''));
+  const parsed = JSON.parse(raw.replace(/^﻿/, ''));
+  validateGraphAttributes(parsed, pov); // t/768: warn (don't reject) on type drift
+  return parsed;
+}
+
+// ── graph_attributes type validation (t/768) ──
+//
+// Catch data corruption at load time (e.g. a number where a string[] is expected)
+// via a flight-recorder warning, instead of letting it surface as a downstream
+// runtime crash (the SearchPanel TypeError). Warn-only — never rejects the file;
+// downstream code still guards types defensively.
+
+const GA_STRING_KEYS = ['epistemic_type', 'rhetorical_strategy', 'falsifiability',
+  'audience', 'emotional_register', 'attribution_text', 'node_scope'];
+const GA_STRING_ARRAY_KEYS = ['assumes', 'intellectual_lineage'];
+
+function describeType(v: unknown): string {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'array';
+  return typeof v;
+}
+
+export interface GraphAttrMismatch { nodeId: string; key: string; expected: string; actual: string; }
+
+/** Pure detector: list graph_attributes entries whose value type is unexpected. */
+export function findGraphAttributeMismatches(parsed: unknown): GraphAttrMismatch[] {
+  const out: GraphAttrMismatch[] = [];
+  const nodes = (parsed as { nodes?: unknown })?.nodes;
+  if (!Array.isArray(nodes)) return out;
+  for (const n of nodes) {
+    if (!n || typeof n !== 'object') continue;
+    const node = n as { id?: unknown; graph_attributes?: unknown };
+    const ga = node.graph_attributes;
+    if (!ga || typeof ga !== 'object' || Array.isArray(ga)) continue;
+    const nodeId = typeof node.id === 'string' ? node.id : '(unknown)';
+    const attrs = ga as Record<string, unknown>;
+    for (const key of GA_STRING_KEYS) {
+      const v = attrs[key];
+      if (v != null && typeof v !== 'string') out.push({ nodeId, key, expected: 'string', actual: describeType(v) });
+    }
+    for (const key of GA_STRING_ARRAY_KEYS) {
+      const v = attrs[key];
+      if (v == null) continue;
+      if (!Array.isArray(v)) { out.push({ nodeId, key, expected: 'string[]', actual: describeType(v) }); continue; }
+      const bad = v.find(el => typeof el !== 'string');
+      if (bad !== undefined) out.push({ nodeId, key, expected: 'string[]', actual: `array with ${describeType(bad)} element` });
+    }
+  }
+  return out;
+}
+
+/** Log graph_attributes type mismatches to the flight recorder (warn, best-effort). */
+function validateGraphAttributes(parsed: unknown, pov: string): void {
+  const recorder = getGlobalRecorder();
+  if (!recorder) return;
+  for (const m of findGraphAttributeMismatches(parsed)) {
+    recorder.record({
+      type: 'system.error',
+      component: 'file-io',
+      level: 'warn',
+      message: `graph_attributes type mismatch (${pov} node ${m.nodeId}): ${m.key} expected ${m.expected}, got ${m.actual}`,
+    });
+  }
 }
 
 export async function loadSyntheticEmbeddings(): Promise<Record<string, { pov: string; vectors: number[][] }> | null> {
