@@ -85,6 +85,13 @@ export interface AppAPI {
   refreshAIModels: () => Promise<unknown>;
   setApiKey: (key: string, backend?: string) => Promise<void>;
   hasApiKey: (backend?: string) => Promise<boolean>;
+  /**
+   * Which AI backends are actually usable (key present + reachable). Backed by the
+   * server's GET /api/backends/available in authed web mode; derived from local key
+   * presence in anonymous (BYOK) and Electron modes. Used to gate multi-provider
+   * debates so speakers are only assigned to usable backends.
+   */
+  getAvailableBackends: () => Promise<{ id: string; available: boolean; models?: string[]; reason?: string }[]>;
   getApiKeySummary: () => Promise<{ backend: string; hasKey: boolean; maskedKey: string | null }[]>;
   exportKeysForSharing: (passphrase: string) => Promise<{ dataUrl: string; payloadText: string }>;
   importKeysFromSharing: (payload: { v: number; salt: string; iv: string; data: string; tag: string }, passphrase: string) => Promise<string[]>;

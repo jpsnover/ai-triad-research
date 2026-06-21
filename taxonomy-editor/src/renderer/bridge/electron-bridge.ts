@@ -77,6 +77,13 @@ export const api: AppAPI = {
   refreshAIModels: () => window.electronAPI.refreshAIModels(),
   setApiKey: (key, backend) => window.electronAPI.setApiKey(key, backend),
   hasApiKey: (backend) => window.electronAPI.hasApiKey(backend),
+  getAvailableBackends: async () => {
+    // Desktop has no community server; availability is local key presence.
+    const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+    return Promise.all(
+      ALL_BACKENDS.map(async (id) => ({ id, available: await window.electronAPI.hasApiKey(id) })),
+    );
+  },
   getApiKeySummary: () => window.electronAPI.getApiKeySummary(),
   exportKeysForSharing: (passphrase) => window.electronAPI.exportKeysForSharing(passphrase),
   importKeysFromSharing: (payload, passphrase) => window.electronAPI.importKeysFromSharing(payload, passphrase),

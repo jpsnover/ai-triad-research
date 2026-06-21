@@ -331,6 +331,17 @@ const rawApi: AppAPI = {
     }
     return get(`/api/keys/has${backend ? `?backend=${backend}` : ''}`);
   },
+  getAvailableBackends: async () => {
+    // Anonymous (BYOK) keys live in sessionStorage — the server can't see them,
+    // so derive availability locally, mirroring hasApiKey's anonymous branch.
+    if (await isAnonymous()) {
+      const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
+      return ALL_BACKENDS.map((id) => ({ id, available: !!sessionStorage.getItem(`byok-${id}`) }));
+    }
+    const res = await get<{ backends: { id: string; available: boolean; models?: string[]; reason?: string }[] }>('/api/backends/available')
+      .catch(bridgeWarn('getAvailableBackends failed', { backends: [] }));
+    return res.backends;
+  },
   getApiKeySummary: async () => {
     const ALL_BACKENDS = ['gemini', 'claude', 'groq', 'openai', 'deepseek', 'tavily', 'ollama'] as const;
     return ALL_BACKENDS.map((b) => {

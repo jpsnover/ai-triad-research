@@ -123,12 +123,27 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   };
 
   useEffect(() => {
-    void Promise.all(
-      AI_BACKENDS.map(async (b) => {
-        const has = await api.hasApiKey(b.value);
-        return [b.value, has] as [string, boolean];
-      }),
-    ).then(results => setHasApiKey(Object.fromEntries(results)));
+    // Single availability probe instead of one /api/keys/has call per backend.
+    // A backend is usable only when its key is present AND the backend is reachable
+    // (the server decides), so multi-provider debates never assign a speaker to an
+    // unusable backend.
+    void api.getAvailableBackends()
+      .then((backends) => {
+        // Default every known backend to false, then overlay reported availability —
+        // a backend missing from the response is treated as unavailable, not undefined.
+        const map: Record<string, boolean> = Object.fromEntries(AI_BACKENDS.map(b => [b.value, false]));
+        for (const b of backends) map[b.id] = b.available;
+        setHasApiKey(map);
+      })
+      .catch((err) => {
+        getGlobalRecorder()?.record({
+          type: 'system.error',
+          component: 'new-debate-dialog',
+          level: 'error',
+          message: 'Failed to load available AI backends',
+          error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        });
+      });
   }, [showModelModal]);
 
   const backendsWithKeys = useMemo(
