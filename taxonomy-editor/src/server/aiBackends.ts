@@ -44,6 +44,41 @@ const PYTHON = process.platform === 'win32' ? 'python' : 'python3';
 
 const BATCH_SIZE = 100;
 
+// ── Multi-provider availability (t/772) ──
+
+export interface BackendAvailability {
+  id: string;
+  available: boolean;
+  models?: string[];
+  reason?: 'no_key' | 'tier_restricted' | 'rate_limited';
+}
+
+interface ModelRegistry {
+  backends?: { id: string }[];
+  models?: { id: string; backend: string }[];
+}
+
+/**
+ * Pure computation behind GET /api/backends/available (t/772): a backend is
+ * available only when BOTH a key exists for it AND it's authorized for the
+ * caller's tier — so the multi-provider UI stops assigning speaker models to
+ * backends that 403 at generation time. tier_restricted takes precedence over
+ * no_key (a missing key is moot if the tier forbids the backend).
+ */
+export function computeAvailableBackends(
+  registry: ModelRegistry,
+  allowedBackends: string[],
+  keyPresence: Record<string, boolean>,
+): BackendAvailability[] {
+  const models = registry.models ?? [];
+  return (registry.backends ?? []).map(({ id }) => {
+    const tierAllowed = allowedBackends.includes(id);
+    if (!tierAllowed) return { id, available: false, reason: 'tier_restricted' as const };
+    if (!keyPresence[id]) return { id, available: false, reason: 'no_key' as const };
+    return { id, available: true, models: models.filter(m => m.backend === id).map(m => m.id) };
+  });
+}
+
 // ── Temperature state ──
 
 let _debateTemperature: number | null = null;

@@ -99,6 +99,11 @@ function findUser(config: TierConfig, principalName: string, idp: string): TierU
   return undefined;
 }
 
+/** Whether `backend` is authorized for the resolved tier (canonical check, t/772). */
+export function isBackendAllowed(tier: ResolvedTier, backend: string): boolean {
+  return tier.allowedBackends.includes(backend);
+}
+
 export function resolveTier(principalName: string, idp: string): ResolvedTier {
   const config = getConfig();
 

@@ -911,6 +911,31 @@ post('/api/ai/search', async (_req, res, body) => {
 
 // ── Proxy info endpoints ──
 
+// t/772: backends that are BOTH key-configured AND tier-authorized. The
+// multi-provider debate UI uses this instead of per-backend /api/keys/has, which
+// only checks key presence and let it assign models to backends that 403 at
+// generation time. Cheap: tier config is cached (proxyTiers), the model registry
+// is static, and keyStore.get is cached with bust-on-write — no new cache needed.
+get('/api/backends/available', async (req, res) => {
+  try {
+    const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
+    const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
+    const tier = proxyTiers.resolveTier(principalName, idp);
+    const registry = await fileIO.loadAIModels() as { backends?: { id: string }[]; models?: { id: string; backend: string }[] };
+    const ids = (registry.backends ?? []).map(b => b.id);
+    const keyPresence: Record<string, boolean> = {};
+    await Promise.all(ids.map(async (id) => { keyPresence[id] = await hasApiKey(id as AIBackend); }));
+    json(res, { backends: ai.computeAvailableBackends(registry, tier.allowedBackends, keyPresence) });
+  } catch (err) {
+    getGlobalRecorder()?.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'Failed to compute backend availability',
+      error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+    });
+    error(res, String(err), 500, err);
+  }
+});
+
 get('/api/proxy/tier', (req, res) => {
   const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
   const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
