@@ -69,17 +69,19 @@ export interface GenerateTextProgress {
 
 let _modelMapCache: Record<string, string> | null = null;
 let _fallbackChainCache: Record<string, string[]> | null = null;
+let _defaultsCache: Record<string, string> | null = null;
 let _modelConfigMtime = 0;
 
-function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: Record<string, string[]> } {
+function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: Record<string, string[]>; defaults: Record<string, string> } {
   try {
     const configPath = path.join(getProjectRoot(), 'ai-models.json');
     const stat = fs.statSync(configPath);
     if (!_modelMapCache || stat.mtimeMs !== _modelConfigMtime) {
       const raw = fs.readFileSync(configPath, 'utf-8');
-      const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[]; fallbackChains?: Record<string, string[]> };
+      const registry = JSON.parse(raw) as { models: { id: string; apiModelId?: string }[]; fallbackChains?: Record<string, string[]>; defaults?: Record<string, string> };
       _modelMapCache = buildModelIdMap(registry as { models: { id: string; apiModelId: string; label: string; backend: string }[]; backends: [] });
       _fallbackChainCache = registry.fallbackChains ?? {};
+      _defaultsCache = registry.defaults ?? {};
       _modelConfigMtime = stat.mtimeMs;
       log.api.debug({ models: Object.keys(_modelMapCache!).length, chains: Object.keys(_fallbackChainCache!).length }, 'Reloaded model config');
     }
@@ -94,8 +96,9 @@ function loadModelConfig(): { modelMap: Record<string, string>; fallbackChains: 
     log.api.warn({ err }, 'Failed to load model config');
     if (!_modelMapCache) _modelMapCache = {};
     if (!_fallbackChainCache) _fallbackChainCache = {};
+    if (!_defaultsCache) _defaultsCache = {};
   }
-  return { modelMap: _modelMapCache!, fallbackChains: _fallbackChainCache! };
+  return { modelMap: _modelMapCache!, fallbackChains: _fallbackChainCache!, defaults: _defaultsCache! };
 }
 
 function loadModelMap(): Record<string, string> {
@@ -103,15 +106,46 @@ function loadModelMap(): Record<string, string> {
 }
 
 function getFallbackChain(modelId: string): string[] {
-  return loadModelConfig().fallbackChains[modelId] ?? [];
+  const { fallbackChains, defaults } = loadModelConfig();
+  const explicit = fallbackChains[modelId];
+  if (explicit) return explicit;
+
+  const backend = resolveBackend(modelId);
+  const chain: string[] = [];
+  const sameDefault = defaults[backend];
+  if (sameDefault && sameDefault !== modelId) chain.push(sameDefault);
+  for (const fb of ['gemini', 'groq'] as const) {
+    if (fb === backend) continue;
+    const fbDefault = defaults[fb];
+    if (fbDefault && !chain.includes(fbDefault)) { chain.push(fbDefault); break; }
+  }
+
+  if (chain.length > 0) {
+    getGlobalRecorder()?.record({
+      type: 'ai.fallback', component: 'ai-backends', level: 'info',
+      message: `Auto-generated fallback chain for ${modelId}: ${chain.join(' → ')}`,
+      data: { model: modelId, chain, source: 'auto-generated' },
+    });
+  }
+
+  return chain;
 }
 
 function getApiModelId(friendlyId: string): string {
   const map = loadModelMap();
   const mapped = getApiModelIdFromMap(map, friendlyId);
-  if (mapped === friendlyId && /^(openai|claude|groq)-/.test(friendlyId)) {
-    log.api.warn({ friendlyId }, 'No API model mapping — sending as-is (this may fail)');
+
+  if (mapped !== friendlyId && !map[friendlyId]) {
+    getGlobalRecorder()?.record({
+      type: 'ai.fallback', component: 'ai-backends', level: 'warn',
+      message: `Fuzzy-remapped model ${friendlyId} → ${mapped}`,
+      data: { requestedModel: friendlyId, resolvedModel: mapped },
+    });
+    log.api.warn({ friendlyId, mapped }, 'Fuzzy-remapped unknown model ID');
+  } else if (mapped === friendlyId && !map[friendlyId]) {
+    log.api.warn({ friendlyId }, 'Unknown model ID — sending as-is (this may fail)');
   }
+
   return mapped;
 }
 

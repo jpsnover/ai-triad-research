@@ -414,7 +414,7 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const raw = attrs[mode];
       if (raw == null) return;
       if (Array.isArray(raw)) {
-        if (raw.some((v: string) => v.toLowerCase().includes(normalizedValue))) {
+        if (raw.some((v: unknown) => typeof v === 'string' && v.toLowerCase().includes(normalizedValue))) {
           results.push({ id: nodeId, label: nodeLabel, pov });
         }
       } else {
@@ -425,12 +425,25 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       }
     };
 
-    for (const pov of POV_KEYS) {
-      const file = state[pov];
-      if (file) for (const node of file.nodes) matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, pov);
-    }
-    if (state.situations) {
-      for (const node of state.situations.nodes) matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, 'situations');
+    let currentNodeId = '';
+    let currentPov = '';
+    try {
+      for (const pov of POV_KEYS) {
+        currentPov = pov;
+        const file = state[pov];
+        if (file) for (const node of file.nodes) { currentNodeId = node.id; matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, pov); }
+      }
+      if (state.situations) {
+        currentPov = 'situations';
+        for (const node of state.situations.nodes) { currentNodeId = node.id; matchAttr(node.graph_attributes as unknown as Record<string, unknown>, node.id, node.label, 'situations'); }
+      }
+    } catch (err) {
+      getGlobalRecorder()?.record({
+        type: 'system.error', component: 'search-panel', level: 'error',
+        message: `Attribute search crashed on ${currentPov}/${currentNodeId}`,
+        error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+        data: { mode, attrValue, nodeId: currentNodeId, pov: currentPov },
+      });
     }
     return results;
   }, [mode, attrValue, accelerationist, safetyist, skeptic, situations]);

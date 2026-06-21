@@ -14,6 +14,7 @@ export interface ModelRegistry {
   backends: { id: string; label: string }[];
   models: ModelEntry[];
   fallbackChains?: Record<string, string[]>;
+  defaults?: Record<string, string>;
   contextWindows?: Record<string, number>;
   debateTiers?: Record<string, Record<string, string>>;
 }
@@ -52,16 +53,54 @@ export function getDefaultTimeout(model: string): number {
   }
 }
 
+function parseVersionedModelId(id: string): { family: string; version: number } | null {
+  const gemini = id.match(/^(gemini)-(\d+\.\d+)-(.+?)(?:-preview)?$/);
+  if (gemini) return { family: `${gemini[1]}-${gemini[3]}`, version: parseFloat(gemini[2]) };
+  const claude = id.match(/^(claude-(?:opus|sonnet|haiku))-(\d+(?:-\d+)?)$/);
+  if (claude) return { family: claude[1], version: parseFloat(claude[2].replace('-', '.')) };
+  return null;
+}
+
 export function buildModelIdMap(registry: ModelRegistry): Record<string, string> {
   const map: Record<string, string> = {};
   for (const m of registry.models) {
-    if (m.apiModelId && m.apiModelId !== m.id) {
-      map[m.id] = m.apiModelId;
-    }
+    map[m.id] = m.apiModelId;
   }
+
+  const families = new Map<string, { apiModelId: string; version: number }[]>();
+  for (const m of registry.models) {
+    const parsed = parseVersionedModelId(m.id);
+    if (!parsed) continue;
+    const latestKey = `${parsed.family}-latest`;
+    if (map[latestKey]) continue;
+    if (!families.has(latestKey)) families.set(latestKey, []);
+    families.get(latestKey)!.push({ apiModelId: m.apiModelId, version: parsed.version });
+  }
+  for (const [alias, members] of families) {
+    if (map[alias]) continue;
+    members.sort((a, b) => b.version - a.version);
+    map[alias] = members[0].apiModelId;
+  }
+
   return map;
 }
 
 export function getApiModelId(map: Record<string, string>, friendlyId: string): string {
-  return map[friendlyId] || friendlyId;
+  if (map[friendlyId]) return map[friendlyId];
+
+  if (friendlyId.endsWith('-latest')) {
+    const family = friendlyId.slice(0, -'-latest'.length);
+    let best: { apiModelId: string; version: number } | null = null;
+    for (const key of Object.keys(map)) {
+      const parsed = parseVersionedModelId(key);
+      if (parsed && parsed.family === family) {
+        if (!best || parsed.version > best.version) {
+          best = { apiModelId: map[key], version: parsed.version };
+        }
+      }
+    }
+    if (best) return best.apiModelId;
+  }
+
+  return friendlyId;
 }
