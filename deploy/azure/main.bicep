@@ -68,6 +68,10 @@ param aadClientSecret string = ''
 @description('Azure AD OpenID issuer — use "common" for multi-tenant + personal accounts, or a specific tenant ID')
 param aadIssuer string = 'common'
 
+@secure()
+@description('GHCR registry password — use GITHUB_TOKEN (ephemeral, auto-rotated) instead of a long-lived PAT')
+param ghcrPassword string = ''
+
 @description('Auth mode: set authDisabled="1" for anonymous-only (no login page), or authOptional="1" for login page with anonymous option. If neither, sign-in is required (needs authorized-users.json).')
 param authDisabled string = ''
 
@@ -132,14 +136,17 @@ var githubClientSecretName = 'github-client-secret'
 var aadClientSecretName = 'aad-client-secret'
 var githubTokenSecretName = 'github-sync-token'
 var githubWebhookSecretName = 'github-webhook-secret'
+var ghcrSecretName = 'ghcr-password'
 var githubTokenProvided = !empty(githubToken)
 var githubWebhookSecretProvided = !empty(githubWebhookSecret)
+var ghcrConfigured = !empty(ghcrPassword)
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
   githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
   aadEnabled ? [ { name: aadClientSecretName, value: aadClientSecret } ] : [],
   githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
-  githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : []
+  githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : [],
+  ghcrConfigured ? [ { name: ghcrSecretName, value: ghcrPassword } ] : []
 )
 
 // ── Log Analytics ──
@@ -387,11 +394,13 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: [
+      registries: ghcrConfigured ? [
         {
           server: 'ghcr.io'
+          username: 'jpsnover'
+          passwordSecretRef: ghcrSecretName
         }
-      ]
+      ] : []
     }
     template: {
       containers: [
@@ -484,11 +493,13 @@ resource containerAppStaging 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: oauthSecrets
-      registries: [
+      registries: ghcrConfigured ? [
         {
           server: 'ghcr.io'
+          username: 'jpsnover'
+          passwordSecretRef: ghcrSecretName
         }
-      ]
+      ] : []
     }
     template: {
       containers: [
