@@ -97,6 +97,9 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [showModelModal, setShowModelModal] = useState(false);
   const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
   const [hasApiKey, setHasApiKey] = useState<Record<string, boolean>>({});
+  // Backends usable for multi-provider debates: key present AND authorized for the
+  // user's tier (t/772). Single-model flow keeps using hasApiKey (raw key presence).
+  const [availableBackends, setAvailableBackends] = useState<Set<string>>(new Set());
   const [refreshingModels, setRefreshingModels] = useState(false);
   const [otherTab, setOtherTab] = useState<'canned' | 'queued'>('canned');
   const [queuedTopics, setQueuedTopics] = useState<{ text: string; sourceType: DebateSourceType; sourceRef: string; timestamp: string }[]>(() => {
@@ -123,18 +126,18 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   };
 
   useEffect(() => {
-    // Single availability probe instead of one /api/keys/has call per backend.
-    // A backend is usable only when its key is present AND the backend is reachable
-    // (the server decides), so multi-provider debates never assign a speaker to an
-    // unusable backend.
+    // Single-model flow: raw key presence per backend (unchanged — t/772 leaves this path alone).
+    void Promise.all(
+      AI_BACKENDS.map(async (b) => {
+        const has = await api.hasApiKey(b.value);
+        return [b.value, has] as [string, boolean];
+      }),
+    ).then(results => setHasApiKey(Object.fromEntries(results)));
+    // Multi-provider flow: real availability (key AND tier authorization). Filtering to
+    // available===true means resolveMultiProviderModels never assigns a speaker to a
+    // backend the server would reject with 403 at generation time (t/772).
     void api.getAvailableBackends()
-      .then((backends) => {
-        // Default every known backend to false, then overlay reported availability —
-        // a backend missing from the response is treated as unavailable, not undefined.
-        const map: Record<string, boolean> = Object.fromEntries(AI_BACKENDS.map(b => [b.value, false]));
-        for (const b of backends) map[b.id] = b.available;
-        setHasApiKey(map);
-      })
+      .then(backends => setAvailableBackends(new Set(backends.filter(b => b.available).map(b => b.id))))
       .catch((err) => {
         getGlobalRecorder()?.record({
           type: 'system.error',
@@ -147,8 +150,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   }, [showModelModal]);
 
   const backendsWithKeys = useMemo(
-    () => Object.entries(hasApiKey).filter(([b, has]) => has && !DEBATE_EXCLUDED_BACKENDS.has(b)).map(([b]) => b),
-    [hasApiKey],
+    () => [...availableBackends].filter(b => !DEBATE_EXCLUDED_BACKENDS.has(b)),
+    [availableBackends],
   );
 
   const activeBackends = useMemo(
