@@ -1,0 +1,87 @@
+// @vitest-environment node
+
+/**
+ * t/720 — domain-level security fixes:
+ * L4: harvestAddVerdict validates conflictId (path-traversal guard).
+ * L7: community submissions have a global pending-queue cap.
+ */
+
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import type { StorageBackend } from '../storageBackend.js';
+import * as fileIO from '../fileIO.js';
+import * as community from '../community.js';
+import * as userContext from '../userContext.js';
+import { resolveDataPath } from '../config.js';
+
+class MemBackend implements StorageBackend {
+  files = new Map<string, string>();
+  private norm(p: string) { return p.replace(/\\/g, '/'); }
+  async readFile(p: string): Promise<string | null> { return this.files.get(this.norm(p)) ?? null; }
+  async writeFile(p: string, content: string): Promise<void> { this.files.set(this.norm(p), content); }
+  async listDirectory(dirPath: string): Promise<string[]> {
+    const d = this.norm(dirPath).replace(/\/$/, '') + '/';
+    const names = new Set<string>();
+    for (const k of this.files.keys()) if (k.startsWith(d)) names.add(k.slice(d.length).split('/')[0]);
+    return [...names];
+  }
+  async deleteFile(p: string): Promise<void> { this.files.delete(this.norm(p)); }
+  async fileExists(p: string): Promise<boolean> { return this.files.has(this.norm(p)); }
+  async readBinaryFile(): Promise<Buffer | null> { return null; }
+}
+
+const authedCtx = { principalName: 'alice', idp: 'github', storageUserId: 'alice', isAnonymous: false };
+let dataRoot: string;
+let mem: MemBackend;
+
+describe('t/720 server security fixes', () => {
+  beforeAll(() => {
+    process.env.AI_TRIAD_DATA_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 't720-'));
+    dataRoot = process.env.AI_TRIAD_DATA_ROOT;
+  });
+  afterAll(() => {
+    fs.rmSync(dataRoot, { recursive: true, force: true });
+    delete process.env.AI_TRIAD_DATA_ROOT;
+  });
+  beforeEach(() => {
+    mem = new MemBackend();
+    fileIO.setBackend(mem);
+  });
+
+  describe('L4: harvestAddVerdict validates conflictId', () => {
+    it('rejects a path-traversal conflictId with a 400', async () => {
+      await expect(
+        userContext.runWithUser(authedCtx, () => fileIO.harvestAddVerdict('../../etc/evil', {})),
+      ).rejects.toMatchObject({ statusCode: 400 });
+    });
+    it('accepts a safe conflictId (no file → false, no throw)', async () => {
+      const ok = await userContext.runWithUser(authedCtx, () => fileIO.harvestAddVerdict('conflict-123', {}));
+      expect(ok).toBe(false);
+    });
+  });
+
+  describe('L7: global pending-submission cap', () => {
+    it('rejects a submission when the global pending queue is full', async () => {
+      // Seed 500 pending submissions from *other* users so the per-user cap (20)
+      // isn't what trips — the submitting user (alice) has none pending.
+      const subsDir = resolveDataPath('community/_submissions');
+      for (let i = 0; i < 500; i++) {
+        mem.files.set(
+          `${subsDir.replace(/\\/g, '/')}/sub-${i}.json`,
+          JSON.stringify({ id: `${i}`, type: 'chat', status: 'pending', submittedBy: `user-${i}`, submittedAt: '2026-01-01T00:00:00Z' }),
+        );
+      }
+      await expect(
+        userContext.runWithUser(authedCtx, () => community.submitToCommunity('chat', { id: 'chat-x' })),
+      ).rejects.toMatchObject({ statusCode: 503 });
+    });
+
+    it('allows a submission when the queue is below the cap', async () => {
+      const { submissionId } = await userContext.runWithUser(authedCtx, () =>
+        community.submitToCommunity('chat', { id: 'chat-y' }));
+      expect(submissionId).toBeTruthy();
+    });
+  });
+});

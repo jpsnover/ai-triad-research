@@ -199,6 +199,14 @@ export async function submitToCommunity(type: 'chat' | 'debate', itemData: unkno
     throw Object.assign(new Error('Maximum 20 pending submissions allowed'), { statusCode: 429 });
   }
 
+  // L7 (t/720): global pending-queue cap — backstop against many users (or
+  // anonymous sessions) collectively exhausting the review queue / storage.
+  const GLOBAL_PENDING_CAP = 500;
+  const allPending = await listSubmissions('pending');
+  if (allPending.length >= GLOBAL_PENDING_CAP) {
+    throw Object.assign(new Error('Community submission queue is full; please try again later.'), { statusCode: 503 });
+  }
+
   const item = itemData as { id: string };
   const submissionId = crypto.randomUUID();
   const submission: Submission = {

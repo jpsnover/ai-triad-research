@@ -33,6 +33,7 @@ import {
 import { GitHubAPIBackend } from './githubAPIBackend.js';
 import { SessionBranchManager } from './sessionBranchManager.js';
 import { runWithUser, getCurrentUserId, getStorageUserId, setSessionBranchName, deriveStorageUserId, isAnonymousUser } from './userContext.js';
+import { isAuthDisabledAllowed, isPathWithinDir, isTerminalAccessAllowed } from './accessControl.js';
 import { initAnonymousSessionStore } from './anonymousSessionStore.js';
 import { getQuotaLimits } from './quotas.js';
 import * as community from './community.js';
@@ -156,6 +157,23 @@ if (process.platform === 'win32') {
 
 export { serverRecorder };
 
+// L1 (t/720): AUTH_DISABLED makes every request an anonymous user with full
+// access — fine for local/dev single-operator use, catastrophic in production.
+// Hard-block it under NODE_ENV=production (force auth back on) and warn loudly
+// whenever it is set so a misconfigured deploy can't silently run wide open.
+if (process.env.AUTH_DISABLED === '1') {
+  if (!isAuthDisabledAllowed()) {
+    delete process.env.AUTH_DISABLED;
+    serverRecorder.record({
+      type: 'system.error', component: 'server', level: 'error',
+      message: 'AUTH_DISABLED=1 is not permitted when NODE_ENV=production — ignoring it and enforcing authentication.',
+    });
+    log.security.error('AUTH_DISABLED=1 ignored in production; authentication is enforced. Remove AUTH_DISABLED or unset NODE_ENV=production.');
+  } else {
+    log.security.warn('AUTH_DISABLED=1 — authentication is bypassed (all requests anonymous with full access). Never use this in production.');
+  }
+}
+
 // ── Storage backend selection ──
 
 let githubBackend: GitHubAPIBackend | null = null;
@@ -247,16 +265,17 @@ function json(res: http.ServerResponse, data: unknown, status = 200) {
   res.end(JSON.stringify(data));
 }
 
-function error(res: http.ServerResponse, message: string, status = 500) {
+function error(res: http.ServerResponse, message: string, status = 500, cause?: unknown) {
   // M4: don't leak internal detail (file paths, stack) to clients on server
   // errors in production — record the real message server-side, return generic.
+  const route: string = (res as any).__routePath ?? 'server';
   if (status >= 500 && process.env.NODE_ENV === 'production') {
     getGlobalRecorder()?.record({
       type: 'system.error',
-      component: 'server',
+      component: route,
       level: 'error',
-      message: 'Server error response (detail withheld from client)',
-      error: { name: 'Error', message },
+      message: `${route}: server error (detail withheld from client)`,
+      error: { name: (cause as Error)?.name ?? 'Error', message, stack: (cause as Error)?.stack },
     });
     json(res, { error: 'Internal server error' }, status);
     return;
@@ -427,7 +446,7 @@ get('/api/taxonomy/synthetic/:pov', async (req, res) => {
     const data = await fileIO.loadSyntheticCorpus(pov);
     if (data === null) { json(res, null); return; }
     json(res, data);
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Taxonomy CRUD ──
@@ -436,7 +455,7 @@ get('/api/taxonomy/:pov', async (req, res) => {
   try {
     const pov = param(req, 'pov', '/api/taxonomy/:pov');
     json(res, await fileIO.readTaxonomyFile(pov));
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 put('/api/taxonomy/:pov', async (req, res, body) => {
@@ -458,7 +477,7 @@ put('/api/taxonomy/:pov', async (req, res, body) => {
     }
     await fileIO.writeTaxonomyFile(pov, body);
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Node Edit History ──
@@ -471,7 +490,7 @@ get('/api/taxonomy/:pov/node/:nodeId/history', async (req, res) => {
     const node = data?.nodes?.find(n => n.id === nodeId);
     if (!node) { error(res, `Node ${nodeId} not found in ${pov}`, 404); return; }
     json(res, { nodeId, history: node._edit_history ?? [], edit_meta: node._edit_meta ?? null });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Conflicts ──
@@ -506,7 +525,7 @@ put('/api/conflicts/:id', async (req, res, body) => {
     await fileIO.writeConflictFile(id, body);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/conflicts/:id', async (req, res, body) => {
@@ -516,7 +535,7 @@ post('/api/conflicts/:id', async (req, res, body) => {
     await fileIO.createConflictFile(id, body);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 del('/api/conflicts/:id', async (req, res) => {
@@ -526,7 +545,7 @@ del('/api/conflicts/:id', async (req, res) => {
     await fileIO.deleteConflictFile(id);
     conflictsCache = null;
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Policy registry ──
@@ -610,6 +629,7 @@ get('/api/data/root', (_req, res) => {
 });
 
 post('/api/data/set-root', (_req, res, body) => {
+  if (!requireAdmin(res)) return; // L2 (t/720): mutating the data root is admin-only
   const { newRoot } = body as { newRoot: string };
   try {
     if (!fs.existsSync(newRoot)) {
@@ -631,8 +651,15 @@ post('/api/data/set-root', (_req, res, body) => {
 });
 
 post('/api/data/clone', async (_req, res, body) => {
+  if (!requireAdmin(res)) return; // L3 (t/720): cloning is admin-only
   const { targetPath } = body as { targetPath: string };
   try {
+    // L3 (t/720): confine the clone target to the configured data directory.
+    // Without this an (admin) caller could write the repo to any filesystem path.
+    if (!isPathWithinDir(targetPath, getDataRoot())) {
+      json(res, { success: false, message: 'targetPath must be within the configured data directory.' }, 400);
+      return;
+    }
     // Clone to temp dir first, then copy contents — avoids permission issues
     // when targetPath is root-owned (e.g. /data in Azure containers).
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'data-clone-'));
@@ -807,7 +834,7 @@ get('/api/models', async (_req, res) => {
 post('/api/models/refresh', async (_req, res) => {
   try {
     json(res, await ai.refreshAIModels());
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/keys/has', async (req, res) => {
@@ -861,8 +888,9 @@ post('/api/ai/generate', async (req, res, body) => {
       type: 'system.error', component: 'ai-generate', level: 'error',
       message: `AI generate failed: ${String(err)}`,
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      data: { model: model ?? 'default', promptLength: prompt?.length },
     });
-    error(res, String(err));
+    error(res, String(err), 500, err);
   }
 });
 
@@ -875,8 +903,9 @@ post('/api/ai/search', async (_req, res, body) => {
       type: 'system.error', component: 'ai-search', level: 'error',
       message: `AI search failed: ${String(err)}`,
       error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
+      data: { model: model ?? 'default', promptLength: prompt?.length },
     });
-    error(res, String(err));
+    error(res, String(err), 500, err);
   }
 });
 
@@ -911,7 +940,7 @@ post('/api/embeddings/compute', async (_req, res, body) => {
   try {
     const vectors = await ai.computeEmbeddings(texts, ids);
     json(res, { vectors });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/embeddings/query', async (_req, res, body) => {
@@ -919,7 +948,7 @@ post('/api/embeddings/query', async (_req, res, body) => {
   try {
     const vector = await ai.computeQueryEmbedding(text);
     json(res, { vector });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/embeddings/update-nodes', async (_req, res, body) => {
@@ -927,7 +956,7 @@ post('/api/embeddings/update-nodes', async (_req, res, body) => {
   try {
     await ai.updateNodeEmbeddings(nodes);
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/nli/classify', async (_req, res, body) => {
@@ -935,7 +964,7 @@ post('/api/nli/classify', async (_req, res, body) => {
   try {
     const results = await ai.classifyNli(pairs);
     json(res, { results });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Debate sessions ──
@@ -961,7 +990,7 @@ get('/api/calibration/log', (_req, res) => {
     }
 
     json(res, { entries, validationReport });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Calibration parameter history ──
@@ -971,7 +1000,7 @@ get('/api/calibration/history', (_req, res) => {
     const history = readParameterHistory(getDataRoot());
     const current = captureSnapshot();
     json(res, { current, history });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Flight recorder dump ──
@@ -1009,7 +1038,7 @@ post('/api/flight-recorder/dump', (_req, res, body) => {
     const filename = path.basename(filePath);
     log.fr.info({ filePath }, 'Dump written');
     json(res, { filePath, filename });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // Server-side flight recorder dump
@@ -1024,7 +1053,7 @@ post('/api/flight-recorder/server-dump', (_req, res) => {
     fs.writeFileSync(filePath, ndjson, 'utf-8');
     log.fr.info({ filePath }, 'Server dump written');
     json(res, { filePath, filename });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/flight-recorder/list', (_req, res) => {
@@ -1068,7 +1097,7 @@ get('/api/flight-recorder/download/:filename', (req, res) => {
       'Content-Disposition': `attachment; filename="${filename}"`,
     });
     res.end(content);
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/flight-recorder/view/:filename', (req, res) => {
@@ -1102,12 +1131,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const outputHtml = viewerHtml.replace('</body>', `${autoLoadScript}\n</body>`);
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(outputHtml);
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/debates/:id', async (req, res) => {
   try { json(res, await fileIO.loadDebateSession(param(req, 'id', '/api/debates/:id'))); }
-  catch (err) { /* telemetry — silent by design */ error(res, String(err), 404); }
+  catch (err) { error(res, String(err), 404, err); }
 });
 
 put('/api/debates', async (_req, res, body) => {
@@ -1147,12 +1176,12 @@ del('/api/debates/:id', async (req, res) => {
     await ensureSessionBranch();
     await fileIO.deleteDebateSession(param(req, 'id', '/api/debates/:id'));
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/debates/:id/comments', async (req, res) => {
   try { json(res, await fileIO.loadDebateComments(param(req, 'id', '/api/debates/:id/comments'))); }
-  catch (err) { /* telemetry — silent by design */ error(res, String(err), 404); }
+  catch (err) { error(res, String(err), 404, err); }
 });
 
 put('/api/debates/:id/comments', async (req, res, body) => {
@@ -1161,7 +1190,7 @@ put('/api/debates/:id/comments', async (req, res, body) => {
     const debateId = param(req, 'id', '/api/debates/:id/comments');
     await fileIO.saveDebateComments(debateId, body);
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/debates/export', (_req, res, body) => {
@@ -1196,7 +1225,7 @@ post('/api/debates/:id/news-report', async (req, res) => {
     const prompt = newsReportPrompt(topic, synthesisJson, argSummary, highlights, docAnalysis, undefined, audience as import('../../../lib/debate/types.js').DebateAudience | undefined);
     const result = await ai.generateText(prompt);
     json(res, { article: result.text });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Chat sessions ──
@@ -1205,7 +1234,7 @@ get('/api/chats', async (_req, res) => { json(res, await fileIO.listChatSessions
 
 get('/api/chats/:id', async (req, res) => {
   try { json(res, await fileIO.loadChatSession(param(req, 'id', '/api/chats/:id'))); }
-  catch (err) { /* telemetry — silent by design */ error(res, String(err), 404); }
+  catch (err) { error(res, String(err), 404, err); }
 });
 
 put('/api/chats', async (_req, res, body) => {
@@ -1230,7 +1259,7 @@ del('/api/chats/:id', async (req, res) => {
     await ensureSessionBranch();
     await fileIO.deleteChatSession(param(req, 'id', '/api/chats/:id'));
     json(res, { ok: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Community Library ──
@@ -1823,7 +1852,7 @@ post('/api/harvest/conflict', async (_req, res, body) => {
     const created = await fileIO.harvestCreateConflict(body as Record<string, unknown>);
     if (created) conflictsCache = null;
     json(res, { created });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/harvest/debate-ref', async (_req, res, body) => {
@@ -1831,7 +1860,7 @@ post('/api/harvest/debate-ref', async (_req, res, body) => {
     await ensureSessionBranch();
     const { nodeId, debateId } = body as { nodeId: string; debateId: string };
     json(res, { updated: await fileIO.harvestAddDebateRef(nodeId, debateId) });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/harvest/steelman', async (_req, res, body) => {
@@ -1839,7 +1868,7 @@ post('/api/harvest/steelman', async (_req, res, body) => {
     await ensureSessionBranch();
     const { nodeId, attackerPov, newText } = body as { nodeId: string; attackerPov: string; newText: string };
     json(res, { updated: await fileIO.harvestUpdateSteelman(nodeId, attackerPov, newText) });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/harvest/verdict', async (_req, res, body) => {
@@ -2060,7 +2089,7 @@ put('/api/proposals/:filename', async (req, res, body) => {
   try {
     await fileIO.saveProposal(param(req, 'filename', '/api/proposals/:filename'), body);
     json(res, { saved: true });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── PowerShell prompts ──
@@ -2114,7 +2143,7 @@ post('/api/sync/credentials', async (_req, res, body) => {
     // Validate by checking if credentials resolve
     const creds = await getCredentials();
     json(res, { ok: true, configured: !!creds });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/sync/status', async (_req, res) => {
@@ -2157,7 +2186,7 @@ get('/api/sync/status', async (_req, res) => {
         age_seconds: githubBackend.getLastPollAge(),
       },
     });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/sync/diagnostics', async (_req, res) => {
@@ -2191,7 +2220,7 @@ get('/api/sync/diagnostics', async (_req, res) => {
       rate_limit_remaining: githubBackend.getRateLimitRemaining(),
       active_sessions: sessionManager.getActiveBranches(),
     });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/sync/unsynced', async (_req, res) => {
@@ -2209,7 +2238,7 @@ get('/api/sync/unsynced', async (_req, res) => {
       path: f.filename,
       status: statusMap[f.status] || 'M',
     })));
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 get('/api/sync/diff', async (req, res) => {
@@ -2224,7 +2253,7 @@ get('/api/sync/diff', async (req, res) => {
     const cmp = await githubBackend.compareBranches('main', branch);
     const file = cmp.files.find(f => f.filename === p);
     json(res, { path: p, diff: file?.patch ?? '' });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err), 400); }
+  } catch (err) { error(res, String(err), 400, err); }
 });
 
 get('/api/sync/node-diff', async (_req, res) => {
@@ -2276,7 +2305,7 @@ get('/api/sync/node-diff', async (_req, res) => {
     }
 
     json(res, { enabled: true, session_branch: branch, files, totals });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // Phase 5D (t/654): nodes edited on the user's session branch that were ALSO
@@ -2353,7 +2382,7 @@ post('/api/sync/discard', async (_req, res, body) => {
       return;
     }
     error(res, 'Per-file discard is not supported. Use "Discard All" to reset.', 400);
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err), 400); }
+  } catch (err) { error(res, String(err), 400, err); }
 });
 
 post('/api/sync/commit', async (_req, res, body) => {
@@ -2377,7 +2406,7 @@ post('/api/sync/commit', async (_req, res, body) => {
     // Phase 5F: best-effort notify other web clients. Response is already sent;
     // broadcastTaxonomyUpdate never throws, so the save result is unaffected (t/652).
     await broadcastTaxonomyUpdate(githubBackend, pending, userId);
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/sync/create-pr', async (_req, res, body) => {
@@ -2401,7 +2430,7 @@ post('/api/sync/create-pr', async (_req, res, body) => {
       branch,
       created: true,
     });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 post('/api/sync/resync', async (_req, res, body) => {
@@ -2453,7 +2482,7 @@ post('/api/sync/resync', async (_req, res, body) => {
       conflict_files: mergeResult.conflicts ? [] : undefined,
       message: mergeResult.message,
     });
-  } catch (err) { /* telemetry — silent by design */ error(res, String(err)); }
+  } catch (err) { error(res, String(err), 500, err); }
 });
 
 // ── Phase 4: interactive rebase conflict resolution ──
@@ -3215,18 +3244,19 @@ async function handleRequestInner(
     }
 
     if (route) {
+      (res as any).__routePath = route.routePath;
       try {
         const body = ['POST', 'PUT'].includes(req.method!) ? await readBody(req) : {};
         await route.handler(req, res, body);
       } catch (err) {
         getGlobalRecorder()?.record({
           type: 'system.error',
-          component: 'server',
+          component: route.routePath,
           level: 'error',
-          message: 'Operation failed',
+          message: `Unhandled error in ${route.routePath}`,
           error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack },
         });
-        log.server.error({ err, method: req.method, path: url.pathname }, 'Error handling request');
+        log.server.error({ err, method: req.method, path: url.pathname, route: route.routePath }, 'Error handling request');
         const status = (err as { statusCode?: number }).statusCode ?? 500;
         // M4: full detail is recorded/logged above; clients get a generic message
         // for server errors in production (the error string can carry file paths).
@@ -3351,6 +3381,25 @@ function isWebSocketAuthorized(req: http.IncomingMessage): boolean {
   return true;
 }
 
+// L6 (t/720): the terminal WS spawns a server-side shell, so restrict it to
+// admins. AUTH_DISABLED is single-operator local/dev mode (L1 forbids it in
+// production), so the local operator keeps terminal access; every authenticated
+// deployment requires an admin user. Runs outside the per-request ALS context,
+// so the userId is derived from the principal headers directly.
+function isTerminalWebSocketAllowed(req: http.IncomingMessage): boolean {
+  const principalName = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-name'] as string) || ''
+    : '';
+  const idp = AZURE_AUTH_ENABLED
+    ? (req.headers['x-ms-client-principal-idp'] as string) || ''
+    : '';
+  return isTerminalAccessAllowed({
+    authDisabled: process.env.AUTH_DISABLED === '1',
+    principalName,
+    isAdmin: !!principalName && community.isAdmin(deriveStorageUserId(principalName, idp)),
+  });
+}
+
 server.on('upgrade', (req, socket, head) => {
   // S-WS-ORIGIN: Validate Origin header against ALLOWED_ORIGINS to prevent
   // cross-origin WebSocket hijacking (WebSocket bypasses CORS).
@@ -3373,6 +3422,12 @@ server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url!, 'http://localhost');
 
   if (url.pathname === '/ws/terminal') {
+    if (!isTerminalWebSocketAllowed(req)) {
+      log.security.warn('Blocked non-admin terminal WebSocket upgrade');
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
+      return;
+    }
     wss.handleUpgrade(req, socket, head, (ws) => {
       handleTerminalConnection(ws);
     });

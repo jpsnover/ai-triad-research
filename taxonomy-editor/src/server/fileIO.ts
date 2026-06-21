@@ -1026,6 +1026,7 @@ export async function harvestUpdateSteelman(nodeId: string, attackerPov: string,
 }
 
 export async function harvestAddVerdict(conflictId: string, verdict: Record<string, unknown>): Promise<boolean> {
+  assertSafeId(conflictId, 'conflict id'); // L4 (t/720): block path traversal before path construction
   const filePath = path.join(getConflictsDir(), `${conflictId}.json`);
   const raw = await backend.readFile(filePath);
   if (raw === null) return false;
