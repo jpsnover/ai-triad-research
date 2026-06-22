@@ -89,6 +89,17 @@ async function post<T = unknown>(path: string, body?: unknown, timeoutMs = 180_0
       nextSteps: ['Wait for the rate limit to reset', 'Use your own API key to avoid shared limits'],
     }));
   }
+  if (res.status === 400 && path === '/api/ai/generate') {
+    const data = await res.json().catch(bridgeWarn('Failed to parse 400 response body', {})) as Record<string, unknown>;
+    if (data.limitType === 'max_prompt_chars') {
+      throwHttpError(400, new ActionableError({
+        goal: 'Generate AI response',
+        problem: `Prompt exceeds the ${(data.limit as number)?.toLocaleString() ?? ''} character limit for the free tier.`,
+        location: 'web-bridge.post',
+        nextSteps: ['Shorten your prompt or debate topic', 'Use your own API key to remove the limit'],
+      }));
+    }
+  }
   if (!res.ok) {
     const text = await res.text();
     throwHttpError(res.status, new ActionableError({

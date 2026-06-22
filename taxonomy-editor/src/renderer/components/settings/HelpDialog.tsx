@@ -50,9 +50,10 @@ function getRuntime(): string {
   return 'Browser';
 }
 
-type HelpTab = 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'sbom' | 'licenses';
+type HelpTab = 'tour' | 'about' | 'overview' | 'documentation' | 'methods' | 'shortcuts' | 'sbom' | 'licenses';
 
 const TABS: { id: HelpTab; label: string }[] = [
+  { id: 'tour', label: 'Welcome Tour' },
   { id: 'about', label: 'About' },
   { id: 'overview', label: 'Overview' },
   { id: 'documentation', label: 'Documentation' },
@@ -341,7 +342,7 @@ interface HelpDialogProps {
 }
 
 export function HelpDialog({ onClose }: HelpDialogProps) {
-  const [activeTab, setActiveTab] = useState<HelpTab>('about');
+  const [activeTab, setActiveTab] = useState<HelpTab>('tour');
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ w: 700, h: 480 });
   const [centered, setCentered] = useState(true);
@@ -431,6 +432,25 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
           </div>
           <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
+        {activeTab === 'tour' && (
+          <div className="help-section" style={{ fontSize: '0.85em', lineHeight: 1.6 }}>
+            <p>
+              New to the Taxonomy Editor? The Welcome Tour walks you through the main features — browsing the taxonomy, running AI debates, chatting with perspectives, and setting up your API key.
+            </p>
+            <button
+              className="btn btn-primary"
+              style={{ marginTop: 12 }}
+              onClick={() => {
+                try { localStorage.removeItem('taxonomy-editor-onboarding-dismissed'); } catch { /* telemetry — silent by design */ }
+                window.dispatchEvent(new Event('show-onboarding-tour'));
+                onClose();
+              }}
+            >
+              Launch Welcome Tour
+            </button>
+          </div>
+        )}
+
         {activeTab === 'about' && (
           <div className="help-section help-about">
             <table className="help-shortcuts">
@@ -448,28 +468,6 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
               Built with Electron 35, React 19, TypeScript, Vite, and Zustand.
               AI backends: Google Gemini, Anthropic Claude, Groq, OpenAI, DeepSeek, Ollama.
             </p>
-            <p style={{ marginTop: 16 }}>
-              <span
-                role="button"
-                tabIndex={0}
-                style={{ fontSize: '0.85em', color: 'var(--accent-color, var(--focus-ring))', cursor: 'pointer', textDecoration: 'underline' }}
-                onClick={() => {
-                  try { localStorage.removeItem('taxonomy-editor-onboarding-dismissed'); } catch { /* telemetry — silent by design */ }
-                  window.dispatchEvent(new Event('show-onboarding-tour'));
-                  onClose();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    try { localStorage.removeItem('taxonomy-editor-onboarding-dismissed'); } catch { /* telemetry — silent by design */ }
-                    window.dispatchEvent(new Event('show-onboarding-tour'));
-                    onClose();
-                  }
-                }}
-              >
-                &#9656; Show Welcome Tour
-              </span>
-            </p>
           </div>
         )}
 
@@ -486,12 +484,13 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             <p><strong>Situations</strong> — Cross-cutting concepts showing how each perspective interprets the same issue.</p>
             <p><strong>Conflicts</strong> — Documented disagreements with source instances and analyst notes.</p>
             <p><strong>Cruxes</strong> — Core disagreements distilled from debate rounds and cross-perspective analysis.</p>
-            <p><strong>Summaries</strong> — Document summaries from the ingestion pipeline.</p>
+            <p><strong>Summaries</strong> — Document summaries from the ingestion pipeline (Electron only).</p>
+            <p><strong>Validation</strong> — Data integrity checks for the taxonomy, surfacing missing fields, orphan nodes, and schema violations.</p>
             <p><strong>Debate</strong> — Multi-agent debates between Accelerationist, Safetyist, and Skeptic characters using a BDI agent architecture. Debates progress through clarification, argumentation rounds, synthesis, and harvest.</p>
             <p><strong>Chat</strong> — POVer Chat with brainstorm, inform, and decide conversation modes for free-form AI-assisted exploration.</p>
 
             <h4>Toolbar Panels</h4>
-            <p><strong>Search</strong> — Full-text search with raw, wildcard, and regex modes. Scope by perspective and/or BDI category.</p>
+            <p><strong>Search</strong> — Full-text search with raw, wildcard, regex, and semantic modes. Scope by perspective and/or BDI category.</p>
             <p><strong>Intellectual Lineage</strong> — Trace the intellectual heritage and influences behind taxonomy nodes.</p>
             <p><strong>Edge Browser</strong> — Browse AIF-aligned typed edges (attack, support, inference) between nodes across the full taxonomy graph.</p>
             <p><strong>Policy Alignment</strong> — Map taxonomy nodes to policy actions from the shared policy registry.</p>
@@ -499,7 +498,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             <p><strong>Possible Fallacies</strong> — Identify potential logical fallacies in node claims and debate arguments.</p>
             <p><strong>Vocabulary</strong> — Browse the controlled vocabulary used across the taxonomy.</p>
             <p><strong>Calibration</strong> — Review and calibrate confidence scores and QBAF base scores.</p>
-            <p><strong>Console</strong> — Development console for inspecting state and debugging.</p>
+            <p><strong>Console</strong> — Development console for inspecting state and debugging (admin only).</p>
             <p><strong>Prompts</strong> — Inspect AI prompt templates and view prompt diffs between versions.</p>
 
             <h4>AI &amp; Backends</h4>
@@ -598,6 +597,7 @@ export function HelpDialog({ onClose }: HelpDialogProps) {
             <h4>Diagnostics &amp; Debug</h4>
             <table className="help-shortcuts">
               <tbody>
+                <tr><td className="help-key">Ctrl + Shift + S</td><td>Capture screenshot (Electron only)</td></tr>
                 <tr><td className="help-key">Ctrl + Alt + D</td><td>Dump flight recorder to disk</td></tr>
                 <tr><td className="help-key">Ctrl + Shift + D</td><td>Toggle Debate Chat sidebar</td></tr>
                 <tr><td className="help-key">Ctrl + L</td><td>Clear diagnostics chat (when input focused)</td></tr>

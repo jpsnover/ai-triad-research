@@ -1,0 +1,23 @@
+{
+  "name": "synthesis-full",
+  "description": "Debate synthesis has required sections: agreement, disagreement, cruxes, argument map",
+  "category": "synthesis",
+  "mock_response": "{\"areas_of_agreement\":[{\"point\":\"AI governance frameworks are necessary\",\"povers\":[\"accelerationist\",\"safetyist\",\"skeptic\"],\"converged\":true},{\"point\":\"Transparency in AI systems is desirable\",\"povers\":[\"accelerationist\",\"safetyist\"],\"converged\":false}],\"areas_of_disagreement\":[{\"point\":\"Speed of regulatory implementation\",\"type\":\"VALUES\",\"bdi_layer\":\"desire\",\"positions\":[{\"pover\":\"accelerationist\",\"stance\":\"Adaptive, post-deployment governance\"},{\"pover\":\"safetyist\",\"stance\":\"Mandatory pre-deployment safety testing\"},{\"pover\":\"skeptic\",\"stance\":\"Evidence-based incremental regulation\"}]},{\"point\":\"Severity of existential risk from AI\",\"type\":\"EMPIRICAL\",\"bdi_layer\":\"belief\",\"positions\":[{\"pover\":\"accelerationist\",\"stance\":\"Risk is overstated and speculative\"},{\"pover\":\"safetyist\",\"stance\":\"Risk is underestimated and growing\"}]}],\"cruxes\":[{\"question\":\"Can alignment problems be solved incrementally during deployment, or do they require pre-deployment resolution?\",\"if_yes\":\"Accelerationist position strengthens—deploy and iterate\",\"if_no\":\"Safetyist position strengthens—pause until solved\"},{\"question\":\"Is competitive pressure between nations a binding constraint on AI governance?\",\"if_yes\":\"Unilateral slowdowns are counterproductive\",\"if_no\":\"Coordinated global governance is feasible\"}],\"unresolved_questions\":[\"How to measure alignment progress quantitatively\",\"Whether open-source AI models increase or decrease aggregate risk\"],\"argument_map\":[{\"claim_id\":\"C1\",\"claim\":\"AI deployment delay has concrete human costs\",\"claimant\":\"accelerationist\",\"supported_by\":[\"C3\"],\"attacked_by\":[\"C2\"]},{\"claim_id\":\"C2\",\"claim\":\"Historical tech analogies fail for AI due to autonomy\",\"claimant\":\"safetyist\",\"supported_by\":[],\"attacked_by\":[]},{\"claim_id\":\"C3\",\"claim\":\"Competitive dynamics make slowdowns counterproductive\",\"claimant\":\"accelerationist\",\"supported_by\":[],\"attacked_by\":[\"C4\"]},{\"claim_id\":\"C4\",\"claim\":\"Industry self-regulation has poor track record\",\"claimant\":\"skeptic\",\"supported_by\":[],\"attacked_by\":[]}],\"policy_implications\":[{\"disagreement\":\"Speed of regulation\",\"positions\":[{\"pover\":\"accelerationist\",\"preferred\":\"pol-003\"},{\"pover\":\"safetyist\",\"preferred\":\"pol-007\"}],\"implication\":\"Policy must balance innovation incentives with safety requirements\"}]}",
+  "checks": [
+    { "type": "json_valid" },
+    { "type": "has_fields", "fields": ["areas_of_agreement", "areas_of_disagreement", "cruxes", "unresolved_questions", "argument_map"] },
+    { "type": "field_type", "field": "areas_of_agreement", "expected": "array" },
+    { "type": "array_min_length", "field": "areas_of_agreement", "min": 1 },
+    { "type": "array_items_have", "field": "areas_of_agreement", "required_fields": ["point", "povers"] },
+    { "type": "field_type", "field": "areas_of_disagreement", "expected": "array" },
+    { "type": "array_min_length", "field": "areas_of_disagreement", "min": 1 },
+    { "type": "array_items_have", "field": "areas_of_disagreement", "required_fields": ["point", "type", "positions"] },
+    { "type": "matches", "field": "areas_of_disagreement.0.type", "pattern": "^(EMPIRICAL|VALUES|DEFINITIONAL)$" },
+    { "type": "field_type", "field": "cruxes", "expected": "array" },
+    { "type": "array_min_length", "field": "cruxes", "min": 1 },
+    { "type": "array_items_have", "field": "cruxes", "required_fields": ["question", "if_yes", "if_no"] },
+    { "type": "field_type", "field": "argument_map", "expected": "array" },
+    { "type": "array_min_length", "field": "argument_map", "min": 2 },
+    { "type": "array_items_have", "field": "argument_map", "required_fields": ["claim_id", "claim", "claimant", "supported_by", "attacked_by"] }
+  ]
+}

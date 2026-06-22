@@ -587,12 +587,6 @@ function Get-AITSBOM {
 
     switch ($Format) {
         'Table' {
-            if ($CheckUpdates) {
-                $Entries | Select-Object Name, Version, LatestVersion, Status, Type, Scope, License, InstalledVia, Source | Format-Table -AutoSize | Out-Host
-            }
-            else {
-                $Entries | Select-Object Name, Version, Type, Scope, License, InstalledVia, Source | Format-Table -AutoSize | Out-Host
-            }
             return $Entries
         }
         'Json' {

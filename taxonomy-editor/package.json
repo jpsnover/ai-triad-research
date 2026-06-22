@@ -37,7 +37,9 @@
     "depgraph": "node scripts/depgraph.mjs --stats",
     "depgraph:query": "node scripts/depgraph.mjs --query",
     "depgraph:reverse": "node scripts/depgraph.mjs --reverse",
-    "depgraph:orphans": "node scripts/depgraph.mjs --orphans"
+    "depgraph:orphans": "node scripts/depgraph.mjs --orphans",
+    "depcruise": "depcruise --config .dependency-cruiser.cjs src/ ../lib/",
+    "verify": "tsc -p tsconfig.main.json --noEmit && eslint src/ && npm run depcruise && vitest run"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",
@@ -73,6 +75,7 @@
     "azurite": "^3.35.0",
     "concurrently": "^10.0.3",
     "cross-env": "^10.1.0",
+    "dependency-cruiser": "^17.4.3",
     "electron": "^41.1.1",
     "electron-builder": "^26.8.1",
     "eslint": "^10.3.0",

@@ -15,8 +15,10 @@ vi.mock('../../utils/lineageMatcher', () => ({
 }));
 
 const mockGetLineageInfo = vi.fn<[string], { summary?: string } | undefined>();
+const mockGetAllLineages = vi.fn<[], Record<string, { summary?: string }>>().mockReturnValue({});
 vi.mock('../../data/lineageLookup', () => ({
   getLineageInfo: (name: string) => mockGetLineageInfo(name),
+  getAllLineages: () => mockGetAllLineages(),
 }));
 
 const mockNavigateToLineage = vi.fn();
@@ -92,6 +94,21 @@ describe('LineageTermsView', () => {
     // Only the name div should be present, no summary paragraph
     expect(container.querySelectorAll('div > div > div').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText('Greatest happiness principle.')).not.toBeInTheDocument();
+  });
+
+  it('upgrades content-less term to content-rich alternative sharing the same stem', () => {
+    mockExtractLineageNames.mockReturnValue(['regulatory sandboxes']);
+    mockGetLineageInfo.mockImplementation((name: string) =>
+      name === 'regulatory sandbox concept' ? { summary: 'A controlled environment...' } : undefined,
+    );
+    mockGetAllLineages.mockReturnValue({
+      'regulatory sandbox concept': { summary: 'A controlled environment...' },
+      'regulatory sandbox framework': { summary: 'A framework for...' },
+    });
+    render(<LineageTermsView content="regulatory sandboxes text" />);
+    expect(screen.getByText('regulatory sandbox concept')).toBeInTheDocument();
+    expect(screen.getByText('A controlled environment...')).toBeInTheDocument();
+    expect(screen.queryByText('regulatory sandboxes')).not.toBeInTheDocument();
   });
 });
 

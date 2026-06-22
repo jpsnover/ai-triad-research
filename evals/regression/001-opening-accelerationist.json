@@ -1,0 +1,22 @@
+{
+  "name": "opening-accelerationist",
+  "description": "Accelerationist opening statement has required structure with taxonomy refs and claims",
+  "category": "opening",
+  "mock_response": "{\"statement\":\"The pace of AI development is not just an economic imperative—it is a moral one. Every delay in deploying beneficial AI systems represents lives not saved, diseases not cured, and knowledge not discovered. While safety considerations deserve attention, we must resist the impulse to treat every advancement as a threat.\\n\\nHistory shows that transformative technologies—electricity, antibiotics, the internet—faced identical resistance from those who feared disruption more than they valued progress. The real risk is not moving too fast; it is moving too slowly while competitors with fewer ethical guardrails race ahead.\\n\\nOpen innovation ecosystems, competitive markets, and adaptive governance can manage risks far more effectively than precautionary moratoria. We should accelerate responsibly, not decelerate fearfully.\",\"turn_symbols\":[{\"symbol\":\"⚡\",\"tooltip\":\"Progress is like electricity—feared at first, but once harnessed, it powers everything. But what if the wiring is wrong?\"}],\"taxonomy_refs\":[{\"node_id\":\"acc-desires-002\",\"relevance\":\"Aligns with desire for rapid deployment of beneficial AI to maximize societal value\"},{\"node_id\":\"acc-beliefs-005\",\"relevance\":\"Supports belief that competitive dynamics require maintaining development pace\"}],\"my_claims\":[{\"claim\":\"Delay in AI deployment has concrete human costs\",\"targets\":[]},{\"claim\":\"Historical precedent shows transformative tech resistance is consistently wrong\",\"targets\":[]},{\"claim\":\"Open innovation manages risk better than moratoria\",\"targets\":[]}],\"policy_refs\":[{\"policy_id\":\"pol-003\",\"relevance\":\"Argues adaptive governance over precautionary regulation\"}],\"key_assumptions\":[{\"assumption\":\"Competitive dynamics will lead others to develop AI regardless\",\"if_wrong\":\"Coordinated global slowdown could be viable if all major actors agree\"}]}",
+  "checks": [
+    { "type": "json_valid" },
+    { "type": "has_fields", "fields": ["statement", "turn_symbols", "taxonomy_refs", "my_claims", "policy_refs", "key_assumptions"] },
+    { "type": "field_type", "field": "statement", "expected": "string" },
+    { "type": "min_length", "field": "statement", "min": 100 },
+    { "type": "field_type", "field": "taxonomy_refs", "expected": "array" },
+    { "type": "array_min_length", "field": "taxonomy_refs", "min": 1 },
+    { "type": "array_items_have", "field": "taxonomy_refs", "required_fields": ["node_id", "relevance"] },
+    { "type": "matches", "field": "taxonomy_refs.0.node_id", "pattern": "^acc-" },
+    { "type": "field_type", "field": "my_claims", "expected": "array" },
+    { "type": "array_min_length", "field": "my_claims", "min": 1 },
+    { "type": "array_items_have", "field": "my_claims", "required_fields": ["claim", "targets"] },
+    { "type": "field_type", "field": "turn_symbols", "expected": "array" },
+    { "type": "array_items_have", "field": "turn_symbols", "required_fields": ["symbol", "tooltip"] },
+    { "type": "array_items_have", "field": "key_assumptions", "required_fields": ["assumption", "if_wrong"] }
+  ]
+}

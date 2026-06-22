@@ -193,15 +193,101 @@ Use consistent, short component names. Existing conventions:
 
 For new components, use the module filename in camelCase (e.g., `convergenceSignals.ts` → `'convergenceSignals'`).
 
+## PII Classification
+
+All data passing through the flight recorder serializer is automatically redacted by `lib/flight-recorder/redact.ts`. The redaction layer runs in `expandData()` (the single chokepoint for event data output) and also covers `message`, `error.message`, and trigger fields.
+
+### Classification Levels
+
+| Classification | Examples | Rule |
+|---------------|----------|------|
+| **internal** (safe) | Component names, event types, counts, durations, model names, round/phase numbers | Record freely |
+| **sensitive** (redact) | User identifiers, request paths with IDs, error messages containing echoed inputs | Auto-redacted by serializer |
+| **forbidden** (never record) | API keys, tokens, passwords, raw user content (chat messages, debate transcripts) | Callers must not pass; serializer strips as safety net |
+
+### What MUST NOT Be Recorded
+
+Callers should never pass these to `record()` in the `data` or `message` fields:
+
+- **API keys** of any provider (Gemini, OpenAI, Anthropic, Groq, xAI, GitHub)
+- **Bearer tokens** or Authorization header values
+- **Passwords or secrets** from configuration
+- **Raw user content** — debate transcript bodies, chat messages, free-text input. Record the topic or length instead.
+- **Session tokens** or cookies
+
+### Redaction Patterns (Safety Net)
+
+Even if a caller accidentally passes sensitive data, the serializer's redaction layer strips:
+
+| Pattern | Example prefix | Redacted to |
+|---------|---------------|-------------|
+| Google API keys | `AIzaSy...` (33 chars after prefix) | `[REDACTED]` |
+| OpenAI/Anthropic keys | `sk-...` (20+ chars) | `[REDACTED]` |
+| Groq keys | `gsk_...` (20+ chars) | `[REDACTED]` |
+| Generic key prefix | `key-...` (20+ chars) | `[REDACTED]` |
+| xAI keys | `xai-...` (20+ chars) | `[REDACTED]` |
+| GitHub PATs | `ghp_...` (36+ chars) | `[REDACTED]` |
+| GitHub fine-grained PATs | `github_pat_...` (22+ chars) | `[REDACTED]` |
+| Bearer tokens | `Bearer <token>` | `Bearer [REDACTED]` |
+| Email addresses | `user@domain.tld` | `u***@domain.tld` |
+| Generic long tokens in sensitive fields | 30+ alphanum chars in fields named `*key*`, `*token*`, `*secret*`, `*password*`, `*authorization*` | `[REDACTED]` |
+
+### Safe Recording Patterns
+
+```typescript
+// GOOD — record metadata, not content
+recorder.record({
+  type: 'turn.stage',
+  component: 'debate-engine',
+  level: 'info',
+  data: {
+    topic: debate.topic,          // topic string is OK
+    turn_length: text.length,     // length, not body
+    model: 'gemini-2.0-flash',
+    duration_ms: elapsed,
+  },
+});
+
+// BAD — raw user content leaks into dump
+recorder.record({
+  type: 'turn.stage',
+  component: 'debate-engine',
+  level: 'info',
+  data: {
+    response_body: aiResponse,    // NEVER — full AI response text
+    user_prompt: prompt,          // NEVER — raw prompt with user input
+  },
+});
+```
+
+## Schema Versioning
+
+Every NDJSON dump begins with a header record containing:
+
+```json
+{
+  "_type": "header",
+  "_version": 1,
+  "schema_version": "1.0.0"
+}
+```
+
+- `_version` — internal format version (integer)
+- `schema_version` — semantic version for analysis tool compatibility
+
+When the dump format changes (new fields, changed semantics), bump `schema_version` in `lib/flight-recorder/types.ts` (`DumpHeader`). Analysis tools should check this field and handle upgrades gracefully.
+
 ## Dumps
 
 Dumps are triggered automatically on uncaught errors/rejections, or manually via `Ctrl+Shift+D`. They are serialized as NDJSON files containing:
 
-1. **Header** — app version, uptime, buffer stats, build date
-2. **Context** — active debate state at dump time
-3. **Dictionary** — interned string table for deduplication
-4. **Events** — the last 1,000 recorded events
-5. **Trigger** — what caused the dump
+| Line | `_type` | Contents |
+|------|---------|----------|
+| 1 | `header` | Buffer stats, schema version, system context |
+| 2 | `dictionary` | All interned strings (component/speaker names) |
+| 3 | `context` (optional) | App state at dump time (active debate, memory) |
+| 4...N | `event` | Events oldest-first, dictionary handles expanded |
+| Last | `trigger` | Error/event that caused the dump |
 
 Dump files are written to the app's dump directory with automatic rotation (max 10 files, 50 MB total).
 

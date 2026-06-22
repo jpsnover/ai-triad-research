@@ -316,7 +316,7 @@ function PromptDefaultsSection() {
 }
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, qbafEnabled, setQbafEnabled, aiBackend, setAIBackend, geminiModel, setGeminiModel, communityServerUrl, setCommunityServerUrl } = useTaxonomyStore();
+  const { colorScheme, setColorScheme, paneSpacing, setPaneSpacing, aiBackend, setAIBackend, geminiModel, setGeminiModel } = useTaxonomyStore();
   const [hasKey, setHasKey] = useState<Record<string, boolean>>({});
   const [keyInput, setKeyInput] = useState('');
   const [savingKey, setSavingKey] = useState(false);
@@ -395,6 +395,14 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     groq: 'gsk_...',
     openai: 'sk-...',
     deepseek: 'sk-...',
+  };
+
+  const keyProvisionUrl: Partial<Record<AIBackend, { url: string; label: string }>> = {
+    gemini:   { url: 'https://aistudio.google.com/apikey', label: 'Google AI Studio' },
+    claude:   { url: 'https://console.anthropic.com/settings/keys', label: 'Anthropic Console' },
+    groq:     { url: 'https://console.groq.com/keys', label: 'Groq Console' },
+    openai:   { url: 'https://platform.openai.com/api-keys', label: 'OpenAI Platform' },
+    deepseek: { url: 'https://platform.deepseek.com/api_keys', label: 'DeepSeek Platform' },
   };
 
   return (
@@ -491,6 +499,17 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </div>
             {keyError && <div className="settings-key-error">{keyError}</div>}
             {keySuccess && <div className="settings-key-success">{keySuccess}</div>}
+            {keyProvisionUrl[aiBackend] && (
+              <div style={{ marginTop: 4 }}>
+                <a
+                  href="#"
+                  onClick={(e) => { e.preventDefault(); void api.openExternal(keyProvisionUrl[aiBackend]!.url); }}
+                  style={{ fontSize: '0.8rem', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer' }}
+                >
+                  Get a {AI_BACKENDS.find(b => b.value === aiBackend)?.label} API key &#8594; {keyProvisionUrl[aiBackend]!.label}
+                </a>
+              </div>
+            )}
           </div>
         )}
 
@@ -535,34 +554,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <option value="normal">Normal</option>
             <option value="concise">Concise</option>
           </select>
-        </div>
-
-        <div className="settings-row">
-          <label className="settings-label">QBAF Visualization</label>
-          <label className="settings-toggle">
-            <input
-              type="checkbox"
-              checked={qbafEnabled}
-              onChange={(e) => setQbafEnabled(e.target.checked)}
-            />
-            <span>Show argument strength scores in debates</span>
-          </label>
-        </div>
-
-        <div className="settings-divider" />
-
-        <div className="settings-row">
-          <label className="settings-label">Community Server URL</label>
-          <div className="settings-hint" style={{ marginBottom: 4 }}>
-            Required for sharing debates from the desktop app. Leave blank when using the web version.
-          </div>
-          <input
-            type="url"
-            className="settings-key-input"
-            value={communityServerUrl}
-            onChange={(e) => setCommunityServerUrl(e.target.value)}
-            placeholder="https://your-app.azurewebsites.net"
-          />
         </div>
 
         <div className="settings-divider" />

@@ -5,6 +5,7 @@ export { FlightRecorder } from './flightRecorder.js';
 export { Dictionary } from './dictionary.js';
 export { RingBuffer } from './ringBuffer.js';
 export { serializeDump } from './serializer.js';
+export { redactString, redactFieldValue, redactRecord } from './redact.js';
 export type {
   EventType,
   EventLevel,

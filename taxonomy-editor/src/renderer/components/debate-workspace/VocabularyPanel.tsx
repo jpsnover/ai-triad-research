@@ -5,13 +5,45 @@ import { useMemo } from 'react';
 import { useDebateStore } from '../../hooks/useDebateStore';
 import { useTaxonomyStore } from '../../hooks/useTaxonomyStore';
 import { extractLineageNames } from '../../utils/lineageMatcher';
-import { getLineageInfo } from '../../data/lineageLookup';
+import { getLineageInfo, getAllLineages } from '../../data/lineageLookup';
 import { api } from '@bridge';
 import type { VocabResolution } from '../../utils/vocabularyAnnotations';
 import { POV_COLOR_VAR } from './utils';
 
+function depluralize(s: string): string {
+  if (s.endsWith('ies')) return s.slice(0, -3) + 'y';
+  if (s.endsWith('xes') || s.endsWith('ses') || s.endsWith('shes') || s.endsWith('ches') || s.endsWith('zes'))
+    return s.slice(0, -2);
+  if (s.endsWith('s') && !s.endsWith('ss')) return s.slice(0, -1);
+  return s;
+}
+
+function upgradeLineageNames(names: string[]): string[] {
+  const all = getAllLineages();
+  const allKeys = Object.keys(all);
+  return names.map(name => {
+    const info = getLineageInfo(name);
+    if (info?.summary) return name;
+    const stem = depluralize(name.toLowerCase());
+    let best: { key: string; len: number } | null = null;
+    for (const k of allKeys) {
+      const entry = all[k];
+      if (!entry?.summary) continue;
+      const kl = k.toLowerCase();
+      if (kl.startsWith(stem) && (!best || k.length < best.len)) {
+        best = { key: k, len: k.length };
+      }
+    }
+    return best ? best.key : name;
+  });
+}
+
 export function LineageTermsView({ content }: { content: string }) {
-  const names = useMemo(() => extractLineageNames(content), [content]);
+  const rawNames = useMemo(() => extractLineageNames(content), [content]);
+  const names = useMemo(() => {
+    const upgraded = upgradeLineageNames(rawNames);
+    return [...new Set(upgraded)];
+  }, [rawNames]);
   if (names.length === 0) return <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', padding: '4px 0' }}>No lineage references found</div>;
   return (
     <div style={{ fontSize: '0.8rem', padding: '4px 0' }}>

@@ -116,6 +116,10 @@ param githubToken string = ''
 @description('HMAC shared secret for the Phase-3 GitHub webhook. When set, /api/sync/webhook/github verifies X-Hub-Signature-256 and flags upstream-updated.')
 param githubWebhookSecret string = ''
 
+@secure()
+@description('Gemini API key for the anonymous free tier. When set, keyless web users get limited Gemini access (pinned model, rate-limited). Omit to keep the free tier disabled.')
+param freeTierGeminiKey string = ''
+
 // ── Ephemeral self-hosted runner (ACI + Azure Function) ──
 @description('Enable ephemeral GitHub Actions runner infrastructure (Azure Function + ACI)')
 param ephemeralRunnerEnabled bool = false
@@ -140,13 +144,16 @@ var ghcrSecretName = 'ghcr-password'
 var githubTokenProvided = !empty(githubToken)
 var githubWebhookSecretProvided = !empty(githubWebhookSecret)
 var ghcrConfigured = !empty(ghcrPassword)
+var freeTierEnabled = !empty(freeTierGeminiKey)
+var freeTierSecretName = 'free-tier-gemini-key'
 var oauthSecrets = concat(
   googleEnabled ? [ { name: googleClientSecretName, value: googleClientSecret } ] : [],
   githubEnabled ? [ { name: githubClientSecretName, value: githubClientSecret } ] : [],
   aadEnabled ? [ { name: aadClientSecretName, value: aadClientSecret } ] : [],
   githubTokenProvided ? [ { name: githubTokenSecretName, value: githubToken } ] : [],
   githubWebhookSecretProvided ? [ { name: githubWebhookSecretName, value: githubWebhookSecret } ] : [],
-  ghcrConfigured ? [ { name: ghcrSecretName, value: ghcrPassword } ] : []
+  ghcrConfigured ? [ { name: ghcrSecretName, value: ghcrPassword } ] : [],
+  freeTierEnabled ? [ { name: freeTierSecretName, value: freeTierGeminiKey } ] : []
 )
 
 // ── Log Analytics ──
@@ -380,9 +387,12 @@ var baseEnv = [
 var envWithToken = githubTokenProvided
   ? concat(baseEnv, [ { name: 'GITHUB_TOKEN', secretRef: githubTokenSecretName } ])
   : baseEnv
-var containerEnv = githubWebhookSecretProvided
+var envWithWebhook = githubWebhookSecretProvided
   ? concat(envWithToken, [ { name: 'GITHUB_WEBHOOK_SECRET', secretRef: githubWebhookSecretName } ])
   : envWithToken
+var containerEnv = freeTierEnabled
+  ? concat(envWithWebhook, [ { name: 'FREE_TIER_GEMINI_KEY', secretRef: freeTierSecretName } ])
+  : envWithWebhook
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: 'taxonomy-editor'

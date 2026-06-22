@@ -744,6 +744,40 @@
     "deepseek": 65536,
     "ollama": 131072
   },
+  "capabilityDefaults": {
+    "gemini":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 1048576 },
+    "claude":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 200000 },
+    "groq":     { "supportsTools": true,  "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 131072 },
+    "openai":   { "supportsTools": true,  "supportsVision": true,  "supportsStreaming": true,  "maxContextTokens": 128000 },
+    "deepseek": { "supportsTools": true,  "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 65536 },
+    "ollama":   { "supportsTools": false, "supportsVision": false, "supportsStreaming": true,  "maxContextTokens": 131072 }
+  },
+  "modelCapabilities": {
+    "_comment": "Per-model overrides where capabilities differ from backend defaults.",
+    "openai-gpt-3.5-turbo":              { "supportsVision": false, "maxContextTokens": 4096 },
+    "openai-gpt-3.5-turbo-16k":          { "supportsVision": false, "maxContextTokens": 16384 },
+    "openai-gpt-3.5-turbo-1106":         { "supportsVision": false, "maxContextTokens": 16384 },
+    "openai-gpt-3.5-turbo-0125":         { "supportsVision": false, "maxContextTokens": 16384 },
+    "openai-gpt-3.5-turbo-instruct":     { "supportsTools": false, "supportsVision": false, "supportsStreaming": true, "maxContextTokens": 4096 },
+    "openai-gpt-3.5-turbo-instruct-0914":{ "supportsTools": false, "supportsVision": false, "supportsStreaming": true, "maxContextTokens": 4096 },
+    "openai-gpt-4-0613":                 { "supportsVision": false, "maxContextTokens": 8192 },
+    "openai-gpt-4":                      { "supportsVision": false, "maxContextTokens": 8192 },
+    "openai-gpt-image-1":                { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
+    "openai-gpt-image-1-mini":           { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
+    "openai-gpt-image-1.5":              { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
+    "openai-gpt-image-2":                { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
+    "openai-gpt-image-2-2026-04-21":     { "supportsTools": false, "supportsVision": false, "supportsStreaming": false },
+    "openai-gpt-4o-mini-tts":            { "supportsTools": false, "supportsVision": false },
+    "openai-gpt-4o-mini-tts-2025-03-20": { "supportsTools": false, "supportsVision": false },
+    "openai-gpt-4o-mini-tts-2025-12-15": { "supportsTools": false, "supportsVision": false },
+    "openai-gpt-4.1":                    { "maxContextTokens": 1047576 },
+    "openai-gpt-4.1-2025-04-14":         { "maxContextTokens": 1047576 },
+    "openai-gpt-4.1-mini":               { "maxContextTokens": 1047576 },
+    "openai-gpt-4.1-mini-2025-04-14":    { "maxContextTokens": 1047576 },
+    "groq-canopylabs-orpheus-v1-english":    { "supportsTools": false },
+    "groq-canopylabs-orpheus-arabic-saudi":  { "supportsTools": false },
+    "deepseek-reasoner":                 { "supportsTools": false }
+  },
   "debateTiers": {
     "_comment": "Preferred model per backend for multi-provider debate mode. Basic = fast/cheap, Advanced = frontier.",
     "basic": {

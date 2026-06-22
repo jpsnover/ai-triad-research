@@ -414,7 +414,10 @@ export function SearchPanel({ onAnalyze, onSelectResult }: SearchPanelProps) {
       const raw = attrs[mode];
       if (raw == null) return;
       if (Array.isArray(raw)) {
-        if (raw.some((v: unknown) => typeof v === 'string' && v.toLowerCase().includes(normalizedValue))) {
+        if (raw.some((v: unknown) => {
+          const s = typeof v === 'string' ? v : (v as { name?: string })?.name;
+          return typeof s === 'string' && s.toLowerCase().includes(normalizedValue);
+        })) {
           results.push({ id: nodeId, label: nodeLabel, pov });
         }
       } else {

@@ -14,6 +14,7 @@ import { api } from '@bridge';
 import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { loadProvisionalWeights } from '@lib/debate/phaseTransitions';
 import { resolveMultiProviderModels } from '@lib/ai-client/modelRouter';
+import { useTierInfo, isFreeTier } from '../../hooks/useTierInfo';
 
 // Ollama (local quantized models) cannot reliably produce structured JSON for debate pipelines.
 const DEBATE_EXCLUDED_BACKENDS = new Set(['ollama']);
@@ -86,8 +87,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     try { const w = loadProvisionalWeights(); return w.phase_bounds; } catch { /* telemetry — silent by design: missing weights file is expected on first launch */ return null; }
   }, []);
   const [confrontationRounds, setConfrontationRounds] = useState(defaultBounds?.max_confrontation_rounds ?? 2);
-  const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? 4);
-  const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? 2);
+  const [argumentationRounds, setArgumentationRounds] = useState(defaultBounds?.max_argumentation_rounds ?? 2);
+  const [concludingRounds, setConcludingRounds] = useState(defaultBounds?.max_concluding_rounds ?? 1);
   const [evaluatorModel, setEvaluatorModel] = useState('');
   const [multiProvider, setMultiProvider] = useState(false);
   const [modelTier, setModelTier] = useState<'basic' | 'advanced'>('basic');
@@ -97,6 +98,8 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
   const [showModelModal, setShowModelModal] = useState(false);
   const [modalBackend, setModalBackend] = useState<AIBackend>(aiBackend);
   const [hasApiKey, setHasApiKey] = useState<Record<string, boolean>>({});
+  const { tier: tierInfo } = useTierInfo();
+  const freeTier = isFreeTier(tierInfo);
   // Backends usable for multi-provider debates: key present AND authorized for the
   // user's tier (t/772). Single-model flow keeps using hasApiKey (raw key presence).
   const [availableBackends, setAvailableBackends] = useState<Set<string>>(new Set());
@@ -159,10 +162,10 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
     [backendsWithKeys, excludedBackends],
   );
 
-  const activeModel = useCustomModel ? customModel : globalModel;
+  const activeModel = freeTier && tierInfo?.pinnedModel ? tierInfo.pinnedModel : (useCustomModel ? customModel : globalModel);
   const activeModelBackend = backendForModel(activeModel);
   const activeModelExcluded = DEBATE_EXCLUDED_BACKENDS.has(activeModelBackend);
-  const activeModelHasKey = !activeModelExcluded && hasApiKey[activeModelBackend] !== false;
+  const activeModelHasKey = !activeModelExcluded && (hasApiKey[activeModelBackend] !== false || (freeTier && tierInfo!.allowedBackends.includes(activeModelBackend)));
 
   const fallbackWarnings = useMemo(() => {
     const chain = FALLBACK_CHAINS[activeModel] ?? [];
@@ -539,18 +542,20 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
             {!multiProvider && (
               <div className="ndd-model-section">
                 <div className="ndd-model-display">
-                  <span className="ndd-model-badge" title={useCustomModel ? customModel : globalModel}>
+                  <span className="ndd-model-badge" title={activeModel}>
                     {(() => {
-                      const modelId = useCustomModel ? customModel : globalModel;
-                      const entry = availableModels.find(m => m.value === modelId);
-                      return entry ? entry.label : modelId;
+                      const entry = availableModels.find(m => m.value === activeModel);
+                      return entry ? entry.label : activeModel;
                     })()}
                   </span>
-                  {useCustomModel && <span className="ndd-model-override-tag">override</span>}
+                  {useCustomModel && !freeTier && <span className="ndd-model-override-tag">override</span>}
+                  {freeTier && <span className="ndd-model-override-tag" style={{ background: 'var(--info, #3b82f6)', color: '#fff' }}>free</span>}
                   <button
                     className="btn btn-sm ndd-models-btn"
                     onClick={openModelModal}
                     type="button"
+                    disabled={freeTier}
+                    title={freeTier ? 'Model is pinned on the free tier' : undefined}
                   >
                     Models
                   </button>
@@ -567,6 +572,11 @@ export function NewDebateDialog({ onClose }: NewDebateDialogProps) {
                       <>Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>aistudio.google.com/apikey</a>. </>
                     )}
                     Configure in Settings or choose a different model.
+                  </div>
+                )}
+                {freeTier && activeModelHasKey && !hasApiKey[activeModelBackend] && (
+                  <div style={{ color: 'var(--info, #3b82f6)', fontSize: '0.75rem', marginTop: 4 }}>
+                    Free tier &mdash; {tierInfo!.pinnedModel} &middot; {tierInfo!.limits.requestsPerMinute} req/min &middot; {Math.round(tierInfo!.limits.tokensPerDay / 1000)}K tokens/day &middot; {tierInfo!.maxPromptChars?.toLocaleString()} char limit
                   </div>
                 )}
                 {activeModelHasKey && fallbackWarnings.length > 0 && (

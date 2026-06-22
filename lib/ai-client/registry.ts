@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jeffrey Snover. All rights reserved.
 // Licensed under the MIT License. See LICENSE file in the project root.
 
-import type { BackendId } from './types.js';
+import type { BackendId, ModelCapabilities } from './types.js';
 
 export interface ModelEntry {
   id: string;
@@ -17,6 +17,8 @@ export interface ModelRegistry {
   defaults?: Record<string, string>;
   contextWindows?: Record<string, number>;
   debateTiers?: Record<string, Record<string, string>>;
+  capabilityDefaults?: Record<string, Partial<ModelCapabilities>>;
+  modelCapabilities?: Record<string, Partial<ModelCapabilities>>;
 }
 
 export function resolveBackend(model: string): BackendId {
@@ -103,4 +105,42 @@ export function getApiModelId(map: Record<string, string>, friendlyId: string): 
   }
 
   return friendlyId;
+}
+
+const SYSTEM_DEFAULTS: ModelCapabilities = {
+  supportsTools: true,
+  supportsVision: false,
+  supportsStreaming: true,
+  maxContextTokens: 131072,
+};
+
+/**
+ * Resolve capabilities for a model. Merges: system defaults < backend defaults < model overrides.
+ */
+export function getModelCapabilities(registry: ModelRegistry, modelId: string): ModelCapabilities {
+  const entry = registry.models.find(m => m.id === modelId);
+  const backend = entry?.backend ?? resolveBackend(modelId);
+
+  const backendDefaults = registry.capabilityDefaults?.[backend] ?? {};
+  const modelOverrides = registry.modelCapabilities?.[modelId] ?? {};
+
+  return { ...SYSTEM_DEFAULTS, ...backendDefaults, ...modelOverrides };
+}
+
+/**
+ * Filter a list of model IDs to those satisfying required capabilities.
+ * Only checks boolean capabilities that are explicitly set in `required`.
+ */
+export function filterByCapabilities(
+  registry: ModelRegistry,
+  modelIds: string[],
+  required: Partial<Pick<ModelCapabilities, 'supportsTools' | 'supportsVision' | 'supportsStreaming'>>,
+): string[] {
+  return modelIds.filter(id => {
+    const caps = getModelCapabilities(registry, id);
+    if (required.supportsTools && !caps.supportsTools) return false;
+    if (required.supportsVision && !caps.supportsVision) return false;
+    if (required.supportsStreaming && !caps.supportsStreaming) return false;
+    return true;
+  });
 }

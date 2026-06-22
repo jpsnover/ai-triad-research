@@ -8,6 +8,7 @@ import { getGlobalRecorder } from '@lib/flight-recorder/index';
 import { HelpDialog } from '../settings/HelpDialog';
 import { SettingsDialog } from '../settings/SettingsDialog';
 import { useAuthStatus, useUserProfile } from '../../hooks/useAuthStatus';
+import { useTierInfo } from '../../hooks/useTierInfo';
 import { FeedbackPopover } from './FeedbackPopover';
 
 type ToolbarPanel = 'search' | 'related' | 'attrFilter' | 'attrInfo' | 'lineage' | 'prompts' | 'console' | 'fallacy' | 'edges' | 'policyAlignment' | 'policyDashboard' | 'vocabulary' | 'calibration';
@@ -48,6 +49,7 @@ function useAdminReviewCount(): number {
 function ToolbarAuthButton() {
   const auth = useAuthStatus();
   const profile = useUserProfile();
+  const { tier, usage } = useTierInfo();
   const [showPopover, setShowPopover] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const reviewCount = useAdminReviewCount();
@@ -88,6 +90,17 @@ function ToolbarAuthButton() {
           {auth.anonymous ? (
             <>
               <div className="toolbar-auth-anon-banner">Anonymous mode — data is temporary. Sign in to save.</div>
+              {tier?.level === 'free' && (
+                <div className="toolbar-auth-quota" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--info, #3b82f6)' }}>Free Tier</span>
+                  <span>{tier.pinnedModel} &middot; {tier.limits.requestsPerMinute} req/min &middot; {Math.round(tier.limits.tokensPerDay / 1000)}K tokens/day</span>
+                  {usage && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Used: {usage.usage.requestsInWindow} req &middot; {Math.round(usage.usage.tokensToday / 1000)}K tokens today
+                    </span>
+                  )}
+                </div>
+              )}
               <a className="toolbar-more-item" href="/.auth/login/github" style={{ textDecoration: 'none', color: 'inherit' }}
                 onClick={() => setShowPopover(false)}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -114,6 +127,17 @@ function ToolbarAuthButton() {
               {profile?.quotas && (
                 <div className="toolbar-auth-quota">
                   Chats: {profile.quotas.maxChats} max &middot; Debates: {profile.quotas.maxDebates} max
+                </div>
+              )}
+              {tier && (
+                <div className="toolbar-auth-quota">
+                  <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{tier.level} Tier</span>
+                  {' '}&middot; {tier.limits.requestsPerMinute} req/min &middot; {Math.round(tier.limits.tokensPerDay / 1000)}K tokens/day
+                  {usage && (
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                      Used: {usage.usage.requestsInWindow} req &middot; {Math.round(usage.usage.tokensToday / 1000)}K tokens today
+                    </div>
+                  )}
                 </div>
               )}
               <div className="toolbar-auth-divider" />
@@ -354,6 +378,7 @@ export function Toolbar() {
                 </svg>
                 <span>Cruxes</span>
               </button>
+              {isElectronMode() && (
               <button
                 className={`toolbar-more-item${activeTab === 'summaries' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('summaries'); setShowMore(false); }}
@@ -366,6 +391,7 @@ export function Toolbar() {
                 </svg>
                 <span>Summaries</span>
               </button>
+              )}
               <button
                 className={`toolbar-more-item${activeTab === 'validation' && toolbarPanel === null ? ' active' : ''}`}
                 onClick={() => { switchTab('validation'); setShowMore(false); }}

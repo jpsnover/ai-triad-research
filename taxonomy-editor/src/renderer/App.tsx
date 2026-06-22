@@ -2,7 +2,7 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 
 import { useEffect, useState, lazy, Suspense } from 'react';
-import { api } from '@bridge';
+import { api, isElectronMode } from '@bridge';
 import { nodePovFromId } from '@lib/debate/nodeIdUtils';
 import ErrorBoundary from '../../../lib/electron-shared/components/ErrorBoundary';
 import { useTaxonomyStore, initAIModels } from './hooks/useTaxonomyStore';
@@ -619,7 +619,7 @@ function MainApp() {
             {activeTab === 'conflicts' && <ConflictsTab />}
             {activeTab === 'cruxes' && <CruxesTab />}
             {activeTab === 'debate' && <DebateTab />}
-            {activeTab === 'summaries' && <SummariesTab />}
+            {activeTab === 'summaries' && isElectronMode() && <SummariesTab />}
             {activeTab === 'validation' && <ValidationTab />}
           </Suspense>
         </div>

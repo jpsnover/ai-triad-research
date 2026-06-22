@@ -1,0 +1,18 @@
+{
+  "name": "response-safetyist",
+  "description": "Safetyist cross-examination response includes disagreement type and taxonomy refs",
+  "category": "response",
+  "mock_response": "{\"statement\":\"The accelerationist framing conflates speed with progress, but moving fast without adequate safeguards is not progress—it is recklessness. The historical analogies to electricity and antibiotics are misleading: those technologies did not possess the capacity for autonomous decision-making or recursive self-improvement.\\n\\nThe empirical evidence on AI alignment failures is growing. Multiple documented cases show language models producing harmful outputs despite extensive RLHF training. We are building systems whose failure modes we cannot fully characterize, and deploying them at scale before we understand their behavior.\\n\\nAdaptive governance sounds appealing in theory, but in practice it means discovering harms only after they affect real people. The precautionary principle exists precisely because some risks are irreversible.\",\"turn_symbols\":[{\"symbol\":\"🛡️\",\"tooltip\":\"Safety is like a seatbelt—nobody complains about wearing it after a crash. But can we afford to crash first with AI?\"}],\"taxonomy_refs\":[{\"node_id\":\"saf-beliefs-003\",\"relevance\":\"Empirical evidence of alignment failures supports cautious deployment\"},{\"node_id\":\"saf-desires-001\",\"relevance\":\"Desire to prevent irreversible harm aligns with precautionary approach\"}],\"my_claims\":[{\"claim\":\"Historical tech analogies fail because AI has autonomous decision capacity\",\"targets\":[\"AN-2\"]},{\"claim\":\"Adaptive governance discovers harms only after deployment\",\"targets\":[\"AN-5\"]}],\"policy_refs\":[{\"policy_id\":\"pol-007\",\"relevance\":\"Supports mandatory pre-deployment safety testing requirements\"}],\"disagreement_type\":\"EMPIRICAL\"}",
+  "checks": [
+    { "type": "json_valid" },
+    { "type": "has_fields", "fields": ["statement", "turn_symbols", "taxonomy_refs", "my_claims", "disagreement_type"] },
+    { "type": "field_type", "field": "statement", "expected": "string" },
+    { "type": "min_length", "field": "statement", "min": 100 },
+    { "type": "matches", "field": "disagreement_type", "pattern": "^(EMPIRICAL|VALUES|DEFINITIONAL)$" },
+    { "type": "array_min_length", "field": "taxonomy_refs", "min": 1 },
+    { "type": "array_items_have", "field": "taxonomy_refs", "required_fields": ["node_id", "relevance"] },
+    { "type": "matches", "field": "taxonomy_refs.0.node_id", "pattern": "^saf-" },
+    { "type": "array_min_length", "field": "my_claims", "min": 1 },
+    { "type": "array_items_have", "field": "my_claims", "required_fields": ["claim", "targets"] }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "response-with-claim-targets",
+  "description": "Cross-exam response correctly targets specific argument network nodes in claims",
+  "category": "response",
+  "mock_response": "{\"statement\":\"The skeptic's appeal to existing regulatory tools overlooks a fundamental asymmetry: traditional product liability requires identifiable harm, identifiable cause, and identifiable defendant. AI systems that operate as black boxes across organizational boundaries break all three assumptions simultaneously.\\n\\nMoreover, the claim that unilateral regulation creates competitive disadvantage assumes a race-to-the-bottom dynamic. The EU's GDPR experience demonstrates the opposite—strong regulation can set global standards that competitors adopt voluntarily. The Brussels Effect is real and measurable.\\n\\nWe need proactive safety standards, not reactive tort law adapted from the industrial era.\",\"turn_symbols\":[{\"symbol\":\"🔬\",\"tooltip\":\"Regulation is like a microscope—existing lenses can magnify, but AI's complexity needs new optics entirely. But is the specimen even on the slide?\"}],\"taxonomy_refs\":[{\"node_id\":\"saf-intentions-002\",\"relevance\":\"Intention to establish proactive safety standards before deployment\"},{\"node_id\":\"saf-beliefs-007\",\"relevance\":\"Belief that AI opacity breaks traditional liability frameworks\"}],\"my_claims\":[{\"claim\":\"Traditional product liability fails for black-box AI systems\",\"targets\":[\"AN-8\"]},{\"claim\":\"GDPR shows strong regulation sets global standards via Brussels Effect\",\"targets\":[\"AN-6\",\"AN-12\"]},{\"claim\":\"Proactive safety standards are needed over reactive tort adaptation\",\"targets\":[\"AN-8\",\"AN-15\"]}],\"policy_refs\":[{\"policy_id\":\"pol-007\",\"relevance\":\"Supports mandatory pre-deployment safety testing as proactive standard\"}],\"disagreement_type\":\"EMPIRICAL\"}",
+  "checks": [
+    { "type": "json_valid" },
+    { "type": "has_fields", "fields": ["statement", "taxonomy_refs", "my_claims", "disagreement_type"] },
+    { "type": "field_type", "field": "my_claims", "expected": "array" },
+    { "type": "array_min_length", "field": "my_claims", "min": 2 },
+    { "type": "array_items_have", "field": "my_claims", "required_fields": ["claim", "targets"] },
+    { "type": "not_empty", "field": "my_claims.0.targets" },
+    { "type": "matches", "field": "my_claims.0.targets.0", "pattern": "^AN-\\d+" },
+    { "type": "matches", "field": "my_claims.1.targets.0", "pattern": "^AN-\\d+" },
+    { "type": "array_items_have", "field": "taxonomy_refs", "required_fields": ["node_id", "relevance"] },
+    { "type": "matches", "field": "taxonomy_refs.0.node_id", "pattern": "^(acc|saf|skp|cc)-" }
+  ]
+}

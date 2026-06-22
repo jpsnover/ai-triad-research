@@ -55,4 +55,11 @@ export interface RetryProgress {
 
 export type BackendId = 'gemini' | 'claude' | 'groq' | 'openai' | 'ollama' | 'deepseek';
 
+export interface ModelCapabilities {
+  supportsTools: boolean;
+  supportsVision: boolean;
+  supportsStreaming: boolean;
+  maxContextTokens: number;
+}
+
 export type FetchFn = typeof globalThis.fetch;

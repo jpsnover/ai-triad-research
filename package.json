@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "debate": "tsx lib/debate/cli.ts"
+    "debate": "tsx lib/debate/cli.ts",
+    "evals": "node evals/run.mjs"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

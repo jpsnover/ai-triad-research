@@ -1,0 +1,18 @@
+{
+  "name": "opening-audience-policymaker",
+  "description": "Opening statement targeting policymaker audience includes quotable framing and policy refs",
+  "category": "opening",
+  "mock_response": "{\"statement\":\"Artificial intelligence regulation stands at a crossroads. The question before policymakers is not whether to govern AI, but how to govern it without strangling the innovation that makes governance worthwhile.\\n\\nThree facts should anchor this debate. First, AI systems are already making consequential decisions in healthcare, finance, and criminal justice—governance gaps are not hypothetical. Second, the pace of capability advancement is outstripping the pace of institutional adaptation. Third, international coordination failures mean that unilateral action by any single jurisdiction creates competitive disadvantage without commensurate safety gains.\\n\\nThe skeptic's position is that we need evidence-based, incremental regulation—not sweeping frameworks built on speculative risk scenarios. Existing regulatory tools (antitrust, product liability, sector-specific oversight) can be adapted faster and more effectively than novel AI-specific legislation.\",\"turn_symbols\":[{\"symbol\":\"⚖️\",\"tooltip\":\"Regulation is like a thermostat—too sensitive and it oscillates wildly, too insensitive and the house burns down. But who sets the temperature?\"}],\"taxonomy_refs\":[{\"node_id\":\"skp-beliefs-001\",\"relevance\":\"Evidence-based assessment shows existing regulatory tools are adaptable\"},{\"node_id\":\"skp-desires-003\",\"relevance\":\"Desire for incremental, evidence-driven policy over speculative frameworks\"}],\"my_claims\":[{\"claim\":\"AI governance gaps are already concrete, not hypothetical\",\"targets\":[]},{\"claim\":\"Unilateral regulation creates competitive disadvantage without safety gains\",\"targets\":[]},{\"claim\":\"Existing regulatory tools can be adapted faster than novel AI legislation\",\"targets\":[]}],\"policy_refs\":[{\"policy_id\":\"pol-012\",\"relevance\":\"Supports adapting existing antitrust and product liability frameworks to AI\"},{\"policy_id\":\"pol-003\",\"relevance\":\"Favors adaptive governance mechanisms over static regulatory frameworks\"}],\"key_assumptions\":[{\"assumption\":\"Existing regulatory frameworks are flexible enough to cover AI-specific harms\",\"if_wrong\":\"Novel AI-specific legislation becomes necessary despite implementation costs\"}]}",
+  "checks": [
+    { "type": "json_valid" },
+    { "type": "has_fields", "fields": ["statement", "taxonomy_refs", "my_claims", "policy_refs", "key_assumptions"] },
+    { "type": "min_length", "field": "statement", "min": 200 },
+    { "type": "field_type", "field": "policy_refs", "expected": "array" },
+    { "type": "array_min_length", "field": "policy_refs", "min": 1 },
+    { "type": "array_items_have", "field": "policy_refs", "required_fields": ["policy_id", "relevance"] },
+    { "type": "matches", "field": "policy_refs.0.policy_id", "pattern": "^pol-\\d+" },
+    { "type": "contains", "field": "statement", "substring": "policymaker" },
+    { "type": "array_min_length", "field": "my_claims", "min": 2 },
+    { "type": "array_items_have", "field": "key_assumptions", "required_fields": ["assumption", "if_wrong"] }
+  ]
+}
