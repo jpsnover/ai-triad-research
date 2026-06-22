@@ -136,7 +136,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       [shuffledOrder[i], shuffledOrder[j]] = [shuffledOrder[j], shuffledOrder[i]];
     }
     set({ activeDebateId: id, activeDebate: session, debateModel: debateModel || null, debateTemperature: debateTemperature ?? null, openingOrder: shuffledOrder });
-    void api.setDebateTemperature(debateTemperature ?? null);
+    api.setDebateTemperature(debateTemperature ?? null).catch((err: unknown) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'setDebateTemperature failed (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
     await get().loadSessions();
     getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
     getGlobalRecorder()?.record({ type: 'lifecycle', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate created', data: { topic: title, povers, protocol: protocolId, model: debateModel } });
@@ -288,7 +288,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
       usePromptConfigStore.getState().loadSessionConfig(
         (session as Record<string, unknown>).prompt_config as Record<string, number | boolean | string> | undefined
       );
-      void api.setDebateTemperature(session.debate_temperature ?? null);
+      api.setDebateTemperature(session.debate_temperature ?? null).catch((err: unknown) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'setDebateTemperature failed (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
       try { api.sendDiagnosticsState({ debate: session, selectedEntry: null }); } catch (e) { getGlobalRecorder()?.record({ type: 'system.error', debate_id: id, component: 'debate-store', level: 'warn', message: 'Diagnostics broadcast to popout failed (loadDebate)', error: { name: (e as Error).name ?? 'Error', message: String(e), stack: (e as Error).stack } }); }
       getGlobalRecorder()?.setEventContext({ debate_id: id, run_id: runId });
       getGlobalRecorder()?.record({ type: 'state.load', component: 'debate-store', level: 'info', debate_id: id, run_id: runId, message: 'Debate loaded', data: { phase: session.phase, transcript_length: session.transcript.length, an_nodes: (session as Record<string, unknown>).argument_network ? ((session as Record<string, unknown>).argument_network as { nodes?: unknown[] }).nodes?.length ?? 0 : 0 } });
@@ -428,7 +428,7 @@ export const createSessionSlice: StateCreator<DebateStore, [], [], SessionSlice>
   closeDebate: () => {
     const closingId = get().activeDebateId;
     set({ activeDebateId: null, activeDebate: null, debateError: null, debateWarnings: [], debateGenerating: null, debateModel: null, debateTemperature: null, vocabularyTerms: null });
-    void api.setDebateTemperature(null);
+    api.setDebateTemperature(null).catch((err: unknown) => { getGlobalRecorder()?.record({ type: 'system.error', component: 'debate-store', level: 'warn', message: 'setDebateTemperature failed (non-critical)', error: { name: (err as Error).name ?? 'Error', message: String(err), stack: (err as Error).stack } }); });
     usePromptConfigStore.getState().resetSession();
     getGlobalRecorder()?.setEventContext({ debate_id: undefined, run_id: undefined, phase: undefined, round: undefined, turn_index: undefined, speaker: undefined });
     if (closingId) {
