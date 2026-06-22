@@ -8,7 +8,7 @@ import { log } from './logger.js';
 
 // ── Types ──
 
-export type TierLevel = 'platform' | 'byok' | 'anonymous';
+export type TierLevel = 'platform' | 'byok' | 'anonymous' | 'free';
 
 export interface TierLimits {
   requestsPerMinute: number;
@@ -19,6 +19,13 @@ export interface ResolvedTier {
   level: TierLevel;
   limits: TierLimits;
   allowedBackends: string[];
+  /**
+   * Free tier (t/793): the server injects FREE_TIER_GEMINI_KEY, the model is
+   * pinned, and prompts are capped. Absent/undefined for all other tiers.
+   */
+  serverProvidedKey?: boolean;
+  pinnedModel?: string;
+  maxPromptChars?: number;
 }
 
 interface TierDefaults {
@@ -104,10 +111,32 @@ export function isBackendAllowed(tier: ResolvedTier, backend: string): boolean {
   return tier.allowedBackends.includes(backend);
 }
 
+// Free tier (t/793): keyless web users get limited Gemini access via a
+// server-provided key — but only when FREE_TIER_GEMINI_KEY is configured (set by
+// the deployment, t/795). Without it, keyless users stay 'anonymous' (no AI), so
+// this is inert until deliberately deployed. Pinned to a cheap model with tight
+// per-IP limits to bound cost/abuse.
+const FREE_TIER: ResolvedTier = {
+  level: 'free',
+  limits: { requestsPerMinute: 6, tokensPerDay: 50_000 },
+  allowedBackends: ['gemini'],
+  serverProvidedKey: true,
+  pinnedModel: 'gemini-flash-lite-latest',
+  maxPromptChars: 4000,
+};
+
+/** Whether the server-provided free tier is configured (FREE_TIER_GEMINI_KEY set). */
+export function freeTierEnabled(): boolean {
+  return !!process.env.FREE_TIER_GEMINI_KEY;
+}
+
 export function resolveTier(principalName: string, idp: string): ResolvedTier {
   const config = getConfig();
 
   if (!principalName || principalName === '_local') {
+    // Keyless web users (no principal) get the free tier when it's configured;
+    // local single-user (_local) and the no-key fallback stay 'anonymous'.
+    if (!principalName && freeTierEnabled()) return { ...FREE_TIER };
     const d = config.defaults.anonymous;
     return { level: 'anonymous', limits: { requestsPerMinute: d.requestsPerMinute, tokensPerDay: d.tokensPerDay }, allowedBackends: d.allowedBackends };
   }

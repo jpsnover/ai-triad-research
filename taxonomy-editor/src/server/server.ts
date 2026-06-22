@@ -887,30 +887,48 @@ post('/api/ai/generate', async (req, res, body) => {
     const principalName = (req.headers['x-ms-client-principal-name'] as string) || '';
     const idp = (req.headers['x-ms-client-principal-idp'] as string) || '';
     const tier = proxyTiers.resolveTier(principalName, idp);
-    const userId = principalName || '_anonymous';
+    const isFree = tier.level === 'free';
+    // Free tier (t/793): keyed per-IP (all keyless users would otherwise share
+    // one bucket), with the model pinned and prompts capped. Other tiers key by
+    // user and honour the requested model.
+    const limitKey = isFree ? `free:${getClientIp(req)}` : (principalName || '_anonymous');
+    const effectiveModel = isFree ? (tier.pinnedModel ?? model) : model;
+
+    if (isFree && tier.maxPromptChars && (prompt?.length ?? 0) > tier.maxPromptChars) {
+      res.writeHead(400); res.end(JSON.stringify({ error: `Prompt too long for the free tier (max ${tier.maxPromptChars} characters)`, limitType: 'max_prompt_chars' })); return;
+    }
 
     // Check backend is allowed
-    const backend = ai.resolveBackend(model || DEFAULT_MODEL);
-    if (!tier.allowedBackends.includes(backend)) {
+    const backend = ai.resolveBackend(effectiveModel || DEFAULT_MODEL);
+    if (!proxyTiers.isBackendAllowed(tier, backend)) {
       res.writeHead(403); res.end(JSON.stringify({ error: `Backend '${backend}' not available on your tier` })); return;
     }
 
-    // Rate limiting
-    const rpmCheck = rateLimiter.checkRequestRate(userId, tier.limits.requestsPerMinute);
+    // Rate limiting (per-IP sliding window for the free tier)
+    const rpmCheck = isFree
+      ? rateLimiter.checkRate(limitKey, tier.limits.requestsPerMinute, 60_000)
+      : rateLimiter.checkRequestRate(limitKey, tier.limits.requestsPerMinute);
     if (!rpmCheck.allowed) {
       res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit exceeded', limitType: 'requests_per_minute', retryAfterMs: rpmCheck.retryAfterMs, limit: rpmCheck.limit, current: rpmCheck.current })); return;
     }
-    const tokenCheck = rateLimiter.checkTokenLimit(userId, tier.limits.tokensPerDay);
+    const tokenCheck = rateLimiter.checkTokenLimit(limitKey, tier.limits.tokensPerDay);
     if (!tokenCheck.allowed) {
       res.writeHead(429); res.end(JSON.stringify({ error: 'Daily token limit exceeded', limitType: 'tokens_per_day', limit: tokenCheck.limit, current: tokenCheck.current })); return;
     }
 
-    // Key injection: platform users get server-side keys, BYOK users provide their own
-    const explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
-    const result = await ai.generateText(prompt, model, undefined, timeout, explicitKey);
+    // Key injection: free tier uses the server's FREE_TIER_GEMINI_KEY; platform
+    // users get server-side keys; BYOK users provide their own.
+    let explicitKey: string | undefined;
+    if (tier.serverProvidedKey) {
+      explicitKey = process.env.FREE_TIER_GEMINI_KEY;
+      if (!explicitKey) { res.writeHead(503); res.end(JSON.stringify({ error: 'Free tier is not available' })); return; }
+    } else {
+      explicitKey = tier.level === 'platform' ? undefined : (clientKey || undefined);
+    }
+    const result = await ai.generateText(prompt, effectiveModel, undefined, timeout, explicitKey);
 
     if (result.tokenUsage) {
-      rateLimiter.recordTokenUsage(userId, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens);
+      rateLimiter.recordTokenUsage(limitKey, result.tokenUsage.inputTokens, result.tokenUsage.outputTokens);
     }
 
     json(res, { text: result.text, tokenUsage: result.tokenUsage });
@@ -3277,7 +3295,11 @@ async function handleRequestInner(
   // Anonymous route guard: in AUTH_OPTIONAL mode, block AI + write routes
   if (authOptional && !principalName && !isPublicPath) {
     const method = req.method || 'GET';
-    if (!isAnonAllowedRoute(method, urlPath)) {
+    // Free tier (t/793): when configured, keyless users may reach AI generation;
+    // the handler enforces the free-tier model pin, per-IP limits, and key. Inert
+    // until FREE_TIER_GEMINI_KEY is set, so the AI block otherwise stands.
+    const freeTierGenerate = method === 'POST' && urlPath === '/api/ai/generate' && proxyTiers.freeTierEnabled();
+    if (!freeTierGenerate && !isAnonAllowedRoute(method, urlPath)) {
       recordAuthDenied('anon_route_blocked', method, urlPath);
       res.writeHead(403, { 'Content-Type': 'application/json', 'X-Auth-Reason': 'anon_route_blocked' });
       res.end(JSON.stringify({ error: 'Sign in required', reason: 'anon_route_blocked', detail: 'AI features and editing require authentication. Sign in at /.auth/login/github to unlock full access.' }));
